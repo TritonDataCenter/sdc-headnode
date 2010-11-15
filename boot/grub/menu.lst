@@ -1,0 +1,7 @@
+# default menu entry to boot
+default 0
+timeout 1
+
+title Solaris
+    kernel /platform/i86pc/kernel/amd64/unix -B headnode=true
+    module /platform/i86pc/amd64/boot_archive

@@ -1,0 +1,49 @@
+How the USB headnode currently works:
+-------------------------------------
+
+GRUB is sitting in the floppy boot sector of the USB stick. It loads, looks at /boot/grub/menu.lst, which contains a pointer to /platform/...
+
+Once booted, the 'joyinit' service calls a script (/lib/svc/method/svc-joyinit) which will call the uragent, but needs to be manually modified (in the live image's boot_archive) to call /sbin/firstboot. firstboot checks if the kernel was passed "headnode=true" and if so calls /sbin/headnode. If not, it calls /sbin/joysetup. headnode sets up filesystems, creates zones, mounts the USB stick, etc. joysetup only creates zpools. In this repo they are .sh files. They need to be copied to the boot_archive's /sbin directory with no extension ( so for example joyinit.sh becomes /sbin/joyinit )
+
+The USB stick is only mounted if it contains /.joyliveusb this is to prevent a second USB key or a CDROM from being mounted at /mnt
+
+The zones are defined by zones/config/${zonename} , and needs to have a zones/fs/${zonename}.tar.bz as an overlay of the filesystem. it contains /etc/hosts to define the name ( so that the network service can bring up the interface ) as well as anything else that needs to be in the zone ( for example ISC-DHCPD )
+
+Directory structure
+-------------------
+
+/.joyliveusb
+/bare.zfs.bz2
+/boot
+/boot/grub
+/boot/grub/stage2
+/boot/grub/menu.lst
+/config
+/platform
+/platform/i86pc
+/platform/i86pc/amd64
+/platform/i86pc/amd64/boot_archive
+/platform/i86pc/kernel
+/platform/i86pc/kernel/amd64
+/platform/i86pc/kernel/amd64/unix
+/zones
+/zones/config
+/zones/config/${zone name}
+/zones/fs
+/zones/fs/${zone name}.tar.bz2
+
+
+Notes:
+-----
+
+GRUB needs to currently be installed via Linux. Once the USB stick is bootable via grub copy the platform directory to the root of the USB stick.
+
+boot/grub/menu.lst belongs to the headnode, so it passes -B headnode=true to the headnode. 
+
+The DHCP zone's tarball contains a /tftpboot directory that contains pxegrub and boot/grub/menu.lst. platform is mounted from the USB key by zones (zones/config/dhcp contains a 'fs' definition that mounts /mnt/platform to /tftpboot/platform )
+
+the dhcp.tar.bz2 file is on assets.joyent.us
+
+the root level 'config' file sets the network interface. In the future it'll set more things.
+
+bare.zfs.bz2 comes from https://guest:GrojhykMid@coal.joyent.us/coal/templates/bare-1.1.6.zfs.gz . There's a bug in gzcat so you'll need to manually gunzip & then bzip2
