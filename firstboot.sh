@@ -9,5 +9,5 @@ else
     /sbin/joysetup
 fi;
 
-return $?
+exit $?
 
