@@ -16,7 +16,7 @@ for key in $USBKEYS; do
     fi
 done 
 
-ADMINNIC=`grep -v \# /mnt/config | cut -d ' ' -f 0`
+. /mnt/config
 
 # check if we've imported a zpool
 POOLS=`zpool list`
@@ -42,17 +42,17 @@ done
 for zone in `ls /mnt/zones/config`; do
     if [[ ! `echo $ZONES | grep $zone ` ]]; then
         echo "creating zone $zone" >/dev/console
-        dladm create-vnic -l $ADMINNIC vnic${NEXTVNIC}
+        dladm create-vnic -l $admin_nic vnic${NEXTVNIC}
         zonecfg -z ${zone} -f /mnt/zones/config/${zone}
         zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zoneadm -z ${zone} install -t $LATESTTEMPLATE
         #bzcat /mnt/zones/fs/${zone}.zfs.bz2 | zfs recv -e zones 
         #zoneadm -z ${zone} attach
-        (cd /zones/${zone}/root; bzcat /mnt/zones/fs/${zone}.tar.bz2 | tar -xf - )
+        (cd /zones/${zone}; bzcat /mnt/zones/fs/${zone}.tar.bz2 | tar -xf - )
         echo $zone > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
     else
-        dladm create-vnic -l $ADMINNIC vnic${NEXTVNIC};
+        dladm create-vnic -l $admin_nic vnic${NEXTVNIC};
     fi
     NEXTVNIC=$(($NEXTVNIC + 1))
     zoneadm -z ${zone} boot
