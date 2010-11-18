@@ -89,4 +89,8 @@ POOLS=`zpool list`
 if [[ $POOLS == "no pools available" ]]; then
     create_zpool
     setup_datasets
+    /usr/bin/bootparams | grep "headnode=true"
+    if [[ $? != 0 ]]; then
+        reboot
+    fi
 fi
