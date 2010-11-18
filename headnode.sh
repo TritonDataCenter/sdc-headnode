@@ -16,7 +16,9 @@ for key in $USBKEYS; do
     fi
 done 
 
-. /mnt/config
+admin_nic=`/usr/bin/bootparams | grep "admin_nic" | cut -f2 -d'='`
+admin_ip=`/usr/bin/bootparams | grep "admin_ip" | cut -f2 -d'='`
+admin_netmask=`/usr/bin/bootparams | grep "admin_netmask" | cut -f2 -d'='`
 
 # check if we've imported a zpool
 POOLS=`zpool list`
@@ -42,7 +44,12 @@ done
 for zone in `ls /mnt/zones/config`; do
     if [[ ! `echo $ZONES | grep $zone ` ]]; then
         echo "creating zone $zone" >/dev/console
-        dladm create-vnic -l $admin_nic vnic${NEXTVNIC}
+        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
+            if [[ $mac == $admin_nic ]]; then
+                dladm create-vnic -l $iface vnic${NEXTVNIC}
+                break
+            fi
+        done
         zonecfg -z ${zone} -f /mnt/zones/config/${zone}
         zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zoneadm -z ${zone} install -t $LATESTTEMPLATE
@@ -52,7 +59,12 @@ for zone in `ls /mnt/zones/config`; do
         echo $zone > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
     else
-        dladm create-vnic -l $admin_nic vnic${NEXTVNIC};
+        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
+            if [[ $mac == $admin_nic ]]; then
+                dladm create-vnic -l $iface vnic${NEXTVNIC}
+                break
+            fi
+        done
     fi
     NEXTVNIC=$(($NEXTVNIC + 1))
     zoneadm -z ${zone} boot
