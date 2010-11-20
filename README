@@ -47,3 +47,6 @@ the dhcp.tar.bz2 file is on assets.joyent.us
 the root level 'config' file sets the network interface. In the future it'll set more things.
 
 bare.zfs.bz2 comes from https://guest:GrojhykMid@coal.joyent.us/coal/templates/bare-1.1.6.zfs.gz . There's a bug in gzcat so you'll need to manually gunzip & then bzip2
+
+all the .sh scripts are moved to /sbin and the .sh part of the filename is removed
+

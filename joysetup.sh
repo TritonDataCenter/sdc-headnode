@@ -20,7 +20,19 @@ fatal()
 #
 create_zpool()
 {
-	disks=`/usr/bin/disklist -n`
+    disks=''
+	
+    /usr/bin/bootparams | grep "headnode=true"
+    if [[ $? == 0 ]]; then
+        for disk in `/usr/bin/disklist -n`; do
+            grep $disk /etc/mnttab
+            if [[ $? == 1 ]]; then
+                disks=$disks" "$disk
+            fi
+        done
+    else
+        disks=`/usr/bin/disklist -n`
+    fi
 
 	# XXX what if no disks found?
 
