@@ -7,3 +7,4 @@ coal=true
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
 initial_script=/mnt/scripts/headnode.sh
+rabbitmq=ur:ahY8sies:10.99.99.8:5672
