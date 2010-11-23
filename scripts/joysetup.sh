@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
 
 PATH=/usr/bin:/usr/sbin
 export PATH
@@ -25,6 +28,7 @@ create_zpool()
     /usr/bin/bootparams | grep "headnode=true"
     if [[ $? == 0 ]]; then
         for disk in `/usr/bin/disklist -n`; do
+            # Only include disks that aren't mounted (so we skip USB Key)
             grep $disk /etc/mnttab
             if [[ $? == 1 ]]; then
                 disks=$disks" "$disk
@@ -34,13 +38,18 @@ create_zpool()
         disks=`/usr/bin/disklist -n`
     fi
 
-	# XXX what if no disks found?
+    disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
 
-	# XXX if more than one disk, create a raidz zpool
-	# zpool create $ZPOOL raidz $disks
-
-	# create a zpool with a single disk
-	zpool create $ZPOOL $disks
+    if [ ${disk_count} -lt 1 ]; then
+	    # XXX what if no disks found?
+        fatal "no disks found, can't create zpool"
+    elif [ ${disk_count} -eq 1 ]; then
+	    # create a zpool with a single disk
+	    zpool create $ZPOOL $disks
+    else
+	    # if more than one disk, create a raidz zpool
+	    zpool create $ZPOOL raidz $disks
+    fi
 
 	[ $? != 0 ] && fatal "creating the zpool"
 }
@@ -94,7 +103,6 @@ setup_datasets()
 	find . -print | cpio -pdm /$VARDS
 	[ $? != 0 ] && fatal "initializing the var directory"
 	zfs set mountpoint=legacy $VARDS
-	 
 }
 
 POOLS=`zpool list`

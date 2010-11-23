@@ -1,13 +1,13 @@
 How the USB headnode currently works:
 -------------------------------------
 
-GRUB is sitting in the floppy boot sector of the USB stick. It loads, looks at /boot/grub/menu.lst, which contains a pointer to /platform/...
+GRUB is sitting in the boot sector of the USB stick. It loads, looks at /boot/grub/menu.lst, which contains a pointer to /platform/...
 
-Once booted, the 'joyinit' service calls a script (/lib/svc/method/svc-joyinit) which will call the uragent, but needs to be manually modified (in the live image's boot_archive) to call /sbin/firstboot. firstboot checks if the kernel was passed "headnode=true" and if so calls /sbin/headnode. If not, it calls /sbin/joysetup. headnode sets up filesystems, creates zones, mounts the USB stick, etc. joysetup only creates zpools. In this repo they are .sh files. They need to be copied to the boot_archive's /sbin directory with no extension ( so for example joyinit.sh becomes /sbin/joyinit )
+Once booted, the 'joyinit' service calls a script (/lib/svc/method/svc-joyinit) which will call the ur-agent.  The svc-joyinit script will see that headnode=true is set in the boot parameters but there are no zpools and will pass through a INITIAL_SCRIPT="/mnt/scripts/headnode.sh" environment variable to the ur-agent.  The ur-agent will then execute this script as though it had received it from rabbitmq and then restart itself (the joyinit service).  Assuming all the zones were created correctly this restart should allow the ur-agent to connect to rabbitmq.
 
-The USB stick is only mounted if it contains /.joyliveusb this is to prevent a second USB key or a CDROM from being mounted at /mnt
+The USB stick is only mounted if it contains /.joyliveusb this is to prevent a second USB key or a CDROM from being mounted at /mnt.
 
-The zones are defined by zones/config/${zonename} , and needs to have a zones/fs/${zonename}.tar.bz as an overlay of the filesystem. it contains /etc/hosts to define the name ( so that the network service can bring up the interface ) as well as anything else that needs to be in the zone ( for example ISC-DHCPD )
+The zones are defined by zones/config/${zonename} , and need to have a corresponding zones/fs/${zonename}.tar.bz as an overlay of the filesystem. it contains /etc/hosts to define the name ( so that the network service can bring up the interface ) as well as anything else that needs to be in the zone ( for example ISC-DHCPD )
 
 Directory structure
 -------------------
@@ -42,11 +42,9 @@ boot/grub/menu.lst belongs to the headnode, so it passes -B headnode=true to the
 
 The DHCP zone's tarball contains a /tftpboot directory that contains pxegrub and boot/grub/menu.lst. platform is mounted from the USB key by zones (zones/config/dhcp contains a 'fs' definition that mounts /mnt/platform to /tftpboot/platform )
 
-the dhcp.tar.bz2 file is on assets.joyent.us
+The dhcp.tar.bz2 file is on assets.joyent.us
 
-the root level 'config' file sets the network interface. In the future it'll set more things.
+The root level 'config' file sets the network interface.  See the https://hub.joyent.com/wiki/display/dev/Live+Image page in the wiki for more information on configuration options.
 
 bare.zfs.bz2 comes from https://guest:GrojhykMid@coal.joyent.us/coal/templates/bare-1.1.6.zfs.gz . There's a bug in gzcat so you'll need to manually gunzip & then bzip2
-
-all the .sh scripts are moved to /sbin and the .sh part of the filename is removed
 

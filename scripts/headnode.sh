@@ -1,51 +1,23 @@
 #!/usr/bin/bash
-# Copyright (c) Joyent Inc
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
 
-# First thing to do is to mount the USB key / vmware disk
-USBKEYS=`/usr/bin/disklist -r`
-for key in $USBKEYS; do
-    if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
-        /usr/sbin/mount -F pcfs /dev/dsk/${key}p0:1 /mnt;
-        if [[ $? == 0 ]]; then
-            if [[ ! -f /mnt/.joyliveusb ]]; then
-                /usr/sbin/umount /mnt;
-            else
-                break;
-            fi
-        fi
-    fi
-done
+. /lib/svc/share/joyent_include.sh
 
-if [[ ! -f /mnt/.joyliveusb ]]; then
-    # we're probably vmware
-    for disk in `/usr/bin/disklist -a`; do
-        if [[ `/usr/sbin/fstyp /dev/dsk/${disk}p1` == 'pcfs' ]]; then
-            /usr/sbin/mount -F pcfs /dev/dsk/${disk}p1 /mnt;
-            if [[ $? == 0 ]]; then
-                if [[ ! -f /mnt/.joyliveusb ]]; then
-                    /usr/sbin/umount /mnt;
-                else
-                    break;
-                fi
-            fi
-        fi
-    done  
-fi
-
-if [[ ! -f /mnt/.joyliveusb ]]; then
-    echo "Cannot find USB key" >/dev/console
+# All the files come from USB, so we need that mounted.
+if !mount_usb ; then
+    echo "FATAL: Cannot find USB key." >/dev/console
     exit 1;
 fi
 
 admin_nic=`/usr/bin/bootparams | grep "admin_nic" | cut -f2 -d'='`
-admin_ip=`/usr/bin/bootparams | grep "admin_ip" | cut -f2 -d'='`
-admin_netmask=`/usr/bin/bootparams | grep "admin_netmask" | cut -f2 -d'='`
 
 # check if we've imported a zpool
 POOLS=`zpool list`
 
 if [[ $POOLS == "no pools available" ]]; then
-    /sbin/joysetup || exit 1
+    /mnt/scripts/joysetup.sh || exit 1
     echo "Importing zone template dataset" >/dev/console
     bzcat /mnt/bare.zfs.bz2 | zfs recv -e zones || exit 1;
     reboot

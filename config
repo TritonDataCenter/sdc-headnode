@@ -1,2 +1,9 @@
-# admin_iface
-e1000g0
+#
+# This file must be source-able by bash.
+#
+# Test with: (source ./config ; echo ${admin_ip})
+#
+coal=true
+admin_ip=10.99.99.7
+admin_netmask=255.255.255.0
+initial_script=/mnt/scripts/headnode.sh
