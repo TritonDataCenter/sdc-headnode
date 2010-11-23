@@ -2,6 +2,12 @@
 #
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
+# Exit codes:
+#
+# 0 - success
+# 1 - error
+# 2 - rebooting (don't bother doing anything)
+#
 
 . /lib/svc/share/joyent_include.sh
 
@@ -21,6 +27,7 @@ if [[ $POOLS == "no pools available" ]]; then
     echo "Importing zone template dataset" >/dev/console
     bzcat /mnt/bare.zfs.bz2 | zfs recv -e zones || exit 1;
     reboot
+    exit 2
 fi
 
 # Now the infrastructure zones
@@ -62,3 +69,5 @@ for zone in `ls /mnt/zones/config`; do
     NEXTVNIC=$(($NEXTVNIC + 1))
     zoneadm -z ${zone} boot
 done
+
+exit 0
