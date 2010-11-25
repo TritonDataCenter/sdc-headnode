@@ -51,7 +51,7 @@ create_zpool()
         zpool create $ZPOOL raidz $disks
     fi
 
-    [ $? != 0 ] && fatal "failed to create the zpool"
+    [ $? -ne 0 ] && fatal "failed to create the zpool"
 }
 
 #
@@ -73,7 +73,7 @@ create_dump()
 
     # Create the dump zvol
     zfs create -V ${base_size}mb $ZPOOL/dump
-    [ $? != 0 ] && fatal "failed to create the dump zvol"
+    [ $? -ne 0 ] && fatal "failed to create the dump zvol"
 }
 
 #
@@ -85,26 +85,26 @@ setup_datasets()
     create_dump
     echo "done." >>/dev/console
 
-    echo "Initializing config dataset for zones... " >>/dev/console
+    echo -n "Initializing config dataset for zones... " >>/dev/console
     zfs create $CONFDS
-    [ $? != 0 ] && fatal "failed to create the config dataset"
+    [ $? -ne 0 ] && fatal "failed to create the config dataset"
     chmod 755 /$CONFDS
     cp -p /etc/zones/* /$CONFDS
     zfs set mountpoint=legacy $CONFDS
     echo "done." >>/dev/console
 
-    echo "Creating opt dataset... " >>/dev/console
+    echo -n "Creating opt dataset... " >>/dev/console
     zfs create -o mountpoint=legacy $OPTDS
-    [ $? != 0 ] && fatal "failed to create the opt dataset"
+    [ $? -ne 0 ] && fatal "failed to create the opt dataset"
     echo "done." >>/dev/console
 
-    echo "Initializing var dataset... " >/dev/console
+    echo -n "Initializing var dataset... " >/dev/console
     zfs create $VARDS
-    [ $? != 0 ] && fatal "failed to create the var dataset"
+    [ $? -ne 0 ] && fatal "failed to create the var dataset"
     chmod 755 /$VARDS
     cd /var
     find . -print | cpio -pdm /$VARDS
-    [ $? != 0 ] && fatal "failed to initiale the var directory"
+    [ $? -ne 0 ] && fatal "failed to initialize the var directory"
     zfs set mountpoint=legacy $VARDS
     echo "done." >>/dev/console
 }
@@ -114,7 +114,8 @@ if [[ $POOLS == "no pools available" ]]; then
     create_zpool
     setup_datasets
     /usr/bin/bootparams | grep "headnode=true"
-    if [[ $? != 0 ]]; then
+    if [[ $? -ne 0 ]]; then
+        # don't reboot if we're a headnode because headnode.sh wants to do more first.
         reboot
     fi
 fi
