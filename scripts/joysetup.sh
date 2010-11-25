@@ -26,12 +26,12 @@ create_zpool()
     disks=''
 
     /usr/bin/bootparams | grep "headnode=true"
-    if [[ $? == 0 ]]; then
+    if [[ $? -eq 0 ]]; then
         for disk in `/usr/bin/disklist -n`; do
             # Only include disks that aren't mounted (so we skip USB Key)
-            grep $disk /etc/mnttab
+            grep ${disk} /etc/mnttab
             if [[ $? == 1 ]]; then
-                disks=$disks" "$disk
+                disks="${disks} ${disk}"
             fi
         done
     else
@@ -45,10 +45,10 @@ create_zpool()
         fatal "no disks found, can't create zpool"
     elif [ ${disk_count} -eq 1 ]; then
         # create a zpool with a single disk
-        zpool create $ZPOOL $disks
+        zpool create ${ZPOOL} ${disks}
     else
         # if more than one disk, create a raidz zpool
-        zpool create $ZPOOL raidz $disks
+        zpool create ${ZPOOL} raidz ${disks}
     fi
 
     [ $? -ne 0 ] && fatal "failed to create the zpool"
@@ -69,10 +69,10 @@ create_dump()
     # Calculate 5% of that
     base_size=`expr $base_size / 20`
     # Cap it at 4GB
-    [ $base_size -gt 4096 ] && base_size=4096
+    [ ${base_size} -gt 4096 ] && base_size=4096
 
     # Create the dump zvol
-    zfs create -V ${base_size}mb $ZPOOL/dump
+    zfs create -V ${base_size}mb ${ZPOOL}/dump
     [ $? -ne 0 ] && fatal "failed to create the dump zvol"
 }
 
@@ -86,31 +86,31 @@ setup_datasets()
     echo "done." >>/dev/console
 
     echo -n "Initializing config dataset for zones... " >>/dev/console
-    zfs create $CONFDS
+    zfs create ${CONFDS}
     [ $? -ne 0 ] && fatal "failed to create the config dataset"
-    chmod 755 /$CONFDS
-    cp -p /etc/zones/* /$CONFDS
-    zfs set mountpoint=legacy $CONFDS
+    chmod 755 /${CONFDS}
+    cp -p /etc/zones/* /${CONFDS}
+    zfs set mountpoint=legacy ${CONFDS}
     echo "done." >>/dev/console
 
     echo -n "Creating opt dataset... " >>/dev/console
-    zfs create -o mountpoint=legacy $OPTDS
+    zfs create -o mountpoint=legacy ${OPTDS}
     [ $? -ne 0 ] && fatal "failed to create the opt dataset"
     echo "done." >>/dev/console
 
     echo -n "Initializing var dataset... " >/dev/console
-    zfs create $VARDS
+    zfs create ${VARDS}
     [ $? -ne 0 ] && fatal "failed to create the var dataset"
-    chmod 755 /$VARDS
+    chmod 755 /${VARDS}
     cd /var
-    find . -print | cpio -pdm /$VARDS
+    find . -print | cpio -pdm /${VARDS}
     [ $? -ne 0 ] && fatal "failed to initialize the var directory"
-    zfs set mountpoint=legacy $VARDS
+    zfs set mountpoint=legacy ${VARDS}
     echo "done." >>/dev/console
 }
 
 POOLS=`zpool list`
-if [[ $POOLS == "no pools available" ]]; then
+if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     /usr/bin/bootparams | grep "headnode=true"
