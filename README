@@ -36,6 +36,8 @@ Directory structure
 Notes:
 -----
 
+The vmware/USB-Headnode.vmwarevm.tbz2 file is a 4GB disk image with a FAT32 partition containing only grub.  It is intended to be used as a template.
+
 GRUB needs to currently be installed via Linux. Once the USB stick is bootable via grub copy the platform directory to the root of the USB stick.
 
 boot/grub/menu.lst belongs to the headnode, so it passes -B headnode=true to the headnode. 

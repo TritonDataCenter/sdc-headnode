@@ -1,5 +1,5 @@
 create -b
-set zonepath=/zones/dhcp
+set zonepath=/zones/dhcpd
 set brand=joyent
 set autoboot=true
 set ip-type=exclusive

@@ -14,8 +14,8 @@ VARDS=$ZPOOL/var
 
 fatal()
 {
-	echo "Error: $1" > /dev/console
-	exit 1
+    echo "Error: $1" >> /dev/console
+    exit 1
 }
 
 #
@@ -24,7 +24,7 @@ fatal()
 create_zpool()
 {
     disks=''
-	
+
     /usr/bin/bootparams | grep "headnode=true"
     if [[ $? == 0 ]]; then
         for disk in `/usr/bin/disklist -n`; do
@@ -41,17 +41,17 @@ create_zpool()
     disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
 
     if [ ${disk_count} -lt 1 ]; then
-	    # XXX what if no disks found?
+        # XXX what if no disks found?
         fatal "no disks found, can't create zpool"
     elif [ ${disk_count} -eq 1 ]; then
-	    # create a zpool with a single disk
-	    zpool create $ZPOOL $disks
+        # create a zpool with a single disk
+        zpool create $ZPOOL $disks
     else
-	    # if more than one disk, create a raidz zpool
-	    zpool create $ZPOOL raidz $disks
+        # if more than one disk, create a raidz zpool
+        zpool create $ZPOOL raidz $disks
     fi
 
-	[ $? != 0 ] && fatal "creating the zpool"
+    [ $? != 0 ] && fatal "failed to create the zpool"
 }
 
 #
@@ -62,18 +62,18 @@ create_zpool()
 #
 create_dump()
 {
-	# Get avail zpool size - this assumes we're not using any space yet.
-	base_size=`zfs get -H -p -o value available $ZPOOL`
-	# Convert to MB
-	base_size=`expr $base_size / 1000000`
-	# Calculate 5% of that
-	base_size=`expr $base_size / 20`
-	# Cap it at 4GB
-	[ $base_size -gt 4096 ] && base_size=4096
+    # Get avail zpool size - this assumes we're not using any space yet.
+    base_size=`zfs get -H -p -o value available $ZPOOL`
+    # Convert to MB
+    base_size=`expr $base_size / 1000000`
+    # Calculate 5% of that
+    base_size=`expr $base_size / 20`
+    # Cap it at 4GB
+    [ $base_size -gt 4096 ] && base_size=4096
 
-	# Create the dump zvol
-	zfs create -V ${base_size}mb $ZPOOL/dump
-	[ $? != 0 ] && fatal "creating the dump zvol"
+    # Create the dump zvol
+    zfs create -V ${base_size}mb $ZPOOL/dump
+    [ $? != 0 ] && fatal "failed to create the dump zvol"
 }
 
 #
@@ -81,28 +81,32 @@ create_dump()
 #
 setup_datasets()
 {
-	echo "Making dump zvol">/dev/console
-	create_dump
+    echo -n "Making dump zvol... " >>/dev/console
+    create_dump
+    echo "done." >>/dev/console
 
-	echo "Initializing config dataset for zones." >/dev/console
-	zfs create $CONFDS
-	[ $? != 0 ] && fatal "creating the config dataset"
-	chmod 755 /$CONFDS
-	cp -p /etc/zones/* /$CONFDS
-	zfs set mountpoint=legacy $CONFDS
+    echo "Initializing config dataset for zones... " >>/dev/console
+    zfs create $CONFDS
+    [ $? != 0 ] && fatal "failed to create the config dataset"
+    chmod 755 /$CONFDS
+    cp -p /etc/zones/* /$CONFDS
+    zfs set mountpoint=legacy $CONFDS
+    echo "done." >>/dev/console
 
-	echo "Creating opt dataset" >/dev/console
-	zfs create -o mountpoint=legacy $OPTDS
-	[ $? != 0 ] && fatal "creating the opt dataset"
+    echo "Creating opt dataset... " >>/dev/console
+    zfs create -o mountpoint=legacy $OPTDS
+    [ $? != 0 ] && fatal "failed to create the opt dataset"
+    echo "done." >>/dev/console
 
-	echo "Initializing var dataset." >/dev/console
-	zfs create $VARDS
-	[ $? != 0 ] && fatal "creating the var dataset"
-	chmod 755 /$VARDS
-	cd /var
-	find . -print | cpio -pdm /$VARDS
-	[ $? != 0 ] && fatal "initializing the var directory"
-	zfs set mountpoint=legacy $VARDS
+    echo "Initializing var dataset... " >/dev/console
+    zfs create $VARDS
+    [ $? != 0 ] && fatal "failed to create the var dataset"
+    chmod 755 /$VARDS
+    cd /var
+    find . -print | cpio -pdm /$VARDS
+    [ $? != 0 ] && fatal "failed to initiale the var directory"
+    zfs set mountpoint=legacy $VARDS
+    echo "done." >>/dev/console
 }
 
 POOLS=`zpool list`

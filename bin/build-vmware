@@ -1,0 +1,118 @@
+#!/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
+
+set -e
+
+ROOT=`pwd`
+ERROR=0
+SUCMD='sudo'
+CLEANED=0
+PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147/"
+ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates/"
+
+function cleanup
+{
+    if [ ${CLEANED} -eq 0 ]; then
+        echo '==> Cleaning up'
+        # Ensure we've unmounted the disk
+        ${SUCMD} vmware-mount -d ${ROOT}/mnt
+        CLEANED=1
+
+        if [ $ERROR -eq 0 ]; then
+            echo "==> Defragmenting VMDK"
+            vmware-vdiskmanager -d ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
+        fi
+    fi
+}
+
+if [ ! -d "${ROOT}/cache" ]; then
+    echo "==> Creating cache/"
+    mkdir -p ${ROOT}/cache
+fi
+
+if [ ! -d "${ROOT}/mnt" ]; then
+    echo "==> Creating mnt/"
+    mkdir -p ${ROOT}/mnt
+fi
+
+echo "==> Ensuring nothing's mounted"
+${SUCMD} vmware-mount -X
+
+echo "==> Unpacking and mounting new VMWare image"
+rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
+(cd ${ROOT}/cache && tar -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2)
+${SUCMD} vmware-mount ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk ${ROOT}/mnt
+trap 'cleanup' EXIT
+
+echo "==> Creating .joyliveusb file"
+${SUCMD} touch mnt/.joyliveusb
+
+echo "==> Copying in grub menu"
+${SUCMD} cp boot/grub/menu.lst mnt/boot/grub/menu.lst
+
+echo "==> Copying in config"
+${SUCMD} cp config.coal mnt/config
+
+echo "==> Copying in scripts/"
+${SUCMD} cp -r scripts mnt/scripts
+
+echo "==> Copying in zones/"
+${SUCMD} cp -r zones mnt/zones
+
+latest_image=$(curl -sS https://guest:GrojhykMid@coal.joyent.us/coal/live_147/ \
+    | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
+    echo "==> Downloading ${latest_image}"
+    (cd ${ROOT}/cache && curl -O https://guest:GrojhykMid@coal.joyent.us/coal/live_147/${latest_image})
+fi
+
+# TODO: also check md5sum before using!
+
+echo "==> Unpacking ${latest_image}"
+(cd ${ROOT}/mnt && sudo tar -zxf ${ROOT}/cache/${latest_image} && sudo mv platform-* platform)
+
+bare="bare-1.1.12.zfs.gz"
+if [ ! -f "${ROOT}/cache/${bare}" ]; then
+    echo "==> Downloading ${bare}"
+    (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}${bare})
+fi
+
+echo "==> Repacking ${bare}"
+zcat ${ROOT}/cache/${bare} | bzip2 -9 > ${ROOT}/cache/bare.zfs.bz2
+
+echo "==> Copying bare.zfs.bz2"
+sudo cp ${ROOT}/cache/bare.zfs.bz2 ${ROOT}/mnt/bare.zfs.bz2
+
+dhcpd_zonefs="dhcpd.tar.bz2"
+if [ ! -f "${ROOT}/cache/${dhcpd_zonefs}" ]; then
+    echo "==> Downloading ${dhcpd_zonefs}"
+    (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}liveimg/${dhcpd_zonefs})
+fi
+sudo mkdir -p ${ROOT}/mnt/zones/fs
+sudo cp ${ROOT}/cache/${dhcpd_zonefs} ${ROOT}/mnt/zones/fs/${dhcpd_zonefs}
+
+rabbitmq_zonefs="rabbitmq.tar.bz2"
+if [ ! -f "${ROOT}/cache/${rabbitmq_zonefs}" ]; then
+    echo "==> Downloading ${rabbitmq_zonefs}"
+    (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}liveimg/${rabbitmq_zonefs})
+fi
+sudo mkdir -p ${ROOT}/mnt/zones/fs
+sudo cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/fs/${rabbitmq_zonefs}
+
+# TODO: also check md5sum before using!
+
+cleanup
+
+echo "==> Creating coal-147.tgz"
+(cd ${ROOT}/cache && tar -zcf ${ROOT}/coal-147.tgz USB-headnode.vmwarevm)
+
+if [ ${ERROR} -ne 0 ]; then
+    echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
+    exit 1
+fi
+
+echo "==> DONE"
+
+exit 0
