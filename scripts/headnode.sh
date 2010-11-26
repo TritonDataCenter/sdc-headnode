@@ -22,10 +22,6 @@ if ! mount_usb; then
     exit 1;
 fi
 
-if [[ ${DEBUG} == "true" ]]; then
-    echo "mount_usb() said... ${mount_usb_msg}" >>/dev/console
-fi
-
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 
 # check if we've imported a zpool
@@ -66,6 +62,22 @@ for zone in `ls /mnt/zones/config`; do
         #bzcat /mnt/zones/fs/${zone}.zfs.bz2 | zfs recv -e zones
         #zoneadm -z ${zone} attach
         (cd /zones/${zone}; bzcat /mnt/zones/fs/${zone}.tar.bz2 | tar -xf - )
+        if [[ -f "/mnt/zones/zconfig/${zone}.zoneconfig" ]]; then
+            cp /mnt/zones/zconfig/${zone}.zoneconfig /zones/${zone}/root/root/zoneconfig
+        fi
+        if [[ -f "/mnt/zones/zconfig/${zone}.pkgsrc" ]]; then
+            mkdir -p /zones/${zone}/root/root/pkgsrc
+            cp /mnt/zones/zconfig/${zone}.pkgsrc /zones/${zone}/root/root/pkgsrc/order
+            for pkg in `cat /mnt/zones/zconfig/${zone}.pkgsrc`; do
+                cp /mnt/pkgsrc/${pkg}.tgz /zones/${zone}/root/root/pkgsrc
+            done
+            mkdir -p /zones/${zone}/root/root/zoneinit.d
+            cp /mnt/zoneinit/94-zone-pkgs.sh /zones/${zone}/root/root/zoneinit.d
+        fi
+        if [[ -f "/mnt/zones/zconfig/99-${zone}-finalize.sh" ]]; then
+            mkdir -p /zones/${zone}/root/root/zoneinit.d
+            cp /mnt/zones/zconfig/99-${zone}-finalize.sh /zones/${zone}/root/root/zoneinit.d
+        fi
         echo ${zone} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
         echo "done." >>/dev/console
     else
@@ -79,5 +91,20 @@ for zone in `ls /mnt/zones/config`; do
     NEXTVNIC=$((${NEXTVNIC} + 1))
     zoneadm -z ${zone} boot
 done
+
+# XXX Wait for zoneinit to finish, look at files instead?
+echo -n "waiting for zoneinit to complete..." >>/dev/console
+sleep 5
+echo "done." >>/dev/console
+
+for zone in `ls /mnt/zones/config`; do
+    echo -n "rebooting ${zone}... " >>/dev/console
+    zlogin ${zone} reboot
+    echo "done." >>/dev/console
+done
+
+echo "==> Setup complete.  You may now log in." >>/dev/console
+echo "" >>/dev/console
+svcadm console-login restart
 
 exit 0
