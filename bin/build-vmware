@@ -65,7 +65,7 @@ ${SUCMD} cp -r zoneinit mnt/zoneinit
 echo "==> Copying in zones/"
 ${SUCMD} cp -r zones mnt/zones
 
-for pkgfile in `ls ${ROOT}/zones/zconfig/*.pkgsrc`; do
+for pkgfile in `ls ${ROOT}/zones/*/pkgsrc`; do
     for pkg in `cat ${pkgfile}`; do
         filename="${pkg}.tgz"
         if [ ! -f "${ROOT}/cache/${filename}" ]; then
@@ -107,16 +107,16 @@ if [ ! -f "${ROOT}/cache/${dhcpd_zonefs}" ]; then
     echo "==> Downloading ${dhcpd_zonefs}"
     (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${dhcpd_zonefs})
 fi
-${SUCMD} mkdir -p ${ROOT}/mnt/zones/fs
-${SUCMD} cp ${ROOT}/cache/${dhcpd_zonefs} ${ROOT}/mnt/zones/fs/${dhcpd_zonefs}
+${SUCMD} mkdir -p ${ROOT}/mnt/zones/dhcpd
+${SUCMD} cp ${ROOT}/cache/${dhcpd_zonefs} ${ROOT}/mnt/zones/dhcpd/fs.tar.bz2
 
 rabbitmq_zonefs="rabbitmq.tar.bz2"
 if [ ! -f "${ROOT}/cache/${rabbitmq_zonefs}" ]; then
     echo "==> Downloading ${rabbitmq_zonefs}"
     (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${rabbitmq_zonefs})
 fi
-${SUCMD} mkdir -p ${ROOT}/mnt/zones/fs
-${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/fs/${rabbitmq_zonefs}
+${SUCMD} mkdir -p ${ROOT}/mnt/zones/rabbitmq
+${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.bz2
 
 # TODO: also check md5sum before using!
 
