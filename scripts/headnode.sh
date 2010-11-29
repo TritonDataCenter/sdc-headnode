@@ -79,6 +79,9 @@ for zone in `ls /mnt/zones`; do
             cp /mnt/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
         echo ${zone} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
+        cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
+            && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
+            && rm /tmp/motd.new
         echo "done." >>/dev/console
     else
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
