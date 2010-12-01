@@ -123,7 +123,7 @@ ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.b
 cleanup
 
 echo "==> Creating coal-147.tgz"
-(cd ${ROOT}/cache && tar -zcf ${ROOT}/coal-147.tgz USB-headnode.vmwarevm)
+(cd ${ROOT}/cache && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm && tar -zcf ${ROOT}/coal-147.tgz USB-headnode.vmwarevm)
 
 if [ ${ERROR} -ne 0 ]; then
     echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
