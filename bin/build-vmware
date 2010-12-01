@@ -23,7 +23,7 @@ function cleanup
 
         if [ $ERROR -eq 0 ]; then
             echo "==> Defragmenting VMDK"
-            vmware-vdiskmanager -d ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
+            ${SUCMD} vmware-vdiskmanager -d ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
         fi
     fi
 }
