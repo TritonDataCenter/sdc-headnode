@@ -109,8 +109,9 @@ done
 # XXX HACK!
 echo -n "Cleaning up... " >>/dev/console
 sleep 5
-zlogin rabbitmq svcadm clear network/physical:default
-zlogin dhcpd svcadm clear network/physical:default
+for zone in `ls /mnt/zones`; do
+    zlogin ${zones} svcadm clear network/physical:default
+done
 sleep 1
 zlogin dhcpd svcadm clear dhcpd
 echo "done." >> /dev/console
