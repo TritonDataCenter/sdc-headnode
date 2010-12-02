@@ -110,7 +110,7 @@ done
 echo -n "Cleaning up... " >>/dev/console
 sleep 5
 for zone in `ls /mnt/zones`; do
-    zlogin ${zones} svcadm clear network/physical:default
+    zlogin ${zone} svcadm clear network/physical:default
 done
 sleep 1
 zlogin dhcpd svcadm clear dhcpd
