@@ -1,0 +1,17 @@
+#!/bin/bash
+
+echo "99 finalizing postgres pkg"
+
+
+
+echo "Initializing PostgreSQL"
+echo "pwd" > /tmp/pgpasswd
+
+pgsql_state=$( /usr/bin/svcs -H -o state postgresql )
+if [[ "$pgsql_state" == "online" ]]; then
+    echo $(/usr/sbin/svcadm disable -st postgresql)
+fi
+# en_US.UTF-8 seems to be missing!?.
+$(su - postgres -c \"/opt/local/bin/initdb --pgdata=/var/pgsql/data --encoding=UTF8 --locale=en_GB.UTF-8 --auth=password --pwfile=/tmp/pgpasswd\" >/dev/null)
+
+echo $(/usr/sbin/svcadm enable -s postgresql)
