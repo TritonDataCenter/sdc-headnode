@@ -101,6 +101,11 @@ sleep 10
 echo "done." >>/dev/console
 
 for zone in `ls /mnt/zones`; do
+
+    # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
+    sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
+    && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
+
     echo -n "rebooting ${zone}... " >>/dev/console
     zlogin ${zone} reboot
     echo "done." >>/dev/console
