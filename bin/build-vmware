@@ -91,6 +91,7 @@ fi
 
 echo "==> Unpacking ${latest_image}"
 (cd ${ROOT}/mnt && ${SUCMD} tar -zxf ${ROOT}/cache/${latest_image} && ${SUCMD} mv platform-* platform)
+LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 
 bare="bare-1.1.12.zfs.gz"
 if [ ! -f "${ROOT}/cache/${bare}" ]; then
@@ -124,8 +125,8 @@ ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.b
 
 cleanup
 
-echo "==> Creating coal-147.tgz"
-(cd ${ROOT}/cache && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm && tar -zcf ${ROOT}/coal-147.tgz USB-headnode.vmwarevm)
+echo "==> Creating coal-147-${LIVEIMG_VERSION}.tgz"
+(cd ${ROOT}/cache && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm && tar -zcf ${ROOT}/coal-147-${LIVEIMG_VERSION}.tgz USB-headnode.vmwarevm)
 
 if [ ${ERROR} -ne 0 ]; then
     echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
