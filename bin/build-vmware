@@ -121,12 +121,17 @@ fi
 ${SUCMD} mkdir -p ${ROOT}/mnt/zones/rabbitmq
 ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.bz2
 
+# build manifest of USB files + move in boot_archive manifest
+(cd ${ROOT}/mnt && find . -type f -exec md5sum {} \;) > ${ROOT}/cache/usb_key.manifest
+${SUCMD} mv ${ROOT}/mnt/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/boot_archive.manifest
+${SUCMD} chmod 444 boot_archive.manifest usb_key.manifest
+
 # TODO: also check md5sum before using!
 
 cleanup
 
 echo "==> Creating coal-147-${LIVEIMG_VERSION}.tgz"
-(cd ${ROOT}/cache && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm && tar -zcf ${ROOT}/coal-147-${LIVEIMG_VERSION}.tgz USB-headnode.vmwarevm)
+(cd ${ROOT}/cache && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm && tar -zcf ${ROOT}/coal-147-${LIVEIMG_VERSION}.tgz USB-headnode.vmwarevm boot_archive.manifest usb_key.manifest)
 
 if [ ${ERROR} -ne 0 ]; then
     echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
