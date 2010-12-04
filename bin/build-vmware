@@ -122,6 +122,7 @@ ${SUCMD} mkdir -p ${ROOT}/mnt/zones/rabbitmq
 ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.bz2
 
 # build manifest of USB files + move in boot_archive manifest
+${SUCMD} rm -f ${ROOT}/cache/usb_key.manifest
 (cd ${ROOT}/mnt && find . -type f -exec md5sum {} \;) > ${ROOT}/cache/usb_key.manifest
 ${SUCMD} mv ${ROOT}/mnt/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/boot_archive.manifest
 ${SUCMD} chmod 444 ${ROOT}/cache/boot_archive.manifest ${ROOT}/cache/usb_key.manifest
