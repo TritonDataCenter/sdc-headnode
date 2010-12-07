@@ -1,7 +1,7 @@
 #!/bin/bash
 
 POSTGRES=10.99.99.6
-PGPASSWORD=pwd
+PGPASSWORD=postgres
 
 echo "99 finalizing mcpapi zone"
 
@@ -11,7 +11,10 @@ chmod -R jill:jill /home/jill
 
 if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  $(createdb 'mapi' -U postgres -h $POSTGRES -O 'postgres')
+  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
+  chown jill /home/jill/.pgpass
+  chmod 0600 /home/jill/.pgpass
+  $(su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi")
 fi
 
 if [[ ! -e /home/jill/mapi/config/database.yml ]]; then
@@ -45,7 +48,7 @@ if [[ ! $(cat /home/jill/mapi/config/database.yml|grep mapi) ]]; then
   :adapter: postgres
   :database: mapi
   :username: postgres
-  :password: pwd
+  :password: postgres
   :host: $POSTGRES
   :encoding: UTF-8
 
@@ -95,6 +98,7 @@ cp /home/jill/mapi/config/config.ru.sample /home/jill/mapi/config/config.ru
 cp /home/jill/mapi/config/config.yml.sample /home/jill/mapi/config/config.yml
 
 svcadm enable dns/multicast
+
 
 echo "Auto Upgrading MCP API Database."
 $(su - jill -c "cd /home/jill/mapi; SINATRA_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile")

@@ -5,7 +5,7 @@ echo "99 finalizing postgres pkg"
 
 
 echo "Initializing PostgreSQL"
-echo "pwd" > /tmp/pgpasswd
+echo "postgres" > /tmp/pgpasswd
 
 pgsql_state=$( /usr/bin/svcs -H -o state postgresql )
 if [[ "$pgsql_state" == "online" ]]; then
@@ -17,4 +17,3 @@ echo "host all all 10.99.99.1/24 password" >> /var/pgsql/data/pg_hba.conf
 echo "listen_addresses = '*' " >> /var/pgsql/data/postgresql.conf
 echo "port = 5432 " >> /var/pgsql/data/postgresql.conf
 echo $(/usr/sbin/svcadm enable -s postgresql)
-su - postgres -c "/opt/local/bin/psql 'alter user postgres with password=\'pwd\''"
