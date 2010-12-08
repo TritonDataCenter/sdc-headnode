@@ -1,7 +1,19 @@
 #!/bin/bash
 
-POSTGRES=10.99.99.6
+POSTGRES=localhost
 PGPASSWORD=postgres
+
+echo "Initializing PostgreSQL"
+echo "postgres" > /tmp/pgpasswd
+
+pgsql_state=$( /usr/bin/svcs -H -o state postgresql )
+if [[ "$pgsql_state" == "online" ]]; then
+    echo $(/usr/sbin/svcadm disable -st postgresql)
+fi
+# en_US.UTF-8 seems to be missing!?.
+$(su - postgres -c \"/opt/local/bin/initdb --pgdata=/var/pgsql/data --encoding=UTF8 --locale=en_GB.UTF-8 --auth=password --pwfile=/tmp/pgpasswd\" >/dev/null)
+
+svcadm clear network/physical:default
 
 echo "99 finalizing mcpapi zone"
 
