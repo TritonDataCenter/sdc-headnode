@@ -59,8 +59,6 @@ for zone in `ls /mnt/zones`; do
         zonecfg -z ${zone} -f /mnt/zones/${zone}/config
         zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
-        #bzcat /mnt/zones/fs/${zone}.zfs.bz2 | zfs recv -e zones
-        #zoneadm -z ${zone} attach
         (cd /zones/${zone}; bzcat /mnt/zones/${zone}/fs.tar.bz2 | tar -xf - )
         if [[ -f "/mnt/zones/${zone}/zoneconfig" ]]; then
             cp /mnt/zones/${zone}/zoneconfig /zones/${zone}/root/root/zoneconfig
@@ -78,7 +76,10 @@ for zone in `ls /mnt/zones`; do
             mkdir -p /zones/${zone}/root/root/zoneinit.d
             cp /mnt/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
-        echo ${zone} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
+        
+        zoneip=`grep PRIVATE_IP /mnt/zones/${zone}/zoneconfig | cut -f 2 -d '='`
+        echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
+
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
             && rm /tmp/motd.new
@@ -112,14 +113,14 @@ for zone in `ls /mnt/zones`; do
 done
 
 # XXX HACK!
-echo -n "Cleaning up... " >>/dev/console
-sleep 5
-for zone in `ls /mnt/zones`; do
-    zlogin ${zone} svcadm clear network/physical:default
-done
-sleep 1
-zlogin dhcpd svcadm clear dhcpd
-echo "done." >> /dev/console
+#echo -n "Cleaning up... " >>/dev/console
+#sleep 5
+#for zone in `ls /mnt/zones`; do
+#    zlogin ${zone} svcadm clear network/physical:default
+#done
+#sleep 1
+#zlogin dhcpd svcadm clear dhcpd
+#echo "done." >> /dev/console
 
 echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
 echo "" >>/dev/console
