@@ -36,6 +36,10 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
+# Create a link to the config as /etc/headnode.config, so we can have a
+# consistent location for it when we want to be able to umount the USB later
+ln -s /mnt/config /etc/headnode.config
+
 # Now the infrastructure zones
 
 NEXTVNIC=`dladm show-vnic | grep -c vnic`
