@@ -17,9 +17,9 @@ svcadm clear network/physical:default
 
 echo "99 finalizing mapi zone"
 
-groupadd jill 
+groupadd jill
 useradd -g jill -d /home/jill jill
-chmod -R jill:jill /home/jill 
+chown -R jill:jill /home/jill
 
 if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
@@ -80,7 +80,6 @@ if [[ ! $(cat /home/jill/mapi/config/config.yml | grep Amqp) ]]; then
   /home/jill/mapi/config/config.yml)
 fi
 
-
 if [[ ! -e /home/jill/mapi/tmp/pids ]]; then
   $(su - jill -c "mkdir -p /home/jill/mapi/tmp/pids")
 fi
@@ -103,14 +102,10 @@ if [[ ! -e /home/jill/mapi/config/dslistclient.smf ]]; then
   $(chown jill:jill /home/jill/mapi/config/dslistclient.smf)
 fi
 
-
-chown -R jill /home/jill/mapi/log
-
 cp /home/jill/mapi/config/config.ru.sample /home/jill/mapi/config/config.ru
 cp /home/jill/mapi/config/config.yml.sample /home/jill/mapi/config/config.yml
 
 svcadm enable dns/multicast
-
 
 echo "Auto Upgrading MCP API Database."
 $(su - jill -c "cd /home/jill/mapi; SINATRA_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile")
@@ -140,3 +135,5 @@ if [[ ! $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   sleep 2
 fi
 
+# Ensure everything in /home/jill is owned by jill
+chown -R jill:jill /home/jill
