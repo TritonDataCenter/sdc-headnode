@@ -1,1 +1,8 @@
-perl-5.10.1nb2 iodbc-3.52.7 libffi-3.0.9 python26-2.6.5nb1 py26-setuptools-0.6c11 py26-simplejson-2.0.9 erlang-13.2.3nb4 rabbitmq-1.7.2
+perl-5.10.1nb2
+iodbc-3.52.7
+libffi-3.0.9
+python26-2.6.5nb1
+py26-setuptools-0.6c11
+py26-simplejson-2.0.9
+erlang-13.2.3nb4
+rabbitmq-1.7.2

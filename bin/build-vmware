@@ -68,7 +68,7 @@ echo "==> Copying in zones/"
 ${SUCMD} cp -r zones mnt/zones
 
 for pkgfile in `ls ${ROOT}/zones/*/pkgsrc`; do
-    for pkg in `cat ${pkgfile}`; do
+    for pkg in `cat ${pkgfile} | xargs`; do
         filename="${pkg}.tgz"
         if [ ! -f "${ROOT}/cache/${filename}" ]; then
             echo "==> Downloading ${filename}"
