@@ -47,7 +47,10 @@ for template in `ls /zones | grep bare`; do
     LATESTTEMPLATE=${template}
 done
 
-for zone in `ls /mnt/zones`; do
+USBZONES=`ls /mnt/zones`
+ALLZONES=`for x in "$ZONES $USBZONES"; do echo $x; done | sort | uniq | xargs`
+
+for zone in $ALLZONES; do
     if [[ ! `echo ${ZONES} | grep ${zone} ` ]]; then
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
@@ -93,6 +96,8 @@ for zone in `ls /mnt/zones`; do
         done
     fi
     NEXTVNIC=$((${NEXTVNIC} + 1))
+done
+for zone in $ALLZONES; do
     zoneadm -z ${zone} boot
 done
 
