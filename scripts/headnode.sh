@@ -67,6 +67,8 @@ for zone in $ALLZONES; do
         zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
         (cd /zones/${zone}; bzcat /mnt/zones/${zone}/fs.tar.bz2 | tar -xf - )
+        chown root:sys /zones/${zone}
+        chmod 0700 /zones/${zone}
         if [[ -f "/mnt/zones/${zone}/zoneconfig" ]]; then
             cp /mnt/zones/${zone}/zoneconfig /zones/${zone}/root/root/zoneconfig
         fi
