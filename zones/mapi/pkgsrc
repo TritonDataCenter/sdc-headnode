@@ -2,6 +2,7 @@ postgresql84-8.4.4
 postgresql84-server-8.4.4
 postgresql84-client-8.4.4
 scmgit-1.7.0.5
+scmgit-base-1.7.0.5
 libuuid-1.36
 libssh2-1.2.2nb1
 ruby18-1.8.7.174
