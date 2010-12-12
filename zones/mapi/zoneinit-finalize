@@ -20,6 +20,9 @@ echo "99 finalizing mapi zone"
 groupadd jill
 useradd -g jill -d /home/jill jill
 chown -R jill:jill /home/jill
+echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
+usermod -P 'Service Management' -R admin jill
+usermod -s /usr/bin/bash jill
 
 if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
