@@ -2,7 +2,7 @@
 
 set -e
 
-mkdir -p home/jill
-cd home/jill
+mkdir -p root/home/jill
+cd root/home/jill
 git clone git@git.joyent.com:mcp_api_gateway.git mapi
 
