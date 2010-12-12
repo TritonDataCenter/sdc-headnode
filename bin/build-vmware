@@ -28,6 +28,7 @@ function cleanup
             ${SUCMD} vmware-vdiskmanager -d ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
         fi
     fi
+    rm -rf /tmp/fs.*.$$
 }
 
 if [ ! -d "${ROOT}/cache" ]; then
@@ -120,6 +121,16 @@ if [ ! -f "${ROOT}/cache/${rabbitmq_zonefs}" ]; then
 fi
 ${SUCMD} mkdir -p ${ROOT}/mnt/zones/rabbitmq
 ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${ROOT}/mnt/zones/rabbitmq/fs.tar.bz2
+
+for zone in $(ls ${ROOT}/mnt/zones); do
+    if [ -x ${ROOT}/mnt/zones/${zone}/fs.populate ] && [ -d ${ROOT}/mnt/zones/${zone}/fs.root ]; then
+	# do in /tmp because only root can write in mnt
+	mkdir -p /tmp/fs.${zone}.$$
+	cp -a ${ROOT}/mnt/zones/${zone}/fs.populate ${ROOT}/mnt/zones/${zone}/fs.root /tmp/fs.${zone}.$$
+	${SUCMD} rm -rf ${ROOT}/mnt/zones/${zone}/fs.{populate,root}
+	(cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && ${SUCMD} tar -jcvf ${ROOT}/mnt/zones/${zone}/fs.tar.bz2 ./)
+    fi
+done
 
 # build manifest of USB files + move in boot_archive manifest
 ${SUCMD} rm -f ${ROOT}/cache/usb_key.manifest
