@@ -128,6 +128,17 @@ for zone in ${ALLZONES}; do
     zoneadm -z ${zone} boot
 done
 
+# Add all "system"/USB zones to /etc/hosts in the GZ
+for zone in rabbitmq mapi dhcpd; do
+    zonename=$(grep "^ZONENAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
+    priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
+        grep "^${priv_ip}	" /etc/hosts >/dev/null \
+          || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
+    fi
+done
+
 if [ -n "${CREATEDZONES}" ]; then
     for zone in ${CREATEDZONES}; do
         if [ -e /zones/${zone}/root/root/zoneinit ]; then
