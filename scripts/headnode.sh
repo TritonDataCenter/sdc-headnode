@@ -28,10 +28,11 @@ admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\(
 POOLS=`zpool list`
 
 if [[ ${POOLS} == "no pools available" ]]; then
-    /mnt/scripts/joysetup.sh || exit 1
 
     # This is to move us to the next line past the login: prompt
     echo "" >>/dev/console
+
+    /mnt/scripts/joysetup.sh || exit 1
 
     echo -n "Importing zone template dataset... " >>/dev/console
     bzcat /mnt/bare.zfs.bz2 | zfs recv -e zones || exit 1;
