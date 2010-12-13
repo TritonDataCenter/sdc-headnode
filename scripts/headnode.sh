@@ -13,11 +13,11 @@ DEBUG="true"
 
 . /lib/svc/share/joyent_include.sh
 
-# This is to move us to the next line past the login: prompt
-echo "" >>/dev/console
 
 # All the files come from USB, so we need that mounted.
 if ! mount_usb; then
+    # This is to move us to the next line past the login: prompt
+    echo "" >>/dev/console
     echo "FATAL: Cannot find USB key... ${mount_usb_msg}" >>/dev/console
     exit 1;
 fi
@@ -29,6 +29,10 @@ POOLS=`zpool list`
 
 if [[ ${POOLS} == "no pools available" ]]; then
     /mnt/scripts/joysetup.sh || exit 1
+
+    # This is to move us to the next line past the login: prompt
+    echo "" >>/dev/console
+
     echo -n "Importing zone template dataset... " >>/dev/console
     bzcat /mnt/bare.zfs.bz2 | zfs recv -e zones || exit 1;
     echo "done." >>/dev/console
@@ -52,10 +56,15 @@ for template in `ls /zones | grep bare`; do
 done
 
 USBZONES=`ls /mnt/zones`
-ALLZONES=`for x in "$ZONES $USBZONES"; do echo $x; done | sort -r | uniq | xargs`
+ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
+CREATEDZONES=
 
 for zone in $ALLZONES; do
     if [[ ! `echo ${ZONES} | grep ${zone} ` ]]; then
+
+        # This is to move us to the next line past the login: prompt
+        [ -z ${CREATEDZONES} ] && echo "" >>/dev/console
+
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
@@ -85,7 +94,7 @@ for zone in $ALLZONES; do
             mkdir -p /zones/${zone}/root/root/zoneinit.d
             cp /mnt/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
-        
+
         zoneip=`grep PRIVATE_IP /mnt/zones/${zone}/zoneconfig | cut -f 2 -d '='`
         echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
@@ -93,6 +102,8 @@ for zone in $ALLZONES; do
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
             && rm /tmp/motd.new
         echo "done." >>/dev/console
+
+        CREATEDZONES="${CREATEDZONES} ${zone}"
     else
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
@@ -103,37 +114,46 @@ for zone in $ALLZONES; do
     fi
     NEXTVNIC=$((${NEXTVNIC} + 1))
 done
-for zone in $ALLZONES; do
+
+# XXX why do we need this here, isn't something else supposed to boot autoboot zones?
+# if so, this should be moved to only boot just-created zones.
+for zone in ${ALLZONES}; do
     zoneadm -z ${zone} boot
 done
 
-# XXX Wait for zoneinit to finish, look at files instead?
-echo -n "waiting for zoneinit... " >>/dev/console
-sleep 10
-echo "done." >>/dev/console
+if [ -n "${CREATEDZONES}" ]; then
+    for zone in ${CREATEDZONES}; do
+        if [ -e /zones/${zone}/root/root/zoneinit ]; then
+            echo -n "${zone}: waiting for zoneinit." >>/dev/console
+            loops=0
+            while [ -e /zones/${zone}/root/root/zoneinit ]; do
+                sleep 2
+                echo -n "." >> /dev/console
+                loops=$((${loops} + 1))
+                [ ${loops} -ge 59 ] && break
+            done
+            if [ ${loops} -ge 59 ]; then
+                echo " timeout!" >>/dev/console
+                ls -l /zones/${zone}/root/root >> /dev/console
+            else
+                echo " done." >>/dev/console
+            fi
+        fi
 
-for zone in `ls /mnt/zones | sort -r`; do
+        # disable zoneinit now that we're done with it.
+        zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
 
-    # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
-    sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
-    && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
+        # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
+        sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
+        && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
 
-    echo -n "rebooting ${zone}... " >>/dev/console
-    zlogin ${zone} reboot
-    echo "done." >>/dev/console
-done
+        echo -n "rebooting ${zone}... " >>/dev/console
+        zlogin ${zone} reboot
+        echo "done." >>/dev/console
+    done
 
-# XXX HACK!
-#echo -n "Cleaning up... " >>/dev/console
-#sleep 5
-#for zone in `ls /mnt/zones`; do
-#    zlogin ${zone} svcadm clear network/physical:default
-#done
-#sleep 1
-#zlogin dhcpd svcadm clear dhcpd
-#echo "done." >> /dev/console
-
-echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
-echo "" >>/dev/console
+    echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
+    echo "" >>/dev/console
+fi
 
 exit 0
