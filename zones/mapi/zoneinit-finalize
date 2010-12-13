@@ -140,3 +140,7 @@ fi
 
 # Ensure everything in /home/jill is owned by jill
 chown -R jill:jill /home/jill
+
+# fix perms on /home
+chown root:root /home
+chmod 0555 /home

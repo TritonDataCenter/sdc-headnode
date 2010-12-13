@@ -52,7 +52,7 @@ for template in `ls /zones | grep bare`; do
 done
 
 USBZONES=`ls /mnt/zones`
-ALLZONES=`for x in "$ZONES $USBZONES"; do echo $x; done | sort | uniq | xargs`
+ALLZONES=`for x in "$ZONES $USBZONES"; do echo $x; done | sort -r | uniq | xargs`
 
 for zone in $ALLZONES; do
     if [[ ! `echo ${ZONES} | grep ${zone} ` ]]; then
@@ -112,7 +112,7 @@ echo -n "waiting for zoneinit... " >>/dev/console
 sleep 10
 echo "done." >>/dev/console
 
-for zone in `ls /mnt/zones`; do
+for zone in `ls /mnt/zones | sort -r`; do
 
     # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
     sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
