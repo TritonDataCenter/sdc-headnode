@@ -144,3 +144,6 @@ chown -R jill:jill /home/jill
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+# clear postgresql if it's still in maint
+svcadm clear postgresql >/dev/null 2>&1 || /bin/true
