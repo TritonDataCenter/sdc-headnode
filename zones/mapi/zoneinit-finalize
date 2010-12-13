@@ -111,7 +111,7 @@ cp /home/jill/mapi/config/config.yml.sample /home/jill/mapi/config/config.yml
 svcadm enable dns/multicast
 
 echo "Auto Upgrading MCP API Database."
-$(su - jill -c "cd /home/jill/mapi; SINATRA_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile")
+$(su - jill -c "cd /home/jill/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile")
 sleep 1
 
 if [[ ! $(/usr/bin/svcs -a|grep mcp_api) ]]; then
