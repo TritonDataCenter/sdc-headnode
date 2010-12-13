@@ -126,17 +126,17 @@ if [[ ! $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
   sleep 2
 fi
 
-if [[ ! $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
-  echo "Importing MCP API Dataset List Client Manifest"
-  $(/usr/sbin/svccfg import /home/jill/mapi/config/dslistclient.smf)
-  sleep 2
-fi
+# if [[ ! $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
+#   echo "Importing MCP API Dataset List Client Manifest"
+#   $(/usr/sbin/svccfg import /home/jill/mapi/config/dslistclient.smf)
+#   sleep 2
+# fi
 
-if [[ ! $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-  echo "Importing MCP API Heartbeater Client Manifest"
-  $(/usr/sbin/svccfg import /home/jill/mapi/config/heartbeater.smf)
-  sleep 2
-fi
+# if [[ ! $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+#   echo "Importing MCP API Heartbeater Client Manifest"
+#   $(/usr/sbin/svccfg import /home/jill/mapi/config/heartbeater.smf)
+#   sleep 2
+# fi
 
 # Ensure everything in /home/jill is owned by jill
 chown -R jill:jill /home/jill
