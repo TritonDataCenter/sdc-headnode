@@ -76,9 +76,9 @@ if [[ ! $(cat /home/jill/mapi/config/config.yml | grep Amqp) ]]; then
   $(/opt/local/bin/gsed -i"" -e "s/:queue_system: JobdQueueSystem/:queue_system: AmqpQueueSystem/" \
   -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
   -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
-  -e "s/:user: guest/:user: joyent/" \
-  -e "s/:password: guest/:password: joytastic/" \
-  -e "s/'mq1-dev.joyent.us'/localhost/" \
+  -e "s/:user: guest/:user: guest/" \
+  -e "s/:password: guest/:password: guest/" \
+  -e "s/'mq1-dev.joyent.us'/10.99.99.5/" \
   -e "s/MCP API Production/MCP API $host/" \
   /home/jill/mapi/config/config.yml)
 fi
