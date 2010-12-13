@@ -102,6 +102,12 @@ for zone in $ALLZONES; do
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
             && rm /tmp/motd.new
+
+	# this allows a zone-specific motd message to be appended
+	if [[ -f /mnt/zones/${zone}/motd.append ]]; then
+            cat /mnt/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
+        fi
+
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
