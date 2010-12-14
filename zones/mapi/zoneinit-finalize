@@ -37,6 +37,17 @@ if [[ ! -e /home/jill/mapi/config/database.yml ]]; then
   $(su - jill -c "cd /home/jill/mapi; /opt/local/bin/rake dev:configs -f /home/jill/mapi/Rakefile")
 fi
 sleep 1
+
+# Note these files should have been created by previous Rake task.
+# If we copy these files post "gsed", everything is reset:
+if [[ ! -e /home/jill/mapi/config/config.ru ]]; then
+  cp /home/jill/mapi/config/config.ru.sample /home/jill/mapi/config/config.ru
+fi
+
+if [[ ! -e /home/jill/mapi/config/config.yml ]]; then
+  cp /home/jill/mapi/config/config.yml.sample /home/jill/mapi/config/config.yml
+fi
+
 if [[ $(ls /home/jill/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
   $(cd /home/jill/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /home/jill/mapi/Rakefile)
@@ -104,9 +115,6 @@ if [[ ! -e /home/jill/mapi/config/dslistclient.smf ]]; then
   $(/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; dataset_list_command='/opt/local/bin/ruby18 /home/jill/mapi/script/dataset_list_client.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/dataset_list_client.erb')).result" > /home/jill/mapi/config/dslistclient.smf)
   $(chown jill:jill /home/jill/mapi/config/dslistclient.smf)
 fi
-
-cp /home/jill/mapi/config/config.ru.sample /home/jill/mapi/config/config.ru
-cp /home/jill/mapi/config/config.yml.sample /home/jill/mapi/config/config.yml
 
 svcadm enable dns/multicast
 
