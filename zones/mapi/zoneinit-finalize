@@ -12,6 +12,7 @@ if [[ "$pgsql_state" == "online" ]]; then
 fi
 # en_US.UTF-8 seems to be missing!?.
 $(su - postgres -c \"/opt/local/bin/initdb --pgdata=/var/pgsql/data --encoding=UTF8 --locale=en_GB.UTF-8 --auth=password --pwfile=/tmp/pgpasswd\" >/dev/null)
+sleep 1
 
 svcadm clear network/physical:default
 
@@ -24,12 +25,19 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' -R admin jill
 usermod -s /usr/bin/bash jill
 
-if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
-  echo "Creating mapi database"
-  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
-  chown jill /home/jill/.pgpass
-  chmod 0600 /home/jill/.pgpass
-  $(su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi")
+# MAPI db creation will not work unless we enable postgresql first!:
+$(/usr/sbin/svcadm enable -s postgresql)
+sleep 2
+if [ "$(svcs -Ho state postgresql)" != "online" ]; then
+  echo "ERROR PostgreSQL failed to start"
+else
+  if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+    echo "Creating mapi database"
+    echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
+    chown jill /home/jill/.pgpass
+    chmod 0600 /home/jill/.pgpass
+    $(su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi")
+  fi
 fi
 
 if [[ ! -e /home/jill/mapi/config/database.yml ]]; then
