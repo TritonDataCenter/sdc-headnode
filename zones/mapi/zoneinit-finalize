@@ -69,7 +69,7 @@ fi
 
 if [[ ! -e /home/jill/mapi/config/unicorn.conf ]]; then
   echo "Creating MCP API Unicorn Configuration file."
-  $(PORT=8080 PROCESSES=1 /opt/local/bin/rake dev:unicorn -f /home/jill/mapi/Rakefile)
+  $(/opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/home/jill/mapi'; application='mcp_api'; puts ERB.new(File.read('/home/jill/mapi/config/unicorn.conf.erb')).result" > /home/jill/mapi/config/unicorn.conf)
   $(chown jill:jill /home/jill/mapi/config/unicorn.conf)
 fi
 
