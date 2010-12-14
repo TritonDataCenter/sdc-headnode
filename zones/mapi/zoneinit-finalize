@@ -145,5 +145,14 @@ chown -R jill:jill /home/jill
 chown root:root /home
 chmod 0555 /home
 
+# These happen to do not be created always:
+if [[ ! -e /opt/local/bin/ruby ]]; then
+  ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+fi
+
+if [[ ! -e /opt/local/bin/irb ]]; then
+  ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+fi
+
 # clear postgresql if it's still in maint
 svcadm clear postgresql >/dev/null 2>&1 || /bin/true
