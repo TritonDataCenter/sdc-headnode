@@ -22,6 +22,10 @@ if ! mount_usb; then
     exit 1;
 fi
 
+# Create a link to the config as /etc/headnode.config, so we can have a
+# consistent location for it when we want to be able to umount the USB later
+ln -s /mnt/config /etc/headnode.config
+
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 
 # check if we've imported a zpool
@@ -40,10 +44,6 @@ if [[ ${POOLS} == "no pools available" ]]; then
     reboot
     exit 2
 fi
-
-# Create a link to the config as /etc/headnode.config, so we can have a
-# consistent location for it when we want to be able to umount the USB later
-ln -s /mnt/config /etc/headnode.config
 
 # Now the infrastructure zones
 
