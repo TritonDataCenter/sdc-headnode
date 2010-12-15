@@ -114,6 +114,12 @@ if [[ ! -e /home/jill/mapi/config/dslistclient.smf ]]; then
   $(chown jill:jill /home/jill/mapi/config/dslistclient.smf)
 fi
 
+if [[ ! -e /home/jill/mapi/config/ur.smf ]]; then
+  echo "Creating MAPI Ur Agent Client Manifest."
+  $(RACK_ENV=production /opt/local/bin/rake smf:ur -f /home/jill/mapi/Rakefile)
+  $(chown jill:jill /home/jill/mapi/config/ur.smf)
+fi
+
 svcadm enable dns/multicast
 
 echo "Auto Upgrading MCP API Database."
@@ -132,16 +138,19 @@ if [[ ! $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
   sleep 2
 fi
 
+# if [[ ! $(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
+#   echo "Importing MAPI Ur Agent Client Manifest"
+#   $(/usr/sbin/svccfg import /home/jill/mapi/config/ur.smf)
+# fi
+
 # if [[ ! $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
 #   echo "Importing MCP API Dataset List Client Manifest"
 #   $(/usr/sbin/svccfg import /home/jill/mapi/config/dslistclient.smf)
-#   sleep 2
 # fi
 
 # if [[ ! $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
 #   echo "Importing MCP API Heartbeater Client Manifest"
 #   $(/usr/sbin/svccfg import /home/jill/mapi/config/heartbeater.smf)
-#   sleep 2
 # fi
 
 # Ensure everything in /home/jill is owned by jill
