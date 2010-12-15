@@ -27,6 +27,7 @@ fi
 ln -s /mnt/config /etc/headnode.config
 
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+default_gateway=`grep "^default_gateway=" /etc/headnode.config 2>/dev/null | cut -f2 -d'='`
 
 # check if we've imported a zpool
 POOLS=`zpool list`
@@ -111,6 +112,10 @@ for zone in $ALLZONES; do
 	# this allows a zone-specific motd message to be appended
 	if [[ -f /mnt/zones/${zone}/motd.append ]]; then
             cat /mnt/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
+        fi
+
+        if [[ -n ${default_gateway} ]]; then
+            echo "${default_gateway}" > /zones/${zone}/root/etc/defaultrouter
         fi
 
         echo "done." >>/dev/console

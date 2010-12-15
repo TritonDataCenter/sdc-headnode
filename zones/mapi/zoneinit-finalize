@@ -22,7 +22,7 @@ groupadd jill
 useradd -g jill -d /home/jill jill
 chown -R jill:jill /home/jill
 echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
-usermod -P 'Service Management' -R admin jill
+usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
 # MAPI db creation will not work unless we enable postgresql first!:
