@@ -96,6 +96,11 @@ for zone in $ALLZONES; do
             cp /mnt/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
 
+	cat /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh \
+            | sed -e "s/^pkgin update/# pkgin update/" \
+            > /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new \
+            && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
+
         zoneip=`grep PRIVATE_IP /mnt/zones/${zone}/zoneconfig | cut -f 2 -d '='`
         echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
