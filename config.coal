@@ -4,7 +4,9 @@
 # Test with: (source ./config ; echo ${admin_ip})
 #
 coal=true
+swap=4g
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
+default_gateway=10.99.99.7
 initial_script=/mnt/scripts/headnode.sh
 rabbitmq=ur:ahY8sies:10.99.99.5:5672

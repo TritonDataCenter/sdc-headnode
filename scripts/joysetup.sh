@@ -12,6 +12,7 @@ CONFDS=$ZPOOL/config
 OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
+SWAPVOL=${ZPOOL}/swap
 
 fatal()
 {
@@ -115,10 +116,23 @@ setup_datasets()
     echo "done." >>/dev/console
 }
 
+create_swap()
+{
+    if [ -f "/etc/headnode.config" ]; then
+        swapsize=$(grep "^swap=" /etc/headnode.config | cut -d'=' -f2-)
+        if [[ -n ${swapsize} ]]; then
+            echo -n "Creating swap zvol... " >>/dev/console
+            zfs create -V ${swapsize} ${SWAPVOL}
+            echo "done." >>/dev/console
+        fi
+    fi
+}
+
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
+    create_swap
     /usr/bin/bootparams | grep "headnode=true"
     if [[ $? -ne 0 ]]; then
         # don't reboot if we're a headnode because headnode.sh wants to do more first.

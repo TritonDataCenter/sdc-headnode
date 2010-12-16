@@ -16,7 +16,12 @@ USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 
 # All the files come from USB, so we need that mounted.
 
+# Create a link to the config as /etc/headnode.config, so we can have a
+# consistent location for it when we want to be able to umount the USB later
+ln -s /mnt/config /etc/headnode.config
+
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+default_gateway=`grep "^default_gateway=" /etc/headnode.config 2>/dev/null | cut -f2 -d'='`
 
 # check if we've imported a zpool
 POOLS=`zpool list`
@@ -34,10 +39,6 @@ if [[ ${POOLS} == "no pools available" ]]; then
     reboot
     exit 2
 fi
-
-# Create a link to the config as /etc/headnode.config, so we can have a
-# consistent location for it when we want to be able to umount the USB later
-ln -s ${USB_COPY}/config /etc/headnode.config
 
 # Now the infrastructure zones
 
@@ -90,12 +91,27 @@ for zone in $ALLZONES; do
             cp ${USB_COPY}/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
 
+	cat /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh \
+            | sed -e "s/^pkgin update/# pkgin update/" \
+            > /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new \
+            && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
+
         zoneip=`grep PRIVATE_IP ${USB_COPY}/zones/${zone}/zoneconfig | cut -f 2 -d '='`
         echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
             && rm /tmp/motd.new
+
+	# this allows a zone-specific motd message to be appended
+	if [[ -f /mnt/zones/${zone}/motd.append ]]; then
+            cat /mnt/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
+        fi
+
+        if [[ -n ${default_gateway} ]]; then
+            echo "${default_gateway}" > /zones/${zone}/root/etc/defaultrouter
+        fi
+
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
@@ -114,6 +130,17 @@ done
 # if so, this should be moved to only boot just-created zones.
 for zone in ${ALLZONES}; do
     zoneadm -z ${zone} boot
+done
+
+# Add all "system"/USB zones to /etc/hosts in the GZ
+for zone in rabbitmq mapi dhcpd; do
+    zonename=$(grep "^ZONENAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
+    priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
+        grep "^${priv_ip}	" /etc/hosts >/dev/null \
+          || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
+    fi
 done
 
 if [ -n "${CREATEDZONES}" ]; then
