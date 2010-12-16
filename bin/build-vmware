@@ -9,8 +9,9 @@ ROOT=`pwd`
 ERROR=0
 SUCMD='sudo'
 CLEANED=0
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
 if [ -z "${PLATFORM_URL}" ]; then
-    PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+    PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
 ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates"
 PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q2/All"
@@ -95,11 +96,11 @@ echo "==> Unpacking ${latest_image}"
 LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 
 # Grab the latest agent ur-script too
-latest_agents=$(curl -k -sS ${PLATFORM_URL}/ur-scripts/ \
+latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
     | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
 if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
     echo "==> Downloading ${latest_agents}"
-    (cd ${ROOT}/cache && curl -k -O ${PLATFORM_URL}/ur-scripts/${latest_agents})
+    (cd ${ROOT}/cache && curl -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
 fi
 ${SUCMD} mkdir -p ${ROOT}/mnt/ur-scripts
 ${SUCMD} cp ${ROOT}/cache/${latest_agents} ${ROOT}/mnt/ur-scripts/${latest_agents}
