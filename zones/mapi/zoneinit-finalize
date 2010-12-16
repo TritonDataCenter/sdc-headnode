@@ -20,20 +20,20 @@ if [ "$(svcs -Ho state postgresql)" == "maintenance" ]; then
 fi
 
 if [ "$(svcs -Ho state postgresql)" != "online" ]; then
-  $(/usr/sbin/svcadm enable -s postgresql)
+  /usr/sbin/svcadm enable -s postgresql
   sleep 2
-  if [[ ! $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+  if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
     echo "Creating mapi database"
     echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
     chown jill /home/jill/.pgpass
     chmod 0600 /home/jill/.pgpass
-    $(su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi")
+    su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
   fi
 fi
 
 if [[ ! -e /home/jill/mapi/config/database.yml ]]; then
   echo "Creating MCP API config files."
-  $(su - jill -c "cd /home/jill/mapi; /opt/local/bin/rake dev:configs -f /home/jill/mapi/Rakefile")
+  su - jill -c "cd /home/jill/mapi; /opt/local/bin/rake dev:configs -f /home/jill/mapi/Rakefile"
 fi
 sleep 1
 
@@ -49,22 +49,22 @@ fi
 
 if [[ $(ls /home/jill/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
-  $(cd /home/jill/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /home/jill/mapi/Rakefile)
+  (cd /home/jill/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /home/jill/mapi/Rakefile)
 fi
 
 if [[ ! -e /home/jill/mapi/config/unicorn.smf ]]; then
   echo "Creating MCP API Unicorn Manifest."
-  $(/opt/local/bin/ruby18 -rerb -e "user='jill';app_environment='production';application='mcp_api'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/unicorn.smf.erb')).result" > /home/jill/mapi/config/unicorn.smf)
-  $(chown jill:jill /home/jill/mapi/config/unicorn.smf)
+  /opt/local/bin/ruby18 -rerb -e "user='jill';app_environment='production';application='mcp_api'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/unicorn.smf.erb')).result" > /home/jill/mapi/config/unicorn.smf
+  chown jill:jill /home/jill/mapi/config/unicorn.smf
 fi
 
 if [[ ! -e /home/jill/mapi/config/unicorn.conf ]]; then
   echo "Creating MCP API Unicorn Configuration file."
-  $(/opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/home/jill/mapi'; application='mcp_api'; puts ERB.new(File.read('/home/jill/mapi/config/unicorn.conf.erb')).result" > /home/jill/mapi/config/unicorn.conf)
-  $(chown jill:jill /home/jill/mapi/config/unicorn.conf)
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/home/jill/mapi'; application='mcp_api'; puts ERB.new(File.read('/home/jill/mapi/config/unicorn.conf.erb')).result" > /home/jill/mapi/config/unicorn.conf
+  chown jill:jill /home/jill/mapi/config/unicorn.conf
 fi
 
-if [[ ! $(cat /home/jill/mapi/config/database.yml|grep mapi) ]]; then
+if [[ -z $(cat /home/jill/mapi/config/database.yml|grep mapi) ]]; then
   echo "Configuring MCP API Database."
   cat > /home/jill/mapi/config/database.yml <<MAPI_DB
 
@@ -79,78 +79,69 @@ if [[ ! $(cat /home/jill/mapi/config/database.yml|grep mapi) ]]; then
 MAPI_DB
 fi
 
-if [[ ! $(cat /home/jill/mapi/config/config.yml | grep Amqp) ]]; then
+if [[ -z $(cat /home/jill/mapi/config/config.yml | grep Amqp) ]]; then
   echo "Updating MCP API Config file."
   host=`hostname`
-  $(/opt/local/bin/gsed -i"" -e "s/:queue_system: JobdQueueSystem/:queue_system: AmqpQueueSystem/" \
+  /opt/local/bin/gsed -i"" -e "s/:queue_system: JobdQueueSystem/:queue_system: AmqpQueueSystem/" \
   -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
   -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
   -e "s/:user: guest/:user: guest/" \
   -e "s/:password: guest/:password: guest/" \
   -e "s/'mq1-dev.joyent.us'/10.99.99.5/" \
   -e "s/MCP API Production/MCP API $host/" \
-  /home/jill/mapi/config/config.yml)
+  /home/jill/mapi/config/config.yml
 fi
 
 if [[ ! -e /home/jill/mapi/tmp/pids ]]; then
-  $(su - jill -c "mkdir -p /home/jill/mapi/tmp/pids")
+  su - jill -c "mkdir -p /home/jill/mapi/tmp/pids"
 fi
 
 if [[ ! -e /home/jill/mapi/config/heartbeater.smf ]]; then
   echo "Creating MCP API heartbeater Manifest."
-  $(/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; heartbeater_command='/opt/local/bin/ruby18 /home/jill/mapi/script/heartbeat_client.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/heartbeater_client.erb')).result" > /home/jill/mapi/config/heartbeater.smf)
-  $(chown jill:jill /home/jill/mapi/config/heartbeater.smf)
+  (/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; heartbeater_command='/opt/local/bin/ruby18 /home/jill/mapi/script/heartbeat_client.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/heartbeater_client.erb')).result" > /home/jill/mapi/config/heartbeater.smf)
+  chown jill:jill /home/jill/mapi/config/heartbeater.smf
 fi
 
 if [[ ! -e /home/jill/mapi/config/provisioner.smf ]]; then
   echo "Creating MCP API provisioner Manifest."
-  $(/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; provisioner_agent_command='/opt/local/bin/ruby18 /home/jill/mapi/script/provision_job_runner.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/provisioner_agent_client.erb')).result" > /home/jill/mapi/config/provisioner.smf)
-  $(chown jill:jill /home/jill/mapi/config/provisioner.smf)
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; provisioner_agent_command='/opt/local/bin/ruby18 /home/jill/mapi/script/provision_job_runner.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/provisioner_agent_client.erb')).result" > /home/jill/mapi/config/provisioner.smf
+  chown jill:jill /home/jill/mapi/config/provisioner.smf
 fi
 
 if [[ ! -e /home/jill/mapi/config/dslistclient.smf ]]; then
   echo "Creating MCP API dataset list client Manifest."
-  $(/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; dataset_list_command='/opt/local/bin/ruby18 /home/jill/mapi/script/dataset_list_client.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/dataset_list_client.erb')).result" > /home/jill/mapi/config/dslistclient.smf)
-  $(chown jill:jill /home/jill/mapi/config/dslistclient.smf)
-fi
-
-if [[ ! -e /home/jill/mapi/config/ur.smf ]]; then
-  echo "Creating MAPI Ur Agent Client Manifest."
-  $(RACK_ENV=production /opt/local/bin/rake smf:ur -f /home/jill/mapi/Rakefile)
-  $(chown jill:jill /home/jill/mapi/config/ur.smf)
+  (/opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; dataset_list_command='/opt/local/bin/ruby18 /home/jill/mapi/script/dataset_list_client.rb'; working_directory='/home/jill/mapi'; puts ERB.new(File.read('/home/jill/mapi/config/deploy/dataset_list_client.erb')).result" > /home/jill/mapi/config/dslistclient.smf)
+  chown jill:jill /home/jill/mapi/config/dslistclient.smf
 fi
 
 svcadm enable dns/multicast
 
 echo "Auto Upgrading MCP API Database."
-$(su - jill -c "cd /home/jill/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile")
+su - jill -c "cd /home/jill/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile"
 sleep 1
 
-if [[ ! $(/usr/bin/svcs -a|grep mcp_api) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep mcp_api) ]]; then
   echo "Importing MCP API Unicorn Manifest"
-  $(/usr/sbin/svccfg import /home/jill/mapi/config/unicorn.smf)
+  /usr/sbin/svccfg import /home/jill/mapi/config/unicorn.smf
   sleep 2
 fi
 
-if [[ ! $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
   echo "Importing MCP API Provisioner Client Manifest"
-  $(/usr/sbin/svccfg import /home/jill/mapi/config/provisioner.smf)
+  /usr/sbin/svccfg import /home/jill/mapi/config/provisioner.smf
   sleep 2
 fi
 
-# if [[ ! $(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
-#   echo "Importing MAPI Ur Agent Client Manifest"
-#   $(/usr/sbin/svccfg import /home/jill/mapi/config/ur.smf)
-# fi
-
-# if [[ ! $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
+# if [[ -z $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
 #   echo "Importing MCP API Dataset List Client Manifest"
-#   $(/usr/sbin/svccfg import /home/jill/mapi/config/dslistclient.smf)
+#   /usr/sbin/svccfg import /home/jill/mapi/config/dslistclient.smf
+#   sleep 2
 # fi
 
-# if [[ ! $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+# if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
 #   echo "Importing MCP API Heartbeater Client Manifest"
-#   $(/usr/sbin/svccfg import /home/jill/mapi/config/heartbeater.smf)
+#   /usr/sbin/svccfg import /home/jill/mapi/config/heartbeater.smf
+#   sleep 2
 # fi
 
 # Ensure everything in /home/jill is owned by jill
@@ -168,4 +159,11 @@ fi
 if [[ ! -e /opt/local/bin/irb ]]; then
   ln -s /opt/local/bin/irb18 /opt/local/bin/irb
 fi
+
+## Setup and call the verify script
+echo "postgres" > /tmp/pgpasswd
+(cd /home/jill/mapi && ./script/verify_setup.sh)
+(cd /home/jill/mapi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
+rm -f /tmp/fake_data.output /tmp/pgpasswd
 
