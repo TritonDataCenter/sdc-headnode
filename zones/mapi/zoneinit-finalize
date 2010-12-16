@@ -129,13 +129,12 @@ sleep 1
 if [[ -z $(/usr/bin/svcs -a|grep mcp_api) ]]; then
   echo "Importing MCP API Unicorn Manifest"
   /usr/sbin/svccfg import /home/jill/mapi/config/unicorn.smf
-  sleep 2
+  sleep 1
 fi
 
 if [[ -z $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
   echo "Importing MCP API Provisioner Client Manifest"
   /usr/sbin/svccfg import /home/jill/mapi/config/provisioner.smf
-  sleep 2
 fi
 
 if [[ -z $(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
