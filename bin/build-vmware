@@ -94,6 +94,16 @@ echo "==> Unpacking ${latest_image}"
 (cd ${ROOT}/mnt && ${SUCMD} tar -zxf ${ROOT}/cache/${latest_image} && ${SUCMD} mv platform-* platform)
 LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 
+# Grab the latest agent ur-script too
+latest_agents=$(curl -k -sS ${PLATFORM_URL}/ur-scripts/ \
+    | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
+    echo "==> Downloading ${latest_agents}"
+    (cd ${ROOT}/cache && curl -k -O ${PLATFORM_URL}/ur-scripts/${latest_agents})
+fi
+${SUCMD} mkdir -p ${ROOT}/mnt/ur-scripts
+${SUCMD} cp ${ROOT}/cache/${latest_agents} ${ROOT}/mnt/ur-scripts/${latest_agents}
+
 bare="bare-1.1.12.zfs.gz"
 if [ ! -f "${ROOT}/cache/${bare}" ]; then
     echo "==> Downloading ${bare}"
