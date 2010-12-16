@@ -11,16 +11,10 @@
 
 DEBUG="true"
 
-. /lib/svc/share/joyent_include.sh
-
+USB_PATH=`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
+USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 
 # All the files come from USB, so we need that mounted.
-if ! mount_usb; then
-    # This is to move us to the next line past the login: prompt
-    echo "" >>/dev/console
-    echo "FATAL: Cannot find USB key... ${mount_usb_msg}" >>/dev/console
-    exit 1;
-fi
 
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 
@@ -32,10 +26,10 @@ if [[ ${POOLS} == "no pools available" ]]; then
     # This is to move us to the next line past the login: prompt
     echo "" >>/dev/console
 
-    /mnt/scripts/joysetup.sh || exit 1
+    ${USB_PATH}/scripts/joysetup.sh || exit 1
 
     echo -n "Importing zone template dataset... " >>/dev/console
-    bzcat /mnt/bare.zfs.bz2 | zfs recv -e zones || exit 1;
+    bzcat ${USB_PATH}/bare.zfs.bz2 | zfs recv -e zones || exit 1;
     echo "done." >>/dev/console
     reboot
     exit 2
@@ -43,7 +37,7 @@ fi
 
 # Create a link to the config as /etc/headnode.config, so we can have a
 # consistent location for it when we want to be able to umount the USB later
-ln -s /mnt/config /etc/headnode.config
+ln -s ${USB_COPY}/config /etc/headnode.config
 
 # Now the infrastructure zones
 
@@ -56,7 +50,7 @@ for template in `ls /zones | grep bare`; do
     LATESTTEMPLATE=${template}
 done
 
-USBZONES=`ls /mnt/zones`
+USBZONES=`ls ${USB_COPY}/zones`
 ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
 CREATEDZONES=
 
@@ -73,30 +67,30 @@ for zone in $ALLZONES; do
                 break
             fi
         done
-        zonecfg -z ${zone} -f /mnt/zones/${zone}/config
+        zonecfg -z ${zone} -f ${USB_COPY}/zones/${zone}/config
         zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
-        (cd /zones/${zone}; bzcat /mnt/zones/${zone}/fs.tar.bz2 | tar -xf - )
+        (cd /zones/${zone}; bzcat ${USB_COPY}/zones/${zone}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
         chmod 0700 /zones/${zone}
-        if [[ -f "/mnt/zones/${zone}/zoneconfig" ]]; then
-            cp /mnt/zones/${zone}/zoneconfig /zones/${zone}/root/root/zoneconfig
+        if [[ -f "${USB_COPY}/zones/${zone}/zoneconfig" ]]; then
+            cp ${USB_COPY}/zones/${zone}/zoneconfig /zones/${zone}/root/root/zoneconfig
         fi
-        if [[ -f "/mnt/zones/${zone}/pkgsrc" ]]; then
+        if [[ -f "${USB_COPY}/zones/${zone}/pkgsrc" ]]; then
             mkdir -p /zones/${zone}/root/root/pkgsrc
-            cp /mnt/zones/${zone}/pkgsrc /zones/${zone}/root/root/pkgsrc/order
-            for pkg in `cat /mnt/zones/${zone}/pkgsrc`; do
-                cp /mnt/pkgsrc/${pkg}.tgz /zones/${zone}/root/root/pkgsrc
+            cp ${USB_COPY}/zones/${zone}/pkgsrc /zones/${zone}/root/root/pkgsrc/order
+            for pkg in `cat ${USB_COPY}/zones/${zone}/pkgsrc`; do
+                cp ${USB_COPY}/pkgsrc/${pkg}.tgz /zones/${zone}/root/root/pkgsrc
             done
             mkdir -p /zones/${zone}/root/root/zoneinit.d
-            cp /mnt/zoneinit/94-zone-pkgs.sh /zones/${zone}/root/root/zoneinit.d
+            cp ${USB_COPY}/zoneinit/94-zone-pkgs.sh /zones/${zone}/root/root/zoneinit.d
         fi
-        if [[ -f "/mnt/zones/${zone}/zoneinit-finalize" ]]; then
+        if [[ -f "${USB_COPY}/zones/${zone}/zoneinit-finalize" ]]; then
             mkdir -p /zones/${zone}/root/root/zoneinit.d
-            cp /mnt/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
+            cp ${USB_COPY}/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
 
-        zoneip=`grep PRIVATE_IP /mnt/zones/${zone}/zoneconfig | cut -f 2 -d '='`
+        zoneip=`grep PRIVATE_IP ${USB_COPY}/zones/${zone}/zoneconfig | cut -f 2 -d '='`
         echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
 
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \

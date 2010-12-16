@@ -5,7 +5,7 @@ set autoboot=true
 set ip-type=exclusive
 add fs
 set dir=/tftpboot/platform
-set special=/mnt/platform
+set special=/usbkey/platform
 set type=lofs
 add options ro
 add options nodevices

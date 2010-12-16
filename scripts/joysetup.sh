@@ -11,6 +11,7 @@ ZPOOL=zones
 CONFDS=$ZPOOL/config
 OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
+USBKEYDS=$ZPOOL/usbkey
 
 fatal()
 {
@@ -91,6 +92,11 @@ setup_datasets()
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
     zfs set mountpoint=legacy ${CONFDS}
+    echo "done." >>/dev/console
+
+    echo -n "Creating usbkey dataset... " >>/dev/console
+    zfs create -o mountpoint=legacy ${USBKEYDS}
+    [ $? -ne 0 ] && fatal "failed to create the usbkey dataset"
     echo "done." >>/dev/console
 
     echo -n "Creating opt dataset... " >>/dev/console
