@@ -7,6 +7,15 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
 
+# These happen to do not be created always:
+if [[ ! -e /opt/local/bin/ruby ]]; then
+  ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+fi
+
+if [[ ! -e /opt/local/bin/irb ]]; then
+  ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+fi
+
 groupadd jill
 useradd -g jill -d /home/jill jill
 chown -R jill:jill /home/jill
@@ -158,15 +167,6 @@ chown -R jill:jill /home/jill
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
-
-# These happen to do not be created always:
-if [[ ! -e /opt/local/bin/ruby ]]; then
-  ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
-fi
-
-if [[ ! -e /opt/local/bin/irb ]]; then
-  ln -s /opt/local/bin/irb18 /opt/local/bin/irb
-fi
 
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
