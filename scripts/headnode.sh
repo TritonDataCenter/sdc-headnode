@@ -42,8 +42,6 @@ fi
 
 # Now the infrastructure zones
 
-#NEXTVNIC=`dladm show-vnic | grep -c vnic`
-
 ZONES=`zoneadm list -i | grep -v "^global$"`
 
 LATESTTEMPLATE=''
@@ -56,21 +54,19 @@ ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | x
 CREATEDZONES=
 
 for zone in $ALLZONES; do
-    if [[ ! `echo ${ZONES} | grep ${zone} ` ]]; then
+    if [[ -z $(echo "${ZONES}" | grep ${zone}) ]]; then
 
         # This is to move us to the next line past the login: prompt
-        [ -z ${CREATEDZONES} ] && echo "" >>/dev/console
+        [[ -z "${CREATEDZONES}" ]] && echo "" >>/dev/console
 
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
-#                dladm create-vnic -l ${iface} vnic${NEXTVNIC}
                 dladm create-vnic -l ${iface} ${zone}0
                 break
             fi
         done
         zonecfg -z ${zone} -f ${USB_COPY}/zones/${zone}/config
-#        zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
         zonecfg -z ${zone} "add net; set physical=${zone}0; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
         (cd /zones/${zone}; bzcat ${USB_COPY}/zones/${zone}/fs.tar.bz2 | tar -xf - )
@@ -99,7 +95,6 @@ for zone in $ALLZONES; do
             && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
 
         zoneip=`grep PRIVATE_IP ${USB_COPY}/zones/${zone}/zoneconfig | cut -f 2 -d '='`
-#        echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
         echo ${zoneip} > /zones/${zone}/root/etc/hostname.${zone}0
 
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
@@ -115,25 +110,12 @@ for zone in $ALLZONES; do
             echo "${default_gateway}" > /zones/${zone}/root/etc/defaultrouter
         fi
 
+        zoneadm -z ${zone} boot
+
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
-#    else
-#        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
-#            if [[ ${mac} == ${admin_nic} ]]; then
-#                dladm create-vnic -l ${iface} vnic${NEXTVNIC}               
-#                dladm create-vnic -l ${iface} ${zone}0
-#                break
-#            fi
-#        done
     fi
-#    NEXTVNIC=$((${NEXTVNIC} + 1))
-done
-
-# XXX why do we need this here, isn't something else supposed to boot autoboot zones?
-# if so, this should be moved to only boot just-created zones.
-for zone in ${ALLZONES}; do
-    zoneadm -z ${zone} boot
 done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
