@@ -42,7 +42,7 @@ fi
 
 # Now the infrastructure zones
 
-NEXTVNIC=`dladm show-vnic | grep -c vnic`
+#NEXTVNIC=`dladm show-vnic | grep -c vnic`
 
 ZONES=`zoneadm list -i | grep -v "^global$"`
 
@@ -64,12 +64,14 @@ for zone in $ALLZONES; do
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
-                dladm create-vnic -l ${iface} vnic${NEXTVNIC}
+#                dladm create-vnic -l ${iface} vnic${NEXTVNIC}
+                dladm create-vnic -l ${iface} ${zone}0
                 break
             fi
         done
         zonecfg -z ${zone} -f ${USB_COPY}/zones/${zone}/config
-        zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
+#        zonecfg -z ${zone} "add net; set physical=vnic${NEXTVNIC}; end"
+        zonecfg -z ${zone} "add net; set physical=${zone}0; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
         (cd /zones/${zone}; bzcat ${USB_COPY}/zones/${zone}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
@@ -97,7 +99,8 @@ for zone in $ALLZONES; do
             && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
 
         zoneip=`grep PRIVATE_IP ${USB_COPY}/zones/${zone}/zoneconfig | cut -f 2 -d '='`
-        echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
+#        echo ${zoneip} > /zones/${zone}/root/etc/hostname.vnic${NEXTVNIC}
+        echo ${zoneip} > /zones/${zone}/root/etc/hostname.${zone}0
 
         cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
@@ -115,15 +118,16 @@ for zone in $ALLZONES; do
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
-    else
-        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
-            if [[ ${mac} == ${admin_nic} ]]; then
-                dladm create-vnic -l ${iface} vnic${NEXTVNIC}
-                break
-            fi
-        done
+#    else
+#        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
+#            if [[ ${mac} == ${admin_nic} ]]; then
+#                dladm create-vnic -l ${iface} vnic${NEXTVNIC}               
+#                dladm create-vnic -l ${iface} ${zone}0
+#                break
+#            fi
+#        done
     fi
-    NEXTVNIC=$((${NEXTVNIC} + 1))
+#    NEXTVNIC=$((${NEXTVNIC} + 1))
 done
 
 # XXX why do we need this here, isn't something else supposed to boot autoboot zones?
