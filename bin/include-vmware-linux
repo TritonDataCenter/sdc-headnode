@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
+
+SUCMD='sudo'
+MNT_DIR="${ROOT}/mnt"
+MD5CMD="md5sum"
+
+function version
+{
+    echo "==> Building with variables from include-linux-vmware"
+}
+
+function cleanup
+{
+    if [ ${CLEANED} -eq 0 ]; then
+        echo '==> Cleaning up'
+        # Ensure we've unmounted the disk
+        ${SUCMD} vmware-mount -d ${ROOT}/mnt
+        CLEANED=1
+
+        if [ $ERROR -eq 0 ]; then
+            echo "==> Defragmenting VMDK"
+            ${SUCMD} vmware-vdiskmanager -d ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
+        fi
+    fi
+    rm -rf /tmp/fs.*.$$
+}
+
+function unpack_image
+{
+    echo -n "==> Unpacking VMWare image... "
+    rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
+    (cd ${ROOT}/cache && tar -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2)
+    echo "done."
+}
+
+function mount_image
+{
+    echo -n "==> Mounting new VMWare image... "
+    mkdir -p ${MNT_DIR}
+    rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
+    (cd ${ROOT}/cache && tar -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2)
+    ${SUCMD} vmware-mount ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk ${ROOT}/mnt
+    echo "done."
+}
+
+function add_manifests
+{
+    # build manifest of USB files + move in boot_archive manifest
+    ${SUCMD} rm -f ${ROOT}/cache/usb_key.manifest
+    (cd ${MNT_DIR}/ && find . -type f -exec ${MD5CMD} {} \;) > ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
+    ${SUCMD} mv ${MNT_DIR}/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest
+    ${SUCMD} chmod 444 ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
+}
+
+function create_output
+{
+    echo "==> Creating coal-147-${LIVEIMG_VERSION}.tgz"
+    (cd ${ROOT}/cache \
+        && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
+        && tar -zcf ${ROOT}/coal-147-${LIVEIMG_VERSION}.tgz USB-headnode.vmwarevm)
+}
+
