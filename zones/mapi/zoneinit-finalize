@@ -7,6 +7,19 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
 
+# Configure nsswitch to use mdns & enable multicast dns:
+hosts=$(/etc/nsswitch.conf |grep ^hosts)
+
+if [[ ! $(echo $hosts | grep mdns) ]]; then
+  $(/opt/local/bin/gsed -i\"\" -e \"s/^hosts.*$/hosts: files mdns dns/\" /etc/nsswitch.conf)
+fi
+
+ipnodes=$(/etc/nsswitch.conf |grep ^ipnodes)
+
+if [[ ! $(echo $ipnodes | grep mdns) ]]; then
+  $(/opt/local/bin/gsed -i\"\" -e \"s/^ipnodes.*$/ipnodes: files mdns dns/\" /etc/nsswitch.conf)
+fi
+
 if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" != "online" ]]; then
   $(/usr/sbin/svcadm enable -s dns/multicast)
 fi
