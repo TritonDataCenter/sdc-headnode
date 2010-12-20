@@ -3,3 +3,8 @@ set zonepath=/zones/rabbitmq
 set brand=joyent
 set autoboot=true
 set ip-type=exclusive
+add capped-memory
+set physical=128m
+end
+set max-lwps=1000
+set cpu-shares=50
