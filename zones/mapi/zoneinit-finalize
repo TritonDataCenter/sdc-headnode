@@ -7,6 +7,10 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
 
+if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" != "online" ]]; then
+  $(/usr/sbin/svcadm enable -s dns/multicast)
+fi
+
 # These happen to do not be created always:
 if [[ ! -e /opt/local/bin/ruby ]]; then
   ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
