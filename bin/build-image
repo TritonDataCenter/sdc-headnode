@@ -5,6 +5,7 @@
 set -e
 
 ROOT=$(cd $(dirname $0)/../; pwd)
+STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
 MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
@@ -75,27 +76,33 @@ function create_directories
         echo "==> Creating mnt/"
         mkdir -p ${ROOT}/mnt
     fi
+
+    echo "==> Creating stage/"
+    rm -rf ${STAGE}
+    mkdir -p ${STAGE}
+    mkdir -p ${STAGE}/data
 }
 
 function copy_base
 {
     echo "==> Creating .joyliveusb file"
-    ${SUCMD} touch ${MNT_DIR}/.joyliveusb
+    touch ${STAGE}/.joyliveusb
     
     echo "==> Copying in grub menu"
-    ${SUCMD} cp -v boot/grub/menu.lst ${MNT_DIR}/boot/grub/menu.lst
+    mkdir -p ${STAGE}/boot/grub
+    cp -v boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
     
     echo "==> Copying in config"
-    ${SUCMD} cp -v config.coal ${MNT_DIR}/config
+    cp -v config.coal ${STAGE}/config
     
     echo "==> Copying in scripts/"
-    ${SUCMD} cp -rv scripts ${MNT_DIR}/scripts
+    cp -rv scripts ${STAGE}/scripts
     
     echo "==> Copying in zoneinit/"
-    ${SUCMD} cp -rv zoneinit ${MNT_DIR}/zoneinit
+    cp -rv zoneinit ${STAGE}/zoneinit
     
     echo "==> Copying in zones/"
-    ${SUCMD} cp -rv zones ${MNT_DIR}/zones
+    cp -rv zones ${STAGE}/zones
 }
 
 function copy_pkgsrc
@@ -107,11 +114,12 @@ function copy_pkgsrc
                 echo "==> Downloading ${filename}"
                 (cd ${ROOT}/cache && curl -O ${PKGSRC_ROOT}/${filename})
             fi
-            echo "==> Copying ${filename}"
-            ${SUCMD} mkdir -p ${MNT_DIR}/pkgsrc
-            ${SUCMD} cp -rv ${ROOT}/cache/${filename} ${MNT_DIR}/pkgsrc/${filename}
         done
     done
+
+    pkgs=$(cat ${ROOT}/zones/*/pkgsrc | sort | uniq | sed -e "s/$/.tgz/")
+    echo "==> Creating pkgsrc.tar"
+    (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
 function copy_platform
@@ -126,7 +134,7 @@ function copy_platform
     # TODO: also check md5sum before using!
 
     echo "==> Unpacking ${latest_image}"
-    (cd ${MNT_DIR}/ && ${SUCMD} tar -zxf ${ROOT}/cache/${latest_image} && ${SUCMD} mv platform-* platform)
+    (cd ${STAGE}/ && tar -zxf ${ROOT}/cache/${latest_image} && mv platform-* platform)
     LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 }
 
@@ -139,8 +147,8 @@ function copy_agents
         echo "==> Downloading ${latest_agents}"
         (cd ${ROOT}/cache && curl -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
     fi
-    ${SUCMD} mkdir -p ${MNT_DIR}/ur-scripts
-    ${SUCMD} cp ${ROOT}/cache/${latest_agents} ${MNT_DIR}/ur-scripts/${latest_agents}
+    mkdir -p ${STAGE}/ur-scripts
+    cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
 }
 
 function copy_datasets
@@ -152,10 +160,10 @@ function copy_datasets
     fi
 
     echo "==> Repacking ${bare}"
-    zcat ${ROOT}/cache/${bare} | bzip2 -9 > ${ROOT}/cache/bare.zfs.bz2
+    gzcat ${ROOT}/cache/${bare} | bzip2 -9 > ${ROOT}/cache/bare.zfs.bz2
 
     echo "==> Copying bare.zfs.bz2"
-    ${SUCMD} cp ${ROOT}/cache/bare.zfs.bz2 ${MNT_DIR}/bare.zfs.bz2
+    cp ${ROOT}/cache/bare.zfs.bz2 ${STAGE}/bare.zfs.bz2
 }
 
 function copy_zones
@@ -165,44 +173,50 @@ function copy_zones
         echo "==> Downloading ${dhcpd_zonefs}"
         (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${dhcpd_zonefs})
     fi
-    ${SUCMD} mkdir -p ${MNT_DIR}/zones/dhcpd
-    ${SUCMD} cp ${ROOT}/cache/${dhcpd_zonefs} ${MNT_DIR}/zones/dhcpd/fs.tar.bz2
+    mkdir -p ${STAGE}/zones/dhcpd
+    cp ${ROOT}/cache/${dhcpd_zonefs} ${STAGE}/zones/dhcpd/fs.tar.bz2
     
     rabbitmq_zonefs="rabbitmq.tar.bz2"
     if [ ! -f "${ROOT}/cache/${rabbitmq_zonefs}" ]; then
         echo "==> Downloading ${rabbitmq_zonefs}"
         (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${rabbitmq_zonefs})
     fi
-    ${SUCMD} mkdir -p ${MNT_DIR}/zones/rabbitmq
-    ${SUCMD} cp ${ROOT}/cache/${rabbitmq_zonefs} ${MNT_DIR}/zones/rabbitmq/fs.tar.bz2
+    mkdir -p ${STAGE}/zones/rabbitmq
+    cp ${ROOT}/cache/${rabbitmq_zonefs} ${STAGE}/zones/rabbitmq/fs.tar.bz2
     
-    for zone in $(ls ${MNT_DIR}/zones); do
-        if [ -x ${MNT_DIR}/zones/${zone}/fs.populate ] && [ -d ${MNT_DIR}/zones/${zone}/fs.root ]; then
+    for zone in $(ls ${STAGE}/zones); do
+        if [ -x ${STAGE}/zones/${zone}/fs.populate ] && [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
             mkdir -p /tmp/fs.${zone}.$$
-            cp -a ${MNT_DIR}/zones/${zone}/fs.populate ${MNT_DIR}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
-            ${SUCMD} rm -rf ${MNT_DIR}/zones/${zone}/fs.{populate,root}
-            (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && ${SUCMD} tar -jcvf ${MNT_DIR}/zones/${zone}/fs.tar.bz2 ./)
+            cp -a ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
+            rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
+            (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
         fi
     done
+}
+
+function copy_to_mount
+{
+    (cd ${STAGE} && env COPY_EXTENDED_ATTRIBUTES_DISABLE=true tar -cpf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvpf -)
 }
 
 # Main()
 
 test_rootperms
 create_directories
-unpack_image
-mount_image
-trap 'cleanup' EXIT
 copy_base
 copy_pkgsrc
 copy_platform
 copy_agents
 copy_datasets
 copy_zones
+unpack_image
 add_manifests
-create_output
+mount_image
+trap 'cleanup' EXIT
+copy_to_mount
 cleanup
+create_output
 
 if [ ${ERROR} -ne 0 ]; then
     echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"

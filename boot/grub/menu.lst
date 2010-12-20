@@ -4,7 +4,7 @@ min_mem64 1024
 color cyan/blue white/blue
 
 title Live 64-bit
-   kernel /platform/i86pc/kernel/amd64/unix -B console=text,headnode=true,admin_nic=00:50:56:34:60:4c
+   kernel /platform/i86pc/kernel/amd64/unix -B console=text,mountopts=-ofoldcase,headnode=true,admin_nic=00:50:56:34:60:4c
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit KMDB

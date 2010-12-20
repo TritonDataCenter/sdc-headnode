@@ -78,9 +78,8 @@ for zone in $ALLZONES; do
         if [[ -f "${USB_COPY}/zones/${zone}/pkgsrc" ]]; then
             mkdir -p /zones/${zone}/root/root/pkgsrc
             cp ${USB_COPY}/zones/${zone}/pkgsrc /zones/${zone}/root/root/pkgsrc/order
-            for pkg in `cat ${USB_COPY}/zones/${zone}/pkgsrc`; do
-                cp ${USB_COPY}/pkgsrc/${pkg}.tgz /zones/${zone}/root/root/pkgsrc
-            done
+            (cd /zones/${zone}/root/root/pkgsrc \
+              && tar -xf ${USB_COPY}/data/pkgsrc.tar $(cat ${USB_COPY}/zones/${zone}/pkgsrc | sed -e "s/$/.tgz/" | xargs))
             mkdir -p /zones/${zone}/root/root/zoneinit.d
             cp ${USB_COPY}/zoneinit/94-zone-pkgs.sh /zones/${zone}/root/root/zoneinit.d
         fi
@@ -89,7 +88,7 @@ for zone in $ALLZONES; do
             cp ${USB_COPY}/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
         fi
 
-	cat /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh \
+        cat /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh \
             | sed -e "s/^pkgin update/# pkgin update/" \
             > /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new \
             && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
@@ -101,8 +100,8 @@ for zone in $ALLZONES; do
             && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
             && rm /tmp/motd.new
 
-	# this allows a zone-specific motd message to be appended
-	if [[ -f /mnt/zones/${zone}/motd.append ]]; then
+        # this allows a zone-specific motd message to be appended
+        if [[ -f /mnt/zones/${zone}/motd.append ]]; then
             cat /mnt/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
         fi
 

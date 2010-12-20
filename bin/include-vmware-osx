@@ -62,10 +62,10 @@ function mount_image
 function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
-    ${SUCMD} rm -f ${ROOT}/cache/usb_key.manifest
-    (cd ${MNT_DIR}/ && find . -type f -exec ${MD5CMD} {} \;) > ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
-    ${SUCMD} mv ${MNT_DIR}/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest
-    ${SUCMD} chmod 444 ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
+    rm -f ${ROOT}/cache/usb_key.manifest
+    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
+    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest
+    chmod 444 ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
 }
 
 function create_output
