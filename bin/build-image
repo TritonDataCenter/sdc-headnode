@@ -1,0 +1,232 @@
+#!/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
+set -e
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+STAGE="${ROOT}/cache/stage"
+ERROR=0
+CLEANED=0
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+if [ -z "${PLATFORM_URL}" ]; then
+    PLATFORM_URL=${MASTER_PLATFORM_URL}
+fi
+ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates"
+PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q2/All"
+
+# Figure out first what we're building, and load the proper include
+
+PLATFORM=$(uname -s)
+BUILD_TYPE=$1
+if [[ -z ${BUILD_TYPE} ]]; then
+    BUILD_TYPE="vmware"
+fi
+if [[ ${PLATFORM} == 'Darwin' ]]; then
+    case ${BUILD_TYPE} in
+        vmware)
+            source ${ROOT}/bin/include-vmware-osx
+            version
+            ;;
+        usb)
+            echo "OSX-usb";
+            exit 0
+            ;;
+        *)
+            echo "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
+            exit 1
+            ;;
+    esac
+elif [[ ${PLATFORM} == 'Linux' ]]; then
+    case ${BUILD_TYPE} in
+        vmware)
+            source ${ROOT}/bin/include-vmware-linux
+            version
+            ;;
+        usb)
+            echo "Linux-usb";
+            exit 0
+            ;;
+        *)
+            echo "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
+            exit 1
+            ;;
+    esac
+else
+    echo "FATAL: Unsupported platform '${PLATFORM}'"
+fi
+
+function test_rootperms
+{
+    su_uid=$(${SUCMD} id -u)
+    if [[ ${su_uid} -ne 0 ]]; then
+        echo "FATAL: can't get root priviledges"
+        exit 1
+    fi
+}
+
+function create_directories
+{
+    if [ ! -d "${ROOT}/cache" ]; then
+        echo "==> Creating cache/"
+        mkdir -p ${ROOT}/cache
+    fi
+    
+    if [ ! -d "${ROOT}/mnt" ]; then
+        echo "==> Creating mnt/"
+        mkdir -p ${ROOT}/mnt
+    fi
+
+    echo "==> Creating stage/"
+    rm -rf ${STAGE}
+    mkdir -p ${STAGE}
+    mkdir -p ${STAGE}/data
+}
+
+function copy_base
+{
+    echo "==> Creating .joyliveusb file"
+    touch ${STAGE}/.joyliveusb
+    
+    echo "==> Copying in grub menu"
+    mkdir -p ${STAGE}/boot/grub
+    cp -v boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    
+    echo "==> Copying in config"
+    cp -v config.coal ${STAGE}/config
+    
+    echo "==> Copying in scripts/"
+    cp -rv scripts ${STAGE}/scripts
+    
+    echo "==> Copying in zoneinit/"
+    cp -rv zoneinit ${STAGE}/zoneinit
+    
+    echo "==> Copying in zones/"
+    cp -rv zones ${STAGE}/zones
+}
+
+function copy_pkgsrc
+{
+    for pkgfile in `ls ${ROOT}/zones/*/pkgsrc`; do
+        for pkg in `cat ${pkgfile} | xargs`; do
+            filename="${pkg}.tgz"
+            if [ ! -f "${ROOT}/cache/${filename}" ]; then
+                echo "==> Downloading ${filename}"
+                (cd ${ROOT}/cache && curl -O ${PKGSRC_ROOT}/${filename})
+            fi
+        done
+    done
+
+    pkgs=$(cat ${ROOT}/zones/*/pkgsrc | sort | uniq | sed -e "s/$/.tgz/")
+    echo "==> Creating pkgsrc.tar"
+    (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
+}
+
+function copy_platform
+{
+    latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+        | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+    if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
+        echo "==> Downloading ${latest_image}"
+        (cd ${ROOT}/cache && curl -k -O ${PLATFORM_URL}/${latest_image})
+    fi
+
+    # TODO: also check md5sum before using!
+
+    echo "==> Unpacking ${latest_image}"
+    (cd ${STAGE}/ && tar -zxf ${ROOT}/cache/${latest_image} && mv platform-* platform)
+    LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+}
+
+function copy_agents
+{
+    # Grab the latest agent ur-script too
+    latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+        | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+    if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
+        echo "==> Downloading ${latest_agents}"
+        (cd ${ROOT}/cache && curl -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+    fi
+    mkdir -p ${STAGE}/ur-scripts
+    cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+}
+
+function copy_datasets
+{
+    bare="bare-1.1.12.zfs.gz"
+    if [ ! -f "${ROOT}/cache/${bare}" ]; then
+        echo "==> Downloading ${bare}"
+        (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/${bare})
+    fi
+
+    md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
+
+    if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
+        echo "==> Repacking ${bare}"
+        ${GZCAT} ${ROOT}/cache/${bare} | bzip2 -9 > "${ROOT}/cache/bare.${md5}.bz2"
+    fi
+
+    echo "==> Copying bare.zfs.bz2"
+    cp ${ROOT}/cache/bare.${md5}.bz2 ${STAGE}/bare.zfs.bz2
+}
+
+function copy_zones
+{
+    dhcpd_zonefs="dhcpd.tar.bz2"
+    if [ ! -f "${ROOT}/cache/${dhcpd_zonefs}" ]; then
+        echo "==> Downloading ${dhcpd_zonefs}"
+        (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${dhcpd_zonefs})
+    fi
+    mkdir -p ${STAGE}/zones/dhcpd
+    cp ${ROOT}/cache/${dhcpd_zonefs} ${STAGE}/zones/dhcpd/fs.tar.bz2
+    
+    rabbitmq_zonefs="rabbitmq.tar.bz2"
+    if [ ! -f "${ROOT}/cache/${rabbitmq_zonefs}" ]; then
+        echo "==> Downloading ${rabbitmq_zonefs}"
+        (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/liveimg/${rabbitmq_zonefs})
+    fi
+    mkdir -p ${STAGE}/zones/rabbitmq
+    cp ${ROOT}/cache/${rabbitmq_zonefs} ${STAGE}/zones/rabbitmq/fs.tar.bz2
+    
+    for zone in $(ls ${STAGE}/zones); do
+        if [ -x ${STAGE}/zones/${zone}/fs.populate ] && [ -d ${STAGE}/zones/${zone}/fs.root ]; then
+            # do in /tmp because only root can write in mnt
+            mkdir -p /tmp/fs.${zone}.$$
+            cp -a ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
+            rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
+            (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
+        fi
+    done
+}
+
+function copy_to_mount
+{
+    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -)
+}
+
+# Main()
+
+test_rootperms
+create_directories
+copy_base
+copy_pkgsrc
+copy_platform
+copy_agents
+copy_datasets
+copy_zones
+unpack_image
+add_manifests
+mount_image
+trap 'cleanup' EXIT
+copy_to_mount
+cleanup
+create_output
+
+if [ ${ERROR} -ne 0 ]; then
+    echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
+    exit 1
+fi
+
+echo "==> DONE"
+
+exit 0
