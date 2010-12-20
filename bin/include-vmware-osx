@@ -14,6 +14,7 @@
 SUCMD='sudo'
 MNT_DIR="/Volumes/USB-headnode.vmdk"
 MD5CMD="md5 -r"
+GZCAT=gzcat
 
 function version
 {

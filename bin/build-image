@@ -159,11 +159,15 @@ function copy_datasets
         (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/${bare})
     fi
 
-    echo "==> Repacking ${bare}"
-    gzcat ${ROOT}/cache/${bare} | bzip2 -9 > ${ROOT}/cache/bare.zfs.bz2
+    md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
+
+    if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
+        echo "==> Repacking ${bare}"
+        ${GZCAT} ${ROOT}/cache/${bare} | bzip2 -9 > "${ROOT}/cache/bare.${md5}.bz2"
+    fi
 
     echo "==> Copying bare.zfs.bz2"
-    cp ${ROOT}/cache/bare.zfs.bz2 ${STAGE}/bare.zfs.bz2
+    cp ${ROOT}/cache/bare.${md5}.bz2 ${STAGE}/bare.zfs.bz2
 }
 
 function copy_zones
@@ -197,7 +201,7 @@ function copy_zones
 
 function copy_to_mount
 {
-    (cd ${STAGE} && env COPY_EXTENDED_ATTRIBUTES_DISABLE=true tar -cpf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvpf -)
+    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -)
 }
 
 # Main()
