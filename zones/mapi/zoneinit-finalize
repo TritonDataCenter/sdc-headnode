@@ -204,8 +204,6 @@ if [[ ! -e /home/jill/mapi/config/ur.smf ]]; then
   chown jill:jill /home/jill/mapi/config/ur.smf
 fi
 
-svcadm enable dns/multicast
-
 echo "Auto Upgrading MCP API Database."
 su - jill -c "cd /home/jill/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /home/jill/mapi/Rakefile"
 sleep 1
