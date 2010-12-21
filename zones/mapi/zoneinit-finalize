@@ -7,6 +7,13 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
 
+# Import postgres manifest straight from the pkgsrc file:
+if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql.xml
+  /usr/sbin/svcadm enable -s postgresql
+  sleep 2
+fi
+
 # Configure nsswitch to use mdns & enable multicast dns:
 hosts=$(/etc/nsswitch.conf |grep ^hosts)
 
@@ -41,9 +48,9 @@ usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
 # MAPI db creation will not work unless we enable postgresql first!:
-if [ "$(svcs -Ho state postgresql)" == "maintenance" ]; then
-  /usr/sbin/svcadm clear postgresql >/dev/null 2>&1
-fi
+#if [ "$(svcs -Ho state postgresql)" == "maintenance" ]; then
+#  /usr/sbin/svcadm clear postgresql >/dev/null 2>&1
+#fi
 
 if [ "$(svcs -Ho state postgresql)" != "online" ]; then
   /usr/sbin/svcadm enable -s postgresql
