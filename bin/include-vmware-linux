@@ -57,9 +57,19 @@ function add_manifests
 
 function create_output
 {
-    echo "==> Creating coal-147-${LIVEIMG_VERSION}.tgz"
+    echo "==> Checking current GIT branch"
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name=${branch_name##refs/heads/}
+
+    if [[ "$branch_name" != "master" ]]; then
+      output_version="${branch_name}-${LIVEIMG_VERSION}"
+    else
+      output_version="${LIVEIMG_VERSION}"
+    fi
+
+    echo "==> Creating coal-147-${output_version}.tgz"
     (cd ${ROOT}/cache \
         && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
-        && tar -zcf ${ROOT}/coal-147-${LIVEIMG_VERSION}.tgz USB-headnode.vmwarevm)
+        && tar -zcf ${ROOT}/coal-147-${output_version}.tgz USB-headnode.vmwarevm)
 }
 
