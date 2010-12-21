@@ -15,13 +15,13 @@ if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
 fi
 
 # Configure nsswitch to use mdns & enable multicast dns:
-hosts=$(/etc/nsswitch.conf |grep ^hosts)
+hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
 
 if [[ ! $(echo $hosts | grep mdns) ]]; then
   $(/opt/local/bin/gsed -i\"\" -e \"s/^hosts.*$/hosts: files mdns dns/\" /etc/nsswitch.conf)
 fi
 
-ipnodes=$(/etc/nsswitch.conf |grep ^ipnodes)
+ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
 
 if [[ ! $(echo $ipnodes | grep mdns) ]]; then
   $(/opt/local/bin/gsed -i\"\" -e \"s/^ipnodes.*$/ipnodes: files mdns dns/\" /etc/nsswitch.conf)
