@@ -8,13 +8,13 @@ svcadm clear rabbitmq
 hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
 
 if [[ ! $(echo $hosts | grep mdns) ]]; then
-  $(/opt/local/bin/gsed -i\"\" -e \"s/^hosts.*$/hosts: files mdns dns/\" /etc/nsswitch.conf)
+  $(/opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf)
 fi
 
 ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
 
 if [[ ! $(echo $ipnodes | grep mdns) ]]; then
-  $(/opt/local/bin/gsed -i\"\" -e \"s/^ipnodes.*$/ipnodes: files mdns dns/\" /etc/nsswitch.conf)
+  $(/opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf)
 fi
 
 if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" != "online" ]]; then
