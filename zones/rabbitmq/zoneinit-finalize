@@ -25,7 +25,7 @@ sleep 2
 
 zoneip=$(ifconfig rabbitmq0|grep inet|awk '{print $2}')
 # dns-sd announcement for RabbitMQ broker:
-cat >/opt/local/svc/manifest/rabbitmq-announcer.xml <<SMF
+cat >/opt/local/share/smf/manifest/rabbitmq-announcer.xml <<SMF
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
 <service_bundle type='manifest' name='export'>
