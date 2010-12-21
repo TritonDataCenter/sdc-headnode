@@ -9,6 +9,7 @@ echo "99 finalizing mapi zone"
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
+  echo "Importing posgtresql service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql.xml
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
@@ -18,18 +19,21 @@ fi
 hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
 
 if [[ ! $(echo $hosts | grep mdns) ]]; then
+  echo "Updating hosts entry on nsswitch.conf"
   $(/opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf)
 fi
 
 ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
 
 if [[ ! $(echo $ipnodes | grep mdns) ]]; then
+  echo "Updating ipnodes entry on nsswitch.conf"
   $(/opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf)
 fi
 
 # Do not use dns/multicast for this zone, we're using custom mDNSResponder from
 # pkgsrc here:
 if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" == "online" ]]; then
+  echo "Disabling dns/multicast"
   $(/usr/sbin/svcadm disable dns/multicast)
 fi
 
@@ -67,24 +71,29 @@ cat >/opt/local/share/smf/manifest/mdnsresponder.xml <<SMF
 SMF
 
 if [[ ! $(/usr/bin/svcs -a|grep mdnsresponder) ]]; then
+  echo "Importing mDNSResponder service"
   $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/mdnsresponder.xml)
 fi
 
 sleep 2
 
 if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
+  echo "Enabling mDNSResponder service."
   $(/usr/sbin/svcadm enable -s mdnsresponder)
 fi
 
 # These happen to do not be created always:
 if [[ ! -e /opt/local/bin/ruby ]]; then
+  echo "Symlinking ruby"
   ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
 fi
 
 if [[ ! -e /opt/local/bin/irb ]]; then
+  echo "Symlinking irb"
   ln -s /opt/local/bin/irb18 /opt/local/bin/irb
 fi
 
+echo "Creating jill account"
 groupadd jill
 useradd -g jill -d /home/jill jill
 chown -R jill:jill /home/jill
@@ -97,16 +106,13 @@ usermod -s /usr/bin/bash jill
 #  /usr/sbin/svcadm clear postgresql >/dev/null 2>&1
 #fi
 
-if [ "$(svcs -Ho state postgresql)" != "online" ]; then
-  /usr/sbin/svcadm enable -s postgresql
-  sleep 2
-  if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
-    echo "Creating mapi database"
-    echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
-    chown jill /home/jill/.pgpass
-    chmod 0600 /home/jill/.pgpass
-    su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
-  fi
+
+if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+  echo "Creating mapi database"
+  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /home/jill/.pgpass
+  chown jill /home/jill/.pgpass
+  chmod 0600 /home/jill/.pgpass
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
 fi
 
 if [[ ! -e /home/jill/mapi/config/database.yml ]]; then
