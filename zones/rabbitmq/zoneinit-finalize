@@ -62,7 +62,7 @@ cat >/opt/local/share/smf/manifest/rabbitmq-announcer.xml <<SMF
 SMF
 
 if [[ ! $(/usr/bin/svcs -a|grep rabbitmq-announcer) ]]; then
-  $(/usr/sbin/svccfg import /opt/local/svc/manifest/rabbitmq-announcer.xml)
+  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/rabbitmq-announcer.xml)
 fi
 
 sleep 2
