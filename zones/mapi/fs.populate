@@ -4,8 +4,8 @@ set -e
 
 mkdir -p root/home/jill
 cd root/home/jill
-git clone git@git.joyent.com:mcp_api_gateway.git mapi
-cd mapi
+git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
+cd mapi-repo
 git branch --track develop origin/develop
 git checkout develop
 

@@ -108,7 +108,14 @@ for zone in $ALLZONES; do
         if [[ -n ${default_gateway} ]]; then
             echo "${default_gateway}" > /zones/${zone}/root/etc/defaultrouter
         fi
-
+        # Create additional zone datasets when required:
+        if [[ -f "${USB_COPY}/zones/${zone}/zone-datasets" ]]; then
+          source "${USB_COPY}/zones/${zone}/zone-datasets"
+        fi
+        # Configure the extra zone datasets post zone boot, when given:
+        if [[ -f "${USB_COPY}/zones/${zone}/95-zone-datasets.sh" ]]; then
+          cp "${USB_COPY}/zones/${zone}/95-zone-datasets.sh" /zones/${zone}/root/root/zoneinit.d/95-zone-datasets.sh
+        fi
         zoneadm -z ${zone} boot
 
         echo "done." >>/dev/console
@@ -123,7 +130,7 @@ for zone in rabbitmq mapi dhcpd; do
     hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
     priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
     if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
-        grep "^${priv_ip}	" /etc/hosts >/dev/null \
+        grep "^${priv_ip}  " /etc/hosts >/dev/null \
           || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
     fi
 done
@@ -134,7 +141,7 @@ if [ -n "${CREATEDZONES}" ]; then
             echo -n "${zone}: waiting for zoneinit." >>/dev/console
             loops=0
             while [ -e /zones/${zone}/root/root/zoneinit ]; do
-                sleep 2
+                sleep 3
                 echo -n "." >> /dev/console
                 loops=$((${loops} + 1))
                 [ ${loops} -ge 59 ] && break
