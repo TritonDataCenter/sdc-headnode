@@ -38,3 +38,25 @@ echo "${APP_VERSION}">/opt/smartdc/mapi/VERSION
 cd /root/
 rm -Rf /opt/smartdc/mapi-repo
 rm /root/mapi-app-timestamp
+
+# Adding dataset based update service for the app:
+cat >"/opt/smartdc/mapi-data/mapi-update-service.sh" <<UPDATE
+#!/usr/bin/bash
+
+APP_NAME='mapi'
+
+APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
+DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
+
+if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
+  echo "Calling \$APP_NAME-update"
+  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby /opt/smartdc/\$APP_NAME/smartdc/update
+else
+  echo "\$APP_NAME is up to date"
+fi
+
+exit 0
+
+UPDATE
+
+chmod +x /opt/smartdc/mapi-data/mapi-update-service.sh
