@@ -116,10 +116,8 @@ function copy_pkgsrc
     for pkgfile in `ls ${ROOT}/zones/*/pkgsrc`; do
         for pkg in `cat ${pkgfile} | xargs`; do
             filename="${pkg}.tgz"
-            if [ ! -f "${ROOT}/cache/${filename}" ]; then
-                echo "==> Downloading ${filename}"
-                (cd ${ROOT}/cache && curl -O ${PKGSRC_ROOT}/${filename})
-            fi
+            echo "==> Downloading ${filename}"
+            (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${filename} -O ${PKGSRC_ROOT}/${filename})
         done
     done
 
@@ -160,11 +158,8 @@ function copy_agents
 function copy_datasets
 {
     bare="bare-1.2.3.zfs.gz"
-    if [ ! -f "${ROOT}/cache/${bare}" ]; then
-        echo "==> Downloading ${bare}"
-        (cd ${ROOT}/cache && curl -O ${ASSETS_ROOT}/${bare})
-    fi
-
+    echo "==> Downloading ${bare}"
+    (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${bare} -O ${ASSETS_ROOT}/${bare})
     md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
 
     if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
@@ -209,14 +204,9 @@ function copy_zones
         
         file=${uri##*/}
 
-        echo "==> Downloading $file"
-
-        if [ -f "${ROOT}/cache/$file" ]; then
-            echo "==> (Using cached $file)"
-        else
-            (cd ${ROOT}/cache && curl -fO $uri) || \
-              fatal "could not download $uri for $zone"
-        fi
+        echo "==> Downloading ${file}"
+        (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${file} -fO $uri) || \
+            fatal "could not download $uri for $zone"
 
         mkdir -p ${STAGE}/zones/${zone}
         cp ${ROOT}/cache/${file} ${STAGE}/zones/${zone}/fs.tar.bz2
