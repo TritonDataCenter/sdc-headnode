@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo "99 finalizing ca zone"
+
+#
+# cadeploy-local does all of the heavy lifting here -- just execute it.
+#
+/opt/smartdc/ca/tools/cadeploy-local caaggsvc caconfigsvc
+
