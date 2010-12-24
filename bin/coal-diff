@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+#
+# Copyright (c) 2010 Joyent Inc., All Rights Reserved.
+#
+# This tool exists to do a diff between two COAL 147 images.
+#
+
+added = {}
+changed = {}
+removed = {}
+
+data = {}
+data[:a] = {}
+data[:b] = {}
+
+if ARGV.size != 2 or !File.exist?(ARGV[0]) or !File.exist?(ARGV[1]) then
+  puts "Usage: #{$0} <coal-147-A.tgz> <coal-147-B.tgz>"
+  exit 1
+end
+
+data[:a][:filename] = ARGV[0]
+data[:b][:filename] = ARGV[1]
+
+MANIFESTS=['usb_key.manifest', 'boot_archive.manifest']
+gtar=`which gtar`.chomp
+if gtar.nil? or gtar.empty? then
+  GTAR = 'tar'
+else
+  GTAR = gtar
+end
+
+[:a, :b].each do |which|
+  MANIFESTS.each do |manifest|
+    IO.popen("#{GTAR} -Ozxf #{data[which][:filename]} USB-headnode.vmwarevm/#{manifest}") do |io|
+      io.each do |line|
+        val = line.split(/\s+/)
+        if val.size == 2 then
+          md5 =  val[0]
+          path = val[1]
+          data[which][manifest] ||= {}
+          data[which][manifest][path] = md5
+        end
+      end
+    end
+  end
+end
+
+# Remove files that are the same in both manifests
+MANIFESTS.each do |manifest|
+  data[:a][manifest].each_pair do |path,md5|
+    if data[:b][manifest].has_key? path and data[:b][manifest][path] == md5 then
+      data[:a][manifest].delete(path)
+      data[:b][manifest].delete(path)
+    end
+  end
+end
+
+# Files changed or removed between a and b
+MANIFESTS.each do |manifest|
+  changed[manifest] ||= []
+  removed[manifest] ||= []
+  data[:a][manifest].each_pair do |path,md5|
+    if data[:b][manifest].has_key? path then
+       if data[:b][manifest][path] != md5 then
+         changed[manifest].push(path)
+         data[:a][manifest].delete(path)
+         data[:b][manifest].delete(path)
+       else
+         puts "WARNING: INTERNAL ERROR! [#{path}] matches md5 after prune"
+       end
+    else
+      removed[manifest].push(path)
+    end
+  end
+end
+
+# Files added to b
+MANIFESTS.each do |manifest|
+  added[manifest] ||= []
+  data[:b][manifest].each_pair do |path,md5|
+    if data[:a][manifest].has_key? path then
+      puts "WARNING: INTERNAL ERROR! [#{path}] matches during added check"
+    else
+      added[manifest].push(path)
+    end
+  end
+end
+
+# Output our results
+puts "Changes from #{File.basename(data[:a][:filename], '.tgz')} to #{File.basename(data[:b][:filename], '.tgz')}:\n\n"
+
+MANIFESTS.each do |manifest|
+
+  if added[manifest].size > 0 then
+    puts "  Added to #{File.basename(manifest, '.manifest')}:\n\n"
+    added[manifest].each do |add|
+      puts "    #{add}"
+    end
+    puts ""
+  end
+
+  if removed[manifest].size > 0 then
+    puts "  Removed from #{File.basename(manifest, '.manifest')}:\n\n"
+    removed[manifest].each do |remove|
+       puts "    #{remove}"
+    end
+    puts ""
+  end
+
+  if changed[manifest].size > 0 then
+    puts "  Changed in #{File.basename(manifest, '.manifest')}:\n\n"
+    changed[manifest].each do |change|
+       puts "    #{change}"
+    end
+    puts ""
+  end
+
+end
