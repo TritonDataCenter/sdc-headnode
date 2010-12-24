@@ -47,9 +47,9 @@ if [[ -z $(crle | grep '/opt/gcc/lib') ]]; then
     crle -u -l /opt/local/lib
 fi
 
-if [[ ! -f ${PKG_PREFIX}/etc/pkgin/repositories.conf ]]; then
+if [[ ! -f /opt/local/etc/pkgin/repositories.conf ]]; then
     echo "==> Setting up pkgsrc repo"
-    cat >${PKG_PREFIX}/etc/pkgin/repositories.conf <<EOF
+    cat >/opt/local/etc/pkgin/repositories.conf <<EOF
 # $Id: repositories.conf,v 1.1 2009/06/05 19:43:22 imil Exp $
 #
 # Pkgin repositories list
