@@ -29,6 +29,19 @@ else
   GTAR = gtar
 end
 
+# Changes to these files won't be included since they change every time
+ALWAYS_CHANGE=[ \
+    './platform/i86pc/amd64/boot_archive.manifest' \
+  , './lib/llib-lelf.ln' \
+  , './etc/motd' \
+  , './etc/joyent_buildstamp' \
+  , './etc/svc/repository.db' \
+  , './lib/llib-lrtld_db.ln' \
+  , './lib/amd64/llib-lrtld_db.ln' \
+  , './var/log/manifest' \
+  , './lib/amd64/llib-lelf.ln' \
+]
+
 [:a, :b].each do |which|
   MANIFESTS.each do |manifest|
     IO.popen("#{GTAR} -Ozxf #{data[which][:filename]} USB-headnode.vmwarevm/#{manifest}") do |io|
@@ -62,7 +75,9 @@ MANIFESTS.each do |manifest|
   data[:a][manifest].each_pair do |path,md5|
     if data[:b][manifest].has_key? path then
        if data[:b][manifest][path] != md5 then
-         changed[manifest].push(path)
+         if !ALWAYS_CHANGE.include? path then
+           changed[manifest].push(path)
+         end
          data[:a][manifest].delete(path)
          data[:b][manifest].delete(path)
        else
