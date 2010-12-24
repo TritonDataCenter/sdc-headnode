@@ -233,6 +233,14 @@ function copy_zones
     done
 }
 
+function copy_devtools
+{
+    if [[ "${IMG_TYPE}" == "coal" ]]; then
+        echo "==> Copying in devtools"
+        cp -rv ${ROOT}/devtools ${STAGE}/devtools
+    fi
+}
+
 function copy_to_mount
 {
     (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -)
@@ -248,6 +256,7 @@ copy_platform
 copy_agents
 copy_datasets
 copy_zones
+copy_devtools
 unpack_image
 add_manifests
 mount_image

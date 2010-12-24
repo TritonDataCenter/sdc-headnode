@@ -8,6 +8,7 @@ MNT_DIR="${ROOT}/mnt"
 MD5CMD="md5sum"
 GZCAT="zcat"
 TAR_ROOT="--owner=root --group=root"
+IMG_TYPE="coal" # if we're VMWare we're COAL
 
 function version
 {
