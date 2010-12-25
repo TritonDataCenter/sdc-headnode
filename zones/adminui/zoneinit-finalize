@@ -1,0 +1,126 @@
+#!/bin/bash
+
+svcadm clear network/physical:default >/dev/null 2>&1
+
+echo "99 finalizing adminui zone"
+
+app_name='adminui'
+
+echo "Creating $app_name-update service"
+
+cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<service_bundle type='manifest' name='export'>
+  <service name='platform/smartdc/${app_name}-update' type='service' version='0'>
+    <create_default_instance enabled='true'/>
+    <single_instance/>
+    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/system/filesystem/local'/>
+    </dependency>
+    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-update-service.sh' timeout_seconds='60'>
+      <method_context>
+        <method_credential user='root' group='root'/>
+      </method_context>
+    </exec_method>
+    <property_group name='application' type='application'/>
+    <property_group name='startd' type='framework'>
+      <propval name='duration' type='astring' value='transient'/>
+    </property_group>
+    <stability value='Evolving'/>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>SmartDC Update service ($app_name)</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+SMF
+
+if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
+  echo "Importing '${app_name}-update' service"
+  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml)
+fi
+
+if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
+  echo "Enabling '${app_name}-update' service"
+  $(/usr/sbin/svcadm enable -s ${app_name}-update)
+fi
+
+# These happen to do not be created always:
+if [[ ! -e /opt/local/bin/ruby ]]; then
+  echo "Symlinking ruby"
+  ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+fi
+
+if [[ ! -e /opt/local/bin/irb ]]; then
+  echo "Symlinking irb"
+  ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+fi
+
+echo "Creating jill account"
+groupadd jill
+useradd -g jill -d /opt/smartdc jill
+chown -R jill:jill /opt/smartdc
+echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
+usermod -P 'Service Management' jill
+usermod -s /usr/bin/bash jill
+
+if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
+  echo "Creating MAPI Admin UI config files."
+  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
+fi
+sleep 1
+
+# Note these files should have been created by previous Rake task.
+# If we copy these files post "gsed", everything is reset:
+if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
+  cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
+fi
+
+if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
+  cp /opt/smartdc/adminui/config/config.yml.sample /opt/smartdc/adminui/config/config.yml
+fi
+
+if [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
+  echo "Unpacking frozen gems for MAPI Admin UI."
+  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
+fi
+
+if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
+  echo "Creating MAPI Admin UI Unicorn Manifest."
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
+  chown jill:jill /opt/smartdc/adminui/config/unicorn.smf
+fi
+
+if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
+  echo "Creating MAPI Admin UI Unicorn Configuration file."
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
+  chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
+fi
+
+echo "Updating MAPI Admin UI Config file."
+host=`hostname`
+/opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
+-e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
+-e "s/127.0.0.1:8080/10.99.99.8:8080/" \
+-e "s/localhost:8083/10.99.99.10:8080/" \
+/opt/smartdc/adminui/config/config.yml
+
+if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
+  su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
+fi
+
+echo "Importing MAPI Admin UI Unicorn Manifest"
+/usr/sbin/svccfg import /opt/smartdc/adminui/config/unicorn.smf
+sleep 1
+
+# Ensure everything in /opt/smartdc is owned by jill
+chown -R jill:jill /opt/smartdc
+
+# fix perms on /home
+chown root:root /home
+chmod 0555 /home
+
+## Call the verify script
+(cd /opt/smartdc/adminui && ./script/verify_setup.sh)
