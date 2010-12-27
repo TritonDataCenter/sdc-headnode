@@ -4,8 +4,6 @@ set -e
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
-cd mapi-repo
-git branch --track develop origin/develop
-git checkout develop
-
+git clone git@git.joyent.com:customers_api.git capi-repo
+cd capi-repo
+# CAPI currently uses master as it's stable HEAD
