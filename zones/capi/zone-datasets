@@ -1,0 +1,10 @@
+echo ""
+echo "creating mapi-data dataset" >>/dev/console
+zfs create zones/mapi-data
+zonecfg -z mapi 'add dataset; set name="zones/mapi-data"; end; verify; commit'
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+echo "creating mapi-app-${STAMP} dataset" >>/dev/console
+zfs create zones/mapi-app-${STAMP}
+echo "$STAMP">/zones/mapi/root/root/mapi-app-timestamp
+cmd="add dataset; set name=zones/mapi-app-$STAMP; end; verify; commit"
+zonecfg -z mapi $cmd
