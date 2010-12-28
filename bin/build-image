@@ -113,15 +113,11 @@ function copy_base
 
 function copy_pkgsrc
 {
-    for pkgfile in `ls ${ROOT}/zones/*/pkgsrc`; do
-        for pkg in `cat ${pkgfile} | xargs`; do
-            filename="${pkg}.tgz"
-            echo "==> Downloading ${filename}"
-            (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${filename} -O ${PKGSRC_ROOT}/${filename})
-        done
-    done
-
     pkgs=$(cat ${ROOT}/zones/*/pkgsrc | sort | uniq | sed -e "s/$/.tgz/")
+    for pkgfile in $pkgs; do
+            echo "==> Downloading ${pkgfile}"
+            (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${pkgfile} -O ${PKGSRC_ROOT}/${pkgfile})
+    done
     echo "==> Creating pkgsrc.tar"
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
@@ -132,7 +128,7 @@ function copy_platform
         | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
     if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
         echo "==> Downloading ${latest_image}"
-        (cd ${ROOT}/cache && curl -k -O ${PLATFORM_URL}/${latest_image})
+        (cd ${ROOT}/cache && curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
     fi
 
     # TODO: also check md5sum before using!
@@ -149,7 +145,7 @@ function copy_agents
         | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
     if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
         echo "==> Downloading ${latest_agents}"
-        (cd ${ROOT}/cache && curl -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+        (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
     fi
     mkdir -p ${STAGE}/ur-scripts
     cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
@@ -159,7 +155,7 @@ function copy_datasets
 {
     bare="bare-1.2.3.zfs.gz"
     echo "==> Downloading ${bare}"
-    (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${bare} -O ${ASSETS_ROOT}/${bare})
+    (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${bare} -O ${ASSETS_ROOT}/${bare})
     md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
 
     if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
@@ -205,7 +201,7 @@ function copy_zones
         file=${uri##*/}
 
         echo "==> Downloading ${file}"
-        (cd ${ROOT}/cache && curl -z ${ROOT}/cache/${file} -fO $uri) || \
+        (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${file} -fO $uri) || \
             fatal "could not download $uri for $zone"
 
         mkdir -p ${STAGE}/zones/${zone}
