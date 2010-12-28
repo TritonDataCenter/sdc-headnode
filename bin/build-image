@@ -124,18 +124,25 @@ function copy_pkgsrc
 
 function copy_platform
 {
-    latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-        | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
-    if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
-        echo "==> Downloading ${latest_image}"
-        (cd ${ROOT}/cache && curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+    if [ -z $PLATFORM_FILE ]; then
+        latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+            | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+        if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
+            echo "==> Downloading ${latest_image}"
+            (cd ${ROOT}/cache && \
+              curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+        fi
+
+        # TODO: also check md5sum before using!
+        image=${ROOT}/cache/${latest_image}
+    else
+        image=$PLATFORM_FILE
+        echo "==> Using ${image} as platform image"
     fi
 
-    # TODO: also check md5sum before using!
-
-    echo "==> Unpacking ${latest_image}"
-    (cd ${STAGE}/ && tar -zxf ${ROOT}/cache/${latest_image} && mv platform-* platform)
-    LIVEIMG_VERSION=`echo ${latest_image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+    echo "==> Unpacking `basename ${image}`"
+    (cd ${STAGE}/ && tar -zxf ${image} && mv platform-* platform)
+    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 }
 
 function copy_agents
