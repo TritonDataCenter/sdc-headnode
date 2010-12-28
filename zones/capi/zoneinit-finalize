@@ -163,9 +163,13 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
+
 echo "Auto Upgrading Customers API Database."
 su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 sleep 1
+#echo "Auto Upgrading Customers API Database."
+#su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+#sleep 1
 
 if [[ -z $(/usr/bin/svcs -a|grep capi) ]]; then
   echo "Importing Customers API Unicorn Manifest"
@@ -181,9 +185,15 @@ chown root:root /home
 chmod 0555 /home
 
 ## Setup and call the verify script
+
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/capi && ./script/verify_setup.sh)
 (cd /opt/smartdc/capi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
+#echo "postgres" > /tmp/pgpasswd
+#(cd /opt/smartdc/capi && ./script/verify_setup.sh)
+#(cd /opt/smartdc/capi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+#grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
+#rm -f /tmp/fake_data.output /tmp/pgpasswd
 
