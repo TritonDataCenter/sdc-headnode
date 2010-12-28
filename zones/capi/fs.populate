@@ -4,6 +4,6 @@ set -e
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:customers_api.git capi-repo
+git clone git@git.joyent.com:customers_api.git -b headnode capi-repo
 cd capi-repo
 # CAPI currently uses master as it's stable HEAD
