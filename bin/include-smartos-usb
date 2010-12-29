@@ -1,0 +1,134 @@
+#!/bin/ksh -p
+
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# Copyright 2010 Joyent Inc.
+#
+# mkusb
+#
+# Given an AK ISO image (output by mkak -I), generate a bootable USB stick
+# by mounting the ISO, formatting the USB stick with a Solaris partition,
+# copying the ISO content there, and then installing bootable GRUB.
+#
+
+MNT_DIR="${ROOT}/mnt"
+PATH=/usr/gnu/bin:$PATH
+
+function fail
+{
+        cd /
+
+        umount $wmnt >/dev/null 2>&1
+        rmdir $wmnt >/dev/null 2>&1
+
+        echo "$0: $*" >&2
+        exit 1
+}
+
+# requires USB_KEY to be set
+function mkusb()
+{
+    pdsk=$1
+    rdsk=${pdsk%p0}
+    dsk=$(echo $rdsk | sed 's:/rdsk:/dsk:')
+
+    wmnt=/tmp/mkusb-w.$$
+
+    rm -rf $wmnt >/dev/null 2>&1
+    mkdir -m 0700 $wmnt || fail "failed to mkdir: $wmnt"
+
+    rmformat -l $pdsk 2>/dev/null | grep 'Bus: USB' >/dev/null 2>&1 ||
+        fail "USB device path does not appear to be valid: $pdsk"
+
+    echo "Formatting USB device ... \c"
+    fdisk -B $pdsk || fail "failed to create USB partition"
+
+    set -- $(rmformat -l $pdsk 2>/dev/null | \
+        egrep '(Device|Size):' | cut -d: -f2-)
+
+    eval $(prtvtoc $pdsk | grep '^\*' | awk '
+        $3 == "bytes/sector" { printf("bytes_per_sec=%s\n", $2); }
+        $3 == "sectors/cylinder" { printf("secs_per_cyl=%s\n", $2); }
+        $3 == "accessible" { printf("cylinders=%s\n", $2); }')
+
+    [[ -z "$bytes_per_sec" || -z "$secs_per_cyl" || -z "$cylinders" ]] && \
+        fail "failed to read vtoc attributes for $pdsk"
+
+    let sectors="$cylinders * $secs_per_cyl"
+
+    grub_sec0=0
+    grub_secs=$secs_per_cyl
+    grub_part=s8
+
+    let root_sec0="$grub_sec0 + $grub_secs"
+    let root_secs="$sectors - $root_sec0"
+    root_part=s0
+
+    dump_sec0=0
+    dump_secs=$sectors
+    dump_part=s2
+
+    [[ $root_sec0 -lt $sectors ]] || fail "root disk too small"
+
+fmthard -s - $pdsk >/dev/null <<-EOF
+${root_part#s} 2  0x00 $root_sec0 $root_secs
+${dump_part#s} 5  0x00 $dump_sec0 $dump_secs
+${grub_part#s} 1  0x01 $grub_sec0 $grub_secs
+EOF
+
+    [[ $? -eq 0 ]] && echo "$*" || fail "failed to format USB stick"
+
+    newfs -m 0 $rdsk$root_part </dev/null 2>/dev/null || "failed to newfs USB stick"
+    mount -F ufs $dsk$root_part $wmnt || fail "failed to mount USB stick"
+
+    echo "Copying source grub dir to USB ... "
+    mkdir -p ${wmnt}/boot/grub
+    cd /boot/grub && find . -depth -print | cpio -pdVmu ${wmnt}/boot/grub || fail "cpio failed"
+
+    chmod 0444 $wmnt/boot/grub/menu.lst
+    echo "done."
+
+    echo "Installing USB boot ... \c"
+    installgrub -f -m $wmnt/boot/grub/stage1 $wmnt/boot/grub/stage2 \
+        $rdsk$root_part >/dev/null || fail "installgrub to $rdsk$root_part failed"
+
+    echo "done."
+
+    umount $wmnt
+
+    echo "done."
+}
+
+# this is a terrible name for this
+function unpack_image
+{
+    echo -n "==> Creating USB key... "
+    mkusb ${USB_KEY}
+}
+function cleanup 
+{
+	echo "oops"
+}
+function mount_image
+{
+    dsk=$(echo $USB_KEY | sed 's:/rdsk:/dsk:' | sed 's/p0/s0/' )
+
+    echo "==> Mounting new USB key ${dsk}... "
+
+    mount -F ufs ${dsk} ${MNT_DIR} || fail "Mount failed"
+    echo "done."
+}
+
+function add_manifests
+{
+  return 0   
+}
+
+function create_output
+{
+    dsk=$(echo $USB_KEY | sed 's:/rdsk:/dsk:' | sed 's/p0/s0/' )
+    umount $dsk
+}
+
