@@ -1,0 +1,10 @@
+echo ""
+echo "creating public_api-data dataset" >>/dev/console
+zfs create zones/public_api-data
+zonecfg -z public_api 'add dataset; set name="zones/public_api-data"; end; verify; commit'
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+echo "creating public_api-app-${STAMP} dataset" >>/dev/console
+zfs create zones/public_api-app-${STAMP}
+echo "$STAMP">/zones/public_api/root/root/public_api-app-timestamp
+cmd="add dataset; set name=zones/public_api-app-$STAMP; end; verify; commit"
+zonecfg -z public_api $cmd
