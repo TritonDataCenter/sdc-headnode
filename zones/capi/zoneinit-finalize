@@ -103,12 +103,27 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
+echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
+chown jill /opt/smartdc/.pgpass
+chmod 0600 /opt/smartdc/.pgpass
+
+# XXX - TODO... this is super hacky since we have a race condition with the mapi zone booting
+# and postgres not coming up by the time we've gotten to this psql fun
+TRIES=6
+while [[ $TRIES -gt 0 ]]; do
+    if ! su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES -c '\\l' 2>/dev/null"; then
+        sleep 10
+        echo "PSQL not available, sleeping for 10 seconds before retrying"
+        let "TRIES -= 1"
+    else
+        let "TRIES = 0"
+    fi
+done
+
 if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep capi) ]]; then
   echo "Creating capi database"
-  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
-  chown jill /opt/smartdc/.pgpass
-  chmod 0600 /opt/smartdc/.pgpass
-  psql -U postgres -h $POSTGRES -c 'CREATE DATABASE capi WITH OWNER postgres'
+  su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES -c 'CREATE DATABASE capi WITH OWNER postgres'"
+
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
@@ -163,15 +178,11 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
-
-echo "Auto Upgrading Customers API Database."
-su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
-sleep 1
 #echo "Auto Upgrading Customers API Database."
 #su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 #sleep 1
 
-if [[ -z $(/usr/bin/svcs -a|grep capi) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
   sleep 1
@@ -183,17 +194,4 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
-
-## Setup and call the verify script
-
-echo "postgres" > /tmp/pgpasswd
-(cd /opt/smartdc/capi && ./script/verify_setup.sh)
-(cd /opt/smartdc/capi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
-grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
-rm -f /tmp/fake_data.output /tmp/pgpasswd
-#echo "postgres" > /tmp/pgpasswd
-#(cd /opt/smartdc/capi && ./script/verify_setup.sh)
-#(cd /opt/smartdc/capi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
-#grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
-#rm -f /tmp/fake_data.output /tmp/pgpasswd
 
