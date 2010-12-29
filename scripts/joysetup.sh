@@ -95,10 +95,12 @@ setup_datasets()
     zfs set mountpoint=legacy ${CONFDS}
     echo "done." >>/dev/console
 
-    echo -n "Creating usbkey dataset... " >>/dev/console
-    zfs create -o mountpoint=legacy ${USBKEYDS}
-    [ $? -ne 0 ] && fatal "failed to create the usbkey dataset"
-    echo "done." >>/dev/console
+    if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
+        echo -n "Creating usbkey dataset... " >>/dev/console
+        zfs create -o mountpoint=legacy ${USBKEYDS}
+        [ $? -ne 0 ] && fatal "failed to create the usbkey dataset"
+        echo "done." >>/dev/console
+    fi
 
     echo -n "Creating opt dataset... " >>/dev/console
     zfs create -o mountpoint=legacy ${OPTDS}

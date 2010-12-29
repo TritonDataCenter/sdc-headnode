@@ -3,7 +3,6 @@
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
 set -e
-
 ROOT=$(cd $(dirname $0)/../; pwd)
 STAGE="${ROOT}/cache/stage"
 ERROR=0
@@ -55,6 +54,17 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
             ;;
         *)
             echo "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
+            exit 1
+            ;;
+    esac
+elif [[ ${PLATFORM} == 'SunOS' ]]; then
+    case ${BUILD_TYPE} in
+        usb)
+            source ${ROOT}/bin/include-smartos-usb
+            echo "SmartOS-usb";
+            ;;
+        *)
+            echo "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
             exit 1
             ;;
     esac
@@ -116,7 +126,9 @@ function copy_pkgsrc
     pkgs=$(cat ${ROOT}/zones/*/pkgsrc | sort | uniq | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
             echo "==> Downloading ${pkgfile}"
-            (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${pkgfile} -O ${PKGSRC_ROOT}/${pkgfile})
+            CURL_OPTS=
+            [[ -f ${ROOT}/cache/${pkgfile} ]] && CURL_OPTS="-z ${ROOT}/cache/${pkgfile}"
+            (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${PKGSRC_ROOT}/${pkgfile})
     done
     echo "==> Creating pkgsrc.tar"
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
@@ -162,7 +174,9 @@ function copy_datasets
 {
     bare="bare-1.2.3.zfs.gz"
     echo "==> Downloading ${bare}"
-    (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${bare} -O ${ASSETS_ROOT}/${bare})
+    CURL_OPTS=
+    [[ -f ${ROOT}/cache/${bare} ]] && CURL_OPTS="-z ${ROOT}/cache/${bare}"
+    (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${bare})
     md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
 
     if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
@@ -208,7 +222,9 @@ function copy_zones
         file=${uri##*/}
 
         echo "==> Downloading ${file}"
-        (cd ${ROOT}/cache && curl --progress-bar -z ${ROOT}/cache/${file} -fO $uri) || \
+        CURL_OPTS=
+        [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
+        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
             fatal "could not download $uri for $zone"
 
         mkdir -p ${STAGE}/zones/${zone}
