@@ -80,3 +80,7 @@ bare.zfs.bz2 comes from
 https://guest:GrojhykMid@coal.joyent.us/coal/templates/bare-1.1.6.zfs.gz .
 There's a bug in gzcat so you'll need to manually gunzip & then bzip2
 
+to create the USB key the USB_KEY environment variable needs to be set
+pointing at /dev/rdsk/<usb key>p0
+
+USB key creation currently only works on Solaris-ish
