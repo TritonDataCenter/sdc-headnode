@@ -51,6 +51,10 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
+# Since we need to access the postgres server from other zones, we need to add configuration
+echo "listen_addresses='localhost,10.99.99.8'" >> /var/pgsql/data/postgresql.conf
+echo "host    all    all    10.99.99.0/24    password" >> /var/pgsql/data/pg_hba.conf
+
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
