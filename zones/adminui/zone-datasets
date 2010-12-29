@@ -2,7 +2,7 @@ echo ""
 echo "creating adminui-data dataset" >>/dev/console
 zfs create zones/adminui-data
 zonecfg -z adminui 'add dataset; set name="zones/adminui-data"; end; verify; commit'
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+STAMP=$(cat /zones/adminui/root/opt/smartdc/adminui-VERSION)
 echo "creating adminui-app-${STAMP} dataset" >>/dev/console
 zfs create zones/adminui-app-${STAMP}
 echo "$STAMP">/zones/adminui/root/root/adminui-app-timestamp
