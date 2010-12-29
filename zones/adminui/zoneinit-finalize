@@ -23,11 +23,11 @@ cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
         <method_credential user='root' group='root'/>
       </method_context>
     </exec_method>
+    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
     <property_group name='application' type='application'/>
     <property_group name='startd' type='framework'>
       <propval name='duration' type='astring' value='transient'/>
     </property_group>
-    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
     <stability value='Evolving'/>
     <template>
       <common_name>
