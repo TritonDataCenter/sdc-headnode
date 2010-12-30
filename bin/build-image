@@ -241,7 +241,7 @@ function copy_zones
           [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
             mkdir -p /tmp/fs.${zone}.$$
-            cp -a ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
+            cp -pPR ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
             rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
             (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
         fi
