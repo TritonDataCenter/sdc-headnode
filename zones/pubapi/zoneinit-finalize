@@ -74,7 +74,7 @@ usermod -s /usr/bin/bash jill
 exit 42
 
 if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
-  echo "Creating MAPI Admin UI config files."
+  echo "Creating Public API config files."
   su - jill -c "cd /opt/smartdc/pubapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/pubapi/Rakefile"
 fi
 sleep 1
@@ -90,23 +90,23 @@ if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
 fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems| wc -l) -eq 0 ]]; then
-  echo "Unpacking frozen gems for MAPI Admin UI."
+  echo "Unpacking frozen gems for Public API."
   (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/pubapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/unicorn.smf ]]; then
-  echo "Creating MAPI Admin UI Unicorn Manifest."
+  echo "Creating Public API Unicorn Manifest."
   /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='pubapi'; working_directory='/opt/smartdc/pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.smf
   chown jill:jill /opt/smartdc/pubapi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/unicorn.conf ]]; then
-  echo "Creating MAPI Admin UI Unicorn Configuration file."
+  echo "Creating Public API Unicorn Configuration file."
   /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/pubapi'; application='pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.conf
   chown jill:jill /opt/smartdc/pubapi/config/unicorn.conf
 fi
 
-echo "Updating MAPI Admin UI Config file."
+echo "Updating Public API Config file."
 host=`hostname`
 /opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
 -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
@@ -118,7 +118,7 @@ if [[ ! -e /opt/smartdc/pubapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/pubapi/tmp/pids"
 fi
 
-echo "Importing MAPI Admin UI Unicorn Manifest"
+echo "Importing Public API Unicorn Manifest"
 /usr/sbin/svccfg import /opt/smartdc/pubapi/config/unicorn.smf
 sleep 1
 
