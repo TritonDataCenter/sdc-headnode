@@ -77,7 +77,7 @@ if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
   cp /opt/smartdc/pubapi/config/config.yml.sample /opt/smartdc/pubapi/config/config.yml
 fi
 
-if [[ $(ls /opt/smartdc/pubapi/gems/gems| wc -l) -eq 0 ]]; then
+if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Public API."
   (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/pubapi/Rakefile)
 fi
