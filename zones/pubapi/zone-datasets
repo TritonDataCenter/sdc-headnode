@@ -1,0 +1,10 @@
+echo ""
+echo "creating pubapi-data dataset" >>/dev/console
+zfs create zones/pubapi-data
+zonecfg -z pubapi 'add dataset; set name="zones/pubapi-data"; end; verify; commit'
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+echo "creating pubapi-app-${STAMP} dataset" >>/dev/console
+zfs create zones/pubapi-app-${STAMP}
+echo "$STAMP">/zones/pubapi/root/root/pubapi-app-timestamp
+cmd="add dataset; set name=zones/pubapi-app-$STAMP; end; verify; commit"
+zonecfg -z pubapi $cmd

@@ -125,7 +125,7 @@ for zone in $ALLZONES; do
 done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
-for zone in rabbitmq mapi dhcpd adminui ca capi atropos public_api; do
+for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
     zonename=$(grep "^ZONENAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
     hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
     priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)

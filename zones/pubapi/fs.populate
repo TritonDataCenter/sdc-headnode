@@ -4,7 +4,7 @@ set -e
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:public_api.git public_api-repo
-cd public_api-repo
+git clone git@git.joyent.com:public_api.git pubapi-repo
+cd pubapi-repo
 git branch --track usb-headnode origin/usb-headnode
 git checkout usb-headnode

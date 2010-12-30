@@ -2,9 +2,9 @@
 
 svcadm clear network/physical:default >/dev/null 2>&1
 
-echo "99 finalizing public_api zone"
+echo "99 finalizing pubapi zone"
 
-app_name='public_api'
+app_name='pubapi'
 
 echo "Creating $app_name-update service"
 
@@ -69,11 +69,11 @@ usermod -s /usr/bin/bash jill
 
 
 # * * *
-# TODO: Finish migrating this from adminui-y to public_api-y. Trent's a public_api newb.
+# TODO: Finish migrating this from adminui-y to pubapi-y. Trent's a pubapi newb.
 # * * *
 exit 42
 
-if [[ ! -e /opt/smartdc/public_api/config/config.yml ]]; then
+if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
   echo "Creating MAPI Admin UI config files."
   su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
 fi
