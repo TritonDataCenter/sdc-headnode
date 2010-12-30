@@ -95,13 +95,14 @@ if [[ ! -e /opt/smartdc/pubapi/config/unicorn.conf ]]; then
 fi
 
 # Not sure what this does or how it applies to Public API (Rob E.)
-echo "Updating Public API Config file."
-host=`hostname`
-/opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
--e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
--e "s/127.0.0.1:8080/10.99.99.8:8080/" \
--e "s/localhost:8083/10.99.99.10:8080/" \
-/opt/smartdc/pubapi/config/config.yml
+#TODO: remove this block or update it. The values are wrong for pubapi anyway.
+#echo "Updating Public API Config file."
+#host=`hostname`
+#/opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
+#-e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
+#-e "s/127.0.0.1:8080/10.99.99.8:8080/" \
+#-e "s/localhost:8083/10.99.99.10:8080/" \
+#/opt/smartdc/pubapi/config/config.yml
 
 if [[ ! -e /opt/smartdc/pubapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/pubapi/tmp/pids"
