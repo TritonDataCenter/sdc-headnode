@@ -125,7 +125,7 @@ for zone in $ALLZONES; do
 done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
-for zone in rabbitmq mapi dhcpd adminui ca capi atropos; do
+for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
     zonename=$(grep "^ZONENAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
     hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
     priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
@@ -141,7 +141,7 @@ if [ -n "${CREATEDZONES}" ]; then
             echo -n "${zone}: waiting for zoneinit." >>/dev/console
             loops=0
             while [ -e /zones/${zone}/root/root/zoneinit ]; do
-                sleep 3
+                sleep 10
                 echo -n "." >> /dev/console
                 loops=$((${loops} + 1))
                 [ ${loops} -ge 59 ] && break
