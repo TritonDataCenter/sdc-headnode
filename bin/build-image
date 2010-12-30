@@ -106,19 +106,19 @@ function copy_base
     
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
-    cp -v boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
     
     echo "==> Copying in config"
-    cp -v config.coal ${STAGE}/config
+    cp config.coal ${STAGE}/config
     
     echo "==> Copying in scripts/"
-    cp -rv scripts ${STAGE}/scripts
+    cp -r scripts ${STAGE}/scripts
     
     echo "==> Copying in zoneinit/"
-    cp -rv zoneinit ${STAGE}/zoneinit
+    cp -r zoneinit ${STAGE}/zoneinit
     
     echo "==> Copying in zones/"
-    cp -rv zones ${STAGE}/zones
+    cp -r zones ${STAGE}/zones
 }
 
 function copy_pkgsrc
@@ -246,7 +246,7 @@ function copy_devtools
 {
     if [[ "${IMG_TYPE}" == "coal" ]]; then
         echo "==> Copying in devtools"
-        cp -rv ${ROOT}/devtools ${STAGE}/devtools
+        cp -r ${ROOT}/devtools ${STAGE}/devtools
     fi
 }
 
