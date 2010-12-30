@@ -1,0 +1,7 @@
+#!/bin/bash
+
+echo "99 finalizing portal zone"
+
+# XXX - have a look at how this works!
+#/opt/smartdc/ca/tools/cadeploy-local caaggsvc caconfigsvc
+
