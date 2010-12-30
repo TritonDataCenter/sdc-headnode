@@ -8,3 +8,6 @@ git clone git@git.joyent.com:public_api.git pubapi-repo
 cd pubapi-repo
 git branch --track usb-headnode origin/usb-headnode
 git checkout usb-headnode
+touch ../pubapi-VERSION
+git describe --tags > ../pubapi-VERSION
+
