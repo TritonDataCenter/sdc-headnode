@@ -15,12 +15,12 @@ cd /opt/smartdc/pubapi-repo
 /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/pubapi/
 # Export only config into pubapi-data:
 cd /opt/smartdc/pubapi-repo
-/opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/pubapi-data/ config/
+#/opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/pubapi-data/ config/
 # Create some directories into pubapi-data
 mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids
 # Remove and symlink directories:
-# mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
 rm -Rf /opt/smartdc/pubapi/log
 rm -Rf /opt/smartdc/pubapi/tmp
 rm -Rf /opt/smartdc/pubapi/config
