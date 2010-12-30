@@ -145,9 +145,9 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
-#echo "Auto Upgrading Customers API Database."
-#su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
-#sleep 1
+echo "Auto Upgrading Customers API Database."
+su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+sleep 1
 
 if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update) ]]; then
   echo "Importing Customers API Unicorn Manifest"
