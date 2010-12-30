@@ -116,13 +116,13 @@ fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.smf ]]; then
   echo "Creating Customers API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
   chown jill:jill /opt/smartdc/capi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.conf ]]; then
   echo "Creating Customers API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/config/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
   chown jill:jill /opt/smartdc/capi/config/unicorn.conf
 fi
 
