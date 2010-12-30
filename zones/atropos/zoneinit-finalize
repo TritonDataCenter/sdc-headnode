@@ -1,0 +1,7 @@
+#!/bin/bash
+
+echo "99 finalizing atropos zone"
+
+/usr/sbin/svccfg import /opt/local/share/smf/manifest/couchdb.xml
+/usr/sbin/svcadm enable -s couchdb
+

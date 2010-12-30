@@ -1,0 +1,5 @@
+create -b
+set zonepath=/zones/atropos
+set brand=joyent
+set autoboot=true
+set ip-type=exclusive
