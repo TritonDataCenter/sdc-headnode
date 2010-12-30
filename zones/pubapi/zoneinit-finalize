@@ -69,41 +69,41 @@ usermod -s /usr/bin/bash jill
 
 
 # * * *
-# TODO: Finish migrating this from adminui-y to pubapi-y. Trent's a pubapi newb.
+# TODO: Finish migrating this from pubapi-y to pubapi-y. Trent's a pubapi newb.
 # * * *
 exit 42
 
 if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
   echo "Creating MAPI Admin UI config files."
-  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
+  su - jill -c "cd /opt/smartdc/pubapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/pubapi/Rakefile"
 fi
 sleep 1
 
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
-if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
-  cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
+if [[ ! -e /opt/smartdc/pubapi/config/config.ru ]]; then
+  cp /opt/smartdc/pubapi/config/config.ru.sample /opt/smartdc/pubapi/config/config.ru
 fi
 
-if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
-  cp /opt/smartdc/adminui/config/config.yml.sample /opt/smartdc/adminui/config/config.yml
+if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
+  cp /opt/smartdc/pubapi/config/config.yml.sample /opt/smartdc/pubapi/config/config.yml
 fi
 
-if [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
+if [[ $(ls /opt/smartdc/pubapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MAPI Admin UI."
-  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
+  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/pubapi/Rakefile)
 fi
 
-if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
+if [[ ! -e /opt/smartdc/pubapi/config/unicorn.smf ]]; then
   echo "Creating MAPI Admin UI Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
-  chown jill:jill /opt/smartdc/adminui/config/unicorn.smf
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='pubapi'; working_directory='/opt/smartdc/pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.smf
+  chown jill:jill /opt/smartdc/pubapi/config/unicorn.smf
 fi
 
-if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
+if [[ ! -e /opt/smartdc/pubapi/config/unicorn.conf ]]; then
   echo "Creating MAPI Admin UI Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
-  chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/pubapi'; application='pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/config/unicorn.conf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.conf
+  chown jill:jill /opt/smartdc/pubapi/config/unicorn.conf
 fi
 
 echo "Updating MAPI Admin UI Config file."
@@ -112,14 +112,14 @@ host=`hostname`
 -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
 -e "s/127.0.0.1:8080/10.99.99.8:8080/" \
 -e "s/localhost:8083/10.99.99.10:8080/" \
-/opt/smartdc/adminui/config/config.yml
+/opt/smartdc/pubapi/config/config.yml
 
-if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
-  su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
+if [[ ! -e /opt/smartdc/pubapi/tmp/pids ]]; then
+  su - jill -c "mkdir -p /opt/smartdc/pubapi/tmp/pids"
 fi
 
 echo "Importing MAPI Admin UI Unicorn Manifest"
-/usr/sbin/svccfg import /opt/smartdc/adminui/config/unicorn.smf
+/usr/sbin/svccfg import /opt/smartdc/pubapi/config/unicorn.smf
 sleep 1
 
 # Ensure everything in /opt/smartdc is owned by jill
@@ -129,5 +129,3 @@ chown -R jill:jill /opt/smartdc
 chown root:root /home
 chmod 0555 /home
 
-## Call the verify script
-(cd /opt/smartdc/adminui && ./script/verify_setup.sh)
