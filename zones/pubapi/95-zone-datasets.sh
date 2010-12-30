@@ -20,7 +20,7 @@ cd /opt/smartdc/pubapi-repo
 mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids
 # Remove and symlink directories:
-mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+# mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
 rm -Rf /opt/smartdc/pubapi/log
 rm -Rf /opt/smartdc/pubapi/tmp
 rm -Rf /opt/smartdc/pubapi/config
