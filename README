@@ -81,6 +81,9 @@ https://guest:GrojhykMid@coal.joyent.us/coal/templates/bare-1.1.6.zfs.gz .
 There's a bug in gzcat so you'll need to manually gunzip & then bzip2
 
 to create the USB key the USB_KEY environment variable needs to be set
-pointing at /dev/rdsk/<usb key>p0
+pointing at /dev/rdsk/<usb key>p0 . You may find this via disklist -r
+or rmformat -l
 
-USB key creation currently only works on Solaris-ish
+USB key creation currently only works on Solaris-ish. If you are using SmartOS
+(ie, the VMWare image or USB headnode) you will need to run the script
+devtools/devmode.sh to set up the environment.
