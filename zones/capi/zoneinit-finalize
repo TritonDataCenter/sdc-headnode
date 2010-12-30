@@ -51,39 +51,6 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
-# Configure nsswitch to use mdns & enable multicast dns:
-hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
-
-if [[ ! $(echo $hosts | grep mdns) ]]; then
-  echo "Updating hosts entry on nsswitch.conf"
-  $(/opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf)
-fi
-
-ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
-
-if [[ ! $(echo $ipnodes | grep mdns) ]]; then
-  echo "Updating ipnodes entry on nsswitch.conf"
-  $(/opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf)
-fi
-
-# XXX - Is this needed for the CAPI zone?
-# Do not use dns/multicast for this zone, we're using custom mDNSResponder from
-# pkgsrc here:
-#if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" == "online" ]]; then
-#  echo "Disabling dns/multicast"
-#  $(/usr/sbin/svcadm disable dns/multicast)
-#fi
-#
-#if [[ ! $(/usr/bin/svcs -a|grep mdnsresponder) ]]; then
-#  echo "Importing mDNSResponder service"
-#  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/mdnsresponder.xml)
-#fi
-#
-#if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
-#  echo "Enabling mDNSResponder service."
-#  $(/usr/sbin/svcadm enable -s mdnsresponder)
-#fi
-
 # These happen to do not be created always:
 if [[ ! -e /opt/local/bin/ruby ]]; then
   echo "Symlinking ruby"
@@ -149,13 +116,13 @@ fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.smf ]]; then
   echo "Creating Customers API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
   chown jill:jill /opt/smartdc/capi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.conf ]]; then
   echo "Creating Customers API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/config/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
   chown jill:jill /opt/smartdc/capi/config/unicorn.conf
 fi
 
@@ -178,9 +145,9 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
-#echo "Auto Upgrading Customers API Database."
-#su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/capi/Rakefile"
-#sleep 1
+echo "Auto Upgrading Customers API Database."
+su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+sleep 1
 
 if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update) ]]; then
   echo "Importing Customers API Unicorn Manifest"

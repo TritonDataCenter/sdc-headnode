@@ -56,6 +56,9 @@ function mount_image
 {
     echo -n "==> Mounting new VMWare image... "
     # Mount the disk as '/Volumes/USB-headnode.vmdk':
+    # Delete a possible hanger-on from previous build, else the new one will
+    # be mounted as "/Volumes/USB-headnode.vmdk 1".
+    rm -rf "${MNT_DIR}"
     # This is not linux, waiting for the volume to be mounted:
     ${SUCMD} open -a /Library/Application\ Support/VMWare\ Fusion/VMDKMounter.app ${ROOT}/cache/USB-headnode.vmwarevm/USB-headnode.vmdk
     sleep 5

@@ -127,9 +127,14 @@ function copy_pkgsrc
     for pkgfile in $pkgs; do
             echo "==> Downloading ${pkgfile}"
             CURL_OPTS=
-            [[ -f ${ROOT}/cache/${pkgfile} ]] && CURL_OPTS="-z ${ROOT}/cache/${pkgfile}"
-            (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${PKGSRC_ROOT}/${pkgfile})
+            [[ -f ${ROOT}/cache/${pkgfile} ]] && \
+                CURL_OPTS="-z ${ROOT}/cache/${pkgfile}"
+
+            (cd ${ROOT}/cache && curl --progress-bar \
+                -k ${CURL_OPTS} -fO ${PKGSRC_ROOT}/${pkgfile}) || \
+                fatal "could not download ${pkgfile}"
     done
+
     echo "==> Creating pkgsrc.tar"
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
@@ -232,7 +237,8 @@ function copy_zones
     done
 
     for zone in $(ls ${STAGE}/zones); do
-        if [ -x ${STAGE}/zones/${zone}/fs.populate ] && [ -d ${STAGE}/zones/${zone}/fs.root ]; then
+        if [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
+          [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
             mkdir -p /tmp/fs.${zone}.$$
             cp -a ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
