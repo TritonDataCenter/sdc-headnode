@@ -76,4 +76,7 @@ if [[ -z $(mount | grep "^/root") ]]; then
     mount -O -F lofs /opt/root /root
 fi
 
+CWD=`pwd`
+$(cd /;  bzcat $CWD/disk_manip_tools.tar.bz2 | tar -xf -)
+
 exit 0
