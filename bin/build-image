@@ -34,8 +34,8 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             version
             ;;
         usb)
-            echo "OSX-usb";
-            exit 0
+            source ${ROOT}/bin/include-usb-osx
+            version
             ;;
         *)
             echo "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
@@ -60,7 +60,7 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
-            source ${ROOT}/bin/include-smartos-usb
+            source ${ROOT}/bin/include-usb-smartos
             echo "SmartOS-usb";
             ;;
         *)

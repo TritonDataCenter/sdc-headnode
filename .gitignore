@@ -1,6 +1,7 @@
 /mnt
 /cache
 /coal-*.tgz
+/usb-*.tgz
 *.swp
 /tmp
 /USB-headnode.vmwarevm
