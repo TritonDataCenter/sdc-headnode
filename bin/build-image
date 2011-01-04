@@ -123,7 +123,7 @@ function copy_base
 
 function copy_pkgsrc
 {
-    pkgs=$(cat ${ROOT}/zones/*/pkgsrc | sort | uniq | sed -e "s/$/.tgz/")
+    pkgs=$(cat ${ROOT}/zones/*/pkgsrc | xargs -n1 | sort | uniq | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
             echo "==> Downloading ${pkgfile}"
             CURL_OPTS=
@@ -132,7 +132,7 @@ function copy_pkgsrc
 
             (cd ${ROOT}/cache && curl --progress-bar \
                 -k ${CURL_OPTS} -fO ${PKGSRC_ROOT}/${pkgfile}) || \
-                fatal "could not download ${pkgfile}"
+                fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
     done
 
     echo "==> Creating pkgsrc.tar"
