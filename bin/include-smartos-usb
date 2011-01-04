@@ -39,13 +39,13 @@ function mkusb()
     rm -rf $wmnt >/dev/null 2>&1
     mkdir -m 0700 $wmnt || fail "failed to mkdir: $wmnt"
 
-    rmformat -l $pdsk 2>/dev/null | grep 'Bus: USB' >/dev/null 2>&1 ||
+    rmformat -l 2>/dev/null | grep 'Bus: USB' >/dev/null 2>&1 ||
         fail "USB device path does not appear to be valid: $pdsk"
 
     echo "Formatting USB device ... \c"
     fdisk -B $pdsk || fail "failed to create USB partition"
 
-    set -- $(rmformat -l $pdsk 2>/dev/null | \
+    set -- $(rmformat -l 2>/dev/null | \
         egrep '(Device|Size):' | cut -d: -f2-)
 
     eval $(prtvtoc $pdsk | grep '^\*' | awk '
@@ -80,12 +80,13 @@ EOF
 
     [[ $? -eq 0 ]] && echo "$*" || fail "failed to format USB stick"
 
-    newfs -m 0 $rdsk$root_part </dev/null 2>/dev/null || "failed to newfs USB stick"
+    newfs -m 0 $rdsk$root_part </dev/null || "failed to newfs USB stick"
     mount -F ufs $dsk$root_part $wmnt || fail "failed to mount USB stick"
 
     echo "Copying source grub dir to USB ... "
     mkdir -p ${wmnt}/boot/grub
-    cd /boot/grub && find . -depth -print | cpio -pdVmu ${wmnt}/boot/grub || fail "cpio failed"
+    CWD=`pwd`
+    $(cd ${wmnt}/boot/grub; bzcat $CWD/bin/smartos-grub-bins.tar.bz2 | tar -xf -)
 
     chmod 0444 $wmnt/boot/grub/menu.lst
     echo "done."
@@ -109,7 +110,6 @@ function unpack_image
 }
 function cleanup 
 {
-	echo "oops"
 }
 function mount_image
 {
