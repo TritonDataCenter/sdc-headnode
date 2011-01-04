@@ -13,6 +13,7 @@
 # DO NOT USE UNLESS YOU NEED IT AND DO NOT WRITE SOFTWARE THAT DEPENDS ON THIS.
 #
 
+ROOT_DIR=$(cd $(dirname $0); pwd)
 PKG_REPO="http://pkgsrc.joyent.com/2010Q3/All"
 PKGSRC_TGZ="https://guest:GrojhykMid@assets.joyent.us/templates/misc/pkgsrc-base-2010Q3.tgz"
 
@@ -76,7 +77,6 @@ if [[ -z $(mount | grep "^/root") ]]; then
     mount -O -F lofs /opt/root /root
 fi
 
-CWD=`pwd`
-$(cd /;  bzcat $CWD/disk_manip_tools.tar.bz2 | tar -xf -)
+(cd /; gtar -jxf ${ROOT_DIR}/disk_manip_tools.tar.bz2)
 
 exit 0
