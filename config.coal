@@ -5,6 +5,7 @@
 #
 coal=true
 swap=4g
+admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
 default_gateway=10.99.99.7

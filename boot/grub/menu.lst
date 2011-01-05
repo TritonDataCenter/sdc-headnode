@@ -4,18 +4,17 @@ min_mem64 1024
 color cyan/blue white/blue
 
 title Live 64-bit
-   kernel /platform/i86pc/kernel/amd64/unix -B console=text,headnode=true,admin_nic=00:50:56:34:60:4c
+   kernel /platform/i86pc/kernel/amd64/unix -B console=text,headnode=true
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit KMDB
-   kernel /platform/i86pc/kernel/amd64/unix -k -B console=text,headnode=true,admin_nic=00:50:56:34:60:4c
+   kernel /platform/i86pc/kernel/amd64/unix -k -B console=text,headnode=true
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit Debug
-   kernel /platform/i86pc/kernel/amd64/unix -kdv -B console=text,headnode=true,admin_nic=00:50:56:34:60:4c,prom_debug=true,map_debug=true,kbm_debug=true
+   kernel /platform/i86pc/kernel/amd64/unix -kdv -B console=text,headnode=true,prom_debug=true,map_debug=true,kbm_debug=true
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit Rescue (no importing zpool)
-   kernel /platform/i86pc/kernel/amd64/unix -B console=text,noimport=true,admin_nic=00:50:56:34:60:4c
+   kernel /platform/i86pc/kernel/amd64/unix -B console=text,noimport=true
    module /platform/i86pc/amd64/boot_archive
-
