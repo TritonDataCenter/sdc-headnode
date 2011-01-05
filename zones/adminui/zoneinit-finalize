@@ -105,6 +105,8 @@ host=`hostname`
 /opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
 -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
 -e "s/127.0.0.1:8080/10.99.99.8:8080/" \
+-e "s/127.0.0.1:8081/10.99.99.11:8080/" \
+-e "s/authentication: http_basic/authentication: capi/" \
 -e "s/localhost:8083/10.99.99.10:8080/" \
 /opt/smartdc/adminui/config/config.yml
 
