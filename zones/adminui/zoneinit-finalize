@@ -103,13 +103,13 @@ fi
 echo "Installing MAPI Admin UI Config file."
 host=`hostname`
 
-su - jill -c "cd /opt/smartdc/adminui; 
-              MAIL_FROM=jill@$host
-              MAIL_TO=jill@$host
-              ADMINUI_IP=$ADMINUI_IP
-              CAPI_IP=$CAPI_IP
-              MAPI_IP=$MAPI_IP
-              /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
+su - jill -c "cd /opt/smartdc/adminui; \
+  MAIL_FROM=jill@$host \
+  MAIL_TO=jill@$host \
+  ADMINUI_IP=$ADMINUI_IP \
+  CAPI_IP=$CAPI_IP \
+  MAPI_IP=$MAPI_IP \
+  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
