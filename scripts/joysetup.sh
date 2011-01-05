@@ -14,6 +14,15 @@ VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
 SWAPVOL=${ZPOOL}/swap
 
+#
+# Load command line arguments in the form key=value (eg. swap=4g)
+#
+for p in $*; do
+  k=$(echo "${p}" | cut -d'=' -f1)
+  v=$(echo "${p}" | cut -d'=' -f2-)
+  export arg_${k}=${v}
+done
+
 fatal()
 {
     echo "Error: $1" >> /dev/console
@@ -120,13 +129,17 @@ setup_datasets()
 
 create_swap()
 {
-    if [ -f "/etc/headnode.config" ]; then
+    swapsize=
+    if [ -n "${arg_swap}" ]; then
+        swapsize=${arg_swap}
+    elif [ -f "/etc/headnode.config" ]; then
         swapsize=$(grep "^swap=" /etc/headnode.config | cut -d'=' -f2-)
-        if [[ -n ${swapsize} ]]; then
-            echo -n "Creating swap zvol... " >>/dev/console
-            zfs create -V ${swapsize} ${SWAPVOL}
-            echo "done." >>/dev/console
-        fi
+    fi
+
+    if [[ -n ${swapsize} ]]; then
+      echo -n "Creating swap zvol... " >>/dev/console
+      zfs create -V ${swapsize} ${SWAPVOL}
+      echo "done." >>/dev/console
     fi
 }
 
