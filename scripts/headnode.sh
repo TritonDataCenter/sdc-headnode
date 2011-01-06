@@ -20,7 +20,12 @@ USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 # consistent location for it when we want to be able to umount the USB later
 ln -s /mnt/config /etc/headnode.config
 
+# admin_nic in boot params overrides config, but config is normal place for it
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+if [[ -z ${admin_nic} ]]; then
+    admin_nic=`grep "^admin_nic=" /etc/headnode.config | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+fi
+
 default_gateway=`grep "^default_gateway=" /etc/headnode.config 2>/dev/null | cut -f2 -d'='`
 
 # check if we've imported a zpool
@@ -152,6 +157,11 @@ if [ -n "${CREATEDZONES}" ]; then
             else
                 echo " done." >>/dev/console
             fi
+        fi
+
+        # copy headnode info into zone if we're MAPI
+        if [[ "${zone}" == "mapi" ]] && [[ -d "/zones/mapi/root/opt/smartdc/mapi-data" ]]; then
+            sysinfo > /zones/mapi/root/opt/smartdc/mapi-data/headnode-sysinfo.json
         fi
 
         # disable zoneinit now that we're done with it.
