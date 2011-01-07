@@ -130,6 +130,7 @@ function copy_base
     
     echo "==> Copying in config"
     cp config.coal ${STAGE}/config
+    cp nodes.coal ${STAGE}/nodes
     
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts

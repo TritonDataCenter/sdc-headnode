@@ -164,6 +164,11 @@ if [ -n "${CREATEDZONES}" ]; then
             sysinfo > /zones/mapi/root/opt/smartdc/mapi-data/headnode-sysinfo.json
         fi
 
+        # copy dhcpd configuration into zone if we're DHCPD
+        if [[ "${zone}" == "dhcpd" ]] && [[ -d "/zones/dhcpd/root/etc" ]]; then
+            ${USB_PATH}/zones/dhcpd/tools/dhcpconfig
+        fi
+
         # disable zoneinit now that we're done with it.
         zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
 
