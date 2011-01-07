@@ -7,7 +7,7 @@ loadNodeList = function(nodeFile) {
   var nodelist = {};
 
   if (path.normalize(nodeFile).charAt(0) != "/") {
-    nodeFile = '/mnt/' + nodeFile;
+    nodeFile = '/usbkey/config.inc/' + nodeFile;
   }
 
   loadAndFilter(nodeFile).forEach(function(ele, idx, arr) {
@@ -106,7 +106,7 @@ dhcpTemplate = function() {
   return template;
 }
 
-var config = loadConfig('/mnt/config');
+var config = loadConfig('/usbkey/config');
 
 fs.writeFile('/zones/dhcpd/root/etc/dhcpd.hosts', hostsConfig(), function(err) {
   if (err) throw err;

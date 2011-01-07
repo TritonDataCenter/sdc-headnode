@@ -129,8 +129,21 @@ function copy_base
     cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
     
     echo "==> Copying in config"
-    cp config.coal ${STAGE}/config
-    cp nodes.coal ${STAGE}/nodes
+    if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
+        if [[ -f config/config.coal.local ]]; then
+          cp config/config.coal.local ${STAGE}/config
+        else
+          cp config/config.coal ${STAGE}/config
+        fi
+        cp -r config/config.coal.inc ${STAGE}/config.inc
+    else
+        if [[ -f config/config.usb.local ]]; then
+          cp config/config.usb.local ${STAGE}/config
+        else
+          cp config/config.usb ${STAGE}/config
+        fi
+        cp -r config/config.usb.inc ${STAGE}/config.inc
+    fi
     
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
