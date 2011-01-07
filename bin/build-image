@@ -180,6 +180,9 @@ function copy_platform
 
     echo "==> Unpacking `basename ${image}`"
     (cd ${STAGE}/ && tar -zxf ${image} && mv platform-* platform)
+    if [[ -f ${STAGE}/platform/root.password ]]; then
+        (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
+    fi
     LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 }
 
