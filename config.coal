@@ -24,4 +24,5 @@ dhcp_next_server=10.99.99.4
 node_file=nodes
 
 initial_script=/mnt/scripts/headnode.sh
+root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 rabbitmq=ur:ahY8sies:10.99.99.5:5672
