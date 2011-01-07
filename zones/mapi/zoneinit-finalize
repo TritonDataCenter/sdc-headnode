@@ -2,6 +2,7 @@
 
 POSTGRES=localhost
 PGPASSWORD=postgres
+ADMIN_UUID="930896af-bf8c-48d4-885c-6573a94b1853"
 
 svcadm clear network/physical:default >/dev/null 2>&1
 
@@ -257,7 +258,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 

@@ -3,10 +3,10 @@
 POSTGRES=10.99.99.8
 PGPASSWORD=postgres
 
-ADMIN_PASSWORD=joypass123
 ADMIN_LOGIN=admin
+ADMIN_PASSWORD=joypass123
 ADMIN_EMAIL=user@joyent.com
-ADMIN_UUID='930896af-bf8c-48d4-885c-6573a94b1853'
+ADMIN_UUID="930896af-bf8c-48d4-885c-6573a94b1853"
 
 svcadm clear network/physical:default >/dev/null 2>&1
 
