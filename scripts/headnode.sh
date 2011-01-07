@@ -18,7 +18,7 @@ USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 
 # Create a link to the config as /etc/headnode.config, so we can have a
 # consistent location for it when we want to be able to umount the USB later
-ln -s /mnt/config /etc/headnode.config
+ln -s ${USB_COPY}/config /etc/headnode.config
 
 # admin_nic in boot params overrides config, but config is normal place for it
 admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
@@ -106,8 +106,8 @@ for zone in $ALLZONES; do
             && rm /tmp/motd.new
 
         # this allows a zone-specific motd message to be appended
-        if [[ -f /mnt/zones/${zone}/motd.append ]]; then
-            cat /mnt/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
+        if [[ -f ${USB_COPY}/zones/${zone}/motd.append ]]; then
+            cat ${USB_COPY}/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
         fi
 
         if [[ -n ${default_gateway} ]]; then
@@ -131,9 +131,9 @@ done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
 for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
-    zonename=$(grep "^ZONENAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
-    hostname=$(grep "^HOSTNAME=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
-    priv_ip=$(grep "^PRIVATE_IP=" /mnt/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    zonename=$(grep "^ZONENAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    hostname=$(grep "^HOSTNAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
+    priv_ip=$(grep "^PRIVATE_IP=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
     if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
         grep "^${priv_ip}  " /etc/hosts >/dev/null \
           || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
