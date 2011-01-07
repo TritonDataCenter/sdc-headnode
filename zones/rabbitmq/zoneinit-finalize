@@ -1,5 +1,10 @@
 echo "99 finalizing rabbitmq pkg"
 
+# Setup .erlang.cookie symlink
+if [[ ! -f /root/.erlang.cookie ]]; then
+	ln -s /var/db/rabbitmq/.erlang.cookie /root/.erlang.cookie
+fi
+
 # Setup erlang
 if [[ -z $(/usr/bin/svcs -a|grep epmd) ]]; then
   echo "Importing epmd service"
