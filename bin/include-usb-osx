@@ -73,9 +73,16 @@ function create_output
         sync; sync
     fi
 
+    if [[ -f ${STAGE}/private/root.password ]]; then
+        echo "==> Copying root.password"
+        cp ${STAGE}/private/root.password ${ROOT}/cache/root.password
+    else
+	    rm -f ${ROOT}/cache/root.password
+    fi
+
     echo "==> Creating usb-147-${output_version}.tgz"
     (cd ${ROOT}/cache \
         && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
-        && tar -zcf ${ROOT}/usb-147-${output_version}.tgz usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+        && tar -zcf ${ROOT}/usb-147-${output_version}.tgz root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
 }
 
