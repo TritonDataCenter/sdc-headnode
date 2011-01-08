@@ -5,3 +5,9 @@ echo "99 finalizing atropos zone"
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/couchdb.xml
 /usr/sbin/svcadm enable -s couchdb
 
+#
+# Call mdns_announce (imported from 97-zoneinit-common) to announce our
+# service.
+#
+mdns_announce CouchDB 5984 _npm-registry
+

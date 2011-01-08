@@ -18,66 +18,9 @@ if [[ -z $(/usr/bin/svcs -a|grep rabbitmq) ]]; then
   /usr/sbin/svcadm enable -s rabbitmq
 fi
 
-# Configure nsswitch to use mdns & enable multicast dns:
-hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
-
-if [[ ! $(echo $hosts | grep mdns) ]]; then
-  $(/opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf)
-fi
-
-ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
-
-if [[ ! $(echo $ipnodes | grep mdns) ]]; then
-  $(/opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf)
-fi
-
-if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" != "online" ]]; then
-  $(/usr/sbin/svcadm enable -s dns/multicast)
-fi
-
-zoneip=$(ifconfig rabbitmq0|grep inet|awk '{print $2}')
-# dns-sd announcement for RabbitMQ broker:
-cat >/opt/local/share/smf/manifest/rabbitmq-announcer.xml <<SMF
-<?xml version='1.0'?>
-<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
-<service_bundle type='manifest' name='export'>
-  <service name='site/rabbitmq-announcer' type='service' version='0'>
-    <create_default_instance enabled='true'/>
-    <single_instance/>
-    <dependency name='network' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/milestone/network:default'/>
-    </dependency>
-    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/system/filesystem/local'/>
-    </dependency>
-    <dependency name='multicast' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/network/dns/multicast:default'/>
-    </dependency>
-    <dependency name='announcer_rabbitmq' grouping='require_all' restart_on='restart' type='service'>
-      <service_fmri value='svc:/application/rabbitmq:default'/>
-    </dependency>
-    <exec_method name='start' type='method' exec='dns-sd -P Joyent _amqp-broker._tcp . 5672 $zoneip $zoneip' timeout_seconds='60'/>
-    <exec_method name='stop' type='method' exec=':kill' timeout_seconds='60'/>
-    <property_group name='application' type='application'/>
-    <property_group name='startd' type='framework'>
-      <propval name='duration' type='astring' value='child'/>
-      <propval name='ignore_error' type='astring' value='core,signal'/>
-    </property_group>
-    <stability value='Evolving'/>
-    <template>
-      <common_name>
-        <loctext xml:lang='C'>RabbitMQ Zeroconf Announcer (dns-sd)</loctext>
-      </common_name>
-    </template>
-  </service>
-</service_bundle>
-SMF
-
-if [[ ! $(/usr/bin/svcs -a|grep rabbitmq-announcer) ]]; then
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/rabbitmq-announcer.xml)
-fi
-
-if [[  "$(/usr/bin/svcs -Ho state rabbitmq-announcer)" != "online"  ]]; then
-  $(/usr/sbin/svcadm enable -s rabbitmq-announcer)
-fi
+#
+# Call mdns_announce (imported from 97-zoneinit-common) to announce our
+# service.
+#
+mdns_announce RabbitMQ 5672 _amqp-broker
 

@@ -99,62 +99,77 @@ for zone in $ALLZONES; do
         [[ -z "${CREATEDZONES}" ]] && echo "" >>/dev/console
 
         echo -n "creating zone ${zone}... " >>/dev/console
-        dladm show-phys -m -p -o link,address | sed 's/:/\ /;s/\\//g' | while read iface mac; do
+        dladm show-phys -m -p -o link,address | \
+          sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
                 dladm create-vnic -l ${iface} ${zone}0
                 break
             fi
         done
-        zonecfg -z ${zone} -f ${USB_COPY}/zones/${zone}/config
+
+        src=${USB_COPY}/zones/${zone}
+        zonecfg -z ${zone} -f ${src}/config
         zonecfg -z ${zone} "add net; set physical=${zone}0; end"
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
-        (cd /zones/${zone}; bzcat ${USB_COPY}/zones/${zone}/fs.tar.bz2 | tar -xf - )
+        (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
         chmod 0700 /zones/${zone}
-        if [[ -f "${USB_COPY}/zones/${zone}/zoneconfig" ]]; then
-            cp ${USB_COPY}/zones/${zone}/zoneconfig /zones/${zone}/root/root/zoneconfig
-        fi
-        if [[ -f "${USB_COPY}/zones/${zone}/pkgsrc" ]]; then
-            mkdir -p /zones/${zone}/root/root/pkgsrc
-            cp ${USB_COPY}/zones/${zone}/pkgsrc /zones/${zone}/root/root/pkgsrc/order
-            (cd /zones/${zone}/root/root/pkgsrc \
-              && tar -xf ${USB_COPY}/data/pkgsrc.tar $(cat ${USB_COPY}/zones/${zone}/pkgsrc | sed -e "s/$/.tgz/" | xargs))
-            mkdir -p /zones/${zone}/root/root/zoneinit.d
-            cp ${USB_COPY}/zoneinit/94-zone-pkgs.sh /zones/${zone}/root/root/zoneinit.d
-        fi
-        if [[ -f "${USB_COPY}/zones/${zone}/zoneinit-finalize" ]]; then
-            mkdir -p /zones/${zone}/root/root/zoneinit.d
-            cp ${USB_COPY}/zones/${zone}/zoneinit-finalize /zones/${zone}/root/root/zoneinit.d/99-${zone}-finalize.sh
+
+        dest=/zones/${zone}/root
+        mkdir -p ${dest}/root/zoneinit.d
+
+        if [[ -f "${src}/zoneconfig" ]]; then
+            cp ${src}/zoneconfig ${dest}/root/zoneconfig
         fi
 
-        cat /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh \
+        if [[ -f "${src}/pkgsrc" ]]; then
+            mkdir -p ${dest}/root/pkgsrc
+            cp ${src}/pkgsrc ${dest}/root/pkgsrc/order
+            (cd ${dest}/root/pkgsrc && tar -xf ${USB_COPY}/data/pkgsrc.tar \
+              $(cat ${src}/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+            cp ${USB_COPY}/zoneinit/94-zone-pkgs.sh ${dest}/root/zoneinit.d
+        fi
+
+        if [[ -f "${src}/zoneinit-finalize" ]]; then
+            cp ${USB_COPY}/zoneinit/zoneinit-common.sh \
+              ${dest}/root/zoneinit.d/97-zoneinit-common.sh
+
+            cp ${src}/zoneinit-finalize \
+              ${dest}/root/zoneinit.d/99-${zone}-finalize.sh
+        fi
+
+        cat ${dest}/root/zoneinit.d/93-pkgsrc.sh \
             | sed -e "s/^pkgin update/# pkgin update/" \
-            > /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new \
-            && mv /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh.new /zones/${zone}/root/root/zoneinit.d/93-pkgsrc.sh
+            > ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
+            && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
+            ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        zoneip=`grep PRIVATE_IP ${USB_COPY}/zones/${zone}/zoneconfig | cut -f 2 -d '='`
-        echo ${zoneip} > /zones/${zone}/root/etc/hostname.${zone}0
+        zoneip=`grep PRIVATE_IP ${src}/zoneconfig | cut -f 2 -d '='`
+        echo ${zoneip} > ${dest}/etc/hostname.${zone}0
 
-        cat /zones/${zone}/root/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
-            && cp /tmp/motd.new /zones/${zone}/root/etc/motd \
-            && rm /tmp/motd.new
+        cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
+            && cp /tmp/motd.new ${dest}/etc/motd && rm /tmp/motd.new
 
         # this allows a zone-specific motd message to be appended
-        if [[ -f ${USB_COPY}/zones/${zone}/motd.append ]]; then
-            cat ${USB_COPY}/zones/${zone}/motd.append >> /zones/${zone}/root/etc/motd
+        if [[ -f ${src}/motd.append ]]; then
+            cat ${src}/motd.append >> ${dest}/etc/motd
         fi
 
         if [[ -n ${default_gateway} ]]; then
-            echo "${default_gateway}" > /zones/${zone}/root/etc/defaultrouter
+            echo "${default_gateway}" > ${dest}/etc/defaultrouter
         fi
+
         # Create additional zone datasets when required:
-        if [[ -f "${USB_COPY}/zones/${zone}/zone-datasets" ]]; then
-          source "${USB_COPY}/zones/${zone}/zone-datasets"
+        if [[ -f "${src}/zone-datasets" ]]; then
+            source "${src}/zone-datasets"
         fi
+
         # Configure the extra zone datasets post zone boot, when given:
-        if [[ -f "${USB_COPY}/zones/${zone}/95-zone-datasets.sh" ]]; then
-          cp "${USB_COPY}/zones/${zone}/95-zone-datasets.sh" /zones/${zone}/root/root/zoneinit.d/95-zone-datasets.sh
+        if [[ -f "${src}/95-zone-datasets.sh" ]]; then
+            cp "${src}/95-zone-datasets.sh" \
+              ${dest}/root/zoneinit.d/95-zone-datasets.sh
         fi
+
         zoneadm -z ${zone} boot
 
         echo "done." >>/dev/console
