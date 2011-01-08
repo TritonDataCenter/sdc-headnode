@@ -2,40 +2,45 @@
 
 var fs = require('fs'),
   path = require('path'),
+  exec = require('child_process').exec;
 
 loadNodeList = function(nodeFile) {
   var nodelist = {};
-
-  if (path.normalize(nodeFile).charAt(0) != "/") {
-    nodeFile = '/usbkey/config.inc/' + nodeFile;
-  }
 
   loadAndFilter(nodeFile).forEach(function(ele, idx, arr) {
     e = ele.split(/\s+/);
     nodelist[e[0]] = e[1];
   });
-  return nodelist
+  return nodelist;
 }
 
-loadConfig = function(configFile) {
-  var config = {};
-  loadAndFilter(configFile).forEach(function(ele, idx, arr) {
-    e = ele.split('=');
-    config[e[0]] = e[1];
-  });
-  if (config.node_file) {
-    config.nodes = loadNodeList(config.node_file);
-  }
+loadConfig = function(callback) {
+  
+  exec('svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent',
+    function(err, stdout, stderr) {
+      configPath = stdout.split(/\n/)[0];
+      var config = {};
 
-  return config;
+      loadAndFilter(configPath + '/config').forEach(function(ele, idx, arr) {
+        e = ele.split('=');
+        config[e[0]] = e[1];
+      });
+      
+      if (config.node_file) {
+        config.nodes = loadNodeList(configPath + '/config.inc/' + config.node_file);
+      }
+      
+      if (callback) callback(err, config);
+    }
+  );
 }
 
-dhcpConfig = function() {
+dhcpConfig = function(config) {
   config.dhcp_bootfile = (config.coal && config.coal.toLowerCase()) === "true" ? "pxegrub" : "gpxe";
-  return dhcpTemplate();
+  return dhcpTemplate(config);
 }
 
-hostsConfig = function() {
+hostsConfig = function(config) {
   hosts = [];
   var keys = Object.keys(config.nodes);
   keys.forEach(function (ele, idx, arr) {
@@ -66,14 +71,14 @@ function notEmpty(element, index, array) {
 }
 
 // load a config file and filter out comments and empty lines
-function loadAndFilter(configFile) {
-  c = fs.readFileSync(configFile, 'utf8').split(/\n/); // i know, i know
+function loadAndFilter(file) {
+  c = fs.readFileSync(file, 'utf8').split(/\n/); // i know, i know
   c = c.filter(notEmpty);
   return c
 }
 
 // no new line support :(
-dhcpTemplate = function() { 
+dhcpTemplate = function(config) { 
   var template = 
     [ "# this file has been auto generated"
     , "#"
@@ -106,13 +111,11 @@ dhcpTemplate = function() {
   return template;
 }
 
-var config = loadConfig('/usbkey/config');
-
-fs.writeFile('/zones/dhcpd/root/etc/dhcpd.hosts', hostsConfig(), function(err) {
-  if (err) throw err;
+loadConfig(function (err, config) {
+  fs.writeFile('/zones/dhcpd/root/etc/dhcpd.hosts', hostsConfig(config), function(err) {
+    if (err) throw err;
+  });
+  fs.writeFile('/zones/dhcpd/root/etc/dhcpd.conf', dhcpConfig(config), function(err) {
+    if (err) throw err;
+  });
 });
-
-fs.writeFile('/zones/dhcpd/root/etc/dhcpd.conf', dhcpConfig(), function(err) {
-  if (err) throw err;
-});
-
