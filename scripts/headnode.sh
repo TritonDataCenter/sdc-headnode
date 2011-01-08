@@ -9,6 +9,30 @@
 # 2 - rebooting (don't bother doing anything)
 #
 
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, and
+# pipefail to force any failures in a pipeline to force overall failure.  We
+# also set xtrace to aid in debugging.
+#
+set -o errexit
+set -o pipefail
+set -o xtrace
+
+function fatal
+{
+    echo "head-node configuration: fatal error: $*" >> /dev/console
+    echo "head-node configuration: fatal error: $*"
+    exit 1
+}
+
+function errexit
+{
+    [[ $1 -ne 0 ]] || exit 0
+    fatal "error exit status $1"
+}
+
+trap 'errexit $?' EXIT
+
 DEBUG="true"
 
 USB_PATH=`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
@@ -19,14 +43,6 @@ USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 # Create a link to the config as /etc/headnode.config, so we can have a
 # consistent location for it when we want to be able to umount the USB later
 ln -s ${USB_COPY}/config /etc/headnode.config
-
-# admin_nic in boot params overrides config, but config is normal place for it
-admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
-if [[ -z ${admin_nic} ]]; then
-    admin_nic=`grep "^admin_nic=" /etc/headnode.config | cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
-fi
-
-default_gateway=`grep "^default_gateway=" /etc/headnode.config 2>/dev/null | cut -f2 -d'='`
 
 # check if we've imported a zpool
 POOLS=`zpool list`
@@ -45,9 +61,27 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
+# admin_nic in boot params overrides config, but config is normal place for it
+if ( /usr/bin/bootparams | grep "^admin_nic=" 2> /dev/null ); then
+    admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | \
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+else
+    admin_nic=`grep "^admin_nic=" /etc/headnode.config | \
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+fi
+
+if ( grep "^default_gateway=" /etc/headnode.config ); then
+    default_gateway=`grep "^default_gateway=" /etc/headnode.config \
+      2>/dev/null | cut -f2 -d'='`
+fi
+
 # Now the infrastructure zones
 
-ZONES=`zoneadm list -i | grep -v "^global$"`
+if ( zoneadm list -i | grep -v "^global$" ); then
+    ZONES=`zoneadm list -i | grep -v "^global$"`
+else
+    ZONES=
+fi
 
 LATESTTEMPLATE=''
 for template in `ls /zones | grep bare`; do
