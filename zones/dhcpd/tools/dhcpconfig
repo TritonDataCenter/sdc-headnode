@@ -6,7 +6,6 @@ var fs = require('fs'),
 
 loadNodeList = function(nodeFile) {
   var nodelist = {};
-
   loadAndFilter(nodeFile).forEach(function(ele, idx, arr) {
     e = ele.split(/\s+/);
     nodelist[e[0]] = e[1];
@@ -72,9 +71,14 @@ function notEmpty(element, index, array) {
 
 // load a config file and filter out comments and empty lines
 function loadAndFilter(file) {
-  c = fs.readFileSync(file, 'utf8').split(/\n/); // i know, i know
-  c = c.filter(notEmpty);
-  return c
+  try {
+    c = fs.readFileSync(file, 'utf8').split(/\n/); // i know, i know
+    c = c.filter(notEmpty);
+    return c;
+  } 
+  catch(err) {
+    return [];
+  }
 }
 
 // no new line support :(
