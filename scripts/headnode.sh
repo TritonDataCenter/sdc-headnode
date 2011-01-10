@@ -179,10 +179,12 @@ for zone in $ALLZONES; do
 done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
-for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
+
+for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi portal; do
     zonename=$(grep "^ZONENAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
     hostname=$(grep "^HOSTNAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
     priv_ip=$(grep "^PRIVATE_IP=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+
     if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
         grep "^${priv_ip}  " /etc/hosts >/dev/null \
           || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
