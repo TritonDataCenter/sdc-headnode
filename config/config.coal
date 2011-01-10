@@ -14,15 +14,54 @@ admin_network=10.99.99.0
 external_nic=00:50:56:3d:a7:95
 default_gateway=10.99.99.7
 
-dns_servers=10.99.99.2,10.99.99.3
+dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
 dhcp_next_server=10.99.99.4
 
+# This file should exist in config.inc
 node_file=nodes
 
 initial_script=/mnt/scripts/headnode.sh
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 rabbitmq=ur:ahY8sies:10.99.99.5:5672
+
+# Zone-specific configs
+
+dhcpd_private_ip=10.99.99.4
+dhcpd_root_pw=joypass123
+dhcpd_admin_pw=joypass123
+
+rabbitmq_private_ip=10.99.99.5
+rabbitmq_root_pw=joypass123
+rabbitmq_admin_pw=joypass123
+
+mapi_private_ip=10.99.99.8
+mapi_root_pw=joypass123
+mapi_admin_pw=joypass123
+
+ca_private_ip=10.99.99.9
+ca_root_pw=joypass123
+ca_admin_pw=joypass123
+
+adminui_private_ip=10.99.99.10
+adminui_root_pw=joypass123
+adminui_admin_pw=joypass123
+
+capi_private_ip=10.99.99.11
+capi_root_pw=joypass123
+capi_admin_pw=joypass123
+
+atropos_private_ip=10.99.99.12
+atropos_root_pw=joypass123
+atropos_admin_pw=joypass123
+
+pubapi_private_ip=10.99.99.13
+pubapi_root_pw=joypass123
+pubapi_admin_pw=joypass123
+
+portal_private_ip=10.99.99.14
+portal_root_pw=joypass123
+portal_admin_pw=joypass123

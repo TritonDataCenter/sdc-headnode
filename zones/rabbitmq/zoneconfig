@@ -1,10 +1,10 @@
 TEMPLATE_VERSION=0.0.1
 ZONENAME=rabbitmq
-HOSTNAME=${ZONENAME}.joyent.us
-RESOLVER1=10.99.99.2
-RESOLVER2=10.99.99.3
-PRIVATE_IP=10.99.99.5
-PUBLIC_IP=10.99.99.5
-ROOT_PW=joypass123
-ADMIN_PW=joypass123
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVER1=${dns_resolvers%%,*}
+RESOLVER2=${dns_resolvers##*,}
+PRIVATE_IP=${rabbitmq_private_ip}
+PUBLIC_IP=${rabbitmq_private_ip}
+ROOT_PW=${rabbitmq_root_pw}
+ADMIN_PW=${rabbitmq_admin_pw}
 TMPFS=512m

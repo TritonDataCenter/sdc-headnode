@@ -119,7 +119,19 @@ for zone in $ALLZONES; do
         mkdir -p ${dest}/root/zoneinit.d
 
         if [[ -f "${src}/zoneconfig" ]]; then
-            cp ${src}/zoneconfig ${dest}/root/zoneconfig
+            # This allows zoneconfig to use variables that exist in the <USB>/config file,
+            # by putting them in the environment then putting the zoneconfig in the
+            # environment, then printing all the variables from the file.  It is
+            # done in a subshell to avoid further namespace polution.
+            (
+                . ${USB_COPY}/config
+                . ${src}/zoneconfig
+                for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
+                    echo "${var}='${!var}'"
+                done
+            ) > ${dest}/root/zoneconfig
+            echo "DEBUG ${dest}/root/zoneconfig"
+            cat ${dest}/root/zoneconfig
         fi
 
         if [[ -f "${src}/pkgsrc" ]]; then
@@ -144,7 +156,7 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        zoneip=`grep PRIVATE_IP ${src}/zoneconfig | cut -f 2 -d '='`
+        zoneip=`grep PRIVATE_IP ${dest}/root/zoneconfig | cut -f 2 -d "'"`
         echo ${zoneip} > ${dest}/etc/hostname.${zone}0
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
@@ -180,9 +192,10 @@ done
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
 for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
-    zonename=$(grep "^ZONENAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
-    hostname=$(grep "^HOSTNAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
-    priv_ip=$(grep "^PRIVATE_IP=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
+    dest=/zones/${zone}/root
+    zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
+    hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
+    priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
     if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
         grep "^${priv_ip}  " /etc/hosts >/dev/null \
           || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts

@@ -84,7 +84,7 @@ dhcpTemplate = function(config) {
     , "#"
     , "ddns-update-style none;"                               
     , "option domain-name \"" + config.dns_domain +"\";"
-    , "option domain-name-servers " + config.dns_servers + ";"
+    , "option domain-name-servers " + config.dns_resolvers + ";"
     , "default-lease-time 6000;"                              
     , "max-lease-time 72000;"                                 
     , "omapi-port 7911;"                                      
