@@ -35,7 +35,7 @@ trap 'errexit $?' EXIT
 
 DEBUG="true"
 
-USB_PATH=`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
+USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
 
 # All the files come from USB, so we need that mounted.
