@@ -232,9 +232,9 @@ for zone in $ALLZONES; do
         for z in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
             if [[ "${z}" == "${zone}" ]]; then
                 dest=/zones/${zone}/root
-                zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
-                hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
-                priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
+                zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2)
+                hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2)
+                priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2)
                 if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
                     grep "^${priv_ip}  " /etc/hosts >/dev/null \
                       || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
