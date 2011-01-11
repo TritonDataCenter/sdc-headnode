@@ -60,12 +60,51 @@ if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   sleep 2
 fi
 
-# Setup nginx
-#if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
-#  echo "Importing nginx service"
-#  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
-#  /usr/sbin/svcadm enable -s nginx
-#fi
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
+  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+user  www  www;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen       10.99.99.8:80;
+        server_name  localhost;
+
+        location / {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+        }
+
+        location /ur-scripts/ {
+            alias /opt/smartdc/agent-scripts/;
+            autoindex on;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+    }
+}
+
+NGINX
+
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  /usr/sbin/svcadm enable -s nginx
+fi
 
 # Configure nsswitch to use mdns & enable multicast dns:
 hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
