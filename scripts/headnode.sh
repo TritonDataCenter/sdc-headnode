@@ -228,23 +228,25 @@ for zone in $ALLZONES; do
               ${dest}/root/zoneinit.d/95-zone-datasets.sh
         fi
 
+        # Add all "system"/USB zones to /etc/hosts in the GZ
+        for z in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
+            if [[ "${z}" == "${zone}" ]]; then
+                dest=/zones/${zone}/root
+                zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
+                hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
+                priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
+                if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
+                    grep "^${priv_ip}  " /etc/hosts >/dev/null \
+                      || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
+                fi
+            fi
+        done
+
         zoneadm -z ${zone} boot
 
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
-    fi
-done
-
-# Add all "system"/USB zones to /etc/hosts in the GZ
-for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
-    dest=/zones/${zone}/root
-    zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
-    hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
-    priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2-)
-    if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
-        grep "^${priv_ip}  " /etc/hosts >/dev/null \
-          || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
     fi
 done
 

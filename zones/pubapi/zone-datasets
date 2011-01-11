@@ -1,11 +1,10 @@
-echo ""
-echo "creating pubapi-data dataset" >>/dev/console
+echo -n "pubapi-data, " >>/dev/console
 zfs create zones/pubapi-data
 zonecfg -z pubapi 'add dataset; set name="zones/pubapi-data"; end; verify; commit'
 STAMP=$(cat /zones/pubapi/root/opt/smartdc/pubapi-VERSION)
-echo "creating pubapi-app-${STAMP} dataset" >>/dev/console
+echo -n "pubapi-app-${STAMP} " >>/dev/console
 zfs create zones/pubapi-app-${STAMP}
 echo "$STAMP">/zones/pubapi/root/root/pubapi-app-timestamp
 cmd="add dataset; set name=zones/pubapi-app-$STAMP; end; verify; commit"
 zonecfg -z pubapi $cmd
-
+echo -n ". "
