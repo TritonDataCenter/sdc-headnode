@@ -10,8 +10,3 @@ set type=lofs
 add options ro
 add options nodevices
 end
-add capped-memory
-set physical=128m
-end
-set max-lwps=1000
-set cpu-shares=50
