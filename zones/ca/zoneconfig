@@ -1,8 +1,7 @@
 TEMPLATE_VERSION=0.0.1
 ZONENAME=ca
 HOSTNAME=${ZONENAME}.${dns_domain}
-RESOLVER1=${dns_resolvers%%,*}
-RESOLVER2=${dns_resolvers##*,}
+RESOLVERS=${dns_resolvers/,/ }
 PRIVATE_IP=${ca_private_ip}
 PUBLIC_IP=${ca_private_ip}
 ROOT_PW=${ca_root_pw}
