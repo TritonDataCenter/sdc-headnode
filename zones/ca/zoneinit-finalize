@@ -5,7 +5,37 @@ set -o errexit
 
 echo "99 finalizing ca zone"
 
+function cafail
+{
+	echo "fatal: $*" >&2
+	exit 1
+}
+
+function casetprop
+{
+	local svc=$1 prop=$2 value=$3
+	[[ -n $value ]] || cafail "no value specified for $svc $prop"
+	svccfg -s $svc:default setprop com.joyent.ca,$prop = \
+	    astring: "$value" || cafail "failed to set $svc $prop = $val"
+}
+
 npm install /pkg/cabase.tar.gz
 npm install /pkg/caaggsvc.tar.gz
 npm install /pkg/caconfigsvc.tar.gz
 
+#
+# Update the SMF configuration to reflect this headnode's configuration.
+#
+svcadm disable -s caconfigsvc:default || cafail "failed to disable configsvc"
+casetprop caconfigsvc caconfig/amqp-host "$CA_AMQP_HOST"
+casetprop caconfigsvc caconfig/mapi-host "$CA_MAPI_HOST"
+casetprop caconfigsvc caconfig/mapi-port "$CA_MAPI_PORT"
+casetprop caconfigsvc caconfig/mapi-user "$CA_MAPI_USER"
+casetprop caconfigsvc caconfig/mapi-password "$CA_MAPI_PASSWORD"
+svcadm refresh caconfigsvc:default || cafail "failed to refresh configsvc"
+svcadm enable -s caconfigsvc:default || cafail "failed to re-enable configsvc"
+
+svcadm disable -s caaggsvc:default || cafail "failed to disable caaggsvc"
+casetprop caaggsvc caconfig/amqp-host "$CA_AMQP_HOST"
+svcadm refresh caaggsvc:default || cafail "failed to refresh aggsvc"
+svcadm enable -s caaggsvc:default || cafail "failed to re-enable caaggsvc"
