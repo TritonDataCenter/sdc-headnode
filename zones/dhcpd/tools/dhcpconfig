@@ -40,13 +40,14 @@ loadConfig = function(callback) {
 }
 
 dhcpConfig = function(config) {
-  config.dhcp_bootfile = (config.coal && config.coal.toLowerCase()) === "true" ? "pxegrub" : "gpxe";
+  //config.dhcp_bootfile = (config.coal && config.coal.toLowerCase()) === "true" ? "pxegrub" : "gpxe";
+  config.dhcp_bootfile = "pxegrub";
   return dhcpTemplate(config);
 }
 
 hostsConfig = function(config) {
-  hosts = [];
-  config.nodes.forEach(function(ele, idx, arr) {
+  var hosts = [];
+  config.nodes.forEach(function(h, idx, arr) {
     hosts.push(h.toEntry());
   });
   hosts.push(""); 
@@ -57,7 +58,8 @@ Host = function(mac, ip, hostname) {
   this.mac = mac;
   this.ip = ip;
   this.hostname = hostname || mac.replace(/:/g,'-');
-  fixedAddress = (this.ip ? " fixed-address " + this.ip + ";" : "");
+  
+  var fixedAddress = (this.ip ? " fixed-address " + this.ip + ";" : "");
   
   this.toEntry = function() {
     return [ "host " + this.hostname 
@@ -86,12 +88,13 @@ function loadAndFilter(file) {
 }
 
 writeGrubConfigs = function(config) {
-  var kargs = "console=text,rabbitmq=" + config.rabbitmq + ",admin_nic=" + h.mac
   var kargs_debug = "prom_debug=true,map_debug=true,kbm_debug=true"
   var kernel = '/platform/i86pc/kernel/amd64/unix'
   var module = '/platform/i86pc/amd64/boot_archive'
   
   config.nodes.forEach(function(h, idx, arr) {
+    var menupath = '/zones/dhcpd/root/tftpboot/' + h.hostname;
+    var kargs = "console=text,rabbitmq=" + config.rabbitmq + ",admin_nic=" + h.mac
     var template = 
       [ "default=0"
       , "timeout=5"
@@ -109,9 +112,9 @@ writeGrubConfigs = function(config) {
       , "title Live 64-bit Debug"
       , "  kernel " + kernel + " -kdv -B " + kargs + ',' + kargs_debug
       , "  module " + module
+      , ""
       ].join('\n');
     
-    var menupath = '/zones/dhcpd/root/tftpboot/' + h.hostname;
     path.exists(menupath, function(exists) {
     	if (!exists) {
     		fs.mkdirSync(menupath, 0775)
@@ -147,7 +150,7 @@ dhcpTemplate = function(config) {
     , "  option routers " + config.default_gateway + ";"
     , "  next-server " + config.dhcp_next_server + ";"
     , "  append dhcp-parameter-request-list 12;"              
-    , "  filename " + config.dhcp_bootfile + ";"
+    , "  filename \"" + config.dhcp_bootfile + "\";"
     , "}"
     , ""                                                      
     , "use-host-decl-names on;"                               
