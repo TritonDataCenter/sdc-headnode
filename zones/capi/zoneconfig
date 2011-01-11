@@ -6,5 +6,13 @@ RESOLVER2=${dns_resolvers##*,}
 PRIVATE_IP=${capi_private_ip}
 PUBLIC_IP=${capi_private_ip}
 ROOT_PW=${capi_root_pw}
-ADMIN_PW=${capi_admin_pw}
 TMPFS=512m
+
+POSTGRES_HOST=10.99.99.8
+POSTGRES_USER=postgres
+POSTGRES_PW=postgres
+
+ADMIN_LOGIN=${capi_admin_login}
+ADMIN_PW=${capi_admin_password}
+ADMIN_EMAIL=${capi_admin_email}
+ADMIN_UUID=${capi_admin_uuid}

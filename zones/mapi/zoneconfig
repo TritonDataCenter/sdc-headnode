@@ -8,3 +8,8 @@ PUBLIC_IP=${mapi_private_ip}
 ROOT_PW=${mapi_root_pw}
 ADMIN_PW=${mapi_admin_pw}
 TMPFS=512m
+POSTGRES_HOST=localhost
+POSTGRES_USER=postgres
+POSTGRES_PW=postgres
+
+CAPI_ADMIN_UUID="${capi_admin_uuid}"

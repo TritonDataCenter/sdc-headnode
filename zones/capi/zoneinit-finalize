@@ -1,13 +1,5 @@
 #!/bin/bash
 
-POSTGRES=10.99.99.8
-PGPASSWORD=postgres
-
-ADMIN_LOGIN=admin
-ADMIN_PASSWORD=joypass123
-ADMIN_EMAIL=user@joyent.com
-ADMIN_UUID="930896af-bf8c-48d4-885c-6573a94b1853"
-
 svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing capi zone"
@@ -75,7 +67,7 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
-echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
+echo "$POSTGRES_HOST:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
 chown jill /opt/smartdc/.pgpass
 chmod 0600 /opt/smartdc/.pgpass
 
@@ -83,7 +75,7 @@ chmod 0600 /opt/smartdc/.pgpass
 # and postgres not coming up by the time we've gotten to this psql fun
 TRIES=6
 while [[ $TRIES -gt 0 ]]; do
-    if ! su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES -c '\\l' 2>/dev/null"; then
+    if ! su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES_HOST -c '\\l' 2>/dev/null"; then
         sleep 10
         echo "PSQL not available, sleeping for 10 seconds before retrying"
         let "TRIES -= 1"
@@ -92,9 +84,9 @@ while [[ $TRIES -gt 0 ]]; do
     fi
 done
 
-if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep capi) ]]; then
+if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep capi) ]]; then
   echo "Creating capi database"
-  su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES -c 'CREATE DATABASE capi WITH OWNER postgres'"
+  su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES_HOST -c 'CREATE DATABASE capi WITH OWNER postgres'"
 
 fi
 
@@ -138,9 +130,9 @@ if [[ -z $(cat /opt/smartdc/capi/config/database.yml|grep capi) ]]; then
 :production: &prod
   :adapter: postgres
   :database: capi
-  :username: postgres
-  :password: postgres
-  :host: $POSTGRES
+  :host: $POSTGRES_HOST
+  :username: $POSTGRES_USER
+  :password: $POSTGRES_PW
   :encoding: UTF-8
 
 CAPI_DB
@@ -163,7 +155,7 @@ fi
 echo "Calling CAPI Admin User creation task."
 su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   ADMIN_UUID=$ADMIN_UUID \
-  ADMIN_PW=$ADMIN_PASSWORD \
+  ADMIN_PW=$ADMIN_PW \
   ADMIN_LOGIN=$ADMIN_LOGIN \
   ADMIN_EMAIL=$ADMIN_EMAIL \
   /opt/local/bin/rake install:capi_admin -f /opt/smartdc/capi/Rakefile"

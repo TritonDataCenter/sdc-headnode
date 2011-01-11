@@ -1,9 +1,5 @@
 #!/bin/bash
 
-POSTGRES=localhost
-PGPASSWORD=postgres
-ADMIN_UUID="930896af-bf8c-48d4-885c-6573a94b1853"
-
 svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
@@ -121,12 +117,12 @@ usermod -s /usr/bin/bash jill
 #fi
 
 
-if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
@@ -169,9 +165,9 @@ if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
 :production: &prod
   :adapter: postgres
   :database: mapi
-  :username: postgres
-  :password: postgres
-  :host: $POSTGRES
+  :username: $POSTGRES_USER
+  :password: $POSTGRES_PW
+  :host: $POSTGRES_HOST
   :encoding: UTF-8
 
 MAPI_DB
@@ -258,7 +254,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
