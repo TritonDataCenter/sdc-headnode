@@ -8,6 +8,11 @@ git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
 cd mapi-repo
 git branch --track release-20101230 origin/release-20101230
 git checkout release-20101230
+
+# *** Remove when a new release (after 2010-12-30) is released
+git cherry-pick 7a1156363e11ef6d8f5278c6e5a58a20d9166de6
+# ***
+
 touch ../mapi-VERSION
 git describe --tags > ../mapi-VERSION
 
