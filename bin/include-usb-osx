@@ -76,6 +76,7 @@ function create_output
     if [[ -f ${STAGE}/private/root.password ]]; then
         echo "==> Copying root.password"
         cp ${STAGE}/private/root.password ${ROOT}/cache/root.password
+        chmod 400 ${ROOT}/cache/root.password
     else
 	    rm -f ${ROOT}/cache/root.password
     fi
