@@ -5,7 +5,6 @@ RESOLVERS=${dns_resolvers/,/ }
 PRIVATE_IP=${adminui_private_ip}
 PUBLIC_IP=${adminui_private_ip}
 ROOT_PW=${adminui_root_pw}
-ADMIN_PW=${capi_admin_pw}
 MAPI_IP=${mapi_private_ip}
 CAPI_IP=${capi_private_ip}
 ADMINUI_IP=${adminui_private_ip}
