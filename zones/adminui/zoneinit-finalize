@@ -1,9 +1,5 @@
 #!/bin/bash
 
-MAPI_IP=10.99.99.8
-CAPI_IP=10.99.99.11
-ADMINUI_IP=10.99.99.10
-
 svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing adminui zone"

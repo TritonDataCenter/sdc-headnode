@@ -98,6 +98,19 @@ for zone in $ALLZONES; do
         # This is to move us to the next line past the login: prompt
         [[ -z "${CREATEDZONES}" ]] && echo "" >>/dev/console
 
+        src=${USB_COPY}/zones/${zone}
+
+        if [[ -f "${src}/zoneconfig" ]]; then
+            # We need to refigure this out each time because zoneconfig is gone on reboot
+            zoneips=$(
+                . ${USB_COPY}/config
+                . ${src}/zoneconfig
+                echo "${PRIVATE_IP},${PUBLIC_IP}"
+            )
+            zone_private_ip=${zoneips%%,*}
+            zone_public_ip=${zoneips##*,}
+        fi
+
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | \
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
@@ -105,11 +118,40 @@ for zone in $ALLZONES; do
                 dladm create-vnic -l ${iface} ${zone}0
                 break
             fi
+
+            # if we have a PUBLIC_IP too, we need a second NIC
+            if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+                dladm create-vnic -l ${iface} ${zone}1
+                break
+            fi
+
         done
 
-        src=${USB_COPY}/zones/${zone}
         zonecfg -z ${zone} -f ${src}/config
+
+        # Set memory, cpu-shares and max-lwps which can be in config file
+        # Do it in a subshell to avoid variable polution
+       (
+            . ${USB_COPY}/config
+            eval zone_cpu_shares=\${${zone}_cpu_shares}
+            eval zone_max_lwps=\${${zone}_max_lwps}
+            eval zone_memory_cap=\${${zone}_memory_cap}
+
+            if [[ -n "${zone_cpu_shares}" ]]; then
+                zonecfg -z ${zone} "set cpu-shares=${zone_cpu_shares};"
+            fi
+            if [[ -n "${zone_max_lwps}" ]]; then
+                zonecfg -z ${zone} "set max-lwps=${zone_max_lwps};"
+            fi
+            if [[ -n "${zone_memory_cap}" ]]; then
+                zonecfg -z ${zone} "add capped-memory; set physical=${zone_memory_cap}; end"
+            fi
+        )
+
         zonecfg -z ${zone} "add net; set physical=${zone}0; end"
+        if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+           zonecfg -z ${zone} "add net; set physical=${zone}1; end"
+        fi
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
         (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
@@ -119,7 +161,19 @@ for zone in $ALLZONES; do
         mkdir -p ${dest}/root/zoneinit.d
 
         if [[ -f "${src}/zoneconfig" ]]; then
-            cp ${src}/zoneconfig ${dest}/root/zoneconfig
+            # This allows zoneconfig to use variables that exist in the <USB>/config file,
+            # by putting them in the environment then putting the zoneconfig in the
+            # environment, then printing all the variables from the file.  It is
+            # done in a subshell to avoid further namespace polution.
+            (
+                . ${USB_COPY}/config
+                . ${src}/zoneconfig
+                for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
+                    echo "${var}='${!var}'"
+                done
+            ) > ${dest}/root/zoneconfig
+            echo "DEBUG ${dest}/root/zoneconfig"
+            cat ${dest}/root/zoneconfig
         fi
 
         if [[ -f "${src}/pkgsrc" ]]; then
@@ -144,8 +198,12 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        zoneip=`grep PRIVATE_IP ${src}/zoneconfig | cut -f 2 -d '='`
-        echo ${zoneip} > ${dest}/etc/hostname.${zone}0
+        if [[ -n "${zone_private_ip}" ]]; then
+            echo ${zone_private_ip} > ${dest}/etc/hostname.${zone}0
+        fi
+        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+            echo ${zone_public_ip} > ${dest}/etc/hostname.${zone}1
+        fi
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
             && cp /tmp/motd.new ${dest}/etc/motd && rm /tmp/motd.new
@@ -170,24 +228,25 @@ for zone in $ALLZONES; do
               ${dest}/root/zoneinit.d/95-zone-datasets.sh
         fi
 
+        # Add all "system"/USB zones to /etc/hosts in the GZ
+        for z in rabbitmq mapi dhcpd adminui ca capi atropos pubapi; do
+            if [[ "${z}" == "${zone}" ]]; then
+                dest=/zones/${zone}/root
+                zonename=$(grep "^ZONENAME=" ${dest}/root/zoneconfig | cut -d"'" -f2)
+                hostname=$(grep "^HOSTNAME=" ${dest}/root/zoneconfig | cut -d"'" -f2)
+                priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/zoneconfig | cut -d"'" -f2)
+                if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
+                    grep "^${priv_ip}  " /etc/hosts >/dev/null \
+                      || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
+                fi
+            fi
+        done
+
         zoneadm -z ${zone} boot
 
         echo "done." >>/dev/console
 
         CREATEDZONES="${CREATEDZONES} ${zone}"
-    fi
-done
-
-# Add all "system"/USB zones to /etc/hosts in the GZ
-
-for zone in rabbitmq mapi dhcpd adminui ca capi atropos pubapi portal; do
-    zonename=$(grep "^ZONENAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
-    hostname=$(grep "^HOSTNAME=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2- | sed -e "s/\${ZONENAME}/${zonename}/")
-    priv_ip=$(grep "^PRIVATE_IP=" ${USB_COPY}/zones/${zone}/zoneconfig | cut -d'=' -f2-)
-
-    if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
-        grep "^${priv_ip}  " /etc/hosts >/dev/null \
-          || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
     fi
 done
 

@@ -1,9 +1,5 @@
 #!/bin/bash
 
-POSTGRES=localhost
-PGPASSWORD=postgres
-ADMIN_UUID="930896af-bf8c-48d4-885c-6573a94b1853"
-
 svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
@@ -53,8 +49,8 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
 fi
 
 # Since we need to access the postgres server from other zones, we need to add configuration
-echo "listen_addresses='localhost,10.99.99.8'" >> /var/pgsql/data90/postgresql.conf
-echo "host    all    all    10.99.99.0/24    password" >> /var/pgsql/data90/pg_hba.conf
+echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
+echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
@@ -62,6 +58,52 @@ if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
+fi
+
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
+  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+user  www  www;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen       10.99.99.8:80;
+        server_name  localhost;
+
+        location / {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+        }
+
+        location /ur-scripts/ {
+            alias /opt/smartdc/agent-scripts/;
+            autoindex on;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+    }
+}
+
+NGINX
+
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  /usr/sbin/svcadm enable -s nginx
 fi
 
 # Configure nsswitch to use mdns & enable multicast dns:
@@ -121,12 +163,12 @@ usermod -s /usr/bin/bash jill
 #fi
 
 
-if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
@@ -169,9 +211,9 @@ if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
 :production: &prod
   :adapter: postgres
   :database: mapi
-  :username: postgres
-  :password: postgres
-  :host: $POSTGRES
+  :username: $POSTGRES_USER
+  :password: $POSTGRES_PW
+  :host: $POSTGRES_HOST
   :encoding: UTF-8
 
 MAPI_DB
@@ -185,7 +227,7 @@ if [[ -z $(cat /opt/smartdc/mapi/config/config.yml | grep Amqp) ]]; then
   -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
   -e "s/:user: guest/:user: guest/" \
   -e "s/:password: guest/:password: guest/" \
-  -e "s/'mq1-dev.joyent.us'/10.99.99.5/" \
+  -e "s/'mq1-dev.joyent.us'/${RABBITMQ_PRIVATE_IP}/" \
   -e "s/MCP API Production/MCP API $host/" \
   /opt/smartdc/mapi/config/config.yml
 fi
@@ -258,7 +300,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 

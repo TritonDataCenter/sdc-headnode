@@ -55,10 +55,10 @@ hostsConfig = function(config) {
 }
 
 Host = function(mac, ip, hostname) {
-  this.mac = mac;
+  this.mac = mac.toLowerCase();
   this.ip = ip;
-  this.hostname = hostname || mac.replace(/:/g,'-');
-  
+  this.hostname = hostname || this.mac.replace(/:/g,'-');
+ 
   var fixedAddress = (this.ip ? " fixed-address " + this.ip + ";" : "");
   
   this.toEntry = function() {
@@ -133,7 +133,7 @@ dhcpTemplate = function(config) {
     , "#"
     , "ddns-update-style none;"                               
     , "option domain-name \"" + config.dns_domain +"\";"
-    , "option domain-name-servers " + config.dns_servers + ";"
+    , "option domain-name-servers " + config.dns_resolvers + ";"
     , "default-lease-time 6000;"                              
     , "max-lease-time 72000;"                                 
     , "omapi-port 7911;"                                      

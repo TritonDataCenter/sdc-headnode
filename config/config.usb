@@ -5,23 +5,90 @@
 #
 swap=4g
 
+# admin_nic is the nic private_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
 admin_network=10.99.99.0
+# adding bit_count to save calculations
+admin_bitcount=24
 
+# external_nic is the nic public_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
 default_gateway=10.99.99.7
 
-dns_servers=10.99.99.2,10.99.99.3
+dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
 dhcp_next_server=10.99.99.4
 
+# This file should exist in config.inc
 node_file=nodes
 
 initial_script=scripts/headnode.sh
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 rabbitmq=ur:ahY8sies:10.99.99.5:5672
+
+# Zone-specific configs
+
+dhcpd_private_ip=10.99.99.4
+dhcpd_root_pw=joypass123
+dhcpd_admin_pw=joypass123
+dhcpd_cpu_shares=50
+dhcpd_max_lwps=1000
+dhcpd_memory_cap=128m
+
+rabbitmq_private_ip=10.99.99.5
+rabbitmq_root_pw=joypass123
+rabbitmq_admin_pw=joypass123
+rabbitmq_cpu_shares=50
+rabbitmq_max_lwps=1000
+rabbitmq_memory_cap=128m
+
+mapi_private_ip=10.99.99.8
+mapi_root_pw=joypass123
+mapi_admin_pw=joypass123
+mapi_cpu_shares=50
+mapi_max_lwps=1000
+mapi_memory_cap=256m
+
+ca_private_ip=10.99.99.9
+ca_root_pw=joypass123
+ca_admin_pw=joypass123
+
+adminui_private_ip=10.99.99.10
+adminui_root_pw=joypass123
+adminui_cpu_shares=50
+adminui_max_lwps=1000
+adminui_memory_cap=128m
+
+capi_private_ip=10.99.99.11
+capi_root_pw=joypass123
+capi_admin_login=admin
+capi_admin_pw=joypass123
+capi_admin_email=user@joyent.com
+capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
+capi_cpu_shares=50
+capi_max_lwps=1000
+capi_memory_cap=128m
+
+atropos_private_ip=10.99.99.12
+atropos_root_pw=joypass123
+atropos_admin_pw=joypass123
+
+pubapi_private_ip=10.99.99.13
+pubapi_root_pw=joypass123
+pubapi_admin_pw=joypass123
+pubapi_cpu_shares=50
+pubapi_max_lwps=1000
+pubapi_memory_cap=128m
+
+portal_private_ip=10.99.99.14
+portal_root_pw=joypass123
+portal_admin_pw=joypass123
+portal_cpu_shares=50
+portal_max_lwps=1000
+portal_memory_cap=128m
+
