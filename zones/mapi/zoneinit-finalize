@@ -49,16 +49,23 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
 fi
 
 # Since we need to access the postgres server from other zones, we need to add configuration
-echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
-echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
+echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data/postgresql.conf
+echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data/pg_hba.conf
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql.xml
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
 fi
+
+# Setup nginx
+#if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+#  echo "Importing nginx service"
+#  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+#  /usr/sbin/svcadm enable -s nginx
+#fi
 
 # Configure nsswitch to use mdns & enable multicast dns:
 hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
