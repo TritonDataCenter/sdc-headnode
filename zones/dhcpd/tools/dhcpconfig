@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 
+/*
+ *
+ * dhpconfig
+ * this file will write several dhcp configuration files 
+ * in the dhcpd zone:
+ * /zones/dhcpd/root/etc/dhcpd.conf
+ * /zones/dhcpd/root/etc/dhcpd.hosts
+ * /zones/dhcpd/root/tftpboot/SOME:MAC:ADD:RES:S/menu.lst
+ *
+ */
+
 var fs = require('fs'),
   path = require('path'),
   exec = require('child_process').exec;
 
-loadNodeList = function(nodeFile) {
-  var nodelist = {};
-
-  loadAndFilter(nodeFile).forEach(function(ele, idx, arr) {
-    e = ele.split(/\s+/);
-    nodelist[e[0]] = e[1];
-  });
-  return nodelist;
-}
-
 loadConfig = function(callback) {
-  
   exec('svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent',
     function(err, stdout, stderr) {
       configPath = stdout.split(/\n/)[0];
-      var config = {};
+      var config = {nodes: []};
 
       loadAndFilter(configPath + '/config').forEach(function(ele, idx, arr) {
         e = ele.split('=');
@@ -27,7 +27,11 @@ loadConfig = function(callback) {
       });
       
       if (config.node_file) {
-        config.nodes = loadNodeList(configPath + '/config.inc/' + config.node_file);
+        loadAndFilter(configPath + '/config.inc/' + config.node_file).forEach(function(ele, idx, arr) {
+          e = ele.split(/\s+/);
+          h = new Host(e[0], e[1]);
+          config.nodes.push(h);
+        });
       }
       
       if (callback) callback(err, config);
@@ -42,9 +46,7 @@ dhcpConfig = function(config) {
 
 hostsConfig = function(config) {
   hosts = [];
-  var keys = Object.keys(config.nodes);
-  keys.forEach(function (ele, idx, arr) {
-    h = new Host(ele, config.nodes[ele])
+  config.nodes.forEach(function(ele, idx, arr) {
     hosts.push(h.toEntry());
   });
   hosts.push(""); 
@@ -54,8 +56,9 @@ hostsConfig = function(config) {
 Host = function(mac, ip, hostname) {
   this.mac = mac;
   this.ip = ip;
-  this.hostname = hostname || this.mac.replace(/:/g,'-');
+  this.hostname = hostname || mac.replace(/:/g,'-');
   fixedAddress = (this.ip ? " fixed-address " + this.ip + ";" : "");
+  
   this.toEntry = function() {
     return [ "host " + this.hostname 
            , "{ hardware ethernet " + this.mac + ";" 
@@ -64,7 +67,7 @@ Host = function(mac, ip, hostname) {
            ].join(' ');
   }
 }
-  
+ 
 // filters comments and empty lines
 function notEmpty(element, index, array) {
   return (element != "" && !(/^\s*#/.test(element)) );
@@ -72,9 +75,52 @@ function notEmpty(element, index, array) {
 
 // load a config file and filter out comments and empty lines
 function loadAndFilter(file) {
-  c = fs.readFileSync(file, 'utf8').split(/\n/); // i know, i know
-  c = c.filter(notEmpty);
-  return c
+  try {
+    c = fs.readFileSync(file, 'utf8').split(/\n/); // i know, i know
+    c = c.filter(notEmpty);
+    return c;
+  } 
+  catch(err) {
+    return [];
+  }
+}
+
+writeGrubConfigs = function(config) {
+  var kargs = "console=text,rabbitmq=" + config.rabbitmq + ",admin_nic=" + h.mac
+  var kargs_debug = "prom_debug=true,map_debug=true,kbm_debug=true"
+  var kernel = '/platform/i86pc/kernel/amd64/unix'
+  var module = '/platform/i86pc/amd64/boot_archive'
+  
+  config.nodes.forEach(function(h, idx, arr) {
+    var template = 
+      [ "default=0"
+      , "timeout=5"
+      , "min_mem64 1024"
+      , "color cyan/blue white/blue"
+      , ""
+      , "title Live 64-bit"
+      , "kernel " + kernel + " -B " + kargs 
+      , "module " + module
+      , ""
+      , "title Live 64-bit KMDB"
+      , "  kernel " + kernel + " -k -B " + kargs + ',' + kargs_debug
+      , "  module " + module
+      , ""
+      , "title Live 64-bit Debug"
+      , "  kernel " + kernel + " -kdv -B " + kargs + ',' + kargs_debug
+      , "  module " + module
+      ].join('\n');
+    
+    var menupath = '/zones/dhcpd/root/tftpboot/' + h.hostname;
+    path.exists(menupath, function(exists) {
+    	if (!exists) {
+    		fs.mkdirSync(menupath, 0775)
+      } 
+      fs.writeFile(menupath + '/menu.lst', template, function(err) {
+      	if (err) throw err;
+      });
+    });
+  });
 }
 
 // no new line support :(
@@ -111,6 +157,7 @@ dhcpTemplate = function(config) {
   return template;
 }
 
+
 loadConfig(function (err, config) {
   fs.writeFile('/zones/dhcpd/root/etc/dhcpd.hosts', hostsConfig(config), function(err) {
     if (err) throw err;
@@ -118,4 +165,5 @@ loadConfig(function (err, config) {
   fs.writeFile('/zones/dhcpd/root/etc/dhcpd.conf', dhcpConfig(config), function(err) {
     if (err) throw err;
   });
+  writeGrubConfigs(config);
 });

@@ -239,10 +239,10 @@ fi
 #   /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
 # fi
 
-# if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-#   echo "Importing MCP API Heartbeater Client Manifest"
-#   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
-# fi
+if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+  echo "Importing MCP API Heartbeater Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
+fi
 
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
