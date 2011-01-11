@@ -181,7 +181,7 @@ if [[ -z $(cat /opt/smartdc/mapi/config/config.yml | grep Amqp) ]]; then
   -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
   -e "s/:user: guest/:user: guest/" \
   -e "s/:password: guest/:password: guest/" \
-  -e "s/'mq1-dev.joyent.us'/10.99.99.5/" \
+  -e "s/'mq1-dev.joyent.us'/${RABBITMQ_PRIVATE_IP}/" \
   -e "s/MCP API Production/MCP API $host/" \
   /opt/smartdc/mapi/config/config.yml
 fi

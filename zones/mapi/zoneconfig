@@ -13,3 +13,5 @@ POSTGRES_USER=postgres
 POSTGRES_PW=postgres
 
 CAPI_ADMIN_UUID="${capi_admin_uuid}"
+RABBITMQ_PRIVATE_IP=${rabbitmq_private_ip}
+
