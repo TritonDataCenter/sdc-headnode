@@ -7,4 +7,4 @@ zfs create zones/pubapi-app-${STAMP}
 echo "$STAMP">/zones/pubapi/root/root/pubapi-app-timestamp
 cmd="add dataset; set name=zones/pubapi-app-$STAMP; end; verify; commit"
 zonecfg -z pubapi $cmd
-echo -n ". "
+echo -n ". " >>/dev/console
