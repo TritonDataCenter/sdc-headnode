@@ -240,6 +240,29 @@ function copy_zones
         fi
 
         #
+        # We allow the fs.uri file to be overridden with a [zone]_FS variable
+        # (e.g., "RABBITMQ_FS"), which must contain a bzip2'd tar file.
+        #
+        local override=$(echo $zone | tr '[:lower:]' '[:upper:]')_FS
+
+        if [[ -n "${!override}" ]]; then
+            file=${!override}
+
+            if [[ ! -f ${file} ]]; then
+                fatal "expected a file for $override"
+            fi
+          
+            if ( ! file ${file} | grep bzip2 > /dev/null ); then
+                fatal "expected a bzip2'd tar file for $override"
+            fi
+
+            mkdir -p ${STAGE}/zones/${zone}
+            echo "==> Using \$${override} (${file}) for ${zone} zone"
+            cp ${file} ${STAGE}/zones/${zone}/fs.tar.bz2
+            continue
+        fi
+
+        #
         # If we have an fs.uri file, it should be a URI indicating a bzip2'd tar
         # file; check that the suffix is either ".tbz2" or ".tar.bz2".
         #
