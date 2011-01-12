@@ -113,6 +113,10 @@ writeGrubConfigs = function(config) {
       , "  kernel " + kernel + " -kdv -B " + kargs + ',' + kargs_debug
       , "  module " + module
       , ""
+      , "title Rescue"
+      , "  kernel " + kernel + " -kdv -B " + kargs + ',noimport=true'
+      , "  module " + module
+      , ""
       ].join('\n');
     
     path.exists(menupath, function(exists) {
