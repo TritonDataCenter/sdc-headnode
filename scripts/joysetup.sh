@@ -129,11 +129,16 @@ setup_datasets()
 
 create_swap()
 {
+    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
+    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
+
     swapsize=
     if [ -n "${arg_swap}" ]; then
         swapsize=${arg_swap}
-    elif [ -f "/etc/headnode.config" ]; then
-        swapsize=$(grep "^swap=" /etc/headnode.config | cut -d'=' -f2-)
+    elif [ -f "${USB_COPY}/config" ]; then
+        swapsize=$(grep "^swap=" ${USB_COPY}/config | cut -d'=' -f2-)
+    elif [ -f "${USB_PATH}/config" ]; then
+        swapsize=$(grep "^swap=" ${USB_PATH}/config | cut -d'=' -f2-)
     fi
 
     if [[ -n ${swapsize} ]]; then
