@@ -6,3 +6,4 @@
 *.swp
 /tmp
 /USB-headnode.vmwarevm
+/.DS_Store
