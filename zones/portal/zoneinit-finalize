@@ -8,6 +8,14 @@ if [ ! -e /opt/smartdc/portal/deps/request/index.js ]; then
     (cd /opt/smartdc/portal/deps/request; ln -s main.js index.js)
 fi
 
+# Update the config with the correct values.
+cat > /opt/smartdc/portal/config.js <<HERE
+exports.config = {
+  displayCouponField : false,
+  publicApiUrl : "http://${pubapi_private_ip}:8080/v1"
+}
+HERE
+
 cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -76,5 +84,8 @@ HERE
 
 svccfg import /opt/smartdc/portal/smf_manifest.xml
 svcadm enable smartdc/site/portal
+
+
+
 
 
