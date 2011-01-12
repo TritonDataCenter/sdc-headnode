@@ -30,7 +30,7 @@ node_file=nodes
 
 initial_script=scripts/headnode.sh
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
-rabbitmq=ur:ahY8sies:10.99.99.5:5672
+rabbitmq=guest:guest:10.99.99.5:5672
 
 # Zone-specific configs
 
