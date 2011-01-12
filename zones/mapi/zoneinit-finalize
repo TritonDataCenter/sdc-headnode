@@ -197,12 +197,6 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
-# MAPI db creation will not work unless we enable postgresql first!:
-#if [ "$(svcs -Ho state postgresql)" == "maintenance" ]; then
-#  /usr/sbin/svcadm clear postgresql >/dev/null 2>&1
-#fi
-
-
 if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
   echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
@@ -329,6 +323,53 @@ if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   echo "Importing MCP API Heartbeater Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
 fi
+
+# Generate the agents setup script:
+
+AGENTS_FILE_VERSION=$(ls /opt/smartdc/agent-scripts/|grep agents)
+
+echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'"
+
+cat > /opt/smartdc/mapi-data/setup_agents.sh <<AGENTS
+#!/usr/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+fatal()
+{
+    # Any error message should be redirected to stderr:
+    echo "Error: \$1" 1>&2
+    exit 1
+}
+
+
+setup_agents()
+{
+  cd /root/
+  /bin/curl -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
+ 
+  if [[ ! -f /root/${AGENTS_FILE_VERSION} ]]; then
+    fatal "failed to download agents setup script"
+  fi
+
+  /bin/bash /root/${AGENTS_FILE_VERSION}
+
+  [ \$? -ne 0 ] && fatal "failed to setup agents"
+}
+
+
+if [[ ! -d /opt/smartdc/agents ]]; then
+  setup_agents
+fi
+
+# Scripts to be executed by Ur need to explicitly return an exit status code:
+exit 0
+
+AGENTS
 
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
