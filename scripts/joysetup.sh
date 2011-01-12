@@ -40,8 +40,7 @@ create_zpool()
 {
     disks=''
 
-    /usr/bin/bootparams | grep "headnode=true"
-    if [[ $? -eq 0 ]]; then
+    if /usr/bin/bootparams | grep "headnode=true"; then
         for disk in `/usr/bin/disklist -n`; do
             # Only include disks that aren't mounted (so we skip USB Key)
             if ( ! grep ${disk} /etc/mnttab ); then
@@ -154,8 +153,7 @@ if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     create_swap
-    /usr/bin/bootparams | grep "headnode=true"
-    if [[ $? -ne 0 ]]; then
+    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         # don't reboot if we're a headnode because headnode.sh wants to do more first.
         reboot
     fi
