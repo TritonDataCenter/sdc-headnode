@@ -78,6 +78,18 @@ http {
     sendfile        on;
     keepalive_timeout  65;
 
+    upstream mapi {
+        server ${PRIVATE_IP}:8080;
+    }
+
+    upstream aggregator {
+        server ${CA_PRIVATE_IP}:23182;
+    }
+
+    upstream configsvc {
+        server ${CA_PRIVATE_IP}:23181;
+    }
+    
     server {
         listen       ${PRIVATE_IP}:80;
         server_name  localhost;
@@ -85,6 +97,34 @@ http {
         location / {
             root   share/examples/nginx/html;
             index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://mapi;
+            break;
+        }
+
+        location ~ /ca/(customers/.+/)?instrumentations/.+/value {
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://aggregator;
+            break;
+        }
+
+        location ~ /ca/(customers/.+/)?(metrics|instrumentations)(/\d+\/?)?$ {
+          proxy_set_header  X-Real-IP  \$remote_addr;
+          proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+          proxy_set_header Host \$http_host;
+          proxy_redirect off;
+
+          proxy_pass http://configsvc;
+          break;
         }
 
         location /ur-scripts/ {

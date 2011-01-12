@@ -17,4 +17,4 @@ ADMIN_NETWORK=${admin_network}
 ADMIN_BITCOUNT=${admin_bitcount}
 ADMIN_GATEWAY=${default_gateway}
 DHCP_RANGE_START=${dhcp_range_start}
-
+CA_PRIVATE_IP=${ca_private_ip}
