@@ -79,7 +79,7 @@ http {
     keepalive_timeout  65;
 
     server {
-        listen       10.99.99.8:80;
+        listen       ${PRIVATE_IP}:80;
         server_name  localhost;
 
         location / {

@@ -7,7 +7,7 @@ PUBLIC_IP=${capi_private_ip}
 ROOT_PW=${capi_root_pw}
 TMPFS=512m
 
-POSTGRES_HOST=10.99.99.8
+POSTGRES_HOST=${capi_postgres_ip}
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
 
