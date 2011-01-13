@@ -12,7 +12,7 @@ fi
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
-  publicApiUrl : "http://${pubapi_private_ip}:8080/v1"
+  publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1"
 }
 HERE
 

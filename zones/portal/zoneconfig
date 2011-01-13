@@ -4,6 +4,7 @@ HOSTNAME=${ZONENAME}.joyent.us
 RESOLVERS=${dns_resolvers/,/ }
 PRIVATE_IP=${portal_private}
 PUBLIC_IP=${portal_private}
+PUBLIC_API_PRIVATE_IP=${pubapi_private_ip}
 ROOT_PW=${portal_root_pw}
 ADMIN_PW=${portal_admin_pw}
 TMPFS=512m
