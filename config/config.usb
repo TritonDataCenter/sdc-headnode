@@ -63,6 +63,7 @@ ca_admin_pw=joypass123
 
 adminui_private_ip=10.99.99.10
 adminui_root_pw=joypass123
+adminui_admin_pw=joypass123
 adminui_cpu_shares=50
 adminui_max_lwps=1000
 adminui_memory_cap=128m
