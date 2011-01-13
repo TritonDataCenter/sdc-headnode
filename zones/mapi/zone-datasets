@@ -12,4 +12,4 @@ echo -n ". " >> /dev/console
 mkdir -p /zones/mapi/root/opt/smartdc/agent-scripts
 cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
 mkdir -p /zones/mapi/root/opt/smartdc/mapi/script/ur
-cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/mapi/script/ur/
+cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/mapi-data/
