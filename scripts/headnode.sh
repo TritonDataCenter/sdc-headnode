@@ -125,6 +125,16 @@ for zone in $ALLZONES; do
             zone_public_ip=${zoneips##*,}
         fi
 
+        zone_public_vlan=$(
+            . ${USB_COPY}/config
+            eval "echo \${${zone}_public_vlan}"
+        )
+
+        zone_public_vlan_opts=
+        if [[ -n "${zone_public_vlan}" ]] && [[ "${zone_public_vlan}" != "0" ]]; then
+            zone_public_vlan_opts="-v ${zone_public_vlan}"
+        fi
+
         echo -n "creating zone ${zone}... " >>/dev/console
         dladm show-phys -m -p -o link,address | \
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
@@ -134,7 +144,7 @@ for zone in $ALLZONES; do
 
             # if we have a PUBLIC_IP too, we need a second NIC
             if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-                dladm create-vnic -l ${iface} ${zone}1
+                dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
             fi
         done
 
