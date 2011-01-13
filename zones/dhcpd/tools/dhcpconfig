@@ -113,7 +113,7 @@ writeGrubConfigs = function(config) {
       , "  kernel " + kernel + " -kdv -B " + kargs + ',' + kargs_debug
       , "  module " + module
       , ""
-      , "title Rescue"
+      , "title Live 64-bit Rescue (no importing zpool)"
       , "  kernel " + kernel + " -kdv -B " + kargs + ',noimport=true'
       , "  module " + module
       , ""
