@@ -333,7 +333,7 @@ echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'
 cat > /opt/smartdc/mapi-data/setup_agents.sh <<AGENTS
 #!/usr/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
 #
 
 PATH=/usr/bin:/usr/sbin
@@ -350,19 +350,28 @@ fatal()
 setup_agents()
 {
   cd /root/
-  /bin/curl -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
+  /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
  
   if [[ ! -f /root/${AGENTS_FILE_VERSION} ]]; then
     fatal "failed to download agents setup script"
+  else
+    echo "Downloaded file '/root/${AGENTS_FILE_VERSION}'"
   fi
 
-  /bin/bash /root/${AGENTS_FILE_VERSION}
+  mkdir -p /opt/smartdc/agents/log
+  /usr/bin/bash /root/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
+  result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
 
-  [ \$? -ne 0 ] && fatal "failed to setup agents"
+  if [[ "\$result" == "npm not ok" ]]; then
+    tail -n 10 /opt/smartdc/agents/log/install.log >&2
+    exit 1
+  else
+    tail -n 10 /opt/smartdc/agents/log/install.log
+  fi
 }
 
 
-if [[ ! -d /opt/smartdc/agents ]]; then
+if [[ ! -d /opt/smartdc/agents/bin ]]; then
   setup_agents
 fi
 
