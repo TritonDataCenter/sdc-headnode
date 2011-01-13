@@ -16,6 +16,10 @@ admin_bitcount=24
 
 # external_nic is the nic public_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
+# external_ip can be set to an IP or 'dhcp'
+external_ip=10.88.88.200
+external_gateway=10.88.88.2
+external_netmask=255.255.255.0
 default_gateway=10.99.99.7
 
 dns_resolvers=8.8.8.8,8.8.4.4
