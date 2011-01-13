@@ -107,7 +107,7 @@ function create_directories
         echo "==> Creating cache/"
         mkdir -p ${ROOT}/cache
     fi
-    
+
     if [ ! -d "${ROOT}/mnt" ]; then
         echo "==> Creating mnt/"
         mkdir -p ${ROOT}/mnt
@@ -123,11 +123,11 @@ function copy_base
 {
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
-    
+
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
     cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
-    
+
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
         if [[ -f config/config.coal.local ]]; then
@@ -144,13 +144,13 @@ function copy_base
         fi
         cp -r config/config.usb.inc ${STAGE}/config.inc
     fi
-    
+
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
-    
+
     echo "==> Copying in zoneinit/"
     cp -r zoneinit ${STAGE}/zoneinit
-    
+
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones
 }
@@ -214,20 +214,26 @@ function copy_agents
 
 function copy_datasets
 {
-    bare="bare-1.2.3.zfs.gz"
-    echo "==> Downloading ${bare}"
-    CURL_OPTS=
-    [[ -f ${ROOT}/cache/${bare} ]] && CURL_OPTS="-z ${ROOT}/cache/${bare}"
-    (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${bare})
-    md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
+    datasets=( bare-1.2.3 protemplate-2.5.2 nodejs147-0.3.0 )
 
-    if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
-        echo "==> Repacking ${bare}"
-        ${GZCAT} ${ROOT}/cache/${bare} | bzip2 -9 > "${ROOT}/cache/bare.${md5}.bz2"
-    fi
+    for dataset in ${datasets[@]}
+    do
+        dataset_file="${dataset}.zfs.gz"
+        basename=$(echo ${dataset} | cut -d'-' -f1)
+        echo "==> Downloading ${dataset_file}"
+        CURL_OPTS=
+        [[ -f ${ROOT}/cache/${dataset_file} ]] && CURL_OPTS="-z ${ROOT}/cache/${dataset_file}"
+        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${dataset_file})
+        md5=$(${MD5CMD} ${ROOT}/cache/${dataset_file} | cut -d' ' -f1)
 
-    echo "==> Copying bare.zfs.bz2"
-    cp ${ROOT}/cache/bare.${md5}.bz2 ${STAGE}/bare.zfs.bz2
+        if [[ ! -f ${ROOT}/cache/${dataset}.${md5}.bz2 ]]; then
+            echo "==> Repacking ${dataset_file}"
+            ${GZCAT} ${ROOT}/cache/${dataset_file} | bzip2 -9 > "${ROOT}/cache/${dataset}.${md5}.bz2"
+        fi
+
+        echo "==> Copying ${dataset}.zfs.bz2"
+        cp ${ROOT}/cache/${dataset}.${md5}.bz2 ${STAGE}/${basename}.zfs.bz2
+    done
 }
 
 function copy_zones
@@ -236,7 +242,7 @@ function copy_zones
         fsuri=${STAGE}/zones/${zone}/fs.uri
 
         if [ ! -f $fsuri ]; then
-            continue 
+            continue
         fi
 
         #
@@ -251,7 +257,7 @@ function copy_zones
             if [[ ! -f ${file} ]]; then
                 fatal "expected a file for $override"
             fi
-          
+
             if ( ! file ${file} | grep bzip2 > /dev/null ); then
                 fatal "expected a bzip2'd tar file for $override"
             fi
@@ -283,7 +289,7 @@ function copy_zones
         if [ ${uri%%/*} == $uri ]; then
             uri=${ASSETS_ROOT}/liveimg/${uri}
         fi
-        
+
         file=${uri##*/}
 
         echo "==> Downloading ${file}"

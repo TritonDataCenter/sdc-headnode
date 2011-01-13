@@ -54,8 +54,13 @@ if [[ ${POOLS} == "no pools available" ]]; then
 
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
-    echo -n "Importing zone template dataset... " >>/dev/console
-    bzcat ${USB_PATH}/bare.zfs.bz2 | zfs recv -e zones || exit 1;
+    echo -n "Importing zone template datasets... " >>/dev/console
+    templates=( bare protemplate )
+    for template in ${templates[@]}
+    do
+        bzcat ${USB_PATH}/${template}.zfs.bz2 | zfs recv -e zones || exit 1;
+    done
+
     echo "done." >>/dev/console
     reboot
     exit 2
