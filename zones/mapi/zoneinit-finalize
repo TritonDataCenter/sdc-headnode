@@ -381,7 +381,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
