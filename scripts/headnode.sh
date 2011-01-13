@@ -75,6 +75,15 @@ else
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 fi
 
+# external_nic in boot params overrides config, but config is normal place for it
+if ( /usr/bin/bootparams | grep "^external_nic=" 2> /dev/null ); then
+    external_nic=`/usr/bin/bootparams | grep "^external_nic=" | \
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+else
+    external_nic=`grep "^external_nic=" /etc/headnode.config | \
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+fi
+
 if ( grep "^default_gateway=" /etc/headnode.config ); then
     default_gateway=`grep "^default_gateway=" /etc/headnode.config \
       2>/dev/null | cut -f2 -d'='`
@@ -121,15 +130,12 @@ for zone in $ALLZONES; do
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
                 dladm create-vnic -l ${iface} ${zone}0
-                break
             fi
 
             # if we have a PUBLIC_IP too, we need a second NIC
             if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
                 dladm create-vnic -l ${iface} ${zone}1
-                break
             fi
-
         done
 
         zonecfg -z ${zone} -f ${src}/config
@@ -154,7 +160,7 @@ for zone in $ALLZONES; do
         )
 
         zonecfg -z ${zone} "add net; set physical=${zone}0; end"
-        if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
            zonecfg -z ${zone} "add net; set physical=${zone}1; end"
         fi
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
