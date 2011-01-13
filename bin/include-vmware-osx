@@ -22,6 +22,7 @@ function cleanup
         # Ensure we've unmounted the disk
         fusepath=$(/sbin/mount|grep vmware-vmdkMounterTool|awk '{print $3}')
         if [ -n "$fusepath" ]; then
+          sync; sync; sync
           ${SUCMD} diskutil umount force "$fusepath"
           # Let's be polite with the Mac umounting ...
           sleep 3
