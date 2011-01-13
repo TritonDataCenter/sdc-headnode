@@ -1,6 +1,6 @@
 TEMPLATE_VERSION=0.0.1
 ZONENAME=portal
-HOSTNAME=${ZONENAME}.joyent.us
+HOSTNAME=${ZONENAME}.${dns_domain}
 RESOLVERS=${dns_resolvers/,/ }
 PRIVATE_IP=${portal_private_ip}
 PUBLIC_IP=${portal_private_ip}
