@@ -13,3 +13,5 @@ mkdir -p /zones/mapi/root/opt/smartdc/agent-scripts
 cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
 mkdir -p /zones/mapi/root/opt/smartdc/joysetup
 cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/joysetup/
+# copy headnode info into zone if we're MAPI
+sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json

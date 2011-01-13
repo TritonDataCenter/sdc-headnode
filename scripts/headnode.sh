@@ -280,11 +280,6 @@ if [ -n "${CREATEDZONES}" ]; then
             fi
         fi
 
-        # copy headnode info into zone if we're MAPI
-        if [[ "${zone}" == "mapi" ]] && [[ -d "/zones/mapi/root/opt/smartdc/mapi-data" ]]; then
-            sysinfo > /zones/mapi/root/opt/smartdc/mapi-data/headnode-sysinfo.json
-        fi
-
         # copy dhcpd configuration into zone if we're DHCPD
         if [[ "${zone}" == "dhcpd" ]] && [[ -d "/zones/dhcpd/root/etc" ]]; then
             ${USB_PATH}/zones/dhcpd/tools/dhcpconfig
