@@ -46,11 +46,11 @@ dhcpConfig = function(config) {
 }
 
 hostsConfig = function(config) {
-  var hosts = [];
+  var hosts = ["group {"];
   config.nodes.forEach(function(h, idx, arr) {
     hosts.push(h.toEntry());
   });
-  hosts.push(""); 
+  hosts.push("}", ""); 
   return hosts.join('\n');
 }
 
@@ -131,34 +131,36 @@ writeGrubConfigs = function(config) {
 }
 
 // no new line support :(
-dhcpTemplate = function(config) { 
-  var template = 
+dhcpTemplate = function(config) {  
+  var template =
     [ "# this file has been auto generated"
-    , "#"
-    , "ddns-update-style none;"                               
-    , "option domain-name \"" + config.dns_domain +"\";"
+    , "#"    
+    , "ddns-update-style none;"
+    , "omapi-port 7911;"
+    , ""
+    , "option domain-name \"" + config.dns_domain +"\";"    
     , "option domain-name-servers " + config.dns_resolvers + ";"
-    , "default-lease-time 6000;"                              
-    , "max-lease-time 72000;"                                 
-    , "omapi-port 7911;"                                      
-    , ""                                                      
-    , "get-lease-hostnames true;"                             
-    , ""                                                      
-    , "# For Solaris Jumpstart"                               
-    , "option grubmenu code 150 = text;"                      
-    , ""                                                      
-    , "subnet " + config.admin_network + " netmask " + config.admin_netmask + " {"
-    , "  option grubmenu \"/boot/grub/menu.lst\";"            
-    , "  append dhcp-parameter-request-list 150;"             
-    , "  range " + config.dhcp_range_start + " " + config.dhcp_range_end + ";"
-    , "  option routers " + config.default_gateway + ";"
-    , "  next-server " + config.dhcp_next_server + ";"
-    , "  append dhcp-parameter-request-list 12;"              
-    , "  filename \"" + config.dhcp_bootfile + "\";"
+    , ""
+    , "option grubmenu code 150 = text;"
+    , ""
+    , "get-lease-hostnames false;"
+    , "default-lease-time 6000;"    
+    , "max-lease-time 72000;"
+    , ""
+    , "if substring(option vendor-class-identifier, 0, 9) = \"PXEClient\" {"
+    , "  append dhcp-parameter-request-list 150;"
+    , "  filename \"pxegrub\";"
     , "}"
-    , ""                                                      
-    , "use-host-decl-names on;"                               
-    , "include \"/etc/dhcpd.hosts\";"                           
+    , ""
+    , "subnet " + config.admin_network + " netmask " + config.admin_netmask + " {"
+    , "  option routers " + config.default_gateway + ";"
+    , "  range " + config.dhcp_range_start + " " + config.dhcp_range_end + ";"
+    , "  next-server " + config.dhcp_next_server + ";"
+    , "  use-host-decl-names on;"
+    , "  deny unknown-clients;"
+    , "}"
+    , ""
+    , "include \"/etc/dhcpd.hosts\";"
     , ""
     ].join('\n');
   return template;
