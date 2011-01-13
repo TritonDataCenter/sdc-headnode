@@ -62,6 +62,8 @@ ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
 adminui_private_ip=10.99.99.10
+# adminui_public_ip=10.88.88.10
+# adminui_public_vlan=0
 adminui_root_pw=joypass123
 adminui_admin_pw=joypass123
 adminui_cpu_shares=50
@@ -84,6 +86,8 @@ atropos_root_pw=joypass123
 atropos_admin_pw=joypass123
 
 pubapi_private_ip=10.99.99.13
+# pubapi_public_ip=10.88.88.10
+# pubapi_public_vlan=0
 pubapi_root_pw=joypass123
 pubapi_admin_pw=joypass123
 pubapi_cpu_shares=50
@@ -91,6 +95,8 @@ pubapi_max_lwps=1000
 pubapi_memory_cap=128m
 
 portal_private_ip=10.99.99.14
+# portal_public_ip=10.88.88.10
+# portal_public_vlan=0
 portal_root_pw=joypass123
 portal_admin_pw=joypass123
 portal_cpu_shares=50
