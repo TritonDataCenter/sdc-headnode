@@ -12,7 +12,13 @@ cd /opt/smartdc/pubapi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
 # Export complete repo into pubapi:
 cd /opt/smartdc/pubapi-repo
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/pubapi/
+
+if [[ "${IMG_TYPE}" == "coal" ]]; then
+  cp -R ./ /opt/smartdc/pubapi/
+else
+  /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/pubapi/
+fi
+
 # Export only config into pubapi-data:
 cd /opt/smartdc/pubapi-repo
 #/opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/pubapi-data/ config/

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-POSTGRES=localhost
-PGPASSWORD=postgres
-
 svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing mapi zone"
@@ -52,15 +49,101 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
 fi
 
 # Since we need to access the postgres server from other zones, we need to add configuration
-echo "listen_addresses='localhost,10.99.99.8'" >> /var/pgsql/data/postgresql.conf
-echo "host    all    all    10.99.99.0/24    password" >> /var/pgsql/data/pg_hba.conf
+echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
+echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql.xml
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
+fi
+
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
+  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+user  www  www;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    upstream mapi {
+        server ${PRIVATE_IP}:8080;
+    }
+
+    upstream aggregator {
+        server ${CA_PRIVATE_IP}:23182;
+    }
+
+    upstream configsvc {
+        server ${CA_PRIVATE_IP}:23181;
+    }
+    
+    server {
+        listen       ${PRIVATE_IP}:80;
+        server_name  localhost;
+
+        location / {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://mapi;
+            break;
+        }
+
+        location ~ /ca/(customers/.+/)?instrumentations/.+/value {
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://aggregator;
+            break;
+        }
+
+        location ~ /ca/(customers/.+/)?(metrics|instrumentations)(/\d+\/?)?$ {
+          proxy_set_header  X-Real-IP  \$remote_addr;
+          proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+          proxy_set_header Host \$http_host;
+          proxy_redirect off;
+
+          proxy_pass http://configsvc;
+          break;
+        }
+
+        location /ur-scripts/ {
+            alias /opt/smartdc/agent-scripts/;
+            autoindex on;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+    }
+}
+
+NGINX
+
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  /usr/sbin/svcadm enable -s nginx
 fi
 
 # Configure nsswitch to use mdns & enable multicast dns:
@@ -114,18 +197,12 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
-# MAPI db creation will not work unless we enable postgresql first!:
-#if [ "$(svcs -Ho state postgresql)" == "maintenance" ]; then
-#  /usr/sbin/svcadm clear postgresql >/dev/null 2>&1
-#fi
-
-
-if [[ -z $(psql -U postgres -h $POSTGRES -c "\\l"|grep mapi) ]]; then
+if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "$POSTGRES:*:*:postgres:$PGPASSWORD" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES mapi"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
@@ -168,9 +245,9 @@ if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
 :production: &prod
   :adapter: postgres
   :database: mapi
-  :username: postgres
-  :password: postgres
-  :host: $POSTGRES
+  :username: $POSTGRES_USER
+  :password: $POSTGRES_PW
+  :host: $POSTGRES_HOST
   :encoding: UTF-8
 
 MAPI_DB
@@ -184,7 +261,7 @@ if [[ -z $(cat /opt/smartdc/mapi/config/config.yml | grep Amqp) ]]; then
   -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
   -e "s/:user: guest/:user: guest/" \
   -e "s/:password: guest/:password: guest/" \
-  -e "s/'mq1-dev.joyent.us'/10.99.99.5/" \
+  -e "s/'mq1-dev.joyent.us'/${RABBITMQ_PRIVATE_IP}/" \
   -e "s/MCP API Production/MCP API $host/" \
   /opt/smartdc/mapi/config/config.yml
 fi
@@ -242,10 +319,66 @@ fi
 #   /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
 # fi
 
-# if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-#   echo "Importing MCP API Heartbeater Client Manifest"
-#   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
-# fi
+if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+  echo "Importing MCP API Heartbeater Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
+fi
+
+# Generate the agents setup script:
+
+AGENTS_FILE_VERSION=$(ls /opt/smartdc/agent-scripts/|grep agents)
+
+echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'"
+
+cat > /opt/smartdc/mapi-data/setup_agents.sh <<AGENTS
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+fatal()
+{
+    # Any error message should be redirected to stderr:
+    echo "Error: \$1" 1>&2
+    exit 1
+}
+
+
+setup_agents()
+{
+  cd /root/
+  /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
+ 
+  if [[ ! -f /root/${AGENTS_FILE_VERSION} ]]; then
+    fatal "failed to download agents setup script"
+  else
+    echo "Downloaded file '/root/${AGENTS_FILE_VERSION}'"
+  fi
+
+  mkdir -p /opt/smartdc/agents/log
+  /usr/bin/bash /root/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
+  result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
+
+  if [[ "\$result" == "npm not ok" ]]; then
+    tail -n 10 /opt/smartdc/agents/log/install.log >&2
+    exit 1
+  else
+    tail -n 10 /opt/smartdc/agents/log/install.log
+  fi
+}
+
+
+if [[ ! -d /opt/smartdc/agents/bin ]]; then
+  setup_agents
+fi
+
+# Scripts to be executed by Ur need to explicitly return an exit status code:
+exit 0
+
+AGENTS
 
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
@@ -257,7 +390,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 

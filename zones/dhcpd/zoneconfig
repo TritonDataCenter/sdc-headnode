@@ -1,10 +1,9 @@
 TEMPLATE_VERSION=0.0.1
 ZONENAME=dhcpd
-HOSTNAME=${ZONENAME}.joyent.us
-RESOLVER1=10.99.99.2
-RESOLVER2=10.99.99.3
-PRIVATE_IP=10.99.99.4
-PUBLIC_IP=10.99.99.4
-ROOT_PW=joypass123
-ADMIN_PW=joypass123
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+PRIVATE_IP=${dhcpd_private_ip}
+PUBLIC_IP=${dhcpd_private_ip}
+ROOT_PW=${dhcpd_root_pw}
+ADMIN_PW=${dhcpd_admin_pw}
 TMPFS=512m

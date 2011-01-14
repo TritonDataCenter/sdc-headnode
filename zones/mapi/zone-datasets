@@ -1,10 +1,17 @@
-echo ""
-echo "creating mapi-data dataset" >>/dev/console
+echo -n "mapi-data, " >>/dev/console
 zfs create zones/mapi-data
 zonecfg -z mapi 'add dataset; set name="zones/mapi-data"; end; verify; commit'
 STAMP=$(cat /zones/mapi/root/opt/smartdc/mapi-VERSION)
-echo "creating mapi-app-${STAMP} dataset" >>/dev/console
+echo -n "mapi-app-${STAMP} " >>/dev/console
 zfs create zones/mapi-app-${STAMP}
 echo "$STAMP">/zones/mapi/root/root/mapi-app-timestamp
 cmd="add dataset; set name=zones/mapi-app-$STAMP; end; verify; commit"
 zonecfg -z mapi $cmd
+echo -n ". " >> /dev/console
+# Trying to do not add an extra file to copy agents script to mapi zone
+mkdir -p /zones/mapi/root/opt/smartdc/agent-scripts
+cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
+mkdir -p /zones/mapi/root/opt/smartdc/joysetup
+cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/joysetup/
+# copy headnode info into zone if we're MAPI
+sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json

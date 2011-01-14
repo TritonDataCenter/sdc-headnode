@@ -68,6 +68,12 @@ function create_output
       output_version="${LIVEIMG_VERSION}"
     fi
 
+    if [[ -f ${ROOT}/cache/stage/private/root.password ]]; then
+        echo "==> Copying root.password"
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password ${ROOT}/cache/USB-headnode.vmwarevm/root.password
+        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password
+    fi
+
     echo "==> Creating coal-147-${output_version}.tgz"
     (cd ${ROOT}/cache \
         && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \

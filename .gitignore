@@ -1,6 +1,9 @@
 /mnt
 /cache
 /coal-*.tgz
+/usb-*.tgz
+/config/*.local
 *.swp
 /tmp
 /USB-headnode.vmwarevm
+/.DS_Store

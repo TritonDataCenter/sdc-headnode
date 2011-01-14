@@ -12,7 +12,13 @@ cd /opt/smartdc/capi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
 # Export complete repo into capi:
 cd /opt/smartdc/capi-repo
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/capi/
+
+if [[ "${IMG_TYPE}" == "coal" ]]; then
+  cp -R ./ /opt/smartdc/capi
+else
+  /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/capi/
+fi
+
 # Export only config into capi-data:
 cd /opt/smartdc/capi-repo
 /opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/capi-data/ config/

@@ -2,14 +2,6 @@
 #
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
-#
-# WARNING: WIP. Actually, case-insensitivity on MacOsX is a problem.
-# Images build this way have all the copied files without a dash on their names
-# written to the image uppercased.
-#
-# Verified that this problem cannot be addressed using any variant of HFS+ to
-# build & run the image, HFS+ Case Sensitive Journaled included.
-# Next try: use either a UFS Image or a SSH mounted disk.
 
 SUCMD='sudo'
 MNT_DIR="/Volumes/USB-headnode.vmdk"
@@ -30,6 +22,7 @@ function cleanup
         # Ensure we've unmounted the disk
         fusepath=$(/sbin/mount|grep vmware-vmdkMounterTool|awk '{print $3}')
         if [ -n "$fusepath" ]; then
+          sync; sync; sync
           ${SUCMD} diskutil umount force "$fusepath"
           # Let's be polite with the Mac umounting ...
           sleep 3
@@ -84,6 +77,15 @@ function create_output
       output_version="${branch_name}-${LIVEIMG_VERSION}"
     else
       output_version="${LIVEIMG_VERSION}"
+    fi
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
+    if [[ -f ${ROOT}/cache/stage/private/root.password ]]; then
+        echo "==> Copying root.password"
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password ${ROOT}/cache/USB-headnode.vmwarevm/root.password
+        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password
     fi
 
     echo "==> Creating coal-147-${output_version}.tgz"

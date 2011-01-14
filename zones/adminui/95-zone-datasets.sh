@@ -12,7 +12,13 @@ cd /opt/smartdc/adminui-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
 # Export complete repo into adminui:
 cd /opt/smartdc/adminui-repo
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/
+
+if [[ "${IMG_TYPE}" == "coal" ]]; then
+  cp -R ./ /opt/smartdc/adminui
+else
+  /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/
+fi
+
 # Export only config into adminui-data:
 cd /opt/smartdc/adminui-repo
 /opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/adminui-data/ config/

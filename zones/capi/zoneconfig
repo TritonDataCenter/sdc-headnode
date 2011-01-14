@@ -1,10 +1,18 @@
 TEMPLATE_VERSION=0.0.1
 ZONENAME=capi
-HOSTNAME=${ZONENAME}.joyent.us
-RESOLVER1=10.99.99.2
-RESOLVER2=10.99.99.3
-PRIVATE_IP=10.99.99.11
-PUBLIC_IP=10.99.99.11
-ROOT_PW=joypass123
-ADMIN_PW=joypass123
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+PRIVATE_IP=${capi_private_ip}
+PUBLIC_IP=${capi_public_ip-${capi_private_ip}}
+ROOT_PW=${capi_root_pw}
+ADMIN_PW=${capi_admin_pw}
 TMPFS=512m
+
+POSTGRES_HOST=${capi_postgres_ip}
+POSTGRES_USER=postgres
+POSTGRES_PW=postgres
+
+CAPI_ADMIN_LOGIN=${capi_admin_login}
+CAPI_ADMIN_PW=${capi_admin_pw}
+CAPI_ADMIN_EMAIL=${capi_admin_email}
+CAPI_ADMIN_UUID=${capi_admin_uuid}

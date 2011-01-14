@@ -79,10 +79,6 @@ if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
   cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
 fi
 
-if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
-  cp /opt/smartdc/adminui/config/config.yml.sample /opt/smartdc/adminui/config/config.yml
-fi
-
 if [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MAPI Admin UI."
   (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
@@ -100,13 +96,16 @@ if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
   chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
 fi
 
-echo "Updating MAPI Admin UI Config file."
+echo "Installing MAPI Admin UI Config file."
 host=`hostname`
-/opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
--e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
--e "s/127.0.0.1:8080/10.99.99.8:8080/" \
--e "s/localhost:8083/10.99.99.10:8080/" \
-/opt/smartdc/adminui/config/config.yml
+
+su - jill -c "cd /opt/smartdc/adminui; \
+  MAIL_FROM=jill@$host \
+  MAIL_TO=jill@$host \
+  ADMINUI_IP=$ADMINUI_IP \
+  CAPI_IP=$CAPI_IP \
+  MAPI_IP=$MAPI_IP \
+  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"

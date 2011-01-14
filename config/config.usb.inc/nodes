@@ -1,0 +1,4 @@
+# physical nodes file
+# one mac/ip pair per line
+#  ex
+#  00:00:00:00:00:00 1.2.3.4

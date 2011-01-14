@@ -2,23 +2,43 @@
 #
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
-set -e
-ROOT=$(cd $(dirname $0)/../; pwd)
-STAGE="${ROOT}/cache/stage"
-ERROR=0
-CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
-if [ -z "${PLATFORM_URL}" ]; then
-    PLATFORM_URL=${MASTER_PLATFORM_URL}
-fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q3/All"
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+set -o errexit
+set -o pipefail
 
 function fatal
 {
     echo "$(basename $0): fatal error: $*"
     exit 1
 }
+
+function errexit
+{
+    [[ $1 -ne 0 ]] || exit 0
+    fatal "error exit status $1 at line $2"
+}
+
+trap 'errexit $? $LINENO' EXIT
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+STAGE="${ROOT}/cache/stage"
+ERROR=0
+CLEANED=0
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+
+if [ -z "${PLATFORM_URL}" ]; then
+    PLATFORM_URL=${MASTER_PLATFORM_URL}
+fi
+ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates"
+PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q3/All"
 
 # Figure out first what we're building, and load the proper include
 
@@ -34,8 +54,8 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             version
             ;;
         usb)
-            echo "OSX-usb";
-            exit 0
+            source ${ROOT}/bin/include-usb-osx
+            version
             ;;
         *)
             echo "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
@@ -60,8 +80,8 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
-            source ${ROOT}/bin/include-smartos-usb
-            echo "SmartOS-usb";
+            echo "FATAL: SmartOS not yet supported for USB key generation"
+            exit 1
             ;;
         *)
             echo "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
@@ -87,7 +107,7 @@ function create_directories
         echo "==> Creating cache/"
         mkdir -p ${ROOT}/cache
     fi
-    
+
     if [ ! -d "${ROOT}/mnt" ]; then
         echo "==> Creating mnt/"
         mkdir -p ${ROOT}/mnt
@@ -103,20 +123,34 @@ function copy_base
 {
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
-    
+
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
     cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
-    
+
     echo "==> Copying in config"
-    cp config.coal ${STAGE}/config
-    
+    if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
+        if [[ -f config/config.coal.local ]]; then
+          cp config/config.coal.local ${STAGE}/config
+        else
+          cp config/config.coal ${STAGE}/config
+        fi
+        cp -r config/config.coal.inc ${STAGE}/config.inc
+    else
+        if [[ -f config/config.usb.local ]]; then
+          cp config/config.usb.local ${STAGE}/config
+        else
+          cp config/config.usb ${STAGE}/config
+        fi
+        cp -r config/config.usb.inc ${STAGE}/config.inc
+    fi
+
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
-    
+
     echo "==> Copying in zoneinit/"
     cp -r zoneinit ${STAGE}/zoneinit
-    
+
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones
 }
@@ -159,6 +193,9 @@ function copy_platform
 
     echo "==> Unpacking `basename ${image}`"
     (cd ${STAGE}/ && tar -zxf ${image} && mv platform-* platform)
+    if [[ -f ${STAGE}/platform/root.password ]]; then
+        (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
+    fi
     LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
 }
 
@@ -177,20 +214,26 @@ function copy_agents
 
 function copy_datasets
 {
-    bare="bare-1.2.3.zfs.gz"
-    echo "==> Downloading ${bare}"
-    CURL_OPTS=
-    [[ -f ${ROOT}/cache/${bare} ]] && CURL_OPTS="-z ${ROOT}/cache/${bare}"
-    (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${bare})
-    md5=$(${MD5CMD} ${ROOT}/cache/${bare} | cut -d' ' -f1)
+    datasets=( bare-1.2.8 protemplate-2.5.2 nodejs147-0.3.0 )
 
-    if [[ ! -f ${ROOT}/cache/bare.${md5}.bz2 ]]; then
-        echo "==> Repacking ${bare}"
-        ${GZCAT} ${ROOT}/cache/${bare} | bzip2 -9 > "${ROOT}/cache/bare.${md5}.bz2"
-    fi
+    for dataset in ${datasets[@]}
+    do
+        dataset_file="${dataset}.zfs.gz"
+        basename=$(echo ${dataset} | cut -d'-' -f1)
+        echo "==> Downloading ${dataset_file}"
+        CURL_OPTS=
+        [[ -f ${ROOT}/cache/${dataset_file} ]] && CURL_OPTS="-z ${ROOT}/cache/${dataset_file}"
+        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${dataset_file})
+        md5=$(${MD5CMD} ${ROOT}/cache/${dataset_file} | cut -d' ' -f1)
 
-    echo "==> Copying bare.zfs.bz2"
-    cp ${ROOT}/cache/bare.${md5}.bz2 ${STAGE}/bare.zfs.bz2
+        if [[ ! -f ${ROOT}/cache/${dataset}.${md5}.bz2 ]]; then
+            echo "==> Repacking ${dataset_file}"
+            ${GZCAT} ${ROOT}/cache/${dataset_file} | bzip2 -9 > "${ROOT}/cache/${dataset}.${md5}.bz2"
+        fi
+
+        echo "==> Copying ${dataset}.zfs.bz2"
+        cp ${ROOT}/cache/${dataset}.${md5}.bz2 ${STAGE}/${basename}.zfs.bz2
+    done
 }
 
 function copy_zones
@@ -199,7 +242,30 @@ function copy_zones
         fsuri=${STAGE}/zones/${zone}/fs.uri
 
         if [ ! -f $fsuri ]; then
-            continue 
+            continue
+        fi
+
+        #
+        # We allow the fs.uri file to be overridden with a [zone]_FS variable
+        # (e.g., "RABBITMQ_FS"), which must contain a bzip2'd tar file.
+        #
+        local override=$(echo $zone | tr '[:lower:]' '[:upper:]')_FS
+
+        if [[ -n "${!override}" ]]; then
+            file=${!override}
+
+            if [[ ! -f ${file} ]]; then
+                fatal "expected a file for $override"
+            fi
+
+            if ( ! file ${file} | grep bzip2 > /dev/null ); then
+                fatal "expected a bzip2'd tar file for $override"
+            fi
+
+            mkdir -p ${STAGE}/zones/${zone}
+            echo "==> Using \$${override} (${file}) for ${zone} zone"
+            cp ${file} ${STAGE}/zones/${zone}/fs.tar.bz2
+            continue
         fi
 
         #
@@ -223,7 +289,7 @@ function copy_zones
         if [ ${uri%%/*} == $uri ]; then
             uri=${ASSETS_ROOT}/liveimg/${uri}
         fi
-        
+
         file=${uri##*/}
 
         echo "==> Downloading ${file}"
@@ -244,6 +310,10 @@ function copy_zones
             cp -pPR ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
             rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
             (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
+        fi
+
+        if [[ "${IMG_TYPE}" == "coal" ]]; then
+          echo "IMG_TYPE=coal" >> ${STAGE}/zones/${zone}/zoneconfig
         fi
     done
 }
