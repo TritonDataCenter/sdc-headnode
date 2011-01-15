@@ -123,6 +123,13 @@ for zone in $ALLZONES; do
             )
             zone_private_ip=${zoneips%%,*}
             zone_public_ip=${zoneips##*,}
+
+            zonemasks=$(
+                . ${USB_COPY}/config
+                echo "${admin_netmask},${external_netmask}"
+            )
+            zone_private_netmask=${zonemasks%%,*}
+            zone_public_netmask=${zonemasks##*,}
         fi
 
         zone_public_vlan=$(
@@ -219,11 +226,11 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        if [[ -n "${zone_private_ip}" ]]; then
-            echo ${zone_private_ip} > ${dest}/etc/hostname.${zone}0
+        if [[ -n "${zone_private_ip}" ]] && [[ -n ${zone_private_netmask} ]]; then
+            echo "${zone_private_ip} netmask ${zone_private_netmask}" > ${dest}/etc/hostname.${zone}0
         fi
-        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-            echo ${zone_public_ip} > ${dest}/etc/hostname.${zone}1
+        if [[ -n "${zone_public_ip}" ]] && [[ -n ${zone_public_netmask} ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+            echo "${zone_public_ip} netmask ${zone_public_netmask}" > ${dest}/etc/hostname.${zone}1
         fi
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
