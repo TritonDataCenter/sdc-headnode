@@ -136,24 +136,32 @@ for zone in $ALLZONES; do
             . ${USB_COPY}/config
             eval "echo \${${zone}_public_vlan}"
         )
+        [[ -n ${zone_public_vlan} ]] || zone_public_vlan=0
 
         zone_public_vlan_opts=
         if [[ -n "${zone_public_vlan}" ]] && [[ "${zone_public_vlan}" != "0" ]]; then
             zone_public_vlan_opts="-v ${zone_public_vlan}"
         fi
 
+        zfs_properties=""
         echo -n "creating zone ${zone}... " >>/dev/console
-        dladm show-phys -m -p -o link,address | \
+        zfs_properties=$(dladm show-phys -m -p -o link,address | \
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
                 dladm create-vnic -l ${iface} ${zone}0
+                # Add the zfs metadata so we know which network to attach this to on reboot
+                echo -n "smartdc.network:${zone}0.vlan_id=0 "
+                echo -n "smartdc.network:${zone}0.nic=admin "
             fi
 
             # if we have a PUBLIC_IP too, we need a second NIC
             if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
                 dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
+                # Add the zfs metadata so we know which network to attach this to on reboot
+                echo -n "smartdc.network:${zone}1.vlan_id=${zone_public_vlan} "
+                echo -n "smartdc.network:${zone}1.nic=external "
             fi
-        done
+        done)
 
         zonecfg -z ${zone} -f ${src}/config
 
@@ -181,6 +189,14 @@ for zone in $ALLZONES; do
            zonecfg -z ${zone} "add net; set physical=${zone}1; end"
         fi
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
+
+        # At this point we have a zfs filesystem so we can apply our properties
+        if [[ -n ${zfs_properties} ]]; then
+            for prop in ${zfs_properties}; do
+                zfs set "${prop}" zones/${zone}
+            done
+        fi
+
         (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
         chmod 0700 /zones/${zone}
