@@ -9,6 +9,7 @@ export PATH
 ZPOOL=zones
 
 CONFDS=$ZPOOL/config
+COREDS=$ZPOOL/cores
 OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
@@ -117,6 +118,12 @@ setup_datasets()
           fatal "failed to create the usbkey dataset"
         echo "done." >&2
     fi
+
+    echo -n "Creating global cores dataset... " >&2
+    zfs create -o quota=1g -o mountpoint=/zones/global/cores \
+	-o compression=gzip ${COREDS} || \
+	fatal "failed to create the cores dataset"
+    echo "done." >&2
 
     echo -n "Creating opt dataset... " >&2
     zfs create -o mountpoint=legacy ${OPTDS} || \
