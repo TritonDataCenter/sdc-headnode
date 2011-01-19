@@ -11,6 +11,7 @@ libidn-1.19
 libssh2-1.2.2nb1
 curl-7.21.1
 postgresql90-client-9.0.1
+postgresql90-server-9.0.1
 p5-Error-0.17016nb1
 scmgit-base-1.7.0.7
 libuuid-1.36

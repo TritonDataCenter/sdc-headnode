@@ -48,6 +48,61 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
+
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
+  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+user  www  www;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    upstream adminui {
+        server ${PRIVATE_IP}:8080;
+    }
+
+    server {
+        listen       ${PRIVATE_IP}:80;
+        server_name  localhost;
+
+        location / {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://adminui;
+            break;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+    }
+}
+
+NGINX
+
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  /usr/sbin/svcadm enable -s nginx
+fi
+
+
 # These happen to do not be created always:
 if [[ ! -e /opt/local/bin/ruby ]]; then
   echo "Symlinking ruby"
