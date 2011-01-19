@@ -366,7 +366,7 @@ setup_agents()
     tail -n 10 /opt/smartdc/agents/log/install.log >&2
     exit 1
   else
-    tail -n 10 /opt/smartdc/agents/log/install.log
+    tail -n 10 /opt/smartdc/agents/log/install.log >&2
   fi
 }
 
@@ -374,6 +374,9 @@ setup_agents()
 if [[ ! -d /opt/smartdc/agents/bin ]]; then
   setup_agents
 fi
+
+# Return SmartDC services statuses on STDOUT:
+echo \$(svcs -a -o STATE,FMRI|grep smartdc)
 
 # Scripts to be executed by Ur need to explicitly return an exit status code:
 exit 0
