@@ -160,7 +160,7 @@ dhcpTemplate = function(config) {
     , "}"
     , ""
     , "subnet " + config.admin_network + " netmask " + config.admin_netmask + " {"
-    , "  option routers " + config.default_gateway + ";"
+    , "  option routers " + config.admin_gateway + ";"
     , "  range " + config.dhcp_range_start + " " + config.dhcp_range_end + ";"
     , "  next-server " + config.dhcp_next_server + ";"
     , "  use-host-decl-names on;"

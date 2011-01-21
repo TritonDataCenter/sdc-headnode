@@ -11,6 +11,7 @@ admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
 admin_network=10.99.99.0
+admin_gateway=10.99.99.7
 # adding bit_count to save calculations
 admin_bitcount=24
 
@@ -20,7 +21,6 @@ external_nic=00:50:56:3d:a7:95
 external_ip=10.88.88.200
 external_gateway=10.88.88.2
 external_netmask=255.255.255.0
-default_gateway=10.99.99.7
 
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
@@ -63,6 +63,7 @@ mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
 
 ca_private_ip=10.99.99.9
+ca_public_ip=10.88.88.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 

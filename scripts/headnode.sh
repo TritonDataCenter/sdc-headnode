@@ -84,10 +84,9 @@ else
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 fi
 
-if ( grep "^default_gateway=" /etc/headnode.config ); then
-    default_gateway=`grep "^default_gateway=" /etc/headnode.config \
-      2>/dev/null | cut -f2 -d'='`
-fi
+# Load headnode.config variables with CONFIG_ prefix, ignoring comments,
+# spaces at the beginning of lines and lines that don't start with a letter.
+eval $(cat /etc/headnode.config | sed -e "s/^ *//" | grep -v "^#" | grep "^[a-zA-Z]" | sed -e "s/^/CONFIG_/")
 
 # Now the infrastructure zones
 
@@ -113,6 +112,11 @@ for zone in $ALLZONES; do
         [[ -z "${CREATEDZONES}" ]] && echo "" >>/dev/console
 
         src=${USB_COPY}/zones/${zone}
+
+        zone_public_ip=
+        zone_private_ip=
+        zone_public_netmask=
+        zone_private_netmask=
 
         if [[ -f "${src}/zoneconfig" ]]; then
             # We need to refigure this out each time because zoneconfig is gone on reboot
@@ -257,8 +261,14 @@ for zone in $ALLZONES; do
             cat ${src}/motd.append >> ${dest}/etc/motd
         fi
 
-        if [[ -n ${default_gateway} ]]; then
-            echo "${default_gateway}" > ${dest}/etc/defaultrouter
+        # If there's a public IP set and an external_gateway, use that, otherwise use
+        # admin_gateway if that's set.
+        if [[ -n "${zone_public_ip}" ]] \
+          && [[ -n ${CONFIG_external_gateway} ]] \
+          && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+            echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
+        elif [[ -n ${CONFIG_admin_gateway} ]]; then
+            echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
         fi
 
         # Create additional zone datasets when required:
