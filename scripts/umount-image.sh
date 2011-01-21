@@ -27,6 +27,7 @@ fi
 echo "done."
 
 echo -n "Compressing `basename $image` ... "
-gzip -c $file > $image || fatal "could not compress $image"
+gzip -c $file > $image.new || fatal "could not compress $image"
+mv -f $image.new $image || fatal "could not replace $image with $image.new"
 echo "done."
 
