@@ -21,6 +21,7 @@ external_nic=00:50:56:3d:a7:95
 external_ip=10.88.88.200
 external_gateway=10.88.88.2
 external_netmask=255.255.255.0
+#external_vlan_id=999
 
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
