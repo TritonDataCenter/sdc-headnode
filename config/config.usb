@@ -81,7 +81,6 @@ capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 capi_cpu_shares=50
 capi_max_lwps=1000
 capi_memory_cap=128m
-capi_postgres_ip=10.99.99.8
 
 atropos_private_ip=10.99.99.12
 atropos_root_pw=joypass123

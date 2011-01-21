@@ -8,7 +8,7 @@ ROOT_PW=${capi_root_pw}
 ADMIN_PW=${capi_admin_pw}
 TMPFS=512m
 
-POSTGRES_HOST=${capi_postgres_ip}
+POSTGRES_HOST=localhost
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
 
