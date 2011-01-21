@@ -23,6 +23,10 @@ external_gateway=10.88.88.2
 external_netmask=255.255.255.0
 #external_vlan_id=999
 
+# Set to true if you want the GZ on the headnode to NAT traffic from the admin
+# network to the external network:
+headnode_nat=true
+
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
@@ -54,6 +58,8 @@ rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=128m
 
 mapi_private_ip=10.99.99.8
+# mapi_public_ip=10.88.88.8
+# mapi_public_vlan=0
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50
@@ -65,6 +71,7 @@ mapi_http_admin_pw=tot@ls3crit
 
 ca_private_ip=10.99.99.9
 ca_public_ip=10.88.88.9
+# ca_public_vlan=0
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
@@ -92,7 +99,7 @@ atropos_root_pw=joypass123
 atropos_admin_pw=joypass123
 
 pubapi_private_ip=10.99.99.13
-# pubapi_public_ip=10.88.88.10
+# pubapi_public_ip=10.88.88.13
 # pubapi_public_vlan=0
 pubapi_root_pw=joypass123
 pubapi_admin_pw=joypass123
@@ -101,7 +108,7 @@ pubapi_max_lwps=1000
 pubapi_memory_cap=128m
 
 portal_private_ip=10.99.99.14
-# portal_public_ip=10.88.88.10
+# portal_public_ip=10.88.88.14
 # portal_public_vlan=0
 portal_root_pw=joypass123
 portal_admin_pw=joypass123
