@@ -185,7 +185,7 @@ usermod -s /usr/bin/bash jill
 
 if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
   su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
