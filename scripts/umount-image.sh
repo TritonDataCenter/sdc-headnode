@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
 function fatal
@@ -10,7 +10,7 @@ function fatal
 }
 
 mnt=/image
-image=`dirname $0`/../platform/i86pc/amd64/boot_archive
+image="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/joyent)/platform/i86pc/amd64/boot_archive"
 
 if ! mount | grep ^"${mnt} " > /dev/null ; then 
 	fatal "cannot find image mounted at $mnt"
