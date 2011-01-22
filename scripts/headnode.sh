@@ -153,17 +153,23 @@ for zone in $ALLZONES; do
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
                 dladm create-vnic -l ${iface} ${zone}0
+                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
+
                 # Add the zfs metadata so we know which network to attach this to on reboot
                 echo -n "smartdc.network:${zone}0.vlan_id=0 "
                 echo -n "smartdc.network:${zone}0.nic=admin "
+                [[ -n ${admin_vnic_mac} ]] && echo -n "smartdc.network:${zone}0.mac=${admin_vnic_mac} "
             fi
 
             # if we have a PUBLIC_IP too, we need a second NIC
             if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
                 dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
+                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
+
                 # Add the zfs metadata so we know which network to attach this to on reboot
                 echo -n "smartdc.network:${zone}1.vlan_id=${zone_public_vlan} "
                 echo -n "smartdc.network:${zone}1.nic=external "
+                [[ -n ${external_vnic_mac} ]] && echo -n "smartdc.network:${zone}1.mac=${external_vnic_mac} "
             fi
         done)
 
