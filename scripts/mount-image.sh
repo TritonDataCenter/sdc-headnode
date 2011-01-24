@@ -5,7 +5,6 @@
 
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/joyent)"
 image="${usbmnt}/platform/i86pc/amd64/boot_archive"
-tmp=/var/tmp/boot_archive.uncompressed.$$
 mnt=/image
 
 function fatal
@@ -24,12 +23,13 @@ if [[ ! -f $image ]]; then
 	fatal "could not find image file $image"
 fi
 
-echo -n "Uncompressing `basename $image` ... "
-gzip -c -d $image > $tmp || fatal "could not uncompress $image"
-echo "done."
-
-echo -n "Mounting uncompressed archive on $mnt ... "
-mount -F ufs $tmp $mnt || fatal "could not mount uncompressed image $tmp"
+echo -n "Mounting archive on $mnt ... "
+mount -F ufs $image $mnt || fatal "could not mount image $image"
+echo
+echo -n "Mounting archived usr on $mnt/usr ... "
+mount -F ufs -o ro $mnt/usr.lgz $mnt/usr || \
+    fatal "could not mount usr $mnt/usr.lgz"
+echo
 echo "done."
 
 echo "Image mounted; use umount-image.sh to unmount"

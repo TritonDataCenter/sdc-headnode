@@ -20,14 +20,12 @@ file=$(mount | grep ^"${mnt} " | nawk '{ print $3 }')
 
 echo -n "Unmounting $mnt ... "
 
+if ! umount $mnt/usr ; then
+	fatal "could not unmount $mnt/usr"
+fi
+
 if ! umount $mnt ; then
 	fatal "could not unmount $mnt"
 fi
 
 echo "done."
-
-echo -n "Compressing `basename $image` ... "
-gzip -c $file > $image.new || fatal "could not compress $image"
-mv -f $image.new $image || fatal "could not replace $image with $image.new"
-echo "done."
-
