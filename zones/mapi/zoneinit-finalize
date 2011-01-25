@@ -335,17 +335,17 @@ fatal()
 
 setup_agents()
 {
-  cd /root/
+  cd /var/tmp
   /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
  
-  if [[ ! -f /root/${AGENTS_FILE_VERSION} ]]; then
+  if [[ ! -f /var/tmp/${AGENTS_FILE_VERSION} ]]; then
     fatal "failed to download agents setup script"
   else
-    echo "Downloaded file '/root/${AGENTS_FILE_VERSION}'"
+    echo "Downloaded file '/var/tmp/${AGENTS_FILE_VERSION}'"
   fi
 
   mkdir -p /opt/smartdc/agents/log
-  /usr/bin/bash /root/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
+  /usr/bin/bash /var/tmp/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
   result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
 
   if [[ "\$result" == "npm not ok" ]]; then
