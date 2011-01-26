@@ -13,11 +13,26 @@ function fatal
 	exit 1
 }
 
-mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
 
 if [[ ! -d $mnt ]]; then
 	mkdir $mnt || fatal "could not make $mnt"
 fi
+
+USBKEYS=`/usr/bin/disklist -a`
+for key in ${USBKEYS}; do
+    if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
+        /usr/sbin/mount -F pcfs -o foldcase /dev/dsk/${key}p0:1 ${usbmnt};
+        if [[ $? == "0" ]]; then
+            if [[ ! -f ${usbmnt}/.joyliveusb ]]; then
+                /usr/sbin/umount ${usbmnt};
+            else
+                break;
+            fi
+        fi
+    fi
+done
+
+mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
 
 if [[ ! -f $image ]]; then
 	fatal "could not find image file $image"
