@@ -340,8 +340,6 @@ setup_agents()
  
   if [[ ! -f /var/tmp/${AGENTS_FILE_VERSION} ]]; then
     fatal "failed to download agents setup script"
-  else
-    echo "Downloaded file '/var/tmp/${AGENTS_FILE_VERSION}'"
   fi
 
   mkdir -p /opt/smartdc/agents/log
