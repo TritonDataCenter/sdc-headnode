@@ -77,6 +77,4 @@ if [[ -z $(mount | grep "^/root") ]]; then
     mount -O -F lofs /opt/root /root
 fi
 
-(cd /; gtar -jxf ${ROOT_DIR}/disk_manip_tools.tar.bz2)
-
 exit 0
