@@ -6,8 +6,7 @@ mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
 cd mapi-repo
-git branch --track release-20101230 origin/release-20101230
-git checkout release-20101230
+git checkout -b develop origin/develop
 touch ../mapi-VERSION
 git describe --tags > ../mapi-VERSION
 

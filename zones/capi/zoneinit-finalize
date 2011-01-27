@@ -48,6 +48,14 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
+# Import postgres manifest straight from the pkgsrc file:
+if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
+  echo "Importing posgtresql service"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
+  /usr/sbin/svcadm enable -s postgresql
+  sleep 2
+fi
+
 # These happen to do not be created always:
 if [[ ! -e /opt/local/bin/ruby ]]; then
   echo "Symlinking ruby"
@@ -67,27 +75,12 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
-echo "$POSTGRES_HOST:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
-chown jill /opt/smartdc/.pgpass
-chmod 0600 /opt/smartdc/.pgpass
-
-# XXX - TODO... this is super hacky since we have a race condition with the mapi zone booting
-# and postgres not coming up by the time we've gotten to this psql fun
-TRIES=6
-while [[ $TRIES -gt 0 ]]; do
-    if ! su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES_HOST -c '\\l' 2>/dev/null"; then
-        sleep 10
-        echo "PSQL not available, sleeping for 10 seconds before retrying"
-        let "TRIES -= 1"
-    else
-        let "TRIES = 0"
-    fi
-done
-
 if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep capi) ]]; then
   echo "Creating capi database"
-  su - jill -c "/opt/local/bin/psql -U postgres -h $POSTGRES_HOST -c 'CREATE DATABASE capi WITH OWNER postgres'"
-
+  echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  chown jill /opt/smartdc/.pgpass
+  chmod 0600 /opt/smartdc/.pgpass
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST capi"
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
@@ -167,4 +160,3 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
-

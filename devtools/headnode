@@ -1,0 +1,160 @@
+#!/bin/bash
+
+set -e
+PATH=$PATH:/Library/Application\ Support/VMware\ Fusion/
+
+# should be in a .coalconfig file or something
+HOST='10.99.99.7'
+VM_PATH=$HOME/Documents/Virtual\ Machines.localized
+HEADNODE_VMX=$VM_PATH/USB-headnode.vmwarevm/USB-headnode.vmx
+USB_HEADNODE_PATH=$HOME/code/joyent/usb-headnode
+
+function movein {
+  ssh-keygen -R 'headnode.local'
+  ssh-keygen -R $HOST
+  cat ~/.ssh/id_rsa.pub | ssh root@$HOST  \
+    'if [ ! -d .ssh ] ; then \
+      mkdir .ssh; chmod 700 .ssh \
+    ;fi \
+    && cat - >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh/authorized_keys'
+
+  scopy ~/.bash_profile
+  scopy ~/.bashrc
+  scopy ~/.includes
+  scopy ~/.vimrc
+  scopy ~/.vim
+}
+
+function confirm() {
+  echo -n "$@ "
+  read -e answer
+  for response in y Y yes YES Yes Sure sure SURE OK ok Ok ; do
+    if [ "_$answer" == "_$response" ] ; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+function vm_stop {
+  if [ `vm_status` == "running" ] ; then
+    echo -n "Stopping headnode... "
+    vmrun stop "$HEADNODE_VMX" soft
+    echo "done"
+  else
+    echo "Already stopped."
+  fi
+}
+
+function vm_halt {
+  if [ `vm_status` == "running" ] ; then
+    echo -n "Halting headnode... "
+    vmrun stop "$HEADNODE_VMX" hard
+    echo "done"
+  else 
+    echo "Already stopped."
+  fi
+}
+
+function vm_suspend {
+  if [ `vm_status` == "running" ] ; then
+    echo -n "Suspending headnode... "
+    vmrun suspend "$HEADNODE_VMX"
+    echo "done"
+  else 
+    echo "Already stopped."
+  fi
+}
+
+function vm_start {
+  if [ `vm_status` == "stopped" ] ; then
+    echo -n "Starting headnode... "
+    vmrun start "$HEADNODE_VMX" gui
+    echo "done"
+  else 
+    echo "Already running."
+  fi
+}
+
+function vm_rootpass {
+  if [ -f "$VM_PATH/USB-headnode.vmwarevm/root.password" ] ; then
+    cat "$VM_PATH/USB-headnode.vmwarevm/root.password"
+  fi
+}
+
+function vm_status {
+  local result=`vmrun list | grep "$HEADNODE_VMX" | wc -l`
+  if [ $result == "1" ] ; then
+    echo "running"
+  else 
+    echo "stopped"
+  fi
+}
+
+function rebuild {
+  confirm Want to destroy your existing headnode?
+  if [ $? -eq 0 ] ; then
+    vm_halt
+    if [ -d $USB_HEADNODE_PATH ] ; then
+      cd $USB_HEADNODE_PATH
+      ./bin/build-image 
+      echo -n "Unpacking to $VM_PATH... "
+      ls -rt1 ./coal-147-develop-*.tgz | tail -n 1 | xargs tar -C "$VM_PATH" -xvf
+    fi
+  fi
+}
+
+function scopy {
+  if [ -e $1 ] ; then
+    echo "Copying $1..."
+    scp -q -r $1 root@$HOST:
+  else
+    echo "Skipping $1"
+  fi
+}
+
+set +e
+
+function printhelp {
+  echo "Usage: '`basename $0` <command>' where command is one of: "
+  echo "  start     starts the headnode"
+  echo "  stop      stops the headnode"
+  echo "  suspend   suspends the headnode"
+  echo "  status    prints status of the headnode (running or stopped)"
+  echo "  halt      forcefully halts the headnode"
+  echo "  movein    copies files into the headnode"
+  echo "  rootpass  prints the headnode root password"
+  echo "  rebuild   builds a new usb image and copies it over your VM_PATH"
+  echo ""
+}
+
+
+case "$1" in
+  movein)
+  movein
+  ;;
+  start)
+  vm_start
+  ;;
+  stop)
+  vm_stop
+  ;;
+  suspend)
+  vm_suspend
+  ;;
+  halt)
+  vm_halt
+  ;;
+  status)
+  vm_status
+  ;;
+  rebuild)
+  rebuild
+  ;;
+  rootpass)
+  vm_rootpass
+  ;;
+  *)
+  printhelp
+  ;;
+esac

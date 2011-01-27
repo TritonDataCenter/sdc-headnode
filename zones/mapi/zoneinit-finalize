@@ -82,10 +82,6 @@ http {
         server ${PRIVATE_IP}:8080;
     }
 
-    upstream aggregator {
-        server ${CA_PRIVATE_IP}:23182;
-    }
-
     upstream configsvc {
         server ${CA_PRIVATE_IP}:23181;
     }
@@ -107,24 +103,14 @@ http {
             break;
         }
 
-        location ~ /ca/(customers/.+/)?instrumentations/.+/value {
+        location ~ ^/ca(/.*)?$ {
             proxy_set_header  X-Real-IP  \$remote_addr;
             proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
             proxy_set_header Host \$http_host;
             proxy_redirect off;
 
-            proxy_pass http://aggregator;
+            proxy_pass http://configsvc;
             break;
-        }
-
-        location ~ /ca/(customers/.+/)?(metrics|instrumentations)(/\d+\/?)?$ {
-          proxy_set_header  X-Real-IP  \$remote_addr;
-          proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
-          proxy_set_header Host \$http_host;
-          proxy_redirect off;
-
-          proxy_pass http://configsvc;
-          break;
         }
 
         location /ur-scripts/ {
@@ -199,7 +185,7 @@ usermod -s /usr/bin/bash jill
 
 if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "$POSTGRES_USER:*:*:postgres:$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
   su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
@@ -349,24 +335,22 @@ fatal()
 
 setup_agents()
 {
-  cd /root/
+  cd /var/tmp
   /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
  
-  if [[ ! -f /root/${AGENTS_FILE_VERSION} ]]; then
+  if [[ ! -f /var/tmp/${AGENTS_FILE_VERSION} ]]; then
     fatal "failed to download agents setup script"
-  else
-    echo "Downloaded file '/root/${AGENTS_FILE_VERSION}'"
   fi
 
   mkdir -p /opt/smartdc/agents/log
-  /usr/bin/bash /root/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
+  /usr/bin/bash /var/tmp/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
   result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
 
   if [[ "\$result" == "npm not ok" ]]; then
     tail -n 10 /opt/smartdc/agents/log/install.log >&2
     exit 1
   else
-    tail -n 10 /opt/smartdc/agents/log/install.log
+    tail -n 10 /opt/smartdc/agents/log/install.log >&2
   fi
 }
 
@@ -374,6 +358,9 @@ setup_agents()
 if [[ ! -d /opt/smartdc/agents/bin ]]; then
   setup_agents
 fi
+
+# Return SmartDC services statuses on STDOUT:
+echo \$(svcs -a -o STATE,FMRI|grep smartdc)
 
 # Scripts to be executed by Ur need to explicitly return an exit status code:
 exit 0

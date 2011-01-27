@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
-image=`dirname $0`/../platform/i86pc/amd64/boot_archive
-tmp=/var/tmp/boot_archive.uncompressed.$$
+usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/joyent)"
+image="${usbmnt}/platform/i86pc/amd64/boot_archive"
 mnt=/image
 
 function fatal
@@ -13,20 +13,38 @@ function fatal
 	exit 1
 }
 
+
 if [[ ! -d $mnt ]]; then
 	mkdir $mnt || fatal "could not make $mnt"
 fi
+
+USBKEYS=`/usr/bin/disklist -a`
+for key in ${USBKEYS}; do
+    if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
+        /usr/sbin/mount -F pcfs -o foldcase /dev/dsk/${key}p0:1 ${usbmnt};
+        if [[ $? == "0" ]]; then
+            if [[ ! -f ${usbmnt}/.joyliveusb ]]; then
+                /usr/sbin/umount ${usbmnt};
+            else
+                break;
+            fi
+        fi
+    fi
+done
+
+mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
 
 if [[ ! -f $image ]]; then
 	fatal "could not find image file $image"
 fi
 
-echo -n "Uncompressing `basename $image` ... "
-gzip -c -d $image > $tmp || fatal "could not uncompress $image"
+echo -n "Mounting archive on $mnt ... "
+mount -F ufs $image $mnt || fatal "could not mount image $image"
+echo
+echo -n "Mounting archived usr on $mnt/usr ... "
+mount -F ufs -o ro $mnt/usr.lgz $mnt/usr || \
+    fatal "could not mount usr $mnt/usr.lgz"
+echo
 echo "done."
 
-echo -n "Mounting uncompressed archive on $mnt ... "
-mount -F ufs $tmp $mnt || fatal "could not mount uncompressed image $tmp"
-echo "done."
-
-echo "Image mounted; use umount-image to unmount"
+echo "Image mounted; use umount-image.sh to unmount"

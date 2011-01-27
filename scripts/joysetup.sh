@@ -9,6 +9,7 @@ export PATH
 ZPOOL=zones
 
 CONFDS=$ZPOOL/config
+COREDS=$ZPOOL/cores
 OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
@@ -118,6 +119,12 @@ setup_datasets()
         echo "done." >&2
     fi
 
+    echo -n "Creating global cores dataset... " >&2
+    zfs create -o quota=1g -o mountpoint=/zones/global/cores \
+	-o compression=gzip ${COREDS} || \
+	fatal "failed to create the cores dataset"
+    echo "done." >&2
+
     echo -n "Creating opt dataset... " >&2
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
@@ -128,7 +135,7 @@ setup_datasets()
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
     cd /var
-    if ( ! find . -print | cpio -pdm /${VARDS} ); then
+    if ( ! find . -print | cpio -pdm /${VARDS} 2>/dev/null ); then
         fatal "failed to initialize the var directory"
     fi
 
@@ -156,11 +163,18 @@ create_swap()
     echo "done." >&2
 }
 
+# We send info about the zpool when we have one, either because we created it or it already existed.
+output_zpool_info()
+{
+    zpool list -H -o name,guid,size,free,health
+}
+
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     create_swap
+    output_zpool_info
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
         #
@@ -170,6 +184,8 @@ if [[ ${POOLS} == "no pools available" ]]; then
         #
         exit 113
     fi
+else
+    output_zpool_info
 fi
 
 exit 0

@@ -84,10 +84,9 @@ else
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
 fi
 
-if ( grep "^default_gateway=" /etc/headnode.config ); then
-    default_gateway=`grep "^default_gateway=" /etc/headnode.config \
-      2>/dev/null | cut -f2 -d'='`
-fi
+# Load headnode.config variables with CONFIG_ prefix, ignoring comments,
+# spaces at the beginning of lines and lines that don't start with a letter.
+eval $(cat /etc/headnode.config | sed -e "s/^ *//" | grep -v "^#" | grep "^[a-zA-Z]" | sed -e "s/^/CONFIG_/")
 
 # Now the infrastructure zones
 
@@ -114,6 +113,11 @@ for zone in $ALLZONES; do
 
         src=${USB_COPY}/zones/${zone}
 
+        zone_public_ip=
+        zone_private_ip=
+        zone_public_netmask=
+        zone_private_netmask=
+
         if [[ -f "${src}/zoneconfig" ]]; then
             # We need to refigure this out each time because zoneconfig is gone on reboot
             zoneips=$(
@@ -123,30 +127,51 @@ for zone in $ALLZONES; do
             )
             zone_private_ip=${zoneips%%,*}
             zone_public_ip=${zoneips##*,}
+
+            zonemasks=$(
+                . ${USB_COPY}/config
+                echo "${admin_netmask},${external_netmask}"
+            )
+            zone_private_netmask=${zonemasks%%,*}
+            zone_public_netmask=${zonemasks##*,}
         fi
 
         zone_public_vlan=$(
             . ${USB_COPY}/config
             eval "echo \${${zone}_public_vlan}"
         )
+        [[ -n ${zone_public_vlan} ]] || zone_public_vlan=0
 
         zone_public_vlan_opts=
         if [[ -n "${zone_public_vlan}" ]] && [[ "${zone_public_vlan}" != "0" ]]; then
             zone_public_vlan_opts="-v ${zone_public_vlan}"
         fi
 
+        zfs_properties=""
         echo -n "creating zone ${zone}... " >>/dev/console
-        dladm show-phys -m -p -o link,address | \
+        zfs_properties=$(dladm show-phys -m -p -o link,address | \
           sed 's/:/\ /;s/\\//g' | while read iface mac; do
             if [[ ${mac} == ${admin_nic} ]]; then
                 dladm create-vnic -l ${iface} ${zone}0
+                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
+
+                # Add the zfs metadata so we know which network to attach this to on reboot
+                echo -n "smartdc.network:${zone}0.vlan_id=0 "
+                echo -n "smartdc.network:${zone}0.nic=admin "
+                [[ -n ${admin_vnic_mac} ]] && echo -n "smartdc.network:${zone}0.mac=${admin_vnic_mac} "
             fi
 
             # if we have a PUBLIC_IP too, we need a second NIC
             if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
                 dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
+                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
+
+                # Add the zfs metadata so we know which network to attach this to on reboot
+                echo -n "smartdc.network:${zone}1.vlan_id=${zone_public_vlan} "
+                echo -n "smartdc.network:${zone}1.nic=external "
+                [[ -n ${external_vnic_mac} ]] && echo -n "smartdc.network:${zone}1.mac=${external_vnic_mac} "
             fi
-        done
+        done)
 
         zonecfg -z ${zone} -f ${src}/config
 
@@ -174,6 +199,14 @@ for zone in $ALLZONES; do
            zonecfg -z ${zone} "add net; set physical=${zone}1; end"
         fi
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
+
+        # At this point we have a zfs filesystem so we can apply our properties
+        if [[ -n ${zfs_properties} ]]; then
+            for prop in ${zfs_properties}; do
+                zfs set "${prop}" zones/${zone}
+            done
+        fi
+
         (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
         chmod 0700 /zones/${zone}
@@ -219,11 +252,11 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        if [[ -n "${zone_private_ip}" ]]; then
-            echo ${zone_private_ip} > ${dest}/etc/hostname.${zone}0
+        if [[ -n "${zone_private_ip}" ]] && [[ -n ${zone_private_netmask} ]]; then
+            echo "${zone_private_ip} netmask ${zone_private_netmask}" > ${dest}/etc/hostname.${zone}0
         fi
-        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-            echo ${zone_public_ip} > ${dest}/etc/hostname.${zone}1
+        if [[ -n "${zone_public_ip}" ]] && [[ -n ${zone_public_netmask} ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+            echo "${zone_public_ip} netmask ${zone_public_netmask}" > ${dest}/etc/hostname.${zone}1
         fi
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
@@ -234,8 +267,14 @@ for zone in $ALLZONES; do
             cat ${src}/motd.append >> ${dest}/etc/motd
         fi
 
-        if [[ -n ${default_gateway} ]]; then
-            echo "${default_gateway}" > ${dest}/etc/defaultrouter
+        # If there's a public IP set and an external_gateway, use that, otherwise use
+        # admin_gateway if that's set.
+        if [[ -n "${zone_public_ip}" ]] \
+          && [[ -n ${CONFIG_external_gateway} ]] \
+          && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+            echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
+        elif [[ -n ${CONFIG_admin_gateway} ]]; then
+            echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
         fi
 
         # Create additional zone datasets when required:
