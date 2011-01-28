@@ -60,8 +60,8 @@ if [[ ${POOLS} == "no pools available" ]]; then
     do
         bzcat ${USB_PATH}/${template}.zfs.bz2 | zfs recv -e zones || exit 1;
     done
-
     echo "done." >>/dev/console
+
     reboot
     exit 2
 fi
@@ -345,6 +345,14 @@ if [ -n "${CREATEDZONES}" ]; then
         zlogin ${zone} reboot
         echo "done." >>/dev/console
     done
+
+    # We do this here because agents assume rabbitmq is up and by this point it
+    # should be.
+    if [[ ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
+        echo -n "Installing agents... " >>/dev/console
+        (cd /var/tmp ; bash ${USB_PATH}/ur-scripts/agents-*.sh)
+        echo "done." >>/dev/console
+    fi
 
     echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
     echo "" >>/dev/console
