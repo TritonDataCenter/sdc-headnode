@@ -203,7 +203,7 @@ function copy_agents
 {
     # Grab the latest agent ur-script too
     latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-        | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+        | grep "href=\"agents-20110127T214829Z" | cut -d'"' -f2 | sort | tail -n 1)
     if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
         echo "==> Downloading ${latest_agents}"
         (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
