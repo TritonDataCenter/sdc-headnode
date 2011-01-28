@@ -3,7 +3,7 @@
 # Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
-usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/joyent)"
+usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 image="${usbmnt}/platform/i86pc/amd64/boot_archive"
 mnt=/image
 

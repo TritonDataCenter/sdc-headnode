@@ -145,8 +145,8 @@ setup_datasets()
 
 create_swap()
 {
-    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
-    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
+    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
+    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
     swapsize=2g
 
