@@ -6,8 +6,8 @@ mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
 cd adminui-repo
-git branch --track develop origin/develop
-git checkout develop
+git branch --track master origin/master
+git checkout master
 touch ../adminui-VERSION
 git describe --tags > ../adminui-VERSION
 

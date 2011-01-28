@@ -177,7 +177,7 @@ function copy_platform
 {
     if [ -z $PLATFORM_FILE ]; then
         latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-            | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+            | grep "href=\"platform-20110127T223101Z" | cut -d'"' -f2 | sort | tail -n 1)
         if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
             echo "==> Downloading ${latest_image}"
             (cd ${ROOT}/cache && \
