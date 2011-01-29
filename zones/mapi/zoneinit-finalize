@@ -201,7 +201,7 @@ if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
       AMQP_PASSWORD='guest' \
       AMQP_HOST='${RABBITMQ_PRIVATE_IP}' \
       QUEUE_SYSTEM='AmqpQueueSystem' \
-      EMAIL_PREFIX='[MCP API ${host}' \
+      EMAIL_PREFIX='[MCP API ${host}]' \
       MAC_PREFIX='${MAPI_MAC_PREFIX}' \
       /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile"
 fi
