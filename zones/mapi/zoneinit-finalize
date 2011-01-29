@@ -192,19 +192,24 @@ if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
-  echo "Creating MCP API config files."
-  su - jill -c "cd /opt/smartdc/mapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile"
+  echo "Generating MAPI config files."
+  host=`hostname`
+  su - jill -c "cd /opt/smartdc/mapi; \
+      SENDMAIL_TO='jill@$host' \
+      SENDMAIL_FROM='jill@$host' \
+      AMQP_USER='guest' \
+      AMQP_PASSWORD='guest' \
+      AMQP_HOST='${RABBITMQ_PRIVATE_IP}' \
+      QUEUE_SYSTEM='AmqpQueueSystem' \
+      EMAIL_PREFIX='[MCP API ${host}' \
+      MAC_PREFIX='${MAPI_MAC_PREFIX}' \
+      /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile"
 fi
-sleep 1
 
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
 if [[ ! -e /opt/smartdc/mapi/config/config.ru ]]; then
   cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
-fi
-
-if [[ ! -e /opt/smartdc/mapi/config/config.yml ]]; then
-  cp /opt/smartdc/mapi/config/config.yml.sample /opt/smartdc/mapi/config/config.yml
 fi
 
 if [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
@@ -237,19 +242,6 @@ if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
   :encoding: UTF-8
 
 MAPI_DB
-fi
-
-if [[ -z $(cat /opt/smartdc/mapi/config/config.yml | grep Amqp) ]]; then
-  echo "Updating MCP API Config file."
-  host=`hostname`
-  /opt/local/bin/gsed -i"" -e "s/:queue_system: JobdQueueSystem/:queue_system: AmqpQueueSystem/" \
-  -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
-  -e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
-  -e "s/:user: guest/:user: guest/" \
-  -e "s/:password: guest/:password: guest/" \
-  -e "s/'mq1-dev.joyent.us'/${RABBITMQ_PRIVATE_IP}/" \
-  -e "s/MCP API Production/MCP API $host/" \
-  /opt/smartdc/mapi/config/config.yml
 fi
 
 if [[ ! -e /opt/smartdc/mapi/tmp/pids ]]; then
@@ -377,7 +369,7 @@ chmod 0555 /home
 ## Setup and call the verify script
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production ADMIN_UUID=$CAPI_ADMIN_UUID DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 

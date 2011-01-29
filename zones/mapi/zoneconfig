@@ -11,7 +11,7 @@ POSTGRES_HOST=localhost
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
 
-CAPI_ADMIN_UUID="${capi_admin_uuid}"
+MAPI_MAC_PREFIX="$(mapi_mac_prefix)"
 RABBITMQ_PRIVATE_IP=${rabbitmq_private_ip}
 ADMIN_NETWORK=${admin_network}
 ADMIN_BITCOUNT=${admin_bitcount}
