@@ -191,20 +191,20 @@ if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
 fi
 
-if [[ ! -e /opt/smartdc/mapi/config/database.yml ]]; then
-  echo "Generating MAPI config files."
-  host=`hostname`
-  su - jill -c "cd /opt/smartdc/mapi; \
-      SENDMAIL_TO='jill@$host' \
-      SENDMAIL_FROM='jill@$host' \
-      AMQP_USER='guest' \
-      AMQP_PASSWORD='guest' \
-      AMQP_HOST='${RABBITMQ_PRIVATE_IP}' \
-      QUEUE_SYSTEM='AmqpQueueSystem' \
-      EMAIL_PREFIX='[MCP API ${host}]' \
-      MAC_PREFIX='${MAPI_MAC_PREFIX}' \
-      /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile"
-fi
+echo "Generating MAPI config files."
+host=`hostname`
+(cd /opt/smartdc/mapi && \
+  SENDMAIL_TO="jill@$host" \
+  SENDMAIL_FROM="jill@$host" \
+  AMQP_USER="guest" \
+  AMQP_PASSWORD="guest" \
+  AMQP_HOST="${RABBITMQ_PRIVATE_IP}" \
+  QUEUE_SYSTEM="AmqpQueueSystem" \
+  EMAIL_PREFIX="[MCP API $host]" \
+  MAC_PREFIX="${MAPI_MAC_PREFIX}" \
+  /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile && \
+  sleep 1 && \
+  chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
