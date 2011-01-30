@@ -54,6 +54,7 @@ mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50
 mapi_max_lwps=1000
+mapi_mac_prefix=f005b41
 mapi_memory_cap=256m
 mapi_http_port=8080
 mapi_http_admin_user=admin
