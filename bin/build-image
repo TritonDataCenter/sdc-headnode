@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
 #
@@ -11,6 +11,7 @@
 # "pipefail" (a very useful option introduced to bash as of version 3 that
 # propagates any non-zero exit values in a pipeline).
 #
+
 set -o errexit
 set -o pipefail
 
@@ -26,7 +27,24 @@ function errexit
     fatal "error exit status $1 at line $2"
 }
 
+function can_has_internets
+{
+    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 trap 'errexit $? $LINENO' EXIT
+
+echo -n "==> Checking for Internets... "
+if ! can_has_internets; then
+    echo "No Internets! Activating countermeasures!"
+    HAVE_INTERNET="false"
+else
+    echo "Yep!"
+    HAVE_INTERNET="true"
+fi
 
 ROOT=$(cd $(dirname $0)/../; pwd)
 STAGE="${ROOT}/cache/stage"
@@ -58,8 +76,7 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             version
             ;;
         *)
-            echo "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
-            exit 1
+            fatal  "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
             ;;
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
@@ -73,19 +90,16 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
             exit 0
             ;;
         *)
-            echo "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
-            exit 1
+            fatal "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
             ;;
     esac
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
-            echo "FATAL: SmartOS not yet supported for USB key generation"
-            exit 1
+            fatal "FATAL: SmartOS not yet supported for USB key generation"
             ;;
         *)
-            echo "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
-            exit 1
+            fatal "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
             ;;
     esac
 else
@@ -96,8 +110,7 @@ function test_rootperms
 {
     su_uid=$(${SUCMD} id -u)
     if [[ ${su_uid} -ne 0 ]]; then
-        echo "FATAL: can't get root priviledges"
-        exit 1
+        fatal "Can't get root priviledges."
     fi
 }
 
@@ -157,38 +170,82 @@ function copy_base
 
 function copy_pkgsrc
 {
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        (cd ${ROOT}/cache && rm -f md5sums.txt && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt)
+    elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
+        fatal "Don't have cached md5sums.txt file, can't build. You need to find some Internet."
+    fi
     pkgs=$(cat ${ROOT}/zones/*/pkgsrc | xargs -n1 | sort | uniq | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
+        MD5=$(grep " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
+        if [[ -z ${MD5} ]]; then
+            fatal "Unable to find md5sum for ${pkgfile}, must be fixed before we can continue."
+        fi
+        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
+        if [[ ! -f ${ROOT}/cache/${pkgfile} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
             echo "==> Downloading ${pkgfile}"
-            CURL_OPTS=
-            [[ -f ${ROOT}/cache/${pkgfile} ]] && \
-                CURL_OPTS="-z ${ROOT}/cache/${pkgfile}"
-
-            (cd ${ROOT}/cache && curl --progress-bar \
-                -k ${CURL_OPTS} -fO ${PKGSRC_ROOT}/${pkgfile}) || \
-                fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
+            # if this exists, it's corrupt
+            rm -f ${ROOT}/cache/${pkgfile}
+            if [[ ${HAVE_INTERNET} == "true" ]]; then
+                (cd ${ROOT}/cache && curl --progress-bar \
+                    -k -fO ${PKGSRC_ROOT}/${pkgfile}) || \
+                    fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
+            else
+                fatal "Need Internet to download ${pkgfile}"
+            fi
+        else
+            echo "==> Not downloading ${pkgfile} as existing file matches MD5"
+        fi
     done
 
     echo "==> Creating pkgsrc.tar"
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
+function valid_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && tar -tf cache/${latest_image} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function copy_platform
 {
+    valid_platform="false"
     if [ -z $PLATFORM_FILE ]; then
-        latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-            | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
-        if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
-            echo "==> Downloading ${latest_image}"
-            (cd ${ROOT}/cache && \
-              curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+
+            if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
+                echo "==> Downloading ${latest_image}"
+                (cd ${ROOT}/cache && \
+                  curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+            fi
+        else
+            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head)
+            if [[ -z ${latest_image} ]]; then
+                fatal "Unable to find a platform image and we have no Internet."
+            fi
         fi
 
-        # TODO: also check md5sum before using!
         image=${ROOT}/cache/${latest_image}
+        if [[ -f ${image} ]] && ! valid_archive ${image}; then
+            echo "Removing corrupt ${image}"
+            rm -f ${image}
+            image=
+            # unset image and try again
+            copy_platform
+        fi
     else
-        image=$PLATFORM_FILE
+        image=${PLATFORM_FILE}
         echo "==> Using ${image} as platform image"
+        if ! valid_archive "${image}"; then
+            fatal "Refusing to use corrupt platform ${image}"
+        fi
     fi
 
     echo "==> Unpacking `basename ${image}`"
@@ -202,11 +259,18 @@ function copy_platform
 function copy_agents
 {
     # Grab the latest agent ur-script too
-    latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-        | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
-    if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
-        echo "==> Downloading ${latest_agents}"
-        (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+            | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+        if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
+            echo "==> Downloading ${latest_agents}"
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+        fi
+    else
+        latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
+        if [[ -z ${latest_agents} ]]; then
+            fatal "Unable to find agents and we have no Internet."
+        fi
     fi
     mkdir -p ${STAGE}/ur-scripts
     cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
@@ -215,24 +279,31 @@ function copy_agents
 function copy_datasets
 {
     datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
-
     for dataset in ${datasets[@]}
     do
-        dataset_file="${dataset}.zfs.gz"
-        basename=$(echo ${dataset} | cut -d'-' -f1)
-        echo "==> Downloading ${dataset_file}"
-        CURL_OPTS=
-        [[ -f ${ROOT}/cache/${dataset_file} ]] && CURL_OPTS="-z ${ROOT}/cache/${dataset_file}"
-        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${dataset_file})
-        md5=$(${MD5CMD} ${ROOT}/cache/${dataset_file} | cut -d' ' -f1)
+        dataset_file="${dataset}.zfs.bz2"
+        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+            echo "==> Corrupt ${dataset_file}, deleting..."
+            rm -f ${ROOT}/cache/${dataset_file}
+        fi
+        basename=$(echo ${dataset_file} | cut -d'-' -f1)
 
-        if [[ ! -f ${ROOT}/cache/${dataset}.${md5}.bz2 ]]; then
-            echo "==> Repacking ${dataset_file}"
-            ${GZCAT} ${ROOT}/cache/${dataset_file} | bzip2 -9 > "${ROOT}/cache/${dataset}.${md5}.bz2"
+        if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+            if [[ ${HAVE_INTERNET} == "true" ]]; then
+                echo "==> Downloading ${dataset_file}"
+                (cd ${ROOT}/cache && curl --progress-bar -k -O ${ASSETS_ROOT}/${dataset_file})
+            else
+                fatal "Don't have Internet, and don't have valid ${dataset_file}. Can't build."
+            fi
         fi
 
-        echo "==> Copying ${dataset}.zfs.bz2"
-        cp ${ROOT}/cache/${dataset}.${md5}.bz2 ${STAGE}/${basename}.zfs.bz2
+        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+            rm -f ${ROOT}/cache/${dataset_file}
+            fatal "Corrupt ${dataset_file}, deleted! Try build again."
+        fi
+
+        echo "==> Copying ${basename}.zfs.bz2"
+        cp ${ROOT}/cache/${dataset_file} ${STAGE}/${basename}.zfs.bz2
     done
 }
 
@@ -292,11 +363,20 @@ function copy_zones
 
         file=${uri##*/}
 
-        echo "==> Downloading ${file}"
-        CURL_OPTS=
-        [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
-        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
-            fatal "could not download $uri for $zone"
+        if ! bzip2 -t ${ROOT}/cache/${file}; then
+            echo "Corrupt ${file}, deleting..."
+            rm -f ${ROOT}/cache/${file}
+        fi
+
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            echo "==> Updating ${file}"
+            CURL_OPTS=
+            [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
+            (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
+                fatal "could not download $uri for $zone"
+        elif [[ ! -f ${ROOT}/cache/${file} ]]; then
+            fatal "Don't have Internet and don't have ${file}. Can't build."
+        fi
 
         mkdir -p ${STAGE}/zones/${zone}
         cp ${ROOT}/cache/${file} ${STAGE}/zones/${zone}/fs.tar.bz2
@@ -351,8 +431,7 @@ cleanup
 create_output
 
 if [ ${ERROR} -ne 0 ]; then
-    echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
-    exit 1
+    fatal "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
 fi
 
 echo "==> DONE"
