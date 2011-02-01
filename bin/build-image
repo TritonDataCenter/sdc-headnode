@@ -205,7 +205,7 @@ function copy_pkgsrc
 function valid_archive
 {
     filename=$1
-    if [[ -f ${filename} ]] && tar -tf cache/${latest_image} > /dev/null; then
+    if [[ -f ${filename} ]] && tar -tf ${filename} > /dev/null; then
         return 0
     else
         return 1
