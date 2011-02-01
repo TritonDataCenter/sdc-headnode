@@ -85,7 +85,7 @@ http {
     upstream configsvc {
         server ${CA_PRIVATE_IP}:23181;
     }
-    
+
     server {
         listen       ${PRIVATE_IP}:80;
         server_name  localhost;
@@ -329,7 +329,7 @@ setup_agents()
 {
   cd /var/tmp
   /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
- 
+
   if [[ ! -f /var/tmp/${AGENTS_FILE_VERSION} ]]; then
     fatal "failed to download agents setup script"
   fi
@@ -370,6 +370,5 @@ chmod 0555 /home
 echo "postgres" > /tmp/pgpasswd
 (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
 (cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
-grep "Customer URL for zones creation" /tmp/fake_data.output | sed -e "s/^.*POST //" | sed -e "s/'$//" > /root/customer.url
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 

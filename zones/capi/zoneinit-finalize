@@ -160,3 +160,6 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+echo "Writing customer.url file to /root/customer.url"
+echo "/customers/${CAPI_ADMIN_UUID}/containers" > /root/customer.url
