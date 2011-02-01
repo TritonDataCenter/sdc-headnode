@@ -59,6 +59,7 @@ mapi_memory_cap=256m
 mapi_http_port=8080
 mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
+mapi_datasets="bare-1.2.8,protemplate-2.5.2,nodejs-0.4.0"
 
 ca_private_ip=10.99.99.9
 ca_root_pw=joypass123
