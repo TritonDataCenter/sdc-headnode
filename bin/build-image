@@ -181,7 +181,7 @@ function copy_pkgsrc
         if [[ -z ${MD5} ]]; then
             fatal "Unable to find md5sum for ${pkgfile}, must be fixed before we can continue."
         fi
-        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
+        [[ -f ${ROOT}/cache/${pkgfile} ]] && ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
         if [[ ! -f ${ROOT}/cache/${pkgfile} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
             echo "==> Downloading ${pkgfile}"
             # if this exists, it's corrupt
