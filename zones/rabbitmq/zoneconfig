@@ -6,4 +6,5 @@ PRIVATE_IP=${rabbitmq_private_ip}
 PUBLIC_IP=${rabbitmq_private_ip}
 ROOT_PW=${rabbitmq_root_pw}
 ADMIN_PW=${rabbitmq_admin_pw}
+RABBITMQ=${rabbitmq}
 TMPFS=512m

@@ -13,6 +13,7 @@ POSTGRES_PW=postgres
 
 MAPI_MAC_PREFIX="${mapi_mac_prefix}"
 RABBITMQ_PRIVATE_IP=${rabbitmq_private_ip}
+RABBITMQ=${rabbitmq}
 ADMIN_NETWORK=${admin_network}
 ADMIN_BITCOUNT=${admin_bitcount}
 ADMIN_GATEWAY=${admin_gateway}
