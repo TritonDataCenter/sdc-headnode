@@ -27,24 +27,7 @@ function errexit
     fatal "error exit status $1 at line $2"
 }
 
-function can_has_internets
-{
-    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
-        return 0
-    fi
-    return 1
-}
-
 trap 'errexit $? $LINENO' EXIT
-
-echo -n "==> Checking for Internets... "
-if ! can_has_internets; then
-    echo "No Internets! Activating countermeasures!"
-    HAVE_INTERNET="false"
-else
-    echo "Yep!"
-    HAVE_INTERNET="true"
-fi
 
 ROOT=$(cd $(dirname $0)/../; pwd)
 STAGE="${ROOT}/cache/stage"
@@ -104,6 +87,15 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
     esac
 else
     echo "FATAL: Unsupported platform '${PLATFORM}'"
+fi
+
+echo -n "==> Checking for Internets... "
+if ! can_has_internets; then
+    echo "No Internets! Activating countermeasures!"
+    HAVE_INTERNET="false"
+else
+    echo "Yep!"
+    HAVE_INTERNET="true"
 fi
 
 function test_rootperms

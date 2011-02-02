@@ -10,6 +10,14 @@ GZCAT="zcat"
 TAR_ROOT="--owner=root --group=root"
 IMG_TYPE="coal" # if we're VMWare we're COAL
 
+function can_has_internets
+{
+    if ping -c 1 8.8.8.8 >/dev/null 2>&1 || ping -c 1 4.2.2.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 function version
 {
     echo "==> Building with variables from include-linux-vmware"

@@ -10,6 +10,14 @@ GZCAT=gzcat
 IMG_TYPE="coal" # if we're VMWare we're COAL
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
+function can_has_internets
+{
+    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 function version
 {
     echo "==> Building with variables from include-osx-vmware"
