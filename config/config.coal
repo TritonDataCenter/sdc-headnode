@@ -6,7 +6,7 @@
 coal=true
 swap=4g
 
-# admin_nic is the nic private_ip will be connected to for headnode zones.
+# admin_nic is the nic admin_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7
 admin_netmask=255.255.255.0
@@ -15,7 +15,7 @@ admin_gateway=10.99.99.7
 # adding bit_count to save calculations
 admin_bitcount=24
 
-# external_nic is the nic public_ip will be connected to for headnode zones.
+# external_nic is the nic external_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
 # external_ip can be set to an IP or 'dhcp'
 external_ip=10.88.88.200
@@ -43,23 +43,23 @@ rabbitmq=guest:guest:10.99.99.5:5672
 
 # Zone-specific configs
 
-dhcpd_private_ip=10.99.99.4
+dhcpd_admin_ip=10.99.99.4
 dhcpd_root_pw=joypass123
 dhcpd_admin_pw=joypass123
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
 dhcpd_memory_cap=128m
 
-rabbitmq_private_ip=10.99.99.5
+rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=128m
 
-mapi_private_ip=10.99.99.8
-# mapi_public_ip=10.88.88.8
-# mapi_public_vlan=0
+mapi_admin_ip=10.99.99.8
+# mapi_external_ip=10.88.88.8
+# mapi_external_vlan=0
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50
@@ -71,22 +71,22 @@ mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
 mapi_datasets="bare-1.2.8,protemplate-2.5.2,nodejs-0.4.0"
 
-ca_private_ip=10.99.99.9
-ca_public_ip=10.88.88.9
-# ca_public_vlan=0
+ca_admin_ip=10.99.99.9
+ca_external_ip=10.88.88.9
+# ca_external_vlan=0
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
-adminui_private_ip=10.99.99.10
-# adminui_public_ip=10.88.88.10
-# adminui_public_vlan=0
+adminui_admin_ip=10.99.99.10
+# adminui_external_ip=10.88.88.10
+# adminui_external_vlan=0
 adminui_root_pw=joypass123
 adminui_admin_pw=joypass123
 adminui_cpu_shares=50
 adminui_max_lwps=1000
 adminui_memory_cap=128m
 
-capi_private_ip=10.99.99.11
+capi_admin_ip=10.99.99.11
 capi_root_pw=joypass123
 capi_admin_login=admin
 capi_admin_pw=joypass123
@@ -96,22 +96,22 @@ capi_cpu_shares=50
 capi_max_lwps=1000
 capi_memory_cap=128m
 
-atropos_private_ip=10.99.99.12
+atropos_admin_ip=10.99.99.12
 atropos_root_pw=joypass123
 atropos_admin_pw=joypass123
 
-pubapi_private_ip=10.99.99.13
-# pubapi_public_ip=10.88.88.13
-# pubapi_public_vlan=0
+pubapi_admin_ip=10.99.99.13
+# pubapi_external_ip=10.88.88.13
+# pubapi_external_vlan=0
 pubapi_root_pw=joypass123
 pubapi_admin_pw=joypass123
 pubapi_cpu_shares=50
 pubapi_max_lwps=1000
 pubapi_memory_cap=128m
 
-portal_private_ip=10.99.99.14
-# portal_public_ip=10.88.88.14
-# portal_public_vlan=0
+portal_admin_ip=10.99.99.14
+# portal_external_ip=10.88.88.14
+# portal_external_vlan=0
 portal_root_pw=joypass123
 portal_admin_pw=joypass123
 portal_cpu_shares=50
