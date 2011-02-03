@@ -38,16 +38,6 @@ cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
 </service_bundle>
 SMF
 
-if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
-  echo "Importing '${app_name}-update' service"
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml)
-fi
-
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
-  echo "Enabling '${app_name}-update' service"
-  $(/usr/sbin/svcadm enable -s ${app_name}-update)
-fi
-
 # Since we need to access the postgres server from other zones, we need to add configuration
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
 echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
@@ -183,13 +173,7 @@ echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
 usermod -P 'Service Management' jill
 usermod -s /usr/bin/bash jill
 
-if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
-  echo "Creating mapi database"
-  echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /opt/smartdc/.pgpass
-  chown jill /opt/smartdc/.pgpass
-  chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST mapi"
-fi
+
 
 echo "Generating MAPI config files."
 host=`hostname`
@@ -274,35 +258,7 @@ if [[ ! -e /opt/smartdc/mapi/config/ur.smf ]]; then
   chown jill:jill /opt/smartdc/mapi/config/ur.smf
 fi
 
-echo "Auto Upgrading MCP API Database."
-su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
-sleep 1
 
-if [[ -z $(/usr/bin/svcs -a|grep mcp_api) ]]; then
-  echo "Importing MCP API Unicorn Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/unicorn.smf
-  sleep 1
-fi
-
-if [[ -z $(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
-  echo "Importing MCP API Provisioner Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/provisioner.smf
-fi
-
-if [[ -z $(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
-  echo "Importing MAPI Ur Agent Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur.smf
-fi
-
-# if [[ -z $(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
-#   echo "Importing MCP API Dataset List Client Manifest"
-#   /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
-# fi
-
-if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-  echo "Importing MCP API Heartbeater Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
-fi
 
 # Generate the agents setup script:
 
@@ -361,6 +317,112 @@ exit 0
 
 AGENTS
 
+echo "Creating $app_name-setup service"
+
+cat >"/opt/local/share/smf/manifest/$app_name-setup.xml" <<SETUP_SMF
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<service_bundle type='manifest' name='export'>
+  <service name='platform/smartdc/${app_name}-setup' type='service' version='0'>
+    <create_default_instance enabled='true'/>
+    <single_instance/>
+    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/system/filesystem/local'/>
+    </dependency>
+    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='60'>
+      <method_context>
+        <method_credential user='root' group='root'/>
+      </method_context>
+    </exec_method>
+    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
+    <property_group name='application' type='application'/>
+    <property_group name='startd' type='framework'>
+      <propval name='duration' type='astring' value='transient'/>
+    </property_group>
+    <stability value='Evolving'/>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>SmartDC Setup service ($app_name)</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+SETUP_SMF
+
+cat > "/opt/smartdc/$app_name-data/$app_name-setup-service.sh" <<SETUP_SERVICE
+
+#!/usr/bin/bash
+
+POSTGRES_HOST='$POSTGRES_HOST'
+POSTGRES_USER='$POSTGRES_USER'
+POSTGRES_PW='$POSTGRES_PW'
+
+
+if [[ -z \$(psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
+  echo "Creating mapi database"
+  echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  chown jill /opt/smartdc/.pgpass
+  chmod 0600 /opt/smartdc/.pgpass
+  su - jill -c "/opt/local/bin/createdb -U postgres -h \$POSTGRES_HOST mapi"
+fi
+
+echo "Auto Upgrading MCP API Database."
+su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
+sleep 1
+
+if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
+  echo "Importing MCP API Unicorn Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/unicorn.smf
+  sleep 1
+fi
+
+if [[ -z \$(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
+  echo "Importing MCP API Provisioner Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/provisioner.smf
+fi
+
+if [[ -z \$(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
+  echo "Importing MAPI Ur Agent Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur.smf
+fi
+
+# if [[ -z \$(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
+#   echo "Importing MCP API Dataset List Client Manifest"
+#   /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
+# fi
+
+if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+  echo "Importing MCP API Heartbeater Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
+fi
+
+if [[ ! \$(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
+  echo "Importing '${app_name}-update' service"
+  \$(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml)
+fi
+
+if [[  "\$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
+  echo "Enabling '${app_name}-update' service"
+  \$(/usr/sbin/svcadm enable -s ${app_name}-update)
+fi
+
+## Setup and call the verify script
+echo "$POSTGRES_PW" > /tmp/pgpasswd
+
+# (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="$DATASETS" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+rm -f /tmp/fake_data.output /tmp/pgpasswd
+
+# Remove the service, we don't wanna run it again (maybe also delete the script?)
+echo "Deleting '${app_name}-setup' service"
+/usr/sbin/svccfg delete "platform/smartdc/${app_name}-setup"
+
+exit 0
+
+SETUP_SERVICE
+
+chmod +x "/opt/smartdc/$app_name-data/$app_name-setup-service.sh"
+
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
 
@@ -368,9 +430,13 @@ chown -R jill:jill /opt/smartdc
 chown root:root /home
 chmod 0555 /home
 
-## Setup and call the verify script
-echo "postgres" > /tmp/pgpasswd
-(cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START=$DHCP_RANGE_START ADMIN_NETWORK=$ADMIN_NETWORK ADMIN_BITCOUNT=$ADMIN_BITCOUNT ADMIN_GATEWAY=$ADMIN_GATEWAY ADMIN_IP=$ADMIN_IP DATASETS=$DATASETS rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
-rm -f /tmp/fake_data.output /tmp/pgpasswd
+if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-setup) ]]; then
+  echo "Importing '${app_name}-setup' service"
+  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-setup.xml)
+fi
+
+if [[  "$(/usr/bin/svcs -Ho state ${app_name}-setup)" != "online"  ]]; then
+  echo "Enabling '${app_name}-setup' service"
+  $(/usr/sbin/svcadm enable -s ${app_name}-setup)
+fi
 
