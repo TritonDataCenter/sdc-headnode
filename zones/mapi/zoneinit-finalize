@@ -317,6 +317,28 @@ exit 0
 
 AGENTS
 
+
+
+# Generate the reboot server script:
+
+echo "Generating reboot server file at '/opt/smartdc/mapi-data/reboot_server.sh'"
+
+cat > /opt/smartdc/mapi-data/reboot_server.sh <<REBOOT
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+# Scripts to be executed by Ur need to explicitly return an exit status code.
+exit 113
+
+REBOOT
+
+
+
 echo "Creating $app_name-setup service"
 
 cat >"/opt/local/share/smf/manifest/$app_name-setup.xml" <<SETUP_SMF
