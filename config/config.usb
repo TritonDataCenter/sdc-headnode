@@ -18,7 +18,7 @@ admin_bitcount=24
 external_nic=00:50:56:3d:a7:95
 external_gateway=10.88.88.7
 external_ip=10.88.88.200
-external_netmask=255.255.255
+external_netmask=255.255.255.0
 
 #external_vlan_id=999
 
