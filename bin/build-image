@@ -206,6 +206,10 @@ function valid_archive
 
 function copy_platform
 {
+    [[ -z "${loops}" ]] && loops=0
+    ((loops++))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
+
     valid_platform="false"
     if [ -z $PLATFORM_FILE ]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
@@ -246,17 +250,24 @@ function copy_platform
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
     LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+
+    loops=
 }
 
 function copy_agents
 {
+    [[ -z "${loops}" ]] && loops=0
+    ((loops++))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
+
     # Grab the latest agent ur-script too
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
             | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
-        if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
+        if [[ ! -f "${ROOT}/cache/${latest_agents}" ]] || [[ ! -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
             echo "==> Downloading ${latest_agents}"
             (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/`basename ${latest_agents} .sh`.md5sum)
         fi
     else
         latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
@@ -265,7 +276,24 @@ function copy_agents
         fi
     fi
     mkdir -p ${STAGE}/ur-scripts
-    cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+
+    if [[ -n "${latest_agents}" ]] && [[ -f "${ROOT}/cache/${latest_agents}" ]] && [[ -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
+        # Check the md5sum
+        MD5=$(cat ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum)
+        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${latest_agents} | cut -d' ' -f1)
+
+        if [[ -z ${MD5} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+            echo "Removing corrupt ${latest_agents}"
+            rm -f ${ROOT}/cache/${latest_agents} ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum
+            latest_agents=
+            copy_agents
+        fi
+
+        echo "==> Copying ${latest_agents}"
+        cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+    fi
+
+    loops=
 }
 
 function copy_datasets
