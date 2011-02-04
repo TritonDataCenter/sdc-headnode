@@ -372,15 +372,15 @@ cat >"/opt/local/share/smf/manifest/$app_name-setup.xml" <<SETUP_SMF
 SETUP_SMF
 
 cat > "/opt/smartdc/$app_name-data/$app_name-setup-service.sh" <<SETUP_SERVICE
-
 #!/usr/bin/bash
 
 POSTGRES_HOST='$POSTGRES_HOST'
 POSTGRES_USER='$POSTGRES_USER'
 POSTGRES_PW='$POSTGRES_PW'
 
+PGPASSFILE=/opt/smartdc/.pgpass
 
-if [[ -z \$(psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
+if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
   echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
