@@ -341,7 +341,7 @@ REBOOT
 
 echo "Creating $app_name-setup service"
 
-cat >"/opt/local/share/smf/manifest/$app_name-setup.xml" <<SETUP_SMF
+cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
 <service_bundle type='manifest' name='export'>
@@ -350,6 +350,9 @@ cat >"/opt/local/share/smf/manifest/$app_name-setup.xml" <<SETUP_SMF
     <single_instance/>
     <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
       <service_fmri value='svc:/system/filesystem/local'/>
+    </dependency>
+    <dependency name='postgres' grouping='require_all' restart_on='none' type='service'>
+      <service_fmri value='svc:/network/postgresql:pg90'/>
     </dependency>
     <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='60'>
       <method_context>
@@ -439,6 +442,9 @@ rm -f /tmp/fake_data.output /tmp/pgpasswd
 echo "Deleting '${app_name}-setup' service"
 /usr/sbin/svccfg delete "platform/smartdc/${app_name}-setup"
 
+# Ensure we remove the setup service manifest from this zones core boot manifests
+rm /lib/svc/manifest/site/${app_name}-setup.xml
+
 exit 0
 
 SETUP_SERVICE
@@ -451,14 +457,4 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
-
-if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-setup) ]]; then
-  echo "Importing '${app_name}-setup' service"
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-setup.xml)
-fi
-
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-setup)" != "online"  ]]; then
-  echo "Enabling '${app_name}-setup' service"
-  $(/usr/sbin/svcadm enable -s ${app_name}-setup)
-fi
 
