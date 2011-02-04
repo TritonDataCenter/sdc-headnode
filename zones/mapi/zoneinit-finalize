@@ -387,6 +387,20 @@ POSTGRES_PW='$POSTGRES_PW'
 
 PGPASSFILE=/opt/smartdc/.pgpass
 
+# Given PostgreSQL will be into a separated zone, we cannot rely into SMF
+# to test DB availability. Need to ping the DB and proceed once we've
+# verified we can stablish a connection:
+
+RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/mapi/script/psql-test-connect.rb
+
+if [[ \$? -ne 0 ]]; then
+  echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
+  exit 1
+else
+  echo "Verified PostgreSQL availability, moving forward."
+fi
+
+
 if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
   echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass

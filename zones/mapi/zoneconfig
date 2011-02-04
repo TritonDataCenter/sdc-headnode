@@ -21,3 +21,6 @@ ADMIN_IP=${admin_ip}
 DHCP_RANGE_START=${dhcp_range_start}
 CA_PRIVATE_IP=${ca_admin_ip}
 DATASETS=${mapi_datasets}
+
+DBCONN_RETRY_AFTER=${dbconn_retry_after}
+DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}
