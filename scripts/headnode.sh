@@ -113,10 +113,10 @@ for zone in $ALLZONES; do
 
         src=${USB_COPY}/zones/${zone}
 
-        zone_public_ip=
-        zone_private_ip=
-        zone_public_netmask=
-        zone_private_netmask=
+        zone_external_ip=
+        zone_admin_ip=
+        zone_external_netmask=
+        zone_admin_netmask=
 
         if [[ -f "${src}/zoneconfig" ]]; then
             # We need to refigure this out each time because zoneconfig is gone on reboot
@@ -125,26 +125,26 @@ for zone in $ALLZONES; do
                 . ${src}/zoneconfig
                 echo "${PRIVATE_IP},${PUBLIC_IP}"
             )
-            zone_private_ip=${zoneips%%,*}
-            zone_public_ip=${zoneips##*,}
+            zone_admin_ip=${zoneips%%,*}
+            zone_external_ip=${zoneips##*,}
 
             zonemasks=$(
                 . ${USB_COPY}/config
                 echo "${admin_netmask},${external_netmask}"
             )
-            zone_private_netmask=${zonemasks%%,*}
-            zone_public_netmask=${zonemasks##*,}
+            zone_admin_netmask=${zonemasks%%,*}
+            zone_external_netmask=${zonemasks##*,}
         fi
 
-        zone_public_vlan=$(
+        zone_external_vlan=$(
             . ${USB_COPY}/config
-            eval "echo \${${zone}_public_vlan}"
+            eval "echo \${${zone}_external_vlan}"
         )
-        [[ -n ${zone_public_vlan} ]] || zone_public_vlan=0
+        [[ -n ${zone_external_vlan} ]] || zone_external_vlan=0
 
-        zone_public_vlan_opts=
-        if [[ -n "${zone_public_vlan}" ]] && [[ "${zone_public_vlan}" != "0" ]]; then
-            zone_public_vlan_opts="-v ${zone_public_vlan}"
+        zone_external_vlan_opts=
+        if [[ -n "${zone_external_vlan}" ]] && [[ "${zone_external_vlan}" != "0" ]]; then
+            zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
         zfs_properties=""
@@ -162,12 +162,12 @@ for zone in $ALLZONES; do
             fi
 
             # if we have a PUBLIC_IP too, we need a second NIC
-            if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-                dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
+            if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+                dladm create-vnic -l ${iface} ${zone_external_vlan_opts} ${zone}1
                 external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
 
                 # Add the zfs metadata so we know which network to attach this to on reboot
-                echo -n "smartdc.network:${zone}1.vlan_id=${zone_public_vlan} "
+                echo -n "smartdc.network:${zone}1.vlan_id=${zone_external_vlan} "
                 echo -n "smartdc.network:${zone}1.nic=external "
                 [[ -n ${external_vnic_mac} ]] && echo -n "smartdc.network:${zone}1.mac=${external_vnic_mac} "
             fi
@@ -195,7 +195,7 @@ for zone in $ALLZONES; do
         )
 
         zonecfg -z ${zone} "add net; set physical=${zone}0; end"
-        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+        if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
            zonecfg -z ${zone} "add net; set physical=${zone}1; end"
         fi
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
@@ -252,11 +252,11 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        if [[ -n "${zone_private_ip}" ]] && [[ -n ${zone_private_netmask} ]]; then
-            echo "${zone_private_ip} netmask ${zone_private_netmask}" > ${dest}/etc/hostname.${zone}0
+        if [[ -n "${zone_admin_ip}" ]] && [[ -n ${zone_admin_netmask} ]]; then
+            echo "${zone_admin_ip} netmask ${zone_admin_netmask}" > ${dest}/etc/hostname.${zone}0
         fi
-        if [[ -n "${zone_public_ip}" ]] && [[ -n ${zone_public_netmask} ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-            echo "${zone_public_ip} netmask ${zone_public_netmask}" > ${dest}/etc/hostname.${zone}1
+        if [[ -n "${zone_external_ip}" ]] && [[ -n ${zone_external_netmask} ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+            echo "${zone_external_ip} netmask ${zone_external_netmask}" > ${dest}/etc/hostname.${zone}1
         fi
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
@@ -267,11 +267,11 @@ for zone in $ALLZONES; do
             cat ${src}/motd.append >> ${dest}/etc/motd
         fi
 
-        # If there's a public IP set and an external_gateway, use that, otherwise use
+        # If there's a external IP set and an external_gateway, use that, otherwise use
         # admin_gateway if that's set.
-        if [[ -n "${zone_public_ip}" ]] \
+        if [[ -n "${zone_external_ip}" ]] \
           && [[ -n ${CONFIG_external_gateway} ]] \
-          && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+          && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
             echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
         elif [[ -n ${CONFIG_admin_gateway} ]]; then
             echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
