@@ -139,7 +139,7 @@ echo "Auto Upgrading Customers API Database."
 su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
-if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi_ipf_setup) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
   sleep 1
@@ -163,3 +163,8 @@ chmod 0555 /home
 
 echo "Writing customer.url file to /root/customer.url"
 echo "/customers/${CAPI_ADMIN_UUID}/containers" > /root/customer.url
+
+if [[ -f $(svcprop -p 'capi/allowed_file' svc:/platform/smartdc/capi_ipf_setup) ]]; then
+    svcadm enable svc:/network/ipfilter:default 
+fi
+
