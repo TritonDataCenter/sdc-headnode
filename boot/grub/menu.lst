@@ -8,13 +8,25 @@ title Live 64-bit
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit KMDB
-   kernel /platform/i86pc/kernel/amd64/unix -k -B console=text,headnode=true
+   kernel /platform/i86pc/kernel/amd64/unix -kd -B console=text,headnode=true
    module /platform/i86pc/amd64/boot_archive
 
-title Live 64-bit Debug
-   kernel /platform/i86pc/kernel/amd64/unix -kdv -B console=text,headnode=true,prom_debug=true,map_debug=true,kbm_debug=true
+title Live 64-bit Serial (ttyb)
+   kernel /platform/i86pc/kernel/amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true
+   module /platform/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial KMDB (ttyb)
+   kernel /platform/i86pc/kernel/amd64/unix -kd -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true
+   module /platform/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial (ttya)
+   kernel /platform/i86pc/kernel/amd64/unix -B console=ttya,ttya-mode="115200,8,n,1,-",headnode=true
+   module /platform/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial KDMB (ttya)
+   kernel /platform/i86pc/kernel/amd64/unix -kd -B console=ttya,ttya-mode="115200,8,n,1,-",headnode=true
    module /platform/i86pc/amd64/boot_archive
 
 title Live 64-bit Rescue (no importing zpool)
-   kernel /platform/i86pc/kernel/amd64/unix -B console=text,noimport=true
+   kernel /platform/i86pc/kernel/amd64/unix -B console=text,headnode=true,noimport=true
    module /platform/i86pc/amd64/boot_archive

@@ -90,7 +90,6 @@ function loadAndFilter(file) {
 }
 
 writeGrubConfigs = function(config) {
-  var kargs_debug = "prom_debug=true,map_debug=true,kbm_debug=true"
   var kernel = '/platform/i86pc/kernel/amd64/unix'
   var module = '/platform/i86pc/amd64/boot_archive'
      
@@ -113,11 +112,23 @@ writeGrubConfigs = function(config) {
       , "module " + module
       , ""
       , "title Live 64-bit KMDB"
-      , "  kernel " + kernel + " -k -B " + kargs + extra + ',' + kargs_debug
+      , "  kernel " + kernel + " -kd -B " + kargs + extra
       , "  module " + module
       , ""
-      , "title Live 64-bit Debug"
-      , "  kernel " + kernel + " -kdv -B " + kargs + extra + ',' + kargs_debug
+      , "title Live 64-bit Serial (ttyb)"
+      , "  kernel " + kernel + " -B " + kargs + ',console=ttyb,ttyb-mode="115200,8,n,1,-"' + extra
+      , "  module " + module
+      , ""
+      , "title Live 64-bit Serial KMDB (ttyb)"
+      , "  kernel " + kernel + " -kd -B " + kargs + ',console=ttyb,ttyb-mode="115200,8,n,1,-"' + extra
+      , "  module " + module
+      , ""
+      , "title Live 64-bit Serial (ttya)"
+      , "  kernel " + kernel + " -B " + kargs + ',console=ttya,ttya-mode="115200,8,n,1,-"' + extra
+      , "  module " + module
+      , ""
+      , "title Live 64-bit Serial KMDB (ttya)"
+      , "  kernel " + kernel + " -kd -B " + kargs + ',console=ttya,ttya-mode="115200,8,n,1,-"' + extra
       , "  module " + module
       , ""
       , "title Live 64-bit Rescue (no importing zpool)"
