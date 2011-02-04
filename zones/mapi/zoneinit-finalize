@@ -258,7 +258,11 @@ if [[ ! -e /opt/smartdc/mapi/config/ur.smf ]]; then
   chown jill:jill /opt/smartdc/mapi/config/ur.smf
 fi
 
-
+if [[ ! -e /opt/smartdc/mapi/config/atropos.smf ]]; then
+  echo "Creating MAPI Atropos Agent Client Manifest."
+  RACK_ENV=production /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
+  chown jill:jill /opt/smartdc/mapi/config/atropos.smf
+fi
 
 # Generate the agents setup script:
 
@@ -420,6 +424,12 @@ if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   echo "Importing MCP API Heartbeater Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
 fi
+
+if [[ -z \$(/usr/bin/svcs -a|grep atropos_agent_client) ]]; then
+  echo "Importing MCP API Atropos Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/atropos.smf
+fi
+
 
 if [[ ! \$(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
   echo "Importing '${app_name}-update' service"
