@@ -12,6 +12,9 @@
 # propagates any non-zero exit values in a pipeline).
 #
 
+#export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+
 set -o errexit
 set -o pipefail
 
@@ -207,7 +210,7 @@ function valid_archive
 function copy_platform
 {
     [[ -z "${loops}" ]] && loops=0
-    ((loops++))
+    loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
 
     valid_platform="false"
@@ -257,7 +260,7 @@ function copy_platform
 function copy_agents
 {
     [[ -z "${loops}" ]] && loops=0
-    ((loops++))
+    loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
     # Grab the latest agent ur-script too
