@@ -41,8 +41,7 @@ root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 
 # Set this to the name of a file in config.inc and it will be copied in as
 # root's .ssh/authorized_keys in GZs:
-#
-# root_authorized_keys_file=root.authorized_keys
+root_authorized_keys_file=root.authorized_keys
 
 # To specify NTP servers you can either use:
 #
