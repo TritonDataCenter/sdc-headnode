@@ -39,6 +39,21 @@ node_file=nodes
 
 initial_script=scripts/headnode.sh
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
+
+# Set this to the name of a file in config.inc and it will be copied in as
+# root's .ssh/authorized_keys in GZs:
+#
+# root_authorized_keys_file=root.authorized_keys
+
+# To specify NTP servers you can either use:
+#
+# ntp_hosts=[servers separated by commas]
+#
+# Or generate your own ntp.conf file and include the filename as the argument to:
+#
+# ntp_conf_file=<filename of file in config.inc>
+#
+
 rabbitmq=guest:guest:10.99.99.5:5672
 
 # Zone-specific configs
