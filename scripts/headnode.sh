@@ -31,6 +31,41 @@ function errexit
     fatal "error exit status $1"
 }
 
+function install_node_config
+{
+    dir=$1
+
+    if [[ -n ${dir} ]] && [[ -d ${dir} ]]; then
+        # pull out those config options we want to keep
+        (
+            . ${USB_COPY}/config
+
+            # Options here should match key names from the headnode's config
+            # that we want on compute nodes.
+            for opt in \
+                root_authorized_keys_file \
+                ntp_conf_file \
+                ntp_hosts \
+                rabbitmq \
+                root_shadow \
+                ; do
+
+                value=$(eval echo \${${opt}})
+                if [[ -n ${value} ]]; then
+                    echo "${opt}='${value}'"
+
+                    if echo "${opt}" | grep "_file$" >/dev/null 2>&1 && [[ "${value}" != "node.config" ]]; then
+                        [[ -f "${USB_COPY}/config.inc/${value}" ]] && cp "${USB_COPY}/config.inc/${value}" "${dir}/${value}"
+                    fi
+                fi
+
+            done
+        ) > ${dir}/node.config
+    else
+        echo "WARNING: Can't create node config in '${dir}'"
+    fi
+}
+
 trap 'errexit $?' EXIT
 
 DEBUG="true"
@@ -327,6 +362,12 @@ if [ -n "${CREATEDZONES}" ]; then
             else
                 echo " done." >>/dev/console
             fi
+        fi
+
+        # Install compute node config if we're MAPI
+        if [[ "${zone}" == "mapi" ]]; then
+            mkdir -p /zones/mapi/root/opt/smartdc/node.config
+            install_node_config /zones/mapi/root/opt/smartdc/node.config
         fi
 
         # copy dhcpd configuration into zone if we're DHCPD
