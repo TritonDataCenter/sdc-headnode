@@ -176,11 +176,34 @@ output_zpool_info()
     IFS=$OLDIFS
 }
 
+# Loads config files for the node. These are the config values from the headnode
+# plus authorized keys and anything else we want
+install_configs()
+{
+    SMARTDC=/opt/smartdc/config/
+    TEMP_CONFIGS=/var/tmp/node.config/
+
+    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+        echo "Inside a compute node. Installing config files..." >&2
+        if [[ ! -d $TEMP_CONFIGS ]]; then
+            fatal "config files not present in /var/tmp"
+        fi
+
+        # mount /opt before doing this or changes are not going to be persistent
+        mount -F zfs zones/opt /opt
+        mkdir -p /opt/smartdc/
+        mv $TEMP_CONFIGS $SMARTDC
+        echo "done." >&2
+    fi
+}
+
+
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     create_swap
+    install_configs
     output_zpool_info
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
