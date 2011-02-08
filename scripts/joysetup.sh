@@ -166,7 +166,14 @@ create_swap()
 # We send info about the zpool when we have one, either because we created it or it already existed.
 output_zpool_info()
 {
-    zpool list -H -o name,guid,size,free,health
+    OLDIFS=$IFS
+    IFS=$'\n'
+    for line in $(zpool list -H -o name,guid,size,free,health); do
+        name=$(echo "${line}" | awk '{ print $1 }')
+        mountpoint=$(zfs get -H mountpoint zones | awk '{ print $3 }')
+        printf "${line}\t${mountpoint}\n"
+    done
+    IFS=$OLDIFS
 }
 
 POOLS=`zpool list`
