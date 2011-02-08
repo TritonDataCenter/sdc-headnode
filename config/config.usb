@@ -108,6 +108,17 @@ capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 capi_cpu_shares=50
 capi_max_lwps=1000
 capi_memory_cap=1024m
+#
+# If the capi_allow_file file exists in config.inc/ it should contain a list of
+# CIDR addresses like:
+#
+# 10.99.99.0/24
+# 10.88.88.0/24
+#
+# These networks are then the *only* ones allowed to connect to CAPI.  Without
+# this file existing and being populated *all* IPs will be allowed to connect.
+#
+capi_allow_file=capi.allow
 
 atropos_admin_ip=10.99.99.12
 atropos_root_pw=joypass123

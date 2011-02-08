@@ -66,6 +66,22 @@ function install_node_config
     fi
 }
 
+function install_config_file
+{
+    option=$1
+    target=$2
+
+    # pull out those config options we want to keep
+    filename=$(
+        . ${USB_COPY}/config
+        eval echo "\${${option}}"
+    )
+
+    if [[ -n ${filename} ]] && [[ -f "${USB_COPY}/config.inc/${filename}" ]]; then
+        cp "${USB_COPY}/config.inc/${filename}" "${target}"
+    fi
+}
+
 trap 'errexit $?' EXIT
 
 DEBUG="true"
@@ -368,6 +384,12 @@ if [ -n "${CREATEDZONES}" ]; then
         if [[ "${zone}" == "mapi" ]]; then
             mkdir -p /zones/mapi/root/opt/smartdc/node.config
             install_node_config /zones/mapi/root/opt/smartdc/node.config
+        fi
+
+        # Install capi.allow if we've got one
+        if [[ "${zone}" == "capi" ]]; then
+            mkdir -p /zones/capi/root/opt/smartdc
+            install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
         # copy dhcpd configuration into zone if we're DHCPD

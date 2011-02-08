@@ -37,7 +37,7 @@
                 <propval name='duration' type='astring' value='transient' />
         </property_group>
         <property_group name='capi' type='application'>
-                <propval name='allowed_file' type='astring' value='/capi.allowed_file' />
+                <propval name='allowed_file' type='astring' value='/opt/smartdc/capi.allow' />
                 <propval name='port' type='astring' value='8080' />
         </property_group>
         <stability value='Unstable' />
