@@ -24,3 +24,4 @@ DATASETS=${mapi_datasets}
 
 DBCONN_RETRY_AFTER=${dbconn_retry_after}
 DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}
+ATROPOS_PRIVATE_IP=${atropos_admin_ip}
