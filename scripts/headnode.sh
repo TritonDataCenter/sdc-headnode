@@ -44,6 +44,8 @@ function install_node_config
             # that we want on compute nodes.
             for opt in \
                 root_authorized_keys_file \
+                compute_node_initial_datasets \
+                assets_admin_ip \
                 ntp_conf_file \
                 ntp_hosts \
                 rabbitmq \
@@ -99,9 +101,6 @@ ln -s ${USB_COPY}/config /etc/headnode.config
 POOLS=`zpool list`
 
 if [[ ${POOLS} == "no pools available" ]]; then
-
-    # This is to move us to the next line past the login: prompt
-    echo "" >>/dev/console
 
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 

@@ -197,6 +197,16 @@ function copy_pkgsrc
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
+function valid_tgz_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && tar -ztf ${filename} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function valid_archive
 {
     filename=$1
@@ -299,6 +309,46 @@ function copy_agents
     loops=
 }
 
+# Called to get the magic missing bits from the nodejs dataset
+function get_node_magic
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download nodejs magic, looping!"
+
+    valid_magic="false"
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
+        latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
+            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+
+        if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
+            echo "==> Downloading ${latest_release}"
+            (cd ${ROOT}/cache && \
+              curl --progress-bar -k -O ${NODE_SERVICE_RELEASES}/${latest_release})
+        fi
+    else
+        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head)
+        if [[ -z ${latest_release} ]]; then
+            fatal "Unable to find a node_service magicball and we have no Internet."
+        fi
+    fi
+
+    magicball=${ROOT}/cache/${latest_release}
+    if [[ -f ${magicball} ]] && ! valid_tgz_archive ${magicball}; then
+        echo "Removing corrupt ${magicball}"
+        rm -f ${magicball}
+        # unset and try again
+        magicball=
+        get_node_magic
+    fi
+
+    # if we get here, we should have the file and it's valid!
+    cp ${magicball} ${STAGE}/datasets/
+
+    loops=
+}
+
 function copy_datasets
 {
     datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
@@ -327,6 +377,11 @@ function copy_datasets
 
         echo "==> Copying ${dataset_file}"
         cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+
+        if [[ ${dataset} == "nodejs-0.4.0" ]]; then
+            # the nodejs-0.4.0 dataset is magical and "special" so it needs more stuff
+            get_node_magic
+        fi
     done
 }
 

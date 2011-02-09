@@ -31,11 +31,11 @@ cp -R $CONFIGS /var/tmp/
 
 # Run the script from /var/tmp in case we need to write to some log later
 (cat <<__EOF__
-#!/bin/sh
+#!/bin/bash
 P=\$(cd \`dirname \$0\` && pwd)
 if [ \`pwd\` != '$TMP' ]; then
   cd $TMP
-  /bin/sh \$P/\`basename \$0\`
+  /bin/bash \$P/\`basename \$0\`
   exit
 fi
 __EOF__
