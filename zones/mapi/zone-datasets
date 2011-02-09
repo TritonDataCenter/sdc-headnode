@@ -1,11 +1,11 @@
-echo -n "mapi/data, " >>/dev/console
-zfs create zones/mapi/data
-zonecfg -z mapi 'add dataset; set name="zones/mapi/data"; end; verify; commit'
+echo -n "mapi/mapi-data, " >>/dev/console
+zfs create zones/mapi/mapi-data
+zonecfg -z mapi 'add dataset; set name="zones/mapi/mapi-data"; end; verify; commit'
 STAMP=$(cat /zones/mapi/root/opt/smartdc/mapi-VERSION)
-echo -n "mapi/app-${STAMP} " >>/dev/console
-zfs create zones/mapi/app-${STAMP}
+echo -n "mapi/mapi-app-${STAMP} " >>/dev/console
+zfs create zones/mapi/mapi-app-${STAMP}
 echo "$STAMP">/zones/mapi/root/root/mapi-app-timestamp
-cmd="add dataset; set name=zones/mapi/app-$STAMP; end; verify; commit"
+cmd="add dataset; set name=zones/mapi/mapi-app-$STAMP; end; verify; commit"
 zonecfg -z mapi $cmd
 echo -n ". " >> /dev/console
 # Trying to do not add an extra file to copy agents script to mapi zone

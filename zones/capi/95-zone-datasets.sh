@@ -3,10 +3,10 @@ echo "95 configuring capi datasets"
 # This needs to run after scmgit pkgsrc package has been installed:
 
 # capi-data dataset name will remain the same always:
-zfs set mountpoint=/opt/smartdc/capi-data zones/capi/data
+zfs set mountpoint=/opt/smartdc/capi-data zones/capi/capi-data
 # capi-app-ISO_DATE dataset name will change:
 STAMP=$(cat /root/capi-app-timestamp)
-zfs set mountpoint=/opt/smartdc/capi "zones/capi/app-$STAMP"
+zfs set mountpoint=/opt/smartdc/capi "zones/capi/capi-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/capi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
@@ -21,7 +21,6 @@ fi
 
 # Export only config into capi-data:
 cd /opt/smartdc/capi-repo
-# /opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/capi-data/ config/
 # Create some directories into capi-data
 mkdir -p /opt/smartdc/capi-data/log
 mkdir -p /opt/smartdc/capi-data/tmp/pids
