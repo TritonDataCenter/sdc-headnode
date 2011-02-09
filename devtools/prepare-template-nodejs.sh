@@ -25,7 +25,7 @@ NODE_SERVICE_RELEASES="https://guest:GrojhykMid@${COAL_JOYENT_US_IP}/coal/live_1
 
 # Get the dataset.
 if [[ `zfs list -H -o name zones/$DATASET_NAME 2>/dev/null` != "zones/$DATASET_NAME" ]]; then
-  dataset_usbkey_path=/usbkey/${DATASET_BASE}.zfs.bz2
+  dataset_usbkey_path=/usbkey/datasets/${DATASET_BASE}.zfs.bz2
   if [[ -e "$dataset_usbkey_path" ]]; then
     dataset_path=$dataset_usbkey_path
   else

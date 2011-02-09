@@ -19,7 +19,7 @@ DATASET_RELEASES="https://guest:GrojhykMid@${ASSETS_JOYENT_US_IP}/templates"
 
 # Get the dataset.
 if [[ `zfs list -H -o name zones/$DATASET_NAME 2>/dev/null` != "zones/$DATASET_NAME" ]]; then
-  dataset_usbkey_path=/usbkey/${DATASET_BASE}.zfs.bz2
+  dataset_usbkey_path=/usbkey/datasets/${DATASET_NAME}.zfs.bz2
   if [[ -e "$dataset_usbkey_path" ]]; then
     dataset_path=$dataset_usbkey_path
   else

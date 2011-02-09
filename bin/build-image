@@ -302,6 +302,7 @@ function copy_agents
 function copy_datasets
 {
     datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
+    mkdir -p  ${STAGE}/datasets
     for dataset in ${datasets[@]}
     do
         dataset_file="${dataset}.zfs.bz2"
@@ -309,7 +310,6 @@ function copy_datasets
             echo "==> Corrupt ${dataset_file}, deleting..."
             rm -f ${ROOT}/cache/${dataset_file}
         fi
-        basename=$(echo ${dataset_file} | cut -d'-' -f1)
 
         if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
             if [[ ${HAVE_INTERNET} == "true" ]]; then
@@ -325,8 +325,8 @@ function copy_datasets
             fatal "Corrupt ${dataset_file}, deleted! Try build again."
         fi
 
-        echo "==> Copying ${basename}.zfs.bz2"
-        cp ${ROOT}/cache/${dataset_file} ${STAGE}/${basename}.zfs.bz2
+        echo "==> Copying ${dataset_file}"
+        cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
     done
 }
 

@@ -89,6 +89,15 @@ ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
+assets_admin_ip=10.99.99.6
+# assets_external_ip=10.88.88.6
+# assets_external_vlan=0
+assets_root_pw=joypass123
+assets_admin_pw=joypass123
+assets_cpu_shares=50
+assets_max_lwps=1000
+assets_memory_cap=1024m
+
 adminui_admin_ip=10.99.99.10
 # adminui_external_ip=10.88.88.10
 # adminui_external_vlan=0
