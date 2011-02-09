@@ -7,3 +7,5 @@ PUBLIC_IP=${dhcpd_admin_ip}
 ROOT_PW=${dhcpd_root_pw}
 ADMIN_PW=${dhcpd_admin_pw}
 TMPFS=512m
+MAPI_IP=${mapi_admin_ip}
+MAPI_PW=${mapi_http_admin_pw}
