@@ -80,7 +80,7 @@ assets_root_pw=joypass123
 assets_admin_pw=joypass123
 assets_cpu_shares=50
 assets_max_lwps=1000
-assets_memory_cap=1024m
+assets_memory_cap=128m
 
 atropos_admin_ip=10.99.99.12
 atropos_root_pw=joypass123
