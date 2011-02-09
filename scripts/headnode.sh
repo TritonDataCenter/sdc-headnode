@@ -198,32 +198,7 @@ for zone in $ALLZONES; do
             zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
-        zfs_properties=""
         echo -n "creating zone ${zone}... " >>/dev/console
-        zfs_properties=$(dladm show-phys -m -p -o link,address | \
-          sed 's/:/\ /;s/\\//g' | while read iface mac; do
-            if [[ ${mac} == ${admin_nic} ]]; then
-                dladm create-vnic -l ${iface} ${zone}0
-                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
-
-                # Add the zfs metadata so we know which network to attach this to on reboot
-                echo -n "smartdc.network:${zone}0.vlan_id=0 "
-                echo -n "smartdc.network:${zone}0.nic=admin "
-                [[ -n ${admin_vnic_mac} ]] && echo -n "smartdc.network:${zone}0.mac=${admin_vnic_mac} "
-            fi
-
-            # if we have a PUBLIC_IP too, we need a second NIC
-            if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-                dladm create-vnic -l ${iface} ${zone_external_vlan_opts} ${zone}1
-                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
-
-                # Add the zfs metadata so we know which network to attach this to on reboot
-                echo -n "smartdc.network:${zone}1.vlan_id=${zone_external_vlan} "
-                echo -n "smartdc.network:${zone}1.nic=external "
-                [[ -n ${external_vnic_mac} ]] && echo -n "smartdc.network:${zone}1.mac=${external_vnic_mac} "
-            fi
-        done)
-
         zonecfg -z ${zone} -f ${src}/config
 
         # Set memory, cpu-shares and max-lwps which can be in config file
@@ -245,18 +220,34 @@ for zone in $ALLZONES; do
             fi
         )
 
-        zonecfg -z ${zone} "add net; set physical=${zone}0; end"
+        zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; end; exit"
         if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-           zonecfg -z ${zone} "add net; set physical=${zone}1; end"
+           zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; end; exit"
         fi
-        zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
 
-        # At this point we have a zfs filesystem so we can apply our properties
-        if [[ -n ${zfs_properties} ]]; then
-            for prop in ${zfs_properties}; do
-                zfs set "${prop}" zones/${zone}
-            done
-        fi
+        dladm show-phys -m -p -o link,address | \
+          sed 's/:/\ /;s/\\//g' | while read iface mac; do
+            if [[ ${mac} == ${admin_nic} ]]; then
+                dladm create-vnic -l ${iface} ${zone}0
+                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
+
+                [[ -n ${admin_vnic_mac} ]] && zonecfg -z ${zone} \
+		    "select net physical=${zone}0; set mac-addr=${admin_vnic_mac}; end; exit"
+            fi
+
+            # if we have a PUBLIC_IP too, we need a second NIC
+            if [[ ${mac} == ${external_nic} ]] && \
+		[[ -n "${zone_external_ip}" ]] && \
+		[[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+                dladm create-vnic -l ${iface} ${zone_external_vlan_opts} ${zone}1
+                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
+
+                [[ -n ${external_vnic_mac} ]] && zonecfg -z ${zone} \
+		    "select net physical=${zone}1; set mac-addr=${external_vnic_mac}; end; exit"
+            fi
+        done
+
+        zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
 
         (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
