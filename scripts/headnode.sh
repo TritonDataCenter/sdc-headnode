@@ -382,11 +382,6 @@ if [ -n "${CREATEDZONES}" ]; then
             install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
-        # copy dhcpd configuration into zone if we're DHCPD
-        if [[ "${zone}" == "dhcpd" ]] && [[ -d "/zones/dhcpd/root/etc" ]]; then
-            ${USB_PATH}/zones/dhcpd/tools/dhcpconfig
-        fi
-
         # disable zoneinit now that we're done with it.
         zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
 

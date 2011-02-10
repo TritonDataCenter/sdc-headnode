@@ -33,10 +33,10 @@ dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
 dhcp_next_server=10.99.99.4
 
-# This file should exist in config.inc
-node_file=nodes
-
+# This should not be changed.
 initial_script=scripts/headnode.sh
+
+# This is the entry from /etc/shadow for root (default password: 'root')
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 
 # Set this to the name of a file in config.inc and it will be copied in as
