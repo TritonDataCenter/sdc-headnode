@@ -75,6 +75,10 @@ function create_output
     else
       output_version="${LIVEIMG_VERSION}"
     fi
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
 
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
