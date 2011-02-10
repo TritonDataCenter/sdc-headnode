@@ -135,6 +135,7 @@ function copy_base
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
     cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
 
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
