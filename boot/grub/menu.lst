@@ -1,7 +1,8 @@
 default=0
 timeout=5
 min_mem64 1024
-color cyan/blue white/blue
+splashimage=/boot/splash.xpm.gz
+color light-gray/black black/light-gray
 
 title Live 64-bit
    kernel /platform/i86pc/kernel/amd64/unix -B console=text,headnode=true
