@@ -119,8 +119,8 @@ setup_datasets()
 
     echo -n "Creating global cores dataset... " >&4
     zfs create -o quota=1g -o mountpoint=/zones/global/cores \
-	-o compression=gzip ${COREDS} || \
-	fatal "failed to create the cores dataset"
+        -o compression=gzip ${COREDS} || \
+        fatal "failed to create the cores dataset"
     echo "done." >&4
 
     echo -n "Creating opt dataset... " >&4
@@ -208,10 +208,9 @@ install_datasets()
     if [[ -n "${CONFIG_compute_node_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
         assets=${CONFIG_assets_admin_ip}
         for ds in $(echo "${CONFIG_compute_node_initial_datasets}" | tr ',' ' '); do
-            if curl -k http://${assets}/datasets/${ds}.zfs.bz2 | bzip2 -d | zfs receive -e zones; then
-                echo "Installed dataset: ${ds} from ${assets}" >&4
-            else
-                echo "Error installing dataset: ${ds} from ${assets}" >&4
+            echo "Installing dataset: ${ds} from ${assets}..." >&4
+            if ! curl -k --progress-bar http://${assets}/datasets/${ds}.zfs.bz2 2>&4 | bzip2 -d | zfs receive -e zones; then
+                echo " \\_ FAILED!" >&4
             fi
 
             if [[ "${ds}" == "nodejs-0.4.0" ]] && [[ ! -e "/opt/nodejs" ]]; then
@@ -221,10 +220,9 @@ install_datasets()
                 latest_release=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
                     | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
 
-                if (cd /opt && curl -k -sS http://${assets}/datasets/${latest_release} | gzcat | tar -xf -); then
-                    echo "Installed extra magic for ${ds}" >&4
-                else
-                    echo "Failed to install extra magic for ${ds}" >&4
+                echo "Installing extra magic for ${ds} from ${assets}..." >&4
+                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf -); then
+                    echo " \\_ FAILED!" >&4
                 fi
             fi
         done
