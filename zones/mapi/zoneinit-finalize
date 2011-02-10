@@ -255,13 +255,13 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/ur.smf ]]; then
   echo "Creating MAPI Ur Agent Client Manifest."
-  RACK_ENV=production /opt/local/bin/rake smf:ur -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:ur -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/ur.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/atropos.smf ]]; then
   echo "Creating MAPI Atropos Agent Client Manifest."
-  RACK_ENV=production /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/atropos.smf
 fi
 
