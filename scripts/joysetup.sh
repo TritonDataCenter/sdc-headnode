@@ -15,17 +15,15 @@ VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
 SWAPVOL=${ZPOOL}/swap
 
-if /usr/bin/bootparams | grep "headnode=true"; then
-    # headnode output goes to /dev/console instead of stderr
-    exec 2>/dev/console 4>/tmp/joysetup.log
-else
-    exec 4>/tmp/joysetup.log
-fi
+# status output goes to /dev/console instead of stderr
+exec 4>/dev/console
 
-BASH_XTRACEFD=4
 set -o errexit
 set -o pipefail
 set -o xtrace
+
+# bump to line past console login prompt
+echo "" >&4
 
 #
 # Load command line arguments in the form key=value (eg. swap=4g)
@@ -38,7 +36,7 @@ done
 
 fatal()
 {
-    echo "Error: $1" >&2
+    echo "Error: $1" >&4
     exit 1
 }
 
@@ -101,36 +99,36 @@ create_dump()
 #
 setup_datasets()
 {
-    echo -n "Making dump zvol... " >&2
+    echo -n "Making dump zvol... " >&4
     create_dump
-    echo "done." >&2
+    echo "done." >&4
 
-    echo -n "Initializing config dataset for zones... " >&2
+    echo -n "Initializing config dataset for zones... " >&4
     zfs create ${CONFDS} || fatal "failed to create the config dataset"
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
     zfs set mountpoint=legacy ${CONFDS}
-    echo "done." >&2
+    echo "done." >&4
 
     if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
-        echo -n "Creating usbkey dataset... " >&2
+        echo -n "Creating usbkey dataset... " >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
-        echo "done." >&2
+        echo "done." >&4
     fi
 
-    echo -n "Creating global cores dataset... " >&2
+    echo -n "Creating global cores dataset... " >&4
     zfs create -o quota=1g -o mountpoint=/zones/global/cores \
-	-o compression=gzip ${COREDS} || \
-	fatal "failed to create the cores dataset"
-    echo "done." >&2
+        -o compression=gzip ${COREDS} || \
+        fatal "failed to create the cores dataset"
+    echo "done." >&4
 
-    echo -n "Creating opt dataset... " >&2
+    echo -n "Creating opt dataset... " >&4
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
-    echo "done." >&2
+    echo "done." >&4
 
-    echo -n "Initializing var dataset... " >&2
+    echo -n "Initializing var dataset... " >&4
     zfs create ${VARDS} || \
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
@@ -140,13 +138,13 @@ setup_datasets()
     fi
 
     zfs set mountpoint=legacy ${VARDS}
-    echo "done." >&2
+    echo "done." >&4
 }
 
 create_swap()
 {
-    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
-    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
+    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
+    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
     swapsize=2g
 
@@ -158,15 +156,79 @@ create_swap()
         swapsize=$(grep "^swap=" ${USB_PATH}/config | cut -d'=' -f2-)
     fi
 
-    echo -n "Creating swap zvol... " >&2
+    echo -n "Creating swap zvol... " >&4
     zfs create -V ${swapsize} ${SWAPVOL}
-    echo "done." >&2
+    echo "done." >&4
 }
 
 # We send info about the zpool when we have one, either because we created it or it already existed.
 output_zpool_info()
 {
-    zpool list -H -o name,guid,size,free,health
+    OLDIFS=$IFS
+    IFS=$'\n'
+    for line in $(zpool list -H -o name,guid,size,free,health); do
+        name=$(echo "${line}" | awk '{ print $1 }')
+        mountpoint=$(zfs get -H mountpoint zones | awk '{ print $3 }')
+        printf "${line}\t${mountpoint}\n"
+    done
+    IFS=$OLDIFS
+}
+
+# Loads config files for the node. These are the config values from the headnode
+# plus authorized keys and anything else we want
+install_configs()
+{
+    SMARTDC=/opt/smartdc/config/
+    TEMP_CONFIGS=/var/tmp/node.config/
+
+    if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
+        echo -n "Compute node, installing config files... " >&4
+        if [[ ! -d $TEMP_CONFIGS ]]; then
+            fatal "config files not present in /var/tmp"
+        fi
+
+        # mount /opt before doing this or changes are not going to be persistent
+        mount -F zfs zones/opt /opt
+        mkdir -p /opt/smartdc/
+        mv $TEMP_CONFIGS $SMARTDC
+        echo "done." >&4
+    fi
+}
+
+# On compute node if we can pull datasets from assets zone on headnode, do that.
+install_datasets()
+{
+    if [[ -n $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
+        return 0
+    fi
+
+    . /lib/sdc/config.sh
+    load_sdc_config
+
+    if [[ -n "${CONFIG_compute_node_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
+        assets=${CONFIG_assets_admin_ip}
+        for ds in $(echo "${CONFIG_compute_node_initial_datasets}" | tr ',' ' '); do
+            echo "Installing dataset: ${ds} from ${assets}..." >&4
+            if ! curl -k --progress-bar http://${assets}/datasets/${ds}.zfs.bz2 2>&4 | bzip2 -d | zfs receive -e zones; then
+                echo " \\_ FAILED!" >&4
+            fi
+
+            if [[ "${ds}" == "nodejs-0.4.0" ]] && [[ ! -e "/opt/nodejs" ]]; then
+
+                # XXX SPECIAL CASE node dataset needs more magic!
+
+                latest_release=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
+                    | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+
+                echo "Installing extra magic for ${ds} from ${assets}..." >&4
+                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf -); then
+                    echo " \\_ FAILED!" >&4
+                fi
+            fi
+        done
+    fi
+
+    return 0
 }
 
 POOLS=`zpool list`
@@ -174,6 +236,8 @@ if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     create_swap
+    install_configs
+    install_datasets
     output_zpool_info
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:

@@ -23,6 +23,11 @@ function movein {
   scopy ~/.includes
   scopy ~/.vimrc
   scopy ~/.vim
+
+  # Run personal movein scripts, if any.
+  if [ -x ~/.headnode-movein ]; then
+      ~/.headnode-movein
+  fi
 }
 
 function confirm() {

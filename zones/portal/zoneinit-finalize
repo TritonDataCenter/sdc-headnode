@@ -9,10 +9,15 @@ if [ ! -e /opt/smartdc/portal/deps/request/index.js ]; then
 fi
 
 # Update the config with the correct values.
+# TODO - Make the rest of these values dynamic
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
-  publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1"
+  publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
+  privateCAUrl : "http://10.99.99.8:80",
+  privateCAPIUrl : "http://10.99.99.11:8080",
+  CAPIuser : "admin",
+  CAPIpassword : "tot@ls3crit"
 }
 HERE
 

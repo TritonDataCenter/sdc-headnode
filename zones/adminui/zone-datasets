@@ -1,10 +1,10 @@
-echo -n "adminui-data, " >>/dev/console
-zfs create zones/adminui-data
-zonecfg -z adminui 'add dataset; set name="zones/adminui-data"; end; verify; commit'
+echo -n "adminui/adminui-data, " >>/dev/console
+zfs create zones/adminui/adminui-data
+zonecfg -z adminui 'add dataset; set name="zones/adminui/adminui-data"; end; verify; commit'
 STAMP=$(cat /zones/adminui/root/opt/smartdc/adminui-VERSION)
-echo -n "adminui-app-${STAMP} " >>/dev/console
-zfs create zones/adminui-app-${STAMP}
+echo -n "adminui/adminui-app-${STAMP} " >>/dev/console
+zfs create zones/adminui/adminui-app-${STAMP}
 echo "$STAMP">/zones/adminui/root/root/adminui-app-timestamp
-cmd="add dataset; set name=zones/adminui-app-$STAMP; end; verify; commit"
+cmd="add dataset; set name=zones/adminui/adminui-app-$STAMP; end; verify; commit"
 zonecfg -z adminui $cmd
 echo -n ". " >> /dev/console

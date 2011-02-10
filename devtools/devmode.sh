@@ -63,10 +63,8 @@ if [[ ! -f /opt/local/etc/pkgin/repositories.conf ]]; then
 
 ${PKG_REPO}/
 EOF
-    pkgin update
-else
-    pkgin update
 fi
+/opt/local/bin/pkgin update
 
 
 if [[ -z $(mount | grep "^/root") ]]; then

@@ -3,6 +3,7 @@
 /coal-*.tgz
 /usb-*.tgz
 /config/*.local
+/config/*.inc/root.authorized_keys
 *.swp
 /tmp
 /USB-headnode.vmwarevm

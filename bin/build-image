@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
 #
@@ -11,6 +11,10 @@
 # "pipefail" (a very useful option introduced to bash as of version 3 that
 # propagates any non-zero exit values in a pipeline).
 #
+
+#export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+
 set -o errexit
 set -o pipefail
 
@@ -58,8 +62,7 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             version
             ;;
         *)
-            echo "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
-            exit 1
+            fatal  "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
             ;;
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
@@ -73,31 +76,36 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
             exit 0
             ;;
         *)
-            echo "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
-            exit 1
+            fatal "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
             ;;
     esac
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
-            echo "FATAL: SmartOS not yet supported for USB key generation"
-            exit 1
+            fatal "FATAL: SmartOS not yet supported for USB key generation"
             ;;
         *)
-            echo "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
-            exit 1
+            fatal "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
             ;;
     esac
 else
     echo "FATAL: Unsupported platform '${PLATFORM}'"
 fi
 
+echo -n "==> Checking for Internets... "
+if ! can_has_internets; then
+    echo "No Internets! Activating countermeasures!"
+    HAVE_INTERNET="false"
+else
+    echo "Yep!"
+    HAVE_INTERNET="true"
+fi
+
 function test_rootperms
 {
     su_uid=$(${SUCMD} id -u)
     if [[ ${su_uid} -ne 0 ]]; then
-        echo "FATAL: can't get root priviledges"
-        exit 1
+        fatal "Can't get root priviledges."
     fi
 }
 
@@ -127,6 +135,8 @@ function copy_base
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
     cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
+    cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
 
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
@@ -157,38 +167,96 @@ function copy_base
 
 function copy_pkgsrc
 {
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        (cd ${ROOT}/cache && rm -f md5sums.txt && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt)
+    elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
+        fatal "Don't have cached md5sums.txt file, can't build. You need to find some Internet."
+    fi
     pkgs=$(cat ${ROOT}/zones/*/pkgsrc | xargs -n1 | sort | uniq | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
+        MD5=$(grep " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
+        if [[ -z ${MD5} ]]; then
+            fatal "Unable to find md5sum for ${pkgfile}, must be fixed before we can continue."
+        fi
+        [[ -f ${ROOT}/cache/${pkgfile} ]] && ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
+        if [[ ! -f ${ROOT}/cache/${pkgfile} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
             echo "==> Downloading ${pkgfile}"
-            CURL_OPTS=
-            [[ -f ${ROOT}/cache/${pkgfile} ]] && \
-                CURL_OPTS="-z ${ROOT}/cache/${pkgfile}"
-
-            (cd ${ROOT}/cache && curl --progress-bar \
-                -k ${CURL_OPTS} -fO ${PKGSRC_ROOT}/${pkgfile}) || \
-                fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
+            # if this exists, it's corrupt
+            rm -f ${ROOT}/cache/${pkgfile}
+            if [[ ${HAVE_INTERNET} == "true" ]]; then
+                (cd ${ROOT}/cache && curl --progress-bar \
+                    -k -fO ${PKGSRC_ROOT}/${pkgfile}) || \
+                    fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
+            else
+                fatal "Need Internet to download ${pkgfile}"
+            fi
+        else
+            echo "==> Not downloading ${pkgfile} as existing file matches MD5"
+        fi
     done
 
     echo "==> Creating pkgsrc.tar"
     (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
+function valid_tgz_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && tar -ztf ${filename} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function valid_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && tar -tf ${filename} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function copy_platform
 {
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
+
+    valid_platform="false"
     if [ -z $PLATFORM_FILE ]; then
-        latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-            | grep "href=\"platform-20110127T223101Z" | cut -d'"' -f2 | sort | tail -n 1)
-        if [ ! -f "${ROOT}/cache/${latest_image}" ]; then
-            echo "==> Downloading ${latest_image}"
-            (cd ${ROOT}/cache && \
-              curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+
+            if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
+                echo "==> Downloading ${latest_image}"
+                (cd ${ROOT}/cache && \
+                  curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+            fi
+        else
+            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head)
+            if [[ -z ${latest_image} ]]; then
+                fatal "Unable to find a platform image and we have no Internet."
+            fi
         fi
 
-        # TODO: also check md5sum before using!
         image=${ROOT}/cache/${latest_image}
+        if [[ -f ${image} ]] && ! valid_archive ${image}; then
+            echo "Removing corrupt ${image}"
+            rm -f ${image}
+            image=
+            # unset image and try again
+            copy_platform
+        fi
     else
-        image=$PLATFORM_FILE
+        image=${PLATFORM_FILE}
         echo "==> Using ${image} as platform image"
+        if ! valid_archive "${image}"; then
+            fatal "Refusing to use corrupt platform ${image}"
+        fi
     fi
 
     echo "==> Unpacking `basename ${image}`"
@@ -197,42 +265,125 @@ function copy_platform
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
     LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+
+    loops=
 }
 
 function copy_agents
 {
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
+
     # Grab the latest agent ur-script too
-    latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-        | grep "href=\"agents-20110127T214829Z" | cut -d'"' -f2 | sort | tail -n 1)
-    if [ ! -f "${ROOT}/cache/${latest_agents}" ]; then
-        echo "==> Downloading ${latest_agents}"
-        (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+            | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+        if [[ ! -f "${ROOT}/cache/${latest_agents}" ]] || [[ ! -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
+            echo "==> Downloading ${latest_agents}"
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/`basename ${latest_agents} .sh`.md5sum)
+        fi
+    else
+        latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
+        if [[ -z ${latest_agents} ]]; then
+            fatal "Unable to find agents and we have no Internet."
+        fi
     fi
     mkdir -p ${STAGE}/ur-scripts
-    cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+
+    if [[ -n "${latest_agents}" ]] && [[ -f "${ROOT}/cache/${latest_agents}" ]] && [[ -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
+        # Check the md5sum
+        MD5=$(cat ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum)
+        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${latest_agents} | cut -d' ' -f1)
+
+        if [[ -z ${MD5} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+            echo "Removing corrupt ${latest_agents}"
+            rm -f ${ROOT}/cache/${latest_agents} ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum
+            latest_agents=
+            copy_agents
+        fi
+
+        echo "==> Copying ${latest_agents}"
+        cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+    fi
+
+    loops=
+}
+
+# Called to get the magic missing bits from the nodejs dataset
+function get_node_magic
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download nodejs magic, looping!"
+
+    valid_magic="false"
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
+        latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
+            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+
+        if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
+            echo "==> Downloading ${latest_release}"
+            (cd ${ROOT}/cache && \
+              curl --progress-bar -k -O ${NODE_SERVICE_RELEASES}/${latest_release})
+        fi
+    else
+        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head)
+        if [[ -z ${latest_release} ]]; then
+            fatal "Unable to find a node_service magicball and we have no Internet."
+        fi
+    fi
+
+    magicball=${ROOT}/cache/${latest_release}
+    if [[ -f ${magicball} ]] && ! valid_tgz_archive ${magicball}; then
+        echo "Removing corrupt ${magicball}"
+        rm -f ${magicball}
+        # unset and try again
+        magicball=
+        get_node_magic
+    fi
+
+    # if we get here, we should have the file and it's valid!
+    cp ${magicball} ${STAGE}/datasets/
+
+    loops=
 }
 
 function copy_datasets
 {
     datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
-
+    mkdir -p  ${STAGE}/datasets
     for dataset in ${datasets[@]}
     do
-        dataset_file="${dataset}.zfs.gz"
-        basename=$(echo ${dataset} | cut -d'-' -f1)
-        echo "==> Downloading ${dataset_file}"
-        CURL_OPTS=
-        [[ -f ${ROOT}/cache/${dataset_file} ]] && CURL_OPTS="-z ${ROOT}/cache/${dataset_file}"
-        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -O ${ASSETS_ROOT}/${dataset_file})
-        md5=$(${MD5CMD} ${ROOT}/cache/${dataset_file} | cut -d' ' -f1)
-
-        if [[ ! -f ${ROOT}/cache/${dataset}.${md5}.bz2 ]]; then
-            echo "==> Repacking ${dataset_file}"
-            ${GZCAT} ${ROOT}/cache/${dataset_file} | bzip2 -9 > "${ROOT}/cache/${dataset}.${md5}.bz2"
+        dataset_file="${dataset}.zfs.bz2"
+        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+            echo "==> Corrupt ${dataset_file}, deleting..."
+            rm -f ${ROOT}/cache/${dataset_file}
         fi
 
-        echo "==> Copying ${dataset}.zfs.bz2"
-        cp ${ROOT}/cache/${dataset}.${md5}.bz2 ${STAGE}/${basename}.zfs.bz2
+        if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+            if [[ ${HAVE_INTERNET} == "true" ]]; then
+                echo "==> Downloading ${dataset_file}"
+                (cd ${ROOT}/cache && curl --progress-bar -k -O ${ASSETS_ROOT}/${dataset_file})
+            else
+                fatal "Don't have Internet, and don't have valid ${dataset_file}. Can't build."
+            fi
+        fi
+
+        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+            rm -f ${ROOT}/cache/${dataset_file}
+            fatal "Corrupt ${dataset_file}, deleted! Try build again."
+        fi
+
+        echo "==> Copying ${dataset_file}"
+        cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+
+        if [[ ${dataset} == "nodejs-0.4.0" ]]; then
+            # the nodejs-0.4.0 dataset is magical and "special" so it needs more stuff
+            get_node_magic
+        fi
     done
 }
 
@@ -292,11 +443,20 @@ function copy_zones
 
         file=${uri##*/}
 
-        echo "==> Downloading ${file}"
-        CURL_OPTS=
-        [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
-        (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
-            fatal "could not download $uri for $zone"
+        if ! bzip2 -t ${ROOT}/cache/${file}; then
+            echo "Corrupt ${file}, deleting..."
+            rm -f ${ROOT}/cache/${file}
+        fi
+
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            echo "==> Updating ${file}"
+            CURL_OPTS=
+            [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
+            (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
+                fatal "could not download $uri for $zone"
+        elif [[ ! -f ${ROOT}/cache/${file} ]]; then
+            fatal "Don't have Internet and don't have ${file}. Can't build."
+        fi
 
         mkdir -p ${STAGE}/zones/${zone}
         cp ${ROOT}/cache/${file} ${STAGE}/zones/${zone}/fs.tar.bz2
@@ -351,8 +511,7 @@ cleanup
 create_output
 
 if [ ${ERROR} -ne 0 ]; then
-    echo "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
-    exit 1
+    fatal "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
 fi
 
 echo "==> DONE"

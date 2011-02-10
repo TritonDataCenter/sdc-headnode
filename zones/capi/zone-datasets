@@ -1,10 +1,14 @@
-echo -n "capi-data, " >>/dev/console
-zfs create zones/capi-data
-zonecfg -z capi 'add dataset; set name="zones/capi-data"; end; verify; commit'
-STAMP=$(cat /zones/capi/root/opt/smartdc/capi-VERSION)
-echo -n "capi-app-${STAMP} " >>/dev/console
-zfs create zones/capi-app-${STAMP}
-echo "$STAMP">/zones/capi/root/root/capi-app-timestamp
-cmd="add dataset; set name=zones/capi-app-$STAMP; end; verify; commit"
+for app in capi dnsapi; do
+
+echo -n "capi/$app-data, " >>/dev/console
+zfs create zones/capi/$app-data
+zonecfg -z capi "add dataset; set name=zones/capi/$app-data; end; verify; commit"
+STAMP=$(cat /zones/capi/root/opt/smartdc/$app-VERSION)
+echo -n "capi/$app-app-${STAMP} " >>/dev/console
+zfs create zones/capi/$app-app-${STAMP}
+echo "$STAMP">/zones/capi/root/root/$app-app-timestamp
+cmd="add dataset; set name=zones/capi/$app-app-$STAMP; end; verify; commit"
 zonecfg -z capi $cmd
 echo -n ". " >> /dev/console
+
+done

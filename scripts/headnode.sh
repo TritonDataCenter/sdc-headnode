@@ -31,12 +31,65 @@ function errexit
     fatal "error exit status $1"
 }
 
+function install_node_config
+{
+    dir=$1
+
+    if [[ -n ${dir} ]] && [[ -d ${dir} ]]; then
+        # pull out those config options we want to keep
+        (
+            . ${USB_COPY}/config
+
+            # Options here should match key names from the headnode's config
+            # that we want on compute nodes.
+            for opt in \
+                root_authorized_keys_file \
+                compute_node_initial_datasets \
+                assets_admin_ip \
+                ntp_conf_file \
+                ntp_hosts \
+                rabbitmq \
+                root_shadow \
+                ; do
+
+                value=$(eval echo \${${opt}})
+                if [[ -n ${value} ]]; then
+                    echo "${opt}='${value}'"
+
+                    if echo "${opt}" | grep "_file$" >/dev/null 2>&1 && [[ "${value}" != "node.config" ]]; then
+                        [[ -f "${USB_COPY}/config.inc/${value}" ]] && cp "${USB_COPY}/config.inc/${value}" "${dir}/${value}"
+                    fi
+                fi
+
+            done
+        ) > ${dir}/node.config
+    else
+        echo "WARNING: Can't create node config in '${dir}'"
+    fi
+}
+
+function install_config_file
+{
+    option=$1
+    target=$2
+
+    # pull out those config options we want to keep
+    filename=$(
+        . ${USB_COPY}/config
+        eval echo "\${${option}}"
+    )
+
+    if [[ -n ${filename} ]] && [[ -f "${USB_COPY}/config.inc/${filename}" ]]; then
+        cp "${USB_COPY}/config.inc/${filename}" "${target}"
+    fi
+}
+
 trap 'errexit $?' EXIT
 
 DEBUG="true"
 
-USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/joyent`
-USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/joyent`
+USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
+USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
 # All the files come from USB, so we need that mounted.
 
@@ -49,19 +102,16 @@ POOLS=`zpool list`
 
 if [[ ${POOLS} == "no pools available" ]]; then
 
-    # This is to move us to the next line past the login: prompt
-    echo "" >>/dev/console
-
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
     echo -n "Importing zone template datasets... " >>/dev/console
-    templates=( bare protemplate )
+    templates=( bare-1.2.8 )
     for template in ${templates[@]}
     do
-        bzcat ${USB_PATH}/${template}.zfs.bz2 | zfs recv -e zones || exit 1;
+        bzcat ${USB_PATH}/datasets/${template}.zfs.bz2 | zfs recv -e zones || fatal "unable to import ${template}";
     done
-
     echo "done." >>/dev/console
+
     reboot
     exit 2
 fi
@@ -113,10 +163,10 @@ for zone in $ALLZONES; do
 
         src=${USB_COPY}/zones/${zone}
 
-        zone_public_ip=
-        zone_private_ip=
-        zone_public_netmask=
-        zone_private_netmask=
+        zone_external_ip=
+        zone_admin_ip=
+        zone_external_netmask=
+        zone_admin_netmask=
 
         if [[ -f "${src}/zoneconfig" ]]; then
             # We need to refigure this out each time because zoneconfig is gone on reboot
@@ -125,54 +175,29 @@ for zone in $ALLZONES; do
                 . ${src}/zoneconfig
                 echo "${PRIVATE_IP},${PUBLIC_IP}"
             )
-            zone_private_ip=${zoneips%%,*}
-            zone_public_ip=${zoneips##*,}
+            zone_admin_ip=${zoneips%%,*}
+            zone_external_ip=${zoneips##*,}
 
             zonemasks=$(
                 . ${USB_COPY}/config
                 echo "${admin_netmask},${external_netmask}"
             )
-            zone_private_netmask=${zonemasks%%,*}
-            zone_public_netmask=${zonemasks##*,}
+            zone_admin_netmask=${zonemasks%%,*}
+            zone_external_netmask=${zonemasks##*,}
         fi
 
-        zone_public_vlan=$(
+        zone_external_vlan=$(
             . ${USB_COPY}/config
-            eval "echo \${${zone}_public_vlan}"
+            eval "echo \${${zone}_external_vlan}"
         )
-        [[ -n ${zone_public_vlan} ]] || zone_public_vlan=0
+        [[ -n ${zone_external_vlan} ]] || zone_external_vlan=0
 
-        zone_public_vlan_opts=
-        if [[ -n "${zone_public_vlan}" ]] && [[ "${zone_public_vlan}" != "0" ]]; then
-            zone_public_vlan_opts="-v ${zone_public_vlan}"
+        zone_external_vlan_opts=
+        if [[ -n "${zone_external_vlan}" ]] && [[ "${zone_external_vlan}" != "0" ]]; then
+            zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
-        zfs_properties=""
         echo -n "creating zone ${zone}... " >>/dev/console
-        zfs_properties=$(dladm show-phys -m -p -o link,address | \
-          sed 's/:/\ /;s/\\//g' | while read iface mac; do
-            if [[ ${mac} == ${admin_nic} ]]; then
-                dladm create-vnic -l ${iface} ${zone}0
-                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
-
-                # Add the zfs metadata so we know which network to attach this to on reboot
-                echo -n "smartdc.network:${zone}0.vlan_id=0 "
-                echo -n "smartdc.network:${zone}0.nic=admin "
-                [[ -n ${admin_vnic_mac} ]] && echo -n "smartdc.network:${zone}0.mac=${admin_vnic_mac} "
-            fi
-
-            # if we have a PUBLIC_IP too, we need a second NIC
-            if [[ ${mac} == ${external_nic} ]] && [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-                dladm create-vnic -l ${iface} ${zone_public_vlan_opts} ${zone}1
-                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
-
-                # Add the zfs metadata so we know which network to attach this to on reboot
-                echo -n "smartdc.network:${zone}1.vlan_id=${zone_public_vlan} "
-                echo -n "smartdc.network:${zone}1.nic=external "
-                [[ -n ${external_vnic_mac} ]] && echo -n "smartdc.network:${zone}1.mac=${external_vnic_mac} "
-            fi
-        done)
-
         zonecfg -z ${zone} -f ${src}/config
 
         # Set memory, cpu-shares and max-lwps which can be in config file
@@ -194,18 +219,34 @@ for zone in $ALLZONES; do
             fi
         )
 
-        zonecfg -z ${zone} "add net; set physical=${zone}0; end"
-        if [[ -n "${zone_public_ip}" ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-           zonecfg -z ${zone} "add net; set physical=${zone}1; end"
+        zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; end; exit"
+        if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+           zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; end; exit"
         fi
-        zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
 
-        # At this point we have a zfs filesystem so we can apply our properties
-        if [[ -n ${zfs_properties} ]]; then
-            for prop in ${zfs_properties}; do
-                zfs set "${prop}" zones/${zone}
-            done
-        fi
+        dladm show-phys -m -p -o link,address | \
+          sed 's/:/\ /;s/\\//g' | while read iface mac; do
+            if [[ ${mac} == ${admin_nic} ]]; then
+                dladm create-vnic -l ${iface} ${zone}0
+                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
+
+                [[ -n ${admin_vnic_mac} ]] && zonecfg -z ${zone} \
+		    "select net physical=${zone}0; set mac-addr=${admin_vnic_mac}; end; exit"
+            fi
+
+            # if we have a PUBLIC_IP too, we need a second NIC
+            if [[ ${mac} == ${external_nic} ]] && \
+		[[ -n "${zone_external_ip}" ]] && \
+		[[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+                dladm create-vnic -l ${iface} ${zone_external_vlan_opts} ${zone}1
+                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
+
+                [[ -n ${external_vnic_mac} ]] && zonecfg -z ${zone} \
+		    "select net physical=${zone}1; set mac-addr=${external_vnic_mac}; end; exit"
+            fi
+        done
+
+        zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
 
         (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
         chown root:sys /zones/${zone}
@@ -252,11 +293,11 @@ for zone in $ALLZONES; do
             && mv ${dest}/root/zoneinit.d/93-pkgsrc.sh.new \
             ${dest}/root/zoneinit.d/93-pkgsrc.sh
 
-        if [[ -n "${zone_private_ip}" ]] && [[ -n ${zone_private_netmask} ]]; then
-            echo "${zone_private_ip} netmask ${zone_private_netmask}" > ${dest}/etc/hostname.${zone}0
+        if [[ -n "${zone_admin_ip}" ]] && [[ -n ${zone_admin_netmask} ]]; then
+            echo "${zone_admin_ip} netmask ${zone_admin_netmask}" > ${dest}/etc/hostname.${zone}0
         fi
-        if [[ -n "${zone_public_ip}" ]] && [[ -n ${zone_public_netmask} ]] && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
-            echo "${zone_public_ip} netmask ${zone_public_netmask}" > ${dest}/etc/hostname.${zone}1
+        if [[ -n "${zone_external_ip}" ]] && [[ -n ${zone_external_netmask} ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+            echo "${zone_external_ip} netmask ${zone_external_netmask}" > ${dest}/etc/hostname.${zone}1
         fi
 
         cat ${dest}/etc/motd | sed -e 's/ *$//' > /tmp/motd.new \
@@ -267,11 +308,11 @@ for zone in $ALLZONES; do
             cat ${src}/motd.append >> ${dest}/etc/motd
         fi
 
-        # If there's a public IP set and an external_gateway, use that, otherwise use
+        # If there's a external IP set and an external_gateway, use that, otherwise use
         # admin_gateway if that's set.
-        if [[ -n "${zone_public_ip}" ]] \
+        if [[ -n "${zone_external_ip}" ]] \
           && [[ -n ${CONFIG_external_gateway} ]] \
-          && [[ "${zone_public_ip}" != "${zone_private_ip}" ]]; then
+          && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
             echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
         elif [[ -n ${CONFIG_admin_gateway} ]]; then
             echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
@@ -329,9 +370,16 @@ if [ -n "${CREATEDZONES}" ]; then
             fi
         fi
 
-        # copy dhcpd configuration into zone if we're DHCPD
-        if [[ "${zone}" == "dhcpd" ]] && [[ -d "/zones/dhcpd/root/etc" ]]; then
-            ${USB_PATH}/zones/dhcpd/tools/dhcpconfig
+        # Install compute node config if we're MAPI
+        if [[ "${zone}" == "mapi" ]]; then
+            mkdir -p /zones/mapi/root/opt/smartdc/node.config
+            install_node_config /zones/mapi/root/opt/smartdc/node.config
+        fi
+
+        # Install capi.allow if we've got one
+        if [[ "${zone}" == "capi" ]]; then
+            mkdir -p /zones/capi/root/opt/smartdc
+            install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
         # disable zoneinit now that we're done with it.
@@ -345,6 +393,14 @@ if [ -n "${CREATEDZONES}" ]; then
         zlogin ${zone} reboot
         echo "done." >>/dev/console
     done
+
+    # We do this here because agents assume rabbitmq is up and by this point it
+    # should be.
+    if [[ ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
+        echo -n "Installing agents... " >>/dev/console
+        (cd /var/tmp ; bash ${USB_PATH}/ur-scripts/agents-*.sh)
+        echo "done." >>/dev/console
+    fi
 
     echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
     echo "" >>/dev/console

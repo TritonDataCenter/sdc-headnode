@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+BRANCH=mapi-integ
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+git clone git@git.joyent.com:booter.git booter
+cd booter
+git checkout -b $BRANCH origin/$BRANCH
+#touch ../mapi-VERSION
+#git describe --tags > ../mapi-VERSION
+

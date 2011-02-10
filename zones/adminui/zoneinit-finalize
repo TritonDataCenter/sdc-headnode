@@ -72,7 +72,7 @@ http {
     }
 
     server {
-        listen       ${PRIVATE_IP}:80;
+        listen       80;
         server_name  localhost;
 
         location / {

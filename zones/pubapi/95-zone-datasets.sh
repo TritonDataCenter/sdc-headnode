@@ -3,10 +3,10 @@ echo "95 configuring pubapi datasets"
 # This needs to run after scmgit pkgsrc package has been installed:
 
 # pubapi-data dataset name will remain the same always:
-zfs set mountpoint=/opt/smartdc/pubapi-data zones/pubapi-data
+zfs set mountpoint=/opt/smartdc/pubapi-data zones/pubapi/pubapi-data
 # pubapi-app-ISO_DATE dataset name will change:
 STAMP=$(cat /root/pubapi-app-timestamp)
-zfs set mountpoint=/opt/smartdc/pubapi "zones/pubapi-app-$STAMP"
+zfs set mountpoint=/opt/smartdc/pubapi "zones/pubapi/pubapi-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/pubapi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
@@ -21,7 +21,7 @@ fi
 
 # Export only config into pubapi-data:
 cd /opt/smartdc/pubapi-repo
-#/opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/pubapi-data/ config/
+
 # Create some directories into pubapi-data
 mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids

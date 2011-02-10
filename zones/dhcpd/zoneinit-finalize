@@ -1,0 +1,8 @@
+#!/bin/bash
+
+echo "99 finalizing dhcpd zone"
+
+export MAPI_IP
+export MAPI_PW
+/opt/smartdc/bin/booter-service-setup
+

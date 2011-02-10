@@ -11,6 +11,14 @@ OUTPUT_IMG="1gb.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
+function can_has_internets
+{
+    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 function version
 {
     echo "==> Building with variables from include-osx-usb"
@@ -67,6 +75,10 @@ function create_output
     else
       output_version="${LIVEIMG_VERSION}"
     fi
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
 
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true

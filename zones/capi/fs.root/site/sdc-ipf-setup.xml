@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+
+<!-- Copyright 2011 Joyent Inc -->
+
+<service_bundle type='manifest' name='platform/smartdc/capi_ipf_setup'>
+
+<service
+        name='platform/smartdc/capi_ipf_setup'
+        type='service'
+        version='1'>
+
+        <create_default_instance enabled='true' />
+
+        <single_instance/>
+
+        <dependency
+                name='usr'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/system/filesystem/usr' />
+        </dependency>
+        <exec_method
+                type='method'
+                name='start'
+                exec='/opt/smartdc/lib/svc/method/sdc-ipf-setup'
+                timeout_seconds='0' />
+
+        <exec_method
+                type='method'
+                name='stop'
+                exec=':true'
+                timeout_seconds='0' />
+
+        <property_group name='startd' type='framework'>
+                <propval name='duration' type='astring' value='transient' />
+        </property_group>
+        <property_group name='capi' type='application'>
+                <propval name='allowed_file' type='astring' value='/opt/smartdc/capi.allow' />
+                <propval name='port' type='astring' value='8080' />
+        </property_group>
+        <stability value='Unstable' />
+
+        <template>
+                <common_name>
+                        <loctext xml:lang='C'>
+                                CAPI authorized IP setup
+                        </loctext>
+                </common_name>
+        </template>
+</service>
+
+</service_bundle>

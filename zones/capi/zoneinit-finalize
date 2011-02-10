@@ -4,21 +4,21 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing capi zone"
 
-app_name='capi'
+for app in capi dnsapi; do
 
-echo "Creating $app_name-update service"
+    echo "Creating $app-update service"
 
-cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
+    cat >"/opt/local/share/smf/manifest/$app-update.xml" <<SMF
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
 <service_bundle type='manifest' name='export'>
-  <service name='platform/smartdc/${app_name}-update' type='service' version='0'>
+  <service name='platform/smartdc/${app}-update' type='service' version='0'>
     <create_default_instance enabled='true'/>
     <single_instance/>
     <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
       <service_fmri value='svc:/system/filesystem/local'/>
     </dependency>
-    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-update-service.sh' timeout_seconds='60'>
+    <exec_method name='start' type='method' exec='/opt/smartdc/$app-data/$app-update-service.sh' timeout_seconds='60'>
       <method_context>
         <method_credential user='root' group='root'/>
       </method_context>
@@ -31,22 +31,25 @@ cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
     <stability value='Evolving'/>
     <template>
       <common_name>
-        <loctext xml:lang='C'>SmartDC Update service ($app_name)</loctext>
+        <loctext xml:lang='C'>SmartDC Update service ($app)</loctext>
       </common_name>
     </template>
   </service>
 </service_bundle>
 SMF
 
-if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
-  echo "Importing '${app_name}-update' service"
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml)
-fi
+    if [[ ! $(/usr/bin/svcs -a|grep ${app}-update) ]]; then
+      echo "Importing '${app}-update' service"
+      $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app-update.xml)
+    fi
 
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
-  echo "Enabling '${app_name}-update' service"
-  $(/usr/sbin/svcadm enable -s ${app_name}-update)
-fi
+    if [[  "$(/usr/bin/svcs -Ho state ${app}-update)" != "online"  ]]; then
+      echo "Enabling '${app}-update' service"
+      $(/usr/sbin/svcadm enable -s ${app}-update)
+    fi
+
+done
+
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
@@ -81,7 +84,14 @@ if [[ -z $(psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep capi) ]]; then
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
   su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST capi"
+
+  echo "Creating dnsapi database"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST dnsapi"
 fi
+
+
+
+# CAPI specific
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
   echo "Creating Customers API config files."
@@ -139,7 +149,7 @@ echo "Auto Upgrading Customers API Database."
 su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
-if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi_ipf_setup) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
   sleep 1
@@ -154,9 +164,93 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   /opt/local/bin/rake install:capi_admin -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
+
+
+# DNS API specific
+
+if [[ ! -e /opt/smartdc/dnsapi/config/database.yml ]]; then
+  echo "Creating DNS API config files."
+  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/dnsapi/Rakefile"
+fi
+sleep 1
+
+# Note these files should have been created by previous Rake task.
+# If we copy these files post "gsed", everything is reset:
+if [[ ! -e /opt/smartdc/dnsapi/config/config.ru ]]; then
+  cp /opt/smartdc/dnsapi/config/config.ru.sample /opt/smartdc/dnsapi/config/config.ru
+fi
+
+if [[ ! -e /opt/smartdc/dnsapi/config/config.yml ]]; then
+  cp /opt/smartdc/dnsapi/config/config.yml.sample /opt/smartdc/dnsapi/config/config.yml
+fi
+
+if [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
+  echo "Unpacking frozen gems for DNS API."
+  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
+fi
+
+if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.smf ]]; then
+  echo "Creating DNS API Unicorn Manifest."
+  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='dnsapi'; working_directory='/opt/smartdc/dnsapi'; puts ERB.new(File.read('/opt/smartdc/dnsapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/dnsapi/config/unicorn.smf
+  chown jill:jill /opt/smartdc/dnsapi/config/unicorn.smf
+fi
+
+if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.conf ]]; then
+  echo "Creating DNS API Unicorn Configuration file."
+  /opt/local/bin/ruby18 -rerb -e "app_port='8000'; worker_processes=1; working_directory='/opt/smartdc/dnsapi'; application='dnsapi'; puts ERB.new(File.read('/opt/smartdc/dnsapi/config/unicorn.conf.erb')).result" > /opt/smartdc/dnsapi/config/unicorn.conf
+  chown jill:jill /opt/smartdc/dnsapi/config/unicorn.conf
+fi
+
+if [[ -z $(cat /opt/smartdc/dnsapi/config/database.yml|grep dnsapi) ]]; then
+  echo "Configuring DNS API Database."
+  cat > /opt/smartdc/dnsapi/config/database.yml <<DNSAPI_DB
+
+:production: &prod
+  :adapter: postgres
+  :database: dnsapi
+  :host: $POSTGRES_HOST
+  :username: $POSTGRES_USER
+  :password: $POSTGRES_PW
+  :encoding: UTF-8
+
+DNSAPI_DB
+fi
+
+if [[ ! -e /opt/smartdc/dnsapi/tmp/pids ]]; then
+  su - jill -c "mkdir -p /opt/smartdc/dnsapi/tmp/pids"
+fi
+
+echo "Auto Upgrading DNS API Database."
+su - jill -c "cd /opt/smartdc/dnsapi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/dnsapi/Rakefile"
+sleep 1
+
+
+# Import services
+
+if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi_ipf_setup) ]]; then
+  echo "Importing Customers API Unicorn Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
+  sleep 1
+fi
+
+if [[ -z $(/usr/bin/svcs -a|grep dnsapi|grep -v dnsapi-update) ]]; then
+  echo "Importing DNS API Unicorn Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/dnsapi/config/unicorn.smf
+  sleep 1
+fi
+
+
+
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
 
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+echo "Writing customer.url file to /root/customer.url"
+echo "/customers/${CAPI_ADMIN_UUID}/containers" > /root/customer.url
+
+if [[ -f $(svcprop -p 'capi/allowed_file' svc:/platform/smartdc/capi_ipf_setup) ]]; then
+    svcadm enable svc:/network/ipfilter:default
+fi
