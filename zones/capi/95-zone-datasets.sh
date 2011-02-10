@@ -1,54 +1,57 @@
-echo "95 configuring capi datasets"
+echo "95 configuring capi zone datasets"
 
-# This needs to run after scmgit pkgsrc package has been installed:
+for app in capi dnsapi; do
 
-# capi-data dataset name will remain the same always:
-zfs set mountpoint=/opt/smartdc/capi-data zones/capi/capi-data
-# capi-app-ISO_DATE dataset name will change:
-STAMP=$(cat /root/capi-app-timestamp)
-zfs set mountpoint=/opt/smartdc/capi "zones/capi/capi-app-$STAMP"
-# Get git revision:
-cd /opt/smartdc/capi-repo
-REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
-# Export complete repo into capi:
-cd /opt/smartdc/capi-repo
+    # This needs to run after scmgit pkgsrc package has been installed:
 
-if [[ "${IMG_TYPE}" == "coal" ]]; then
-  cp -R ./ /opt/smartdc/capi
-else
-  /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/capi/
-fi
+    # $app-data dataset name will remain the same always:
+    zfs set mountpoint=/opt/smartdc/$app-data zones/$app-data
+    # $app-app-ISO_DATE dataset name will change:
+    STAMP=$(cat /root/$app-app-timestamp)
+    zfs set mountpoint=/opt/smartdc/$app "zones/$app-app-$STAMP"
+    # Get git revision:
+    cd /opt/smartdc/$app-repo
+    REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
+    # Export complete repo into $app:
+    cd /opt/smartdc/$app-repo
 
-# Export only config into capi-data:
-cd /opt/smartdc/capi-repo
-# Create some directories into capi-data
-mkdir -p /opt/smartdc/capi-data/log
-mkdir -p /opt/smartdc/capi-data/tmp/pids
-# Remove and symlink directories:
-mv /opt/smartdc/capi/config /opt/smartdc/capi-data/config
-rm -Rf /opt/smartdc/capi/log
-rm -Rf /opt/smartdc/capi/tmp
-rm -Rf /opt/smartdc/capi/config
-ln -s /opt/smartdc/capi-data/log /opt/smartdc/capi/log
-ln -s /opt/smartdc/capi-data/tmp /opt/smartdc/capi/tmp
-ln -s /opt/smartdc/capi-data/config /opt/smartdc/capi/config
-# Save REVISION:
-echo "${REVISION}">/opt/smartdc/capi-data/REVISION
-echo "${REVISION}">/opt/smartdc/capi/REVISION
-# Save VERSION (Updates based on this):
-APP_VERSION=$(/opt/local/bin/git describe --tags)
-echo "${APP_VERSION}">/opt/smartdc/capi-data/VERSION
-echo "${APP_VERSION}">/opt/smartdc/capi/VERSION
-# Cleanup build products:
-cd /root/
-rm -Rf /opt/smartdc/capi-repo
-rm /root/capi-app-timestamp
+    if [[ "${IMG_TYPE}" == "coal" ]]; then
+      cp -R ./ /opt/smartdc/$app
+    else
+      /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/$app/
+    fi
 
-# Adding dataset based update service for the app:
-cat >"/opt/smartdc/capi-data/capi-update-service.sh" <<UPDATE
+    # Export only config into $app-data:
+    cd /opt/smartdc/$app-repo
+    /opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/$app-data/ config/
+    # Create some directories into $app-data
+    mkdir -p /opt/smartdc/$app-data/log
+    mkdir -p /opt/smartdc/$app-data/tmp/pids
+    # Remove and symlink directories:
+    mv /opt/smartdc/$app/config /opt/smartdc/$app-data/config
+    rm -Rf /opt/smartdc/$app/log
+    rm -Rf /opt/smartdc/$app/tmp
+    rm -Rf /opt/smartdc/$app/config
+    ln -s /opt/smartdc/$app-data/log /opt/smartdc/$app/log
+    ln -s /opt/smartdc/$app-data/tmp /opt/smartdc/$app/tmp
+    ln -s /opt/smartdc/$app-data/config /opt/smartdc/$app/config
+    # Save REVISION:
+    echo "${REVISION}">/opt/smartdc/$app-data/REVISION
+    echo "${REVISION}">/opt/smartdc/$app/REVISION
+    # Save VERSION (Updates based on this):
+    APP_VERSION=$(/opt/local/bin/git describe --tags)
+    echo "${APP_VERSION}">/opt/smartdc/$app-data/VERSION
+    echo "${APP_VERSION}">/opt/smartdc/$app/VERSION
+    # Cleanup build products:
+    cd /root/
+    rm -Rf /opt/smartdc/$app-repo
+    rm /root/$app-app-timestamp
+
+    # Adding dataset based update service for the app:
+    cat >"/opt/smartdc/$app-data/$app-update-service.sh" <<UPDATE
 #!/usr/bin/bash
 
-APP_NAME='capi'
+APP_NAME='$app'
 
 APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
 DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
@@ -64,4 +67,8 @@ exit 0
 
 UPDATE
 
-chmod +x /opt/smartdc/capi-data/capi-update-service.sh
+chmod +x /opt/smartdc/$app-data/$app-update-service.sh
+
+
+done
+

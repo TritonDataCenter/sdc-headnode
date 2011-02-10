@@ -123,6 +123,10 @@ dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
 dhcpd_memory_cap=128m
 
+dnsapi_http_port=8000
+dnsapi_http_user=admin
+dnsapi_http_pass=joypass123
+
 mapi_admin_ip=10.99.99.8
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
