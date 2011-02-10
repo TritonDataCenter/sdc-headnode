@@ -5,10 +5,10 @@ for app in capi dnsapi; do
     # This needs to run after scmgit pkgsrc package has been installed:
 
     # $app-data dataset name will remain the same always:
-    zfs set mountpoint=/opt/smartdc/$app-data zones/$app-data
+    zfs set mountpoint=/opt/smartdc/$app-data zones/capi/$app-data
     # $app-app-ISO_DATE dataset name will change:
     STAMP=$(cat /root/$app-app-timestamp)
-    zfs set mountpoint=/opt/smartdc/$app "zones/$app-app-$STAMP"
+    zfs set mountpoint=/opt/smartdc/$app "zones/capi/$app-app-$STAMP"
     # Get git revision:
     cd /opt/smartdc/$app-repo
     REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
@@ -23,7 +23,6 @@ for app in capi dnsapi; do
 
     # Export only config into $app-data:
     cd /opt/smartdc/$app-repo
-    /opt/local/bin/git checkout-index -f --prefix=/opt/smartdc/$app-data/ config/
     # Create some directories into $app-data
     mkdir -p /opt/smartdc/$app-data/log
     mkdir -p /opt/smartdc/$app-data/tmp/pids
