@@ -260,7 +260,7 @@ function copy_platform
     fi
 
     echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/ && tar -zxf ${image} && mv platform-* platform)
+    (cd ${STAGE}/; tar -zxf ${image}; mv platform-* platform)
     if [[ -f ${STAGE}/platform/root.password ]]; then
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
@@ -469,7 +469,7 @@ function copy_zones
             mkdir -p /tmp/fs.${zone}.$$
             cp -pPR ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
             rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
-            (cd /tmp/fs.${zone}.$$/fs.root && ../fs.populate && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
+            (cd /tmp/fs.${zone}.$$/fs.root; ../fs.populate; tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
         fi
 
         if [[ "${IMG_TYPE}" == "coal" ]]; then
