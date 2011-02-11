@@ -438,10 +438,10 @@ function copy_zones
         # file from ${ASSETS_ROOT}.
         #
         if [ ${uri%%/*} == $uri ]; then
-            uri=${ASSETS_ROOT}/liveimg/${uri}
+            uri=${ASSETS_ROOT}/liveimg/${uri}.20110210
         fi
 
-        file=${uri##*/}.20110210
+        file=${uri##*/}
 
         if ! bzip2 -t ${ROOT}/cache/${file}; then
             echo "Corrupt ${file}, deleting..."
