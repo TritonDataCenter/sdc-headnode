@@ -441,7 +441,7 @@ function copy_zones
             uri=${ASSETS_ROOT}/liveimg/${uri}
         fi
 
-        file=${uri##*/}
+        file=${uri##*/}.20110210
 
         if ! bzip2 -t ${ROOT}/cache/${file}; then
             echo "Corrupt ${file}, deleting..."
