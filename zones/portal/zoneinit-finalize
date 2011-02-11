@@ -17,7 +17,10 @@ exports.config = {
   privateCAUrl : "http://10.99.99.8:80",
   privateCAPIUrl : "http://10.99.99.11:8080",
   CAPIuser : "admin",
-  CAPIpassword : "tot@ls3crit"
+  CAPIpassword : "tot@ls3crit",
+  CAPIMetaCAKey : "portal-coal",
+  CAPIMetaCABlessed : "blessed-instrumentation",
+  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" }
 }
 HERE
 
