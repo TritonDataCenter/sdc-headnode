@@ -229,7 +229,7 @@ function copy_platform
     if [ -z $PLATFORM_FILE ]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+                | grep "href=\"platform-20110210T223545Z.tgz" | cut -d'"' -f2 | sort | tail -n 1)
 
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
@@ -278,7 +278,7 @@ function copy_agents
     # Grab the latest agent ur-script too
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-            | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+            | grep "href=\"agents-20110210T225923Z.sh" | cut -d'"' -f2 | sort | tail -n 1)
         if [[ ! -f "${ROOT}/cache/${latest_agents}" ]] || [[ ! -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
             echo "==> Downloading ${latest_agents}"
             (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
@@ -322,7 +322,7 @@ function get_node_magic
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
         latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
-            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+            | grep "href=\"node_service-0.4.0-1-ga985efd.tgz" | cut -d'"' -f2 | sort | tail -n 1)
 
         if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
             echo "==> Downloading ${latest_release}"
@@ -438,7 +438,7 @@ function copy_zones
         # file from ${ASSETS_ROOT}.
         #
         if [ ${uri%%/*} == $uri ]; then
-            uri=${ASSETS_ROOT}/liveimg/${uri}
+            uri=${ASSETS_ROOT}/liveimg/${uri}.20110210
         fi
 
         file=${uri##*/}
