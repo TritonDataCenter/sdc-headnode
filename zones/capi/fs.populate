@@ -7,8 +7,8 @@ mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 
 git clone git@git.joyent.com:customers_api.git capi-repo
-git checkout 20110210
 cd capi-repo
+git checkout 20110210
 # CAPI currently uses master as it's stable HEAD
 touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
@@ -16,7 +16,7 @@ git describe --tags > ../capi-VERSION
 cd ..
 
 git clone git@git.joyent.com:dns_api.git dnsapi-repo
-git checkout 20110210
 cd dnsapi-repo
+git checkout 20110210
 touch ../dnsapi-VERSION
 git describe --tags > ../dnsapi-VERSION
