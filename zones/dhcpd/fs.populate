@@ -8,6 +8,8 @@ cd root/opt/smartdc
 git clone git@git.joyent.com:booter.git booter
 cd booter
 git checkout -b $BRANCH origin/$BRANCH
+rm -rf .git
+rm -f config.js
 #touch ../booter-VERSION
 #git describe --tags > ../booter-VERSION
 
