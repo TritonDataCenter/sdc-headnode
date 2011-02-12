@@ -267,7 +267,7 @@ fi
 
 # Generate the agents setup script:
 
-AGENTS_FILE_VERSION=$(ls /opt/smartdc/agent-scripts/|grep agents)
+AGENTS_FILE_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents- | tail -n1)
 
 echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'"
 

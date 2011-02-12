@@ -397,9 +397,14 @@ if [ -n "${CREATEDZONES}" ]; then
     # We do this here because agents assume rabbitmq is up and by this point it
     # should be.
     if [[ ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
-        echo -n "Installing agents... " >>/dev/console
-        (cd /var/tmp ; bash ${USB_PATH}/ur-scripts/agents-*.sh)
-        echo "done." >>/dev/console
+        which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh | tail -n1)
+        if [[ -n ${which_agents} ]]; then
+            echo -n "Installing $(basename ${which_agents})... " >>/dev/console
+            (cd /var/tmp ; bash ${which_agents})
+            echo "done." >>/dev/console
+        else
+            fatal "No agents-*.sh found!"
+        fi
     fi
 
     echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console
