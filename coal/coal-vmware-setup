@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# coal-vmware-setup: sets up VMWare Fusion so you can use CoaL (Cloud on a 
+#                    Laptop) with it.
+
+
+FUSION_DIR=/Library/Application\ Support/VMware\ Fusion
+NET_TMP=/tmp/coal.networking.$$
+LOCATIONS_TMP=/tmp/coal.locations.$$
+
+## Networks ##
+# The admin "host-only" network - vmnet1 (only between the Mac and the headnode)
+ADMIN_NETWORK=10.99.0.0
+ADMIN_IP=10.99.99.254
+ADMIN_HEADNODE_IP=10.99.99.7
+ADMIN_NETMASK=255.255.0.0
+
+# The external NAT network - vmnet8 (can reach the internet)
+EXTERNAL_NETWORK=10.88.88.0
+EXTERNAL_IP=10.88.88.1
+EXTERNAL_NETMASK=255.255.255.0
+
+if [ $UID -ne 0 ] ; then
+    echo This script must be run as root.  Run again using the commandline:
+    echo    sudo $0
+    exit 1
+fi
+
+cd "$FUSION_DIR"
+
+VM_LIST=$(./vmrun list) 
+if [ "$VM_LIST" != "Total running VMs: 0" ] ; then
+    echo You have Virtual Machines running.  Please shut them down before continuing.
+    exit 1
+fi
+
+cat networking | grep -ve 'VNET_[18]' > $NET_TMP
+cat locations | grep -ve 'VNET_[18]' > $LOCATIONS_TMP
+
+cat >> $NET_TMP <<__NETWORKING__
+answer VNET_1_DHCP no
+answer VNET_1_HOSTONLY_NETMASK $ADMIN_NETMASK
+answer VNET_1_HOSTONLY_SUBNET $ADMIN_NETWORK
+answer VNET_1_NAT no
+answer VNET_1_VIRTUAL_ADAPTER yes
+answer VNET_1_VIRTUAL_ADAPTER_ADDR $ADMIN_IP
+answer VNET_8_DHCP yes
+answer VNET_8_DHCP_CFG_HASH 889DD78A4E0F3E1F68AB5418242607E2B4A060B7
+answer VNET_8_HOSTONLY_NETMASK $EXTERNAL_NETMASK
+answer VNET_8_HOSTONLY_SUBNET $EXTERNAL_NETWORK
+answer VNET_8_NAT yes
+answer VNET_8_VIRTUAL_ADAPTER yes
+answer VNET_8_VIRTUAL_ADAPTER_ADDR $EXTERNAL_IP
+__NETWORKING__
+
+cat >> $LOCATIONS_TMP <<__LOCATIONS__
+remove_answer VNET_1_HOSTONLY_HOSTADDR
+remove_answer VNET_1_HOSTONLY_NETMASK
+answer VNET_1_HOSTONLY_HOSTADDR $ADMIN_IP
+answer VNET_1_HOSTONLY_NETMASK $ADMIN_NETMASK
+remove_answer VNET_1_DHCP
+answer VNET_1_DHCP no
+remove_answer VNET_8_HOSTONLY_HOSTADDR
+remove_answer VNET_8_HOSTONLY_NETMASK
+answer VNET_8_HOSTONLY_HOSTADDR $EXTERNAL_IP
+answer VNET_8_HOSTONLY_NETMASK $EXTERNAL_NETMASK
+remove_answer VNET_8_NAT
+answer VNET_8_NAT yes
+remove_answer VNET_8_DHCP
+answer VNET_8_DHCP yes
+__LOCATIONS__
+
+echo Changing VMware networking settings...
+
+cp networking networking.pre_coal
+cp locations locations.pre_coal
+echo Old settings backed up to the following files:
+echo     $FUSION_DIR/networking.pre_coal
+echo     $FUSION_DIR/locations.pre_coal
+
+mv $NET_TMP networking
+mv $LOCATIONS_TMP locations
+
+echo Adding CoaL networking hooks to VMware startup scripts...
+
+# Remove the old route code if it's there.  It should no longer be necessary.
+grep -qs coal_start ./boot.sh
+if [ $? == 0 ] ; then
+    grep -v coal_start ./boot.sh > boot.sh.coal_new
+    mv boot.sh.coal_new boot.sh
+    chmod +x boot.sh
+fi
+
+if [ -e ./coal_start ] ; then
+    rm ./coal_start
+fi
+
+echo Restarting VMware services...
+./boot.sh --restart
+
+echo Done!
+
