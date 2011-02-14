@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+# portal pulls from master.
+git clone git@git.joyent.com:public-web-client.git portal-repo
+cd portal-repo
+git describe --tags > ../portal-VERSION
