@@ -3,6 +3,22 @@
 # coal-vmware-setup: sets up VMWare Fusion so you can use CoaL (Cloud on a 
 #                    Laptop) with it.
 
+function get_config_value() {
+    name=$1
+    script_dir=$(dirname $0)
+    if [[ -f "$script_dir/../config/config.coal.local" ]]; then
+      value=$(grep "^$name=" "$script_dir/../config/config.coal.local" | awk -F'=' '{print $2}')
+    elif [[ -f "$script_dir/../config/config.coal" ]]; then
+      value=$(grep "^$name=" "$script_dir/../config/config.coal" | awk -F'=' '{print $2}')
+    fi
+    if [[ ! -z "$value" ]]; then
+        echo "$value"
+    else
+        return 1
+    fi
+}
+
+
 
 FUSION_DIR=/Library/Application\ Support/VMware\ Fusion
 NET_TMP=/tmp/coal.networking.$$
@@ -10,14 +26,16 @@ LOCATIONS_TMP=/tmp/coal.locations.$$
 
 ## Networks ##
 # The admin "host-only" network - vmnet1 (only between the Mac and the headnode)
-ADMIN_NETWORK=10.99.0.0
-ADMIN_MAC_IP=10.99.99.254
-ADMIN_NETMASK=255.255.0.0
+ADMIN_NETWORK=$(get_config_value admin_network || echo 10.99.99.0)
+ADMIN_NETMASK=$(get_config_value admin_netmask || echo 255.255.255.0)
+ADMIN_MAC_IP=$(get_config_value admin_network || echo 10.99.99.254 | sed 's/\.[0-9]*$/.254/')
 
 # The external NAT network - vmnet8 (can reach the internet)
+# Note: There isn't currently an "external_network" var in config.coal to use.
 EXTERNAL_NETWORK=10.88.88.0
-EXTERNAL_IP=10.88.88.1
 EXTERNAL_NETMASK=255.255.255.0
+EXTERNAL_MAC_IP=10.88.88.1
+
 
 if [ $UID -ne 0 ] ; then
     echo This script must be run as root.  Run again using the commandline:
@@ -33,6 +51,8 @@ if [ "$VM_LIST" != "Total running VMs: 0" ] ; then
     exit 1
 fi
 
+
+echo "Setup VMWare networking: admin network $ADMIN_NETWORK, external network $EXTERNAL_NETWORK"
 cat networking | grep -ve 'VNET_[18]' > $NET_TMP
 cat locations | grep -ve 'VNET_[18]' > $LOCATIONS_TMP
 
@@ -49,7 +69,7 @@ answer VNET_8_HOSTONLY_NETMASK $EXTERNAL_NETMASK
 answer VNET_8_HOSTONLY_SUBNET $EXTERNAL_NETWORK
 answer VNET_8_NAT yes
 answer VNET_8_VIRTUAL_ADAPTER yes
-answer VNET_8_VIRTUAL_ADAPTER_ADDR $EXTERNAL_IP
+answer VNET_8_VIRTUAL_ADAPTER_ADDR $EXTERNAL_MAC_IP
 __NETWORKING__
 
 cat >> $LOCATIONS_TMP <<__LOCATIONS__
@@ -61,7 +81,7 @@ remove_answer VNET_1_DHCP
 answer VNET_1_DHCP no
 remove_answer VNET_8_HOSTONLY_HOSTADDR
 remove_answer VNET_8_HOSTONLY_NETMASK
-answer VNET_8_HOSTONLY_HOSTADDR $EXTERNAL_IP
+answer VNET_8_HOSTONLY_HOSTADDR $EXTERNAL_MAC_IP
 answer VNET_8_HOSTONLY_NETMASK $EXTERNAL_NETMASK
 remove_answer VNET_8_NAT
 answer VNET_8_NAT yes
