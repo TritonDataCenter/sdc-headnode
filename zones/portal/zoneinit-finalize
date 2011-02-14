@@ -23,7 +23,13 @@ exports.config = {
 }
 HERE
 
-cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
+ETC="/opt/smartdc/portal/etc"
+[ ! -d $ETC ] && mkdir -p $ETC
+
+MANIFEST = "${ETC}/portal_manifest.xml"
+echo Creating manifest for portal: $MANIFEST
+cat > ${MANIFEST} <<HERE
+
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type="manifest" name="portal">
@@ -46,10 +52,13 @@ cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
       exec="/usr/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
-        <!-- <method_credential user="root" group="staff"/> -->
+        <method_credential user="root" group="root"/>
+        <!-- <method_credential user="untrusted" group="untrusted" privileges="basic,net_privaddr" /> -->
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
+          <envvar name="PORT" value="80" />
+          <envvar name="NODE_ENV" value="production" />
         </method_environment>
       </method_context>
     </exec_method>
@@ -88,7 +97,9 @@ cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-svccfg import /opt/smartdc/portal/smf_manifest.xml
+echo Importing ${MANIFEST}
+svccfg import ${MANIFEST}
+echo Enablig service portal
 svcadm enable smartdc/site/portal
 
 
