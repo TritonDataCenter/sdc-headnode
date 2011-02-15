@@ -9,5 +9,5 @@ cd portal
 git checkout -b portal-164 origin/portal-164
 touch ../portal-VERSION
 git describe --tags > ../portal-VERSION
-rm -r .git
-rm config.js
+rm -rf .git
+rm -f config.js
