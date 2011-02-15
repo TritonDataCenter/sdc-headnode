@@ -109,6 +109,14 @@ function test_rootperms
     fi
 }
 
+function load_buildspec
+{
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | grep "platform-release: " | cut -d ' ' -f2)
+        echo "platform-release: ${PLATFORM_RELEASE}"
+    fi
+}
+
 function create_directories
 {
     if [ ! -d "${ROOT}/cache" ]; then
@@ -228,8 +236,13 @@ function copy_platform
     valid_platform="false"
     if [ -z $PLATFORM_FILE ]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+            if [[ -n "${PLATFORM_RELEASE}" ]]; then
+                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+            else
+                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                    | grep "href=\"platform-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+            fi
 
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
@@ -264,7 +277,7 @@ function copy_platform
     if [[ -f ${STAGE}/platform/root.password ]]; then
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
-    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     loops=
 }
@@ -495,6 +508,7 @@ function copy_to_mount
 
 test_rootperms
 create_directories
+load_buildspec
 copy_base
 copy_pkgsrc
 copy_platform
