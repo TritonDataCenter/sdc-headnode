@@ -48,7 +48,6 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <!-- <method_credential user="untrusted" group="untrusted" privileges="basic,net_privaddr" /> -->
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
