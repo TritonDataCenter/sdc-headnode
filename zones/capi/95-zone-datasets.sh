@@ -15,11 +15,7 @@ for app in capi dnsapi; do
     # Export complete repo into $app:
     cd /opt/smartdc/$app-repo
 
-    if [[ "${IMG_TYPE}" == "coal" ]]; then
-      cp -R ./ /opt/smartdc/$app
-    else
-      /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/$app/
-    fi
+    /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/$app/
 
     # Export only config into $app-data:
     cd /opt/smartdc/$app-repo
