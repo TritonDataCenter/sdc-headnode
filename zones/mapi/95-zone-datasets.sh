@@ -13,11 +13,7 @@ REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
 # Export complete repo into mapi:
 cd /opt/smartdc/mapi-repo
 
-if [[ "${IMG_TYPE}" == "coal" ]]; then
-  cp -R ./ /opt/smartdc/mapi
-else
-  /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/mapi/
-fi
+/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/mapi/
 
 # Export only config into mapi-data:
 cd /opt/smartdc/mapi-repo

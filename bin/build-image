@@ -407,15 +407,6 @@ function copy_zones
 {
     for zone in $(ls ${STAGE}/zones); do
 
-        # See if there's a specific branch we should use (default to 'develop')
-        if [[ -f ${ROOT}/build.spec.local ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"${zone}-branch\"]")
-        elif [[ -f ${ROOT}/build.spec ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"${zone}-branch\"]")
-        fi
-        [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
-        export USE_BRANCH
-
         fsuri=${STAGE}/zones/${zone}/fs.uri
 
         if [ ! -f $fsuri ]; then
@@ -489,6 +480,16 @@ function copy_zones
     done
 
     for zone in $(ls ${STAGE}/zones); do
+
+        # See if there's a specific branch we should use (default to 'develop')
+        if [[ -f ${ROOT}/build.spec.local ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        elif [[ -f ${ROOT}/build.spec ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        fi
+        [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
+        export USE_BRANCH
+
         if [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
           [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
