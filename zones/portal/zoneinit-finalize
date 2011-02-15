@@ -25,7 +25,6 @@ HERE
 
 echo Creating manifest for portal: 
 cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
-
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type="manifest" name="portal">
@@ -48,7 +47,7 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
       exec="/usr/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
-        <method_credential user="root" group="root"/>
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <!-- <method_credential user="untrusted" group="untrusted" privileges="basic,net_privaddr" /> -->
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
