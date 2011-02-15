@@ -23,12 +23,8 @@ exports.config = {
 }
 HERE
 
-ETC="/opt/smartdc/portal/etc"
-[ ! -d $ETC ] && mkdir -p $ETC
-
-MANIFEST = "${ETC}/portal_manifest.xml"
-echo Creating manifest for portal: $MANIFEST
-cat > ${MANIFEST} <<HERE
+echo Creating manifest for portal: 
+cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -97,8 +93,8 @@ cat > ${MANIFEST} <<HERE
 </service_bundle>
 HERE
 
-echo Importing ${MANIFEST}
-svccfg import ${MANIFEST}
+echo Importing portal_manifest.xml
+svccfg import /opt/smartdc/portal/portal_manifest.xml
 echo Enablig service portal
 svcadm enable smartdc/site/portal
 
