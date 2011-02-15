@@ -1,1 +1,3 @@
-platform-release: node-release
+{
+    "platform-release": "node-release"
+}

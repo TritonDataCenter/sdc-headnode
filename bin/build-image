@@ -112,7 +112,7 @@ function test_rootperms
 function load_buildspec
 {
     if [[ -f "${ROOT}/build.spec" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | grep "platform-release: " | cut -d ' ' -f2)
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json '["platform-release"]')
         echo "platform-release: ${PLATFORM_RELEASE}"
     fi
 }
