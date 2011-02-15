@@ -6,7 +6,7 @@ mkdir -p root/opt/smartdc
 
 cd root/opt/smartdc
 
-echo "Using branch: [${USE_BRANCH}]"
+echo "CAPI branch: [${USE_BRANCH}]"
 
 git clone git@git.joyent.com:customers_api.git -b ${USE_BRANCH} capi-repo
 cd capi-repo
@@ -15,6 +15,8 @@ touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
 
 cd ..
+
+echo "DNSAPI branch: [${USE_BRANCH}]"
 
 git clone git@git.joyent.com:dns_api.git -b ${USE_BRANCH} dnsapi-repo
 cd dnsapi-repo

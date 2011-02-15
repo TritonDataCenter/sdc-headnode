@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Using branch: [${USE_BRANCH}]"
+echo "booter branch: [${USE_BRANCH}]"
 
 BRANCH=${USE_BRANCH}
 
