@@ -2,11 +2,13 @@
 
 set -e
 
+echo "Using branch: [${USE_BRANCH}]"
+
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
 cd mapi-repo
-git checkout -b develop origin/develop
+git checkout -b ${USE_BRANCH} origin/${USE_BRANCH}
 touch ../mapi-VERSION
 git describe --tags > ../mapi-VERSION
 
