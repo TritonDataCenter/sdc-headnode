@@ -7,7 +7,7 @@
   , "capi-branch": "develop"
   , "dhcpd-branch": "develop"
   , "mapi-branch": "develop"
-  , "portal-branch": "develop"
+  , "portal-branch": "master"
   , "pubapi-branch": "usb-headnode"
   , "rabbitmq-branch": "develop"
 }

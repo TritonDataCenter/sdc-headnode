@@ -112,10 +112,10 @@ function test_rootperms
 function load_buildspec
 {
     if [[ -f "${ROOT}/build.spec.local" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json '["platform-release"]')
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json platform-release)
         echo "platform-release: ${PLATFORM_RELEASE}"
     elif [[ -f "${ROOT}/build.spec" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json '["platform-release"]')
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json platform-release)
         echo "platform-release: ${PLATFORM_RELEASE}"
     fi
 }
@@ -483,9 +483,9 @@ function copy_zones
 
         # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "${zone}-branch")
         elif [[ -f ${ROOT}/build.spec ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "${zone}-branch")
         fi
         [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
         export USE_BRANCH
