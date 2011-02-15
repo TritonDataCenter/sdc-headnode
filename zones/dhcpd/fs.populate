@@ -2,7 +2,10 @@
 
 set -e
 
-BRANCH=develop
+echo "booter branch: [${USE_BRANCH}]"
+
+BRANCH=${USE_BRANCH}
+
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:booter.git booter

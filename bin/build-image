@@ -109,6 +109,17 @@ function test_rootperms
     fi
 }
 
+function load_buildspec
+{
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json '["platform-release"]')
+        echo "platform-release: ${PLATFORM_RELEASE}"
+    elif [[ -f "${ROOT}/build.spec" ]]; then
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json '["platform-release"]')
+        echo "platform-release: ${PLATFORM_RELEASE}"
+    fi
+}
+
 function create_directories
 {
     if [ ! -d "${ROOT}/cache" ]; then
@@ -228,8 +239,13 @@ function copy_platform
     valid_platform="false"
     if [ -z $PLATFORM_FILE ]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                | grep "href=\"platform" | cut -d'"' -f2 | sort | tail -n 1)
+            if [[ -n "${PLATFORM_RELEASE}" ]]; then
+                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+            else
+                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                    | grep "href=\"platform-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+            fi
 
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
@@ -264,7 +280,7 @@ function copy_platform
     if [[ -f ${STAGE}/platform/root.password ]]; then
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
-    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform-\(.*\)\.tgz/\1/"`
+    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     loops=
 }
@@ -390,6 +406,7 @@ function copy_datasets
 function copy_zones
 {
     for zone in $(ls ${STAGE}/zones); do
+
         fsuri=${STAGE}/zones/${zone}/fs.uri
 
         if [ ! -f $fsuri ]; then
@@ -443,7 +460,7 @@ function copy_zones
 
         file=${uri##*/}
 
-        if ! bzip2 -t ${ROOT}/cache/${file}; then
+        if [[ -f ${ROOT}/cache/${file} ]] && ! bzip2 -t ${ROOT}/cache/${file}; then
             echo "Corrupt ${file}, deleting..."
             rm -f ${ROOT}/cache/${file}
         fi
@@ -463,6 +480,16 @@ function copy_zones
     done
 
     for zone in $(ls ${STAGE}/zones); do
+
+        # See if there's a specific branch we should use (default to 'develop')
+        if [[ -f ${ROOT}/build.spec.local ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        elif [[ -f ${ROOT}/build.spec ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        fi
+        [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
+        export USE_BRANCH
+
         if [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
           [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
@@ -495,6 +522,7 @@ function copy_to_mount
 
 test_rootperms
 create_directories
+load_buildspec
 copy_base
 copy_pkgsrc
 copy_platform
