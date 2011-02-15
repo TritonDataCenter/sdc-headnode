@@ -6,7 +6,9 @@ mkdir -p root/opt/smartdc
 
 cd root/opt/smartdc
 
-git clone git@git.joyent.com:customers_api.git -b develop capi-repo
+echo "Using branch: [${USE_BRANCH}]"
+
+git clone git@git.joyent.com:customers_api.git -b ${USE_BRANCH} capi-repo
 cd capi-repo
 # CAPI currently uses master as it's stable HEAD
 touch ../capi-VERSION
@@ -14,7 +16,7 @@ git describe --tags > ../capi-VERSION
 
 cd ..
 
-git clone git@git.joyent.com:dns_api.git dnsapi-repo
+git clone git@git.joyent.com:dns_api.git -b ${USE_BRANCH} dnsapi-repo
 cd dnsapi-repo
 touch ../dnsapi-VERSION
 git describe --tags > ../dnsapi-VERSION

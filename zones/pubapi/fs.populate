@@ -2,12 +2,14 @@
 
 set -e
 
+echo "Using branch: [${USE_BRANCH}]"
+
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:public_api.git pubapi-repo
 cd pubapi-repo
-git branch --track usb-headnode origin/usb-headnode
-git checkout usb-headnode
+git branch --track ${USE_BRANCH}  origin/${USE_BRANCH}
+git checkout ${USE_BRANCH}
 touch ../pubapi-VERSION
 git describe --tags > ../pubapi-VERSION
 
