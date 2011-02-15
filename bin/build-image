@@ -293,9 +293,9 @@ function copy_agents
 
     # See if there's a specific agents we're supposed to use
     if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"agents-shar\"]")
+        agents_shar=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json agents-shar)
     elif [[ -f ${ROOT}/build.spec ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"agents-shar\"]")
+        agents_shar=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json agents-shar)
     fi
     if [[ -z ${agents_shar} ]]; then
         agents_shar="latest"
