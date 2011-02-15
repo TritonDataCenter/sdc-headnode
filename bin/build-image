@@ -111,7 +111,10 @@ function test_rootperms
 
 function load_buildspec
 {
-    if [[ -f "${ROOT}/build.spec" ]]; then
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json '["platform-release"]')
+        echo "platform-release: ${PLATFORM_RELEASE}"
+    elif [[ -f "${ROOT}/build.spec" ]]; then
         PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json '["platform-release"]')
         echo "platform-release: ${PLATFORM_RELEASE}"
     fi
@@ -403,6 +406,16 @@ function copy_datasets
 function copy_zones
 {
     for zone in $(ls ${STAGE}/zones); do
+
+        # See if there's a specific branch we should use (default to 'develop')
+        if [[ -f ${ROOT}/build.spec.local ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        elif [[ -f ${ROOT}/build.spec ]]; then
+            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"${zone}-branch\"]")
+        fi
+        [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
+        export USE_BRANCH
+
         fsuri=${STAGE}/zones/${zone}/fs.uri
 
         if [ ! -f $fsuri ]; then
@@ -456,7 +469,7 @@ function copy_zones
 
         file=${uri##*/}
 
-        if ! bzip2 -t ${ROOT}/cache/${file}; then
+        if [[ -f ${ROOT}/cache/${file} ]] && ! bzip2 -t ${ROOT}/cache/${file}; then
             echo "Corrupt ${file}, deleting..."
             rm -f ${ROOT}/cache/${file}
         fi
