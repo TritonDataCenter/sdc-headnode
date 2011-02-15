@@ -1,0 +1,3 @@
+{
+    "platform-release": "develop"
+}
