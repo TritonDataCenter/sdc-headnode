@@ -14,7 +14,7 @@ git describe --tags > ../capi-VERSION
 
 cd ..
 
-git clone git@git.joyent.com:dns_api.git dnsapi-repo
+git clone git@git.joyent.com:dns_api.git -b develop dnsapi-repo
 cd dnsapi-repo
 touch ../dnsapi-VERSION
 git describe --tags > ../dnsapi-VERSION
