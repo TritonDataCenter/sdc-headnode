@@ -1,5 +1,7 @@
 {
     "platform-release": "node-release"
+  , "agents-shar": "latest"
+  , "datasets": ["bare-1.2.8", "protemplate-2.5.2", "nodejs-0.4.0"]
   , "adminui-branch": "node-release"
   , "assets-branch": "node-release"
   , "atropos-branch": "node-release"

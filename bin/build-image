@@ -291,37 +291,74 @@ function copy_agents
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
-    # Grab the latest agent ur-script too
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-            | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
-        if [[ ! -f "${ROOT}/cache/${latest_agents}" ]] || [[ ! -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
-            echo "==> Downloading ${latest_agents}"
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/${latest_agents})
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${MASTER_PLATFORM_URL}/ur-scripts/`basename ${latest_agents} .sh`.md5sum)
+    # See if there's a specific agents we're supposed to use
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "[\"agents-shar\"]")
+    elif [[ -f ${ROOT}/build.spec ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "[\"agents-shar\"]")
+    fi
+    if [[ -z ${agents_shar} ]]; then
+        agents_shar="latest"
+    fi
+
+    # Figure out for sure which one we want
+    if [[ ${agents_shar} == "latest" ]]; then
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+                | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
+        else
+            latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
         fi
-    else
-        latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
         if [[ -z ${latest_agents} ]]; then
-            fatal "Unable to find agents and we have no Internet."
+            fatal "Unable to find latest agents!"
+        fi
+        use_agents=${latest_agents}
+    else
+        # we've got a specific set of agents specified, use those
+        use_agents=${agents_shar}
+    fi
+
+    if [[ -z ${use_agents} ]]; then
+        fatal "Unable to determine which agents to use!"
+    fi
+
+    echo "Using agents: [${use_agents}]"
+
+    if [[ ! -f "${ROOT}/cache/${use_agents}" ]] \
+        || [[ ! -f "${ROOT}/cache/`basename ${use_agents} .sh`.md5sum" ]]; then
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            echo "==> Downloading ${use_agents}"
+            (cd ${ROOT}/cache \
+                && curl --progress-bar -k \
+                -O ${MASTER_PLATFORM_URL}/ur-scripts/${use_agents})
+            (cd ${ROOT}/cache \
+                && curl --progress-bar -k \
+                -O ${MASTER_PLATFORM_URL}/ur-scripts/`basename ${use_agents} .sh`.md5sum)
+        else
+            fatal "Don't have required '${use_agents}' and can't download (no Internet)"
         fi
     fi
+
     mkdir -p ${STAGE}/ur-scripts
 
-    if [[ -n "${latest_agents}" ]] && [[ -f "${ROOT}/cache/${latest_agents}" ]] && [[ -f "${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum" ]]; then
+    # Make sure it's not corrupt
+    if [[ -n "${use_agents}" ]] \
+        && [[ -f "${ROOT}/cache/${use_agents}" ]] \
+        && [[ -f "${ROOT}/cache/`basename ${use_agents} .sh`.md5sum" ]]; then
+
         # Check the md5sum
-        MD5=$(cat ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum)
-        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${latest_agents} | cut -d' ' -f1)
+        MD5=$(cat ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum)
+        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${use_agents} | cut -d' ' -f1)
 
         if [[ -z ${MD5} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
-            echo "Removing corrupt ${latest_agents}"
-            rm -f ${ROOT}/cache/${latest_agents} ${ROOT}/cache/`basename ${latest_agents} .sh`.md5sum
-            latest_agents=
+            echo "Removing corrupt ${use_agents}"
+            rm -f ${ROOT}/cache/${use_agents} ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
+            use_agents=
             copy_agents
         fi
 
-        echo "==> Copying ${latest_agents}"
-        cp ${ROOT}/cache/${latest_agents} ${STAGE}/ur-scripts/${latest_agents}
+        echo "==> Copying ${use_agents}"
+        cp ${ROOT}/cache/${use_agents} ${STAGE}/ur-scripts/${use_agents}
     fi
 
     loops=
