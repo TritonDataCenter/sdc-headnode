@@ -30,6 +30,15 @@ function errexit
     fatal "error exit status $1 at line $2"
 }
 
+function check_nodejs
+{
+    if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
+        echo "Your version of node.js is ok!"
+    else
+        fatal "You need to have a working node.js installed for this to work!"
+    fi
+}
+
 trap 'errexit $? $LINENO' EXIT
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -557,6 +566,7 @@ function copy_to_mount
 
 # Main()
 
+check_nodejs
 test_rootperms
 create_directories
 load_buildspec

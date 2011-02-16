@@ -13,3 +13,5 @@ git checkout ${USE_BRANCH}
 touch ../pubapi-VERSION
 git describe --tags > ../pubapi-VERSION
 
+rm -rf .git
+rm -f .gitignore
