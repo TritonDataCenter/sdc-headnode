@@ -74,7 +74,51 @@ if [[ ! -e /opt/smartdc/pubapi/config/config.ru ]]; then
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
-  cp /opt/smartdc/pubapi/config/config.yml.sample /opt/smartdc/pubapi/config/config.yml
+  #TODO: what should sendmail config be for production
+  cat >"/opt/smartdc/pubapi/config/config.yml" <<CONFIGYML
+---
+development: &defaults
+  name: Joyent Public API
+  url: http://${PUBLIC_IP}:8080/v1
+  ignore_coupons: true
+  datastore:
+    adapter: sqlite3
+    database: development.db
+  sendmail:
+    sendmail_path: /opt/local/sbin/sendmail
+    sendmail_arguments: '-i -t'
+    to: brock@joyent.com
+    from: support@joyent.com
+  capi:
+    url: ${CAPI_ADMIN_IP}:8080
+    username: admin
+    password: tot@ls3crit
+  mapi:
+    coal:
+      url: ${MAPI_ADMIN_IP}
+      username: ${MAPI_HTTP_ADMIN_USER}
+      password: ${MAPI_HTTP_ADMIN_PW}
+      resources:
+        bare:
+          coupon: false
+          repo: false
+        nodejs:
+          coupon: false
+          repo: true
+          size: 128
+        protemplate:
+          coupon: false
+          repo: false
+
+staging:
+  <<: *defaults
+
+test:
+  <<: *defaults
+
+production:
+  <<: *defaults
+CONFIGYML
 fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
@@ -93,16 +137,6 @@ if [[ ! -e /opt/smartdc/pubapi/config/unicorn.conf ]]; then
   /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/pubapi'; application='pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.conf
   chown jill:jill /opt/smartdc/pubapi/config/unicorn.conf
 fi
-
-# Not sure what this does or how it applies to Public API (Rob E.)
-#TODO: remove this block or update it. The values are wrong for pubapi anyway.
-#echo "Updating Public API Config file."
-#host=`hostname`
-#/opt/local/bin/gsed -i"" -e "s/:to: 'devs@joyent.com'$/:to: 'jill@$host'/" \
-#-e "s/:from: 'support@joyent.com'$/:from: 'jill@$host'/" \
-#-e "s/127.0.0.1:8080/10.99.99.8:8080/" \
-#-e "s/localhost:8083/10.99.99.10:8080/" \
-#/opt/smartdc/pubapi/config/config.yml
 
 if [[ ! -e /opt/smartdc/pubapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/pubapi/tmp/pids"
