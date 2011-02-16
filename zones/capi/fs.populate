@@ -10,7 +10,6 @@ echo "CAPI branch: [${USE_BRANCH}]"
 
 git clone git@git.joyent.com:customers_api.git -b ${USE_BRANCH} capi-repo
 cd capi-repo
-# CAPI currently uses master as it's stable HEAD
 touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
 
