@@ -109,7 +109,7 @@ if [[ ! -e /opt/smartdc/capi/config/config.yml ]]; then
   cp /opt/smartdc/capi/config/config.yml.sample /opt/smartdc/capi/config/config.yml
 fi
 
-if [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then
+if [[ ! -e /opt/smartdc/capi/gems/gems ]] || [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Customers API."
   (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/capi/Rakefile)
 fi
@@ -184,7 +184,7 @@ if [[ ! -e /opt/smartdc/dnsapi/config/config.yml ]]; then
   cp /opt/smartdc/dnsapi/config/config.yml.sample /opt/smartdc/dnsapi/config/config.yml
 fi
 
-if [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
+if [[ ! -e /opt/smartdc/dnsapi/gems/gems ]] || [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for DNS API."
   (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
 fi

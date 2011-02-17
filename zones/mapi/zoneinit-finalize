@@ -199,7 +199,7 @@ if [[ ! -e /opt/smartdc/mapi/config/config.ru ]]; then
   cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
 fi
 
-if [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
+if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
   (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/mapi/Rakefile)
 fi
