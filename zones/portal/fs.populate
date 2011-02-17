@@ -8,7 +8,7 @@ mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:public-web-client.git portal
 cd portal
-git checkout -b ${USE_BRANCH} origin/${USE_BRANCH}
+git checkout origin/${USE_BRANCH}
 touch ../portal-VERSION
 git describe --tags > ../portal-VERSION
 rm -rf .git
