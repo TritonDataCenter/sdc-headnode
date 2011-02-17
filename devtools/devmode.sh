@@ -15,7 +15,7 @@
 
 ROOT_DIR=$(cd $(dirname $0); pwd)
 PKG_REPO="http://pkgsrc.joyent.com/2010Q3/All"
-PKGSRC_TGZ="https://guest:GrojhykMid@assets.joyent.us/templates/misc/pkgsrc-base-2010Q3.tgz"
+PKGSRC_TGZ="https://guest:GrojhykMid@assets.joyent.us/datasets/misc/pkgsrc-base-2010Q3.tgz"
 
 if [[ "$(uname)" != "SunOS" ]] || [[ ! -f /etc/joyent_buildstamp ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"

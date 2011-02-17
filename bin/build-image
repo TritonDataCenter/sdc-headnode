@@ -18,6 +18,16 @@
 set -o errexit
 set -o pipefail
 
+# write output to log file
+ROOT=$(cd $(dirname $0)/../; pwd)
+LOGDIR="${ROOT}/log"
+LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+# 2>&1
+echo ">> Starting build at $(date)"
+
 function fatal
 {
     echo "$(basename $0): fatal error: $*"
@@ -41,7 +51,6 @@ function check_nodejs
 
 trap 'errexit $? $LINENO' EXIT
 
-ROOT=$(cd $(dirname $0)/../; pwd)
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
@@ -50,7 +59,7 @@ MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/templates"
+ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
 PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q3/All"
 
 # Figure out first what we're building, and load the proper include
@@ -290,6 +299,10 @@ function copy_platform
         (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
     fi
     LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+
+    # Rename log file here since we know the buildstamp now
+    mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
+    LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
 
     loops=
 }
@@ -584,6 +597,12 @@ trap 'cleanup' EXIT
 copy_to_mount
 cleanup
 create_output
+
+# Unfortunately the log contains a whole bunch of progress updates, clean that up.
+if [[ -f ${LOGFILE} ]]; then
+    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
+    && mv ${LOGFILE}.tmp ${LOGFILE}
+fi
 
 if [ ${ERROR} -ne 0 ]; then
     fatal "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
