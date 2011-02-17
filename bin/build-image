@@ -23,7 +23,9 @@ ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
 mkdir -p log
-exec > >(tee -a ${LOGFILE}) 2>&1
+exec > >(tee ${LOGFILE}) 2>&1
+
+# 2>&1
 echo ">> Starting build at $(date)"
 
 function fatal
@@ -300,6 +302,7 @@ function copy_platform
 
     # Rename log file here since we know the buildstamp now
     mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
+    LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
 
     loops=
 }
@@ -594,6 +597,12 @@ trap 'cleanup' EXIT
 copy_to_mount
 cleanup
 create_output
+
+# Unfortunately the log contains a whole bunch of progress updates, clean that up.
+if [[ -f ${LOGFILE} ]]; then
+    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
+    && mv ${LOGFILE}.tmp ${LOGFILE}
+fi
 
 if [ ${ERROR} -ne 0 ]; then
     fatal "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
