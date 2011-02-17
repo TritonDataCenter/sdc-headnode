@@ -119,19 +119,19 @@ fi
 # admin_nic in boot params overrides config, but config is normal place for it
 if ( /usr/bin/bootparams | grep "^admin_nic=" 2> /dev/null ); then
     admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
     admin_nic=`grep "^admin_nic=" /etc/headnode.config | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 
 # external_nic in boot params overrides config, but config is normal place for it
 if ( /usr/bin/bootparams | grep "^external_nic=" 2> /dev/null ); then
     external_nic=`/usr/bin/bootparams | grep "^external_nic=" | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
     external_nic=`grep "^external_nic=" /etc/headnode.config | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 
 # Load headnode.config variables with CONFIG_ prefix, ignoring comments,
