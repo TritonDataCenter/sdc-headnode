@@ -1,6 +1,6 @@
 {
     "platform-release": "node-release"
-  , "agents-shar": "agents-20110215T180944Z.sh"
+  , "agents-shar": "agents-20110217T180813Z.sh"
   , "datasets": ["bare-1.2.8", "nodejs-0.4.0"]
   , "adminui-branch": "node-release"
   , "assets-branch": "node-release"
