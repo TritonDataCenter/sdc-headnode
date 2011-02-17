@@ -122,6 +122,7 @@ dhcpd_admin_pw=joypass123
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
 dhcpd_memory_cap=128m
+dhcpd_dhcp_server=1
 
 dnsapi_http_port=8000
 dnsapi_http_user=admin
