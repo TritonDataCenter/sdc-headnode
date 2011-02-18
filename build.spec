@@ -1,7 +1,7 @@
 {
     "platform-release": "develop"
   , "build-tgz": "true"
-  , "agents-shar": "latest"
+  , "agents-shar": "develop"
   , "datasets": ["bare-1.2.8", "protemplate-2.5.2", "nodejs-0.4.0"]
   , "adminui-checkout": "origin/develop"
   , "assets-checkout": "origin/develop"

@@ -288,11 +288,11 @@ function copy_platform
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
                     | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
-                    | cut -d'"' -f2 | sort | tail -n 1)
+                    | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
                     | grep "href=\"platform-[0-9]" \
-                    | cut -d'"' -f2 | sort | tail -n 1)
+                    | cut -d'"' -f2 | sort | tail -1)
             fi
 
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
@@ -360,25 +360,27 @@ function copy_agents
             | ${ROOT}/bin/json agents-shar)
     fi
     if [[ -z ${agents_shar} ]]; then
-        agents_shar="latest"
+        agents_shar="master"
     fi
 
+    # We treat agents_shar as a pattern and grab the latest one which matches
+
     # Figure out for sure which one we want
-    if [[ ${agents_shar} == "latest" ]]; then
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-                | grep "href=\"agents" | cut -d'"' -f2 | sort | tail -n 1)
-        else
-            latest_agents=$(cd ${ROOT}/cache && ls agents-*.sh | head)
-        fi
-        if [[ -z ${latest_agents} ]]; then
-            fatal "Unable to find latest agents!"
-        fi
-        use_agents=${latest_agents}
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+            | grep "href=\"agents" \
+            | grep "${agents_shar}" \
+            | cut -d'"' -f2 | sort | tail -1)
     else
-        # we've got a specific set of agents specified, use those
-        use_agents=${agents_shar}
+        latest_agents=$(cd ${ROOT}/cache
+            && ls agents-*.sh \
+            | grep "${agents_shar}" \
+            | tail -1)
     fi
+    if [[ -z ${latest_agents} ]]; then
+        fatal "Unable to find latest agents!"
+    fi
+    use_agents=${latest_agents}
 
     if [[ -z ${use_agents} ]]; then
         fatal "Unable to determine which agents to use!"
@@ -445,7 +447,7 @@ function get_node_magic
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
         latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
-            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -1)
 
         if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
             echo "==> Downloading ${latest_release}"
