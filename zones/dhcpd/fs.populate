@@ -2,15 +2,13 @@
 
 set -e
 
-echo "booter branch: [${USE_BRANCH}]"
-
-BRANCH=${USE_BRANCH}
+echo "booter target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:booter.git booter
 cd booter
-git checkout -b $BRANCH origin/$BRANCH
+git checkout ${CHECKOUT_TARGET}
 rm -rf .git
 rm -f config.js
 #touch ../booter-VERSION
