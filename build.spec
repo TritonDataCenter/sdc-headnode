@@ -9,7 +9,7 @@
   , "capi-branch": "node-release"
   , "dhcpd-branch": "node-release"
   , "mapi-branch": "node-release"
-  , "portal-branch": "master"
+  , "portal-branch": "develop"
   , "pubapi-branch": "node-release"
   , "rabbitmq-branch": "node-release"
 }
