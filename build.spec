@@ -5,7 +5,7 @@
   , "adminui-branch": "node-release"
   , "assets-branch": "node-release"
   , "atropos-branch": "node-release"
-  , "ca-branch": "node-release"
+  , "ca-branch": "master"
   , "capi-branch": "node-release"
   , "dhcpd-branch": "node-release"
   , "mapi-branch": "node-release"
