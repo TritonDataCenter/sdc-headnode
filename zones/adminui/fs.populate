@@ -2,14 +2,13 @@
 
 set -e
 
-echo "adminui branch: [${USE_BRANCH}]"
+echo "adminui target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
 cd adminui-repo
-git branch --track ${USE_BRANCH} origin/${USE_BRANCH}
-git checkout ${USE_BRANCH}
+git checkout ${CHECKOUT_TARGET}
 touch ../adminui-VERSION
 git describe --tags > ../adminui-VERSION
 
