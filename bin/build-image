@@ -599,6 +599,8 @@ function copy_zones
 
     for zone in $(ls ${STAGE}/zones); do
 
+        CHECKOUT_TARGET=
+
         # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
             CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local \
