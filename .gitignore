@@ -4,6 +4,7 @@
 /usb-*.tgz
 /config/*.local
 /config/*.inc/root.authorized_keys
+/build.spec.local
 /log
 *.swp
 /tmp
