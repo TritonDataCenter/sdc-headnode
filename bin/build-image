@@ -130,10 +130,12 @@ function test_rootperms
 function load_buildspec
 {
     if [[ -f "${ROOT}/build.spec.local" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json platform-release)
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json platform-release)
         echo "platform-release: ${PLATFORM_RELEASE}"
     elif [[ -f "${ROOT}/build.spec" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json platform-release)
+        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json platform-release)
         echo "platform-release: ${PLATFORM_RELEASE}"
     fi
 }
@@ -197,25 +199,40 @@ function copy_base
 function copy_pkgsrc
 {
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        (cd ${ROOT}/cache && rm -f md5sums.txt && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt)
+        (cd ${ROOT}/cache \
+            && rm -f md5sums.txt \
+            && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
-        fatal "Don't have cached md5sums.txt file, can't build. You need to find some Internet."
+        fatal "Don't have cached md5sums.txt file, can't build. " \
+            "You need to find some Internet."
     fi
-    pkgs=$(cat ${ROOT}/zones/*/pkgsrc | xargs -n1 | sort | uniq | sed -e "s/$/.tgz/")
+    pkgs=$(cat ${ROOT}/zones/*/pkgsrc \
+        | xargs -n1 \
+        | sort \
+        | uniq \
+        | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
         MD5=$(grep " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
         if [[ -z ${MD5} ]]; then
-            fatal "Unable to find md5sum for ${pkgfile}, must be fixed before we can continue."
+            fatal "Unable to find md5sum for ${pkgfile}, " \
+                "must be fixed before we can continue."
         fi
-        [[ -f ${ROOT}/cache/${pkgfile} ]] && ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
-        if [[ ! -f ${ROOT}/cache/${pkgfile} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+
+        [[ -f ${ROOT}/cache/${pkgfile} ]] \
+            && ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
+
+        if [[ ! -f ${ROOT}/cache/${pkgfile} ]] \
+            || [[ -z ${ACTUAL_MD5} ]] \
+            || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+
             echo "==> Downloading ${pkgfile}"
             # if this exists, it's corrupt
             rm -f ${ROOT}/cache/${pkgfile}
             if [[ ${HAVE_INTERNET} == "true" ]]; then
-                (cd ${ROOT}/cache && curl --progress-bar \
-                    -k -fO ${PKGSRC_ROOT}/${pkgfile}) || \
-                    fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
+                (cd ${ROOT}/cache \
+                    && curl --progress-bar -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
+                    || fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
             else
                 fatal "Need Internet to download ${pkgfile}"
             fi
@@ -259,16 +276,19 @@ function copy_platform
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | cut -d'"' -f2 | sort | tail -n 1)
             else
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-[0-9]" | cut -d'"' -f2 | sort | tail -n 1)
+                    | grep "href=\"platform-[0-9]" \
+                    | cut -d'"' -f2 | sort | tail -n 1)
             fi
 
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
-                (cd ${ROOT}/cache && \
-                  curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image})
+                (cd ${ROOT}/cache \
+                  && curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image}) \
+                  || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
             latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head)
@@ -294,11 +314,17 @@ function copy_platform
     fi
 
     echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; tar -zxf ${image}; mv platform-* platform)
+    (cd ${STAGE}/; tar -zxf ${image}; mv platform-* platform) \
+        || fatal "Unable to unpack platform"
     if [[ -f ${STAGE}/platform/root.password ]]; then
-        (cd ${STAGE}/ && mkdir -p private && mv -f platform/root.password private/)
+        (cd ${STAGE}/ \
+            && mkdir -p private \
+            && mv -f platform/root.password private/) \
+            || fatal "Unable to move root.password"
     fi
-    LIVEIMG_VERSION=`basename ${image} | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+    echo "Root password is: '$(cat ${STAGE}/private/root.password)'"
+    LIVEIMG_VERSION=`basename ${image} \
+        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     # Rename log file here since we know the buildstamp now
     mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
@@ -315,9 +341,11 @@ function copy_agents
 
     # See if there's a specific agents we're supposed to use
     if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json agents-shar)
+        agents_shar=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json agents-shar)
     elif [[ -f ${ROOT}/build.spec ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json agents-shar)
+        agents_shar=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json agents-shar)
     fi
     if [[ -z ${agents_shar} ]]; then
         agents_shar="latest"
@@ -350,14 +378,18 @@ function copy_agents
         || [[ ! -f "${ROOT}/cache/`basename ${use_agents} .sh`.md5sum" ]]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             echo "==> Downloading ${use_agents}"
-            (cd ${ROOT}/cache \
-                && curl --progress-bar -k \
-                -O ${MASTER_PLATFORM_URL}/ur-scripts/${use_agents})
-            (cd ${ROOT}/cache \
-                && curl --progress-bar -k \
-                -O ${MASTER_PLATFORM_URL}/ur-scripts/`basename ${use_agents} .sh`.md5sum)
+
+            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts"
+            AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
+            AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
+
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_URL}) \
+                || fatal "Unable to download ${AGENT_URL}"
+            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_MD_URL}) \
+                || fatal "Unable to download ${AGENT_MD_URL}"
         else
-            fatal "Don't have required '${use_agents}' and can't download (no Internet)"
+            fatal "Don't have required '${use_agents}' " \
+                "and can't download (no Internet)"
         fi
     fi
 
@@ -372,9 +404,13 @@ function copy_agents
         MD5=$(cat ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum)
         ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${use_agents} | cut -d' ' -f1)
 
-        if [[ -z ${MD5} ]] || [[ -z ${ACTUAL_MD5} ]] || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+        if [[ -z ${MD5} ]] \
+            || [[ -z ${ACTUAL_MD5} ]] \
+            || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+
             echo "Removing corrupt ${use_agents}"
-            rm -f ${ROOT}/cache/${use_agents} ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
+            rm -f ${ROOT}/cache/${use_agents} \
+                ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
             use_agents=
             copy_agents
         fi
@@ -401,13 +437,16 @@ function get_node_magic
 
         if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
             echo "==> Downloading ${latest_release}"
-            (cd ${ROOT}/cache && \
-              curl --progress-bar -k -O ${NODE_SERVICE_RELEASES}/${latest_release})
+            (cd ${ROOT}/cache \
+                && curl --progress-bar -k \
+                -O ${NODE_SERVICE_RELEASES}/${latest_release}) \
+                || fatal "Unable to download ${latest_release}"
         fi
     else
         latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head)
         if [[ -z ${latest_release} ]]; then
-            fatal "Unable to find a node_service magicball and we have no Internet."
+            fatal "Unable to find a node_service magicball " \
+                "and we have no Internet."
         fi
     fi
 
@@ -441,9 +480,12 @@ function copy_datasets
         if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
             if [[ ${HAVE_INTERNET} == "true" ]]; then
                 echo "==> Downloading ${dataset_file}"
-                (cd ${ROOT}/cache && curl --progress-bar -k -O ${ASSETS_ROOT}/${dataset_file})
+                (cd ${ROOT}/cache && curl --progress-bar -k \
+                    -O ${ASSETS_ROOT}/${dataset_file}) \
+                    || fatal "Unable to download ${dataset_file}"
             else
-                fatal "Don't have Internet, and don't have valid ${dataset_file}. Can't build."
+                fatal "Don't have Internet, and don't have valid " \
+                    "${dataset_file}. Can't build."
             fi
         fi
 
@@ -456,7 +498,8 @@ function copy_datasets
         cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 
         if [[ ${dataset} == "nodejs-0.4.0" ]]; then
-            # the nodejs-0.4.0 dataset is magical and "special" so it needs more stuff
+            # the nodejs-0.4.0 dataset is magical and "special" so it needs
+            # more stuff
             get_node_magic
         fi
     done
@@ -519,7 +562,9 @@ function copy_zones
 
         file=${uri##*/}
 
-        if [[ -f ${ROOT}/cache/${file} ]] && ! bzip2 -t ${ROOT}/cache/${file}; then
+        if [[ -f ${ROOT}/cache/${file} ]] \
+            && ! bzip2 -t ${ROOT}/cache/${file}; then
+
             echo "Corrupt ${file}, deleting..."
             rm -f ${ROOT}/cache/${file}
         fi
@@ -527,9 +572,11 @@ function copy_zones
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             echo "==> Updating ${file}"
             CURL_OPTS=
-            [[ -f ${ROOT}/cache/${file} ]] && CURL_OPTS="-z ${ROOT}/cache/${file}"
-            (cd ${ROOT}/cache && curl --progress-bar -k ${CURL_OPTS} -fO $uri) || \
-                fatal "could not download $uri for $zone"
+            [[ -f ${ROOT}/cache/${file} ]] \
+                && CURL_OPTS="-z ${ROOT}/cache/${file}"
+            (cd ${ROOT}/cache \
+                && curl --progress-bar -k ${CURL_OPTS} -fO $uri) \
+                || fatal "could not download $uri for $zone"
         elif [[ ! -f ${ROOT}/cache/${file} ]]; then
             fatal "Don't have Internet and don't have ${file}. Can't build."
         fi
@@ -542,9 +589,11 @@ function copy_zones
 
         # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "${zone}-branch")
+            USE_BRANCH=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json "${zone}-branch")
         elif [[ -f ${ROOT}/build.spec ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "${zone}-branch")
+            USE_BRANCH=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json "${zone}-branch")
         fi
         [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
         export USE_BRANCH
@@ -553,9 +602,15 @@ function copy_zones
           [ -d ${STAGE}/zones/${zone}/fs.root ]; then
             # do in /tmp because only root can write in mnt
             mkdir -p /tmp/fs.${zone}.$$
-            cp -pPR ${STAGE}/zones/${zone}/fs.populate ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
+            cp -pPR ${STAGE}/zones/${zone}/fs.populate \
+                ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
             rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
-            (cd /tmp/fs.${zone}.$$/fs.root; ../fs.populate; tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
+            (cd /tmp/fs.${zone}.$$/fs.root \
+                && ../fs.populate \
+                && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
+            if [[ $? -ne 0 ]]; then
+                fatal "Failed to populate fs.tar.bz2 for ${zone}"
+            fi
         fi
 
         if [[ "${IMG_TYPE}" == "coal" ]]; then
@@ -574,7 +629,9 @@ function copy_devtools
 
 function copy_to_mount
 {
-    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -)
+    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
+        | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -) \
+        || fatal "Unable to copy files to mount"
 }
 
 # Main()
@@ -598,7 +655,8 @@ copy_to_mount
 cleanup
 create_output
 
-# Unfortunately the log contains a whole bunch of progress updates, clean that up.
+# Unfortunately the log contains a whole bunch of progress updates,
+# clean that up.
 if [[ -f ${LOGFILE} ]]; then
     cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
