@@ -367,6 +367,11 @@ if [ -n "${CREATEDZONES}" ]; then
             install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
+	# Enable compression for the "ca" zone.
+	if [[ "${zone}" == "ca" ]]; then
+    		zfs set compression=lzjb zones/ca
+	fi
+
         # disable zoneinit now that we're done with it.
         zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
 
