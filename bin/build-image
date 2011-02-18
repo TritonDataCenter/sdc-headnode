@@ -129,19 +129,26 @@ function test_rootperms
 
 function load_buildspec
 {
+    # local is read first and options are only read from build.spec
+    # only if they're not set in build.spec.local
     if [[ -f "${ROOT}/build.spec.local" ]]; then
         PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json platform-release)
         BUILD_TGZ=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json build-tgz)
-        echo "platform-release: ${PLATFORM_RELEASE}"
-    elif [[ -f "${ROOT}/build.spec" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json platform-release)
-        BUILD_TGZ=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json build-tgz)
-        echo "platform-release: ${PLATFORM_RELEASE}"
     fi
+
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        if [[ -z ${PLATFORM_RELEASE} ]]; then
+            PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json platform-release)
+        fi
+        if [[ -z ${BUILD_TGZ} ]]; then
+            BUILD_TGZ=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json build-tgz)
+        fi
+    fi
+    [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
 function create_directories
@@ -347,7 +354,8 @@ function copy_agents
     if [[ -f ${ROOT}/build.spec.local ]]; then
         agents_shar=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json agents-shar)
-    elif [[ -f ${ROOT}/build.spec ]]; then
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
         agents_shar=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json agents-shar)
     fi
@@ -594,10 +602,11 @@ function copy_zones
         # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
             CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json "${zone}-branch")
-        elif [[ -f ${ROOT}/build.spec ]]; then
+                | ${ROOT}/bin/json "${zone}-checkout")
+        fi
+        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${CHECKOUT_TARGET} ]]; then
             CHECKOUT_TARGET=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json "${zone}-branch")
+                | ${ROOT}/bin/json "${zone}-checkout")
         fi
         [[ -z ${CHECKOUT_TARGET} ]] && CHECKOUT_TARGET='origin/develop'
         export CHECKOUT_TARGET
