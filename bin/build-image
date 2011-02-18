@@ -589,14 +589,14 @@ function copy_zones
 
         # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec.local \
+            CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-branch")
         elif [[ -f ${ROOT}/build.spec ]]; then
-            USE_BRANCH=$(cat ${ROOT}/build.spec \
+            CHECKOUT_TARGET=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-branch")
         fi
-        [[ -z ${USE_BRANCH} ]] && USE_BRANCH='develop'
-        export USE_BRANCH
+        [[ -z ${CHECKOUT_TARGET} ]] && CHECKOUT_TARGET='origin/develop'
+        export CHECKOUT_TARGET
 
         if [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
           [ -d ${STAGE}/zones/${zone}/fs.root ]; then
