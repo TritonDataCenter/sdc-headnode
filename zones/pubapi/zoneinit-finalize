@@ -94,21 +94,15 @@ development: &defaults
     username: admin
     password: tot@ls3crit
   mapi:
-    coal:
+    dc1:
       url: ${MAPI_ADMIN_IP}
       username: ${MAPI_HTTP_ADMIN_USER}
       password: ${MAPI_HTTP_ADMIN_PW}
       resources:
-        bare:
-          coupon: false
-          repo: false
         nodejs:
-          coupon: false
+          coupon: true
           repo: true
           size: 128
-        protemplate:
-          coupon: false
-          repo: false
 
 staging:
   <<: *defaults
