@@ -106,10 +106,14 @@ function create_output
 	    rm -f ${ROOT}/cache/root.password
     fi
 
-    echo "==> Creating usb-147-${output_version}.tgz"
-    (cd ${ROOT}/cache \
-        && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
-        && tar -zcf ${ROOT}/usb-147-${output_version}.tgz \
-        root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
-    [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating usb-147-${output_version}.tgz"
+        (cd ${ROOT}/cache \
+            && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
+            && tar -zcf ${ROOT}/usb-147-${output_version}.tgz \
+            root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    else
+        mv ${ROOT}/cache/${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG}
+    fi
 }
