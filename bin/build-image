@@ -132,10 +132,14 @@ function load_buildspec
     if [[ -f "${ROOT}/build.spec.local" ]]; then
         PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json platform-release)
+        BUILD_TGZ=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json build-tgz)
         echo "platform-release: ${PLATFORM_RELEASE}"
     elif [[ -f "${ROOT}/build.spec" ]]; then
         PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json platform-release)
+        BUILD_TGZ=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json build-tgz)
         echo "platform-release: ${PLATFORM_RELEASE}"
     fi
 }

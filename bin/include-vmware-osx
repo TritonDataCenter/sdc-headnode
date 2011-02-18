@@ -112,10 +112,17 @@ function create_output
         ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password
     fi
 
-    echo "==> Creating coal-147-${output_version}.tgz"
-    (cd ${ROOT}/cache \
-        && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
-        && tar -zcf ${ROOT}/coal-147-${output_version}.tgz \
-        USB-headnode.vmwarevm) \
-        || fatal "Unable to create .tgz output file."
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating coal-147-${output_version}.tgz"
+        (cd ${ROOT}/cache \
+            && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
+            && tar -zcf ${ROOT}/coal-147-${output_version}.tgz \
+            USB-headnode.vmwarevm) \
+            || fatal "Unable to create .tgz output file."
+    else
+        mv ${ROOT}/cache/USB-headnode.vmwarevm \
+            coal-147-${output_version}.vmwarevm
+        ${SUCMD} chown -R ${USER} coal-147-${output_version}.vmwarevm
+    fi
+
 }
