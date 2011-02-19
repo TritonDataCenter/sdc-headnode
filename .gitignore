@@ -6,8 +6,8 @@
 /config/*.inc/root.authorized_keys
 /build.spec.local
 /*.vmwarevm
+/*.img
 /log
 *.swp
 /tmp
-/USB-headnode.vmwarevm
 /.DS_Store

@@ -7,7 +7,7 @@ SUCMD='sudo'
 MD5CMD="md5 -r"
 GZCAT=gzcat
 IMG_TYPE="usb"
-OUTPUT_IMG="1gb.img"
+OUTPUT_IMG="2gb.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
