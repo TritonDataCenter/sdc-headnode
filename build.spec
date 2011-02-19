@@ -1,5 +1,6 @@
 {
     "platform-release": "node-release"
+  , "build-tgz": "true"
   , "agents-shar": "node-release"
   , "datasets": ["bare-1.2.8", "nodejs-0.4.0"]
   , "adminui-checkout": "origin/node-release"
