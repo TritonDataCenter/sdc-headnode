@@ -10,7 +10,7 @@
   , "capi-checkout": "origin/node-release"
   , "dhcpd-checkout": "origin/node-release"
   , "mapi-checkout": "origin/node-release"
-  , "portal-checkout": "origin/develop"
+  , "portal-checkout": "origin/master"
   , "pubapi-checkout": "origin/node-release"
   , "rabbitmq-checkout": "origin/develop"
 }
