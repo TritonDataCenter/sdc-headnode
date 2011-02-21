@@ -3,9 +3,6 @@
 #
 # Test with: (source ./config ; echo ${admin_ip})
 #
-# Changes to mimic no.de-147 production:
-# - Change to this admin subnet: 10.0.104.0/23
-#
 coal=true
 swap=4g
 
@@ -33,8 +30,6 @@ headnode_nat=true
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
-#XXX Check that these are right for the "/23" subnet.
-#XXX What is 'dhcp_next_server' for?
 dhcp_range_start=10.0.104.20
 dhcp_range_end=10.0.105.254
 dhcp_next_server=10.0.104.4
