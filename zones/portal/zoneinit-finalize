@@ -19,7 +19,8 @@ exports.config = {
   CAPIpassword : "tot@ls3crit",
   CAPIMetaCAKey : "portal-coal",
   CAPIMetaCABlessed : "blessed-instrumentation",
-  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" }
+  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
+  clientCABlackList : [ 'nic', 'syscall', 'io', { cpu : ['utilization'] } ],
 }
 HERE
 
