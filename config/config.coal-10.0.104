@@ -1,0 +1,174 @@
+#
+# This file must be source-able by bash.
+#
+# Test with: (source ./config ; echo ${admin_ip})
+#
+# Changes to mimic no.de-147 production:
+# - Change to this admin subnet: 10.0.104.0/23
+#
+coal=true
+swap=4g
+
+# admin_nic is the nic admin_ip will be connected to for headnode zones.
+admin_nic=00:50:56:34:60:4c
+admin_ip=10.0.104.7
+admin_netmask=255.255.254.0
+admin_network=10.0.104.0
+admin_gateway=10.0.104.7
+# adding bit_count to save calculations
+admin_bitcount=24
+
+# external_nic is the nic external_ip will be connected to for headnode zones.
+external_nic=00:50:56:3d:a7:95
+# external_ip can be set to an IP or 'dhcp'
+external_ip=10.88.88.200
+external_gateway=10.88.88.2
+external_netmask=255.255.255.0
+#external_vlan_id=999
+
+# Set to true if you want the GZ on the headnode to NAT traffic from the admin
+# network to the external network:
+headnode_nat=true
+
+dns_resolvers=8.8.8.8,8.8.4.4
+dns_domain=joyent.us
+
+#XXX Check that these are right for the "/23" subnet.
+#XXX What is 'dhcp_next_server' for?
+dhcp_range_start=10.0.104.20
+dhcp_range_end=10.0.105.254
+dhcp_next_server=10.0.104.4
+
+# This should not be changed.
+initial_script=scripts/headnode.sh
+
+# This is the entry from /etc/shadow for root (default password: 'root')
+root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
+
+# Set this to the name of a file in config.inc and it will be copied in as
+# root's .ssh/authorized_keys in GZs:
+root_authorized_keys_file=root.authorized_keys
+
+# To specify NTP servers you can either use:
+#
+# ntp_hosts=[servers separated by commas]
+#
+# Or generate your own ntp.conf file and include the filename as the argument to:
+#
+# ntp_conf_file=<filename of file in config.inc>
+#
+
+rabbitmq=guest:guest:10.0.104.5:5672
+
+# Config options specific to compute nodes
+
+# List of datasets to import on compute nodes automatically.
+# These must exist on the headnode and be in /usbkey/datasets with the
+# extension .zfs.bz2.  Leave empty to not import any datasets by default.
+compute_node_initial_datasets="bare-1.2.8,nodejs-0.4.0"
+
+# Zone-specific configs
+
+adminui_admin_ip=10.0.104.10
+# adminui_external_ip=10.88.88.10
+# adminui_external_vlan=0
+adminui_root_pw=joypass123
+adminui_admin_pw=joypass123
+adminui_cpu_shares=50
+adminui_max_lwps=1000
+adminui_memory_cap=128m
+
+assets_admin_ip=10.0.104.6
+# assets_external_ip=10.88.88.6
+# assets_external_vlan=0
+assets_root_pw=joypass123
+assets_admin_pw=joypass123
+assets_cpu_shares=50
+assets_max_lwps=1000
+assets_memory_cap=128m
+
+atropos_admin_ip=10.0.104.12
+atropos_root_pw=joypass123
+atropos_admin_pw=joypass123
+atropos_cpu_shares=50
+atropos_max_lwps=1000
+atropos_memory_cap=128m
+
+ca_admin_ip=10.0.104.9
+ca_root_pw=joypass123
+ca_admin_pw=joypass123
+
+capi_admin_ip=10.0.104.11
+# capi_external_ip=10.88.88.11
+# capi_external_vlan=0
+capi_root_pw=joypass123
+capi_admin_login=admin
+capi_admin_pw=joypass123
+capi_admin_email=user@joyent.com
+capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
+capi_cpu_shares=50
+capi_max_lwps=1000
+capi_memory_cap=128m
+#
+# If the capi_allow_file file exists in config.inc/ it should contain a list of
+# CIDR addresses like:
+#
+# 10.0.104.0/24
+# 10.88.88.0/24
+#
+# These networks are then the *only* ones allowed to connect to CAPI.  Without
+# this file existing and being populated *all* IPs will be allowed to connect.
+#
+capi_allow_file=capi.allow-10.0.104
+
+dhcpd_admin_ip=10.0.104.4
+dhcpd_root_pw=joypass123
+dhcpd_admin_pw=joypass123
+dhcpd_cpu_shares=50
+dhcpd_max_lwps=1000
+dhcpd_memory_cap=128m
+dhcpd_dhcp_server=1
+
+dnsapi_http_port=8000
+dnsapi_http_user=admin
+dnsapi_http_pass=joypass123
+
+mapi_admin_ip=10.0.104.8
+mapi_root_pw=joypass123
+mapi_admin_pw=joypass123
+mapi_cpu_shares=50
+mapi_max_lwps=1000
+mapi_mac_prefix=c0ffee
+mapi_memory_cap=512m
+mapi_http_port=8080
+mapi_http_admin_user=admin
+mapi_http_admin_pw=tot@ls3crit
+mapi_datasets="bare-1.2.8,protemplate-2.5.2,nodejs-0.4.0"
+dbconn_retry_after=10
+dbconn_num_attempts=10
+
+portal_admin_ip=10.0.104.14
+# portal_external_ip=10.88.88.14
+# portal_external_vlan=0
+portal_root_pw=joypass123
+portal_admin_pw=joypass123
+portal_cpu_shares=50
+portal_max_lwps=1000
+portal_memory_cap=128m
+
+pubapi_admin_ip=10.0.104.13
+# pubapi_external_ip=10.88.88.13
+# pubapi_external_vlan=0
+pubapi_root_pw=joypass123
+pubapi_admin_pw=joypass123
+pubapi_cpu_shares=50
+pubapi_max_lwps=1000
+pubapi_memory_cap=128m
+
+rabbitmq_admin_ip=10.0.104.5
+rabbitmq_root_pw=joypass123
+rabbitmq_admin_pw=joypass123
+rabbitmq_cpu_shares=50
+rabbitmq_max_lwps=1000
+rabbitmq_memory_cap=128m
+
