@@ -113,7 +113,7 @@ capi_memory_cap=1024m
 # These networks are then the *only* ones allowed to connect to CAPI.  Without
 # this file existing and being populated *all* IPs will be allowed to connect.
 #
-capi_allow_file=capi.allow.local
+capi_allow_file=capi.allow-10.0.104
 
 dhcpd_admin_ip=10.99.99.4
 dhcpd_root_pw=joypass123
