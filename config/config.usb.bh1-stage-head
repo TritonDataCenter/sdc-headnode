@@ -29,7 +29,7 @@ dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
 dhcp_range_start=10.0.104.20
-dhcp_range_end=10.0.104.250
+dhcp_range_end=10.0.105.250
 dhcp_next_server=10.0.104.4
 
 # This should not be changed.
