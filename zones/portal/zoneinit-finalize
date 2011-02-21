@@ -124,7 +124,7 @@ http {
     server_tokens off;
 
     upstream portal {
-        server 127.0.0.1:4000;
+        server ${PRIVATE_IP}:4000;
     }
 
     server {
