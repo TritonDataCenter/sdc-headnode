@@ -447,7 +447,7 @@ function get_node_magic
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
         latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
-            | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -1)
+            | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -1)
 
         if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
             echo "==> Downloading ${latest_release}"

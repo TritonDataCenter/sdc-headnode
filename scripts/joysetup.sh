@@ -218,7 +218,7 @@ install_datasets()
                 # XXX SPECIAL CASE node dataset needs more magic!
 
                 latest_release=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
-                    | grep "href=\"node_service-*" | cut -d'"' -f2 | sort | tail -n 1)
+                    | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -n 1)
 
                 echo "Installing extra magic for ${ds} from ${assets}..." >&4
                 if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf -); then
