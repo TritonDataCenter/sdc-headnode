@@ -82,7 +82,7 @@ development: &defaults
   url: http://${PUBLIC_IP}:8080/v1
   datastore:
     adapter: sqlite3
-    database: development.db
+    path: development.db
   sendmail:
     sendmail_path: /opt/local/sbin/sendmail
     sendmail_arguments: '-i -t'
@@ -114,11 +114,8 @@ production:
   url: https://api.no.de/v1
   datastore:
     adapter: sqlite3
-    database: db/production.db
+    path: db/production.db
 CONFIGYML
-
-  echo "Creating Public API database."
-  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake db:migrate)
 fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
@@ -152,6 +149,11 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
+  echo "Creating Public API database."
+  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake db:migrate)"
+fi
 
 
 # Setup and configure nginx
