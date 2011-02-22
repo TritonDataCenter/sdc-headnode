@@ -21,6 +21,7 @@ cd /opt/smartdc/pubapi-repo
 # Create some directories into pubapi-data
 mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids
+mkdir -p /opt/smartdc/pubapi-data/db
 # Remove and symlink directories:
 mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
 rm -Rf /opt/smartdc/pubapi/log
@@ -29,6 +30,7 @@ rm -Rf /opt/smartdc/pubapi/config
 ln -s /opt/smartdc/pubapi-data/log /opt/smartdc/pubapi/log
 ln -s /opt/smartdc/pubapi-data/tmp /opt/smartdc/pubapi/tmp
 ln -s /opt/smartdc/pubapi-data/config /opt/smartdc/pubapi/config
+ln -s /opt/smartdc/pubapi-data/db /opt/smartdc/pubapi/db
 # Save REVISION:
 echo "${REVISION}">/opt/smartdc/pubapi-data/REVISION
 echo "${REVISION}">/opt/smartdc/pubapi/REVISION

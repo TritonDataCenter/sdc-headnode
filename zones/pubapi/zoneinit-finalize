@@ -80,7 +80,6 @@ if [[ ! -e /opt/smartdc/pubapi/config/config.yml ]]; then
 development: &defaults
   name: Joyent Public API
   url: http://${PUBLIC_IP}:8080/v1
-  ignore_coupons: true
   datastore:
     adapter: sqlite3
     database: development.db
@@ -94,7 +93,7 @@ development: &defaults
     username: admin
     password: tot@ls3crit
   mapi:
-    dc1:
+    us-east-1:
       url: ${MAPI_ADMIN_IP}
       username: ${MAPI_HTTP_ADMIN_USER}
       password: ${MAPI_HTTP_ADMIN_PW}
@@ -112,7 +111,14 @@ test:
 
 production:
   <<: *defaults
+  url: https://api.no.de/v1
+  datastore:
+    adapter: sqlite3
+    database: db/production.db
 CONFIGYML
+
+  echo "Creating Public API database."
+  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake db:migrate)
 fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
