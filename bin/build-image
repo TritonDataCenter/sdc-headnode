@@ -100,7 +100,8 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
-            fatal "FATAL: SmartOS not yet supported for USB key generation"
+            source ${ROOT}/bin/include-usb-smartos
+            version
             ;;
         *)
             fatal "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
@@ -647,7 +648,7 @@ function copy_devtools
 function copy_to_mount
 {
     (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
-        | (cd ${MNT_DIR} && ${SUCMD} tar -xvf -) \
+        | (cd ${MNT_DIR} && ${SUCMD} tar --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
 }
 

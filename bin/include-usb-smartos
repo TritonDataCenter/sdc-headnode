@@ -1,0 +1,119 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+SUCMD='sudo'
+MD5CMD="md5sum"
+GZCAT=gzcat
+IMG_TYPE="usb"
+OUTPUT_IMG="2gb.img"
+TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
+SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
+
+function can_has_internets
+{
+    if ping 8.8.8.8 64 3 >/dev/null 2>&1 \
+        || ping 4.2.2.1 64 3 >/dev/null 2>&1; then
+
+        return 0
+    fi
+    return 1
+}
+
+function version
+{
+    echo "==> Building with variables from include-usb-smartos"
+}
+
+function cleanup
+{
+    if [ ${CLEANED} -eq 0 ]; then
+        echo '==> Cleaning up'
+        CLEANED=1
+        if [[ -n ${IMG_DEV} ]]; then
+            hdiutil detach ${IMG_DEV}
+            IMG_DEV=
+        fi
+    fi
+    rm -rf /tmp/fs.*.$$
+    rm -rf /tmp/output.*.$$
+}
+
+function unpack_image
+{
+    echo -n "==> Unpacking USB image... "
+    rm -f ${ROOT}/cache/${TEMPLATE_IMG}
+    (cd ${ROOT}/cache && gtar -zxf ${ROOT}/usb/${TEMPLATE_IMG}) \
+        || fatal "Unable to unpack USB image"
+    echo "done."
+}
+
+function mount_image
+{
+    echo -n "==> Mounting new USB image... "
+    MNT_DIR=/mnt/tmp
+    LOOPBACK=/dev/lofi/2
+    ${SUCMD} mkdir -p ${MNT_DIR}
+    ${SUCMD} lofiadm -a ${ROOT}/cache/${OUTPUT_IMG} ${LOOPBACK}
+    ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
+    echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
+}
+
+function add_manifests
+{
+    # build manifest of USB files + move in boot_archive manifest
+    rm -f ${ROOT}/cache/usb_key.manifest
+    (cd ${STAGE}/ \
+        && find . -type f -exec ${MD5CMD} {} \;) \
+        > ${ROOT}/cache/usb_key.manifest
+    [[ $? -eq 0 ]] || fatal "Unable to add manifests"
+    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest \
+        ${ROOT}/cache/boot_archive.manifest
+    chmod 444 ${ROOT}/cache/*.manifest
+}
+
+function create_output
+{
+    echo "==> Checking current GIT branch"
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" \
+        || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name=${branch_name##refs/heads/}
+
+    if [[ "$branch_name" != "master" ]]; then
+      output_version="${branch_name}-${LIVEIMG_VERSION}"
+    else
+      output_version="${LIVEIMG_VERSION}"
+    fi
+
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt \
+          | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
+    if [[ -n ${MNT_DIR} ]]; then
+        ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+	${SUCMD} lofiadm -d ${LOOPBACK}
+        sync; sync
+    fi
+
+    if [[ -f ${STAGE}/private/root.password ]]; then
+        echo "==> Copying root.password"
+        rm -f ${ROOT}/cache/root.password
+        cp ${STAGE}/private/root.password ${ROOT}/cache/root.password
+        chmod 400 ${ROOT}/cache/root.password
+    else
+	    rm -f ${ROOT}/cache/root.password
+    fi
+
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating usb-147-${output_version}.tgz"
+        (cd ${ROOT}/cache \
+            && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
+            && gtar -zcf ${ROOT}/usb-147-${output_version}.tgz \
+            root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    else
+        mv ${ROOT}/cache/${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG}
+    fi
+}
