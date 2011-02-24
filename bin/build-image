@@ -520,121 +520,147 @@ function copy_datasets
     done
 }
 
+function get_fs_tarball
+{
+    target=$1
+    output=$2
+
+    if [[ -z ${output} ]] || [[ ! -d ${output} ]]; then
+        fatal "get_fs_tarball(): No output dir specified or not a directory."
+    fi
+
+    [[ -z ${target} ]] && fatal "get_fs_tarball(): No target specified."
+
+    zone=$(basename ${output})
+    output_filename=${zone}.tar.bz2
+
+    if [[ -f ${target} ]]; then
+        # if this is the filename of an existing file, we'll use that
+        cp ${target} ${ROOT}/cache/${output_filename}
+    else
+        # not a file so assume it's a pattern, find the latest
+        FS_PATTERN=${target}
+
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            filename=$(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
+                | grep "href=" \
+                | cut -d'"' -f2 \
+                | grep "${FS_PATTERN}" \
+                | sort | tail -1)
+            [[ $? -ne 0 || -z ${filename} ]] \
+                && fatal "Error getting file list for ${FS_PATTERN}"
+
+            CURL_OPTS=
+            [[ -f ${ROOT}/cache/${filename} ]] \
+                && CURL_OPTS="-z ${ROOT}/cache/${filename}"
+
+            (cd ${ROOT}/cache \
+                && curl --progress-bar -k ${CURL_OPTS} \
+                -fO ${ASSETS_ROOT}/liveimg/${filename})
+            [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
+
+            echo "==> Downloaded ${filename} for ${zone}"
+
+            cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
+        else
+            filename=$(cd ${ROOT}/cache && ls -1 \
+                | grep "${FS_PATTERN}" | tail -1)
+
+            [[ -z ${filename} ]] \
+                && fatal "Don't have Internet and don't have cached " \
+                "version of ${FS_PATTERN}"
+
+            echo "==> Using [cached] ${filename} for ${zone}"
+            cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
+        fi
+    fi
+
+    if [[ -f ${ROOT}/cache/${output_filename} ]] \
+        && ! bzip2 -t ${ROOT}/cache/${output_filename}; then
+
+        fatal "Corrupt file ${output_filename}, please delete or fix and try again."
+    elif [[ ! -f ${ROOT}/cache/${output_filename} ]]; then
+        fatal "Unable to get file ${output_filename}"
+    else
+        cp ${ROOT}/cache/${output_filename} ${output}/fs.tar.bz2
+    fi
+}
+
+function build_fs_tarball
+{
+    zone_dir=$1
+    CHECKOUT_TARGET=$2
+
+    [[ -n ${zone_dir} ]] || fatal "build_fs_tarball(): no zone dir specified."
+    [[ -z ${CHECKOUT_TARGET} ]] && CHECKOUT_TARGET='origin/develop'
+    export CHECKOUT_TARGET
+
+    zone=$(basename ${zone_dir})
+
+    if [ -x ${zone_dir}/fs.populate ] && \
+        [ -d ${zone_dir}/fs.root ]; then
+
+        # do in /tmp because only root can write in mnt
+        mkdir -p /tmp/fs.${zone}.$$
+        cp -pPR ${zone_dir}/fs.populate ${zone_dir}/fs.root /tmp/fs.${zone}.$$
+        rm -rf ${zone_dir}/fs.{populate,root}
+        (cd /tmp/fs.${zone}.$$/fs.root \
+            && ../fs.populate \
+            && tar -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        if [[ $? -ne 0 ]]; then
+            fatal "Failed to populate fs.tar.bz2 for ${zone}"
+        fi
+    else
+        fatal "Can't find fs.populate or fs.root for ${zone}"
+    fi
+}
+
 function copy_zones
 {
     for zone in $(ls ${STAGE}/zones); do
 
-        fsuri=${STAGE}/zones/${zone}/fs.uri
-
-        if [ ! -f $fsuri ]; then
-            continue
-        fi
-
-        #
-        # We allow the fs.uri file to be overridden with a [zone]_FS variable
-        # (e.g., "RABBITMQ_FS"), which must contain a bzip2'd tar file.
-        #
-        local override=$(echo $zone | tr '[:lower:]' '[:upper:]')_FS
-
-        if [[ -n "${!override}" ]]; then
-            file=${!override}
-
-            if [[ ! -f ${file} ]]; then
-                fatal "expected a file for $override"
-            fi
-
-            if ( ! file ${file} | grep bzip2 > /dev/null ); then
-                fatal "expected a bzip2'd tar file for $override"
-            fi
-
-            mkdir -p ${STAGE}/zones/${zone}
-            echo "==> Using \$${override} (${file}) for ${zone} zone"
-            cp ${file} ${STAGE}/zones/${zone}/fs.tar.bz2
-            continue
-        fi
-
-        #
-        # If we have an fs.uri file, it should be a URI indicating a bzip2'd tar
-        # file; check that the suffix is either ".tbz2" or ".tar.bz2".
-        #
-        uri=`cat $fsuri`
-        suffix=${uri##*.}
-
-        if [ "$suffix" != "tbz2" ]; then
-            prefix=${uri%.*}
-            if [ $suffix != "bz2" ] || [ ${prefix##*.} != "tar" ]; then
-                fatal "$zone: illegal fs.uri: $uri (expected bzip2\'d tarball)"
-            fi
-        fi
-
-        #
-        # If the path has no subdirectory components, then we'll fetch the
-        # file from ${ASSETS_ROOT}.
-        #
-        if [ ${uri%%/*} == $uri ]; then
-            uri=${ASSETS_ROOT}/liveimg/${uri}
-        fi
-
-        file=${uri##*/}
-
-        if [[ -f ${ROOT}/cache/${file} ]] \
-            && ! bzip2 -t ${ROOT}/cache/${file}; then
-
-            echo "Corrupt ${file}, deleting..."
-            rm -f ${ROOT}/cache/${file}
-        fi
-
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            echo "==> Updating ${file}"
-            CURL_OPTS=
-            [[ -f ${ROOT}/cache/${file} ]] \
-                && CURL_OPTS="-z ${ROOT}/cache/${file}"
-            (cd ${ROOT}/cache \
-                && curl --progress-bar -k ${CURL_OPTS} -fO $uri) \
-                || fatal "could not download $uri for $zone"
-        elif [[ ! -f ${ROOT}/cache/${file} ]]; then
-            fatal "Don't have Internet and don't have ${file}. Can't build."
-        fi
-
         mkdir -p ${STAGE}/zones/${zone}
-        cp ${ROOT}/cache/${file} ${STAGE}/zones/${zone}/fs.tar.bz2
-    done
 
-    for zone in $(ls ${STAGE}/zones); do
+        local override_var=$(echo $zone | tr '[:lower:]' '[:upper:]')_FS
+        override=$(eval echo \$${override_var})
+        FS_TARBALL=
+        tarball_pattern=
+        target_checkout=
 
-        CHECKOUT_TARGET=
-
-        # See if there's a specific branch we should use (default to 'develop')
         if [[ -f ${ROOT}/build.spec.local ]]; then
-            CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local \
+            tarball_pattern=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json "${zone}-tarball")
+            target_checkout=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
-        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${CHECKOUT_TARGET} ]]; then
-            CHECKOUT_TARGET=$(cat ${ROOT}/build.spec \
+        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${FS_TARBALL} ]]; then
+            tarball_pattern=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json "${zone}-tarball")
+            target_checkout=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
-        [[ -z ${CHECKOUT_TARGET} ]] && CHECKOUT_TARGET='origin/develop'
-        export CHECKOUT_TARGET
 
-        if [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
-          [ -d ${STAGE}/zones/${zone}/fs.root ]; then
-            # do in /tmp because only root can write in mnt
-            mkdir -p /tmp/fs.${zone}.$$
-            cp -pPR ${STAGE}/zones/${zone}/fs.populate \
-                ${STAGE}/zones/${zone}/fs.root /tmp/fs.${zone}.$$
-            rm -rf ${STAGE}/zones/${zone}/fs.{populate,root}
-            (cd /tmp/fs.${zone}.$$/fs.root \
-                && ../fs.populate \
-                && tar -jcvf ${STAGE}/zones/${zone}/fs.tar.bz2 ./)
-            if [[ $? -ne 0 ]]; then
-                fatal "Failed to populate fs.tar.bz2 for ${zone}"
-            fi
+        if [[ -n ${override} ]]; then
+            # If there was an override, use that withi highest priority
+            get_fs_tarball ${override} ${STAGE}/zones/${zone}
+        elif [[ -n ${tarball_pattern} ]]; then
+            # No override, so find latest that matches tarball_pattern
+            get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
+        elif [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
+            [ -d ${STAGE}/zones/${zone}/fs.root ]; then
+
+            build_fs_tarball ${STAGE}/zones/${zone} ${target_checkout}
+        fi
+
+        if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
+            fatal "Unable to find or build fs.tar.bz2 for ${zone}"
         fi
 
         if [[ "${IMG_TYPE}" == "coal" ]]; then
-          echo "IMG_TYPE=coal" >> ${STAGE}/zones/${zone}/zoneconfig
+            echo "IMG_TYPE=coal" >> ${STAGE}/zones/${zone}/zoneconfig
         fi
     done
+
 }
 
 function copy_devtools
