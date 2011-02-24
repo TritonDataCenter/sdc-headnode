@@ -72,8 +72,17 @@ http {
     }
 
     server {
-        listen       80;
-        server_name  localhost;
+        listen 80;
+        rewrite ^(.*) https://$host$1 permanent;
+    }
+
+    server {
+        listen       443    ssl;
+        server_name  adminui;
+        ssl on;
+        ssl_certificate /opt/local/etc/openssl/private/selfsigned.pem;
+        ssl_certificate_key /opt/local/etc/openssl/private/selfsigned.pem;
+        ssl_prefer_server_ciphers on;
 
         location / {
             root   share/examples/nginx/html;
