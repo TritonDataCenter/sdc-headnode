@@ -6,17 +6,20 @@ mkdir -p root/opt/smartdc
 
 cd root/opt/smartdc
 
+echo "CAPI target: [${CHECKOUT_TARGET}]"
+
 git clone git@git.joyent.com:customers_api.git capi-repo
 cd capi-repo
-git checkout 20110210
-# CAPI currently uses master as it's stable HEAD
+git checkout ${CHECKOUT_TARGET}
 touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
 
 cd ..
 
+echo "DNSAPI target: [${CHECKOUT_TARGET}]"
+
 git clone git@git.joyent.com:dns_api.git dnsapi-repo
 cd dnsapi-repo
-git checkout 20110210
+git checkout ${CHECKOUT_TARGET}
 touch ../dnsapi-VERSION
 git describe --tags > ../dnsapi-VERSION

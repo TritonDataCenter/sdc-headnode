@@ -199,7 +199,7 @@ if [[ ! -e /opt/smartdc/mapi/config/config.ru ]]; then
   cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
 fi
 
-if [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
+if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
   (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/mapi/Rakefile)
 fi
@@ -267,7 +267,7 @@ fi
 
 # Generate the agents setup script:
 
-AGENTS_FILE_VERSION=$(ls /opt/smartdc/agent-scripts/|grep agents)
+AGENTS_FILE_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents- | tail -n1)
 
 echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'"
 
@@ -460,7 +460,7 @@ fi
 echo "$POSTGRES_PW" > /tmp/pgpasswd
 
 # (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="$DATASETS" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="$DATASETS" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)

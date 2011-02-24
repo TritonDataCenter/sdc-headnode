@@ -119,19 +119,19 @@ fi
 # admin_nic in boot params overrides config, but config is normal place for it
 if ( /usr/bin/bootparams | grep "^admin_nic=" 2> /dev/null ); then
     admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
     admin_nic=`grep "^admin_nic=" /etc/headnode.config | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 
 # external_nic in boot params overrides config, but config is normal place for it
 if ( /usr/bin/bootparams | grep "^external_nic=" 2> /dev/null ); then
     external_nic=`/usr/bin/bootparams | grep "^external_nic=" | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
     external_nic=`grep "^external_nic=" /etc/headnode.config | \
-      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g'`
+      cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 
 # Load headnode.config variables with CONFIG_ prefix, ignoring comments,
@@ -197,6 +197,13 @@ for zone in $ALLZONES; do
             zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
+	zone_dhcp_server_enable=""
+        zone_dhcp_server=$(. ${USB_COPY}/config
+            eval "echo \${${zone}_dhcp_server}"
+        )
+        [[ -n ${zone_dhcp_server} ]] &&
+	    zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
+
         echo -n "creating zone ${zone}... " >>/dev/console
         zonecfg -z ${zone} -f ${src}/config
 
@@ -219,32 +226,10 @@ for zone in $ALLZONES; do
             fi
         )
 
-        zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; end; exit"
+        zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; ${zone_dhcp_server_enable}; end; exit"
         if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-           zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; end; exit"
+           zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
         fi
-
-        dladm show-phys -m -p -o link,address | \
-          sed 's/:/\ /;s/\\//g' | while read iface mac; do
-            if [[ ${mac} == ${admin_nic} ]]; then
-                dladm create-vnic -l ${iface} ${zone}0
-                admin_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}0)
-
-                [[ -n ${admin_vnic_mac} ]] && zonecfg -z ${zone} \
-		    "select net physical=${zone}0; set mac-addr=${admin_vnic_mac}; end; exit"
-            fi
-
-            # if we have a PUBLIC_IP too, we need a second NIC
-            if [[ ${mac} == ${external_nic} ]] && \
-		[[ -n "${zone_external_ip}" ]] && \
-		[[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-                dladm create-vnic -l ${iface} ${zone_external_vlan_opts} ${zone}1
-                external_vnic_mac=$(dladm show-vnic -p -o MACADDRESS ${zone}1)
-
-                [[ -n ${external_vnic_mac} ]] && zonecfg -z ${zone} \
-		    "select net physical=${zone}1; set mac-addr=${external_vnic_mac}; end; exit"
-            fi
-        done
 
         zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
 
@@ -382,6 +367,11 @@ if [ -n "${CREATEDZONES}" ]; then
             install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
+	# Enable compression for the "ca" zone.
+	if [[ "${zone}" == "ca" ]]; then
+    		zfs set compression=lzjb zones/ca
+	fi
+
         # disable zoneinit now that we're done with it.
         zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
 
@@ -397,9 +387,14 @@ if [ -n "${CREATEDZONES}" ]; then
     # We do this here because agents assume rabbitmq is up and by this point it
     # should be.
     if [[ ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
-        echo -n "Installing agents... " >>/dev/console
-        (cd /var/tmp ; bash ${USB_PATH}/ur-scripts/agents-*.sh)
-        echo "done." >>/dev/console
+        which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh | tail -n1)
+        if [[ -n ${which_agents} ]]; then
+            echo -n "Installing $(basename ${which_agents})... " >>/dev/console
+            (cd /var/tmp ; bash ${which_agents})
+            echo "done." >>/dev/console
+        else
+            fatal "No agents-*.sh found!"
+        fi
     fi
 
     echo "==> Setup complete.  Press [enter] to get login prompt." >>/dev/console

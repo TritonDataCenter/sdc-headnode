@@ -9,19 +9,23 @@ if [ ! -e /opt/smartdc/portal/deps/request/index.js ]; then
 fi
 
 # Update the config with the correct values.
-# TODO - Make the rest of these values dynamic
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
   publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
-  privateCAUrl : "http://10.99.99.8:80",
-  privateCAPIUrl : "http://10.99.99.11:8080",
+  privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
+  privateCAPIUrl : "http://${CAPI_API_PRIVATE_IP}:8080",
   CAPIuser : "admin",
-  CAPIpassword : "tot@ls3crit"
+  CAPIpassword : "tot@ls3crit",
+  CAPIMetaCAKey : "portal-coal",
+  CAPIMetaCABlessed : "blessed-instrumentation",
+  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
+  clientCABlackList : [ 'nic', 'syscall', 'io', { cpu : ['utilization'] } ],
 }
 HERE
 
-cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
+echo Creating manifest for portal: 
+cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type="manifest" name="portal">
@@ -41,13 +45,15 @@ cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/node server.js"
+      exec="/opt/local/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
-        <!-- <method_credential user="root" group="staff"/> -->
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
+          <envvar name="PORT" value="80" />
+          <envvar name="NODE_ENV" value="production" />
         </method_environment>
       </method_context>
     </exec_method>
@@ -58,14 +64,13 @@ cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
       </method_context>
     </exec_method>
 
-    <exec_method type="method" name="stop" exec=":kill -20" timeout_seconds="60">
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
         <!-- <method_credential user="root" group="staff"/> -->
       </method_context>
     </exec_method>
 
     <property_group name="startd" type="framework">
-      <propval name="duration" type="astring" value="child"/>
       <propval name="ignore_error" type="astring" value="core,signal"/>
     </property_group>
 
@@ -87,7 +92,9 @@ cat > /opt/smartdc/portal/smf_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-svccfg import /opt/smartdc/portal/smf_manifest.xml
+echo Importing portal_manifest.xml
+svccfg import /opt/smartdc/portal/portal_manifest.xml
+echo Enablig service portal
 svcadm enable smartdc/site/portal
 
 

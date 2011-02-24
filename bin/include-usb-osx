@@ -1,19 +1,21 @@
 #!/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
 SUCMD='sudo'
 MD5CMD="md5 -r"
 GZCAT=gzcat
 IMG_TYPE="usb"
-OUTPUT_IMG="1gb.img"
+OUTPUT_IMG="2gb.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
 function can_has_internets
 {
-    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
+    if ping -o -c 5 8.8.8.8 >/dev/null 2>&1 \
+        || ping -o -c 5 4.2.2.1 >/dev/null 2>&1; then
+
         return 0
     fi
     return 1
@@ -42,16 +44,20 @@ function unpack_image
 {
     echo -n "==> Unpacking USB image... "
     rm -f ${ROOT}/cache/${TEMPLATE_IMG}
-    (cd ${ROOT}/cache && tar -zxf ${ROOT}/usb/${TEMPLATE_IMG})
+    (cd ${ROOT}/cache && tar -zxf ${ROOT}/usb/${TEMPLATE_IMG}) \
+        || fatal "Unable to unpack USB image"
     echo "done."
 }
 
 function mount_image
 {
     echo -n "==> Mounting new USB image... "
-    hdiutil attach ${ROOT}/cache/${OUTPUT_IMG} >/tmp/output.hdiattach.$$ -mountrandom /Volumes 2>&1
-    IMG_DEV=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ | awk '{ print $1 }'`
-    MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ | awk '{ print $3 }'`
+    hdiutil attach ${ROOT}/cache/${OUTPUT_IMG} \
+        >/tmp/output.hdiattach.$$ -mountrandom /Volumes 2>&1
+    IMG_DEV=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
+        | awk '{ print $1 }'`
+    MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
+        | awk '{ print $3 }'`
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
 }
 
@@ -59,15 +65,20 @@ function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
     rm -f ${ROOT}/cache/usb_key.manifest
-    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${ROOT}/cache/usb_key.manifest
-    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/boot_archive.manifest
+    (cd ${STAGE}/ \
+        && find . -type f -exec ${MD5CMD} {} \;) \
+        > ${ROOT}/cache/usb_key.manifest
+    [[ $? -eq 0 ]] || fatal "Unable to add manifests"
+    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest \
+        ${ROOT}/cache/boot_archive.manifest
     chmod 444 ${ROOT}/cache/*.manifest
 }
 
 function create_output
 {
     echo "==> Checking current GIT branch"
-    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" \
+        || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
     if [[ "$branch_name" != "master" ]]; then
@@ -75,10 +86,11 @@ function create_output
     else
       output_version="${LIVEIMG_VERSION}"
     fi
-    if [ -f build-number.txt ]; then
-      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
 
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt \
+          | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
 
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
@@ -94,9 +106,14 @@ function create_output
 	    rm -f ${ROOT}/cache/root.password
     fi
 
-    echo "==> Creating usb-147-${output_version}.tgz"
-    (cd ${ROOT}/cache \
-        && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
-        && tar -zcf ${ROOT}/usb-147-${output_version}.tgz root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating usb-147-${output_version}.tgz"
+        (cd ${ROOT}/cache \
+            && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
+            && tar -zcf ${ROOT}/usb-147-${output_version}.tgz \
+            root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    else
+        mv ${ROOT}/cache/${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG}
+    fi
 }
-

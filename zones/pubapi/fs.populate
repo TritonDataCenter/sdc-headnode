@@ -2,11 +2,12 @@
 
 set -e
 
+echo "pubapi target: [${CHECKOUT_TARGET}]"
+
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 git clone git@git.joyent.com:public_api.git pubapi-repo
 cd pubapi-repo
-git checkout 20110210
+git checkout ${CHECKOUT_TARGET}
 touch ../pubapi-VERSION
 git describe --tags > ../pubapi-VERSION
-

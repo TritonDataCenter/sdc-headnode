@@ -134,7 +134,7 @@ if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
   cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
 fi
 
-if [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
+if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MAPI Admin UI."
   (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
 fi
