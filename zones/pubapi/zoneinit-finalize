@@ -6,37 +6,8 @@ echo "99 finalizing pubapi zone"
 
 app_name='pubapi'
 
-echo "Creating $app_name-update service"
-
-cat >"/opt/local/share/smf/manifest/$app_name-update.xml" <<SMF
-<?xml version='1.0'?>
-<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
-<service_bundle type='manifest' name='export'>
-  <service name='platform/smartdc/${app_name}-update' type='service' version='0'>
-    <create_default_instance enabled='true'/>
-    <single_instance/>
-    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/system/filesystem/local'/>
-    </dependency>
-    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-update-service.sh' timeout_seconds='60'>
-      <method_context>
-        <method_credential user='root' group='root'/>
-      </method_context>
-    </exec_method>
-    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
-    <property_group name='application' type='application'/>
-    <property_group name='startd' type='framework'>
-      <propval name='duration' type='astring' value='transient'/>
-    </property_group> 
-    <stability value='Evolving'/>
-    <template>
-      <common_name>
-        <loctext xml:lang='C'>SmartDC Update service ($app_name)</loctext>
-      </common_name>
-    </template>
-  </service>
-</service_bundle>
-SMF
+# from zoneinit-common:
+ruby_app_update_service $app_name
 
 if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
   echo "Importing '${app_name}-update' service"
@@ -48,24 +19,16 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
-# These happen to do not be created always:
-if [[ ! -e /opt/local/bin/ruby ]]; then
-  echo "Symlinking ruby"
-  ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
-fi
 
-if [[ ! -e /opt/local/bin/irb ]]; then
-  echo "Symlinking irb"
-  ln -s /opt/local/bin/irb18 /opt/local/bin/irb
-fi
+#
+# Call symlink_ruby (imported from 97-zoneinit-common)
+#
+symlink_ruby
 
-echo "Creating jill account"
-groupadd jill
-useradd -g jill -d /opt/smartdc jill
-chown -R jill:jill /opt/smartdc
-echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
-usermod -P 'Service Management' jill
-usermod -s /usr/bin/bash jill
+#
+# Also, from 97-zoneinit-common
+#
+create_jill_account
 
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
