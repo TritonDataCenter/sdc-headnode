@@ -288,7 +288,7 @@ function copy_platform
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | grep "href=\"platform-${PLATFORM_RELEASE}\.tgz" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
