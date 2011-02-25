@@ -356,9 +356,6 @@ cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
     <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
       <service_fmri value='svc:/system/filesystem/local'/>
     </dependency>
-    <dependency name='postgres' grouping='require_all' restart_on='none' type='service'>
-      <service_fmri value='svc:/network/postgresql:pg90'/>
-    </dependency>
     <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='180'>
       <method_context>
         <method_credential user='root' group='root'/>
