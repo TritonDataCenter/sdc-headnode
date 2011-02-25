@@ -126,6 +126,11 @@ http {
     upstream portal {
         server ${PRIVATE_IP}:4000;
     }
+    
+    server {
+        listen 80;
+        rewrite ^(.*) https://\$host\$1 permanent;
+    }
 
     server {
         listen 443;
