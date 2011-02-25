@@ -1,5 +1,5 @@
 {
-    "platform-release": "develop-20110224T225223Z"
+    "platform-release": "develop-20110225T042446Z"
   , "build-tgz": "true"
   , "agents-shar": "develop-20110223T094655Z"
   , "datasets": ["bare-1.2.8", "protemplate-2.5.2", "nodejs-0.4.0"]
