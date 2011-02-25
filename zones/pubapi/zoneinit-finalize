@@ -68,7 +68,7 @@ development: &defaults
         nodejs:
           coupon: false
           repo: true
-          size: 128
+          ram: 128
         protemplate:
           coupon: false
           repo: false
