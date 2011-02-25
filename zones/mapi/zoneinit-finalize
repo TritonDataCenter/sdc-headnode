@@ -390,10 +390,10 @@ if [[ -z \$(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur.smf
 fi
 
-# if [[ -z \$(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
-#   echo "Importing MCP API Dataset List Client Manifest"
-#   /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
-# fi
+if [[ -z \$(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
+  echo "Importing MCP API Dataset List Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/dslistclient.smf
+fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   echo "Importing MCP API Heartbeater Client Manifest"
