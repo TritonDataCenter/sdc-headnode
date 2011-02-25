@@ -101,7 +101,8 @@ development: &defaults
         nodejs:
           coupon: true
           repo: true
-          size: 128
+          ram: 128
+          domain: *.no.de
 
 staging:
   <<: *defaults
