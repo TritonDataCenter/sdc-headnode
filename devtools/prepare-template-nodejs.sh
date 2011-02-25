@@ -50,7 +50,9 @@ if [[ ! -e "/opt/nodejs" ]]; then
   echo "==> Downloading ${latest}"
   (cd /tmp && curl --progress-bar -k -O ${NODE_SERVICE_RELEASES}/${latest})
   echo "==> Extract to '/opt/nodejs'"
-  (cd /opt && tar xzf /tmp/${latest})
+  (cd /tmp && tar xzf ${latest})
+  base=$(echo ${latest} | sed 's/\.tgz$//')
+  mv /tmp/${base} /opt/nodejs
 else
   echo "Already have node service bits (/opt/nodejs)."
   echo "Note: 'rm -rf /opt/nodejs' and re-run to get the latest node service."
