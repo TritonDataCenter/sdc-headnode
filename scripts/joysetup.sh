@@ -221,7 +221,8 @@ install_datasets()
                     | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -n 1)
 
                 echo "Installing extra magic for ${ds} from ${assets}..." >&4
-                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf -); then
+                base=$(echo ${latest_release} | sed 's/\.tgz$//')
+                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf - && mv ${base} nodejs); then
                     echo " \\_ FAILED!" >&4
                 fi
             fi
