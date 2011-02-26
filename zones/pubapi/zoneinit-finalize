@@ -46,7 +46,7 @@ development: &defaults
   ignore_coupons: true
   datastore:
     adapter: sqlite3
-    database: development.db
+    path: development.db
   sendmail:
     sendmail_path: /opt/local/sbin/sendmail
     sendmail_arguments: '-i -t'
@@ -80,6 +80,9 @@ test:
   <<: *defaults
 
 production:
+  datastore:
+    adapter: sqlite3
+    path: db/production.db
   <<: *defaults
 CONFIGYML
 fi
@@ -115,6 +118,11 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
+  echo "Creating Public API database."
+  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake db:migrate)"
+fi
 
 
 # Setup and configure nginx
