@@ -206,6 +206,9 @@ function copy_base
 
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones
+
+    echo "==> Copying in rc/"
+    cp -r rc ${STAGE}/rc
 }
 
 function copy_pkgsrc

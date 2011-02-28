@@ -6,6 +6,12 @@
 coal=true
 swap=4g
 
+# datacenter_name should be unique among your cloud, datacenter_headnode_id
+# should be a positive integer that is unique for this headnode within that
+# datacenter
+datacenter_name=coal
+datacenter_headnode_id=0
+
 # admin_nic is the nic admin_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7
