@@ -43,6 +43,7 @@ function install_node_config
             # Options here should match key names from the headnode's config
             # that we want on compute nodes.
             for opt in \
+                datacenter_name \
                 root_authorized_keys_file \
                 compute_node_initial_datasets \
                 assets_admin_ip \
@@ -56,8 +57,11 @@ function install_node_config
                 if [[ -n ${value} ]]; then
                     echo "${opt}='${value}'"
 
-                    if echo "${opt}" | grep "_file$" >/dev/null 2>&1 && [[ "${value}" != "node.config" ]]; then
-                        [[ -f "${USB_COPY}/config.inc/${value}" ]] && cp "${USB_COPY}/config.inc/${value}" "${dir}/${value}"
+                    if echo "${opt}" | grep "_file$" >/dev/null 2>&1 \
+                        && [[ "${value}" != "node.config" ]]; then
+
+                        [[ -f "${USB_COPY}/config.inc/${value}" ]] \
+                            && cp "${USB_COPY}/config.inc/${value}" "${dir}/${value}"
                     fi
                 fi
 
@@ -255,6 +259,17 @@ for zone in $ALLZONES; do
             echo "DEBUG ${dest}/root/zoneconfig"
             cat ${dest}/root/zoneconfig
         fi
+
+        # Write the info about this datacenter to /.dcinfo so we can use it in
+        # the zone.  Same file should be put in the GZ by smartdc:config
+        cat >${dest}/.dcinfo <<EOF
+SDC_DATACENTER_NAME="${CONFIG_datacenter_name}"
+SDC_DATACENTER_HEADNODE_ID=${CONFIG_datacenter_headnode_id}
+EOF
+
+        # Copy in special .bashrc for headnode zones.
+        [[ -f "${USB_COPY}/rc/zone.root.bashrc" ]] \
+            && cp ${USB_COPY}/rc/zone.root.bashrc ${dest}/root/.bashrc
 
         if [[ -f "${src}/pkgsrc" ]]; then
             mkdir -p ${dest}/root/pkgsrc

@@ -197,19 +197,19 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/heartbeater.smf ]]; then
   echo "Creating MCP API heartbeater Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; heartbeater_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/heartbeat_client.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/heartbeater_client.erb')).result" > /opt/smartdc/mapi/config/heartbeater.smf
+  /opt/local/bin/ruby18 -rerb -e "application='mcp_api';user='jill';group='jill';app_environment='production'; heartbeater_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/heartbeat_client.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/heartbeater_client.erb')).result" > /opt/smartdc/mapi/config/heartbeater.smf
   chown jill:jill /opt/smartdc/mapi/config/heartbeater.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/provisioner.smf ]]; then
   echo "Creating MCP API provisioner Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; provisioner_agent_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/provision_job_runner.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/provisioner_agent_client.erb')).result" > /opt/smartdc/mapi/config/provisioner.smf
+  /opt/local/bin/ruby18 -rerb -e "application='mcp_api';user='jill';group='jill';app_environment='production'; provisioner_agent_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/provision_job_runner.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/provisioner_agent_client.erb')).result" > /opt/smartdc/mapi/config/provisioner.smf
   chown jill:jill /opt/smartdc/mapi/config/provisioner.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/dslistclient.smf ]]; then
   echo "Creating MCP API dataset list client Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production'; dataset_list_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/dataset_list_client.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/dataset_list_client.erb')).result" > /opt/smartdc/mapi/config/dslistclient.smf
+  /opt/local/bin/ruby18 -rerb -e "application='mcp_api';user='jill';group='jill';app_environment='production'; dataset_list_command='/opt/local/bin/ruby18 /opt/smartdc/mapi/script/dataset_list_client.rb'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/dataset_list_client.erb')).result" > /opt/smartdc/mapi/config/dslistclient.smf
   chown jill:jill /opt/smartdc/mapi/config/dslistclient.smf
 fi
 
@@ -315,9 +315,6 @@ cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
     <single_instance/>
     <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
       <service_fmri value='svc:/system/filesystem/local'/>
-    </dependency>
-    <dependency name='postgres' grouping='require_all' restart_on='none' type='service'>
-      <service_fmri value='svc:/network/postgresql:pg90'/>
     </dependency>
     <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='180'>
       <method_context>
