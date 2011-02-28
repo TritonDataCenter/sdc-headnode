@@ -12,6 +12,7 @@ exports.config = {
   password : "${MAPI_PW}",
   listenIp : "0.0.0.0",
   tftpRoot : '/tftpboot',
+  defaultGateway : "${DHCP_GATEWAY}",
   dhcpIp   : "${PRIVATE_IP}"
 }
 CONFIG
