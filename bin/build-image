@@ -490,7 +490,7 @@ function copy_datasets
     mkdir -p  ${STAGE}/datasets
 
     # bare-1.3.1 is on a different location:
-    copy_dataset 'bare-1.3.1' ${ASSETS_ROOT_SDC}
+    copy_dataset 'bare-1.3.2' ${ASSETS_ROOT_SDC}
 
     for dataset in ${datasets[@]}
     do

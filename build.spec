@@ -2,7 +2,7 @@
     "platform-release": "develop"
   , "build-tgz": "true"
   , "agents-shar": "develop"
-  , "datasets": ["bare-1.3.1", "protemplate-2.5.2", "nodejs-0.4.0"]
+  , "datasets": ["bare-1.3.2", "protemplate-2.5.2", "nodejs-0.4.0"]
   , "adminui-checkout": "origin/develop"
   , "assets-checkout": "origin/develop"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
