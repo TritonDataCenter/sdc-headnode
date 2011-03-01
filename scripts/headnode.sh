@@ -47,6 +47,7 @@ function install_node_config
                 root_authorized_keys_file \
                 compute_node_initial_datasets \
                 assets_admin_ip \
+                atropos_admin_ip \
                 ntp_conf_file \
                 ntp_hosts \
                 rabbitmq \
