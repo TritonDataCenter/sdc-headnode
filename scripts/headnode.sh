@@ -95,6 +95,10 @@ DEBUG="true"
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
+# Create a link to the config as /etc/headnode.config, so we can have a
+# consistent location for it when we want to be able to umount the USB later
+ln -s ${USB_COPY}/config /etc/headnode.config
+
 # Load headnode.config variables with CONFIG_ prefix
 . /lib/sdc/config.sh
 load_sdc_config
