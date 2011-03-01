@@ -3,8 +3,14 @@
 echo "99 finalizing atropos zone"
 
 # Ensure files are owned by the couchdb user
-
 chown -R couchdb:couchdb /var/db/couchdb/ /opt/local/etc/couchdb/
+
+# Setup epmd
+if [[ -z $(/usr/bin/svcs -a|grep epmd) ]]; then
+  echo "Importing epmd service"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
+  /usr/sbin/svcadm enable -s epmd
+fi
 
 # Import and enable couchdb service
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/couchdb.xml
