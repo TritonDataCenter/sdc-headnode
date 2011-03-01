@@ -303,7 +303,6 @@ exit 113
 REBOOT
 
 
-
 echo "Creating $app_name-setup service"
 
 cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
@@ -419,9 +418,9 @@ echo "$POSTGRES_PW" > /tmp/pgpasswd
 USE_DATASETS=
 for avail_ds in \$(echo '${ALL_DATASETS}' | tr ',' ' '); do
     for ds in \$(echo '${DATASETS}' | tr ',' ' '); do
-        if [[ \$(echo '${avail_ds}' | cut -d '-' -f1) == ${ds} ]]; then
-            [[ -n ${USE_DATASETS} ]] && USE_DATASETS="${USE_DATASETS},"
-            USE_DATASETS="${USE_DATASETS}${ds}"
+        if [[ \$(echo '\${avail_ds}' | cut -d '-' -f1) == \${ds} ]]; then
+            [[ -n \${USE_DATASETS} ]] && USE_DATASETS="\${USE_DATASETS},"
+            USE_DATASETS="\${USE_DATASETS}\${ds}"
         fi
     done
 done
