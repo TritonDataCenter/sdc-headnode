@@ -124,6 +124,9 @@ if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
   su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake db:migrate)"
 fi
 
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
 
 # Setup and configure nginx
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
