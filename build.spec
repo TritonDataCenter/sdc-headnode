@@ -3,8 +3,8 @@
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
-      { "name": "bare-1.3.3"
-      , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/bare-1.3.3.zfs.bz2"
+      { "name": "bare-1.3.5"
+      , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/bare-1.3.5.zfs.bz2"
       }
     , { "name": "protemplate-2.5.2"
       , "uri": "https://guest:GrojhykMid@assets.joyent.us/datasets/protemplate-2.5.2.zfs.bz2"
