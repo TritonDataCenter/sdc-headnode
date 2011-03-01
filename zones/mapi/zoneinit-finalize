@@ -348,7 +348,7 @@ PGPASSFILE=/opt/smartdc/.pgpass
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
 
-RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/mapi/script/psql-test-connect.rb
+RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby18 /opt/smartdc/mapi/script/psql-test-connect.rb
 
 if [[ \$? -ne 0 ]]; then
   echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
@@ -367,7 +367,7 @@ if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep map
 fi
 
 echo "Auto Upgrading MCP API Database."
-su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
+su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake18 standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
 sleep 1
 
 if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
@@ -426,7 +426,7 @@ for avail_ds in \$(echo '${ALL_DATASETS}' | tr ',' ' '); do
 done
 
 # (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="${USE_DATASETS}" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="${USE_DATASETS}" /opt/local/bin/rake18 dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
