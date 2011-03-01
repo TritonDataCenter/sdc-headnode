@@ -199,12 +199,12 @@ for zone in $ALLZONES; do
             zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
-	zone_dhcp_server_enable=""
+        zone_dhcp_server_enable=""
         zone_dhcp_server=$(. ${USB_COPY}/config
             eval "echo \${${zone}_dhcp_server}"
         )
         [[ -n ${zone_dhcp_server} ]] &&
-	    zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
+        zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
 
         echo -n "creating zone ${zone}... " >>/dev/console
         zonecfg -z ${zone} -f ${src}/config
@@ -370,6 +370,10 @@ if [ -n "${CREATEDZONES}" ]; then
                 ls -l /zones/${zone}/root/root >> /dev/console
             else
                 echo " done." >>/dev/console
+                # remove the pkgsrc dir now that zoneinit is done
+                if [[ -d /zones/${zone}/root/pkgsrc ]]; then
+                    rm -rf /zones/${zone}/root/pkgsrc
+                fi
             fi
         fi
 
@@ -385,21 +389,14 @@ if [ -n "${CREATEDZONES}" ]; then
             install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
-	# Enable compression for the "ca" zone.
-	if [[ "${zone}" == "ca" ]]; then
-    		zfs set compression=lzjb zones/ca
-	fi
-
-        # disable zoneinit now that we're done with it.
-        zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
+        # Enable compression for the "ca" zone.
+        if [[ "${zone}" == "ca" ]]; then
+            zfs set compression=lzjb zones/ca
+        fi
 
         # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
         sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
         && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
-
-        echo -n "rebooting ${zone}... " >>/dev/console
-        zlogin ${zone} reboot
-        echo "done." >>/dev/console
     done
 
     # We do this here because agents assume rabbitmq is up and by this point it
