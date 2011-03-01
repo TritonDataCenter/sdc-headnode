@@ -46,7 +46,7 @@ create_jill_account
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
   echo "Creating Customers API config files."
-  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake dev:configs -f /opt/smartdc/capi/Rakefile"
+  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/capi/Rakefile"
 fi
 sleep 1
 
@@ -62,7 +62,7 @@ fi
 
 if [[ ! -e /opt/smartdc/capi/gems/gems ]] || [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Customers API."
-  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/capi/Rakefile)
+  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/capi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.smf ]]; then
@@ -96,13 +96,11 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
-
-
 # DNS API specific
 
 if [[ ! -e /opt/smartdc/dnsapi/config/database.yml ]]; then
   echo "Creating DNS API config files."
-  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/dnsapi/Rakefile"
+  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/dnsapi/Rakefile"
 fi
 sleep 1
 
@@ -118,7 +116,7 @@ fi
 
 if [[ ! -e /opt/smartdc/dnsapi/gems/gems ]] || [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for DNS API."
-  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
+  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.smf ]]; then
@@ -151,8 +149,6 @@ fi
 if [[ ! -e /opt/smartdc/dnsapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/dnsapi/tmp/pids"
 fi
-
-
 
 for app_name in capi dnsapi; do
 
