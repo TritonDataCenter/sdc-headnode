@@ -19,6 +19,9 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
 
 # Setup and configure nginx
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
