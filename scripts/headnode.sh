@@ -249,10 +249,12 @@ for zone in $ALLZONES; do
             # environment, then printing all the variables from the file.  It is
             # done in a subshell to avoid further namespace polution.
             (
-                . ${USB_COPY}/config
-                . ${src}/zoneconfig
+                # Grab list of assets files actually in datasets repo
                 assets_available_dataset_list=$(cd /${USB_COPY}/datasets \
                     && ls *.zfs.bz2 | xargs | tr ' ' ',')
+
+                . ${USB_COPY}/config
+                . ${src}/zoneconfig
 
                 for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
                     echo "${var}='${!var}'"
