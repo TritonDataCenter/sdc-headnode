@@ -416,8 +416,18 @@ fi
 ## Setup and call the verify script
 echo "$POSTGRES_PW" > /tmp/pgpasswd
 
+USE_DATASETS=
+for avail_ds in \$(echo '${ALL_DATASETS}' | tr ',' ' '); do
+    for ds in \$(echo '${DATASETS}' | tr ',' ' '); do
+        if [[ \$(echo '${avail_ds}' | cut -d '-' -f1) == ${ds} ]]; then
+            [[ -n ${USE_DATASETS} ]] && USE_DATASETS="${USE_DATASETS},"
+            USE_DATASETS="${USE_DATASETS}${ds}"
+        fi
+    done
+done
+
 # (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="$DATASETS" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="${USE_DATASETS}" /opt/local/bin/rake dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)

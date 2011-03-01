@@ -95,12 +95,11 @@ DEBUG="true"
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
-# All the files come from USB, so we need that mounted.
+# Load headnode.config variables with CONFIG_ prefix
+. /lib/sdc/config.sh
+load_sdc_config
 
-# Create a link to the config as /etc/headnode.config, so we can have a
-# consistent location for it when we want to be able to umount the USB later
-ln -s ${USB_COPY}/config /etc/headnode.config
-
+# Now the infrastructure zones
 # check if we've imported a zpool
 POOLS=`zpool list`
 
@@ -109,10 +108,11 @@ if [[ ${POOLS} == "no pools available" ]]; then
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
     echo -n "Importing zone template datasets... " >>/dev/console
-    templates=( bare-1.3.2 )
-    for template in ${templates[@]}
-    do
-        bzcat ${USB_PATH}/datasets/${template}.zfs.bz2 | zfs recv -e zones || fatal "unable to import ${template}";
+    for template in $(echo ${CONFIG_headnode_initial_datasets} | tr ',' ' '); do
+        ds=$(ls ${USB_PATH}/datasets/${template}*.zfs.bz2 | tail -1)
+        [[ -z ${ds} ]] && fatal "Failed to find '${template}' dataset"
+        echo -n "$(basename ${ds} .zfs.bz2) . "
+        bzcat ${ds} | zfs recv -e zones || fatal "unable to import ${template}";
     done
     echo "done." >>/dev/console
 
@@ -137,12 +137,6 @@ else
     external_nic=`grep "^external_nic=" /etc/headnode.config | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
-
-# Load headnode.config variables with CONFIG_ prefix, ignoring comments,
-# spaces at the beginning of lines and lines that don't start with a letter.
-eval $(cat /etc/headnode.config | sed -e "s/^ *//" | grep -v "^#" | grep "^[a-zA-Z]" | sed -e "s/^/CONFIG_/")
-
-# Now the infrastructure zones
 
 if ( zoneadm list -i | grep -v "^global$" ); then
     ZONES=`zoneadm list -i | grep -v "^global$"`
@@ -252,6 +246,9 @@ for zone in $ALLZONES; do
             (
                 . ${USB_COPY}/config
                 . ${src}/zoneconfig
+                assets_available_dataset_list=$(cd /${USB_COPY}/datasets \
+                    && ls *.zfs.bz2 | xargs | tr ' ' ',')
+
                 for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
                     echo "${var}='${!var}'"
                 done

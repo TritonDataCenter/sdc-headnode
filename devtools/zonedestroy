@@ -4,7 +4,7 @@ set -o errexit
 
 zone=$1
 if [[ -z ${zone} ]]; then
-    echo "Usage: $0 <zone>" 
+    echo "Usage: $0 <zone>"
     exit 1
 fi
 

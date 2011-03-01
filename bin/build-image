@@ -60,7 +60,6 @@ if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
 ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
-ASSETS_ROOT_SDC="https://guest:GrojhykMid@assets.joyent.us/templates/sdc/"
 PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
 
 # Figure out first what we're building, and load the proper include
@@ -486,15 +485,39 @@ function get_node_magic
 
 function copy_datasets
 {
-    datasets=( protemplate-2.5.2 nodejs-0.4.0 )
     mkdir -p  ${STAGE}/datasets
 
-    # bare-1.3.1 is on a different location:
-    copy_dataset 'bare-1.3.2' ${ASSETS_ROOT_SDC}
+    datasets_json=
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    [[ -n ${datasets_json} ]] \
+        || fatal "Unable to find datasets information in build.spec"
 
-    for dataset in ${datasets[@]}
-    do
-      copy_dataset ${dataset} ${ASSETS_ROOT}
+    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
+    index=0
+    while [[ ${index} -lt ${num_datasets} ]]; do
+        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
+        uri=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uri)
+        magical=$(echo "${datasets_json}" \
+            | ${ROOT}/bin/json ${index}.needs_extra_node_service_magic)
+        if [[ -z ${uri} || -z ${name} ]]; then
+            fatal "Invalid dataset at ${index} of ${datasets_json}"
+
+            if [[ "${magical}" == "true" ]]; then
+                # the nodejs-* datasets are magical and "special" so they need
+                # more stuff to work
+                get_node_magic
+            fi
+       fi
+       copy_dataset ${name} ${uri}
+
+       index=$((${index} + 1))
     done
 }
 
@@ -505,7 +528,7 @@ function copy_dataset
   local dataset=$1
   local dataset_uri=$2
 
-  dataset_file="${dataset}.zfs.bz2"
+  dataset_file=$(basename ${dataset_uri})
   if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
       echo "==> Corrupt ${dataset_file}, deleting..."
       rm -f ${ROOT}/cache/${dataset_file}
@@ -515,7 +538,7 @@ function copy_dataset
       if [[ ${HAVE_INTERNET} == "true" ]]; then
           echo "==> Downloading ${dataset_file}"
           (cd ${ROOT}/cache && curl --progress-bar -k \
-              -O ${dataset_uri}/${dataset_file}) \
+              -O ${dataset_uri}) \
               || fatal "Unable to download ${dataset_file}"
       else
           fatal "Don't have Internet, and don't have valid " \
@@ -530,12 +553,6 @@ function copy_dataset
 
   echo "==> Copying ${dataset_file}"
   cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
-
-  if [[ ${dataset} == "nodejs-0.4.0" ]]; then
-      # the nodejs-0.4.0 dataset is magical and "special" so it needs
-      # more stuff
-      get_node_magic
-  fi
 }
 
 function get_fs_tarball
