@@ -57,7 +57,7 @@ fi
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
   echo "Creating Customers API config files."
-  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake dev:configs -f /opt/smartdc/capi/Rakefile"
+  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/capi/Rakefile"
 fi
 sleep 1
 
@@ -73,7 +73,7 @@ fi
 
 if [[ ! -e /opt/smartdc/capi/gems/gems ]] || [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Customers API."
-  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/capi/Rakefile)
+  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/capi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.smf ]]; then
@@ -108,7 +108,7 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
 fi
 
 echo "Auto Upgrading Customers API Database."
-su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake18 db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
 if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi_ipf_setup) ]]; then
@@ -123,7 +123,7 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   ADMIN_PW="${CAPI_ADMIN_PW}" \
   ADMIN_LOGIN="${CAPI_ADMIN_LOGIN}" \
   ADMIN_EMAIL="${CAPI_ADMIN_EMAIL}" \
-  /opt/local/bin/rake install:capi_admin -f /opt/smartdc/capi/Rakefile"
+  /opt/local/bin/rake18 install:capi_admin -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
 
@@ -132,7 +132,7 @@ sleep 1
 
 if [[ ! -e /opt/smartdc/dnsapi/config/database.yml ]]; then
   echo "Creating DNS API config files."
-  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake dev:configs -f /opt/smartdc/dnsapi/Rakefile"
+  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/dnsapi/Rakefile"
 fi
 sleep 1
 
@@ -148,7 +148,7 @@ fi
 
 if [[ ! -e /opt/smartdc/dnsapi/gems/gems ]] || [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for DNS API."
-  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
+  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.smf ]]; then
@@ -183,7 +183,7 @@ if [[ ! -e /opt/smartdc/dnsapi/tmp/pids ]]; then
 fi
 
 echo "Auto Upgrading DNS API Database."
-su - jill -c "cd /opt/smartdc/dnsapi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/dnsapi/Rakefile"
+su - jill -c "cd /opt/smartdc/dnsapi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake18 db:autoupgrade -f /opt/smartdc/dnsapi/Rakefile"
 sleep 1
 
 

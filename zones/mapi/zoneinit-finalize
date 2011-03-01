@@ -149,7 +149,7 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   EMAIL_PREFIX="[MCP API $host]" \
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
-  /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile && \
+  /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
@@ -161,7 +161,7 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
-  (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/mapi/Rakefile)
+  (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/mapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/unicorn.smf ]]; then
@@ -215,13 +215,13 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/ur.smf ]]; then
   echo "Creating MAPI Ur Agent Client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:ur -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:ur -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/ur.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/atropos.smf ]]; then
   echo "Creating MAPI Atropos Agent Client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:atropos -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/atropos.smf
 fi
 

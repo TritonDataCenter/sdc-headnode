@@ -89,7 +89,7 @@ fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Public API."
-  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/pubapi/Rakefile)
+  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/pubapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/unicorn.smf ]]; then
@@ -121,7 +121,7 @@ chmod 0555 /home
 
 if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
   echo "Creating Public API database."
-  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake db:migrate)"
+  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake18 db:migrate)"
 fi
 
 # We need to generate our own self signed certificate for Nginx:
