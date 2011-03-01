@@ -209,11 +209,13 @@ install_datasets()
         assets=${CONFIG_assets_admin_ip}
         for ds in $(echo "${CONFIG_compute_node_initial_datasets}" | tr ',' ' '); do
             echo "Installing dataset: ${ds} from ${assets}..." >&4
-            if ! curl -k --progress-bar http://${assets}/datasets/${ds}.zfs.bz2 2>&4 | bzip2 -d | zfs receive -e zones; then
+            latest_version=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
+                | grep "href=\"${ds}-.*\.zfs.bz2" | cut -d'"' -f2 | sort | tail -n 1)
+            if ! curl -k --progress-bar http://${assets}/datasets/${latest_version} 2>&4 | bzip2 -d | zfs receive -e zones; then
                 echo " \\_ FAILED!" >&4
             fi
 
-            if [[ "${ds}" == "nodejs-0.4.0" ]] && [[ ! -e "/opt/nodejs" ]]; then
+            if [[ "${ds}" =~ "nodejs-" ]] && [[ ! -e "/opt/nodejs" ]]; then
 
                 # XXX SPECIAL CASE node dataset needs more magic!
 
