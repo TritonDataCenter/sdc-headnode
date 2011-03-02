@@ -426,7 +426,7 @@ for avail_ds in \$(echo '${ALL_DATASETS}' | tr ',' ' '); do
 done
 
 # (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
-(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="${USE_DATASETS}" /opt/local/bin/rake18 dev:fake_data) 2>&1 | tee /tmp/fake_data.output
+(cd /opt/smartdc/mapi && RACK_ENV=production DHCP_RANGE_START="$DHCP_RANGE_START" DHCP_RANGE_END="$DHCP_RANGE_END" ADMIN_NETWORK="$ADMIN_NETWORK" ADMIN_BITCOUNT="$ADMIN_BITCOUNT" ADMIN_GATEWAY="$ADMIN_GATEWAY" ADMIN_IP="$ADMIN_IP" DATASETS="\${USE_DATASETS}" /opt/local/bin/rake18 dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 rm -f /tmp/fake_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
