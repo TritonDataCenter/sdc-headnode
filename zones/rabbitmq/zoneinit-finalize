@@ -21,13 +21,6 @@ if [[ ${amqp_user} != 'guest' ]]; then
   su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq stop"
 fi
 
-# Setup erlang
-if [[ -z $(/usr/bin/svcs -a|grep epmd) ]]; then
-  echo "Importing epmd service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
-  /usr/sbin/svcadm enable -s epmd
-fi
-
 if [[ -z $(/usr/bin/svcs -a|grep rabbitmq) ]]; then
   echo "Importing rabbitmq service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/rabbitmq.xml
