@@ -203,7 +203,7 @@ PGPASSFILE=/opt/smartdc/.pgpass
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
 
-RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/capi/script/psql-test-connect.rb
+RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby18 /opt/smartdc/capi/script/psql-test-connect.rb
 
 if [[ \$? -ne 0 ]]; then
   echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
@@ -221,7 +221,7 @@ if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep cap
 fi
 
 echo "Auto Upgrading Customers API Database."
-su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake18 db:autoupgrade -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
 
@@ -237,7 +237,7 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   ADMIN_PW="${CAPI_ADMIN_PW}" \
   ADMIN_LOGIN="${CAPI_ADMIN_LOGIN}" \
   ADMIN_EMAIL="${CAPI_ADMIN_EMAIL}" \
-  /opt/local/bin/rake install:capi_admin -f /opt/smartdc/capi/Rakefile"
+  /opt/local/bin/rake18 install:capi_admin -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
 if [[ ! \$(/usr/bin/svcs -a|grep capi-update) ]]; then
@@ -286,7 +286,7 @@ PGPASSFILE=/opt/smartdc/.pgpass
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
 
-RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/dnsapi/script/psql-test-connect.rb
+RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby18 /opt/smartdc/dnsapi/script/psql-test-connect.rb
 
 if [[ \$? -ne 0 ]]; then
   echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
@@ -304,7 +304,7 @@ if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep dns
 fi
 
 echo "Auto Upgrading DNS API Database."
-su - jill -c "cd /opt/smartdc/dnsapi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/dnsapi/Rakefile"
+su - jill -c "cd /opt/smartdc/dnsapi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake18 db:autoupgrade -f /opt/smartdc/dnsapi/Rakefile"
 sleep 1
 
 if [[ -z \$(/usr/bin/svcs -a|grep dnsapi|grep -v dnsapi-update|grep -v dnsapi-setup) ]]; then
