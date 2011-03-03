@@ -19,6 +19,9 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s ${app_name}-update)
 fi
 
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
 
 # Setup and configure nginx
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
@@ -95,7 +98,7 @@ create_jill_account
 
 if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
   echo "Creating MAPI Admin UI config files."
-  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
+  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/adminui/Rakefile"
 fi
 sleep 1
 
@@ -107,7 +110,7 @@ fi
 
 if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MAPI Admin UI."
-  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
+  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/adminui/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
@@ -131,7 +134,7 @@ su - jill -c "cd /opt/smartdc/adminui; \
   ADMINUI_IP=$ADMINUI_IP \
   CAPI_IP=$CAPI_IP \
   MAPI_IP=$MAPI_IP \
-  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
+  /opt/local/bin/rake18 config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"

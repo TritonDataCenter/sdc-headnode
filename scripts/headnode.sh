@@ -96,12 +96,15 @@ DEBUG="true"
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
-# All the files come from USB, so we need that mounted.
-
 # Create a link to the config as /etc/headnode.config, so we can have a
 # consistent location for it when we want to be able to umount the USB later
 ln -s ${USB_COPY}/config /etc/headnode.config
 
+# Load headnode.config variables with CONFIG_ prefix
+. /lib/sdc/config.sh
+load_sdc_config
+
+# Now the infrastructure zones
 # check if we've imported a zpool
 POOLS=`zpool list`
 
@@ -110,10 +113,11 @@ if [[ ${POOLS} == "no pools available" ]]; then
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
     echo -n "Importing zone template datasets... " >>/dev/console
-    templates=( bare-1.2.8 )
-    for template in ${templates[@]}
-    do
-        bzcat ${USB_PATH}/datasets/${template}.zfs.bz2 | zfs recv -e zones || fatal "unable to import ${template}";
+    for template in $(echo ${CONFIG_headnode_initial_datasets} | tr ',' ' '); do
+        ds=$(ls ${USB_PATH}/datasets/${template}*.zfs.bz2 | tail -1)
+        [[ -z ${ds} ]] && fatal "Failed to find '${template}' dataset"
+        echo -n "$(basename ${ds} .zfs.bz2) . "
+        bzcat ${ds} | zfs recv -e zones || fatal "unable to import ${template}";
     done
     echo "done." >>/dev/console
 
@@ -138,12 +142,6 @@ else
     external_nic=`grep "^external_nic=" /etc/headnode.config | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
-
-# Load headnode.config variables with CONFIG_ prefix, ignoring comments,
-# spaces at the beginning of lines and lines that don't start with a letter.
-eval $(cat /etc/headnode.config | sed -e "s/^ *//" | grep -v "^#" | grep "^[a-zA-Z]" | sed -e "s/^/CONFIG_/")
-
-# Now the infrastructure zones
 
 if ( zoneadm list -i | grep -v "^global$" ); then
     ZONES=`zoneadm list -i | grep -v "^global$"`
@@ -202,12 +200,12 @@ for zone in $ALLZONES; do
             zone_external_vlan_opts="-v ${zone_external_vlan}"
         fi
 
-	zone_dhcp_server_enable=""
+        zone_dhcp_server_enable=""
         zone_dhcp_server=$(. ${USB_COPY}/config
             eval "echo \${${zone}_dhcp_server}"
         )
         [[ -n ${zone_dhcp_server} ]] &&
-	    zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
+        zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
 
         echo -n "creating zone ${zone}... " >>/dev/console
         zonecfg -z ${zone} -f ${src}/config
@@ -251,8 +249,13 @@ for zone in $ALLZONES; do
             # environment, then printing all the variables from the file.  It is
             # done in a subshell to avoid further namespace polution.
             (
+                # Grab list of assets files actually in datasets repo
+                assets_available_dataset_list=$(cd /${USB_COPY}/datasets \
+                    && ls *.zfs.bz2 | xargs | tr ' ' ',')
+
                 . ${USB_COPY}/config
                 . ${src}/zoneconfig
+
                 for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
                     echo "${var}='${!var}'"
                 done
@@ -368,6 +371,10 @@ if [ -n "${CREATEDZONES}" ]; then
                 ls -l /zones/${zone}/root/root >> /dev/console
             else
                 echo " done." >>/dev/console
+                # remove the pkgsrc dir now that zoneinit is done
+                if [[ -d /zones/${zone}/root/pkgsrc ]]; then
+                    rm -rf /zones/${zone}/root/pkgsrc
+                fi
             fi
         fi
 
@@ -383,21 +390,14 @@ if [ -n "${CREATEDZONES}" ]; then
             install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
         fi
 
-	# Enable compression for the "ca" zone.
-	if [[ "${zone}" == "ca" ]]; then
-    		zfs set compression=lzjb zones/ca
-	fi
-
-        # disable zoneinit now that we're done with it.
-        zlogin ${zone} svcadm disable zoneinit >/dev/null 2>&1
+        # Enable compression for the "ca" zone.
+        if [[ "${zone}" == "ca" ]]; then
+            zfs set compression=lzjb zones/ca
+        fi
 
         # XXX Fix the .bashrc (See comments on https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults)
         sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
         && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
-
-        echo -n "rebooting ${zone}... " >>/dev/console
-        zlogin ${zone} reboot
-        echo "done." >>/dev/console
     done
 
     # We do this here because agents assume rabbitmq is up and by this point it

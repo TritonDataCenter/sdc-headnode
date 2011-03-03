@@ -60,7 +60,7 @@ if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
 ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q3/All"
+PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
 
 # Figure out first what we're building, and load the proper include
 
@@ -485,42 +485,74 @@ function get_node_magic
 
 function copy_datasets
 {
-    datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
     mkdir -p  ${STAGE}/datasets
-    for dataset in ${datasets[@]}
-    do
-        dataset_file="${dataset}.zfs.bz2"
-        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-            echo "==> Corrupt ${dataset_file}, deleting..."
-            rm -f ${ROOT}/cache/${dataset_file}
-        fi
 
-        if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
-            if [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${dataset_file}"
-                (cd ${ROOT}/cache && curl --progress-bar -k \
-                    -O ${ASSETS_ROOT}/${dataset_file}) \
-                    || fatal "Unable to download ${dataset_file}"
-            else
-                fatal "Don't have Internet, and don't have valid " \
-                    "${dataset_file}. Can't build."
+    datasets_json=
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    [[ -n ${datasets_json} ]] \
+        || fatal "Unable to find datasets information in build.spec"
+
+    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
+    index=0
+    while [[ ${index} -lt ${num_datasets} ]]; do
+        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
+        uri=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uri)
+        magical=$(echo "${datasets_json}" \
+            | ${ROOT}/bin/json ${index}.needs_extra_node_service_magic)
+        if [[ -z ${uri} || -z ${name} ]]; then
+            fatal "Invalid dataset at ${index} of ${datasets_json}"
+
+            if [[ "${magical}" == "true" ]]; then
+                # the nodejs-* datasets are magical and "special" so they need
+                # more stuff to work
+                get_node_magic
             fi
-        fi
+       fi
+       copy_dataset ${name} ${uri}
 
-        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-            rm -f ${ROOT}/cache/${dataset_file}
-            fatal "Corrupt ${dataset_file}, deleted! Try build again."
-        fi
-
-        echo "==> Copying ${dataset_file}"
-        cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
-
-        if [[ ${dataset} == "nodejs-0.4.0" ]]; then
-            # the nodejs-0.4.0 dataset is magical and "special" so it needs
-            # more stuff
-            get_node_magic
-        fi
+       index=$((${index} + 1))
     done
+}
+
+# This is temporary, until we have all the SDC datasets at the same place.
+# It might be good anyway to add a little check to verify arguments are given.
+function copy_dataset
+{
+  local dataset=$1
+  local dataset_uri=$2
+
+  dataset_file=$(basename ${dataset_uri})
+  if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+      echo "==> Corrupt ${dataset_file}, deleting..."
+      rm -f ${ROOT}/cache/${dataset_file}
+  fi
+
+  if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+      if [[ ${HAVE_INTERNET} == "true" ]]; then
+          echo "==> Downloading ${dataset_file}"
+          (cd ${ROOT}/cache && curl --progress-bar -k \
+              -O ${dataset_uri}) \
+              || fatal "Unable to download ${dataset_file}"
+      else
+          fatal "Don't have Internet, and don't have valid " \
+              "${dataset_file}. Can't build."
+      fi
+  fi
+
+  if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+      rm -f ${ROOT}/cache/${dataset_file}
+      fatal "Corrupt ${dataset_file}, deleted! Try build again."
+  fi
+
+  echo "==> Copying ${dataset_file}"
+  cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 
 function get_fs_tarball
