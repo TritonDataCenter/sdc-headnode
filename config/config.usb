@@ -42,6 +42,9 @@ dhcp_next_server=10.99.99.4
 # This should not be changed.
 initial_script=scripts/headnode.sh
 
+# Install agents by default
+install_agents=true
+
 # This is the entry from /etc/shadow for root (default password: 'root')
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 
