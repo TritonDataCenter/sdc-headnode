@@ -52,6 +52,9 @@ function install_node_config
                 ntp_hosts \
                 rabbitmq \
                 root_shadow \
+                capi_admin_ip \
+                capi_http_admin_user \
+                capi_http_admin_pw \
                 ; do
 
                 value=$(eval echo \${${opt}})
