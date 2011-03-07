@@ -508,16 +508,17 @@ function copy_datasets
             | ${ROOT}/bin/json ${index}.needs_extra_node_service_magic)
         if [[ -z ${uri} || -z ${name} ]]; then
             fatal "Invalid dataset at ${index} of ${datasets_json}"
+        fi
 
-            if [[ "${magical}" == "true" ]]; then
-                # the nodejs-* datasets are magical and "special" so they need
-                # more stuff to work
-                get_node_magic
-            fi
-       fi
-       copy_dataset ${name} ${uri}
+        if [[ "${magical}" == "true" ]]; then
+            # the nodejs-* datasets are magical and "special" so they need
+            # more stuff to work
+            get_node_magic
+        fi
 
-       index=$((${index} + 1))
+        copy_dataset ${name} ${uri}
+
+        index=$((${index} + 1))
     done
 }
 
