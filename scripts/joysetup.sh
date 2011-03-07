@@ -181,6 +181,11 @@ install_configs()
     SMARTDC=/opt/smartdc/config/
     TEMP_CONFIGS=/var/tmp/node.config/
 
+    # On standalone machines we don't get config in /var/tmp
+    if [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
+        return 0
+    fi
+
     if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
         echo -n "Compute node, installing config files... " >&4
         if [[ ! -d $TEMP_CONFIGS ]]; then

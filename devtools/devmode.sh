@@ -43,6 +43,8 @@ if [[ ! -x /opt/local/sbin/pkg_add ]]; then
     echo "==> Installing minimal pkgsrc"
     (cd /opt && curl -k ${BOOTSTRAP_TAR} | gtar -C/ -xf -)
     (cd /opt && curl -k ${GCC_RUNTIME} | gtar -C/ -zxf -)
+    echo "PKG_PATH=${PKG_REPO}" >> \
+      /opt/local/etc/pkg_install.conf
     echo "==> Installing pkgin"
     /opt/local/sbin/pkg_add ${PKGIN_FILE}
     echo ${PKG_REPO} > /opt/local/etc/pkgin/repositories.conf
