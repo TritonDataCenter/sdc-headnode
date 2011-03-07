@@ -13,9 +13,14 @@
 # DO NOT USE UNLESS YOU NEED IT AND DO NOT WRITE SOFTWARE THAT DEPENDS ON THIS.
 #
 
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+set -o errexit
+set -o pipefail
+
 ROOT_DIR=$(cd $(dirname $0); pwd)
 PKG_REPO="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All"
-BOOTSTRAP_TAR="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar"
+BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
 GCC_RUNTIME="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/gcc452runtime.tgz"
 PKGIN_FILE="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/pkgin-0.4.1.tgz"
 
@@ -41,12 +46,13 @@ fi
 
 if [[ ! -x /opt/local/sbin/pkg_add ]]; then
     echo "==> Installing minimal pkgsrc"
-    (cd /opt && curl -k ${BOOTSTRAP_TAR} | gtar -C/ -xf -)
+    (cd /opt && curl -k ${BOOTSTRAP_TGZ} | gtar -C/ -zxf -)
     (cd /opt && curl -k ${GCC_RUNTIME} | gtar -C/ -zxf -)
     echo "PKG_PATH=${PKG_REPO}" >> \
       /opt/local/etc/pkg_install.conf
     echo "==> Installing pkgin"
     /opt/local/sbin/pkg_add ${PKGIN_FILE}
+    mkdir -p /opt/local/etc/pkgin
     echo ${PKG_REPO} > /opt/local/etc/pkgin/repositories.conf
     /opt/local/bin/pkgin update
 fi
