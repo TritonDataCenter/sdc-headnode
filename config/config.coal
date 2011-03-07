@@ -61,6 +61,11 @@ root_authorized_keys_file=root.authorized_keys
 #
 # ntp_conf_file=<filename of file in config.inc>
 #
+# Also: for different config on the compute nodes, use:
+#
+# compute_node_ntp_hosts + compute_node_ntp_conf_file
+#
+compute_node_ntp_hosts=10.99.99.7
 
 rabbitmq=guest:guest:10.99.99.5:5672
 

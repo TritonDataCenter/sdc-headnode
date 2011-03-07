@@ -198,16 +198,17 @@ install_configs()
 # On compute node if we can pull datasets from assets zone on headnode, do that.
 install_datasets()
 {
-    if [[ -n $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
+    if [[ -n $(/usr/bin/bootparams | grep "^headnode=true") ]] \
+        || [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
         return 0
     fi
 
     . /lib/sdc/config.sh
     load_sdc_config
 
-    if [[ -n "${CONFIG_compute_node_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
+    if [[ -n "${CONFIG_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
         assets=${CONFIG_assets_admin_ip}
-        for ds in $(echo "${CONFIG_compute_node_initial_datasets}" | tr ',' ' '); do
+        for ds in $(echo "${CONFIG_initial_datasets}" | tr ',' ' '); do
             echo "Installing dataset: ${ds} from ${assets}..." >&4
             latest_version=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
                 | grep "href=\"${ds}-.*\.zfs.bz2" | cut -d'"' -f2 | sort | tail -n 1)

@@ -48,8 +48,8 @@ function install_node_config
                 compute_node_initial_datasets \
                 assets_admin_ip \
                 atropos_admin_ip \
-                ntp_conf_file \
-                ntp_hosts \
+                compute_node_ntp_conf_file \
+                compute_node_ntp_hosts \
                 rabbitmq \
                 root_shadow \
                 capi_admin_ip \
@@ -58,6 +58,8 @@ function install_node_config
                 ; do
 
                 value=$(eval echo \${${opt}})
+                # strip off compute_node_ from beginning of those variables
+                opt=${opt#compute_node_}
                 if [[ -n ${value} ]]; then
                     echo "${opt}='${value}'"
 
