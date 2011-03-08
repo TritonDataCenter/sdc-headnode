@@ -221,7 +221,7 @@ install_datasets()
                 echo " \\_ FAILED!" >&4
             fi
 
-            if [[ "${ds}" =~ "nodejs-" ]] && [[ ! -e "/opt/nodejs" ]]; then
+            if [[ "${ds}" =~ "nodejs" ]] && [[ ! -e "/opt/nodejs" ]]; then
 
                 # XXX SPECIAL CASE node dataset needs more magic!
 
