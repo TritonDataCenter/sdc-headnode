@@ -93,7 +93,7 @@ function create_output
         ${SUCMD} chmod 400 ${ROOT}/cache/tar-root/root.password
     fi
 
-    echo "==> Creating root-147-${output_version}.tgz"
+    echo "==> Creating boot-147-${output_version}.tgz"
     (cd ${ROOT}/cache \
         && ${SUCMD} chown -R ${USER} tar-root \
         && ${TAR} -zcf ${ROOT}/boot-147-${output_version}.tgz tar-root)
