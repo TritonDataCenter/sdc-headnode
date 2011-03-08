@@ -52,13 +52,12 @@ function cleanup
 function unpack_image
 {
     # nop
-    rm -rf ${ROOT}/cache/tar-root
-    mkdir ${ROOT}/cache/tar-root
     true
 }
 
 function mount_image
 {
+    ${SUCMD} rm -rf ${MNT_DIR}
     mkdir -p ${MNT_DIR}
 }
 
@@ -66,9 +65,9 @@ function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
     rm -f ${ROOT}/cache/usb_key.manifest
-    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${ROOT}/cache/tar-root/usb_key.manifest
-    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest ${ROOT}/cache/tar-root/boot_archive.manifest
-    chmod 444 ${ROOT}/cache/tar-root/boot_archive.manifest ${ROOT}/cache/tar-root/usb_key.manifest
+    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${MNT_DIR}/usb_key.manifest
+    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest ${MNT_DIR}/boot_archive.manifest
+    chmod 444 ${MNT_DIR}/boot_archive.manifest ${MNT_DIR}/usb_key.manifest
 }
 
 function create_output
@@ -89,13 +88,13 @@ function create_output
 
     if [[ -f ${ROOT}/cache/stage/private/root.password ]]; then
         echo "==> Copying root.password"
-        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password ${ROOT}/cache/tar-root/root.password
-        ${SUCMD} chmod 400 ${ROOT}/cache/tar-root/root.password
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password ${MNT_DIR}/root.password
+        ${SUCMD} chmod 400 ${MNT_DIR}/root.password
     fi
 
     echo "==> Creating boot-147-${output_version}.tgz"
-    (cd ${ROOT}/cache \
-        && ${SUCMD} chown -R ${USER} tar-root \
-        && ${TAR} -zcf ${ROOT}/boot-147-${output_version}.tgz tar-root)
+    set -x
+    ${SUCMD} chown -R ${USER} ${MNT_DIR}
+    ${TAR} -zcf ${ROOT}/boot-147-${output_version}.tgz -C ${MNT_DIR} .
 }
 
