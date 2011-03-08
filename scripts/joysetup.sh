@@ -118,7 +118,7 @@ setup_datasets()
     fi
 
     echo -n "Creating global cores dataset... " >&4
-    zfs create -o quota=1g -o mountpoint=/zones/global/cores \
+    zfs create -o quota=10g -o mountpoint=/zones/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
     echo "done." >&4
