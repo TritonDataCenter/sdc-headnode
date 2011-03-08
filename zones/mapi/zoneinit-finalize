@@ -225,6 +225,12 @@ if [[ ! -e /opt/smartdc/mapi/config/atropos.smf ]]; then
   chown jill:jill /opt/smartdc/mapi/config/atropos.smf
 fi
 
+if [[ ! -e /opt/smartdc/mapi/config/zonetracker.smf ]]; then
+  echo "Creating MAPI ZoneTracker Agent Client Manifest."
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:zonetracker -f /opt/smartdc/mapi/Rakefile
+  chown jill:jill /opt/smartdc/mapi/config/zonetracker.smf
+fi
+
 # Generate the agents setup script:
 
 AGENTS_FILE_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents- | tail -n1)
@@ -399,6 +405,11 @@ fi
 if [[ -z \$(/usr/bin/svcs -a|grep atropos_agent_client) ]]; then
   echo "Importing MCP API Atropos Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/atropos.smf
+fi
+
+if [[ -z \$(/usr/bin/svcs -a|grep zone_tracker_agent_client) ]]; then
+  echo "Importing MCP API ZoneTracker Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker.smf
 fi
 
 
