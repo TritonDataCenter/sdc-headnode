@@ -6,9 +6,6 @@
       { "name": "bare-1.3.6"
       , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/bare-1.3.6.zfs.bz2"
       }
-    , { "name": "protemplate-2.5.2"
-      , "uri": "https://guest:GrojhykMid@assets.joyent.us/datasets/protemplate-2.5.2.zfs.bz2"
-      }
     , { "name": "nodejs-0.4.0"
       , "uri": "https://guest:GrojhykMid@assets.joyent.us/datasets/nodejs-0.4.0.zfs.bz2"
       , "needs_extra_node_service_magic": "true"

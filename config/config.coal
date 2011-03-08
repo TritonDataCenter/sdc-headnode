@@ -80,7 +80,7 @@ headnode_initial_datasets="bare"
 # List of datasets to import on compute nodes automatically.
 # These must exist on the headnode and be in /usbkey/datasets with the
 # extension -<version>.zfs.bz2.  Leave empty to not import any datasets by default.
-compute_node_initial_datasets="bare,protemplate"
+compute_node_initial_datasets="bare"
 
 # Zone-specific configs
 
@@ -160,7 +160,7 @@ mapi_memory_cap=512m
 mapi_http_port=8080
 mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
-mapi_datasets="bare,protemplate,nodejs"
+mapi_datasets="bare,nodejs"
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
