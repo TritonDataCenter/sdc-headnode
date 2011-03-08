@@ -79,6 +79,10 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             source ${ROOT}/bin/include-usb-osx
             version
             ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
+            version
+            ;;
         *)
             fatal  "FATAL: Unsupported build type on OSX: ${BUILD_TYPE}"
             ;;
@@ -93,6 +97,10 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
             echo "Linux-usb";
             exit 0
             ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
+            version
+            ;;
         *)
             fatal "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
             ;;
@@ -101,6 +109,10 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
             source ${ROOT}/bin/include-usb-smartos
+            version
+            ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
             version
             ;;
         *)
