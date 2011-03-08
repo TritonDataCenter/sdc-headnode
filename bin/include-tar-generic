@@ -93,7 +93,6 @@ function create_output
     fi
 
     echo "==> Creating boot-147-${output_version}.tgz"
-    set -x
     ${SUCMD} chown -R ${USER} ${MNT_DIR}
     ${TAR} -zcf ${ROOT}/boot-147-${output_version}.tgz -C ${MNT_DIR} .
 }
