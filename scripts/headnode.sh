@@ -101,11 +101,7 @@ DEBUG="true"
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
-# Create a link to the config as /etc/headnode.config, so we can have a
-# consistent location for it when we want to be able to umount the USB later
-ln -s ${USB_COPY}/config /etc/headnode.config
-
-# Load headnode.config variables with CONFIG_ prefix
+# Load config variables with CONFIG_ prefix
 . /lib/sdc/config.sh
 load_sdc_config
 
@@ -135,7 +131,7 @@ if ( /usr/bin/bootparams | grep "^admin_nic=" 2> /dev/null ); then
     admin_nic=`/usr/bin/bootparams | grep "^admin_nic=" | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
-    admin_nic=`grep "^admin_nic=" /etc/headnode.config | \
+    admin_nic=`echo "${CONFIG_admin_nic}" | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 
@@ -144,7 +140,7 @@ if ( /usr/bin/bootparams | grep "^external_nic=" 2> /dev/null ); then
     external_nic=`/usr/bin/bootparams | grep "^external_nic=" | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 else
-    external_nic=`grep "^external_nic=" /etc/headnode.config | \
+    external_nic=`echo "${CONFIG_external_nic}" | \
       cut -f2 -d'=' | sed 's/0\([0-9a-f]\)/\1/g' | tr "[:upper:]" "[:lower:]"`
 fi
 

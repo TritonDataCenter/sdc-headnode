@@ -34,7 +34,6 @@ ALWAYS_CHANGE=[ \
     './platform/i86pc/amd64/boot_archive.manifest' \
   , './lib/llib-lelf.ln' \
   , './etc/motd' \
-  , './etc/joyent_buildstamp' \
   , './etc/svc/repository.db' \
   , './lib/llib-lrtld_db.ln' \
   , './lib/amd64/llib-lrtld_db.ln' \

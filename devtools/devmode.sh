@@ -24,7 +24,7 @@ BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
 GCC_RUNTIME="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/gcc452runtime.tgz"
 PKGIN_FILE="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/pkgin-0.4.1.tgz"
 
-if [[ "$(uname)" != "SunOS" ]] || [[ ! -f /etc/joyent_buildstamp ]]; then
+if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
     exit 1 
 fi
