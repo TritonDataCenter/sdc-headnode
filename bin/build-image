@@ -568,6 +568,116 @@ function copy_dataset
   cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 
+#
+# RETURNS (via echo):
+#
+# The value considered newer between a and b
+# If values are same: a
+#
+function newer_of
+{
+    a=$1
+    b=$2
+
+    if [[ -z ${b} ]]; then
+        fatal "is_newer() usage: is_newer \$a \$b"
+    fi
+
+    if [[ -z ${a} ]]; then
+        echo "${b}" # newer since we have b but not a!
+        return 0
+    fi
+
+    # Strip off .tar.bz2 extension (if has one)
+    # break into elements separated by - _ or .
+    a_array=(`echo "${a}" \
+        | sed -e "s/\.tar\.bz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+    b_array=(`echo "${b}" \
+        | sed -e "s/\.tar\.bz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+
+    idx=0
+    while [[ -n ${a_array[${idx}]} || -n ${b_array[${idx}]} ]]; do
+        a_val=${a_array[${idx}]}
+        b_val=${b_array[${idx}]}
+
+        #echo "a[${a_val}] vs b[${b_val}]" >&2
+
+        # if one is empty at this idx, return the other
+        if [[ -z ${a_val} ]]; then
+            echo "${b}"
+            return 0
+        fi
+        if [[ -z ${b_val} ]]; then
+            echo "${a}"
+            return 0
+        fi
+
+        if [[ ${a_val} == ${b_val} ]]; then
+            # same, so do nothing this loop
+            true
+        elif [[ ${a_val} =~ ^[0-9]+$ && ${b_val} =~ ^[0-9]+$ ]]; then
+            # all digits (sort numerically)
+            if [[ ${b_val} -gt ${a_val} ]]; then
+                echo "${b}"
+            else
+                echo "${a}"
+            fi
+            return 0
+        else
+            # not all digits (sort lexicographically)
+            if [[ ${b_val} > ${a_val} ]]; then
+                echo "${b}"
+            else
+                echo "${a}"
+            fi
+            return 0
+        fi
+
+        idx=$((${idx} + 1))
+    done
+    #echo "COMPARING: '${a}' vs '${b}'" >&2
+
+    echo "${a}"
+    return 0
+}
+
+function get_latest
+{
+    target=$1
+
+    [[ -z ${target} ]] && fatal "get_latest(): No target specified."
+
+    # not a file so assume it's a pattern, find the latest
+    FS_PATTERN=${target}
+
+    latest=
+
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        for file in $(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
+            | grep "href=" \
+            | cut -d'"' -f2 \
+            | grep "${FS_PATTERN}"); do
+
+            #echo "LATEST BEF: ${latest}"
+            latest=$(newer_of "${latest}" "${file}")
+            #echo "LATEST NOW: ${latest}"
+        done
+        [[ $? -ne 0 || -z ${latest} ]] \
+            && fatal "Error getting file list for ${FS_PATTERN}"
+    else
+        for file in $(cd ${ROOT}/cache && ls -1 | grep "${FS_PATTERN}"); do
+            #echo "(cached) LATEST BEFORE: ${latest}"
+            latest=$(newer_of "${latest}" "${file}")
+            #echo "(cached) LATEST NOW: ${latest}"
+        done
+    fi
+
+    echo "${latest}"
+    return 0
+}
+
 function get_fs_tarball
 {
     target=$1
@@ -589,15 +699,9 @@ function get_fs_tarball
         # not a file so assume it's a pattern, find the latest
         FS_PATTERN=${target}
 
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            filename=$(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
-                | grep "href=" \
-                | cut -d'"' -f2 \
-                | grep "${FS_PATTERN}" \
-                | sort | tail -1)
-            [[ $? -ne 0 || -z ${filename} ]] \
-                && fatal "Error getting file list for ${FS_PATTERN}"
+        filename=$(get_latest ${target})
 
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
             CURL_OPTS=
             [[ -f ${ROOT}/cache/${filename} ]] \
                 && CURL_OPTS="-z ${ROOT}/cache/${filename}"
@@ -611,9 +715,6 @@ function get_fs_tarball
 
             cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
         else
-            filename=$(cd ${ROOT}/cache && ls -1 \
-                | grep "${FS_PATTERN}" | tail -1)
-
             [[ -z ${filename} ]] \
                 && fatal "Don't have Internet and don't have cached " \
                 "version of ${FS_PATTERN}"
