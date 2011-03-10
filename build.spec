@@ -1,7 +1,7 @@
 {
-    "platform-release": "develop"
+    "platform-release": "develop-20110310T190430Z"
   , "build-tgz": "true"
-  , "agents-shar": "develop"
+  , "agents-shar": "develop-20110310T192048Z"
   , "datasets": [
       { "name": "smartos-1.3.7"
       , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/smartos-1.3.7.zfs.bz2"
@@ -11,14 +11,14 @@
       , "needs_extra_node_service_magic": "true"
       }
   ]
-  , "adminui-checkout": "origin/develop"
-  , "assets-checkout": "origin/develop"
-  , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
-  , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
-  , "capi-checkout": "origin/develop"
-  , "dhcpd-checkout": "origin/develop"
-  , "mapi-checkout": "origin/develop"
-  , "portal-checkout": "origin/develop"
-  , "pubapi-checkout": "origin/usb-headnode"
-  , "rabbitmq-checkout": "origin/develop"
+  , "adminui-checkout": "origin/release-20110310"
+  , "assets-checkout": "origin/release-20110310"
+  , "atropos-tarball": "^atropos-develop-20110210.tar.bz2.20110224$"
+  , "ca-tarball": "^ca-pkg-master-20110310.tar.bz2$"
+  , "capi-checkout": "origin/release-20110310"
+  , "dhcpd-checkout": "origin/release-20110310"
+  , "mapi-checkout": "origin/release-20110310"
+  , "portal-checkout": "origin/release-20110310"
+  , "pubapi-checkout": "origin/release-20110310"
+  , "rabbitmq-checkout": "not-used"
 }
