@@ -349,6 +349,12 @@ EOF
         done
 
         zoneadm -z ${zone} boot
+        # Remove once zoneinit does this for us
+        cat > ${dest}/root/zoneinit.d/01-reboot-file.sh <<EOF
+if [[ ! -f /tmp/.FIRST_REBOOT_NOT_YET_COMPLETE ]]; then
+    touch /tmp/.FIRST_REBOOT_NOT_YET_COMPLETE
+fi
+EOF
 
         echo "done." >>/dev/console
 
