@@ -69,17 +69,17 @@ compute_node_ntp_hosts=10.99.99.7
 rabbitmq=guest:guest:10.99.99.5:5672
 
 # List of datasets to import on headnode automatically.  This should always
-# include 'bare' unless you really know what you're doing, and the remainder
+# include 'smartos' unless you really know what you're doing, and the remainder
 # should also be on the usbkey in /usbkey/datasets with the extension
 # -<version>.zfs.bz2.
-headnode_initial_datasets="bare"
+headnode_initial_datasets="smartos"
 
 # Config options specific to compute nodes
 
 # List of datasets to import on compute nodes automatically.
 # These must exist on the headnode and be in /usbkey/datasets with the
 # extension -<version>.zfs.bz2.  Leave empty to not import any datasets by default.
-compute_node_initial_datasets="bare"
+compute_node_initial_datasets="smartos"
 
 # Zone-specific configs
 
@@ -159,7 +159,7 @@ mapi_memory_cap=2048m
 mapi_http_port=8080
 mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
-mapi_datasets="bare,nodejs"
+mapi_datasets="smartos,nodejs"
 dbconn_retry_after=10
 dbconn_num_attempts=10
 

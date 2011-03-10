@@ -62,7 +62,7 @@ development: &defaults
       username: ${MAPI_HTTP_ADMIN_USER}
       password: ${MAPI_HTTP_ADMIN_PW}
       resources:
-        bare:
+        smartos:
           coupon: false
           repo: false
         nodejs:

@@ -151,7 +151,7 @@ else
 fi
 
 LATESTTEMPLATE=''
-for template in `ls /zones | grep bare`; do
+for template in `ls /zones | grep smartos`; do
     LATESTTEMPLATE=${template}
 done
 
