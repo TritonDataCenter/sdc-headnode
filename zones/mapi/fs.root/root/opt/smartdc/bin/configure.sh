@@ -12,12 +12,16 @@ if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
+else
+  echo "Restarting postgresql service"
+  /usr/sbin/svcadm disable -s postgresql
+  /usr/sbin/svcadm enable -s postgresql
+  sleep 2
 fi
 
-# Setup and configure nginx
-if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
-  echo "Importing nginx service"
-  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+# We need to override nginx.conf on reconfigure, and it's safe to do during setup:
+echo "Creating nginx configuration file"
+cat >/opt/local/etc/nginx/nginx.conf <<NGINX
 user  www  www;
 worker_processes  1;
 
@@ -82,10 +86,18 @@ http {
 
 NGINX
 
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  /usr/sbin/svcadm enable -s nginx
+else
+  echo "Restarting nginx service"
+  /usr/sbin/svcadm disable -s nginx
   /usr/sbin/svcadm enable -s nginx
 fi
 
+# We don't need to reconfigure mDNS so, no need to restart services
 # Configure nsswitch to use mdns & enable multicast dns:
 hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
 
@@ -161,9 +173,9 @@ if [[ ! -e /opt/smartdc/mapi/config/unicorn.conf ]]; then
   chown jill:jill /opt/smartdc/mapi/config/unicorn.conf
 fi
 
-if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
-  echo "Configuring MCP API Database."
-  cat > /opt/smartdc/mapi/config/database.yml <<MAPI_DB
+# It is safe to always override with the right config
+echo "Configuring MCP API Database."
+cat > /opt/smartdc/mapi/config/database.yml <<MAPI_DB
 
 :production: &prod
   :adapter: postgres
@@ -174,7 +186,6 @@ if [[ -z $(cat /opt/smartdc/mapi/config/database.yml|grep mapi) ]]; then
   :encoding: UTF-8
 
 MAPI_DB
-fi
 
 if [[ ! -e /opt/smartdc/mapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/mapi/tmp/pids"
