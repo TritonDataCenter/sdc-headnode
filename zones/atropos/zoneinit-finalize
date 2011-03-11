@@ -2,6 +2,9 @@
 
 echo "99 finalizing atropos zone"
 
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
+
 # Ensure files are owned by the couchdb user
 chown -R couchdb:couchdb /var/db/couchdb/ /opt/local/etc/couchdb/
 

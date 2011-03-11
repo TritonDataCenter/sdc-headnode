@@ -1,6 +1,6 @@
 # This script can be sourced either as part of zoneinit-finalize
 # or directly from head-node global zone, when reconfiguring the zone
-# for whatever the reason using /opt/smartdc/bin/configure
+# for whatever the reason using /opt/smartdc/etc/configure
 
 # TODO: what should sendmail config be for production
 cat >"/opt/smartdc/pubapi/config/config.yml" <<CONFIGYML

@@ -1,6 +1,6 @@
 # This script can be sourced either as part of zoneinit-finalize
 # or directly from head-node global zone, when reconfiguring the zone
-# for whatever the reason using /opt/smartdc/bin/configure
+# for whatever the reason using /opt/smartdc/etc/configure
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then

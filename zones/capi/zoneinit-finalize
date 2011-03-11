@@ -19,9 +19,7 @@ for app in capi dnsapi; do
   ruby_app_update_service $app
 done
 
-# Save the zoneconfig file on the configure dir (for testing purposes right now)
-cat /root/zoneconfig > /opt/smartdc/bin/zoneconfig
-# Source the configure.sh script now:
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
 for app_name in capi dnsapi; do

@@ -1,6 +1,6 @@
 # This script can be sourced either as part of zoneinit-finalize
 # or directly from head-node global zone, when reconfiguring the zone
-# for whatever the reason using /opt/smartdc/bin/configure
+# for whatever the reason using /opt/smartdc/etc/configure
 
 # Since we need to access the postgres server from other zones, we need to add configuration
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf

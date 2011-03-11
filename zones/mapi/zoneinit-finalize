@@ -19,9 +19,7 @@ symlink_ruby
 #
 create_jill_account
 
-# Save the zoneconfig file on the configure dir (for testing purposes right now)
-cat /root/zoneconfig > /opt/smartdc/bin/zoneconfig
-# Source the configure.sh script now:
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
 # Generate the agents setup script:

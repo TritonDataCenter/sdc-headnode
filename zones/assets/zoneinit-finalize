@@ -2,43 +2,12 @@
 
 echo "99 finalizing assets zone"
 
-# Setup and configure nginx
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
+
+# Import nginx (config is already setup)
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
   echo "Importing nginx service"
-  cat >/opt/local/etc/nginx/nginx.conf <<NGINX
-user  www  www;
-worker_processes  1;
-
-events {
-    worker_connections  1024;
-}
-
-http {
-    include       /opt/local/etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    sendfile        on;
-    keepalive_timeout  65;
-
-    server {
-        listen       80;
-        server_name  assets;
-
-        location / {
-            root   /assets;
-            index  index.html index.htm;
-            autoindex on;
-        }
-
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   share/examples/nginx/html;
-        }
-
-    }
-}
-NGINX
-
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
   /usr/sbin/svcadm enable -s nginx
 fi

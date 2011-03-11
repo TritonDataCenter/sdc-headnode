@@ -74,10 +74,7 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-# Save the zoneconfig file on the configure dir (for testing purposes right now)
-mkdir -p /opt/smartdc/etc
-cat /root/zoneconfig > /opt/smartdc/etc/zoneconfig
-# Source the configure.sh script now:
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
 echo Importing portal_manifest.xml

@@ -5,6 +5,12 @@ if [[ ! -f /root/.erlang.cookie ]]; then
 	ln -s /var/db/rabbitmq/.erlang.cookie /root/.erlang.cookie
 fi
 
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
+
+# XXX move user handling to configure.sh and make so updates password if
+# needed.
+
 # Add user if not guest
 amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
 if [[ ${amqp_user} != 'guest' ]]; then

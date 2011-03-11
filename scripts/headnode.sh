@@ -263,6 +263,22 @@ for zone in $ALLZONES; do
             ) > ${dest}/root/zoneconfig
             echo "DEBUG ${dest}/root/zoneconfig"
             cat ${dest}/root/zoneconfig
+
+            # Save the zoneconfig file so the configure script can use it.
+            mkdir -p ${dest}/opt/smartdc/etc
+            cp ${dest}/root/zoneconfig ${dest}/opt/smartdc/etc/zoneconfig
+        fi
+
+        # Copy the configure and configure.sh scripts to the right place
+        if [[ -f "${src}/configure" ]]; then
+            mkdir -p ${dest}/opt/smartdc/bin
+            cp ${src}/configure ${dest}/opt/smartdc/bin/configure
+            chmod 0755 ${dest}/opt/smartdc/bin/configure
+        fi
+        if [[ -f "${src}/configure.sh" ]]; then
+            mkdir -p ${dest}/opt/smartdc/bin
+            cp ${src}/configure.sh ${dest}/opt/smartdc/bin/configure.sh
+            chmod 0644 ${dest}/opt/smartdc/bin/configure.sh
         fi
 
         # Write the info about this datacenter to /.dcinfo so we can use it in

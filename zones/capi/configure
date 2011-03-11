@@ -12,7 +12,7 @@ for service in $services; do
 done
 
 # Source configuration file first:
-source /opt/smartdc/bin/zoneconfig
+source /opt/smartdc/etc/zoneconfig
 
 # Then, source the configure.sh script:
 source /opt/smartdc/bin/configure.sh

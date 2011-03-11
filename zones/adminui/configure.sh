@@ -1,6 +1,6 @@
 # This script can be sourced either as part of zoneinit-finalize
 # or directly from head-node global zone, when reconfiguring the zone
-# for whatever the reason using /opt/smartdc/bin/configure
+# for whatever the reason using /opt/smartdc/etc/configure
 
 echo "Creating nginx configuration file"
 cat >/opt/local/etc/nginx/nginx.conf <<NGINX
