@@ -15,20 +15,8 @@ symlink_ruby
 create_jill_account
 
 for app in capi dnsapi; do
-
   # from zoneinit-common:
   ruby_app_update_service $app
-
-  if [[ ! $(/usr/bin/svcs -a|grep ${app}-update) ]]; then
-    echo "Importing '${app}-update' service"
-    $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app-update.xml)
-  fi
-
-  if [[  "$(/usr/bin/svcs -Ho state ${app}-update)" != "online"  ]]; then
-    echo "Enabling '${app}-update' service"
-    $(/usr/sbin/svcadm enable -s ${app}-update)
-  fi
-
 done
 
 # Save the zoneconfig file on the configure dir (for testing purposes right now)
