@@ -54,12 +54,12 @@ trap 'errexit $? $LINENO' EXIT
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-10/deps/"
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
+ASSETS_ROOT=${MASTER_PLATFORM_URL}
 PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
 
 # Figure out first what we're building, and load the proper include
@@ -383,7 +383,7 @@ function copy_agents
 
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ \
             | grep "href=\"agents" \
             | grep "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
@@ -409,7 +409,7 @@ function copy_agents
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             echo "==> Downloading ${use_agents}"
 
-            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts"
+            AGENT_URL_BASE="${MASTER_PLATFORM_URL}"
             AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
             AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
 
@@ -461,7 +461,7 @@ function get_node_magic
 
     valid_magic="false"
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
+        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}"
         latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
             | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -1)
 
@@ -655,7 +655,7 @@ function get_latest
     latest=
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
+        for file in $(curl -k -sS ${ASSETS_ROOT}/ \
             | grep "href=" \
             | cut -d'"' -f2 \
             | grep "${FS_PATTERN}"); do
@@ -708,7 +708,7 @@ function get_fs_tarball
 
             (cd ${ROOT}/cache \
                 && curl --progress-bar -k ${CURL_OPTS} \
-                -fO ${ASSETS_ROOT}/liveimg/${filename})
+                -fO ${ASSETS_ROOT}/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
             echo "==> Downloaded ${filename} for ${zone}"
