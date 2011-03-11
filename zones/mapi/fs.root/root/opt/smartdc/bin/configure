@@ -18,6 +18,7 @@ source /opt/smartdc/bin/zoneconfig
 source /opt/smartdc/bin/configure.sh
 
 # Re-enable our services post re-configuration:
+echo "Enabling application services"
 for service in $services; do
   if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
       $(/usr/sbin/svcadm enable -s "$service")
