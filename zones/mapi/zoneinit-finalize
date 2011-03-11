@@ -9,6 +9,16 @@ app_name='mapi'
 # from zoneinit-common:
 ruby_app_update_service $app_name
 
+#
+# Call symlink_ruby (imported from 97-zoneinit-common)
+#
+symlink_ruby
+
+#
+# Also, from 97-zoneinit-common
+#
+create_jill_account
+
 # Since we need to access the postgres server from other zones, we need to add configuration
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
 echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
@@ -125,15 +135,7 @@ if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
   $(/usr/sbin/svcadm enable -s mdnsresponder)
 fi
 
-#
-# Call symlink_ruby (imported from 97-zoneinit-common)
-#
-symlink_ruby
 
-#
-# Also, from 97-zoneinit-common
-#
-create_jill_account
 
 echo "Generating MAPI config files."
 host=`hostname`
