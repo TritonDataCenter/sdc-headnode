@@ -4,6 +4,16 @@ svcadm clear network/physical:default >/dev/null 2>&1
 
 echo "99 finalizing capi zone"
 
+#
+# Call symlink_ruby (imported from 97-zoneinit-common)
+#
+symlink_ruby
+
+#
+# Also, from 97-zoneinit-common
+#
+create_jill_account
+
 for app in capi dnsapi; do
 
   # from zoneinit-common:
@@ -29,17 +39,6 @@ if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   /usr/sbin/svcadm enable -s postgresql
   sleep 2
 fi
-
-#
-# Call symlink_ruby (imported from 97-zoneinit-common)
-#
-symlink_ruby
-
-#
-# Also, from 97-zoneinit-common
-#
-create_jill_account
-
 
 
 # CAPI specific

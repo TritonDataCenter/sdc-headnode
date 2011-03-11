@@ -6,6 +6,16 @@ echo "99 finalizing adminui zone"
 
 app_name='adminui'
 
+#
+# Call symlink_ruby (imported from 97-zoneinit-common)
+#
+symlink_ruby
+
+#
+# Also, from 97-zoneinit-common
+#
+create_jill_account
+
 # from zoneinit-common:
 ruby_app_update_service $app_name
 
@@ -84,16 +94,6 @@ NGINX
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
   /usr/sbin/svcadm enable -s nginx
 fi
-
-#
-# Call symlink_ruby (imported from 97-zoneinit-common)
-#
-symlink_ruby
-
-#
-# Also, from 97-zoneinit-common
-#
-create_jill_account
 
 
 if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
