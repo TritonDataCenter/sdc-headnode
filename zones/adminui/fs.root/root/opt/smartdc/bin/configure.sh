@@ -2,10 +2,6 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/bin/configure
 
-# We need to generate our own self signed certificate for Nginx:
-echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
-
 echo "Creating nginx configuration file"
 cat >/opt/local/etc/nginx/nginx.conf <<NGINX
 user  www  www;

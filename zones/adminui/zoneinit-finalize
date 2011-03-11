@@ -19,6 +19,10 @@ create_jill_account
 # from zoneinit-common:
 ruby_app_update_service $app_name
 
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
+
 # Save the zoneconfig file on the configure dir (for testing purposes right now)
 cat /root/zoneconfig > /opt/smartdc/bin/zoneconfig
 # Source the configure.sh script now:
