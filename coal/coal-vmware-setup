@@ -28,13 +28,16 @@ LOCATIONS_TMP=/tmp/coal.locations.$$
 # The admin "host-only" network - vmnet1 (only between the Mac and the headnode)
 ADMIN_NETWORK=$(get_config_value admin_network || echo 10.99.99.0)
 ADMIN_NETMASK=$(get_config_value admin_netmask || echo 255.255.255.0)
-ADMIN_MAC_IP=$(get_config_value admin_network || echo 10.99.99.254 | sed 's/\.[0-9]*$/.254/')
+ADMIN_MAC_IP=$(echo ${ADMIN_NETWORK} | sed 's/\.[0-9]*$/.254/')
 
 # The external NAT network - vmnet8 (can reach the internet)
 # Note: There isn't currently an "external_network" var in config.coal to use.
 EXTERNAL_NETWORK=10.88.88.0
 EXTERNAL_NETMASK=255.255.255.0
 EXTERNAL_MAC_IP=10.88.88.1
+
+echo "Admin network:    network=\"${ADMIN_NETWORK}\", mac ip=\"${ADMIN_MAC_IP}\", netmask=\"${ADMIN_NETMASK}\""
+echo "External network: network=\"${EXTERNAL_NETWORK}\", mac ip=\"${EXTERNAL_MAC_IP}\", netmask=\"${EXTERNAL_NETMASK}\""
 
 
 if [ $UID -ne 0 ] ; then
