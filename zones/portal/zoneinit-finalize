@@ -25,7 +25,6 @@ exports.config = {
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr" }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr" }},
   ],
-  clientCABlackList : [ 'nic', 'syscall', 'io', { cpu : ['utilization'] } ],
   listenIp : "${PRIVATE_IP}"
 }
 HERE
