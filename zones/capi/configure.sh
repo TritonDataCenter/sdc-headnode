@@ -18,10 +18,8 @@ fi
 # CAPI specific
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
-  echo "Creating Customers API config files."
-  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/capi/Rakefile"
+  cp /opt/smartdc/capi/config/database.yml /opt/smartdc/capi/config/database.yml
 fi
-sleep 1
 
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
@@ -30,7 +28,14 @@ if [[ ! -e /opt/smartdc/capi/config/config.ru ]]; then
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/config.yml ]]; then
-  cp /opt/smartdc/capi/config/config.yml.sample /opt/smartdc/capi/config/config.yml
+   cd /opt/smartdc/capi && \
+   MAIL_TO="${MAIL_TO}" \
+   MAIL_FROM="${MAIL_FROM}" \
+   CAPI_HTTP_ADMIN_USER="${CAPI_HTTP_ADMIN_USER}" \
+   CAPI_HTTP_ADMIN_PW="{CAPI_HTTP_ADMIN_PW}" \
+   /opt/local/bin/rake18 install:config -f /opt/smartdc/capi/Rakefile && \
+   sleep 1 && \
+   chown jill:jill /opt/smartdc/capi/config/config.yml
 fi
 
 if [[ ! -e /opt/smartdc/capi/gems/gems ]] || [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then

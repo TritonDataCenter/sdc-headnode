@@ -7,7 +7,14 @@ PUBLIC_IP=${pubapi_external_ip-${pubapi_admin_ip}}
 ROOT_PW=${pubapi_root_pw}
 ADMIN_PW=${pubapi_admin_pw}
 TMPFS=512m
-CAPI_ADMIN_IP=${capi_admin_ip}
+
 MAPI_ADMIN_IP=${mapi_admin_ip}
 MAPI_HTTP_ADMIN_USER=${mapi_http_admin_user}
 MAPI_HTTP_ADMIN_PW=${mapi_http_admin_pw}
+
+CAPI_ADMIN_IP=${capi_admin_ip}
+CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
+CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
+
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}

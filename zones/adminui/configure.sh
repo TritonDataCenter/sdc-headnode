@@ -103,8 +103,10 @@ echo "Installing MAPI Admin UI Config file."
 host=`hostname`
 
 su - jill -c "cd /opt/smartdc/adminui; \
-  MAIL_FROM=jill@$host \
-  MAIL_TO=jill@$host \
+  MAIL_FROM=$MAIL_FROM \
+  MAIL_TO=$MAIL_TO \
+  CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER
+  CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW
   ADMINUI_IP=$ADMINUI_IP \
   CAPI_IP=$CAPI_IP \
   MAPI_IP=$MAPI_IP \

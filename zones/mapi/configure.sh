@@ -137,8 +137,8 @@ host=`hostname`
 amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
 amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
 (cd /opt/smartdc/mapi && \
-  SENDMAIL_TO="jill@$host" \
-  SENDMAIL_FROM="jill@$host" \
+  SENDMAIL_TO="${MAIL_TO}" \
+  SENDMAIL_FROM="${MAIL_FROM}" \
   AMQP_USER="${amqp_user}" \
   AMQP_PASSWORD="${amqp_pass}" \
   AMQP_HOST="${RABBITMQ_PRIVATE_IP}" \

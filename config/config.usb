@@ -11,6 +11,10 @@ swap=4g
 datacenter_name=unknown
 datacenter_headnode_id=0
 
+# These settings are used by all services in your cloud for email messages
+mail_to=devs@joyent.com
+mail_from=support@joyent.com
+
 # admin_nic is the nic admin_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
 admin_ip=10.99.99.7

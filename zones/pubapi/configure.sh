@@ -15,12 +15,12 @@ development: &defaults
   sendmail:
     sendmail_path: /opt/local/sbin/sendmail
     sendmail_arguments: '-i -t'
-    to: brock@joyent.com
-    from: support@joyent.com
+    to: ${MAIL_TO}
+    from: ${MAIL_FROM}
   capi:
     url: ${CAPI_ADMIN_IP}:8080
-    username: admin
-    password: tot@ls3crit
+    username: ${CAPI_HTTP_ADMIN_USER}
+    password: ${CAPI_HTTP_ADMIN_PW}
   mapi:
     coal:
       url: ${MAPI_ADMIN_IP}
