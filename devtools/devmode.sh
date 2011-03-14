@@ -22,7 +22,7 @@ ROOT_DIR=$(cd $(dirname $0); pwd)
 PKG_REPO="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All"
 BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
 GCC_RUNTIME="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/gcc452runtime.tgz"
-PKGIN_FILE="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/pkgin-0.4.1.tgz"
+PKGIN_FILE="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/pkgin-0.4.2.tgz"
 
 if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
