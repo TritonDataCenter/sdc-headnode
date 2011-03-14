@@ -19,6 +19,11 @@ symlink_ruby
 #
 create_jill_account
 
+# Before we enable postgresql, we'll make a little change on the way we stop
+# the service, so we can stop it without having to stop all the agents:
+echo "Updating postgresql stop method"
+$(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m immediate/" /opt/local/share/smf/method/svc-pgsql90)
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
