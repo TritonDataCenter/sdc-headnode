@@ -7,7 +7,7 @@ PUBLIC_IP=${mapi_external_ip-${mapi_admin_ip}}
 ROOT_PW=${mapi_root_pw}
 ADMIN_PW=${mapi_admin_pw}
 TMPFS=512m
-POSTGRES_HOST=localhost
+POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
 
