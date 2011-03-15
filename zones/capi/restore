@@ -9,6 +9,17 @@ fi
 ZONE=$1
 TARGET_DIR=$2
 
+# No problem at all if the services are not running into the zone:
+echo "==> Disabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
+services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
+for service in $services; do
+  if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
+    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm disable "$service")
+  fi
+done
+
+sleep 5 # Ensure we give time enough to the services to be disable
+
 for app in capi dnsapi; do
   APP_NAME="${app}"
   BASE="${TARGET_DIR}/${ZONE}/${APP_NAME}"
@@ -30,16 +41,7 @@ for app in capi dnsapi; do
     exit 102
   fi
 
-  # No problem at all if the services are not running into the zone:
-  echo "==> Disabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
-  services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
-  for service in $services; do
-    if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/${APP_NAME}_ipf_setup:default" ) ]]; then
-      $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm disable "$service")
-    fi
-  done
 
-  sleep 5 # Ensure we give time enough to the services to be disabled
 
   # We're gonna check for existing zone datasets.
   # If they're there, we'll remove them.
@@ -179,17 +181,19 @@ for app in capi dnsapi; do
     fi
   fi
 
-  echo "==> Enabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
-
-  services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
-  for service in $services; do
-    if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/${APP_NAME}_ipf_setup:default" ) ]]; then
-      $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm enable "$service")
-    fi
-  done
-
-  sleep 5
 done
+
+echo "==> Enabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
+
+services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
+for service in $services; do
+  if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
+    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm enable "$service")
+  fi
+done
+
+sleep 5
+
 
 echo "==> All done!!!"
 
