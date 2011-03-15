@@ -32,6 +32,10 @@ external_ip=10.88.88.200
 external_gateway=10.88.88.2
 external_netmask=255.255.255.0
 #external_vlan_id=999
+external_network=10.88.88.0
+external_provisionable_start=10.88.88.50
+external_provisionable_end=10.88.88.199
+external_bitcount=24
 
 # Set to true if you want the GZ on the headnode to NAT traffic from the admin
 # network to the external network:
