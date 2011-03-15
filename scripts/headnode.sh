@@ -280,6 +280,17 @@ for zone in $ALLZONES; do
             cp ${src}/configure.sh ${dest}/opt/smartdc/bin/configure.sh
             chmod 0644 ${dest}/opt/smartdc/bin/configure.sh
         fi
+        # Ditto for backup/restore scripts
+        if [[ -f "${src}/backup" ]]; then
+            mkdir -p ${dest}/opt/smartdc/bin
+            cp ${src}/backup ${dest}/opt/smartdc/bin/backup
+            chmod 0755 ${dest}/opt/smartdc/bin/backup
+        fi
+        if [[ -f "${src}/restore" ]]; then
+            mkdir -p ${dest}/opt/smartdc/bin
+            cp ${src}/restore ${dest}/opt/smartdc/bin/restore
+            chmod 0755 ${dest}/opt/smartdc/bin/restore
+        fi
 
         # Write the info about this datacenter to /.dcinfo so we can use it in
         # the zone.  Same file should be put in the GZ by smartdc:config
