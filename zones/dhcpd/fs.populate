@@ -4,12 +4,26 @@ set -e
 
 echo "booter target: [${CHECKOUT_TARGET}]"
 
-mkdir -p root/opt/smartdc
-cd root/opt/smartdc
-git clone git@git.joyent.com:booter.git booter
-cd booter
-git checkout ${CHECKOUT_TARGET}
-rm -rf .git
+if [[ -n ${BOOTER_DIR} ]]; then
+    if [[ -d ${BOOTER_DIR} ]]; then
+        echo "taking booter from ${BOOTER_DIR}"
+        # XXX BOOTER_DIR must be a git repo (so git describe works)
+        mkdir booter
+        (cd ${BOOTER_DIR} && tar -cf - ./) | (cd booter && tar -xf -)
+        cd booter
+    else
+        echo "FATAL: ${BOOTER_DIR} is not a directory"
+        exit 1
+    fi
+else
+    mkdir -p root/opt/smartdc
+    cd root/opt/smartdc
+    git clone git@git.joyent.com:booter.git booter
+    cd booter
+    git checkout ${CHECKOUT_TARGET}
+    rm -rf .git
+fi
+
 rm -f config.js
 #touch ../booter-VERSION
 #git describe --tags > ../booter-VERSION

@@ -8,9 +8,23 @@ cd root/opt/smartdc
 
 echo "CAPI target: [${CHECKOUT_TARGET}]"
 
-git clone git@git.joyent.com:customers_api.git capi-repo
-cd capi-repo
-git checkout ${CHECKOUT_TARGET}
+if [[ -n ${CAPI_DIR} ]]; then
+    if [[ -d ${CAPI_DIR} ]]; then
+        echo "taking capi from ${CAPI_DIR}"
+        # XXX CAPI_DIR must be a git repo (so git describe works)
+        mkdir capi-repo
+        (cd ${CAPI_DIR} && tar -cf - ./) | (cd capi-repo && tar -xf -)
+        cd capi-repo
+    else
+        echo "FATAL: ${CAPI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:customers_api.git capi-repo
+    cd capi-repo
+    git checkout ${CHECKOUT_TARGET}
+fi
+
 touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
 
@@ -18,8 +32,22 @@ cd ..
 
 echo "DNSAPI target: [${CHECKOUT_TARGET}]"
 
-git clone git@git.joyent.com:dns_api.git dnsapi-repo
-cd dnsapi-repo
-git checkout ${CHECKOUT_TARGET}
+if [[ -n ${DNSAPI_DIR} ]]; then
+    if [[ -d ${DNSAPI_DIR} ]]; then
+        echo "taking dnsapi from ${DNSAPI_DIR}"
+        # XXX DNSAPI_DIR must be a git repo (so git describe works)
+        mkdir dnsapi-repo
+        (cd ${DNSAPI_DIR} && tar -cf - ./) | (cd dnsapi-repo && tar -xf -)
+        cd dnsapi-repo
+    else
+        echo "FATAL: ${DNSAPI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:dns_api.git dnsapi-repo
+    cd dnsapi-repo
+    git checkout ${CHECKOUT_TARGET}
+fi
+
 touch ../dnsapi-VERSION
 git describe --tags > ../dnsapi-VERSION

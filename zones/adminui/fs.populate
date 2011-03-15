@@ -6,9 +6,23 @@ echo "adminui target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
-cd adminui-repo
-git checkout ${CHECKOUT_TARGET}
+if [[ -n ${ADMINUI_DIR} ]]; then
+    if [[ -d ${ADMINUI_DIR} ]]; then
+        echo "taking adminui from ${ROOT}/${ADMINUI_DIR}"
+        # XXX ADMINUI_DIR must be a git repo (so git describe works)
+        mkdir adminui-repo
+        (cd ${ADMINUI_DIR} && tar -cf - ./) | (cd adminui-repo && tar -xf -)
+        cd adminui-repo
+    else
+        echo "FATAL: ${ADMINUI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
+    cd adminui-repo
+    git checkout ${CHECKOUT_TARGET}
+fi
+
 touch ../adminui-VERSION
 git describe --tags > ../adminui-VERSION
 

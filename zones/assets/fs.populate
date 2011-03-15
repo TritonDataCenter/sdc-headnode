@@ -6,10 +6,25 @@ echo "dsapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:dsapi.git dsapi
-cd dsapi 
-git checkout ${CHECKOUT_TARGET}
-rm -rf .git
+
+if [[ -n ${DSAPI_DIR} ]]; then
+    if [[ -d ${DSAPI_DIR} ]]; then
+        echo "taking dsapi from ${DSAPI_DIR}"
+        # XXX DSAPI_DIR must be a git repo (so git describe works)
+        mkdir dsapi
+        (cd ${DSAPI_DIR} && tar -cf - ./) | (cd dsapi && tar -xf -)
+        cd dsapi
+    else
+        echo "FATAL: ${DSAPI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:dsapi.git dsapi
+    cd dsapi
+    git checkout ${CHECKOUT_TARGET}
+    rm -rf .git
+fi
+
 #rm -f config.js
 #touch ../booter-VERSION
 #git describe --tags > ../booter-VERSION

@@ -6,10 +6,25 @@ echo "Portal target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
-git clone git@git.joyent.com:public-web-client.git portal
-cd portal
-git checkout ${CHECKOUT_TARGET}
-touch ../portal-VERSION
-git describe --tags > ../portal-VERSION
-rm -rf .git
+
+if [[ -n ${PORTAL_DIR} ]]; then
+    if [[ -d ${PORTAL_DIR} ]]; then
+        echo "taking portal from ${PORTAL_DIR}"
+        # XXX PORTAL_DIR must be a git repo (so git describe works)
+        mkdir portal-repo
+        (cd ${PORTAL_DIR} && tar -cf - ./) | (cd portal-repo && tar -xf -)
+        cd portal-repo
+    else
+        echo "FATAL: ${PORTAL_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:public-web-client.git portal
+    cd portal
+    git checkout ${CHECKOUT_TARGET}
+    touch ../portal-VERSION
+    git describe --tags > ../portal-VERSION
+    rm -rf .git
+fi
+
 rm -f config.js
