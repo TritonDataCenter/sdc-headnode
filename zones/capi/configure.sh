@@ -58,14 +58,19 @@ fi
 if [[ -z $(cat /opt/smartdc/capi/config/database.yml|grep capi) ]]; then
   echo "Configuring Customers API Database."
   cat > /opt/smartdc/capi/config/database.yml <<CAPI_DB
-
-:production: &prod
+:development: &defaults
   :adapter: postgres
   :database: capi
   :host: $POSTGRES_HOST
   :username: $POSTGRES_USER
   :password: $POSTGRES_PW
   :encoding: UTF-8
+:test:
+  <<: *defaults
+  :database: capi_test
+:production:
+  <<: *defaults
+  :database: capi
 
 CAPI_DB
 fi
