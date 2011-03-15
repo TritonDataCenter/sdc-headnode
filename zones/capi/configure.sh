@@ -32,7 +32,7 @@ if [[ ! -e /opt/smartdc/capi/config/config.yml ]]; then
    MAIL_TO="${MAIL_TO}" \
    MAIL_FROM="${MAIL_FROM}" \
    CAPI_HTTP_ADMIN_USER="${CAPI_HTTP_ADMIN_USER}" \
-   CAPI_HTTP_ADMIN_PW="{CAPI_HTTP_ADMIN_PW}" \
+   CAPI_HTTP_ADMIN_PW="${CAPI_HTTP_ADMIN_PW}" \
    /opt/local/bin/rake18 install:config -f /opt/smartdc/capi/Rakefile && \
    sleep 1 && \
    chown jill:jill /opt/smartdc/capi/config/config.yml
