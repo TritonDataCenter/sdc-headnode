@@ -91,7 +91,7 @@ if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_DATA_DATASET}") ]]; then
 fi
 
 
-# ZFS receive the datasets from the backup:
+# ZFS receive the datasets from the backup:
 if [[ -z $(zfs list -H -o name|grep "${ZONE}\/${APP_DATASET%.*}$") ]]; then
   echo "==> Receiving '${BASE}/${APP_DATASET}'"
   /usr/sbin/zfs receive -v "zones/${ZONE}/${APP_DATASET%.*}" < "${BASE}/${APP_DATASET}"
