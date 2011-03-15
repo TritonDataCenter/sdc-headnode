@@ -3,8 +3,8 @@
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
-      { "name": "smartos-1.3.7"
-      , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/smartos-1.3.7.zfs.bz2"
+      { "name": "smartos-1.3.8"
+      , "uri": "https://guest:GrojhykMid@assets.joyent.us/templates/sdc/smartos-1.3.8.zfs.bz2"
       }
     , { "name": "nodejs-0.4.0"
       , "uri": "https://guest:GrojhykMid@assets.joyent.us/datasets/nodejs-0.4.0.zfs.bz2"
