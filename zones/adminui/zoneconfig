@@ -15,3 +15,5 @@ CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
 CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
 MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}
+
+DSAPI_IP=${assets_admin_ip}

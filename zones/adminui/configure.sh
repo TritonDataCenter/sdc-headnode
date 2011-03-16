@@ -110,6 +110,7 @@ su - jill -c "cd /opt/smartdc/adminui; \
   ADMINUI_IP=$ADMINUI_IP \
   CAPI_IP=$CAPI_IP \
   MAPI_IP=$MAPI_IP \
+  DSAPI_IP=$DSAPI_IP \
   /opt/local/bin/rake18 config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
