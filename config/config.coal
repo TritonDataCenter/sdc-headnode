@@ -13,7 +13,7 @@ datacenter_name=coal
 datacenter_headnode_id=0
 
 # These settings are used by all services in your cloud for email messages
-mail_to=devs@joyent.com
+mail_to=root@localhost
 mail_from=support@joyent.com
 
 # admin_nic is the nic admin_ip will be connected to for headnode zones.
