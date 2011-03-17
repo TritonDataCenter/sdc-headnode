@@ -514,21 +514,21 @@ function copy_datasets
     num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
     index=0
     while [[ ${index} -lt ${num_datasets} ]]; do
-        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
-        uri=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uri)
-        magical=$(echo "${datasets_json}" \
-            | ${ROOT}/bin/json ${index}.needs_extra_node_service_magic)
-        if [[ -z ${uri} || -z ${name} ]]; then
+        path=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index})
+
+        name=$(cat ${ROOT}/${path} | ${ROOT}/bin/json name)
+        version=$(cat ${ROOT}/${path} | ${ROOT}/bin/json version)
+        uri=$(cat ${ROOT}/${path} | ${ROOT}/bin/json files[0].url)
+        basename="$name-$version"
+
+        if [[ -z ${uri} || -z ${name} || -z ${version} ]]; then
             fatal "Invalid dataset at ${index} of ${datasets_json}"
         fi
 
-        if [[ "${magical}" == "true" ]]; then
-            # the nodejs-* datasets are magical and "special" so they need
-            # more stuff to work
-            get_node_magic
-        fi
+        copy_dataset ${basename} ${uri}
 
-        copy_dataset ${name} ${uri}
+        echo "==> Copying ${path}"
+        cp ${ROOT}/${path} ${STAGE}/datasets/
 
         index=$((${index} + 1))
     done
@@ -851,7 +851,8 @@ create_output
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
 if [[ -f ${LOGFILE} ]]; then
-    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
+    cat ${LOGFILE} | grep -v "
+" > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
 fi
 

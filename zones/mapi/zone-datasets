@@ -15,3 +15,7 @@ mkdir -p /zones/mapi/root/opt/smartdc/joysetup
 cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/joysetup/
 # copy headnode info into zone if we're MAPI
 sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json
+
+# Datasets
+mkdir -p /zones/mapi/root/opt/smartdc/datasets
+cp -R ${USB_COPY}/datasets/*.dsmanifest /zones/mapi/root/opt/smartdc/datasets

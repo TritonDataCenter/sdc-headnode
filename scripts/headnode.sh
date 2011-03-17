@@ -94,6 +94,24 @@ function install_config_file
     fi
 }
 
+function update_datasets
+{
+    option=$1
+
+    # pull out those config options we want to keep
+    assets_ip=$(
+        . ${USB_COPY}/config
+        eval echo "\${${option}}"
+    )
+
+    # Rewrite the new local dataset url
+    # Hardcoded global assets url?
+    for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
+        $(/usr/bin/sed -i"" \
+        -e "s/https:\/\/guest:GrojhykMid@assets.joyent.us/http:\/\/$assets_ip/" $file)
+    done
+}
+
 trap 'errexit $?' EXIT
 
 DEBUG="true"
@@ -348,6 +366,11 @@ EOF
             echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
         elif [[ -n ${CONFIG_admin_gateway} ]]; then
             echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
+        fi
+
+        # Rewrite the new local dataset url
+        if [[ "${zone}" == "mapi" ]]; then
+            update_datasets assets_admin_ip
         fi
 
         # Create additional zone datasets when required:
