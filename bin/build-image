@@ -861,8 +861,7 @@ create_output
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
 if [[ -f ${LOGFILE} ]]; then
-    cat ${LOGFILE} | grep -v "
-" > ${LOGFILE}.tmp \
+    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
 fi
 
