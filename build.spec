@@ -1,5 +1,5 @@
 {
-    "platform-release": "20110314T193948Z"
+    "platform-release": "20110317T000930Z"
   , "build-tgz": "true"
   , "agents-shar": "release-20110310-20110314T190118Z"
   , "datasets": [
