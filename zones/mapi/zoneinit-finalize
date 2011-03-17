@@ -178,34 +178,34 @@ if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
   sleep 1
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep provisioner_agent_client) ]]; then
+if [[ -z \$(/usr/bin/svcs -a|grep provisioner_client) ]]; then
   echo "Importing MCP API Provisioner Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/provisioner.smf
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/provisioner_client.smf
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep ur_agent_client) ]]; then
+if [[ -z \$(/usr/bin/svcs -a|grep ur_client) ]]; then
   echo "Importing MAPI Ur Agent Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur.smf
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur_client.smf
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep dataset_list_client) ]]; then
-  echo "Importing MCP API Dataset List Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/dataset.smf
+if [[ -z \$(/usr/bin/svcs -a|grep datasetmanager_client) ]]; then
+  echo "Importing MCP API DatasetManager Client Manifest"
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/datasetmanager_client.smf
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   echo "Importing MCP API Heartbeater Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater.smf
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater_client.smf
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep atropos_agent_client) ]]; then
+if [[ -z \$(/usr/bin/svcs -a|grep atropos_client) ]]; then
   echo "Importing MCP API Atropos Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/atropos.smf
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/atropos_client.smf
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep zone_tracker_agent_client) ]]; then
+if [[ -z \$(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
   echo "Importing MCP API ZoneTracker Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker.smf
+  /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker_client.smf
 fi
 
 

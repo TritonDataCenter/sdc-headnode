@@ -9,7 +9,7 @@ cd root/opt/smartdc
 
 if [[ -n ${MAPI_DIR} ]]; then
     if [[ -d ${MAPI_DIR} ]]; then
-        echo "taking adminui from ${MAPI_DIR}"
+        echo "taking mapi from ${MAPI_DIR}"
         # XXX MAPI_DIR must be a git repo (so git describe works)
         mkdir mapi-repo
         (cd ${MAPI_DIR} && tar -cf - ./) | (cd mapi-repo && tar -xf -)
