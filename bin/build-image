@@ -789,6 +789,16 @@ function copy_zones
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
 
+        # Symlinks aren't supported on pcfs, so we copy the files
+        if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
+            rm ${STAGE}/zones/${zone}/backup
+            cp ${ROOT}/zones/${zone}/backup ${STAGE}/zones/${zone}/backup
+        fi
+        if [[ -L ${ROOT}/zones/${zone}/restore ]]; then
+            rm ${STAGE}/zones/${zone}/restore
+            cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
+        fi
+
         if [[ -n ${override} ]]; then
             # If there was an override, use that withi highest priority
             get_fs_tarball ${override} ${STAGE}/zones/${zone}

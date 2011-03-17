@@ -8,32 +8,6 @@ fi
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
-# XXX move user handling to configure.sh and make so updates password if
-# needed.
-
-# Add user if not guest
-amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
-if [[ ${amqp_user} != 'guest' ]]; then
-  amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
-  echo "Non guest rabbitmq user specified. Adding user ${amqp_user} with proper permissions"
-  echo "Starting rabbitmq"
-  su - rabbitmq -c "/opt/local/sbin/rabbitmq-server -detached"
-  sleep 10
-
-  su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq add_user ${amqp_user} ${amqp_pass}"
-  su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_permissions -p / ${amqp_user} \".*\" \".*\" \".*\""
-
-  echo "User ${amqp_user} added. Stopping rabbitmq before importing the service"
-  su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq stop"
-fi
-
-if [[ -z $(/usr/bin/svcs -a|grep rabbitmq) ]]; then
-  echo "Importing rabbitmq service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/rabbitmq.xml
-  /usr/sbin/svcadm enable -s rabbitmq
-fi
-
-
 #
 # Call mdns_announce (imported from 97-zoneinit-common) to announce our
 # service.

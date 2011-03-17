@@ -280,6 +280,7 @@ for zone in $ALLZONES; do
             cp ${src}/configure.sh ${dest}/opt/smartdc/bin/configure.sh
             chmod 0644 ${dest}/opt/smartdc/bin/configure.sh
         fi
+
         # Ditto for backup/restore scripts
         if [[ -f "${src}/backup" ]]; then
             mkdir -p ${dest}/opt/smartdc/bin
