@@ -192,37 +192,37 @@ if [[ ! -e /opt/smartdc/mapi/tmp/pids ]]; then
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/heartbeater.smf ]]; then
-  echo "Creating MCP API heartbeater Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:heartbeat -f /opt/smartdc/mapi/Rakefile
+  echo "Creating MCP API Heartbeater Manifest."
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:heartbeater -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/heartbeater.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/provisioner.smf ]]; then
-  echo "Creating MCP API provisioner Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:provision -f /opt/smartdc/mapi/Rakefile
+  echo "Creating MCP API Provisioner Manifest."
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:provisioner -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/provisioner.smf
 fi
 
-if [[ ! -e /opt/smartdc/mapi/config/dataset.smf ]]; then
-  echo "Creating MCP API dataset list client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:dataset -f /opt/smartdc/mapi/Rakefile
-  chown jill:jill /opt/smartdc/mapi/config/dataset.smf
+if [[ ! -e /opt/smartdc/mapi/config/datasetmanager.smf ]]; then
+  echo "Creating MCP API DatasetManager client Manifest."
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:datasetmanager -f /opt/smartdc/mapi/Rakefile
+  chown jill:jill /opt/smartdc/mapi/config/datasetmanager.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/ur.smf ]]; then
-  echo "Creating MAPI Ur Agent Client Manifest."
+  echo "Creating MAPI Ur Client Manifest."
   RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:ur -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/ur.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/atropos.smf ]]; then
-  echo "Creating MAPI Atropos Agent Client Manifest."
+  echo "Creating MAPI Atropos Client Manifest."
   RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:atropos -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/atropos.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/zonetracker.smf ]]; then
-  echo "Creating MAPI ZoneTracker Agent Client Manifest."
+  echo "Creating MAPI ZoneTracker Client Manifest."
   RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:zonetracker -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/zonetracker.smf
 fi
