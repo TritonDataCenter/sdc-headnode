@@ -460,49 +460,6 @@ function copy_agents
     loops=
 }
 
-# Called to get the magic missing bits from the nodejs dataset
-function get_node_magic
-{
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download nodejs magic, looping!"
-
-    valid_magic="false"
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
-        latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
-            | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -1)
-
-        if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
-            echo "==> Downloading ${latest_release}"
-            (cd ${ROOT}/cache \
-                && curl --progress-bar -k \
-                -O ${NODE_SERVICE_RELEASES}/${latest_release}) \
-                || fatal "Unable to download ${latest_release}"
-        fi
-    else
-        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head -1)
-        if [[ -z ${latest_release} ]]; then
-            fatal "Unable to find a node_service magicball " \
-                "and we have no Internet."
-        fi
-    fi
-
-    magicball=${ROOT}/cache/${latest_release}
-    if [[ -f ${magicball} ]] && ! valid_tgz_archive ${magicball}; then
-        echo "Removing corrupt ${magicball}"
-        rm -f ${magicball}
-        # unset and try again
-        magicball=
-        get_node_magic
-    fi
-
-    # if we get here, we should have the file and it's valid!
-    cp ${magicball} ${STAGE}/datasets/
-
-    loops=
-}
-
 function copy_datasets
 {
     mkdir -p  ${STAGE}/datasets
