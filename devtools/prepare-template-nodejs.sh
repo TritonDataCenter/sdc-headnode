@@ -18,10 +18,11 @@ source /lib/sdc/config.sh
 load_sdc_config
 
 
-DATASET_NAME=nodejs-0.4.0
+DATASET_NAME=nodejs-1.0.0
 DATASET_BASE=$(echo $DATASET_NAME | awk -F'-' '{print $1}')
 DATASET_RELEASES="http://${CONFIG_assets_admin_ip}/datasets"
-NODE_SERVICE_RELEASES="http://${CONFIG_assets_admin_ip}/datasets"
+COAL_JOYENT_US_IP=$(dig @8.8.8.8 coal.joyent.us +short)
+NODE_SERVICE_RELEASES="https://guest:GrojhykMid@${COAL_JOYENT_US_IP}/coal/live_147/node"
 
 
 # Get the dataset.
