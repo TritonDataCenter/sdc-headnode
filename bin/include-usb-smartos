@@ -68,7 +68,7 @@ function add_manifests
         && find . -type f -exec ${MD5CMD} {} \;) \
         > ${ROOT}/cache/usb_key.manifest
     [[ $? -eq 0 ]] || fatal "Unable to add manifests"
-    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest \
+    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
         ${ROOT}/cache/boot_archive.manifest
     chmod 444 ${ROOT}/cache/*.manifest
 }

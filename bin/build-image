@@ -189,7 +189,7 @@ function copy_base
 
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
-    cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    cp boot/grub/menu.lst.tmpl ${STAGE}/boot/grub/menu.lst.tmpl
     cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
     cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
 
@@ -340,18 +340,26 @@ function copy_platform
         fi
     fi
 
+    LIVEIMG_VERSION=`basename ${image} \
+        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+
     echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; tar -zxf ${image}; mv platform-* platform) \
+    (cd ${STAGE}/; tar -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+        mv platform-* os/${LIVEIMG_VERSION}/platform) \
         || fatal "Unable to unpack platform"
-    if [[ -f ${STAGE}/platform/root.password ]]; then
+    if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
         (cd ${STAGE}/ \
             && mkdir -p private \
-            && mv -f platform/root.password private/) \
+            && mv -f os/${LIVEIMG_VERSION}/platform/root.password private/) \
             || fatal "Unable to move root.password"
     fi
     echo "Root password is: '$(cat ${STAGE}/private/root.password)'"
-    LIVEIMG_VERSION=`basename ${image} \
-        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+
+    # Create the menu.lst file
+
+    cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
+        -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
+        > ${STAGE}/boot/grub/menu.lst
 
     # Rename log file here since we know the buildstamp now
     mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}

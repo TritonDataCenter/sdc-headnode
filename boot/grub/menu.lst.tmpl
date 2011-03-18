@@ -1,0 +1,37 @@
+default=0
+timeout=5
+min_mem64 1024
+splashimage=/boot/splash.xpm.gz
+color light-gray/black black/light-gray
+
+title Live 64-bit
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+#PREV title Live 64-bit (rollback to PREV_PLATFORM_VERSION)
+#PREV    kernel /PREV_PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true
+#PREV    module /PREV_PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit +kmdb
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -kd -B console=text,headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial (ttyb)
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial (ttyb) +kmdb
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -kd -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial (ttya)
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=ttya,ttya-mode="115200,8,n,1,-",headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit Serial (ttya) +kmdb
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -kd -B console=ttya,ttya-mode="115200,8,n,1,-",headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+
+title Live 64-bit Rescue (no importing zpool)
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true,noimport=true
+   module /PLATFORM/i86pc/amd64/boot_archive

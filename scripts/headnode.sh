@@ -31,6 +31,13 @@ function errexit
     fatal "error exit status $1"
 }
 
+function create_latest_link
+{
+    rm -f ${USB_COPY}/os/latest
+    latest=$(cd ${USB_COPY}/os && ls -d * | tail -1)
+    (cd ${USB_COPY}/os && ln -s ${latest} latest)
+}
+
 function install_node_config
 {
     dir=$1
@@ -176,6 +183,9 @@ done
 USBZONES=`ls ${USB_COPY}/zones`
 ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
 CREATEDZONES=
+
+# Create link for latest platform
+create_latest_link
 
 for zone in $ALLZONES; do
     if [[ -z $(echo "${ZONES}" | grep ${zone}) ]]; then

@@ -9,9 +9,10 @@ function fatal
 	exit 1
 }
 
+current_image=$(uname -v | cut -d '_' -f2)
 mnt=/image
 usb="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
-image="${usb}/platform/i86pc/amd64/boot_archive"
+image="${usb}/os/${current_image}/platform/i86pc/amd64/boot_archive"
 
 if ! mount | grep ^"${mnt} " > /dev/null ; then 
 	fatal "cannot find image mounted at $mnt"
@@ -29,7 +30,8 @@ if ! umount $mnt ; then
 	fatal "could not unmount $mnt"
 fi
 
-cp ${image} $(svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default)/platform/i86pc/amd64/
+cp ${image} $(svcprop -p "joyentfs/usb_copy_path" \
+    svc:/system/filesystem/smartdc:default)/os/${current_image}/platform/i86pc/amd64/
 
 if ! umount $usb ; then
     fatal "could not unmount $usb"

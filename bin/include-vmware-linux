@@ -67,7 +67,7 @@ function add_manifests
     (cd ${STAGE}/ \
         && find . -type f -exec ${MD5CMD} {} \;) \
         > ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
-    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest \
+    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
         ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest
     chmod 444 ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest \
         ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest

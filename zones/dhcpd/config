@@ -4,8 +4,8 @@ set brand=joyent
 set autoboot=true
 set ip-type=exclusive
 add fs
-set dir=/tftpboot/platform
-set special=/usbkey/platform
+set dir=/tftpboot/os
+set special=/usbkey/os
 set type=lofs
 add options ro
 add options nodevices
