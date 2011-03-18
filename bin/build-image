@@ -318,7 +318,7 @@ function copy_platform
                   || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
-            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head)
+            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head -1)
             if [[ -z ${latest_image} ]]; then
                 fatal "Unable to find a platform image and we have no Internet."
             fi
@@ -388,7 +388,7 @@ function copy_agents
             | grep "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
     else
-        latest_agents=$(cd ${ROOT}/cache
+        latest_agents=$(cd ${ROOT}/cache \
             && ls agents-*.sh \
             | grep "${agents_shar}" \
             | tail -1)
@@ -473,7 +473,7 @@ function get_node_magic
                 || fatal "Unable to download ${latest_release}"
         fi
     else
-        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head)
+        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head -1)
         if [[ -z ${latest_release} ]]; then
             fatal "Unable to find a node_service magicball " \
                 "and we have no Internet."
@@ -694,7 +694,9 @@ function get_fs_tarball
 
     if [[ -f ${target} ]]; then
         # if this is the filename of an existing file, we'll use that
-        cp ${target} ${ROOT}/cache/${output_filename}
+        if [[ ${target} != "${ROOT}/cache/${output_filename}" ]]; then
+            cp ${target} ${ROOT}/cache/${output_filename}
+        fi
     else
         # not a file so assume it's a pattern, find the latest
         FS_PATTERN=${target}
@@ -776,6 +778,10 @@ function copy_zones
         tarball_pattern=
         target_checkout=
 
+        if [[ ${HAVE_INTERNET} != "true" ]]; then
+            override=${ROOT}/cache/${zone}.tar.bz2
+        fi
+
         if [[ -f ${ROOT}/build.spec.local ]]; then
             tarball_pattern=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-tarball")
@@ -813,6 +819,10 @@ function copy_zones
 
         if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
             fatal "Unable to find or build fs.tar.bz2 for ${zone}"
+        else
+            # Keep a copy in cache so we can build next time with no Internet
+            cp -a ${STAGE}/zones/${zone}/fs.tar.bz2 \
+                ${ROOT}/cache/${zone}.tar.bz2
         fi
 
         if [[ "${IMG_TYPE}" == "coal" ]]; then
