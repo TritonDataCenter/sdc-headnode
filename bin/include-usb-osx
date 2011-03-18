@@ -97,13 +97,13 @@ function create_output
         sync; sync
     fi
 
-    if [[ -f ${STAGE}/private/root.password ]]; then
-        echo "==> Copying root.password"
-        rm -f ${ROOT}/cache/root.password
-        cp ${STAGE}/private/root.password ${ROOT}/cache/root.password
-        chmod 400 ${ROOT}/cache/root.password
+    if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password.${LIVEIMG_VERSION}"
+        rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        cp ${STAGE}/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     else
-	    rm -f ${ROOT}/cache/root.password
+	    rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
@@ -111,7 +111,7 @@ function create_output
         (cd ${ROOT}/cache \
             && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
             && tar -zcf ${ROOT}/usb-147-${output_version}.tgz \
-            root.password usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+            root.password.${LIVEIMG_VERSION} usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
         mv ${ROOT}/cache/${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG}

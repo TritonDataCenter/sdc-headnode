@@ -91,11 +91,11 @@ function create_output
           | sed -n 's,^build\.number=\(.*\),\1,p')"
     fi
 
-    if [[ -f ${ROOT}/cache/stage/private/root.password ]]; then
-        echo "==> Copying root.password"
-        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password \
-            ${ROOT}/cache/USB-headnode.vmwarevm/root.password
-        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password
+    if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password.${LIVEIMG_VERSION}"
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} \
+            ${ROOT}/cache/USB-headnode.vmwarevm/root.password.${LIVEIMG_VERSION}
+        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password.${LIVEIMG_VERSION}
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then

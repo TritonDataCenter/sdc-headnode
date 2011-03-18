@@ -354,7 +354,7 @@ function copy_platform
                 private/root.password.${LIVEIMG_VERSION}) \
             || fatal "Unable to move root.password"
     fi
-    echo "Root password is: '$(cat ${STAGE}/private/root.password)'"
+    echo "Root password is: '$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})'"
 
     # Create the menu.lst file
 

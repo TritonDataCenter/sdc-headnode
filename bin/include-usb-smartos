@@ -97,13 +97,13 @@ function create_output
         sync; sync
     fi
 
-    if [[ -f ${STAGE}/private/root.password ]]; then
-        echo "==> Copying root.password"
-        rm -f ${ROOT}/cache/root.password
-        cp ${STAGE}/private/root.password ${ROOT}/cache/root.password
-        chmod 400 ${ROOT}/cache/root.password
+    if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password.${LIVEIMG_VERSION}"
+        rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        cp ${STAGE}/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     else
-	    rm -f ${ROOT}/cache/root.password
+	    rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then

@@ -20,7 +20,7 @@ mounted="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 
-function onexit 
+function onexit
 {
     if [[ ${mounted} == "true" ]]; then
         echo "==> Unmounting USB Key"
