@@ -2,7 +2,6 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/etc/configure
 
-# TODO: what should sendmail config be for production
 cat >"/opt/smartdc/pubapi/config/config.yml" <<CONFIGYML
 ---
 development: &defaults
@@ -22,15 +21,17 @@ development: &defaults
     username: ${CAPI_HTTP_ADMIN_USER}
     password: ${CAPI_HTTP_ADMIN_PW}
   mapi:
-    coal:
+    ${DEFAULT_DATACENTER}:
       url: ${MAPI_ADMIN_IP}
       username: ${MAPI_HTTP_ADMIN_USER}
       password: ${MAPI_HTTP_ADMIN_PW}
       resources:
         smartos:
+          default_limit: ${SMARTOS_DEFAULT_LIMIT}
           coupon: false
           repo: false
         nodejs:
+          default_limit: ${NODEJS_DEFAULT_LIMIT}
           coupon: false
           repo: true
           ram: 128

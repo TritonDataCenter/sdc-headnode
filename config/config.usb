@@ -188,6 +188,9 @@ pubapi_admin_pw=joypass123
 pubapi_cpu_shares=50
 pubapi_max_lwps=1000
 pubapi_memory_cap=1024m
+pubapi_default_datacenter=coal
+pubapi_nodejs_default_limit=1
+pubapi_smartos_default_limit=1
 
 rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123
