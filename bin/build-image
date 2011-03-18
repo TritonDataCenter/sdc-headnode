@@ -350,7 +350,8 @@ function copy_platform
     if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
         (cd ${STAGE}/ \
             && mkdir -p private \
-            && mv -f os/${LIVEIMG_VERSION}/platform/root.password private/) \
+            && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
+                private/root.password.${LIVEIMG_VERSION}) \
             || fatal "Unable to move root.password"
     fi
     echo "Root password is: '$(cat ${STAGE}/private/root.password)'"
