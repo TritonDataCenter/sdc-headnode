@@ -1,22 +1,22 @@
 {
   "name": "nodejs",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "type": "template",
   "description": "node.js git-deploy PaaS template",
-  "created_at": "2011-02-16T03:40Z",
-  "updated_at": "2011-02-16T03:40Z",
+  "created_at": "2011-03-17T23:56:37.600Z",
+  "updated_at": "2011-03-17T23:56:37.600Z",
   "inherited_directories": ["/opt/nodejs"],
   "os": "smartos",
   "files": [
     {
-      "path": "nodejs-0.4.0.zfs.bz2",
-      "sha1": "59aabf33d76698a25c1519350ea02c389ddd5c04",
-      "url" : "https://guest:GrojhykMid@assets.joyent.us/datasets/nodejs-0.4.0.zfs.bz2",
-      "size": 154080406
+      "path": "nodejs-1.0.0.zfs.bz2",
+      "sha1": "9a9dc5f7841a5620094de622878601f65e9c3483",
+      "url" : "https://guest:GrojhykMid@assets.joyent.us/datasets/nodejs-1.0.0.zfs.bz2",
+      "size": 262749905
     }
   ],
   "users": [{"name": "root"}, {"name": "admin"}, {"name": "node"}],
-  "uuid": "7a2a7841-a8c8-42c8-89e0-8043c7721327",
+  "uuid": "cc707720-359e-4d84-89a7-e50959ecba43",
   "owner_uuid": "950cf163-b314-4ee8-ab46-08c884b9387c",
   "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52"
 }

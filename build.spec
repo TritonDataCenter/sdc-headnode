@@ -4,7 +4,7 @@
   , "agents-shar": "develop"
   , "datasets": [
       "datasets/smartos-1.3.8.dsmanifest"
-    , "datasets/nodejs-0.4.0.dsmanifest"
+    , "datasets/nodejs-1.0.0.dsmanifest"
   ]
   , "adminui-checkout": "origin/develop"
   , "assets-checkout": "origin/develop"
