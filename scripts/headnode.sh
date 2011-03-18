@@ -114,8 +114,7 @@ function update_datasets
     # Rewrite the new local dataset url
     # Hardcoded global assets url?
     for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
-        /usr/bin/sed -i "" \
-            -e "s/https:\/\/guest:GrojhykMid@assets.joyent.us/http:\/\/$assets_ip/" $file
+        /usr/bin/sed -i "" -e 's|"url": "https:.*/|"url": "http://$assets_ip/|' $file
     done
 }
 

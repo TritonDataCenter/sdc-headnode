@@ -10,11 +10,14 @@
   "files": [
     {
       "path": "nodejs-1.0.0.zfs.bz2",
+      "url": "https://joyent:H0neyB4dger@dsapi.no.de/assets/nodejs-1.0.0.zfs.bz2",
       "sha1": "9a9dc5f7841a5620094de622878601f65e9c3483",
-      "url" : "https://guest:GrojhykMid@assets.joyent.us/datasets/nodejs-1.0.0.zfs.bz2",
       "size": 262749905
     }
   ],
+  "requirements": {
+    "networks": [{"name": "net0", "description": "public"}]
+  },
   "users": [{"name": "root"}, {"name": "admin"}, {"name": "node"}],
   "uuid": "cc707720-359e-4d84-89a7-e50959ecba43",
   "owner_uuid": "950cf163-b314-4ee8-ab46-08c884b9387c",
