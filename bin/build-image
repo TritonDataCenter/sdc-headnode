@@ -123,8 +123,17 @@ else
     echo "FATAL: Unsupported platform '${PLATFORM}'"
 fi
 
+if [[ -f "${ROOT}/build.spec.local" ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json no-internet)
+fi
+if [[ -f "${ROOT}/build.spec" && -z ${NO_INTERNET} ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec \
+        | ${ROOT}/bin/json no-internet)
+fi
+
 echo -n "==> Checking for Internets... "
-if ! can_has_internets; then
+if [[ ${NO_INTERNET} == "true" ]] || ! can_has_internets; then
     echo "No Internets! Activating countermeasures!"
     HAVE_INTERNET="false"
 else
