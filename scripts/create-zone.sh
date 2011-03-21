@@ -376,29 +376,29 @@ if [[ ${wait_for_zoneinit} == "true" ]]; then
             fi
         fi
     fi
+fi
 
-    # Install compute node config if we're MAPI
-    if [[ "${zone}" == "mapi" ]]; then
-        mkdir -p /zones/mapi/root/opt/smartdc/node.config
-        install_node_config /zones/mapi/root/opt/smartdc/node.config
-    fi
+# Install compute node config if we're MAPI
+if [[ "${zone}" == "mapi" ]]; then
+    mkdir -p /zones/mapi/root/opt/smartdc/node.config
+    install_node_config /zones/mapi/root/opt/smartdc/node.config
+fi
 
-    # Install capi.allow if we've got one
-    if [[ "${zone}" == "capi" ]]; then
-        mkdir -p /zones/capi/root/opt/smartdc
-        install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
-    fi
+# Install capi.allow if we've got one
+if [[ "${zone}" == "capi" ]]; then
+    mkdir -p /zones/capi/root/opt/smartdc
+    install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
+fi
 
     # Enable compression for the "ca" zone.
-    if [[ "${zone}" == "ca" ]]; then
-        zfs set compression=lzjb zones/ca
-    fi
-
-    # Fix the .bashrc -- See comments on:
-    # https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults
-    sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" \
-        /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
-        && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
+if [[ "${zone}" == "ca" ]]; then
+    zfs set compression=lzjb zones/ca
 fi
+
+# Fix the .bashrc -- See comments on:
+# https://hub.joyent.com/wiki/display/sys/SOP-097+Shell+Defaults
+sed -e "s/PROMPT_COMMAND/[ -n \"\${SSH_CLIENT}\" ] \&\& PROMPT_COMMAND/" \
+    /zones/${zone}/root/root/.bashrc > /tmp/newbashrc \
+    && cp /tmp/newbashrc /zones/${zone}/root/root/.bashrc
 
 exit 0
