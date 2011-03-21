@@ -106,7 +106,9 @@ EOF
 	fi
 
 	if [[ $(svcs -Ho state $announcer) != "online" ]]; then
-		svcadm enable -s $announcer
+		if ! svcadm enable -s $announcer; then
+            echo "WARNING: Failed to enable ${announcer}"
+        fi
 	fi
 }
 
@@ -140,7 +142,14 @@ function create_jill_account
   groupadd jill
   useradd -g jill -d /opt/smartdc jill
   chown -R jill:jill /opt/smartdc
-  echo "jill:naiWaic8sh" | /root/changepass -n -m > /dev/null 2>&1
+
+  # XXX /etc/oshadow breaks changepass, not sure yet what's putting it there.
+  if [[ -f /etc/oshadow ]]; then
+      echo "WARNING: removing /etc/oshadow"
+      rm -f /etc/oshadow
+  fi
+
+  echo "jill:naiWaic8sh" | /opt/local/sbin/changepass -n -m
   usermod -P 'Service Management' jill
   usermod -s /usr/bin/bash jill
   # Properly set PATH and other relevant stuff.

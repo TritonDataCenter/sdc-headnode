@@ -1,7 +1,5 @@
 #!/bin/bash
 
-svcadm clear network/physical:default >/dev/null 2>&1
-
 echo "99 finalizing capi zone"
 
 #

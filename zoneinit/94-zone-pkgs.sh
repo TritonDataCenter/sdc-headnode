@@ -1,5 +1,9 @@
 set -o xtrace
-set +o errexit
+set -o errtrace
+
+# This allows us to tell SMF that an error was fatal
+. /lib/svc/share/smf_include.sh
+trap "exit $SMF_EXIT_ERR_FATAL" ERR
 
 echo "94 installing local pkgs"
 

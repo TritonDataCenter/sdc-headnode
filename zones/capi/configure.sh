@@ -18,7 +18,7 @@ fi
 # CAPI specific
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
-  cp /opt/smartdc/capi/config/database.yml /opt/smartdc/capi/config/database.yml
+  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/capi/Rakefile"
 fi
 
 # Note these files should have been created by previous Rake task.
