@@ -4,8 +4,6 @@ status=$(svcs -Ho STA svc:/application/rabbitmq:default)
 case ${status} in
     MNT)
         svcadm clear svc:/application/rabbitmq:default
-        sleep 2
-        svcadm enable -s svc:/application/rabbitmq:default
     ;;
     OFF)
         svcadm enable -s svc:/application/rabbitmq:default
@@ -44,6 +42,13 @@ for user in $(su - rabbitmq -c \
     su - rabbitmq -c \
         "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq delete_user ${user}"
 done
+
+# Make sure we have the '/' vhost
+if ! (su - rabbitmq -c '/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_vhosts' \
+    | grep "^\/$"); then
+
+    su - rabbitmq -c '/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq add_vhost "/"'
+fi
 
 # Add user, or if none specified: use guest
 amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
