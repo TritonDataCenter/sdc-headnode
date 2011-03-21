@@ -85,9 +85,11 @@ cat > ${tmp} <<HERE
 HERE
 
 echo "Importing dhcpd manifest"
-svccfg import ${tmp}
+/usr/sbin/svccfg import ${tmp}
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/smartdc/site/dhcpd:default refresh
 echo "Enabling dhcpd service"
-svcadm enable smartdc/site/dhcpd
+/usr/sbin/svcadm enable smartdc/site/dhcpd
 rm $tmp
 
 # Import in.tftpd service manifest
@@ -124,9 +126,11 @@ cat > ${tmp} <<EOF
 EOF
 
 echo "Importing tftpd manifest"
-svccfg import ${tmp}
+/usr/sbin/svccfg import ${tmp}
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/network/tftpd:default refresh
 echo "Enabling tftpd service"
-svcadm enable network/tftpd
+/usr/sbin/svcadm enable network/tftpd
 rm $tmp
 
 

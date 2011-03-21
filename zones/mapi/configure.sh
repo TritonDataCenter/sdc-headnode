@@ -10,8 +10,9 @@ echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/postgresql:pg90 refresh
   /usr/sbin/svcadm enable -s postgresql
-  sleep 2
 else
   echo "Restarting postgresql service"
   /usr/sbin/svcadm disable -s postgresql
@@ -90,6 +91,8 @@ NGINX
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
   echo "Importing nginx service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/nginx:default refresh
   /usr/sbin/svcadm enable -s nginx
 else
   echo "Restarting nginx service"
@@ -103,31 +106,33 @@ hosts=$(cat /etc/nsswitch.conf |grep ^hosts)
 
 if [[ ! $(echo $hosts | grep mdns) ]]; then
   echo "Updating hosts entry on nsswitch.conf"
-  $(/opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf)
+  /opt/local/bin/gsed -i"" -e "s/^hosts.*$/hosts: files mdns dns/" /etc/nsswitch.conf
 fi
 
 ipnodes=$(cat /etc/nsswitch.conf |grep ^ipnodes)
 
 if [[ ! $(echo $ipnodes | grep mdns) ]]; then
   echo "Updating ipnodes entry on nsswitch.conf"
-  $(/opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf)
+  /opt/local/bin/gsed -i"" -e "s/^ipnodes.*$/ipnodes: files mdns dns/" /etc/nsswitch.conf
 fi
 
 # Do not use dns/multicast for this zone, we're using custom mDNSResponder from
 # pkgsrc here:
 if [[ "$(/usr/bin/svcs -Ho state dns/multicast)" == "online" ]]; then
   echo "Disabling dns/multicast"
-  $(/usr/sbin/svcadm disable dns/multicast)
+  /usr/sbin/svcadm disable dns/multicast
 fi
 
 if [[ ! $(/usr/bin/svcs -a|grep mdnsresponder) ]]; then
   echo "Importing mDNSResponder service"
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/mdnsresponder.xml)
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/mdnsresponder.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/dns/mdnsresponder:default refresh
 fi
 
 if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
   echo "Enabling mDNSResponder service."
-  $(/usr/sbin/svcadm enable -s mdnsresponder)
+  /usr/sbin/svcadm enable -s mdnsresponder
 fi
 
 

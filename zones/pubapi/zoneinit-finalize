@@ -55,7 +55,8 @@ fi
 
 echo "Importing Public API Unicorn Manifest"
 /usr/sbin/svccfg import /opt/smartdc/pubapi/config/unicorn.smf
-sleep 1
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/network/smartdc/application/pubapi:default refresh
 
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
@@ -71,11 +72,13 @@ fi
 
 if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
   echo "Importing '${app_name}-update' service"
-  $(/usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml)
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/platform/smartdc/pubapi-update:default refresh
 fi
 
 if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   echo "Enabling '${app_name}-update' service"
-  $(/usr/sbin/svcadm enable -s ${app_name}-update)
+  /usr/sbin/svcadm enable -s ${app_name}-update
 fi
 

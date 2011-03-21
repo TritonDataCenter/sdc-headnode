@@ -6,8 +6,9 @@
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg90.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/postgresql:pg90 refresh
   /usr/sbin/svcadm enable -s postgresql
-  sleep 2
 else
   echo "Restarting postgresql service"
   /usr/sbin/svcadm disable -s postgresql

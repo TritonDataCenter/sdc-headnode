@@ -98,7 +98,8 @@ sleep 1
 if [[ -z \$(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
-  sleep 1
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/smartdc/application/capi:default refresh
 fi
 
 echo "Calling CAPI Admin User creation task."
@@ -112,12 +113,14 @@ sleep 1
 
 if [[ ! \$(/usr/bin/svcs -a|grep capi-update) ]]; then
   echo "Importing 'capi-update' service"
-  \$(/usr/sbin/svccfg import /opt/local/share/smf/manifest/capi-update.xml)
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/capi-update.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/platform/smartdc/capi-update:default refresh
 fi
 
 if [[  "\$(/usr/bin/svcs -Ho state capi-update)" != "online"  ]]; then
   echo "Enabling 'capi-update' service"
-  \$(/usr/sbin/svcadm enable -s capi-update)
+  /usr/sbin/svcadm enable -s capi-update
 fi
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
@@ -180,17 +183,20 @@ sleep 1
 if [[ -z \$(/usr/bin/svcs -a|grep dnsapi|grep -v dnsapi-update|grep -v dnsapi-setup) ]]; then
   echo "Importing DNS API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/dnsapi/config/unicorn.smf
-  sleep 1
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/smartdc/application/dnsapi:default refresh
 fi
 
 if [[ ! \$(/usr/bin/svcs -a|grep dnsapi-update) ]]; then
   echo "Importing 'dnsapi-update' service"
-  \$(/usr/sbin/svccfg import /opt/local/share/smf/manifest/dnsapi-update.xml)
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/dnsapi-update.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/platform/smartdc/dnsapi-update:default refresh
 fi
 
 if [[  "\$(/usr/bin/svcs -Ho state dnsapi-update)" != "online"  ]]; then
   echo "Enabling 'dnsapi-update' service"
-  \$(/usr/sbin/svcadm enable -s dnsapi-update)
+  /usr/sbin/svcadm enable -s dnsapi-update
 fi
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
