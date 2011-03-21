@@ -244,6 +244,7 @@ done
     EXTERNAL_IP="$EXTERNAL_IP" \
     EXTERNAL_START_IP="$EXTERNAL_START_IP" \
     EXTERNAL_END_IP="$EXTERNAL_END_IP" \
+    IMG_TYPE="$IMG_TYPE" \
     DATASETS="\${USE_DATASETS}" \
     /opt/local/bin/rake18 dev:fake_data) 2>&1 | tee /tmp/fake_data.output
 rm -f /tmp/fake_data.output /tmp/pgpasswd
