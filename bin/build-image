@@ -815,6 +815,21 @@ function copy_devtools
     fi
 }
 
+function create_upgrade
+{
+    (cd ${STAGE} \
+        && env GZIP=-9 \
+        tar -zcf ${ROOT}/upgrade-${LIVEIMG_VERSION}.tgz \
+        boot/grub/menu.lst.tmpl \
+        datasets \
+        rc \
+        scripts \
+        ur-scripts \
+        zoneinit \
+        zones \
+    )
+}
+
 function copy_to_mount
 {
     (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
@@ -837,6 +852,7 @@ copy_zones
 copy_devtools
 unpack_image
 add_manifests
+create_upgrade
 mount_image
 trap 'cleanup' EXIT
 copy_to_mount
