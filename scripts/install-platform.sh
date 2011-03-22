@@ -18,6 +18,9 @@ mounted="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 
+. /lib/sdc/config.sh
+load_sdc_config
+
 if [[ -z $(mount | grep ^${usbmnt}) ]]; then
     echo "==> Mounting USB key"
     /usbkey/scripts/mount-usb.sh
@@ -51,6 +54,39 @@ echo "==> Copying ${version} to ${usbcpy}/os"
 if [[ ${mounted} == "true" ]]; then
     echo "==> Unmounting USB Key"
     umount /mnt/usbkey
+fi
+
+echo "==> Adding to list of available platforms"
+
+curr_list=$(curl -s -f -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
+    --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null || /bin/true)
+if [[ -n ${curr_list} ]]; then
+    elements=$(echo "${curr_list}" | json length)
+    found="false"
+    idx=0
+    while [[ ${found} == "false" && ${idx} -lt ${elements} ]]; do
+        name=$(echo "${curr_list}" | json ${idx}.name)
+        if [[ -n ${version} && ${name} == ${version} ]]; then
+            found="true"
+        fi
+        idx=$(($idx + 1))
+    done
+
+    if [[ -n ${version} && ${found} != "true" ]]; then
+        echo "Would add ${version} to list"
+        if ! curl -s -f \
+            -X POST \
+            -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
+            --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
+            -H "Accept: application/json" \
+            -d name=${version} >/dev/null 2>&1; then
+
+            echo "FAILED to add to list of platforms, you'll need to update manually"
+        fi
+    fi
+
+else
+    echo "FAILED to get current list of platforms, can't update."
 fi
 
 echo "==> Done!"
