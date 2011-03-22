@@ -12,6 +12,7 @@ fi
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
+  externalUrl : "http://${PUBLIC_IP}",
   publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
   privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
   privateCAPIUrl : "http://${CAPI_API_PRIVATE_IP}:8080",
@@ -19,6 +20,10 @@ exports.config = {
   CAPIpassword : "${CAPI_HTTP_ADMIN_PW}",
   CAPIMetaCAKey : "portal-coal",
   CAPIMetaCABlessed : "blessed-instrumentation",
+  nodemailerOpts : {
+    sendmailPath : "/opt/local/sbin/sendmail",
+    sender : "no-reply <no-replay@no.de>",
+  },
   defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
   defaultCAChoices : [
     { label : "HTTP server operations", params : { module : "node", stat : "httpd_ops", decomposition : "raddr" }},
