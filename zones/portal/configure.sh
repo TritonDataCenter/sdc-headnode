@@ -12,7 +12,7 @@ fi
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
-  externalUrl : "http://${PUBLIC_IP}",
+  externalUrl : "https://${PUBLIC_IP}",
   publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
   privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
   privateCAPIUrl : "http://${CAPI_API_PRIVATE_IP}:8080",
