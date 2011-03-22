@@ -9,6 +9,7 @@
   "files": [
     {
       "path": "nodejs-1.1.0.zfs.bz2",
+      "url": "https://joyent:H0neyB4dger@dsapi.no.de/assets/nodejs-1.1.0.zfs.bz2",
       "sha1": "980363622faa464030ac63fc73878957ccdbf4d5",
       "size": 375586468
     }
