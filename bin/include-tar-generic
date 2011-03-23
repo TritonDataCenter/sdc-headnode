@@ -45,8 +45,7 @@ function version
 
 function cleanup
 {
-    # nop
-    true
+    rm -rf /tmp/fs.*.$$
 }
 
 function unpack_image
