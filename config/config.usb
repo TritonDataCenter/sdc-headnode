@@ -30,8 +30,6 @@ admin_netmask=255.255.255.0
 admin_network_name=admin
 admin_network=10.99.99.0
 admin_gateway=10.99.99.7
-# adding bit_count to save calculations
-admin_bitcount=24
 
 # external_nic is the nic external_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
@@ -45,7 +43,6 @@ external_network_name=external
 external_network=10.88.88.0
 external_provisionable_start=10.88.88.50
 external_provisionable_end=10.88.88.199
-external_bitcount=24
 
 # Set to true if you want the GZ on the headnode to NAT traffic from the admin
 # network to the external network:

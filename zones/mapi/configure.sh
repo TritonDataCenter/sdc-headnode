@@ -2,6 +2,13 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/etc/configure
 
+# Calculate the bitcounts
+source /lib/sdc/network.sh
+ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
+ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
+EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
+EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
+
 # Since we need to access the postgres server from other zones, we need to add configuration
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
 echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
