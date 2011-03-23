@@ -73,7 +73,6 @@ if [[ -n ${curr_list} ]]; then
     done
 
     if [[ -n ${version} && ${found} != "true" ]]; then
-        echo "Would add ${version} to list"
         if ! curl -s -f \
             -X POST \
             -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
@@ -81,7 +80,9 @@ if [[ -n ${curr_list} ]]; then
             -H "Accept: application/json" \
             -d name=${version} >/dev/null 2>&1; then
 
-            echo "FAILED to add to list of platforms, you'll need to update manually"
+            echo "==> FAILED to add to list of platforms, you'll need to update manually"
+        else
+            echo "==> Added ${version} to MAPI's list"
         fi
     fi
 
