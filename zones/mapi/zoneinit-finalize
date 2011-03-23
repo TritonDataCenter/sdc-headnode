@@ -250,10 +250,14 @@ done
     DHCP_RANGE_START="$DHCP_RANGE_START" \
     DHCP_RANGE_END="$DHCP_RANGE_END" \
     ADMIN_NETWORK="$ADMIN_NETWORK" \
+    ADMIN_NETWORK_NAME="$ADMIN_NETWORK_NAME" \
+    ADMIN_NIC_TAG="$ADMIN_NIC_TAG" \
     ADMIN_BITCOUNT="$ADMIN_BITCOUNT" \
     ADMIN_GATEWAY="$ADMIN_GATEWAY" \
     ADMIN_IP="$ADMIN_IP" \
     EXTERNAL_NETWORK="$EXTERNAL_NETWORK" \
+    EXTERNAL_NETWORK_NAME="$EXTERNAL_NETWORK_NAME" \
+    EXTERNAL_NIC_TAG="$EXTERNAL_NIC_TAG" \
     EXTERNAL_BITCOUNT="$EXTERNAL_BITCOUNT" \
     EXTERNAL_GATEWAY="$EXTERNAL_GATEWAY" \
     EXTERNAL_IP="$EXTERNAL_IP" \
@@ -261,8 +265,14 @@ done
     EXTERNAL_END_IP="$EXTERNAL_END_IP" \
     IMG_TYPE="$IMG_TYPE" \
     DATASETS="\${USE_DATASETS}" \
-    /opt/local/bin/rake18 dev:fake_data) 2>&1 | tee /tmp/fake_data.output
-rm -f /tmp/fake_data.output /tmp/pgpasswd
+    COMPANY_NAME="$COMPANY_NAME" \
+    LOCATION="$LOCATION" \
+    RACK_NAME="$RACK_NAME" \
+    RACK_SIZE="$RACK_SIZE" \
+    SERVER_ROLE="$SERVER_ROLE" \
+    PACKAGE_SIZES="$PACKAGE_SIZES" \
+ /opt/local/bin/rake18 dev:initial_data) 2>&1 | tee /tmp/initial_data.output
+rm -f /tmp/initial_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
 echo "Deleting '${app_name}-setup' service"

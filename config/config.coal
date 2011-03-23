@@ -10,7 +10,14 @@ swap=4g
 # should be a positive integer that is unique for this headnode within that
 # datacenter
 datacenter_name=coal
+datacenter_company_name="Joyent Inc"
+datacenter_location="San Francisco, CA"
 datacenter_headnode_id=0
+
+default_rack_name=RACK1
+default_rack_size=30
+default_server_role=pro
+default_package_sizes="128,256,512,1024"
 
 # These settings are used by all services in your cloud for email messages
 mail_to=root@localhost
@@ -18,7 +25,9 @@ mail_from=support@joyent.com
 
 # admin_nic is the nic admin_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
+admin_nic_tag=admin
 admin_ip=10.99.99.7
+admin_network_name=admin
 admin_netmask=255.255.255.0
 admin_network=10.99.99.0
 admin_gateway=10.99.99.7
@@ -27,11 +36,13 @@ admin_bitcount=24
 
 # external_nic is the nic external_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
+external_nic_tag=external
 # external_ip can be set to an IP or 'dhcp'
 external_ip=10.88.88.200
 external_gateway=10.88.88.2
 external_netmask=255.255.255.0
 #external_vlan_id=999
+external_network_name=external
 external_network=10.88.88.0
 external_provisionable_start=10.88.88.50
 external_provisionable_end=10.88.88.199

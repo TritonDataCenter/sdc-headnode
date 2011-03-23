@@ -151,7 +151,7 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   EMAIL_PREFIX="[MCP API $host]" \
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
-  /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
+ /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
