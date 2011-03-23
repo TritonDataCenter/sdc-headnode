@@ -4,9 +4,9 @@
 #
 
 
-export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o errexit
-set -o xtrace
+#set -o xtrace
 
 TEMPDIR="/var/tmp/build-upgrade.$$"
 AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
@@ -180,6 +180,11 @@ mkdir -p ${TEMPDIR}/upgrade/zones
 
 get_agents
 get_zones
+
+if [[ -f /usbkey/devtools/upgrade.sh ]]; then
+    cp /usbkey/devtools/upgrade.sh ${TEMPDIR}/upgrade/upgrade.sh
+    chmod 755 ${TEMPDIR}/upgrade/upgrade.sh
+fi
 
 (cd ${TEMPDIR} && tar -cvf - upgrade) | gzip -c > upgrade.tgz
 
