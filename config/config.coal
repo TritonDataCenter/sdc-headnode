@@ -55,9 +55,12 @@ headnode_nat=true
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
+# These are the dhcp settings for compute nodes on the admin network
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
+dhcp_lease_time=6000
 dhcp_next_server=10.99.99.4
+compute_node_default_gateway=10.99.99.7
 
 # This should not be changed.
 initial_script=scripts/headnode.sh
