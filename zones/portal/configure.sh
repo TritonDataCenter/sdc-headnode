@@ -13,9 +13,9 @@ cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
   displayCouponField : false,
   externalUrl : "https://${PUBLIC_IP}",
-  publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
+  publicApiUrl : "${PUBLIC_API_PRIVATE_URL}",
   privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
-  privateCAPIUrl : "http://${CAPI_API_PRIVATE_IP}:8080",
+  privateCAPIUrl : "${CAPI_API_PRIVATE_URL}",
   CAPIuser : "${CAPI_HTTP_ADMIN_USER}",
   CAPIpassword : "${CAPI_HTTP_ADMIN_PW}",
   CAPIMetaCAKey : "portal-coal",
@@ -61,7 +61,7 @@ http {
     upstream portal {
         server ${PRIVATE_IP}:4000;
     }
-    
+
     server {
         listen 80;
         rewrite ^(.*) https://\$host\$1 permanent;

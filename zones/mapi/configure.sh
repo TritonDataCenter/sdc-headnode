@@ -2,9 +2,19 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/etc/configure
 
+# Calculate the bitcounts
+source /lib/sdc/network.sh
+ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
+ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
+EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
+EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
+
 # Since we need to access the postgres server from other zones, we need to add configuration
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
 echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
+
+# enable slow query logging (anything beyond 200ms right now)
+echo "log_min_duration_statement = 200" >> /var/pgsql/data90/postgresql.conf
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
@@ -151,7 +161,7 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   EMAIL_PREFIX="[MCP API $host]" \
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
-  /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
+ /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 

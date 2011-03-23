@@ -10,7 +10,14 @@ swap=4g
 # should be a positive integer that is unique for this headnode within that
 # datacenter
 datacenter_name=coal
+datacenter_company_name="Joyent Inc"
+datacenter_location="San Francisco, CA"
 datacenter_headnode_id=0
+
+default_rack_name=RACK1
+default_rack_size=30
+default_server_role=pro
+default_package_sizes="128,256,512,1024"
 
 # These settings are used by all services in your cloud for email messages
 mail_to=root@localhost
@@ -18,24 +25,25 @@ mail_from=support@joyent.com
 
 # admin_nic is the nic admin_ip will be connected to for headnode zones.
 admin_nic=00:50:56:34:60:4c
+admin_nic_tag=admin
 admin_ip=10.99.99.7
+admin_network_name=admin
 admin_netmask=255.255.255.0
 admin_network=10.99.99.0
 admin_gateway=10.99.99.7
-# adding bit_count to save calculations
-admin_bitcount=24
 
 # external_nic is the nic external_ip will be connected to for headnode zones.
 external_nic=00:50:56:3d:a7:95
+external_nic_tag=external
 # external_ip can be set to an IP or 'dhcp'
 external_ip=10.88.88.200
 external_gateway=10.88.88.2
 external_netmask=255.255.255.0
 #external_vlan_id=999
+external_network_name=external
 external_network=10.88.88.0
 external_provisionable_start=10.88.88.50
 external_provisionable_end=10.88.88.199
-external_bitcount=24
 
 # Set to true if you want the GZ on the headnode to NAT traffic from the admin
 # network to the external network:
@@ -44,9 +52,12 @@ headnode_nat=true
 dns_resolvers=8.8.8.8,8.8.4.4
 dns_domain=joyent.us
 
+# These are the dhcp settings for compute nodes on the admin network
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
+dhcp_lease_time=6000
 dhcp_next_server=10.99.99.4
+compute_node_default_gateway=10.99.99.7
 
 # This should not be changed.
 initial_script=scripts/headnode.sh
@@ -121,7 +132,9 @@ ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
+capi_is_local=true
 capi_admin_ip=10.99.99.11
+capi_client_url=http://10.99.99.11:8080
 # capi_external_ip=10.88.88.11
 # capi_external_vlan=0
 capi_root_pw=joypass123
@@ -159,6 +172,7 @@ dnsapi_http_user=admin
 dnsapi_http_pass=joypass123
 
 mapi_admin_ip=10.99.99.8
+mapi_client_url=http://10.99.99.8:8080
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50
@@ -182,6 +196,7 @@ portal_max_lwps=1000
 portal_memory_cap=128m
 
 pubapi_admin_ip=10.99.99.13
+pubapi_client_url=http://10.99.99.13:8080/v1
 # pubapi_external_ip=10.88.88.13
 # pubapi_external_vlan=0
 pubapi_root_pw=joypass123
