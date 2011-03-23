@@ -170,6 +170,10 @@ dnsapi_http_port=8000
 dnsapi_http_user=admin
 dnsapi_http_pass=joypass123
 
+dsapi_url=https://dsapi.no.de
+dsapi_http_user=joyent
+dsapi_http_pass=H0neyB4dger
+
 mapi_admin_ip=10.99.99.8
 mapi_client_url=http://10.99.99.8:8080
 mapi_root_pw=joypass123
