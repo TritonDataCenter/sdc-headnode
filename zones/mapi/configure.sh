@@ -13,6 +13,9 @@ EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
 echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
 echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
 
+# enable slow query logging (anything beyond 200ms right now)
+echo "log_min_duration_statement = 200" >> /var/pgsql/data90/postgresql.conf
+
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"

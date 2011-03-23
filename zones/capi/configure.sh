@@ -2,6 +2,9 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/etc/configure
 
+# enable slow query logging (anything beyond 200ms right now)
+echo "log_min_duration_statement = 200" >> /var/pgsql/data90/postgresql.conf
+
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
