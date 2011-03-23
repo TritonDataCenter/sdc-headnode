@@ -130,9 +130,18 @@ for zone in $ALLZONES; do
         # This is to move us to the next line past the login: prompt
         [[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
-        ${USB_COPY}/scripts/create-zone.sh ${zone}
+	skip=false
+	if [ "${zone}" == "capi" ] ; then
+	    if ! ${CONFIG_capi_is_local} ; then
+		skip=true
+	    fi
+	fi
 
-        CREATEDZONES="${CREATEDZONES} ${zone}"
+	if ! ${skip} ; then
+            ${USB_COPY}/scripts/create-zone.sh ${zone}
+            CREATEDZONES="${CREATEDZONES} ${zone}"
+	fi
+
     fi
 done
 

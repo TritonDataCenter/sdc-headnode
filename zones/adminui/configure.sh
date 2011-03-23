@@ -105,14 +105,16 @@ echo "Installing MAPI Admin UI Config file."
 host=`hostname`
 
 su - jill -c "cd /opt/smartdc/adminui; \
+  ADMINUI_IP=$ADMINUI_IP \
   MAIL_FROM=$MAIL_FROM \
   MAIL_TO=$MAIL_TO \
+  DSAPI_IP=$DSAPI_IP \
+  CAPI_URL=$CAPI_URL \
   CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER \
   CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW \
-  ADMINUI_IP=$ADMINUI_IP \
-  CAPI_IP=$CAPI_IP \
-  MAPI_IP=$MAPI_IP \
-  DSAPI_IP=$DSAPI_IP \
+  MAPI_URL=$MAPI_URL \
+  MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
+  MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
   /opt/local/bin/rake18 config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then

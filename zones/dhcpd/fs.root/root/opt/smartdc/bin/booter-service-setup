@@ -1,17 +1,17 @@
 #!/bin/bash
 
-if [[ -z "${MAPI_IP}" ]] || [[ -z "${MAPI_PW}" ]] || [[ -z "${PRIVATE_IP}" ]]; then
-    echo "Must set MAPI_IP, MAPI_PW and PRIVATE_IP environment variables"
+if [[ -z "${MAPI_URL}" ]] || [[ -z "${MAPI_USER}" ]] ||[[ -z "${MAPI_PW}" ]] || [[ -z "${PRIVATE_IP}" ]]; then
+    echo "Must set MAPI_URL, MAPI_USER, MAPI_PW and PRIVATE_IP environment variables"
     exit 1
 fi
 
 cat > /opt/smartdc/booter/config.js <<CONFIG
 exports.config = {
-  mapiUrl        : "http://${MAPI_IP}:8080",
-  user           : "admin",
-  password       : "${MAPI_PW}",
-  listenIp       : "0.0.0.0",
-  tftpRoot       : '/tftpboot',
+  mapiUrl  : "${MAPI_URL}",
+  user     : "${MAPI_USER}",
+  password : "${MAPI_PW}",
+  listenIp : "0.0.0.0",
+  tftpRoot : '/tftpboot',
   defaultGateway : "${DHCP_GATEWAY}",
   dhcpIp         : "${PRIVATE_IP}",
   leaseTime      : "${DHCP_LEASE_TIME}"

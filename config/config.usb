@@ -131,7 +131,9 @@ ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
+capi_is_local=true
 capi_admin_ip=10.99.99.11
+capi_client_url=http://10.99.99.11:8080
 # capi_external_ip=10.88.88.11
 # capi_external_vlan=0
 capi_root_pw=joypass123
@@ -169,6 +171,7 @@ dnsapi_http_user=admin
 dnsapi_http_pass=joypass123
 
 mapi_admin_ip=10.99.99.8
+mapi_client_url=http://10.99.99.8:8080
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50
@@ -192,6 +195,7 @@ portal_max_lwps=1000
 portal_memory_cap=1024m
 
 pubapi_admin_ip=10.99.99.13
+pubapi_client_url=http://10.99.99.13:8080/v1
 # pubapi_external_ip=10.88.88.13
 # pubapi_external_vlan=0
 pubapi_root_pw=joypass123

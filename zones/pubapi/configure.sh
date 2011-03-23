@@ -17,12 +17,12 @@ development: &defaults
     to: ${MAIL_TO}
     from: ${MAIL_FROM}
   capi:
-    url: ${CAPI_ADMIN_IP}:8080
+    url: ${CAPI_URL}
     username: ${CAPI_HTTP_ADMIN_USER}
     password: ${CAPI_HTTP_ADMIN_PW}
   mapi:
     ${DEFAULT_DATACENTER}:
-      url: ${MAPI_ADMIN_IP}
+      url: ${MAPI_URL}
       username: ${MAPI_HTTP_ADMIN_USER}
       password: ${MAPI_HTTP_ADMIN_PW}
       resources:
