@@ -306,12 +306,12 @@ if [[ -f ${dest}/etc/motd && -f ${src}/motd.append ]]; then
     cat ${src}/motd.append >> ${dest}/etc/motd
 fi
 
-# If there's a external IP set and an external_gateway, use that, otherwise use
-# admin_gateway if that's set.
+# If there's a external IP set and headnode_default_gateway is set, use that.
+# Otherwise, use admin_gateway if that's set.
 if [[ -n "${zone_external_ip}" ]] \
-  && [[ -n ${CONFIG_external_gateway} ]] \
+  && [[ -n ${CONFIG_headnode_default_gateway} ]] \
   && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-    echo "${CONFIG_external_gateway}" > ${dest}/etc/defaultrouter
+    echo "${CONFIG_headnode_default_gateway}" > ${dest}/etc/defaultrouter
 elif [[ -n ${CONFIG_admin_gateway} ]]; then
     echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
 fi
