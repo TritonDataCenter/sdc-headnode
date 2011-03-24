@@ -1,0 +1,24 @@
+{
+  "name": "smartos",
+  "version": "1.3.10",
+  "type": "template",
+  "description": "Base template to build other templates on",
+  "created_at": "2011-03-24T13:10Z",
+  "updated_at": "2011-03-24T13:10Z",
+  "os": "smartos",
+  "files": [
+    {
+      "path": "smartos-1.3.10.zfs.bz2",
+      "url": "https://joyent:H0neyB4dger@dsapi.no.de/assets/smartos-1.3.10.zfs.bz2",
+      "sha1": "f2cf49ebd7616cdd763c4b1f569705a729cb4f92",
+      "size": 41882658
+    }
+  ],
+  "requirements": {
+    "networks": [ {"name": "net0", "description": "public"} ]
+  },
+  "users": [{"name": "root"}, {"name": "admin"}],
+  "uuid": "1f904a10-5618-11e0-82d4-63024332d250",
+  "owner_uuid": "ff549760-db84-42dd-af6c-e91b729d5443",
+  "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52"
+}

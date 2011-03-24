@@ -3,7 +3,7 @@
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
-      "datasets/smartos-1.3.8.dsmanifest"
+      "datasets/smartos-1.3.10.dsmanifest"
     , "datasets/nodejs-1.1.0.dsmanifest"
   ]
   , "adminui-checkout": "origin/develop"
