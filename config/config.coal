@@ -45,6 +45,13 @@ external_network=10.88.88.0
 external_provisionable_start=10.88.88.50
 external_provisionable_end=10.88.88.199
 
+# You can configure other headnode nics here (to bring up but not be used for
+# provisioning), eg:
+# other_nic=00:50:56:34:66:44
+# other_ip=11.11.11.7
+# other_netmask=255.255.255.0
+# other_vlan_id=888
+
 headnode_default_gateway=10.88.88.2
 compute_node_default_gateway=10.99.99.7
 
