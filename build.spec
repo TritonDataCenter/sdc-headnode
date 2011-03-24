@@ -16,4 +16,22 @@
   , "portal-checkout": "origin/develop"
   , "pubapi-checkout": "origin/develop"
   , "rabbitmq-checkout": "origin/develop"
+  , "upgrades": {
+      "agents": [
+          "atropos/develop/atropos-develop-*"
+        , "cloud_analytics/master/cabase-master-*"
+        , "cloud_analytics/master/cainstsvc-master-*"
+        , "dataset_manager/develop/dataset_manager-develop-*"
+        , "heartbeater/develop/heartbeater-develop-*"
+        , "provisioner/develop/provisioner-develop-*"
+        , "zonetracker/develop/zonetracker-develop-*"
+      ]
+    , "appzones": [
+          "adminui"
+        , "capi"
+        , "dnsapi"
+        , "mapi"
+        , "pubapi"
+      ]
+  }
 }

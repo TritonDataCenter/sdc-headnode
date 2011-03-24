@@ -61,6 +61,8 @@ if [ -z "${PLATFORM_URL}" ]; then
 fi
 ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
 PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
+AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
+RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
 
 # Figure out first what we're building, and load the proper include
 
@@ -78,6 +80,12 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
         usb)
             source ${ROOT}/bin/include-usb-osx
             version
+            ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
             ;;
         tar)
             source ${ROOT}/bin/include-tar-generic
@@ -97,6 +105,12 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
             echo "Linux-usb";
             exit 0
             ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
+            ;;
         tar)
             source ${ROOT}/bin/include-tar-generic
             version
@@ -110,6 +124,12 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
         usb)
             source ${ROOT}/bin/include-usb-smartos
             version
+            ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
             ;;
         tar)
             source ${ROOT}/bin/include-tar-generic
@@ -348,6 +368,8 @@ function copy_platform
             fatal "Refusing to use corrupt platform ${image}"
         fi
     fi
+
+    export USING_PLATFORM=${image}
 
     LIVEIMG_VERSION=`basename ${image} \
         | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
@@ -817,9 +839,13 @@ function copy_devtools
 
 function create_upgrade
 {
+    rm -rf ${ROOT}/cache/upgrade
+    mkdir -p ${ROOT}/cache/upgrade/usbkey
+    cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
+    chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \
         && env GZIP=-9 \
-        tar -zcf ${ROOT}/upgrade-${LIVEIMG_VERSION}.tgz \
+        tar -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
         boot/grub/menu.lst.tmpl \
         datasets \
         rc \
@@ -828,6 +854,9 @@ function create_upgrade
         zoneinit \
         zones \
     )
+
+    mkdir -p ${ROOT}/cache/upgrade/platform
+    cp ${USING_PLATFORM} ${ROOT}/cache/upgrade/platform
 }
 
 function copy_to_mount
@@ -835,6 +864,94 @@ function copy_to_mount
     (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
         | (cd ${MNT_DIR} && ${SUCMD} tar --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
+}
+
+# XXX use version from build.spec instead
+AGENTS=( \
+    atropos/develop/atropos-develop-* \
+    cloud_analytics/master/cabase-master-* \
+    cloud_analytics/master/cainstsvc-master-* \
+    dataset_manager/develop/dataset_manager-develop-* \
+    heartbeater/develop/heartbeater-develop-* \
+    provisioner/develop/provisioner-develop-* \
+    zonetracker/develop/zonetracker-develop-* \
+)
+
+# XXX use version from build.spec instead
+RUBYAPP_ZONES=( \
+    adminui \
+    capi \
+    dnsapi \
+    mapi \
+    pubapi \
+)
+
+function get_latest_upgrade_agent
+{
+    url=$1
+    pattern=$2
+    out_dir=$3
+
+    latest=$(curl -k -sS ${url}/ \
+                 | grep "href=\"${pattern}" \
+                 | cut -d'"' -f2 | sort | tail -1)
+
+    oldwd=$(pwd)
+    cd ${out_dir}
+    curl -k --progress -O ${url}/${latest}
+    cd ${oldwd}
+    echo "==> downloaded ${latest}"
+}
+
+function get_upgrade_agents
+{
+    mkdir -p ${ROOT}/cache/upgrade/agents
+    for agent in "${AGENTS[@]}"; do
+        url="${AGENTS_BASE}/$(dirname ${agent})"
+        pattern=$(basename ${agent})
+        get_latest_upgrade_agent "${url}" "${pattern}" "${ROOT}/cache/upgrade/agents"
+    done
+}
+
+function get_latest_upgrade_zone
+{
+    url=$1
+    pattern=$2
+    out_dir=$3
+
+    latest=
+    for file in $(curl -k -sS ${url}/ \
+        | grep "href=" \
+        | cut -d'"' -f2 \
+        | grep "${pattern}"); do
+
+        #echo "LATEST BEF: ${latest}"
+        latest=$(newer_of "${latest}" "${file}")
+        #echo "LATEST NOW: ${latest}"
+    done
+    [[ $? -ne 0 || -z ${latest} ]] \
+        && fatal "Error getting file list for ${pattern}"
+
+    oldwd=$(pwd)
+    cd ${out_dir}
+    curl -k --progress -O ${url}/${latest}
+    cd ${oldwd}
+    echo "==> downloaded ${latest}"
+}
+
+function get_upgrade_zones
+{
+    mkdir -p ${ROOT}/cache/upgrade/zones
+    for zone in "${RUBYAPP_ZONES[@]}"; do
+        get_latest_upgrade_zone "${RUBYAPP_BASE}" "${zone}-*" "${ROOT}/cache/upgrade/zones"
+    done
+}
+
+function pack_upgrade
+{
+    buildstamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
+    (cd ${ROOT}/cache \
+        && GZIP=-9 tar -zcvf ${ROOT}/upgrade-${buildstamp}.tgz upgrade)
 }
 
 # Main()
@@ -850,14 +967,20 @@ copy_agents
 copy_datasets
 copy_zones
 copy_devtools
-unpack_image
-add_manifests
-create_upgrade
-mount_image
-trap 'cleanup' EXIT
-copy_to_mount
-cleanup
-create_output
+if [[ -z ${ONLY_UPGRADE} ]]; then
+    unpack_image
+    add_manifests
+    mount_image
+    trap 'cleanup' EXIT
+    copy_to_mount
+    cleanup
+    create_output
+else
+    create_upgrade
+    get_upgrade_zones
+    get_upgrade_agents
+    pack_upgrade
+fi
 
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.

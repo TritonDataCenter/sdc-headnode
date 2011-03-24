@@ -8,6 +8,11 @@
 # 1 - error
 #
 
+ERRORLOG="/tmp/create_zone-$1.$$"
+exec 5>${ERRORLOG}
+BASH_XTRACEFD=5
+export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 #
 # We set errexit (a.k.a. "set -e") to force an exit on error conditions, and
 # pipefail to force any failures in a pipeline to force overall failure.  We
