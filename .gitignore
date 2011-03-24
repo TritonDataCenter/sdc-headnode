@@ -2,6 +2,7 @@
 /cache
 /coal-*.tgz
 /usb-*.tgz
+/upgrade-*.tgz
 /config/*.local
 /config/*.inc/root.authorized_keys
 /build.spec.local
