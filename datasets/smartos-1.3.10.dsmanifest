@@ -9,7 +9,7 @@
   "files": [
     {
       "path": "smartos-1.3.10.zfs.bz2",
-      "url": "https://joyent:H0neyB4dger@dsapi.no.de/assets/smartos-1.3.10.zfs.bz2",
+      "url": "https://joyent:H0neyB4dger@datasets.joyent.com/assets/smartos-1.3.10.zfs.bz2",
       "sha1": "f2cf49ebd7616cdd763c4b1f569705a729cb4f92",
       "size": 41882658
     }
