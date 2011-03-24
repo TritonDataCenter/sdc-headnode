@@ -7,7 +7,6 @@
     , "datasets/nodejs-1.1.0.dsmanifest"
   ]
   , "adminui-checkout": "origin/develop"
-  , "assets-checkout": "origin/develop"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
   , "capi-checkout": "origin/develop"
