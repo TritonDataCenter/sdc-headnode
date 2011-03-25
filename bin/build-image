@@ -60,6 +60,7 @@ if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
 ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
+DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
 PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
 AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
 RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
@@ -494,7 +495,8 @@ function copy_agents
 
 function copy_datasets
 {
-    mkdir -p  ${STAGE}/datasets
+    mkdir -p ${STAGE}/datasets
+    mkdir -p ${ROOT}/datasets
 
     datasets_json=
     if [[ -f ${ROOT}/build.spec.local ]]; then
@@ -511,22 +513,31 @@ function copy_datasets
     num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
     index=0
     while [[ ${index} -lt ${num_datasets} ]]; do
-        path=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index})
+        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
+        uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
+        manifest="${ROOT}/datasets/${name}.dsmanifest"
 
-        name=$(cat ${ROOT}/${path} | ${ROOT}/bin/json name)
-        version=$(cat ${ROOT}/${path} | ${ROOT}/bin/json version)
-        uri=$(cat ${ROOT}/${path} | ${ROOT}/bin/json files[0].url)
-        basename="$name-$version"
+        if [[ ! -f $manifest ]] ; then
+            if [[ ${HAVE_INTERNET} == "true" ]]; then
+                echo "==> Downloading ${name} manifest"
 
-        if [[ -z ${uri} || -z ${name} || -z ${version} ]]; then
-            fatal "Invalid dataset at ${index} of ${datasets_json}"
+                DATASET_URL="${DATASETS_ROOT}/${uuid}"
+                (curl --progress-bar -k -o ${manifest} ${DATASET_URL}) \
+                    || fatal "Unable to download ${name} manifest"
+            else
+                fatal "Don't have required '${name}' manifest" \
+                    "and can't download (no Internet)"
+            fi
         fi
 
-        copy_dataset ${basename} ${uri}
+        uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+        if [[ -z ${uri} ]]; then
+            fatal "Download uri for dataset ${name} not present in manifest"
+        fi
 
-        echo "==> Copying ${path}"
-        cp ${ROOT}/${path} ${STAGE}/datasets/
-
+        copy_dataset ${name} ${uri}
+        echo "==> Copying ${name} manifest"
+        cp ${manifest} ${STAGE}/datasets/
         index=$((${index} + 1))
     done
 }
@@ -985,7 +996,8 @@ fi
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
 if [[ -f ${LOGFILE} ]]; then
-    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
+    cat ${LOGFILE} | grep -v "
+" > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
 fi
 

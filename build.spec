@@ -3,8 +3,12 @@
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
-      "datasets/smartos-1.3.11.dsmanifest"
-    , "datasets/nodejs-1.1.1.dsmanifest"
+      { "name": "smartos-1.3.11"
+      , "uuid": "e2abe3f6-5668-11e0-bab1-07a4d450d807"
+      }
+    , { "name": "nodejs-1.1.1"
+      , "uuid": "1250c668-5410-11e0-b1de-87052a113a10"
+      }
   ]
   , "adminui-checkout": "origin/develop"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
