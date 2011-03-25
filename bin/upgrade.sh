@@ -56,7 +56,7 @@ trap cleanup EXIT
 # Upgrade zones we can just recreate
 for zone in "${RECREATE_ZONES[@]}"; do
     ${usbcpy}/scripts/destroy-zone.sh ${zone}
-    ${usbcpy}/scripts/create-zone.sh ${zone}
+    ${usbcpy}/scripts/create-zone.sh ${zone} -w
 done
 
 # Upgrade zones that use app-release-builder
@@ -77,5 +77,17 @@ fi
 # If there are agents in ${ROOT}/agents, publish to npm (and apply?)
 # If not (default) MAPI will have updated for us
 #
+
+# Install new platform
+platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
+if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
+    platformversion=$(basename "${platformupdate}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
+
+    if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
+        ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
+    else
+        echo "INFO: ${usbcpy}/os/${version} already exists, skipping update."
+    fi
+fi
 
 exit 0
