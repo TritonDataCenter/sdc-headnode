@@ -60,6 +60,7 @@ function install_node_config
                 rabbitmq \
                 root_shadow \
                 capi_admin_ip \
+                capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
                 ; do
@@ -230,8 +231,8 @@ if [[ -f "${src}/zoneconfig" ]]; then
             echo "${var}='${!var}'"
         done
     ) > ${dest}/root/zoneconfig
-    echo "DEBUG ${dest}/root/zoneconfig"
-    cat ${dest}/root/zoneconfig
+    echo "DEBUG ${dest}/root/zoneconfig" >&5
+    cat ${dest}/root/zoneconfig >&5
 
     # Save the zoneconfig file so the configure script can use it.
     mkdir -p ${dest}/opt/smartdc/etc
