@@ -230,8 +230,8 @@ if [[ -f "${src}/zoneconfig" ]]; then
             echo "${var}='${!var}'"
         done
     ) > ${dest}/root/zoneconfig
-    echo "DEBUG ${dest}/root/zoneconfig"
-    cat ${dest}/root/zoneconfig
+    echo "DEBUG ${dest}/root/zoneconfig" >&5
+    cat ${dest}/root/zoneconfig >&5
 
     # Save the zoneconfig file so the configure script can use it.
     mkdir -p ${dest}/opt/smartdc/etc

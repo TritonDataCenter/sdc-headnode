@@ -20,30 +20,33 @@ case ${status} in
     ;;
 esac
 
-# Make sure we can actually talk to RabbitMQ
-loops=0
-while ! su - rabbitmq -c \
-    "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_vhosts" \
-    >/dev/null 2>&1; do
+#
+# On first boot at least, RabbitMQ pretends like it started up when it's not
+# actually ready for us to use it yet.  In order to handle that case, we wait
+# here for it to become ready before proceeding.  The last thing rabbitmq 2.3.1
+# does in the insert_default_data() function is:
+#
+#     rabbit_auth_backend_internal:set_permissions(...)
+#
+# So we're assuming here that when we see a list of permissions for this user
+# that has completed.  If we see no users in this output eventually, that is an
+# error anyway, because on first boot of the zone, guest should be created and
+# this script should have deleted that guest and created the admin user on any
+# other case.  If we wait 120 seconds and no users show up, we add ours anyway.
+#
 
-    loops=$((${loops} + 1))
-    if [[ ${loops} -gt 30 ]]; then
-        echo "Rabbitmq timed out."
-        exit 1
-    fi
-    sleep 1
-done
+function list_permissions
+{
+    su - rabbitmq -c \
+        "/opt/local/sbin/rabbitmqctl -q -n rabbit@rabbitmq list_permissions -p /" \
+        2>/dev/null \
+    || /bin/true
+}
 
-# Even after we can list the vhosts, rabbit is still possibly not up!
-# Check that we're also able to hit the overview page.
-loops=0
-while ! curl -i http://localhost:55672/api/overview; do
-    loops=$((${loops} + 1))
-    if [[ ${loops} -gt 30 ]]; then
-        echo "Rabbitmq timed out."
-        exit 1
-    fi
-    sleep 1
+waited=0
+while [[ ${waited} -lt 120 && -z $(list_permissions) ]]; do
+    sleep 2
+    waited=$((${waited} + 2))
 done
 
 # Delete all the users
