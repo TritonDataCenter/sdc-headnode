@@ -60,6 +60,7 @@ function install_node_config
                 rabbitmq \
                 root_shadow \
                 capi_admin_ip \
+                capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
                 ; do
