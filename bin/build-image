@@ -54,15 +54,15 @@ trap 'errexit $? $LINENO' EXIT
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-24/deps/"
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
+ASSETS_ROOT=${MASTER_PLATFORM_URL}
 DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
-AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
+PKGSRC_ROOT="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-24/deps/pkgsrc/"
+AGENTS_BASE=${MASTER_PLATFORM_URL}
 RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
 
 # Figure out first what we're building, and load the proper include
@@ -258,7 +258,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl -k --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
@@ -333,7 +333,7 @@ function copy_platform
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | grep "href=\"platform-${PLATFORM_RELEASE}\.tgz" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
@@ -424,7 +424,7 @@ function copy_agents
 
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ \
             | grep "href=\"agents" \
             | grep "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
@@ -450,7 +450,7 @@ function copy_agents
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             echo "==> Downloading ${use_agents}"
 
-            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts"
+            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/"
             AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
             AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
 
@@ -663,7 +663,7 @@ function get_latest
     latest=
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
+        for file in $(curl -k -sS ${ASSETS_ROOT}/ \
             | grep "href=" \
             | cut -d'"' -f2 \
             | grep "${FS_PATTERN}"); do
@@ -718,7 +718,7 @@ function get_fs_tarball
 
             (cd ${ROOT}/cache \
                 && curl --progress-bar -k ${CURL_OPTS} \
-                -fO ${ASSETS_ROOT}/liveimg/${filename})
+                -fO ${ASSETS_ROOT}/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
             echo "==> Downloaded ${filename} for ${zone}"
