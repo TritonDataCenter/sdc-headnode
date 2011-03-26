@@ -72,6 +72,12 @@ if [[ -d ${ROOT}/zones ]]; then
     done
 fi
 
+# Make sure we set the npm user correctly for the atropos registry, since the
+# atropos zone may have been recreated.
+if [[ -x /opt/smartdc/agents/bin/setup-npm-user ]]; then
+    /opt/smartdc/agents/bin/setup-npm-user joyent joyent atropos@joyent.com
+fi
+
 # TODO
 #
 # If there are agents in ${ROOT}/agents, publish to npm (and apply?)
