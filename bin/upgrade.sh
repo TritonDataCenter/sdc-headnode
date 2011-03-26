@@ -59,6 +59,12 @@ for zone in "${RECREATE_ZONES[@]}"; do
     ${usbcpy}/scripts/create-zone.sh ${zone} -w
 done
 
+# Make sure we set the npm user correctly for the atropos registry, since the
+# atropos zone may have been recreated.
+if [[ -x /opt/smartdc/agents/bin/setup-npm-user ]]; then
+    /opt/smartdc/agents/bin/setup-npm-user joyent joyent atropos@joyent.com
+fi
+
 # Upgrade zones that use app-release-builder
 if [[ -d ${ROOT}/zones ]]; then
     cd ${ROOT}/zones
@@ -70,12 +76,6 @@ if [[ -d ${ROOT}/zones ]]; then
 	    (cd ${dir} && ./*-dataset-update.sh)
         fi
     done
-fi
-
-# Make sure we set the npm user correctly for the atropos registry, since the
-# atropos zone may have been recreated.
-if [[ -x /opt/smartdc/agents/bin/setup-npm-user ]]; then
-    /opt/smartdc/agents/bin/setup-npm-user joyent joyent atropos@joyent.com
 fi
 
 # TODO
