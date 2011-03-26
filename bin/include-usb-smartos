@@ -7,7 +7,8 @@ SUCMD='sudo'
 MD5CMD="md5sum"
 GZCAT=gzcat
 IMG_TYPE="usb"
-OUTPUT_IMG="2gb.img"
+USB_SIZE="2gb"
+OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
@@ -107,13 +108,13 @@ function create_output
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
-        echo "==> Creating usb-147-${output_version}.tgz"
+        echo "==> Creating usb-${output_version}.tgz"
         (cd ${ROOT}/cache \
-            && mv ${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG} \
-            && gtar -zcf ${ROOT}/usb-147-${output_version}.tgz \
-            root.password.${LIVEIMG_VERSION} usb-147-${output_version}-${OUTPUT_IMG} *.manifest)
+            && mv ${OUTPUT_IMG} usb-${output_version}-${OUTPUT_IMG} \
+            && gtar -zcf ${ROOT}/usb-${output_version}.tgz \
+            root.password.${LIVEIMG_VERSION} usb-${output_version}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv ${ROOT}/cache/${OUTPUT_IMG} usb-147-${output_version}-${OUTPUT_IMG}
+        mv ${ROOT}/cache/${OUTPUT_IMG} usb-${output_version}-${OUTPUT_IMG}
     fi
 }

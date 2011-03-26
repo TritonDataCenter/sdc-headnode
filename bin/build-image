@@ -78,6 +78,10 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             source ${ROOT}/bin/include-vmware-osx
             version
             ;;
+        coal)
+            source ${ROOT}/bin/include-coal-osx
+            version
+            ;;
         usb)
             source ${ROOT}/bin/include-usb-osx
             version
