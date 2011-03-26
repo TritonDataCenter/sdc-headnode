@@ -20,6 +20,8 @@ development: &defaults
     url: ${CAPI_URL}
     username: ${CAPI_HTTP_ADMIN_USER}
     password: ${CAPI_HTTP_ADMIN_PW}
+    cache_size: ${CAPI_CACHE_SIZE}
+    cache_age: ${CAPI_CACHE_AGE}
   mapi:
     ${DEFAULT_DATACENTER}:
       url: ${MAPI_URL}

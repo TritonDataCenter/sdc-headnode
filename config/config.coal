@@ -214,6 +214,8 @@ portal_memory_cap=128m
 
 pubapi_admin_ip=10.99.99.13
 pubapi_client_url=http://10.99.99.13:8080/v1
+pubapi_capi_cache_size=100
+pubapi_capi_cache_age=60
 # pubapi_external_ip=10.88.88.13
 # pubapi_external_vlan=0
 pubapi_root_pw=joypass123
