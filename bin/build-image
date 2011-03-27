@@ -615,6 +615,14 @@ function newer_of
         | sed -e "s/\.tar\.bz2$//" \
         | sed -e "s/[-_.]/ /g" | tr -s ' '`)
 
+    # Same for zones, those have .tbz2
+    a_array=(`echo "${a}" \
+        | sed -e "s/\.tbz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+    b_array=(`echo "${b}" \
+        | sed -e "s/\.tbz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+
     idx=0
     while [[ -n ${a_array[${idx}]} || -n ${b_array[${idx}]} ]]; do
         a_val=${a_array[${idx}]}
