@@ -7,6 +7,7 @@ SUCMD='sudo'
 MNT_DIR="/Volumes/USB-headnode.vmdk"
 MD5CMD="md5 -r"
 GZCAT=gzcat
+TAR=tar
 IMG_TYPE="coal" # if we're VMWare we're COAL
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
@@ -53,7 +54,7 @@ function unpack_image
 {
     echo -n "==> Unpacking VMWare image... "
     rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
-    (cd ${ROOT}/cache && tar -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
+    (cd ${ROOT}/cache && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
         || fatal "Unable to unpack image"
     echo "done."
 }
@@ -116,7 +117,7 @@ function create_output
         echo "==> Creating coal-147-${output_version}.tgz"
         (cd ${ROOT}/cache \
             && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
-            && tar -zcf ${ROOT}/coal-147-${output_version}.tgz \
+            && ${TAR} -zcf ${ROOT}/coal-147-${output_version}.tgz \
             USB-headnode.vmwarevm) \
             || fatal "Unable to create .tgz output file."
     else

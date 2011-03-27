@@ -6,6 +6,7 @@
 SUCMD='sudo'
 MD5CMD="md5 -r"
 GZCAT=gzcat
+TAR=tar
 IMG_TYPE="usb"
 USB_SIZE="2gb"
 OUTPUT_IMG="${USB_SIZE}.img"
@@ -45,7 +46,7 @@ function unpack_image
 {
     echo -n "==> Unpacking USB image... "
     rm -f ${ROOT}/cache/${TEMPLATE_IMG}
-    (cd ${ROOT}/cache && tar -zxf ${ROOT}/usb/${TEMPLATE_IMG}) \
+    (cd ${ROOT}/cache && ${TAR} -zxf ${ROOT}/usb/${TEMPLATE_IMG}) \
         || fatal "Unable to unpack USB image"
     echo "done."
 }
@@ -112,7 +113,7 @@ function create_output
         echo "==> Creating usb-${output_version}.tgz"
         (cd ${ROOT}/cache \
             && mv ${OUTPUT_IMG} usb-${output_version}-${OUTPUT_IMG} \
-            && tar -zcf ${ROOT}/usb-${output_version}.tgz \
+            && ${TAR} -zcf ${ROOT}/usb-${output_version}.tgz \
             root.password.${LIVEIMG_VERSION} usb-${output_version}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else

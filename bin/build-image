@@ -22,6 +22,8 @@ set -o pipefail
 ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
+TAR=tar
+GREP=grep
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
@@ -128,6 +130,10 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
             source ${ROOT}/bin/include-usb-smartos
+            version
+            ;;
+        coal)
+            source ${ROOT}/bin/include-coal-smartos
             version
             ;;
         upgrade)
@@ -274,7 +280,7 @@ function copy_pkgsrc
         | uniq \
         | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
-        MD5=$(grep " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
+        MD5=$(${GREP} " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
         if [[ -z ${MD5} ]]; then
             fatal "Unable to find md5sum for ${pkgfile}, " \
                 "must be fixed before we can continue."
@@ -303,13 +309,13 @@ function copy_pkgsrc
     done
 
     echo "==> Creating pkgsrc.tar"
-    (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
+    (cd ${ROOT}/cache && ${TAR} -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
 function valid_tgz_archive
 {
     filename=$1
-    if [[ -f ${filename} ]] && tar -ztf ${filename} > /dev/null; then
+    if [[ -f ${filename} ]] && ${TAR} -ztf ${filename} > /dev/null; then
         return 0
     else
         return 1
@@ -319,7 +325,7 @@ function valid_tgz_archive
 function valid_archive
 {
     filename=$1
-    if [[ -f ${filename} ]] && tar -tf ${filename} > /dev/null; then
+    if [[ -f ${filename} ]] && ${TAR} -tf ${filename} > /dev/null; then
         return 0
     else
         return 1
@@ -337,11 +343,11 @@ function copy_platform
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | ${GREP} "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-[0-9]" \
+                    | ${GREP} "href=\"platform-[0-9]" \
                     | cut -d'"' -f2 | sort | tail -1)
             fi
 
@@ -380,7 +386,7 @@ function copy_platform
         | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; tar -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+    (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
         mv platform-* os/${LIVEIMG_VERSION}/platform) \
         || fatal "Unable to unpack platform"
     if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
@@ -429,13 +435,13 @@ function copy_agents
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-            | grep "href=\"agents" \
-            | grep "${agents_shar}" \
+            | ${GREP} "href=\"agents" \
+            | ${GREP} "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
     else
         latest_agents=$(cd ${ROOT}/cache \
             && ls agents-*.sh \
-            | grep "${agents_shar}" \
+            | ${GREP} "${agents_shar}" \
             | tail -1)
     fi
     if [[ -z ${latest_agents} ]]; then
@@ -668,9 +674,9 @@ function get_latest
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         for file in $(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
-            | grep "href=" \
+            | ${GREP} "href=" \
             | cut -d'"' -f2 \
-            | grep "${FS_PATTERN}"); do
+            | ${GREP} "${FS_PATTERN}"); do
 
             #echo "LATEST BEF: ${latest}"
             latest=$(newer_of "${latest}" "${file}")
@@ -679,7 +685,7 @@ function get_latest
         [[ $? -ne 0 || -z ${latest} ]] \
             && fatal "Error getting file list for ${FS_PATTERN}"
     else
-        for file in $(cd ${ROOT}/cache && ls -1 | grep "${FS_PATTERN}"); do
+        for file in $(cd ${ROOT}/cache && ls -1 | ${GREP} "${FS_PATTERN}"); do
             #echo "(cached) LATEST BEFORE: ${latest}"
             latest=$(newer_of "${latest}" "${file}")
             #echo "(cached) LATEST NOW: ${latest}"
@@ -769,7 +775,7 @@ function build_fs_tarball
         rm -rf ${zone_dir}/fs.{populate,root}
         (cd /tmp/fs.${zone}.$$/fs.root \
             && ../fs.populate \
-            && tar -jcvf ${zone_dir}/fs.tar.bz2 ./)
+            && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
         if [[ $? -ne 0 ]]; then
             fatal "Failed to populate fs.tar.bz2 for ${zone}"
         fi
@@ -833,7 +839,7 @@ function copy_zones
             fatal "Unable to find or build fs.tar.bz2 for ${zone}"
         else
             # Keep a copy in cache so we can build next time with no Internet
-            cp -a ${STAGE}/zones/${zone}/fs.tar.bz2 \
+            cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
                 ${ROOT}/cache/${zone}.tar.bz2
         fi
 
@@ -860,7 +866,7 @@ function create_upgrade
     chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \
         && env GZIP=-9 \
-        tar -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
+        ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
         boot/grub/menu.lst.tmpl \
         datasets \
         rc \
@@ -876,8 +882,8 @@ function create_upgrade
 
 function copy_to_mount
 {
-    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
-        | (cd ${MNT_DIR} && ${SUCMD} tar --no-same-owner -xvf -) \
+    (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
+        | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
 }
 
@@ -908,7 +914,7 @@ function get_latest_upgrade_agent
     out_dir=$3
 
     latest=$(curl -k -sS ${url}/ \
-                 | grep "href=\"${pattern}" \
+                 | ${GREP} "href=\"${pattern}" \
                  | cut -d'"' -f2 | sort | tail -1)
 
     oldwd=$(pwd)
@@ -936,9 +942,9 @@ function get_latest_upgrade_zone
 
     latest=
     for file in $(curl -k -sS ${url}/ \
-        | grep "href=" \
+        | ${GREP} "href=" \
         | cut -d'"' -f2 \
-        | grep "${pattern}"); do
+        | ${GREP} "${pattern}"); do
 
         #echo "LATEST BEF: ${latest}"
         latest=$(newer_of "${latest}" "${file}")
@@ -966,7 +972,7 @@ function pack_upgrade
 {
     buildstamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
     (cd ${ROOT}/cache \
-        && GZIP=-9 tar -zcvf ${ROOT}/upgrade-${buildstamp}.tgz upgrade)
+        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${buildstamp}.tgz upgrade)
 }
 
 # Main()
@@ -1000,7 +1006,7 @@ fi
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
 if [[ -f ${LOGFILE} ]]; then
-    cat ${LOGFILE} | grep -v "
+    cat ${LOGFILE} | ${GREP} -v "
 " > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
 fi

@@ -3,13 +3,13 @@
 # Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
-. ${ROOT}/bin/include-usb-osx
+. ${ROOT}/bin/include-usb-smartos
 IMG_TYPE="coal"
 COAL_VMDK="${USB_SIZE}.coal.vmdk"
 
 function version
 {
-    echo "==> Building with variables from include-coal-osx"
+    echo "==> Building with variables from include-coal-smartos"
 }
 
 function create_output
@@ -32,8 +32,8 @@ function create_output
 
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+        ${SUCMD} lofiadm -d ${LOOPBACK}
         sync; sync
-        MNT_DIR=
     fi
 
     if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then
@@ -50,23 +50,23 @@ function create_output
     (cd ${ROOT}/cache && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
         || fatal "Unable to unpack image"
     (cd ${ROOT}/cache/USB-headnode.vmwarevm \
-        && ${TAR} -jxvf ${ROOT}/usb/${TEMPLATE_IMG} ${OUTPUT_IMG} \
+        && ${TAR} -zxvf ${ROOT}/usb/${TEMPLATE_IMG} ${OUTPUT_IMG} \
         && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
         > USB-headnode.vmdk)
     echo "done."
 
     # Copy in ${ROOT}/cache/${OUTPUT_IMG}
     echo -n "==> Copying in ${OUTPUT_IMG}... "
-    mv ${ROOT}/cache/${OUTPUT_IMG} \
+    mv /tmp/${OUTPUT_IMG}.$$ \
         ${ROOT}/cache/USB-headnode.vmwarevm/${OUTPUT_IMG}
     echo "done."
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
         echo "==> Creating coal-${output_version}.tgz"
         (cd ${ROOT}/cache \
-            && mv USB-headnode.vmwarevm coal-${output_version}-${USB_SIZE} \
+            && mv USB-headnode.vmwarevm coal-${output_version}-${USB_SIZE}.vmwarevm \
             && ${TAR} -zcf ${ROOT}/coal-${output_version}-${USB_SIZE}.tgz \
-            root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE} *.manifest)
+            root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
         mv ${ROOT}/cache/USB-headnode.vmwarevm ${ROOT}/coal-${output_version}-${USB_SIZE}.vmwarevm
