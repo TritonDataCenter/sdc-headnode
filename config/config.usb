@@ -80,7 +80,8 @@ root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 # root's .ssh/authorized_keys in GZs:
 root_authorized_keys_file=root.authorized_keys
 
-# To specify NTP servers you can either use:
+#
+# To specify NTP servers for the headnode you can either use:
 #
 # ntp_hosts=[servers separated by commas]
 #
@@ -88,9 +89,18 @@ root_authorized_keys_file=root.authorized_keys
 #
 # ntp_conf_file=<filename of file in config.inc>
 #
-# Also: for different config on the compute nodes, use:
+# If you don't specify an ntp_hosts value, by default the system will try to
+# do a lookup of pool.ntp.org and take the IP addresses that come as a result
+# of that query.
+ntp_hosts=pool.ntp.org
+
+# For NTP configuration on the compute nodes, use the equivalent variables:
 #
-# compute_node_ntp_hosts + compute_node_ntp_conf_file
+# compute_node_ntp_hosts
+# compute_node_ntp_conf_file
+#
+# which work in the same fashion as those for the headnode.  Normally these
+# will be set to point the headnode(s).
 #
 compute_node_ntp_hosts=10.99.99.7
 
