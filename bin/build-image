@@ -945,25 +945,60 @@ function copy_to_mount
         || fatal "Unable to copy files to mount"
 }
 
-# XXX use version from build.spec instead
-AGENTS=( \
-    atropos/develop/atropos-develop-* \
-    cloud_analytics/master/cabase-master-* \
-    cloud_analytics/master/cainstsvc-master-* \
-    dataset_manager/develop/dataset_manager-develop-* \
-    heartbeater/develop/heartbeater-develop-* \
-    provisioner/develop/provisioner-develop-* \
-    zonetracker/develop/zonetracker-develop-* \
-)
+function get_upgrade_params
+{
+    upgrades_json=
+    agents_json=
+    appzones_json=
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        upgrades_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "upgrades")
+        if [[ -n ${upgrades_json} ]]; then
+            agents_json=$(echo ${upgrades_json} \
+                | ${ROOT}/bin/json "agents")
+            appzones_json=$(echo ${upgrades_json} \
+                | ${ROOT}/bin/json "appzones")
+        fi
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${upgrades_json} ]]; then
+        upgrades_json=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json "upgrades")
+        if [[ -n ${upgrades_json} ]]; then
+            if [[ -z ${agents_json} ]]; then
+                agents_json=$(echo ${upgrades_json} \
+                    | ${ROOT}/bin/json "agents")
+            fi
+            if [[ -z ${appzones_json} ]]; then
+                appzones_json=$(echo ${upgrades_json} \
+                    | ${ROOT}/bin/json "appzones")
+            fi
+        fi
+    fi
+    [[ -n ${agents_json} ]] \
+        || fatal "Unable to find upgrade.agents information in build.spec"
+    [[ -n ${appzones_json} ]] \
+        || fatal "Unable to find upgrade.agents information in build.spec"
 
-# XXX use version from build.spec instead
-RUBYAPP_ZONES=( \
-    adminui \
-    capi \
-    dnsapi \
-    mapi \
-    pubapi \
-)
+    num_agents=$(echo "${agents_json}" | ${ROOT}/bin/json length)
+    num_appzones=$(echo "${appzones_json}" | ${ROOT}/bin/json length)
+
+    AGENTS=
+    RUBYAPP_ZONES=
+
+    index=0
+    while [[ ${index} -lt ${num_agents} ]]; do
+        AGENTS[${index}]=$(echo "${agents_json}" \
+            | ${ROOT}/bin/json ${index})
+        index=$((${index} + 1))
+    done
+
+    index=0
+    while [[ ${index} -lt ${num_appzones} ]]; do
+        RUBYAPP_ZONES[${index}]=$(echo "${appzones_json}" \
+            | ${ROOT}/bin/json ${index})
+        index=$((${index} + 1))
+    done
+}
 
 function get_latest_upgrade_agent
 {
@@ -1056,6 +1091,7 @@ if [[ -z ${ONLY_UPGRADE} ]]; then
     create_output
 else
     create_upgrade
+    get_upgrade_params
     get_upgrade_zones
     get_upgrade_agents
     pack_upgrade

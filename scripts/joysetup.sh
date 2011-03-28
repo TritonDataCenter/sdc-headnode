@@ -34,6 +34,12 @@ for p in $*; do
   export arg_${k}=${v}
 done
 
+#
+# Load sysinfo values to SYSINFO_*
+#
+. /lib/sdc/config.sh
+load_sdc_sysinfo
+
 fatal()
 {
     echo "Error: $1" >&4

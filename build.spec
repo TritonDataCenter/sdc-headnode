@@ -27,6 +27,7 @@
         , "dataset_manager/develop/dataset_manager-develop-*"
         , "heartbeater/develop/heartbeater-develop-*"
         , "provisioner/develop/provisioner-develop-*"
+        , "smartlogin/develop/smartlogin-develop-*"
         , "zonetracker/develop/zonetracker-develop-*"
       ]
     , "appzones": [
