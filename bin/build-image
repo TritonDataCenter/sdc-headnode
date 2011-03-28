@@ -18,6 +18,9 @@
 set -o errexit
 set -o pipefail
 
+# FIXME: Put this somewhere
+curl -i http://10.0.1.8/proxy-usb-headnode/location
+
 # write output to log file
 ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"
@@ -56,16 +59,22 @@ trap 'errexit $? $LINENO' EXIT
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+#MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+MASTER_PLATFORM_URL="http://10.0.1.8/proxy-usb-headnode/https/guest_GrojhykMid@coal.joyent.us/coal/live_147"
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
-DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
-AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
-RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
+#ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
+ASSETS_ROOT="http://10.0.1.8/proxy-usb-headnode/https/guest_GrojhykMid@assets.joyent.us/datasets"
+#DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
+DATASETS_ROOT="http://10.0.1.8/proxy-usb-headnode/https/joyent_H0neyB4dger@datasets.joyent.com/datasets"
+#PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
+PKGSRC_ROOT="http://10.0.1.8/proxy-usb-headnode/http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
+#AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
+AGENTS_BASE="http://10.0.1.8/proxy-usb-headnode/https/guest_GrojhykMid@216.57.203.66:444/coal/live_147/agents"
+#RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
+RUBYAPP_BASE="http://10.0.1.8/proxy-usb-headnode/https/joydev_leichiB8eeQu@216.57.203.66/release"
 
 # Figure out first what we're building, and load the proper include
 

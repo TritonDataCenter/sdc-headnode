@@ -9,7 +9,7 @@
   "files": [
     {
       "path": "smartos-1.3.11.zfs.bz2",
-      "url": "https://joyent:H0neyB4dger@datasets.joyent.com/assets/smartos-1.3.11.zfs.bz2",
+      "url": "http://10.0.1.8/proxy-usb-headnode/https/joyent_H0neyB4dger@datasets.joyent.com/assets/smartos-1.3.11.zfs.bz2",
       "sha1": "ede3b2e6351a2d426229f50db83a9f927d5c6a41",
       "size": 41880166
     }
