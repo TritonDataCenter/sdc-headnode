@@ -58,7 +58,10 @@ function check_proxy
 if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
   if netstat -rn | grep -q 10\.0\.1\.1 ; then
     echo "Checking for proxy"
-    PROXY=`curl -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+    # It would be nice if the following check was faster
+    if ping -c 1 10.0.1.8 >/dev/null 2>&1; then
+      PROXY=`curl -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+    fi
     if [ "$PROXY" == "vancouver" ]; then
       echo "Vancouver proxy found."
     elif [ -n "$PROXY" ]; then
