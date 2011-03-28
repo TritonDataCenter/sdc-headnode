@@ -28,16 +28,12 @@ ruby18-patron-0.4.9nb1
 ruby18-mime-types-1.16
 ruby18-extlib-0.9.15
 ruby18-data-objects-0.10.2
-mysql-client-5.1.54
 ruby18-dm-core-1.0.2
 ruby18-dm-do-adapter-1.0.2
 ruby18-dm-transactions-1.0.2
-ruby18-mysql-2.8.2nb2
 ruby18-do-postgres-0.10.2
 ruby18-dm-postgres-adapter-1.0.2
 ruby18-postgresql-0.7.9.2008.01.28nb2
-ruby18-do-mysql-0.10.2
-ruby18-dm-mysql-adapter-1.0.2
 ruby18-stringex-1.1.0
 ruby18-uuidtools-2.1.1
 ruby18-rack-1.1.0
