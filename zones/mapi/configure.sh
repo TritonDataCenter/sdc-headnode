@@ -242,3 +242,15 @@ if [[ ! -e /opt/smartdc/mapi/config/zonetracker_client.smf ]]; then
   chown jill:jill /opt/smartdc/mapi/config/zonetracker_client.smf
 fi
 
+# Just in case, create /var/logadm
+if [[ ! -d /var/logadm ]]; then
+  mkdir -p /var/logadm
+fi
+
+# Log rotation:
+cat >> /etc/logadm.conf <<LOGADM
+mapi -C 10 -c -s 10m /opt/smartdc/mapi/log/*.log
+nginx -C 5 -c -s 100m '/var/log/nginx/{access,error}.log'
+postgresql -C 5 -c -s 100m /var/log/postgresql90.log
+LOGADM
+

@@ -114,3 +114,12 @@ else
   /usr/sbin/svcadm enable -s nginx
 fi
 
+# Just in case, create /var/logadm
+if [[ ! -d /var/logadm ]]; then
+  mkdir -p /var/logadm
+fi
+
+# Log rotation:
+cat >> /etc/logadm.conf <<LOGADM
+nginx -C 5 -c -s 100m '/var/log/nginx/{access,error}.log'
+LOGADM

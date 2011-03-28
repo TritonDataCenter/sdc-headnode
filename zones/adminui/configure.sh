@@ -122,3 +122,14 @@ su - jill -c "cd /opt/smartdc/adminui; \
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
 fi
+
+# Just in case, create /var/logadm
+if [[ ! -d /var/logadm ]]; then
+  mkdir -p /var/logadm
+fi
+
+# Log rotation:
+cat >> /etc/logadm.conf <<LOGADM
+adminui -C 10 -c -s 100m /opt/smartdc/adminui/log/*.log
+nginx -C 5 -c -s 100m '/var/log/nginx/{access,error}.log'
+LOGADM

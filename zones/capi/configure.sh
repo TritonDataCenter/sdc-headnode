@@ -137,3 +137,14 @@ if [[ ! -e /opt/smartdc/dnsapi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/dnsapi/tmp/pids"
 fi
 
+# Just in case, create /var/logadm
+if [[ ! -d /var/logadm ]]; then
+  mkdir -p /var/logadm
+fi
+
+# Log rotation:
+cat >> /etc/logadm.conf <<LOGADM
+capi -C 100 -c -s 10m /opt/smartdc/capi/log/*.log
+dnsapi -C 100 -c -s 10m /opt/smartdc/dnsapi/log/*.log
+postgresql -C 5 -c -s 100m /var/log/postgresql90.log
+LOGADM
