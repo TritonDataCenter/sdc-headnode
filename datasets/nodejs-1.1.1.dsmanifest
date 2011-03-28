@@ -9,7 +9,7 @@
   "files": [
     {
       "path": "nodejs-1.1.1.zfs.bz2",
-      "url": "http://10.0.1.8/proxy-usb-headnode/https/joyent_H0neyB4dger@datasets.joyent.com/assets/nodejs-1.1.1.zfs.bz2",
+      "url": "https://joyent:H0neyB4dger@datasets.joyent.com/assets/nodejs-1.1.1.zfs.bz2",
       "sha1": "faa81941cb92e6bf7174d83ade221f1375733b03",
       "size": 375523576
     }
