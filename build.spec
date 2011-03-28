@@ -1,5 +1,6 @@
 {
     "platform-release": "develop"
+  , "use-proxy": "false"
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
