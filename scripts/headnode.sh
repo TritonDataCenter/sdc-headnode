@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 # Exit codes:
 #
@@ -130,17 +130,17 @@ for zone in $ALLZONES; do
         # This is to move us to the next line past the login: prompt
         [[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
-	skip=false
-	if [ "${zone}" == "capi" ] ; then
-	    if ! ${CONFIG_capi_is_local} ; then
-		skip=true
-	    fi
-	fi
+        skip=false
+        if [ "${zone}" == "capi" ] ; then
+            if ! ${CONFIG_capi_is_local} ; then
+                skip=true
+            fi
+        fi
 
-	if ! ${skip} ; then
+        if ! ${skip} ; then
             ${USB_COPY}/scripts/create-zone.sh ${zone}
             CREATEDZONES="${CREATEDZONES} ${zone}"
-	fi
+        fi
 
     fi
 done
