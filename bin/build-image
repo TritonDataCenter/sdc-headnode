@@ -83,9 +83,9 @@ if [ "$PROXY" = "vancouver" ]; then
   # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
   # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
 
-  PROTO=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\1,')
-  HOST=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\2,' | tr : _)
-  FILEPATH=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\3,')
+  PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\1,')
+  HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\2,' | tr : _)
+  FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\3,')
   #echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH" 1>&2
   echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
 else
