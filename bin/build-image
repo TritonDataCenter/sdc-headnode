@@ -51,21 +51,77 @@ function check_nodejs
     fi
 }
 
+function check_proxy
+{
+# See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+
+if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
+  if netstat -rn | grep -q 10\.0\.1\.1 ; then
+    echo "Checking for proxy"
+    PROXY=`curl -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+    if [ "$PROXY" == "vancouver" ]; then
+      echo "Vancouver proxy found."
+    elif [ -n "$PROXY" ]; then
+      echo "Unknown proxy: $PROXY"
+    else
+      echo "No proxy found."
+    fi
+  fi
+fi
+}
+
+function proxy
+{
+# See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+
+if [ "$PROXY" = "vancouver" ]; then
+
+  # Sorry about the gnarly regexes - we want to generate URLs that look like:
+  #
+  # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
+  # /http/guest_GrojhykMid@10.0.1.8/platform
+  # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
+  # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
+
+  PROTO=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\1,')
+  HOST=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\2,' | tr : _)
+  FILEPATH=$(echo $1 | sed 's,^\(https\|http\)://\([^/]*\)/\(.*\)$,\3,')
+  #echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH" 1>&2
+  echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
+else
+  echo $1
+fi
+}
+
+
 trap 'errexit $? $LINENO' EXIT
 
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+
+if [[ -f "${ROOT}/build.spec.local" ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json no-internet)
+fi
+if [[ -f "${ROOT}/build.spec" && -z ${NO_INTERNET} ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec \
+        | ${ROOT}/bin/json no-internet)
+fi
+
+
+check_proxy
+
+MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@coal.joyent.us/coal/live_147")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
-DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
-AGENTS_BASE="https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents"
-RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
+ASSETS_ROOT=$(proxy "https://guest:GrojhykMid@assets.joyent.us/datasets")
+DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
+PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
+AGENTS_BASE=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents")
+RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
 
 # Figure out first what we're building, and load the proper include
 
@@ -152,15 +208,6 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
     esac
 else
     echo "FATAL: Unsupported platform '${PLATFORM}'"
-fi
-
-if [[ -f "${ROOT}/build.spec.local" ]]; then
-    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json no-internet)
-fi
-if [[ -f "${ROOT}/build.spec" && -z ${NO_INTERNET} ]]; then
-    NO_INTERNET=$(cat ${ROOT}/build.spec \
-        | ${ROOT}/bin/json no-internet)
 fi
 
 echo -n "==> Checking for Internets... "
@@ -541,6 +588,7 @@ function copy_datasets
         fi
 
         uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+        uri=$(proxy ${uri})
         if [[ -z ${uri} ]]; then
             fatal "Download uri for dataset ${name} not present in manifest"
         fi
@@ -560,9 +608,11 @@ function copy_dataset
   local dataset_uri=$2
 
   dataset_file=$(basename ${dataset_uri})
-  if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-      echo "==> Corrupt ${dataset_file}, deleting..."
-      rm -f ${ROOT}/cache/${dataset_file}
+  if [ -e ${ROOT}/cache/${dataset_file} ]; then
+    if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+        echo "==> Corrupt ${dataset_file}, deleting..."
+        rm -f ${ROOT}/cache/${dataset_file}
+    fi
   fi
 
   if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
