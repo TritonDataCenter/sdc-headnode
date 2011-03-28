@@ -60,6 +60,7 @@ function install_node_config
                 rabbitmq \
                 root_shadow \
                 capi_admin_ip \
+                capi_admin_uuid \
                 capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
@@ -262,6 +263,10 @@ if [[ -f "${src}/restore" ]]; then
     cp ${src}/restore ${dest}/opt/smartdc/bin/restore
     chmod 0755 ${dest}/opt/smartdc/bin/restore
 fi
+
+# Write the owner_uuid attribute so that smartlogin and zonetracker credit
+# these zones to the admin user
+zonecfg -z ${zone} "add attr; set name=owner-uuid; set type=string; set value=\"${CONFIG_capi_admin_uuid}\"; end; commit"
 
 # Write the info about this datacenter to /.dcinfo so we can use it in
 # the zone.  Same file should be put in the GZ by smartdc:config
