@@ -8,12 +8,15 @@ set -o xtrace
 
 ROOT=$(pwd)
 
+#
+# IMPORTANT, this purposefully does not include 'portal' since that zone
+# is handled differently for upgrades (since it may be customized).
+#
 RECREATE_ZONES=( \
     assets \
     atropos \
     ca \
     dhcpd \
-    portal \
     rabbitmq \
 )
 
@@ -82,14 +85,17 @@ function recreate_zones
 function upgrade_zones
 {
     # Upgrade zones that use app-release-builder
+    #
+    # EXCEPT pubapi which may have been customized, so is handled separately.
+    #
     if [[ -d ${ROOT}/zones ]]; then
         cd ${ROOT}/zones
-        for file in `ls *.tbz2`; do
-	        tar -jxf ${file}
+        for file in `ls *.tbz2 | grep -v ^pubapi-`; do
+            tar -jxf ${file}
         done
         for dir in `ls`; do
-	    if [[ -d ${dir} ]]; then
-	        (cd ${dir} && ./*-dataset-update.sh)
+            if [[ -d ${dir} ]]; then
+                (cd ${dir} && ./*-dataset-update.sh)
             fi
         done
     fi

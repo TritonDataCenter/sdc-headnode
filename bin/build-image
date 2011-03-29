@@ -1072,14 +1072,18 @@ function get_upgrade_zones
 
 function pack_upgrade
 {
-    buildstamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
+    upgrade_version=$(date -u +%Y%m%dT%H%M%SZ).$(git symbolic-ref HEAD \
+        | cut -d'/' -f3)-$(git describe)
+
     if [ -f build-number.txt ]; then
-      buildstamp="$buildstamp-$(cat build-number.txt \
-          | sed -n 's,^build\.number=\(.*\),\1,p')"
+        upgrade_version="${upgrade_version}-$(cat build-number.txt \
+            | sed -n 's,^build\.number=\(.*\),\1,p')"
     fi
 
+    echo "${upgrade_version}" > ${ROOT}/cache/upgrade/VERSION
+
     (cd ${ROOT}/cache \
-        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${buildstamp}.tgz upgrade)
+        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${upgrade_version}.tgz upgrade)
 }
 
 # Main()
