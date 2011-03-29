@@ -14,6 +14,8 @@ OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
 SWAPVOL=${ZPOOL}/swap
+MIN_SWAP=2
+DEFAULT_SWAP=0.25x
 
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
@@ -34,16 +36,71 @@ for p in $*; do
   export arg_${k}=${v}
 done
 
-#
-# Load sysinfo values to SYSINFO_*
-#
+# Load SYSINFO_* and CONFIG_* values
 . /lib/sdc/config.sh
 load_sdc_sysinfo
+load_sdc_config
 
 fatal()
 {
     echo "Error: $1" >&4
     exit 1
+}
+
+function ceil
+{
+    x=$1
+
+    # ksh93 supports a bunch of math functions that don't exist in bash.
+    # including floating point stuff.
+    expression="echo \$((ceil(${x})))"
+    result=$(ksh93 -c "${expression}")
+
+    echo ${result}
+}
+
+#
+# Value can be in x (multiple of RAM) or g (GiB)
+#
+# eg: result=$(swap_in_GiB "0.25x")
+#     result=$(swap_in_GiB "1.5x")
+#     result=$(swap_in_GiB "2x")
+#     result=$(swap_in_GiB "8g")
+#
+function swap_in_GiB
+{
+    swap=$(echo $1 | tr [:upper:] [:lower:])
+
+    # Find system RAM for multiple
+    RAM_MiB=${SYSINFO_MiB_of_Memory}
+    RAM_GiB=$(ceil "${RAM_MiB} / 1024.0")
+
+    swap_val=${swap%?}      # number
+    swap_arg=${swap#${swap%?}}  # x or g
+
+    result=
+    case ${swap_arg} in
+        x)
+        result=$(ceil "${swap_val} * ${RAM_GiB}")
+    ;;
+        g)
+        result=${swap_val}
+    ;;
+        *)
+        echo "Unhandled swap argument: '${swap}'"
+        return 1
+    ;;
+    esac
+
+    if [[ -n ${result} ]]; then
+        if [[ ${result} -lt ${MIN_SWAP} ]]; then
+            echo ${MIN_SWAP}
+        else
+            echo ${result}
+        fi
+    fi
+
+    return 0
 }
 
 #
@@ -149,21 +206,19 @@ setup_datasets()
 
 create_swap()
 {
-    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
-    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
-
-    swapsize=2g
-
     if [ -n "${arg_swap}" ]; then
-        swapsize=${arg_swap}
-    elif [ -f "${USB_COPY}/config" ]; then
-        swapsize=$(grep "^swap=" ${USB_COPY}/config | cut -d'=' -f2-)
-    elif [ -f "${USB_PATH}/config" ]; then
-        swapsize=$(grep "^swap=" ${USB_PATH}/config | cut -d'=' -f2-)
+        # From cmdline
+        swapsize=$(swap_in_GiB ${arg_swap})
+    elif [ -n "${CONFIG_swap}" ]; then
+        # From config
+        swapsize=$(swap_in_GiB ${CONFIG_swap})
+    else
+        # Fallback
+        swapsize=$(swap_in_GiB ${DEFAULT_SWAP})
     fi
 
     echo -n "Creating swap zvol... " >&4
-    zfs create -V ${swapsize} ${SWAPVOL}
+    zfs create -V ${swapsize}g ${SWAPVOL}
     echo "done." >&4
 }
 
@@ -203,6 +258,11 @@ install_configs()
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
         echo "done." >&4
+
+        # re-load config here, since it will have just changed
+        # (also location will be detected properly now)
+        SDC_CONFIG_FILENAME=
+        load_sdc_config
     fi
 }
 
@@ -213,9 +273,6 @@ install_datasets()
         || [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
         return 0
     fi
-
-    . /lib/sdc/config.sh
-    load_sdc_config
 
     if [[ -n "${CONFIG_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
         assets=${CONFIG_assets_admin_ip}
@@ -250,8 +307,8 @@ POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
-    create_swap
     install_configs
+    create_swap
     install_datasets
     output_zpool_info
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then

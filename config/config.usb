@@ -3,7 +3,26 @@
 #
 # Test with: (source ./config ; echo ${admin_ip})
 #
-swap=4g
+
+#
+# Set the amount of swap for headnode (swap) and compute nodes
+# (compute_node_swap).
+#
+# This value can be either a multiple of ram (followed by 'x') or an integer
+# value in GiB (followed by 'g') For example:
+#
+# '0.25x' means swap should be RAM * 0.25
+#    '2x' means swap should be RAM * 2
+#    '8g' means swap should be 8 GiB
+#
+# The default is 0.25x or reserving 1/4 of the amount of RAM for swap.
+#
+# Note: the minimum swap value is 2g, if a value lower than this is
+#       set/calculated, 2g will be used instead.
+#
+#
+swap=0.25x
+compute_node_swap=0.25x
 
 # datacenter_name should be unique among your cloud, datacenter_headnode_id
 # should be a positive integer that is unique for this headnode within that

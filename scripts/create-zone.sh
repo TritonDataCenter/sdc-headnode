@@ -57,6 +57,7 @@ function install_node_config
                 atropos_admin_ip \
                 compute_node_ntp_conf_file \
                 compute_node_ntp_hosts \
+                compute_node_swap \
                 rabbitmq \
                 root_shadow \
                 capi_admin_ip \
