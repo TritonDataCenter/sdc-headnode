@@ -54,16 +54,16 @@ trap 'errexit $? $LINENO' EXIT
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-24/deps/"
+MASTER_PLATFORM_URL="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-24/deps"
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
 ASSETS_ROOT=${MASTER_PLATFORM_URL}
 DATASETS_ROOT="https://joyent:H0neyB4dger@datasets.joyent.com/datasets"
-PKGSRC_ROOT="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-03-24/deps/pkgsrc/"
-AGENTS_BASE=${MASTER_PLATFORM_URL}
-RUBYAPP_BASE="https://joydev:leichiB8eeQu@216.57.203.66/release"
+PKGSRC_ROOT="${MASTER_PLATFORM_URL}/pkgsrc"
+AGENTS_BASE="${MASTER_PLATFORM_URL}/agents"
+RUBYAPP_BASE="${MASTER_PLATFORM_URL}/appzones"
 
 # Figure out first what we're building, and load the proper include
 
