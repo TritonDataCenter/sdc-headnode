@@ -671,20 +671,14 @@ function newer_of
         return 0
     fi
 
-    # Strip off .tar.bz2 extension (if has one)
+    # Strip off .tar.bz2 or .tbz2 extension (if has one)
     # break into elements separated by - _ or .
     a_array=(`echo "${a}" \
         | sed -e "s/\.tar\.bz2$//" \
-        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
-    b_array=(`echo "${b}" \
-        | sed -e "s/\.tar\.bz2$//" \
-        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
-
-    # Same for zones, those have .tbz2
-    a_array=(`echo "${a}" \
         | sed -e "s/\.tbz2$//" \
         | sed -e "s/[-_.]/ /g" | tr -s ' '`)
     b_array=(`echo "${b}" \
+        | sed -e "s/\.tar\.bz2$//" \
         | sed -e "s/\.tbz2$//" \
         | sed -e "s/[-_.]/ /g" | tr -s ' '`)
 
