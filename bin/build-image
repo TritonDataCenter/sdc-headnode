@@ -1073,6 +1073,11 @@ function get_upgrade_zones
 function pack_upgrade
 {
     buildstamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
+    if [ -f build-number.txt ]; then
+      buildstamp="$buildstamp-$(cat build-number.txt \
+          | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
     (cd ${ROOT}/cache \
         && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${buildstamp}.tgz upgrade)
 }
