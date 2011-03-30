@@ -339,7 +339,7 @@ function copy_pkgsrc
         | uniq \
         | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
-        MD5=$(${GREP} " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
+        MD5=$(${GREP} " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1 || true)
         if [[ -z ${MD5} ]]; then
             fatal "Unable to find md5sum for ${pkgfile}, " \
                 "must be fixed before we can continue."
