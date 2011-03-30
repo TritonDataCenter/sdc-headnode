@@ -948,7 +948,7 @@ function create_upgrade
         ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
         boot/grub/menu.lst.tmpl \
         config.default \
-        datasets \
+        datasets/smartos* \
         rc \
         scripts \
         ur-scripts \
