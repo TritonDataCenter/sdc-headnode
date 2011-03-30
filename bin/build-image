@@ -124,7 +124,8 @@ fi
 
 check_proxy
 
-MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@coal.joyent.us/coal/live_147")
+MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
+MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
@@ -132,7 +133,7 @@ fi
 ASSETS_ROOT=$(proxy "https://guest:GrojhykMid@assets.joyent.us/datasets")
 DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/live_147/agents")
+AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
 RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
 
 # Figure out first what we're building, and load the proper include
