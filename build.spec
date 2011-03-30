@@ -12,7 +12,7 @@
   ]
   , "adminui-checkout": "origin/release-20110324"
   , "atropos-tarball": "^atropos-develop-20110210.tar.bz2.20110224$"
-  , "ca-tarball": "^ca-pkg-master-20110324.tar.bz2$"
+  , "ca-tarball": "^ca-pkg-release-20110324-20110324.tar.bz2$"
   , "capi-checkout": "origin/release-20110324"
   , "dhcpd-checkout": "origin/release-20110324"
   , "mapi-checkout": "origin/release-20110324"
@@ -21,13 +21,13 @@
   , "rabbitmq-checkout": "not-used"
   , "upgrades": {
       "agents": [
-          "atropos/develop/atropos-develop-*"
-        , "cloud_analytics/master/cabase-master-*"
-        , "cloud_analytics/master/cainstsvc-master-*"
-        , "dataset_manager/develop/dataset_manager-develop-*"
-        , "heartbeater/develop/heartbeater-develop-*"
-        , "provisioner/develop/provisioner-develop-*"
-        , "zonetracker/develop/zonetracker-develop-*"
+          "atropos/release-20110324/atropos-release-20110324-*"
+        , "cloud_analytics/release-20110324/cabase-release-20110324-*"
+        , "cloud_analytics/release-20110324/cainstsvc-release-20110324-*"
+        , "dataset_manager/release-20110324/dataset_manager-release-20110324-*"
+        , "heartbeater/release-20110324/heartbeater-release-20110324-*"
+        , "provisioner/release-20110324/provisioner-release-20110324-*"
+        , "zonetracker/release-20110324/zonetracker-release-20110324-*"
       ]
     , "appzones": [
           "adminui"

@@ -879,13 +879,13 @@ function copy_to_mount
 
 # XXX use version from build.spec instead
 AGENTS=( \
-    atropos/develop/atropos-develop-* \
-    cloud_analytics/master/cabase-master-* \
-    cloud_analytics/master/cainstsvc-master-* \
-    dataset_manager/develop/dataset_manager-develop-* \
-    heartbeater/develop/heartbeater-develop-* \
-    provisioner/develop/provisioner-develop-* \
-    zonetracker/develop/zonetracker-develop-* \
+    atropos/release-20110324/atropos-release-20110324-* \
+    cloud_analytics/release-20110324/cabase-release-20110324-* \
+    cloud_analytics/release-20110324/cainstsvc-release-20110324-* \
+    dataset_manager/release-20110324/dataset_manager-release-20110324-* \
+    heartbeater/release-20110324/heartbeater-release-20110324-* \
+    provisioner/release-20110324/provisioner-release-20110324-* \
+    zonetracker/release-20110324/zonetracker-release-20110324-* \
 )
 
 # XXX use version from build.spec instead
