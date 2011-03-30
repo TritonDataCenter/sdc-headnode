@@ -32,6 +32,7 @@ usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:def
 
 . /lib/sdc/config.sh
 load_sdc_sysinfo
+load_sdc_config
 
 # Ensure we're a SmartOS headnode
 if [[ ${SYSINFO_Bootparam_headnode} != "true" \
@@ -101,6 +102,7 @@ function backup_usbkey
 
     (cd ${usbmnt} && gtar -cf - \
         boot/grub/menu.lst.tmpl \
+        data \
         datasets/smartos.{uuid,filename} \
         rc \
         scripts \
@@ -146,13 +148,18 @@ function import_datasets
 
 function recreate_zones
 {
-    # TODO: need to pull out packages from atropos zone before recreating and republish after!
-
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
         mkdir -p ${backup_dir}/zones/${zone}
-        /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
-            ${backup_dir}/zones/${zone}/
+        if [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
+            /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
+                ${backup_dir}/zones/${zone}/
+        elif [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
+            ${usbcpy}/zones/${zone}/backup ${zone} \
+                ${backup_dir}/zones/${zone}/
+        else
+            echo "--> Warning: No backup script!"
+        fi
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
     done
@@ -166,12 +173,65 @@ function recreate_zones
 
 function backup_npm_registry
 {
-    echo "==> Would backup npm registry from atropos"
+    atropos_ip=$1
+    backup_dir=$2
+
+    mkdir -p ${backup_dir}
+    echo "==> Backuping up npm registry from atropos"
+
+    for agent in $(curl -s http://${atropos_ip}:5984/jsregistry/_design/app/_rewrite \
+        | json | grep '^  \"' | cut -d '"' -f2); do
+
+        echo "==> Looking for tarballs for agent '${agent}'"
+        output=$(curl -s http://${atropos_ip}:5984/jsregistry/${agent}/)
+        json_output=$(echo ${output} | /usr/bin/json > "${backup_dir}/${agent}.json")
+        declare -a uris
+
+        # Grab the URIs and replace any target with the correct IP (no DNS!)
+        # Also fix the URL for npm which for some reason picks a different format.
+        uris=$(cat "${backup_dir}/${agent}.json" \
+            | grep tarball \
+            | awk '{print $2}' \
+            | tr -s '"' ' ' \
+            | sed -e "s|http://.*:5984|http://${atropos_ip}:5984|" \
+            | sed -e "s|:5984/npm/-|:5984/jsregistry/_design/app/_rewrite/npm/-|")
+
+        if [[ -z ${uris} ]]; then
+            echo "--> Cannot find agent '${agent}' in atropos registry, skipping"
+        else
+            for uri in ${uris}; do
+                echo "==> Downloading: ${uri}"
+                basename=$(echo "${uri}" | sed 's|^.*://.*/||g')
+                curl --progress-bar $uri -o "${backup_dir}/${basename}" \
+                    || echo "failed to download '${basename}'"
+            done
+        fi
+        rm "${backup_dir}/${agent}.json"
+    done
 }
 
 function restore_npm_registry
 {
-    echo "==> Would restore npm registry to atropos"
+    backup_dir=$1
+
+    echo "==> Restoring npm registry to atropos from ${backup_dir}"
+
+    # Once everything is done, go publish them again
+    agent_files=$(ls ${backup_dir}/*)
+    for agent_file in ${agent_files[@]}; do
+        /opt/smartdc/agents/bin/agents-npm publish ${agent_file}
+    done
+}
+
+function install_new_agents
+{
+    if [[ -d ${ROOT}/agents ]]; then
+        echo "==> Publishing new npm agents to atropos"
+        agent_files=$(ls ${ROOT}/agents/*)
+        for agent_file in ${agent_files[@]}; do
+            /opt/smartdc/agents/bin/agents-npm publish ${agent_file}
+        done
+    fi
 }
 
 function upgrade_zones
@@ -227,7 +287,6 @@ function reenable_agents
     IFS=${oldifs}
 }
 
-
 mount_usbkey
 check_versions
 backup_usbkey
@@ -237,18 +296,16 @@ trap cleanup EXIT
 # import new headnode dataset if there's one (used for new headnode zones)
 import_datasets
 
-backup_npm_registry
+backup_npm_registry "${CONFIG_atropos_admin_ip}" ${backup_dir}/npm_registry
 recreate_zones
-restore_npm_registry
+restore_npm_registry ${backup_dir}/npm_registry
 upgrade_zones
 reenable_agents
 
-# TODO
-#
-# If there are agents in ${ROOT}/agents, publish to npm (and apply?)
-# If not (default) MAPI will have updated for us
-#
+# If there are new agents in this upgrade, publish them to atropos
+install_new_agents
 
+# new platform!
 install_platform
 
 # TODO: make list of added/removed config options from config.default over config

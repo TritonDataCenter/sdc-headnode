@@ -184,7 +184,7 @@ zone_dhcp_server=$(eval "echo \${CONFIG_${zone}_dhcp_server}")
 [[ -n ${zone_dhcp_server} ]] &&
     zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
 
-echo -n "creating zone ${zone}... " >&${CONSOLE_FD}
+echo -n "Creating zone ${zone}... " >&${CONSOLE_FD}
 zonecfg -z ${zone} -f ${src}/config
 
 eval zone_cpu_shares=\${CONFIG_${zone}_cpu_shares}
@@ -360,7 +360,6 @@ grep -v "/var/svc/log" ${dest}/root/zoneinit.d/11-files.delete \
        ${dest}/root/zoneinit.d/11-files.delete
 
 zoneadm -z ${zone} boot
-echo "done." >&${CONSOLE_FD}
 
 if [[ ${wait_for_zoneinit} == "true" ]]; then
     if [ -e /zones/${zone}/root/root/zoneinit ]; then

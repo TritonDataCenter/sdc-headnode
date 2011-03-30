@@ -27,6 +27,14 @@ GREP=grep
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
+THIS_VERSION=$(date -u +%Y%m%dT%H%M%SZ).$(git symbolic-ref HEAD \
+    | cut -d'/' -f3)-$(git describe)
+
+if [ -f build-number.txt ]; then
+    THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
+        | sed -n 's,^build\.number=\(.*\),\1,p')"
+fi
+
 echo ">> Starting build at $(date)"
 
 function fatal
@@ -949,6 +957,7 @@ function create_upgrade
         ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
         boot/grub/menu.lst.tmpl \
         config.default \
+        data \
         datasets/smartos* \
         rc \
         scripts \
@@ -963,6 +972,7 @@ function create_upgrade
 
 function copy_to_mount
 {
+    echo "${THIS_VERSION}" > ${STAGE}/version
     (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
         | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
@@ -1084,18 +1094,10 @@ function get_upgrade_zones
 
 function pack_upgrade
 {
-    upgrade_version=$(date -u +%Y%m%dT%H%M%SZ).$(git symbolic-ref HEAD \
-        | cut -d'/' -f3)-$(git describe)
-
-    if [ -f build-number.txt ]; then
-        upgrade_version="${upgrade_version}-$(cat build-number.txt \
-            | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
-
-    echo "${upgrade_version}" > ${ROOT}/cache/upgrade/VERSION
+    echo "${THIS_VERSION}" > ${ROOT}/cache/upgrade/VERSION
 
     (cd ${ROOT}/cache \
-        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${upgrade_version}.tgz upgrade)
+        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${THIS_VERSION}.tgz upgrade)
 }
 
 # Main()
