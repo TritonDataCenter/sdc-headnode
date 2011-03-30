@@ -152,7 +152,7 @@ function install_platform
         if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
             ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
         else
-            echo "INFO: ${usbcpy}/os/${version} already exists, skipping update."
+            echo "INFO: ${usbcpy}/os/${platformversion} already exists, skipping update."
         fi
     fi
 }
