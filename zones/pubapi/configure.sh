@@ -32,11 +32,12 @@ development: &defaults
           default_limit: ${SMARTOS_DEFAULT_LIMIT}
           coupon: false
           repo: false
+          ram: [128, 256, 512, 1024, 2048, 4096]
         nodejs:
           default_limit: ${NODEJS_DEFAULT_LIMIT}
           coupon: false
           repo: true
-          ram: 128
+          ram: [128, 256, 512, 1024]
 
 staging:
   <<: *defaults
