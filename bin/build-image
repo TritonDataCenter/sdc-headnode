@@ -27,7 +27,6 @@ GREP=grep
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
-# 2>&1
 echo ">> Starting build at $(date)"
 
 function fatal
@@ -53,61 +52,60 @@ function check_nodejs
 
 function check_proxy
 {
-# See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
-if [[ -f "${ROOT}/build.spec.local" ]]; then
-    USE_PROXY=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json use-proxy)
-fi
-if [[ -f "${ROOT}/build.spec" ]]; then
-    if [[ -z ${USE_PROXY} ]]; then
-        USE_PROXY=$(cat ${ROOT}/build.spec \
+    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        USE_PROXY=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json use-proxy)
     fi
-fi
-if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
-    NOPROXY="true"
-fi
-
-if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
-  if netstat -rn | grep -q 10\.0\.1\.1 ; then
-    echo "Checking for proxy"
-    PROXY=`curl -m 1 -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
-    if [ "$PROXY" == "vancouver" ]; then
-      echo "Vancouver proxy found."
-    elif [ -n "$PROXY" ]; then
-      echo "Unknown proxy: $PROXY"
-    else
-      echo "No proxy found."
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        if [[ -z ${USE_PROXY} ]]; then
+            USE_PROXY=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json use-proxy)
+        fi
     fi
-  fi
-else
-    echo "Proxy disabled."
-fi
+    if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
+        NOPROXY="true"
+    fi
+
+    if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
+      if netstat -rn | grep -q 10\.0\.1\.1 ; then
+        echo "Checking for proxy"
+        PROXY=`curl -m 1 -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+        if [ "$PROXY" == "vancouver" ]; then
+          echo "Vancouver proxy found."
+        elif [ -n "$PROXY" ]; then
+          echo "Unknown proxy: $PROXY"
+        else
+          echo "No proxy found."
+        fi
+      fi
+    else
+        echo "Proxy disabled."
+    fi
 }
 
 function proxy
 {
-# See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
 
-if [ "$PROXY" = "vancouver" ]; then
+    if [ "$PROXY" = "vancouver" ]; then
 
-  # Sorry about the gnarly regexes - we want to generate URLs that look like:
-  #
-  # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
-  # /http/guest_GrojhykMid@10.0.1.8/platform
-  # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
-  # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
+      # Sorry about the gnarly regexes - we want to generate URLs that look like:
+      #
+      # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
+      # /http/guest_GrojhykMid@10.0.1.8/platform
+      # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
+      # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
 
-  PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\1,')
-  HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\2,' | tr : _)
-  FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\3,')
-  #echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH" 1>&2
-  echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
-else
-  echo $1
-fi
+      PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\1,')
+      HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\2,' | tr : _)
+      FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\3,')
+      #echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH" 1>&2
+      echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
+    else
+      echo $1
+    fi
 }
-
 
 trap 'errexit $? $LINENO' EXIT
 
@@ -123,7 +121,6 @@ if [[ -f "${ROOT}/build.spec" && -z ${NO_INTERNET} ]]; then
     NO_INTERNET=$(cat ${ROOT}/build.spec \
         | ${ROOT}/bin/json no-internet)
 fi
-
 
 check_proxy
 
@@ -944,11 +941,13 @@ function create_upgrade
     rm -rf ${ROOT}/cache/upgrade
     mkdir -p ${ROOT}/cache/upgrade/usbkey
     cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
+    cp ${STAGE}/config ${ROOT}/cache/upgrade/usbkey/config.default
     chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \
         && env GZIP=-9 \
         ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
         boot/grub/menu.lst.tmpl \
+        config.default \
         datasets \
         rc \
         scripts \
@@ -1062,9 +1061,7 @@ function get_latest_upgrade_zone
         | cut -d'"' -f2 \
         | ${GREP} "${pattern}"); do
 
-        #echo "LATEST BEF: ${latest}"
         latest=$(newer_of "${latest}" "${file}")
-        #echo "LATEST NOW: ${latest}"
     done
     [[ $? -ne 0 || -z ${latest} ]] \
         && fatal "Error getting file list for ${pattern}"

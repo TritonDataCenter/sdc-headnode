@@ -36,8 +36,6 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     exit 1
 fi
 
-# TODO: check system / version to ensure it's possible to apply this update.
-
 function cleanup
 {
     if [[ ${mounted_usb} == "true" ]]; then
@@ -46,18 +44,59 @@ function cleanup
     fi
 }
 
+function mount_usbkey
+{
+    if [[ -z $(mount | grep ^${usbmnt}) ]]; then
+        echo "==> Mounting USB key"
+        ${usbcpy}/scripts/mount-usb.sh
+        mounted_usb="true"
+    fi
+}
+
+function check_versions
+{
+    new_version=$(cat ${ROOT}/VERSION)
+
+    existing_version=$(cat ${usbmnt}/version)
+    if [[ -z ${existing_version} ]]; then
+        existing_version="ancient"
+    fi
+
+    # TODO: check system / version to ensure it's possible to apply this update.
+
+    echo "==> Upgrading from ${existing_version} to ${new_version}"
+}
+
+function backup_usbkey
+{
+    backup_dir=${usbcpy}/backup/${existing_version}.$(date -u +%Y%m%dT%H%M%SZ)
+
+    if [[ -d ${backup_dir} ]]; then
+        echo "FATAL: unable to create back dir ${backup_dir}"
+        exit 1
+    fi
+    mkdir -p ${backup_dir}/usbkey
+    mkdir -p ${backup_dir}/zones
+
+    echo "==> Creating backup in ${backup_dir}"
+
+    (cd ${usbmnt} && gtar -cf - \
+        boot/grub/menu.lst.tmpl \
+        datasets \
+        rc \
+        scripts \
+        ur-scripts \
+        zoneinit \
+        zones \
+    ) \
+    | (cd ${backup_dir}/usbkey && gtar --no-same-owner -xf -)
+}
+
 function upgrade_usbkey
 {
-    # TODO: need to do backup of this stuff before blowing away.
-
     usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
-        if [[ -z $(mount | grep ^${usbmnt}) ]]; then
-            echo "==> Mounting USB key"
-            ${usbcpy}/scripts/mount-usb.sh
-            mounted_usb="true"
-        fi
-        (cd ${usbmnt} && gzcat ${usbupdate} | tar -xvf -)
+        (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xvf -)
 
         # XXX (this is the point where we'd fix the config in /mnt/usbkey/config)
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
@@ -67,10 +106,12 @@ function upgrade_usbkey
 function recreate_zones
 {
     # TODO: need to pull out packages from atropos zone before recreating and republish after!
-    # TODO: backup zones.
 
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
+        mkdir -p ${backup_dir}/zones/${zone}
+        /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
+            ${backup_dir}/zones/${zone}/
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
     done
@@ -91,7 +132,7 @@ function upgrade_zones
     if [[ -d ${ROOT}/zones ]]; then
         cd ${ROOT}/zones
         for file in `ls *.tbz2 | grep -v ^pubapi-`; do
-            tar -jxf ${file}
+            gtar -jxf ${file}
         done
         for dir in `ls`; do
             if [[ -d ${dir} ]]; then
@@ -135,13 +176,17 @@ function reenable_agents
     IFS=${oldifs}
 }
 
-# TODO:
-#  verify upgrade can work on this machine (ie. we're already running the correct version)
 
+mount_usbkey
+check_versions
+backup_usbkey
 upgrade_usbkey
 trap cleanup EXIT
 
 # TODO: import new headnode dataset if there's one.
+#
+# if smartos.uuid not imported, import smartos.filename
+#
 
 recreate_zones
 upgrade_zones
@@ -155,6 +200,9 @@ reenable_agents
 
 install_platform
 
-# TODO: update version
+# TODO: make list of added/removed config options from config.default over config
+
+# Update version, since the upgrade made it here.
+echo "${new_version}" > ${usbmnt}/version
 
 exit 0
