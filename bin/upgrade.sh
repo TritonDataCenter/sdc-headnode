@@ -7,6 +7,7 @@ BASH_XTRACEFD=4
 set -o xtrace
 
 ROOT=$(pwd)
+export SDC_UPGRADE_ROOT=${ROOT}
 
 #
 # IMPORTANT, this purposefully does not include 'portal' since that zone
