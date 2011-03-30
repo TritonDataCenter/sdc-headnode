@@ -138,9 +138,11 @@ function reenable_agents
 # TODO:
 #  verify upgrade can work on this machine (ie. we're already running the correct version)
 
-
 upgrade_usbkey
 trap cleanup EXIT
+
+# TODO: import new headnode dataset if there's one.
+
 recreate_zones
 upgrade_zones
 reenable_agents

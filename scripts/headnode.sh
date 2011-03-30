@@ -93,13 +93,20 @@ if [[ ${POOLS} == "no pools available" ]]; then
 
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
-    echo -n "Importing zone template datasets... " >&${CONSOLE_FD}
-    for template in $(echo ${CONFIG_headnode_initial_datasets} | tr ',' ' '); do
-        ds=$(ls ${USB_PATH}/datasets/${template}*.zfs.bz2 | tail -1)
-        [[ -z ${ds} ]] && fatal "Failed to find '${template}' dataset"
-        echo -n "$(basename ${ds} .zfs.bz2) . "
-        bzcat ${ds} | zfs recv -e zones || fatal "unable to import ${template}";
-    done
+    ds_uuid=$(cat ${USB_PATH}/datasets/smartos.uuid)
+    ds_file=$(cat ${USB_PATH}/datasets/smartos.filename)
+
+    if [[ -z ${ds_uuid} || -z ${ds_file} \
+        || ! -f ${USB_PATH}/datasets/${ds_file} ]]; then
+
+        fatal "FATAL: unable to find 'smartos' dataset."
+    fi
+
+    echo -n "Importing zone template dataset... " >&${CONSOLE_FD}
+    bzcat ${USB_PATH}/datasets/${ds_file} \
+        | zfs recv zones/${ds_uuid} \
+        || fatal "unable to import ${template}"
+
     echo "done." >&${CONSOLE_FD}
 
     reboot
@@ -111,11 +118,6 @@ if ( zoneadm list -i | grep -v "^global$" ); then
 else
     ZONES=
 fi
-
-LATESTTEMPLATE=''
-for template in `ls /zones | grep smartos`; do
-    LATESTTEMPLATE=${template}
-done
 
 USBZONES=`ls ${USB_COPY}/zones`
 ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`

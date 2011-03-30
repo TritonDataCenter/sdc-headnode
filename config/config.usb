@@ -125,19 +125,6 @@ compute_node_ntp_hosts=10.99.99.7
 
 rabbitmq=guest:guest:10.99.99.5:5672
 
-# List of datasets to import on headnode automatically.  This should always
-# include 'smartos' unless you really know what you're doing, and the remainder
-# should also be on the usbkey in /usbkey/datasets with the extension
-# -<version>.zfs.bz2.
-headnode_initial_datasets="smartos"
-
-# Config options specific to compute nodes
-
-# List of datasets to import on compute nodes automatically.
-# These must exist on the headnode and be in /usbkey/datasets with the
-# extension -<version>.zfs.bz2.  Leave empty to not import any datasets by default.
-compute_node_initial_datasets="smartos"
-
 # Zone-specific configs
 
 adminui_admin_ip=10.99.99.10

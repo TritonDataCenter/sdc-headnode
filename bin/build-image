@@ -587,6 +587,8 @@ function copy_datasets
     while [[ ${index} -lt ${num_datasets} ]]; do
         name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
         uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
+        headnode_zones=$(echo "${datasets_json}" \
+            | ${ROOT}/bin/json ${index}.headnode_zones)
         manifest="${ROOT}/datasets/${name}.dsmanifest"
 
         if [[ ! -f $manifest ]] ; then
@@ -611,6 +613,18 @@ function copy_datasets
         copy_dataset ${name} ${uri}
         echo "==> Copying ${name} manifest"
         cp ${manifest} ${STAGE}/datasets/
+
+        # Since create-zone.sh needs to know which dataset it should use to
+        # base the headnode zones on, we create these files here, one which
+        # contains the filename of the 'smartos' dataset and one that contains
+        # its UUID.
+        #
+        # Note: ${dataset_file} is set by copy_dataset
+        if [[ -n ${headnode_zones} && ${headnode_zones} == "true" ]]; then
+            echo "${uuid}" > ${STAGE}/datasets/smartos.uuid
+            echo "${dataset_file}" > ${STAGE}/datasets/smartos.filename
+        fi
+
         index=$((${index} + 1))
     done
 }

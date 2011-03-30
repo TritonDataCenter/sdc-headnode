@@ -52,7 +52,6 @@ function install_node_config
             for opt in \
                 datacenter_name \
                 root_authorized_keys_file \
-                compute_node_initial_datasets \
                 assets_admin_ip \
                 atropos_admin_ip \
                 compute_node_ntp_conf_file \
@@ -145,17 +144,17 @@ fi
 . /lib/sdc/config.sh
 load_sdc_config
 
-LATESTTEMPLATE=''
-for template in `ls /zones | grep smartos`; do
-    LATESTTEMPLATE=${template}
-done
-
 src=${USB_COPY}/zones/${zone}
 
 zone_external_ip=
 zone_admin_ip=
 zone_external_netmask=
 zone_admin_netmask=
+
+ds_uuid=$(cat ${USB_COPY}/datasets/smartos.uuid)
+if [[ -z ${ds_uuid} ]]; then
+    fatal "Unable to find UUID of smartos dataset."
+fi
 
 if [[ -f "${src}/zoneconfig" ]]; then
     # zoneconfig can use variables from usbkey/config, so we
@@ -207,7 +206,7 @@ if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_i
    zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi
 
-zoneadm -z ${zone} install -t ${LATESTTEMPLATE}
+zoneadm -z ${zone} install -t ${ds_uuid}
 
 (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
 chown root:sys /zones/${zone}
@@ -222,10 +221,6 @@ if [[ -f "${src}/zoneconfig" ]]; then
     # environment, then printing all the variables from the file.  It is
     # done in a subshell to avoid further namespace polution.
     (
-        # Grab list of assets files actually in datasets repo
-        assets_available_dataset_list=$(cd /${USB_COPY}/datasets \
-            && ls *.zfs.bz2 | xargs | tr ' ' ',')
-
         . ${USB_COPY}/config
         . ${src}/zoneconfig
 

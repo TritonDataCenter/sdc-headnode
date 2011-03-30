@@ -266,50 +266,12 @@ install_configs()
     fi
 }
 
-# On compute node if we can pull datasets from assets zone on headnode, do that.
-install_datasets()
-{
-    if [[ -n $(/usr/bin/bootparams | grep "^headnode=true") ]] \
-        || [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
-        return 0
-    fi
-
-    if [[ -n "${CONFIG_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
-        assets=${CONFIG_assets_admin_ip}
-        for ds in $(echo "${CONFIG_initial_datasets}" | tr ',' ' '); do
-            echo "Installing dataset: ${ds} from ${assets}..." >&4
-            latest_version=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
-                | grep "href=\"${ds}-.*\.zfs.bz2" | cut -d'"' -f2 | sort | tail -n 1)
-            if ! curl -k --progress-bar http://${assets}/datasets/${latest_version} 2>&4 | bzip2 -d | zfs receive -e zones; then
-                echo " \\_ FAILED!" >&4
-            fi
-
-            if [[ "${ds}" =~ "nodejs" ]] && [[ ! -e "/opt/nodejs" ]]; then
-
-                # XXX SPECIAL CASE node dataset needs more magic!
-
-                latest_release=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
-                    | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -n 1)
-
-                echo "Installing extra magic for ${ds} from ${assets}..." >&4
-                base=$(echo ${latest_release} | sed 's/\.tgz$//')
-                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf - && mv ${base} nodejs); then
-                    echo " \\_ FAILED!" >&4
-                fi
-            fi
-        done
-    fi
-
-    return 0
-}
-
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     create_zpool
     setup_datasets
     install_configs
     create_swap
-    install_datasets
     output_zpool_info
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
