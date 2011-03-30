@@ -97,7 +97,7 @@ function upgrade_usbkey
 {
     usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
-        (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xvf -)
+        (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
 
         # XXX (this is the point where we'd fix the config in /mnt/usbkey/config)
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
