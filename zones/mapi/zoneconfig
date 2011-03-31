@@ -15,6 +15,7 @@ MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}
 
 MAPI_MAC_PREFIX="${mapi_mac_prefix}"
+DHCP_LEASE_TIME="${dhcp_lease_time}"
 RABBITMQ_PRIVATE_IP=${rabbitmq_admin_ip}
 RABBITMQ=${rabbitmq}
 

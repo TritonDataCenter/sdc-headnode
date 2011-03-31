@@ -160,6 +160,7 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   QUEUE_SYSTEM="AmqpQueueSystem" \
   EMAIL_PREFIX="[MCP API $host]" \
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
+  DHCP_LEASE_TIME="${DHCP_LEASE_TIME}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
  /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
