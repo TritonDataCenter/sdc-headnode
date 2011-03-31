@@ -78,7 +78,8 @@ function check_proxy
     if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
       if netstat -rn | grep -q 10\.0\.1\.1 ; then
         echo "Checking for proxy"
-        PROXY=`curl -m 1 -s http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+        PROXY=`curl ${SPEED_LIMIT} -m 1 -s \
+            http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
         if [ "$PROXY" == "vancouver" ]; then
           echo "Vancouver proxy found."
         elif [ -n "$PROXY" ]; then
@@ -121,13 +122,26 @@ STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
 
+SPEED_LIMIT=
 if [[ -f "${ROOT}/build.spec.local" ]]; then
     NO_INTERNET=$(cat ${ROOT}/build.spec.local \
         | ${ROOT}/bin/json no-internet)
+    SPEED_LIMIT=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json speed-limit)
 fi
-if [[ -f "${ROOT}/build.spec" && -z ${NO_INTERNET} ]]; then
-    NO_INTERNET=$(cat ${ROOT}/build.spec \
-        | ${ROOT}/bin/json no-internet)
+if [[ -f "${ROOT}/build.spec" ]]; then
+    if [[ -z ${NO_INTERNET} ]]; then
+        NO_INTERNET=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json no-internet)
+    fi
+    if [[ -z ${SPEED_LIMIT} ]]; then
+        SPEED_LIMIT=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json speed-limit)
+    fi
+fi
+
+if [[ -n ${SPEED_LIMIT} ]]; then
+    SPEED_LIMIT="--limit-rate ${SPEED_LIMIT}"
 fi
 
 check_proxy
@@ -336,7 +350,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
@@ -366,7 +380,8 @@ function copy_pkgsrc
             rm -f ${ROOT}/cache/${pkgfile}
             if [[ ${HAVE_INTERNET} == "true" ]]; then
                 (cd ${ROOT}/cache \
-                    && curl --progress-bar -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
+                    && curl ${SPEED_LIMIT} \
+                    --progress-bar -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
                     || fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
             else
                 fatal "Need Internet to download ${pkgfile}"
@@ -410,11 +425,11 @@ function copy_platform
     if [ -z $PLATFORM_FILE ]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
-                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
                     | ${GREP} "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
-                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
+                latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
                     | ${GREP} "href=\"platform-[0-9]" \
                     | cut -d'"' -f2 | sort | tail -1)
             fi
@@ -422,7 +437,8 @@ function copy_platform
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
-                  && curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image}) \
+                  && curl ${SPEED_LIMIT} \
+                  --progress-bar -k -O ${PLATFORM_URL}/${latest_image}) \
                   || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
@@ -502,7 +518,8 @@ function copy_agents
 
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+        latest_agents=$(curl ${SPEED_LIMIT} \
+            -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
             | ${GREP} "href=\"agents" \
             | ${GREP} "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
@@ -532,9 +549,11 @@ function copy_agents
             AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
             AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
 
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_URL}) \
+            (cd ${ROOT}/cache && curl ${SPEED_LIMIT} \
+                --progress-bar -k -O ${AGENT_URL}) \
                 || fatal "Unable to download ${AGENT_URL}"
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_MD_URL}) \
+            (cd ${ROOT}/cache && curl ${SPEED_LIMIT} \
+                --progress-bar -k -O ${AGENT_MD_URL}) \
                 || fatal "Unable to download ${AGENT_MD_URL}"
         else
             fatal "Don't have required '${use_agents}' " \
@@ -602,7 +621,8 @@ function copy_datasets
                 echo "==> Downloading ${name} manifest"
 
                 DATASET_URL="${DATASETS_ROOT}/${uuid}"
-                (curl --progress-bar -k -o ${manifest} ${DATASET_URL}) \
+                (curl ${SPEED_LIMIT} \
+                    --progress-bar -k -o ${manifest} ${DATASET_URL}) \
                     || fatal "Unable to download ${name} manifest"
             else
                 fatal "Don't have required '${name}' manifest" \
@@ -653,7 +673,7 @@ function copy_dataset
   if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
       if [[ ${HAVE_INTERNET} == "true" ]]; then
           echo "==> Downloading ${dataset_file}"
-          (cd ${ROOT}/cache && curl --progress-bar -k \
+          (cd ${ROOT}/cache && curl ${SPEED_LIMIT} --progress-bar -k \
               -O ${dataset_uri}) \
               || fatal "Unable to download ${dataset_file}"
       else
@@ -760,7 +780,7 @@ function get_latest
     latest=
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
+        for file in $(curl ${SPEED_LIMIT} -k -sS ${ASSETS_ROOT}/liveimg/ \
             | ${GREP} "href=" \
             | cut -d'"' -f2 \
             | ${GREP} "${FS_PATTERN}"); do
@@ -814,7 +834,7 @@ function get_fs_tarball
                 && CURL_OPTS="-z ${ROOT}/cache/${filename}"
 
             (cd ${ROOT}/cache \
-                && curl --progress-bar -k ${CURL_OPTS} \
+                && curl ${SPEED_LIMIT} --progress-bar -k ${CURL_OPTS} \
                 -fO ${ASSETS_ROOT}/liveimg/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
@@ -1039,13 +1059,13 @@ function get_latest_upgrade_agent
     pattern=$2
     out_dir=$3
 
-    latest=$(curl -k -sS ${url}/ \
+    latest=$(curl ${SPEED_LIMIT} -k -sS ${url}/ \
                  | ${GREP} "href=\"${pattern}" \
                  | cut -d'"' -f2 | sort | tail -1)
 
     oldwd=$(pwd)
     cd ${out_dir}
-    curl -k --progress -O ${url}/${latest}
+    curl ${SPEED_LIMIT} -k --progress -O ${url}/${latest}
     cd ${oldwd}
     echo "==> downloaded ${latest}"
 }
@@ -1067,7 +1087,7 @@ function get_latest_upgrade_zone
     out_dir=$3
 
     latest=
-    for file in $(curl -k -sS ${url}/ \
+    for file in $(curl ${SPEED_LIMIT} -k -sS ${url}/ \
         | ${GREP} "href=" \
         | cut -d'"' -f2 \
         | ${GREP} "${pattern}"); do
@@ -1079,7 +1099,7 @@ function get_latest_upgrade_zone
 
     oldwd=$(pwd)
     cd ${out_dir}
-    curl -k --progress -O ${url}/${latest}
+    curl ${SPEED_LIMIT} -k --progress -O ${url}/${latest}
     cd ${oldwd}
     echo "==> downloaded ${latest}"
 }
