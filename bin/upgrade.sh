@@ -148,6 +148,9 @@ function import_datasets
 
 function recreate_zones
 {
+    # dhcpd zone expects this to exist, so make sure it does:
+    mkdir -p ${usbcpy}/os
+
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
         mkdir -p ${backup_dir}/zones/${zone}
@@ -242,14 +245,20 @@ function upgrade_zones
     #
     if [[ -d ${ROOT}/zones ]]; then
         cd ${ROOT}/zones
-        for file in `ls *.tbz2 | grep -v ^pubapi-`; do
-            gtar -jxf ${file}
-        done
-        for dir in `ls`; do
-            if [[ -d ${dir} ]]; then
-                (cd ${dir} && ./*-dataset-update.sh)
-            fi
-        done
+        if [[ -n ${CONFIG_capi_is_local} \
+            && ${CONFIG_capi_is_local} == "false" ]]; then
+
+            echo "--> Skipping CAPI zone, because CAPI is not local."
+        else
+            for file in `ls *.tbz2 | grep -v ^pubapi-`; do
+                gtar -jxf ${file}
+            done
+            for dir in `ls`; do
+                if [[ -d ${dir} ]]; then
+                    (cd ${dir} && ./*-dataset-update.sh)
+                fi
+            done
+        fi
     fi
 }
 

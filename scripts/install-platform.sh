@@ -49,6 +49,7 @@ if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
 fi
 
 echo "==> Copying ${version} to ${usbcpy}/os"
+mkdir -p ${usbcpy}/os
 (cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
 
 if [[ ${mounted} == "true" ]]; then
