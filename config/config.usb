@@ -204,7 +204,7 @@ sbapi_http_user=sdc6support
 sbapi_http_pass=4cea03de8bf6
 
 mapi_admin_ip=10.99.99.8
-mapi_client_url=http://10.99.99.8:8080
+mapi_client_url=http://10.99.99.8:80
 mapi_root_pw=joypass123
 mapi_admin_pw=joypass123
 mapi_cpu_shares=50

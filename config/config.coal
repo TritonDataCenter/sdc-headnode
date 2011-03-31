@@ -158,7 +158,7 @@ ca_admin_pw=joypass123
 
 capi_is_local=true
 capi_admin_ip=10.99.99.11
-capi_client_url=http://10.99.99.11:8080
+capi_client_url=http://10.99.99.11:80
 # capi_external_ip=10.88.88.11
 # capi_external_vlan=0
 capi_root_pw=joypass123
