@@ -61,7 +61,7 @@ echo "==> Adding to list of available platforms"
 
 curr_list=$(curl -s -f -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
     --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null || /bin/true)
-if [[ -n ${curr_list} ]]; then
+if [[ $? -eq 0 ]]; then
     elements=$(echo "${curr_list}" | json length)
     found="false"
     idx=0

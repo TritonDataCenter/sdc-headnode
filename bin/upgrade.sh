@@ -297,6 +297,15 @@ function reenable_agents
 }
 
 mount_usbkey
+
+#
+# TODO: check a list of required config options and ensure config has them.
+# If existing config does not have them, tell the user to go add them and
+# go into a sleep loop, waiting for the config options to be there.  User
+# can add them from another terminal then we'll continue.  We can also
+# print the list with their default values from the new config.default.
+#
+
 check_versions
 backup_usbkey
 upgrade_usbkey
@@ -316,8 +325,6 @@ install_new_agents
 
 # new platform!
 install_platform
-
-# TODO: make list of added/removed config options from config.default over config
 
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
