@@ -10,7 +10,7 @@ ZONE=$1
 TARGET_DIR=$2
 
 APP_NAME='mapi'
-BASE="${TARGET_DIR}/${ZONE}/${APP_NAME}"
+BASE="${TARGET_DIR}/${APP_NAME}"
 
 # Note these include the .zfs extension
 APP_DATASET=$(ls ${BASE}|grep app)
