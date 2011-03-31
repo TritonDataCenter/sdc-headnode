@@ -206,7 +206,7 @@ if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_i
    zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi
 
-zoneadm -z ${zone} install -t ${ds_uuid}
+zoneadm -z ${zone} install -t ${ds_uuid} >&5 2>&1
 
 (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
 chown root:sys /zones/${zone}
@@ -360,6 +360,7 @@ grep -v "/var/svc/log" ${dest}/root/zoneinit.d/11-files.delete \
        ${dest}/root/zoneinit.d/11-files.delete
 
 zoneadm -z ${zone} boot
+echo "done." >&${CONSOLE_FD}
 
 if [[ ${wait_for_zoneinit} == "true" ]]; then
     if [ -e /zones/${zone}/root/root/zoneinit ]; then
