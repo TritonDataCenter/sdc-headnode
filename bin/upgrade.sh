@@ -133,7 +133,7 @@ function import_datasets
         fatal "no uuid set in ${usbmnt}/datasets/smartos.uuid"
     else
         echo "==> Ensuring ${ds_uuid} is imported."
-        if [[ -z $(zfs list | grep "^zones/e2abe3f6-5668-11e0-bab1-07a4d450d804") ]]; then
+        if [[ -z $(zfs list | grep "^zones/${ds_uuid}") ]]; then
             # not already imported
             if [[ -f ${usbmnt}/datasets/${ds_file} ]]; then
                 bzcat ${usbmnt}/datasets/${ds_file} \
