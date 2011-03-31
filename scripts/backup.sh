@@ -101,6 +101,8 @@ function backup_usbkey
 
     (cd ${usbmnt} && gtar -cf - \
         boot/grub/menu.lst.tmpl \
+        config \
+        config.inc \
         data \
         datasets/smartos.{uuid,filename} \
         rc \
