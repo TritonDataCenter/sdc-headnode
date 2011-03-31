@@ -70,6 +70,20 @@ for app in capi dnsapi; do
       fi
     fi
   fi
+done
+
+echo "==> Halting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} halt
+sleep 5
+
+for app in capi dnsapi; do
+  APP_NAME="${app}"
+  BASE="${TARGET_DIR}/${APP_NAME}"
+
+  # Note these include the .zfs extension
+  APP_DATASET=$(ls ${BASE}|grep app)
+  DATA_DATASET=$(ls  ${BASE}|grep data)
+  PG_DUMP_VERSION=$(cat ${BASE}/RESTORE)
 
   # Destroy previous datasets, (could have same name and we could be trying
   # to restore them from a previous backup)
@@ -137,8 +151,8 @@ done
 # Now we need to reboot the zone in order to be able to set mountpoints for the
 # new datasets properly:
 
-echo "==> Restarting '${ZONE}' zone"
-/usr/sbin/zoneadm -z ${ZONE} reboot
+echo "==> Booting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} boot
 
 
 for app in capi dnsapi; do

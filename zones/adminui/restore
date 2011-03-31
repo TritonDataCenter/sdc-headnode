@@ -70,6 +70,10 @@ if [[ -z $PREVIOUS_DATA_DATASET ]]; then
   fi
 fi
 
+echo "==> Halting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} halt
+sleep 5
+
 # Destroy previous datasets, (could have same name and we could be trying
 # to restore them from a previous backup)
 if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_APP_DATASET}") ]]; then
@@ -135,8 +139,8 @@ fi
 # Now we need to reboot the zone in order to be able to set mountpoints for the
 # new datasets properly:
 
-echo "==> Restarting '${ZONE}' zone"
-/usr/sbin/zoneadm -z ${ZONE} reboot
+echo "==> Booting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} boot
 
 # Double check mountpoint for backup datasets:
 if [[ "$(zfs get -H -o value mountpoint zones/${ZONE}/${APP_DATASET%.*})" != "/opt/smartdc/${APP_NAME}"  ]]; then
