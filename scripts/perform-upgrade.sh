@@ -28,10 +28,12 @@ set -o errexit
 set -o pipefail
 set -o xtrace
 
+# consume the first arg (remainder get passed through)
 input=$1
+shift
 if [[ -z ${input} || ! -f ${input} ]]; then
     sleep 0.1 # since output is going through tee and might lag slightly
-    echo "Usage: $0 <upgrade file>"
+    echo "Usage: $0 <upgrade file> [options]"
     exit 1
 fi
 
@@ -72,7 +74,7 @@ fi
 
 echo "==> Running Upgrade Script"
 cd ${TEMPDIR}/upgrade
-bash ${TEMPDIR}/upgrade/upgrade.sh
+bash ${TEMPDIR}/upgrade/upgrade.sh $@
 echo "==> Upgrade script exited with status $?"
 
 # unset trap
