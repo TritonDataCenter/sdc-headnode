@@ -138,7 +138,7 @@ function backup_zones
 function create_backup_tarball
 {
     cd ${BACKUPS}
-    gtar -cf ${BACKUP_VERSION}.tgz ${BACKUP_VERSION}
+    gtar -zcf ${BACKUP_VERSION}.tgz ${BACKUP_VERSION}
     rm -Rf ${BACKUPDIR}
 }
 
