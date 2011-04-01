@@ -349,7 +349,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl ${SPEED_LIMIT} -k --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
