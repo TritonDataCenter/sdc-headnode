@@ -226,6 +226,7 @@ portal_admin_pw=joypass123
 portal_cpu_shares=50
 portal_max_lwps=1000
 portal_memory_cap=128m
+portal_external_url=https://10.99.99.14
 
 pubapi_admin_ip=10.99.99.13
 pubapi_client_url=http://10.99.99.13:8080/v1
