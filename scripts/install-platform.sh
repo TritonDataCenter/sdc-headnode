@@ -29,6 +29,9 @@ fi
 
 # this should result in something like 20110318T170209Z
 version=$(basename "${input}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
+if [[ -n $(echo $(basename "${input}") | grep "HVM-${version}" 2>/dev/null) ]]; then
+    version="HVM-${version}"
+fi
 
 if [[ -d ${usbmnt}/os/${version} ]]; then
     echo "FATAL: ${usbmnt}/os/${version} already exists."
