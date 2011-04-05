@@ -188,7 +188,30 @@ if [ -n "${CREATEDZONES}" ]; then
         fi
     fi
 
-    echo "==> Setup complete.  Press [enter] to get login prompt." >&${CONSOLE_FD}
+    # Check that all of the zone's svcs are up before we end.
+    # The svc installing the zones is still running since we haven't exited
+    # yet, so the svc count should be 1 for us to end successfully.
+    # If they're not up after 4 minutes, report a possible issue.
+    echo -n "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
+    i=0
+    while [ $i -lt 16 ]; do
+        nstarting=`svcs -Zx 2>&1 | grep -c "State:"`
+        if [ $nstarting -lt 2 ]; then
+                break
+        fi
+        sleep 15
+        i=`expr $i + 1`
+    done
+    echo "" >&${CONSOLE_FD}
+
+    if [ $nstarting -gt 1 ]; then
+        echo "Warning: services in the following zones are still not running:" \
+            >&${CONSOLE_FD}
+        svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u \
+            >&${CONSOLE_FD}
+    fi
+    echo "==> Setup complete.  Press [enter] to get login prompt." \
+       >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
 fi
 
