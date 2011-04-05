@@ -60,7 +60,8 @@ done
 
 # Double check that we really don't have any users
 num_users=$(su - rabbitmq -c \
-    "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_users" | wc -l)
+    "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_users" | \
+    wc -l | tr -d ' ')
 
 if [[ ${num_users} != "0" ]]; then
     echo "Failed to remove users!"
