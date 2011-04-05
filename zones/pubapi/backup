@@ -95,6 +95,11 @@ if [[ ! -f "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-data" ]]; then
   fi
 fi
 
+echo "==> Removing temporary snapshots of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION}"
+/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}"
+
+
 # Create a file to hold the $BACKUP_VERSION for the restore script:
 echo "${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"
 
