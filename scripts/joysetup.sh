@@ -1,9 +1,9 @@
-#!/usr/bin/bash
+#!/bin/bash
 #
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
 
-PATH=/usr/bin:/usr/sbin
+PATH=/usr/bin:/usr/sbin:/sbin:/bin
 export PATH
 
 ZPOOL=zones
@@ -16,6 +16,8 @@ USBKEYDS=$ZPOOL/usbkey
 SWAPVOL=${ZPOOL}/swap
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
+
+
 
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
@@ -51,10 +53,15 @@ function ceil
 {
     x=$1
 
-    # ksh93 supports a bunch of math functions that don't exist in bash.
-    # including floating point stuff.
-    expression="echo \$((ceil(${x})))"
-    result=$(ksh93 -c "${expression}")
+    if [[ $(uname -s) != 'Linux' ]]; then
+        # ksh93 supports a bunch of math functions that don't exist in bash.
+        # including floating point stuff.
+        expression="echo \$((ceil(${x})))"
+        result=$(ksh93 -c "${expression}")
+    else
+	# On SunOS we use ksh93, on Linux perl?!  Which is worse?
+        result=$(perl -e "use POSIX qw/ceil/; my \$num = (${x}); print ceil(\$num) . \"\n\";")
+    fi
 
     echo ${result}
 }
@@ -217,8 +224,15 @@ create_swap()
         swapsize=$(swap_in_GiB ${DEFAULT_SWAP})
     fi
 
-    echo -n "Creating swap zvol... " >&4
-    zfs create -V ${swapsize}g ${SWAPVOL}
+    if [[ $(uname -s) == 'Linux' ]]; then
+        echo -n "Creating swap volume... " >&4
+        lvcreate -L ${swapsize}G -n swap smartdc
+	mkswap -f /dev/smartdc/swap
+	swapon /dev/smartdc/swap
+    else
+        echo -n "Creating swap zvol... " >&4
+        zfs create -V ${swapsize}g ${SWAPVOL}
+    fi
     echo "done." >&4
 }
 
@@ -254,7 +268,9 @@ install_configs()
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
-        mount -F zfs zones/opt /opt
+        if [[ $(uname -s) != 'Linux' ]]; then
+            mount -F zfs zones/opt /opt
+        fi
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
         echo "done." >&4
@@ -266,24 +282,94 @@ install_configs()
     fi
 }
 
-POOLS=`zpool list`
-if [[ ${POOLS} == "no pools available" ]]; then
-    create_zpool
-    setup_datasets
-    install_configs
-    create_swap
-    output_zpool_info
-    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-        # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
-        #
-        #   1. pretend we exited with status 0
-        #   2. send back the response to rabbitmq for this job
-        #   3. reboot
-        #
-        exit 113
+create_vg()
+{
+    disks=
+    for disk in $(sysinfo -p | grep "^Disk_.*_size" | cut -d'_' -f2); do
+        pvcreate --zero y --metadatasize 1018k /dev/${disk}
+	disks="${disks} /dev/${disk}"
+    done
+
+    vgcreate smartdc ${disks}
+}
+
+create_lvm_datasets()
+{
+    echo -n "Creating global cores dataset... " >&4
+    lvcreate -L 5G -n cores smartdc
+    mkfs.ext3 /dev/smartdc/cores
+    mkdir -p /cores
+    mount -text3 /dev/smartdc/cores /cores
+    chmod 1777 /cores
+    echo '/cores/core.%t.%u.%g.%s.%s' >/proc/sys/kernel/core_pattern
+    echo "done." >&4
+
+    echo -n "Creating opt dataset... " >&4
+    lvcreate -L 5G -n opt smartdc
+    mkfs.ext3 /dev/smartdc/opt
+    mount -text3 /dev/smartdc/opt /opt
+    echo "done." >&4
+
+    echo -n "Initializing var dataset... " >&4
+    lvcreate -L 5G -n var smartdc
+    mkfs.ext3 /dev/smartdc/var
+    mount -text3 /dev/smartdc/var /mnt
+    (cd /var && tar -cpf - ./) | (cd /mnt && tar -xf -)
+    umount /mnt
+    mount -text3 /dev/smartdc/var /var
+    echo "done." >&4
+}
+
+output_vg_info()
+{
+    results=$(vgs --separator '	' --units G --noheadings -o vg_name,vg_uuid,vg_size,vg_free | sed -e "s/^[ 	]*//")
+    name=$(echo "${results}" | cut -d'	' -f1)
+    echo "${results}	ONLINE	/${name}"
+}
+
+if [[ $(uname -s) == 'Linux' ]]; then
+    if [[ -z $(vgs) ]]; then
+
+        # TODO: see if we can tell if there's a zpool, if so, fail.
+
+        # rpool   7786468255783555057     278G    21.9G   ONLINE  /rpool
+        create_vg
+        create_lvm_datasets
+        install_configs
+        create_swap
+        output_vg_info
+        #if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+            # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
+            #
+            #   1. pretend we exited with status 0
+            #   2. send back the response to rabbitmq for this job
+            #   3. reboot
+            #
+            #exit 113
+        #fi
+    else
+        output_vg_info
     fi
 else
-    output_zpool_info
+    POOLS=`zpool list`
+    if [[ ${POOLS} == "no pools available" ]]; then
+        create_zpool
+        setup_datasets
+        install_configs
+        create_swap
+        output_zpool_info
+        if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+            # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
+            #
+            #   1. pretend we exited with status 0
+            #   2. send back the response to rabbitmq for this job
+            #   3. reboot
+            #
+            exit 113
+        fi
+    else
+        output_zpool_info
+    fi
 fi
 
 exit 0
