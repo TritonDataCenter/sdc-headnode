@@ -338,15 +338,13 @@ if [[ $(uname -s) == 'Linux' ]]; then
         install_configs
         create_swap
         output_vg_info
-        #if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-            # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
-            #
-            #   1. pretend we exited with status 0
-            #   2. send back the response to rabbitmq for this job
-            #   3. reboot
-            #
-            #exit 113
-        #fi
+        # We exit with 113 which is a special code that tells ur-agent to:
+        #
+        #   1. pretend we exited with status 0
+        #   2. send back the response to rabbitmq for this job
+        #   3. reboot
+        #
+        exit 113
     else
         output_vg_info
     fi
