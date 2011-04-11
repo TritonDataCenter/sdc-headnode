@@ -227,8 +227,8 @@ create_swap()
     if [[ $(uname -s) == 'Linux' ]]; then
         echo -n "Creating swap volume... " >&4
         lvcreate -L ${swapsize}G -n swap smartdc
-	mkswap -f /dev/smartdc/swap
-	swapon /dev/smartdc/swap
+        mkswap -f /dev/smartdc/swap
+        swapon /dev/smartdc/swap
     else
         echo -n "Creating swap zvol... " >&4
         zfs create -V ${swapsize}g ${SWAPVOL}
@@ -317,6 +317,13 @@ create_lvm_datasets()
     (cd /var && tar -cpf - ./) | (cd /mnt && tar -xf -)
     umount /mnt
     mount -text3 /dev/smartdc/var /var
+    echo "done." >&4
+
+    echo -n "Initializing vms dataset... " >&4
+    mkdir -p /etc/vms
+    lvcreate -L 1G -n vms smartdc
+    mkfs.ext3 /dev/smartdc/vms
+    mount -text3 /dev/smartdc/vms /etc/vms
     echo "done." >&4
 }
 
