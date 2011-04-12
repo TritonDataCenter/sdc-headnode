@@ -104,9 +104,26 @@ root_authorized_keys_file=root.authorized_keys
 #
 # ntp_hosts=[servers separated by commas]
 #
-# Or generate your own ntp.conf file and include the filename as the argument to:
+# Or generate your own ntp.conf file and include the filename as the argument
+# to:
 #
 # ntp_conf_file=<filename of file in config.inc>
+#
+# Here is an example file:
+#    driftfile /var/ntp/ntp.drift
+#    disable auth
+#
+#    broadcast 10.0.91.255
+#
+#    server 0.pool.ntp.org prefer iburst
+#    server 1.pool.ntp.org iburst
+#    server 2.pool.ntp.org iburst
+#
+# The "server" lines specify a server to sync with; thus this system would be
+# a client of those 3 servers.  The "broadcast" line specifies that this system
+# will ACT as a server (time source) by sending out time on broadcast
+# address 10.0.91.255.  An NTP client always acts as a server, so if you omit
+# the broadcast line, clients can still unicast to it.
 #
 # If you don't specify an ntp_hosts value, by default the system will try to
 # do a lookup of pool.ntp.org and take the IP addresses that come as a result
