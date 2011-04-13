@@ -25,7 +25,9 @@ fi
 # Halt the zone
 echo "==> Halting zone '${ZONE}'"
 /usr/sbin/zoneadm -z ${ZONE} halt
-sleep 5
+for (( i = 0 ; i <= 10 ; i++ )); do
+    $(zoneadm list | grep '^${ZONE}$' && break || sleep 5)
+done
 
 # Rename the cur dataset
 echo "==> Renaming zone"

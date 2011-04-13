@@ -21,7 +21,6 @@ set -o pipefail
 ROOT_DIR=$(cd $(dirname $0); pwd)
 PKG_REPO="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All"
 BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
-GCC_RUNTIME="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/gcc452runtime.tgz"
 
 if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
@@ -46,7 +45,6 @@ fi
 if [[ ! -x /opt/local/bin/pkgin ]]; then
     echo "==> Installing minimal pkgsrc"
     (cd /opt && curl -k ${BOOTSTRAP_TGZ} | gtar -C/ -zxf -)
-    (cd /opt && curl -k ${GCC_RUNTIME} | gtar -C/ -zxf -)
     echo "PKG_PATH=${PKG_REPO}" >> \
       /opt/local/etc/pkg_install.conf
     echo "==> Installing pkgin"
@@ -57,7 +55,6 @@ fi
 
 if [[ -z $(crle | grep '/opt/gcc/lib') ]]; then
     echo "==> Setting up crle"
-    crle -u -l /opt/gcc/lib
     crle -u -l /opt/local/lib
 fi
 
