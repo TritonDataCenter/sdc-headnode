@@ -4,12 +4,12 @@
   , "build-tgz": "true"
   , "agents-shar": "develop"
   , "datasets": [
-      { "name": "smartos-1.3.11"
-      , "uuid": "e2abe3f6-5668-11e0-bab1-07a4d450d807"
+      { "name": "smartos-1.3.12"
+      , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
       , "headnode_zones": "true"
       }
-    , { "name": "nodejs-1.1.1"
-      , "uuid": "1250c668-5410-11e0-b1de-87052a113a10"
+    , { "name": "nodejs-1.1.2"
+      , "uuid": "0586c90c-61a6-11e0-baca-7b2797c68d6d"
       }
   ]
   , "adminui-checkout": "origin/develop"
