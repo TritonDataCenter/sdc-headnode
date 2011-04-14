@@ -152,6 +152,7 @@ adminui_admin_pw=joypass123
 adminui_cpu_shares=50
 adminui_max_lwps=1000
 adminui_memory_cap=1024m
+adminui_workers=3
 
 assets_admin_ip=10.99.99.6
 # assets_external_ip=10.88.88.6
@@ -188,6 +189,7 @@ capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 capi_cpu_shares=50
 capi_max_lwps=1000
 capi_memory_cap=1024m
+capi_workers=3
 #
 # If the capi_allow_file file exists in config.inc/ it should contain a list of
 # CIDR addresses like:
@@ -232,6 +234,7 @@ mapi_http_port=8080
 mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
 mapi_datasets="smartos,nodejs"
+mapi_workers=3
 dbconn_retry_after=10
 dbconn_num_attempts=10
 

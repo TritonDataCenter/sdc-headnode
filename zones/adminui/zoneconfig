@@ -8,6 +8,7 @@ ROOT_PW=${adminui_root_pw}
 ADMIN_PW=${adminui_admin_pw}
 ADMINUI_IP=${adminui_admin_ip}
 TMPFS=512m
+WORKERS=${adminui_workers}
 
 MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}
