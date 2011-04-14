@@ -17,7 +17,10 @@ SWAPVOL=${ZPOOL}/swap
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
 
-
+# Fix staircase on Linux
+if [[ $(uname -s) == 'Linux' ]]; then
+    stty onlcr opost </dev/console >/dev/console 2>&1
+fi
 
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
