@@ -185,7 +185,7 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/unicorn.conf ]]; then
   echo "Creating MCP API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/mapi'; application='mcp_api'; puts ERB.new(File.read('/opt/smartdc/mapi/config/unicorn.conf.erb')).result" > /opt/smartdc/mapi/config/unicorn.conf
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/mapi'; application='mcp_api'; puts ERB.new(File.read('/opt/smartdc/mapi/config/unicorn.conf.erb')).result" > /opt/smartdc/mapi/config/unicorn.conf
   chown jill:jill /opt/smartdc/mapi/config/unicorn.conf
 fi
 

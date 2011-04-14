@@ -7,6 +7,7 @@ PUBLIC_IP=${capi_external_ip-${capi_admin_ip}}
 ROOT_PW=${capi_root_pw}
 ADMIN_PW=${capi_admin_pw}
 TMPFS=512m
+WORKERS=${capi_workers}
 
 POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres

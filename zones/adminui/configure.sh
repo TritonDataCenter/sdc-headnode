@@ -97,7 +97,7 @@ fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
   echo "Creating MAPI Admin UI Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=1; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
+  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
   chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
 fi
 

@@ -10,6 +10,7 @@ TMPFS=512m
 POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
+WORKERS=${mapi_workers}
 
 MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}
