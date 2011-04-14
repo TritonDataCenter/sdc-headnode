@@ -163,7 +163,7 @@ RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
 PLATFORM=$(uname -s)
 BUILD_TYPE=$1
 if [[ -z ${BUILD_TYPE} ]]; then
-    BUILD_TYPE="vmware"
+    BUILD_TYPE="coal"
 fi
 if [[ ${PLATFORM} == 'Darwin' ]]; then
     case ${BUILD_TYPE} in
@@ -195,6 +195,10 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
     case ${BUILD_TYPE} in
+        coal)
+            source ${ROOT}/bin/include-vmware-linux
+            version
+            ;;
         vmware)
             source ${ROOT}/bin/include-vmware-linux
             version
