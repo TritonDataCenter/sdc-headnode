@@ -119,6 +119,11 @@ function swap_in_GiB
 create_zpool()
 {
     disks=''
+    
+    # if the pool already exists, don't create it again
+    if /usr/sbin/zpool list -H -o name ${ZPOOL}; then
+      return 0
+    fi
 
     if /usr/bin/bootparams | grep "headnode=true"; then
         for disk in `/usr/bin/disklist -n`; do
@@ -172,35 +177,48 @@ create_dump()
 #
 setup_datasets()
 {
+  datasets=$(zfs list -H -o name | xargs)
+  
+  if ! echo $datasets | grep dump > /dev/null; then
     echo -n "Making dump zvol... " >&4
     create_dump
     echo "done." >&4
+  fi
 
+  if ! echo $datasets | grep ${CONFDS} > /dev/null; then
     echo -n "Initializing config dataset for zones... " >&4
     zfs create ${CONFDS} || fatal "failed to create the config dataset"
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
     zfs set mountpoint=legacy ${CONFDS}
     echo "done." >&4
+  fi
 
+  if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
     if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
         echo -n "Creating usbkey dataset... " >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
         echo "done." >&4
     fi
+  fi
 
+  if ! echo $datasets | grep ${COREDS} > /dev/null; then
     echo -n "Creating global cores dataset... " >&4
     zfs create -o quota=10g -o mountpoint=/zones/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
     echo "done." >&4
+  fi
 
+  if ! echo $datasets | grep ${OPTDS} > /dev/null; then
     echo -n "Creating opt dataset... " >&4
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
     echo "done." >&4
+  fi
 
+  if ! echo $datasets | grep ${VARDS} > /dev/null; then
     echo -n "Initializing var dataset... " >&4
     zfs create ${VARDS} || \
       fatal "failed to create the var dataset"
@@ -212,6 +230,7 @@ setup_datasets()
 
     zfs set mountpoint=legacy ${VARDS}
     echo "done." >&4
+  fi
 }
 
 create_swap()
@@ -233,10 +252,12 @@ create_swap()
         mkswap -f /dev/smartdc/swap
         swapon /dev/smartdc/swap
     else
-        echo -n "Creating swap zvol... " >&4
-        zfs create -V ${swapsize}g ${SWAPVOL}
+        if ! zfs list -H -o name ${SWAPVOL}; then
+            echo -n "Creating swap zvol... " >&4
+            zfs create -V ${swapsize}g ${SWAPVOL}
+            echo "done." >&4
+        fi
     fi
-    echo "done." >&4
 }
 
 # We send info about the zpool when we have one, either because we created it or it already existed.
@@ -272,7 +293,7 @@ install_configs()
 
         # mount /opt before doing this or changes are not going to be persistent
         if [[ $(uname -s) != 'Linux' ]]; then
-            mount -F zfs zones/opt /opt
+            mount -F zfs zones/opt /opt || echo "/opt already mounted"
         fi
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
