@@ -12,4 +12,5 @@
 *.swp
 /tmp
 /.DS_Store
-/datasets
+/datasets/nodejs-*
+/datasets/smartos-*

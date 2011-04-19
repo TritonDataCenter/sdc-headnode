@@ -1,0 +1,27 @@
+{
+  "name": "ubuntu",
+  "version": "10.04.2.1",
+  "type": "vmimage",
+  "description": "Ubuntu 10.04.2 VM image",
+  "created_at": "2011-04-09T09:41Z",
+  "updated_at": "2011-04-19T13:28Z",
+  "os": "linux",
+  "files": [
+    {
+      "path": "ubuntu-10.04.2.1.img.gz",
+      "sha1": "1718d0c2e11698ba2a6d93da3b8759ad2e3c0811",
+      "size": 211761559,
+      "url": "https://guest:GrojhykMid@216.57.203.66:444/kvm/ubuntu-10.04.2.1.img.gz"
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ]
+  },
+  "uuid": "b66fb52a-6a8a-11e0-94cd-b347300c5a06",
+  "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52"
+}

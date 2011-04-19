@@ -668,7 +668,7 @@ function copy_dataset
 
   dataset_file=$(basename ${dataset_uri})
   if [ -e ${ROOT}/cache/${dataset_file} ]; then
-    if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+    if ! bzip2 -t ${ROOT}/cache/${dataset_file} && ! gzip -t ${ROOT}/cache/${dataset_file}; then
         echo "==> Corrupt ${dataset_file}, deleting..."
         rm -f ${ROOT}/cache/${dataset_file}
     fi
@@ -686,7 +686,7 @@ function copy_dataset
       fi
   fi
 
-  if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+  if ! bzip2 -t ${ROOT}/cache/${dataset_file} && ! gzip -t ${ROOT}/cache/${dataset_file}; then
       rm -f ${ROOT}/cache/${dataset_file}
       fatal "Corrupt ${dataset_file}, deleted! Try build again."
   fi

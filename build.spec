@@ -11,6 +11,9 @@
     , { "name": "nodejs-1.1.3"
       , "uuid": "7456f2b0-67ac-11e0-b5ec-832e6cf079d5"
       }
+    , { "name": "ubuntu-10.04.2.1"
+      , "uuid": "b66fb52a-6a8a-11e0-94cd-b347300c5a06"
+      }
   ]
   , "adminui-checkout": "origin/develop"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
