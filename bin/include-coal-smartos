@@ -64,6 +64,7 @@ function create_output
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
         echo "==> Creating coal-${output_version}.tgz"
         (cd ${ROOT}/cache \
+            && rm -rf coal-${output_version}-${USB_SIZE}.vmwarevm \
             && mv USB-headnode.vmwarevm coal-${output_version}-${USB_SIZE}.vmwarevm \
             && ${TAR} -zcf ${ROOT}/coal-${output_version}-${USB_SIZE}.tgz \
             root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE}.vmwarevm *.manifest)
