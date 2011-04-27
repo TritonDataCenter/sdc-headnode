@@ -19,6 +19,7 @@
   , "dhcpd-checkout": "origin/develop"
   , "mapi-checkout": "origin/develop"
   , "portal-checkout": "origin/develop"
+  , "cloudapi-checkout": "origin/develop"
   , "pubapi-checkout": "origin/develop"
   , "rabbitmq-checkout": "origin/develop"
   , "upgrades": {

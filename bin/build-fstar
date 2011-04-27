@@ -84,6 +84,12 @@ case ${ZONE} in
             exit 1
         fi
         ;;
+    cloudapi)
+        if [[ -z ${CLOUDAPI_DIR} ]]; then
+            echo "Need CLOUDAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
     pubapi)
         if [[ -z ${PUBAPI_DIR} ]]; then
             echo "Need PUBAPI_DIR env for ${zone}"

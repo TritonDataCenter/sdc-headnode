@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+echo "cloudapi target: [${CHECKOUT_TARGET}]"
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+if [[ -n ${CLOUDAPI_DIR} ]]; then
+    if [[ -d ${CLOUDAPI_DIR} ]]; then
+        echo "taking cloudapi from ${CLOUDAPI_DIR}"
+        # XXX PORTAL_DIR must be a git repo (so git describe works)
+        mkdir cloudapi-repo
+        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
+        cd cloudapi-repo
+    else
+        echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:public-web-client.git cloudapi
+    cd cloudapi
+    git checkout ${CHECKOUT_TARGET}
+    touch ../cloudapi-VERSION
+    git describe --tags > ../cloudapi-VERSION
+    rm -rf .git
+fi
+
+rm -f config.js
