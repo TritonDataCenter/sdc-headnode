@@ -248,6 +248,16 @@ portal_max_lwps=1000
 portal_memory_cap=1024m
 portal_external_url=https://10.99.99.14
 
+cloudapi_admin_ip=10.99.99.15
+# cloudapi_external_ip=10.88.88.15
+# cloudapi_external_vlan=0
+cloudapi_root_pw=joypass123
+cloudapi_admin_pw=joypass123
+cloudapi_cpu_shares=50
+cloudapi_max_lwps=1000
+cloudapi_memory_cap=1024m
+cloudapi_external_url=https://10.99.99.15
+
 pubapi_admin_ip=10.99.99.13
 pubapi_client_url=http://10.99.99.13:8080/v1
 pubapi_capi_cache_size=100
