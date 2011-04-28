@@ -19,11 +19,9 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
         exit 1
     fi
 else
-    git clone git@git.joyent.com:public-web-client.git cloudapi
+    git clone git@git.joyent.com:cloudapi-rp.git cloudapi
     cd cloudapi
     git checkout ${CHECKOUT_TARGET}
-    touch ../cloudapi-VERSION
-    git describe --tags > ../cloudapi-VERSION
     rm -rf .git
 fi
 
