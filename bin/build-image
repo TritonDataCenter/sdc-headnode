@@ -146,17 +146,16 @@ fi
 
 check_proxy
 
-MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-04-28/deps")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT=$(proxy "https://guest:GrojhykMid@assets.joyent.us/datasets")
+ASSETS_ROOT=${MASTER_PLATFORM_URL}
 DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
+AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
+RUBYAPP_BASE=$(proxy "${MASTER_PLATFORM_URL}/appzones")
 
 # Figure out first what we're building, and load the proper include
 
@@ -354,7 +353,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl -k ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
@@ -430,7 +429,7 @@ function copy_platform
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             if [[ -n "${PLATFORM_RELEASE}" ]]; then
                 latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
-                    | ${GREP} "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | ${GREP} "href=\"platform-${PLATFORM_RELEASE}\.tgz" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
