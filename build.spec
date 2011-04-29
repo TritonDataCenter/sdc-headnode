@@ -24,8 +24,8 @@
   , "upgrades": {
       "agents": [
           "atropos/release-20110428/atropos-release-20110428-*"
-        , "cloud_analytics/master/cabase-release-20110428-*"
-        , "cloud_analytics/master/cainstsvc-release-20110428-*"
+        , "cloud_analytics/release-20110428/cabase-release-20110428-*"
+        , "cloud_analytics/release-20110428/cainstsvc-release-20110428-*"
         , "dataset_manager/release-20110428/dataset_manager-release-20110428-*"
         , "heartbeater/release-20110428/heartbeater-release-20110428-*"
         , "provisioner/release-20110428/provisioner-release-20110428-*"
