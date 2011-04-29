@@ -2,7 +2,7 @@
 
 set -e
 
-echo "cloudapi target: [${CHECKOUT_TARGET}]"
+echo "cloudapi-rp target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
@@ -10,7 +10,7 @@ cd root/opt/smartdc
 if [[ -n ${CLOUDAPI_DIR} ]]; then
     if [[ -d ${CLOUDAPI_DIR} ]]; then
         echo "taking cloudapi from ${CLOUDAPI_DIR}"
-        # XXX PORTAL_DIR must be a git repo (so git describe works)
+        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
         mkdir cloudapi-repo
         (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
         cd cloudapi-repo
@@ -25,4 +25,47 @@ else
     rm -rf .git
 fi
 
-rm -f config.js
+cd ..
+
+echo "cloudapi-v1 target: [${CHECKOUT_TARGET}]"
+
+if [[ -n ${CLOUDAPI_V1_DIR} ]]; then
+    if [[ -d ${CLOUDAPI_V1_DIR} ]]; then
+        echo "taking cloudapi from ${CLOUDAPI_V1_DIR}"
+        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
+        mkdir cloudapi-v1-repo
+        (cd ${CLOUDAPI_V1_DIR} && tar -cf - ./) | (cd cloudapi-v1-repo && tar -xf -)
+        cd cloudapi-v1-repo
+    else
+        echo "FATAL: ${CLOUDAPI_V1_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:cloudapi-v1.git v1
+    cd v1
+    git checkout ${CHECKOUT_TARGET}
+    ./node_modules/.bin/coffee -c .
+    rm -rf .git
+fi
+
+cd ..
+echo "cloudapi-v2 target: [${CHECKOUT_TARGET}]"
+
+if [[ -n ${CLOUDAPI_V2_DIR} ]]; then
+    if [[ -d ${CLOUDAPI_V2_DIR} ]]; then
+        echo "taking cloudapi from ${CLOUDAPI_V2_DIR}"
+        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
+        mkdir cloudapi-v2-repo
+        (cd ${CLOUDAPI_V2_DIR} && tar -cf - ./) | (cd cloudapi-v2-repo && tar -xf -)
+        cd cloudapi-v2-repo
+    else
+        echo "FATAL: ${CLOUDAPI_V2_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:cloud-api.git v2
+    cd v2
+    git checkout ${CHECKOUT_TARGET}
+    rm -rf .git
+fi
+
