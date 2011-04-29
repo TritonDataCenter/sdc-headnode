@@ -73,13 +73,160 @@ cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+echo Creating manifest for v1: 
+cat > /opt/smartdc/v1/v1_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="cloudapi">
+  <service name="smartdc/site/v1" type="service" version="0.0.1">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/local/bin/node server.js &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v1">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="PORT" value="8100" />
+          <envvar name="NODE_ENV" value="production" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v1">
+        <!-- <method_credential user="root" group="staff"/> -->
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v1">
+        <!-- <method_credential user="root" group="staff"/> -->
+      </method_context>
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+
+    <stability value="Evolving"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Cloudapi V1 daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo Creating manifest for v2: 
+cat > /opt/smartdc/v2/v2_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="cloudapi">
+  <service name="smartdc/site/v2" type="service" version="0.0.1">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/local/bin/node server.js &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v2">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="PORT" value="8200" />
+          <envvar name="NODE_ENV" value="production" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v2">
+        <!-- <method_credential user="root" group="staff"/> -->
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/v2">
+        <!-- <method_credential user="root" group="staff"/> -->
+      </method_context>
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+
+    <stability value="Evolving"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Cloudapi V2 daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
 echo Importing cloudapi_manifest.xml
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/cloudapi_manifest.xml
+
+echo Importing v1_manifest.xml
+/usr/sbin/svccfg import /opt/smartdc/v1/v1_manifest.xml
+
+echo Importing v2_manifest.xml
+/usr/sbin/svccfg import /opt/smartdc/v2/v2_manifest.xml
+
 sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/smartdc/site/cloudapi:default refresh
 echo Enablig service cloudapi
 /usr/sbin/svcadm enable smartdc/site/cloudapi
+
+echo Enablig service v1
+/usr/sbin/svcadm enable smartdc/site/v1
+
+echo Enablig service v2
+/usr/sbin/svcadm enable smartdc/site/v2
 
