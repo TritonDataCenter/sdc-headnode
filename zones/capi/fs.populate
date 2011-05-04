@@ -2,9 +2,18 @@
 
 set -e
 
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+fi
+
 mkdir -p root/opt/smartdc
 
 cd root/opt/smartdc
+
+if [[ $dorebuild == 1 ]]; then
+    CHECKOUT_TARGET=$(grep "^capi-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^capi-repo" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
 
 echo "CAPI target: [${CHECKOUT_TARGET}]"
 
@@ -15,6 +24,7 @@ if [[ -n ${CAPI_DIR} ]]; then
         mkdir capi-repo
         (cd ${CAPI_DIR} && tar -cf - ./) | (cd capi-repo && tar -xf -)
         cd capi-repo
+        mnfst_string="capi-repo@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${CAPI_DIR} is not a directory"
         exit 1
@@ -22,13 +32,26 @@ if [[ -n ${CAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:customers_api.git capi-repo
     cd capi-repo
-    git checkout ${CHECKOUT_TARGET}
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    mnfst_string="capi-repo@"${CHECKOUT_TARGET}
+fi
+
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 touch ../capi-VERSION
 git describe --tags > ../capi-VERSION
 
 cd ..
+
+if [[ $dorebuild == 1 ]]; then
+    CHECKOUT_TARGET=$(grep "^dnsapi-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^dnsapi-repo" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
 
 echo "DNSAPI target: [${CHECKOUT_TARGET}]"
 
@@ -39,6 +62,7 @@ if [[ -n ${DNSAPI_DIR} ]]; then
         mkdir dnsapi-repo
         (cd ${DNSAPI_DIR} && tar -cf - ./) | (cd dnsapi-repo && tar -xf -)
         cd dnsapi-repo
+        mnfst_string="dnsapi-repo@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${DNSAPI_DIR} is not a directory"
         exit 1
@@ -46,7 +70,15 @@ if [[ -n ${DNSAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:dns_api.git dnsapi-repo
     cd dnsapi-repo
-    git checkout ${CHECKOUT_TARGET}
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    mnfst_string="dnsapi-repo@"${CHECKOUT_TARGET}
+fi
+
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 touch ../dnsapi-VERSION
