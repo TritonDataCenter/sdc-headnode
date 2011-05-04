@@ -51,7 +51,7 @@ DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
 
 if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
   echo "Calling \$APP_NAME-update"
-  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby18 /opt/smartdc/\$APP_NAME/smartdc/update
+  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby /opt/smartdc/\$APP_NAME/smartdc/update
 else
   echo "\$APP_NAME is up to date"
 fi

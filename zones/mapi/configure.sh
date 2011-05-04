@@ -162,7 +162,7 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   DHCP_LEASE_TIME="${DHCP_LEASE_TIME}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
- /opt/local/bin/rake18 dev:configs -f /opt/smartdc/mapi/Rakefile && \
+ /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
@@ -174,18 +174,18 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
-  (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/mapi/Rakefile)
+  (cd /opt/smartdc/mapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/mapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/unicorn.smf ]]; then
   echo "Creating MCP API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='mcp_api'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/mapi/config/unicorn.smf
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='mcp_api'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/mapi/config/unicorn.smf
   chown jill:jill /opt/smartdc/mapi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/unicorn.conf ]]; then
   echo "Creating MCP API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/mapi'; application='mcp_api'; puts ERB.new(File.read('/opt/smartdc/mapi/config/unicorn.conf.erb')).result" > /opt/smartdc/mapi/config/unicorn.conf
+  /opt/local/bin/ruby -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/mapi'; application='mcp_api'; puts ERB.new(File.read('/opt/smartdc/mapi/config/unicorn.conf.erb')).result" > /opt/smartdc/mapi/config/unicorn.conf
   chown jill:jill /opt/smartdc/mapi/config/unicorn.conf
 fi
 
@@ -209,37 +209,37 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/heartbeater_client.smf ]]; then
   echo "Creating MCP API Heartbeater Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:heartbeater -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:heartbeater -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/heartbeater_client.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/provisioner_client.smf ]]; then
   echo "Creating MCP API Provisioner Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:provisioner -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:provisioner -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/provisioner_client.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/datasetmanager_client.smf ]]; then
   echo "Creating MCP API DatasetManager client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:datasetmanager -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:datasetmanager -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/datasetmanager_client.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/ur_client.smf ]]; then
   echo "Creating MAPI Ur Client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:ur -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:ur -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/ur_client.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/atropos_client.smf ]]; then
   echo "Creating MAPI Atropos Client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:atropos -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/atropos_client.smf
 fi
 
 if [[ ! -e /opt/smartdc/mapi/config/zonetracker_client.smf ]]; then
   echo "Creating MAPI ZoneTracker Client Manifest."
-  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake18 smf:zonetracker -f /opt/smartdc/mapi/Rakefile
+  RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:zonetracker -f /opt/smartdc/mapi/Rakefile
   chown jill:jill /opt/smartdc/mapi/config/zonetracker_client.smf
 fi
 
