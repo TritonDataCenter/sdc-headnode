@@ -30,6 +30,11 @@ mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 
+doupgrade=false
+if [[ $1 == "-d" ]]; then
+  doupgrade=true
+fi
+
 . /lib/sdc/config.sh
 load_sdc_sysinfo
 load_sdc_config
@@ -329,4 +334,16 @@ install_platform
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
+if [[ $doupgrade == true ]]; then
+  /usbkey/scripts/switch-platform.sh ${platformversion}
+  index=0
+  numservers=$(/smartdc/bin/sdc-mapi /servers | /usr/bin/json -H length )
+  while [[ ${index} -lt ${numservers} ]]; do
+    echo "Upgrading agents on server ${index} of ${numservers}"
+    name=$(basename `/smartdc/bin/sdc-mapi /servers | /usr/bin/json -H ${index}.uri`)
+    /smartdc/bin/sdc-mapi /admin/servers/${name}/atropos/install -F "package=agent"
+    index=$((${index}+1))
+  done
+  echo "Activating upgrade complete"
+fi
 exit 0
