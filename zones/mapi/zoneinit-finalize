@@ -38,7 +38,7 @@ cat > /opt/smartdc/mapi-data/setup_agents.sh <<AGENTS
 # Copyright (c) 2011 Joyent Inc., All rights reserved.
 #
 
-PATH=/usr/bin:/usr/sbin
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
 export PATH
 
 fatal()
@@ -82,8 +82,13 @@ if [[ ! -d /opt/smartdc/agents/bin ]]; then
   setup_agents
 fi
 
-# Return SmartDC services statuses on STDOUT:
-echo \$(svcs -a -o STATE,FMRI|grep smartdc)
+if [[ \$(uname -s) == 'Linux' ]]; then
+  # Return SmartDC services statuses on STDOUT:
+  initctl list | grep "heartbeater\|atropos\|provisioner"
+else
+  # Return SmartDC services statuses on STDOUT:
+  echo \$(svcs -a -o STATE,FMRI|grep smartdc)
+fi
 
 # Scripts to be executed by Ur need to explicitly return an exit status code:
 exit 0
