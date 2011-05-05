@@ -1003,8 +1003,45 @@ function copy_devtools
 
 function copy_hvm_files
 {
-    if [[ -d "${ROOT}/hvm" ]]; then
-        # XXX yep, this will fail if these don't exist.  That's on purpose.
+    BUILD_HVM="false"
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        BUILD_HVM=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json build-hvm)
+        HVM_PLATFORM=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-platform)
+        HVM_AGENTS=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-agents)
+    fi
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        if [[ -z ${BUILD_HVM} ]]; then
+            BUILD_HVM=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json build-hvm)
+        fi
+        if [[ -z ${HVM_PLATFORM} ]]; then
+            HVM_PLATFORM=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-platform)
+        fi
+        if [[ -z ${HVM_AGENTS} ]]; then
+            HVM_AGENTS=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-agents)
+        fi
+    fi
+
+    if [[ ${BUILD_HVM} == "true" ]]; then
+        if [[ ! -d "${ROOT}/hvm" ]]; then
+            mkdir -p ${ROOT}/hvm
+        fi
+
+        if [[ $(find ${ROOT}/hvm/ -name "platform-HVM-*" | wc -l) -eq 0 ]]; then
+            (cd ${ROOT}/hvm \
+                && curl ${SPEED_LIMIT} -k --progress -O ${HVM_PLATFORM})
+        fi
+
+        if [[ $(find ${ROOT}/hvm/ -name "agents-hvm-*" | wc -l) -eq 0 ]]; then
+            (cd ${ROOT}/hvm \
+                && curl ${SPEED_LIMIT} -k --progress -O ${HVM_AGENTS})
+        fi
+
         echo "==> Copying in hvm platform(s)"
         cp ${ROOT}/hvm/platform-HVM-* ${STAGE}/data/
         echo "==> Copying in hvm agents"
