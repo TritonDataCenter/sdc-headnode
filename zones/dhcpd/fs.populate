@@ -2,6 +2,14 @@
 
 set -e
 
+dorebuild=0
+
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+    CHECKOUT_TARGET=$(grep "^booter" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^booter" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
+
 echo "booter target: [${CHECKOUT_TARGET}]"
 
 if [[ -n ${BOOTER_DIR} ]]; then
@@ -11,6 +19,7 @@ if [[ -n ${BOOTER_DIR} ]]; then
         mkdir booter
         (cd ${BOOTER_DIR} && tar -cf - ./) | (cd booter && tar -xf -)
         cd booter
+        mnfst_string="booter@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${BOOTER_DIR} is not a directory"
         exit 1
@@ -20,11 +29,17 @@ else
     cd root/opt/smartdc
     git clone git@git.joyent.com:booter.git booter
     cd booter
-    git checkout ${CHECKOUT_TARGET}
-    rm -rf .git
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    mnfst_string="booter@"${CHECKOUT_TARGET}
 fi
 
 rm -f config.js
 #touch ../booter-VERSION
 #git describe --tags > ../booter-VERSION
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
+fi
 

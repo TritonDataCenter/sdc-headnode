@@ -2,6 +2,14 @@
 
 set -e
 
+dorebuild=0
+
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+    CHECKOUT_TARGET=$(grep "^portal" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^portal" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
+
 echo "Portal target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -14,6 +22,7 @@ if [[ -n ${PORTAL_DIR} ]]; then
         mkdir portal-repo
         (cd ${PORTAL_DIR} && tar -cf - ./) | (cd portal-repo && tar -xf -)
         cd portal-repo
+        mnfst_string="portal@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${PORTAL_DIR} is not a directory"
         exit 1
@@ -21,10 +30,18 @@ if [[ -n ${PORTAL_DIR} ]]; then
 else
     git clone git@git.joyent.com:public-web-client.git portal
     cd portal
-    git checkout ${CHECKOUT_TARGET}
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
     touch ../portal-VERSION
     git describe --tags > ../portal-VERSION
-    rm -rf .git
+    mnfst_string="portal@"${CHECKOUT_TARGET}
+
+fi
+
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 rm -f config.js

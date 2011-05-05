@@ -2,6 +2,15 @@
 
 set -e
 
+dorebuild=0
+
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+    # in this file we only care about the adminui repo
+    CHECKOUT_TARGET=$(grep "^adminui-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^adminui-repo" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
+
 echo "adminui target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -13,6 +22,7 @@ if [[ -n ${ADMINUI_DIR} ]]; then
         mkdir adminui-repo
         (cd ${ADMINUI_DIR} && tar -cf - ./) | (cd adminui-repo && tar -xf -)
         cd adminui-repo
+        mnfst_string="adminui-repo@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${ADMINUI_DIR} is not a directory"
         exit 1
@@ -20,9 +30,18 @@ if [[ -n ${ADMINUI_DIR} ]]; then
 else
     git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
     cd adminui-repo
-    git checkout ${CHECKOUT_TARGET}
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    mnfst_string="adminui-repo@"${CHECKOUT_TARGET}
+fi
+
+
+if [[ $dorebuild == 0 ]]; then
+    head=$(git symbolic-ref HEAD)
+    head_sha=$(cat .git/${head})
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
+else
+    git reset --hard ${checkout_sha}
 fi
 
 touch ../adminui-VERSION
 git describe --tags > ../adminui-VERSION
-

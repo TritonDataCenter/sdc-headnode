@@ -2,6 +2,13 @@
 
 set -e
 
+dorebuild=0
+
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+    CHECKOUT_TARGET=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
 echo "MAPI target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -14,6 +21,7 @@ if [[ -n ${MAPI_DIR} ]]; then
         mkdir mapi-repo
         (cd ${MAPI_DIR} && tar -cf - ./) | (cd mapi-repo && tar -xf -)
         cd mapi-repo
+        mnfst_string="mapi-repo@"$(git name-rev --name-only HEAD)
     else
         echo "FATAL: ${MAPI_DIR} is not a directory"
         exit 1
@@ -21,7 +29,15 @@ if [[ -n ${MAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
     cd mapi-repo
-    git checkout ${CHECKOUT_TARGET}
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    mnfst_string="mapi-repo@"${CHECKOUT_TARGET}
+fi
+
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 touch ../mapi-VERSION

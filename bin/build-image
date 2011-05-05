@@ -24,6 +24,7 @@ LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
 TAR=tar
 GREP=grep
+
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
@@ -34,6 +35,8 @@ if [ -f build-number.txt ]; then
     THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
         | sed -n 's,^build\.number=\(.*\),\1,p')"
 fi
+
+RECIPE=$(pwd)/recipe.${THIS_VERSION}
 
 echo ">> Starting build at $(date)"
 
@@ -161,6 +164,19 @@ RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
 # Figure out first what we're building, and load the proper include
 
 PLATFORM=$(uname -s)
+
+if [[ $1 == "-r" ]]; then
+    shift
+    RECIPE=$1
+    REBUILD_FROM_RECIPE=1
+    shift
+    echo "Rebuilding from ${RECIPE}..."
+    if [[ ! -f $RECIPE ]]; then
+        echo "Could not find rebuild recipe file..."
+        exit 1
+    fi
+fi
+
 BUILD_TYPE=$1
 if [[ -z ${BUILD_TYPE} ]]; then
     BUILD_TYPE="coal"
@@ -894,9 +910,15 @@ function build_fs_tarball
         mkdir -p /tmp/fs.${zone}.$$
         cp -pPR ${zone_dir}/fs.populate ${zone_dir}/fs.root /tmp/fs.${zone}.$$
         rm -rf ${zone_dir}/fs.{populate,root}
-        (cd /tmp/fs.${zone}.$$/fs.root \
-            && ../fs.populate \
-            && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        if [[ $REBUILD_FROM_RECIPE == 1 ]]; then
+            (cd /tmp/fs.${zone}.$$/fs.root \
+                && RECIPE_FILE=$RECIPE ../fs.populate -r\
+                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        else
+            (cd /tmp/fs.${zone}.$$/fs.root \
+                && RECIPE_FILE=$RECIPE ../fs.populate \
+                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        fi
         if [[ $? -ne 0 ]]; then
             fatal "Failed to populate fs.tar.bz2 for ${zone}"
         fi
@@ -1159,6 +1181,7 @@ copy_datasets
 copy_zones
 copy_devtools
 copy_hvm_files
+$(mv $RECIPE ${STAGE}/recipe)
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image
     add_manifests
