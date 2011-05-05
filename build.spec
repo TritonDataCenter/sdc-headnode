@@ -8,8 +8,8 @@
       , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
       , "headnode_zones": "true"
       }
-    , { "name": "nodejs-1.1.3"
-      , "uuid": "7456f2b0-67ac-11e0-b5ec-832e6cf079d5"
+    , { "name": "nodejs-1.1.4"
+      , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }
   ]
   , "adminui-checkout": "origin/develop"
