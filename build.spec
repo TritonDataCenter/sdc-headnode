@@ -1,8 +1,8 @@
 {
-    "platform-release": "20110428T203701Z"
+    "platform-release": "20110505T183606Z"
   , "use-proxy": "false"
   , "build-tgz": "true"
-  , "agents-shar": "release-20110428-20110428T225715Z"
+  , "agents-shar": "release-20110428-20110505T220203Z"
   , "datasets": [
       { "name": "smartos-1.3.12"
       , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
