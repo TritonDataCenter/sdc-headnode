@@ -84,7 +84,7 @@ fi
 
 if [[ \$(uname -s) == 'Linux' ]]; then
   # Return SmartDC services statuses on STDOUT:
-  initctl list | grep "heartbeater\|atropos\|provisioner"
+  initctl list | grep "heartbeater\|atropos\|provisioner" | sed -e "s/\(.*running\)/online \1/"
 else
   # Return SmartDC services statuses on STDOUT:
   echo \$(svcs -a -o STATE,FMRI|grep smartdc)
