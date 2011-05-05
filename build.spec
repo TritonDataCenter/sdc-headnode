@@ -2,7 +2,7 @@
     "platform-release": "develop"
   , "use-proxy": "false"
   , "build-tgz": "true"
-  , "agents-shar": "hvm"
+  , "agents-shar": "develop"
   , "datasets": [
       { "name": "smartos-1.3.12"
       , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
@@ -15,7 +15,7 @@
       , "uuid": "b66fb52a-6a8a-11e0-94cd-b347300c5a06"
       }
   ]
-  , "adminui-checkout": "origin/hvm"
+  , "adminui-checkout": "origin/develop"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
   , "capi-checkout": "origin/develop"

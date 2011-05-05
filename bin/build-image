@@ -979,6 +979,17 @@ function copy_devtools
     fi
 }
 
+function copy_hvm_files
+{
+    if [[ -d "${ROOT}/hvm" ]]; then
+        # XXX yep, this will fail if these don't exist.  That's on purpose.
+        echo "==> Copying in hvm platform(s)"
+        cp ${ROOT}/hvm/platform-HVM-* ${STAGE}/data/
+        echo "==> Copying in hvm agents"
+        cp ${ROOT}/hvm/agents-hvm-* ${STAGE}/ur-scripts/
+    fi
+}
+
 function create_upgrade
 {
     rm -rf ${ROOT}/cache/upgrade
@@ -1147,6 +1158,7 @@ copy_agents
 copy_datasets
 copy_zones
 copy_devtools
+copy_hvm_files
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image
     add_manifests

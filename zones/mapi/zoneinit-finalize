@@ -27,7 +27,8 @@ source /opt/smartdc/bin/configure.sh
 
 # Generate the agents setup script:
 
-AGENTS_FILE_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents- | tail -n1)
+AGENTS_FILE_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents- | grep -v -- "-hvm-" | tail -n1)
+AGENTS_FILE_HVM_VERSION=$(ls -1 /opt/smartdc/agent-scripts/|grep agents-hvm- | tail -n1)
 
 echo "Generating agents setup file at '/opt/smartdc/mapi/config/setup_agents.sh'"
 
@@ -51,14 +52,21 @@ fatal()
 setup_agents()
 {
   cd /var/tmp
-  /bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/${AGENTS_FILE_VERSION}
 
-  if [[ ! -f /var/tmp/${AGENTS_FILE_VERSION} ]]; then
+  if [[ \$(uname -s) == 'Linux' ]]; then
+    AGENTS_SHAR="${AGENTS_FILE_HVM_VERSION}"
+  else
+    AGENTS_SHAR="${AGENTS_FILE_VERSION}"
+  fi
+
+  /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
+
+  if [[ ! -f /var/tmp/\${AGENTS_SHAR} ]]; then
     fatal "failed to download agents setup script"
   fi
 
   mkdir -p /opt/smartdc/agents/log
-  /usr/bin/bash /var/tmp/${AGENTS_FILE_VERSION} &>/opt/smartdc/agents/log/install.log
+  /usr/bin/bash /var/tmp/\${AGENTS_SHAR} &>/opt/smartdc/agents/log/install.log
   result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
 
   if [[ "\$result" == "npm not ok" ]]; then

@@ -41,6 +41,59 @@ function create_latest_link
     (cd ${USB_COPY}/os && ln -s ${latest} latest)
 }
 
+function find_platform_id
+{
+    platform_id=
+
+    for line in $(/smartdc/bin/sdc-mapi /admin/platform_images \
+        | /usr/xpg4/bin/grep -e '"id"' -e '"name"' \
+        | tr -d ' ,"' \
+        | tr ':' '=' \
+        | xargs -L 2 \
+        | tr ' ' ',' \
+        | grep "HVM-"); do
+
+        # we should have something like id=1,name=xyz
+        # set these as variables id and name
+        eval ${line%,*}
+        eval ${line#*,}
+
+        if [[ -n ${id} && -n ${name} ]]; then
+            ary[${id}]=${name}
+        fi
+    done
+
+    latest_hvm=$(echo ${ary[@]} | tr ' ' '\n' | sort | tail -1)
+
+    i=0
+    while [[ -z ${platform_id} ]]; do
+        if [[ ${latest_hvm} == ${ary[${i}]} ]]; then
+            platform_id=${i};
+        fi
+        i=$((${i} + 1))
+    done
+}
+
+function create_hvm_server_role
+{
+    find_platform_id
+    if [[ -n ${platform_id} ]]; then
+        /smartdc/bin/sdc-mapi /admin/server_roles -X POST -F name=hvm -F platform_image_id=${platform_id}
+    fi
+}
+
+function install_hvm_platforms
+{
+    platforms=$(find ${USB_COPY}/data -name "platform-hvm-*.tgz")
+    if [[ -n ${platforms} ]]; then
+        for f in ${platforms}; do
+            ${USB_COPY}/scripts/install-platform.sh file://${f}
+            rm -f ${f}
+        done
+        create_hvm_server_role
+    fi
+}
+
 function install_config_file
 {
     option=$1
@@ -178,7 +231,8 @@ if [ -n "${CREATEDZONES}" ]; then
     if [[ ( $CONFIG_install_agents != "false"   && \
             $CONFIG_install_agents != "0"     ) && \
           ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
-        which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh | tail -n1)
+        which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
+            | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then
             echo -n "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
             (cd /var/tmp ; bash ${which_agents})
@@ -210,6 +264,10 @@ if [ -n "${CREATEDZONES}" ]; then
         svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u \
             >&${CONSOLE_FD}
     fi
+
+    # Install any HVM platforms that are sitting around, do this here since MAPI is now up.
+    install_hvm_platforms
+
     echo "==> Setup complete.  Press [enter] to get login prompt." \
        >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
