@@ -1,0 +1,3 @@
+echo -n "ca/ca-data " >>/dev/console
+zfs create -o compression=on zones/ca/ca-data
+zonecfg -z ca "add dataset; set name=zones/ca/ca-data; end; verify; commit"
