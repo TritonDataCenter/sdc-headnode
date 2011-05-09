@@ -20,7 +20,7 @@ create_jill_account
 # Before we enable postgresql, we'll make a little change on the way we stop
 # the service, so we can stop it without having to stop all the agents:
 echo "Updating postgresql stop method"
-$(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m immediate/" /opt/local/share/smf/method/svc-pgsql90)
+$(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m fast/" /opt/local/share/smf/method/svc-pgsql90)
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
@@ -161,7 +161,7 @@ PGPASSFILE=/opt/smartdc/.pgpass
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
 
-RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby18 /opt/smartdc/mapi/script/psql-test-connect.rb
+RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/mapi/script/psql-test-connect.rb
 
 if [[ \$? -ne 0 ]]; then
   echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
@@ -180,7 +180,7 @@ if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep map
 fi
 
 echo "Auto Upgrading MCP API Database."
-su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake18 standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
+su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
 sleep 1
 
 if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
@@ -286,7 +286,7 @@ done
     RACK_SIZE="$RACK_SIZE" \
     SERVER_ROLE="$SERVER_ROLE" \
     PACKAGE_SIZES="$PACKAGE_SIZES" \
- /opt/local/bin/rake18 dev:initial_data) 2>&1 | tee /tmp/initial_data.output
+ /opt/local/bin/rake dev:initial_data) 2>&1 | tee /tmp/initial_data.output
 rm -f /tmp/initial_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)

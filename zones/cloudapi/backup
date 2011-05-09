@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o errexit
+#set -o xtrace
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <target_directory>"
+    exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+
+TIMESTAMP=`TZ=UTC date "+%Y%m%dT%H%M%SZ"`
+BACKUP_SNAP="zones/${ZONE}@backup-${TIMESTAMP}"
+
+# Just in case, create the backup directory:
+if [[ ! -e "${TARGET_DIR}" ]]; then
+    mkdir -p ${TARGET_DIR}
+fi
+
+# Snapshot the zone
+echo "==> Creating temporary snapshot of '${ZONE}' dataset"
+/usr/sbin/zfs snapshot ${BACKUP_SNAP}
+
+echo "==> Copying snapshot of '${ZONE}'"
+/usr/sbin/zfs send ${BACKUP_SNAP} > ${TARGET_DIR}/${ZONE}.zfs
+
+echo "==> Removing temporary snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy ${BACKUP_SNAP}
+
+echo "==> Writing timestamp"
+echo "${TIMESTAMP}" > ${TARGET_DIR}/timestamp
+
+echo "==> Done"
+exit 0

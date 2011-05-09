@@ -5,8 +5,11 @@ set -o errexit
 
 echo "99 finalizing ca zone"
 
+zfs set mountpoint=/var/smartdc/ca zones/ca/ca-data
+
 npm install /pkg/cabase.tar.gz
 npm install /pkg/caaggsvc.tar.gz
+npm install /pkg/castashsvc.tar.gz
 npm install /pkg/caconfigsvc.tar.gz
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now

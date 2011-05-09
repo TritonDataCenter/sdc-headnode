@@ -37,11 +37,11 @@ fi
 
 # Check if Rakefile exists first
 if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
-  backup=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake18 -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
+  backup=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
   # Only attempt to backup the DB if there's a pg:backup task
   if [[ -n $backup ]]; then
     echo "==> Creating PostgreSQL Backup with version ${BACKUP_VERSION}"
-    /usr/sbin/zlogin ${ZONE} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake18 pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
+    /usr/sbin/zlogin ${ZONE} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
     if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump ]]; then
       echo "Successfully created database backup: '/zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump'"
     else
