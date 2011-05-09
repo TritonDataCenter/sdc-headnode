@@ -26,7 +26,7 @@ casetprop caconfigsvc:default caconfig/mapi-password "$CA_MAPI_PASSWORD"
 svcadm refresh caconfigsvc:default || cafail "failed to refresh configsvc"
 svcadm enable -s caconfigsvc:default || cafail "failed to re-enable configsvc"
 
-fmris=$(svcs -H -ofmri caaggsvc)
+fmris="$(svcs -H -ofmri caaggsvc) $(svcs -H -ofmri castashsvc)"
 for fmri in $fmris; do
 	svcadm disable -s $fmri || cafail "failed to disable $fmri"
 	casetprop $fmri caconfig/amqp-host "$CA_AMQP_HOST"
