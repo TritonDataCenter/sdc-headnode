@@ -252,18 +252,22 @@ function upgrade_zones
         cd ${ROOT}/zones
         if [[ -n ${CONFIG_capi_is_local} \
             && ${CONFIG_capi_is_local} == "false" ]]; then
-
             echo "--> Skipping CAPI zone, because CAPI is not local."
+            for file in `ls *.tbz2 | grep -v ^pubapi- | grep -v ^capi-| grep -v ^dnsapi`; do
+              gtar -jxf ${file}
+            done
         else
             for file in `ls *.tbz2 | grep -v ^pubapi-`; do
                 gtar -jxf ${file}
             done
-            for dir in `ls`; do
-                if [[ -d ${dir} ]]; then
-                    (cd ${dir} && ./*-dataset-update.sh)
-                fi
-            done
         fi
+
+        for dir in `ls`; do
+            if [[ -d ${dir} ]]; then
+                (cd ${dir} && ./*-dataset-update.sh)
+            fi
+        done
+
     fi
 }
 
