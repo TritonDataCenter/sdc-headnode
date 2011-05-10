@@ -16,3 +16,4 @@
 /datasets/smartos-*
 /hvm/platform*
 /hvm/agents*
+/recipe.*

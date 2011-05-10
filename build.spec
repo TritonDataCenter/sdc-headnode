@@ -23,7 +23,7 @@
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
   , "capi-checkout": "origin/develop"
   , "dhcpd-checkout": "origin/develop"
-  , "mapi-checkout": "origin/hvm"
+  , "mapi-checkout": "origin/develop"
   , "portal-checkout": "origin/develop"
   , "cloudapi-checkout": "origin/develop"
   , "pubapi-checkout": "origin/develop"
