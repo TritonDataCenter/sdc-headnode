@@ -48,6 +48,11 @@ if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
   /usr/sbin/svcadm enable -s ${app_name}-update
 fi
 
-
 ## Call the verify script
 (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
+
+# Setup for HVM if it's enabled.
+if [[ -n ${HAVE_HVM} && ${HAVE_HVM} == "true" ]]; then
+  gsed -i -e "s/^\(development:.*\)/\1\n  hvm_enabled: true/" /opt/smartdc/adminui/config/config.yml
+fi
+cat /opt/smartdc/adminui/config/config.yml

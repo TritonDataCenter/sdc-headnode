@@ -1028,6 +1028,8 @@ function copy_hvm_files
     fi
 
     if [[ ${BUILD_HVM} == "true" ]]; then
+        echo "HAVE_HVM=true" >> ${STAGE}/zones/adminui/zoneconfig
+
         if [[ ! -d "${ROOT}/hvm" ]]; then
             mkdir -p ${ROOT}/hvm
         fi
