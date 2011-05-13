@@ -337,6 +337,11 @@ fi
 if [[ -f "${src}/95-zone-datasets.sh" ]]; then
     cp "${src}/95-zone-datasets.sh" \
       ${dest}/root/zoneinit.d/95-zone-datasets.sh
+    # When we are either upgrading or restoring a backup, we do not
+    # want the zone-data dataset to be overridden:
+    if [[ -f "${USB_COPY}/backup/${zone}-data.zfs" ]]; then
+      echo "KEEP_DATA_DATASET='1'" >> ${dest}/root/zoneconfig
+    fi
 fi
 
 # Add all "system"/USB zones to /etc/hosts in the GZ

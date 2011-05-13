@@ -1,5 +1,14 @@
 echo -n "pubapi/pubapi-data, " >>/dev/console
-zfs create zones/pubapi/pubapi-data
+# We don't want to create the dataset if it already exists and it is on a
+# known path:
+if [[ -f "${USB_COPY}/backup/pubapi-data.zfs" ]]; then
+  zfs receive zones/pubapi/pubapi-data < "${USB_COPY}/backup/pubapi-data.zfs"
+  # Remove the snapshot created when received the zfs file:
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "pubapi\/pubapi-data@")
+  zfs destroy ${DATA_DS_SNAP}
+else
+  zfs create zones/pubapi/pubapi-data
+fi
 zonecfg -z pubapi 'add dataset; set name="zones/pubapi/pubapi-data"; end; verify; commit'
 STAMP=$(cat /zones/pubapi/root/opt/smartdc/pubapi-VERSION)
 echo -n "pubapi/pubapi-app-${STAMP} " >>/dev/console

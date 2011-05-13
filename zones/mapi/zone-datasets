@@ -1,5 +1,15 @@
 echo -n "mapi/mapi-data, " >>/dev/console
-zfs create zones/mapi/mapi-data
+# We don't want to create the dataset if it already exists and it is on a
+# known path:
+if [[ -f "${USB_COPY}/backup/mapi-data.zfs" ]]; then
+  zfs receive zones/mapi/mapi-data < "${USB_COPY}/backup/mapi-data.zfs"
+  # Remove the snapshot created when received the zfs file:
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "mapi\/mapi-data@")
+  zfs destroy ${DATA_DS_SNAP}
+else
+  zfs create zones/mapi/mapi-data
+fi
+
 zonecfg -z mapi 'add dataset; set name="zones/mapi/mapi-data"; end; verify; commit'
 STAMP=$(cat /zones/mapi/root/opt/smartdc/mapi-VERSION)
 echo -n "mapi/mapi-app-${STAMP} " >>/dev/console

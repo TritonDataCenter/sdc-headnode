@@ -39,12 +39,5 @@
         , "smartlogin/develop/smartlogin-develop-*"
         , "zonetracker/develop/zonetracker-develop-*"
       ]
-    , "appzones": [
-          "adminui"
-        , "capi"
-        , "dnsapi"
-        , "mapi"
-        , "pubapi"
-      ]
   }
 }

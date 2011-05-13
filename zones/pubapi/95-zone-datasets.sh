@@ -23,7 +23,11 @@ mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids
 mkdir -p /opt/smartdc/pubapi-data/db
 # Remove and symlink directories:
-mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+else
+  rm -Rf /opt/smartdc/pubapi/config
+fi
 rm -Rf /opt/smartdc/pubapi/log
 rm -Rf /opt/smartdc/pubapi/tmp
 rm -Rf /opt/smartdc/pubapi/config
@@ -36,7 +40,9 @@ echo "${REVISION}">/opt/smartdc/pubapi-data/REVISION
 echo "${REVISION}">/opt/smartdc/pubapi/REVISION
 # Save VERSION (Updates based on this):
 APP_VERSION=$(/opt/local/bin/git describe --tags)
-echo "${APP_VERSION}">/opt/smartdc/pubapi-data/VERSION
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  echo "${APP_VERSION}">/opt/smartdc/pubapi-data/VERSION
+fi
 echo "${APP_VERSION}">/opt/smartdc/pubapi/VERSION
 # Cleanup build products:
 cd /root/

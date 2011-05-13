@@ -23,7 +23,11 @@ for app in capi dnsapi; do
     mkdir -p /opt/smartdc/$app-data/log
     mkdir -p /opt/smartdc/$app-data/tmp/pids
     # Remove and symlink directories:
-    mv /opt/smartdc/$app/config /opt/smartdc/$app-data/config
+    if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+      mv /opt/smartdc/$app/config /opt/smartdc/$app-data/config
+    else
+      rm -Rf /opt/smartdc/$app/config
+    fi
     rm -Rf /opt/smartdc/$app/log
     rm -Rf /opt/smartdc/$app/tmp
     rm -Rf /opt/smartdc/$app/config
@@ -31,7 +35,9 @@ for app in capi dnsapi; do
     ln -s /opt/smartdc/$app-data/tmp /opt/smartdc/$app/tmp
     ln -s /opt/smartdc/$app-data/config /opt/smartdc/$app/config
     # Save REVISION:
-    echo "${REVISION}">/opt/smartdc/$app-data/REVISION
+    if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+      echo "${REVISION}">/opt/smartdc/$app-data/REVISION
+    fi
     echo "${REVISION}">/opt/smartdc/$app/REVISION
     # Save VERSION (Updates based on this):
     APP_VERSION=$(/opt/local/bin/git describe --tags)

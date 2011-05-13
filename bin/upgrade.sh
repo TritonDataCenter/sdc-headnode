@@ -15,8 +15,8 @@ ROOT=$(pwd)
 export SDC_UPGRADE_ROOT=${ROOT}
 
 #
-# IMPORTANT, this purposefully does not include 'portal' since that zone
-# is handled differently for upgrades (since it may be customized).
+# IMPORTANT, this purposefully does not include 'portal' and 'pubapi' since those
+# zones are handled differently for upgrades (since they may be customized).
 #
 RECREATE_ZONES=( \
     assets \
@@ -24,6 +24,9 @@ RECREATE_ZONES=( \
     ca \
     dhcpd \
     rabbitmq \
+    mapi \
+    adminui \
+    capi
 )
 
 mounted_usb="false"
@@ -158,6 +161,11 @@ function recreate_zones
 
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
+        if [[ "${zone}" == "capi" && -n ${CONFIG_capi_is_local} \
+            && ${CONFIG_capi_is_local} == "false" ]]; then
+            echo "--> Skipping CAPI zone, because CAPI is not local."
+            continue
+        fi
         mkdir -p ${backup_dir}/zones/${zone}
         if [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
             /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
@@ -168,8 +176,20 @@ function recreate_zones
         else
             echo "--> Warning: No backup script!"
         fi
+
+        # If the zone has a data dataset, copy to the path create-zone.sh
+        # expects it for reuse:
+        if [[ -f ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ]]; then
+          cp ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ${usbcpy}/backup/
+        fi
+
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
+
+        # If we've copied the data dataset, remove it:
+        if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
+          rm ${usbcpy}/backup/${zone}-data.zfs
+        fi
     done
 
     # Make sure we set the npm user correctly for the atropos registry, since the
@@ -242,35 +262,6 @@ function install_new_agents
     fi
 }
 
-function upgrade_zones
-{
-    # Upgrade zones that use app-release-builder
-    #
-    # EXCEPT pubapi which may have been customized, so is handled separately.
-    #
-    if [[ -d ${ROOT}/zones ]]; then
-        cd ${ROOT}/zones
-        if [[ -n ${CONFIG_capi_is_local} \
-            && ${CONFIG_capi_is_local} == "false" ]]; then
-            echo "--> Skipping CAPI zone, because CAPI is not local."
-            for file in `ls *.tbz2 | grep -v ^pubapi- | grep -v ^capi-| grep -v ^dnsapi`; do
-              gtar -jxf ${file}
-            done
-        else
-            for file in `ls *.tbz2 | grep -v ^pubapi-`; do
-                gtar -jxf ${file}
-            done
-        fi
-
-        for dir in `ls`; do
-            if [[ -d ${dir} ]]; then
-                (cd ${dir} && ./*-dataset-update.sh)
-            fi
-        done
-
-    fi
-}
-
 function install_platform
 {
     # Install new platform
@@ -326,7 +317,6 @@ import_datasets
 backup_npm_registry "${CONFIG_atropos_admin_ip}" ${backup_dir}/npm_registry
 recreate_zones
 restore_npm_registry ${backup_dir}/npm_registry
-upgrade_zones
 reenable_agents
 
 # If there are new agents in this upgrade, publish them to atropos

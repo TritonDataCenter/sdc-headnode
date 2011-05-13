@@ -1,5 +1,12 @@
 echo -n "adminui/adminui-data, " >>/dev/console
-zfs create zones/adminui/adminui-data
+if [[ -f "${USB_COPY}/backup/adminui-data.zfs" ]]; then
+  zfs receive zones/adminui/adminui-data < "${USB_COPY}/backup/adminui-data.zfs"
+  # Remove the snapshot created when received the zfs file:
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "adminui\/adminui-data@")
+  zfs destroy ${DATA_DS_SNAP}
+else
+  zfs create zones/adminui/adminui-data
+fi
 zonecfg -z adminui 'add dataset; set name="zones/adminui/adminui-data"; end; verify; commit'
 STAMP=$(cat /zones/adminui/root/opt/smartdc/adminui-VERSION)
 echo -n "adminui/adminui-app-${STAMP} " >>/dev/console

@@ -1,7 +1,14 @@
 for app in capi dnsapi; do
 
 echo -n "capi/$app-data, " >>/dev/console
-zfs create zones/capi/$app-data
+if [[ -f "${USB_COPY}/backup/$app-data.zfs" ]]; then
+  zfs receive zones/capi/$app-data < "${USB_COPY}/backup/$app-data.zfs"
+  # Remove the snapshot created when received the zfs file:
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "capi\/$app-data@")
+  zfs destroy ${DATA_DS_SNAP}
+else
+  zfs create zones/capi/$app-data
+fi
 zonecfg -z capi "add dataset; set name=zones/capi/$app-data; end; verify; commit"
 STAMP=$(cat /zones/capi/root/opt/smartdc/$app-VERSION)
 echo -n "capi/$app-app-${STAMP} " >>/dev/console

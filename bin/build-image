@@ -159,7 +159,6 @@ ASSETS_ROOT=$(proxy "https://guest:GrojhykMid@assets.joyent.us/datasets")
 DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-RUBYAPP_BASE=$(proxy "https://joydev:leichiB8eeQu@216.57.203.66/release")
 
 # Figure out first what we're building, and load the proper include
 
@@ -1088,15 +1087,12 @@ function get_upgrade_params
 {
     upgrades_json=
     agents_json=
-    appzones_json=
     if [[ -f ${ROOT}/build.spec.local ]]; then
         upgrades_json=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json "upgrades")
         if [[ -n ${upgrades_json} ]]; then
             agents_json=$(echo ${upgrades_json} \
                 | ${ROOT}/bin/json "agents")
-            appzones_json=$(echo ${upgrades_json} \
-                | ${ROOT}/bin/json "appzones")
         fi
     fi
     if [[ -f ${ROOT}/build.spec ]] && [[ -z ${upgrades_json} ]]; then
@@ -1107,33 +1103,18 @@ function get_upgrade_params
                 agents_json=$(echo ${upgrades_json} \
                     | ${ROOT}/bin/json "agents")
             fi
-            if [[ -z ${appzones_json} ]]; then
-                appzones_json=$(echo ${upgrades_json} \
-                    | ${ROOT}/bin/json "appzones")
-            fi
         fi
     fi
     [[ -n ${agents_json} ]] \
         || fatal "Unable to find upgrade.agents information in build.spec"
-    [[ -n ${appzones_json} ]] \
-        || fatal "Unable to find upgrade.agents information in build.spec"
 
     num_agents=$(echo "${agents_json}" | ${ROOT}/bin/json length)
-    num_appzones=$(echo "${appzones_json}" | ${ROOT}/bin/json length)
 
     AGENTS=
-    RUBYAPP_ZONES=
 
     index=0
     while [[ ${index} -lt ${num_agents} ]]; do
         AGENTS[${index}]=$(echo "${agents_json}" \
-            | ${ROOT}/bin/json ${index})
-        index=$((${index} + 1))
-    done
-
-    index=0
-    while [[ ${index} -lt ${num_appzones} ]]; do
-        RUBYAPP_ZONES[${index}]=$(echo "${appzones_json}" \
             | ${ROOT}/bin/json ${index})
         index=$((${index} + 1))
     done
@@ -1163,38 +1144,6 @@ function get_upgrade_agents
         url="${AGENTS_BASE}/$(dirname ${agent})"
         pattern=$(basename ${agent})
         get_latest_upgrade_agent "${url}" "${pattern}" "${ROOT}/cache/upgrade/agents"
-    done
-}
-
-function get_latest_upgrade_zone
-{
-    url=$1
-    pattern=$2
-    out_dir=$3
-
-    latest=
-    for file in $(curl ${SPEED_LIMIT} -k -sS ${url}/ \
-        | ${GREP} "href=" \
-        | cut -d'"' -f2 \
-        | ${GREP} "${pattern}"); do
-
-        latest=$(newer_of "${latest}" "${file}")
-    done
-    [[ $? -ne 0 || -z ${latest} ]] \
-        && fatal "Error getting file list for ${pattern}"
-
-    oldwd=$(pwd)
-    cd ${out_dir}
-    curl ${SPEED_LIMIT} -k --progress -O ${url}/${latest}
-    cd ${oldwd}
-    echo "==> downloaded ${latest}"
-}
-
-function get_upgrade_zones
-{
-    mkdir -p ${ROOT}/cache/upgrade/zones
-    for zone in "${RUBYAPP_ZONES[@]}"; do
-        get_latest_upgrade_zone "${RUBYAPP_BASE}" "${zone}-*" "${ROOT}/cache/upgrade/zones"
     done
 }
 
@@ -1232,7 +1181,6 @@ if [[ -z ${ONLY_UPGRADE} ]]; then
 else
     create_upgrade
     get_upgrade_params
-    get_upgrade_zones
     get_upgrade_agents
     pack_upgrade
 fi

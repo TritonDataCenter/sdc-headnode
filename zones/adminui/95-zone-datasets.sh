@@ -21,7 +21,11 @@ cd /opt/smartdc/adminui-repo
 mkdir -p /opt/smartdc/adminui-data/log
 mkdir -p /opt/smartdc/adminui-data/tmp/pids
 # Remove and symlink directories:
-mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
+else
+  rm -Rf /opt/smartdc/adminui/config
+fi
 rm -Rf /opt/smartdc/adminui/log
 rm -Rf /opt/smartdc/adminui/tmp
 rm -Rf /opt/smartdc/adminui/config
