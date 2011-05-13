@@ -7,8 +7,8 @@
   , "hvm-platform": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/platform-HVM-20110512T114512Z.tgz"
   , "agents-shar": "develop"
   , "datasets": [
-      { "name": "smartos-1.3.12"
-      , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
+      { "name": "smartos-1.3.13"
+      , "uuid": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5"
       , "headnode_zones": "true"
       }
     , { "name": "nodejs-1.1.4"
