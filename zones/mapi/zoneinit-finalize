@@ -115,8 +115,9 @@ exit 113
 
 REBOOT
 
-
-echo "Creating $app_name-setup service"
+# We don't want the setup service if we're upgrading:
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  echo "Creating $app_name-setup service"
 
 cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
 <?xml version='1.0'?>
@@ -147,6 +148,7 @@ cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
   </service>
 </service_bundle>
 SETUP_SMF
+fi
 
 cat > "/opt/smartdc/$app_name-data/$app_name-setup-service.sh" <<SETUP_SERVICE
 #!/usr/bin/bash
@@ -309,3 +311,77 @@ chown -R jill:jill /opt/smartdc
 chown root:root /home
 chmod 0555 /home
 
+# If we are upgrading, need to restore the DB backup, run migrations and
+# import the application services:
+if [[ -n ${KEEP_DATA_DATASET} ]]; then
+  data_version=$(cat /opt/smartdc/${app_name}-data/VERSION)
+  dump_file_path=$(ls /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump)
+  dump_file=$(basename ${dump_file_path%.*})
+  db_backup_version=$(echo ${dump_file} | cut -c '6-')
+
+  if [[ -f ${dump_file_path} ]]; then
+    echo "Restoring PostgreSQL DB to previous version"
+    VERSION=${db_backup_version} /opt/local/bin/rake pg:restore -f /opt/smartdc/${app_name}/Rakefile
+    if [[ $? -gt 0 ]]; then
+      echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${app_name}-data/${app_name}-${db_backup_version}.pg_dump'."
+      exit 1
+    fi
+  else
+    echo "FATAL: Cannot find '${app_name}-${db_backup_version}.pg_dump' on the zone. Unable to restore."
+    exit 1
+  fi
+
+  echo "Upgrading MCP API Database, running Migrations."
+  RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/${app_name}/Rakefile
+  sleep 1
+
+  echo "Importing application services"
+  if [[ -z $(/usr/bin/svcs -a|grep mcp_api) ]]; then
+    echo "Importing MCP API Unicorn Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/unicorn.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/application/mcp_api:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep provisioner_client) ]]; then
+    echo "Importing MCP API Provisioner Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/provisioner_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/provisioner_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep ur_client) ]]; then
+    echo "Importing MAPI Ur Agent Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/ur_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/ur_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep datasetmanager_client) ]]; then
+    echo "Importing MCP API DatasetManager Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/datasetmanager_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/datasetmanager_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
+    echo "Importing MCP API Heartbeater Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/heartbeater_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep atropos_client) ]]; then
+    echo "Importing MCP API Atropos Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/atropos_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/atropos_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
+    echo "Importing MCP API ZoneTracker Client Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/zonetracker_client.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/zonetracker_client:default refresh
+  fi
+fi
