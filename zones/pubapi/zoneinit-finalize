@@ -77,7 +77,7 @@ if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
   #/usr/sbin/svccfg -s svc:/platform/smartdc/pubapi-update:default refresh
 fi
 
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
+if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online" && ! -n ${KEEP_DATA_DATASET} ]]; then
   echo "Enabling '${app_name}-update' service"
   /usr/sbin/svcadm enable -s ${app_name}-update
 fi

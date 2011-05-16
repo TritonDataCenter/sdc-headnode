@@ -43,16 +43,20 @@ if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
   #/usr/sbin/svccfg -s svc:/platform/smartdc/$app_name-update:default refresh
 fi
 
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
-  echo "Enabling '${app_name}-update' service"
-  /usr/sbin/svcadm enable -s ${app_name}-update
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
+    echo "Enabling '${app_name}-update' service"
+    /usr/sbin/svcadm enable -s ${app_name}-update
+  fi
+
+  ## Call the verify script
+  (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
+
+  # Setup for HVM if it's enabled.
+  if [[ -n ${HAVE_HVM} && ${HAVE_HVM} == "true" ]]; then
+    gsed -i -e "s/^\(development:.*\)/\1\n  hvm_enabled: true/" /opt/smartdc/adminui/config/config.yml
+  fi
+  cat /opt/smartdc/adminui/config/config.yml
+
 fi
 
-## Call the verify script
-(cd /opt/smartdc/adminui && ./script/verify_setup.sh)
-
-# Setup for HVM if it's enabled.
-if [[ -n ${HAVE_HVM} && ${HAVE_HVM} == "true" ]]; then
-  gsed -i -e "s/^\(development:.*\)/\1\n  hvm_enabled: true/" /opt/smartdc/adminui/config/config.yml
-fi
-cat /opt/smartdc/adminui/config/config.yml

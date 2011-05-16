@@ -22,6 +22,7 @@ source /opt/smartdc/bin/configure.sh
 
 for app_name in capi dnsapi; do
 
+  if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
     echo "Creating $app_name-setup service"
 
     cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
@@ -53,7 +54,7 @@ for app_name in capi dnsapi; do
   </service>
 </service_bundle>
 SETUP_SMF
-
+  fi
 done
 
 
@@ -221,3 +222,42 @@ chown -R jill:jill /opt/smartdc
 # fix perms on /home
 chown root:root /home
 chmod 0555 /home
+
+# If we are upgrading, need to restore the DB backup, run migrations and
+# import the application services:
+if [[ -n ${KEEP_DATA_DATASET} ]]; then
+  app_name='capi' # Can remove when dns-api is removed.
+  data_version=$(cat /opt/smartdc/${app_name}-data/VERSION)
+  dump_file_path=$(ls /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump)
+  dump_file=$(basename ${dump_file_path%.*})
+  db_backup_version=$(echo ${dump_file} | cut -c '6-')
+
+  if [[ -f ${dump_file_path} ]]; then
+    echo "Restoring PostgreSQL DB to previous version"
+    VERSION=${db_backup_version} /opt/local/bin/rake pg:restore -f /opt/smartdc/${app_name}/Rakefile
+    if [[ $? -gt 0 ]]; then
+      echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${app_name}-data/${app_name}-${db_backup_version}.pg_dump'."
+      exit 1
+    fi
+  else
+    echo "FATAL: Cannot find '${app_name}-${db_backup_version}.pg_dump' on the zone. Unable to restore."
+    exit 1
+  fi
+
+  echo "Auto Upgrading Customers API Database."
+  su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /opt/local/bin/rake db:autoupgrade -f /opt/smartdc/capi/Rakefile"
+  sleep 1
+
+  if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
+    echo "Importing Customers API Unicorn Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
+    sleep 10 # XXX
+    #/usr/sbin/svccfg -s svc:/network/smartdc/application/capi:default refresh
+  fi
+
+  if [[ -f $(svcprop -p 'capi/allowed_file' svc:/platform/smartdc/capi_ipf_setup) ]]; then
+    svcadm enable svc:/network/ipfilter:default
+  fi
+
+fi
+
