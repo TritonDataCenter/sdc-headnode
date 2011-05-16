@@ -23,9 +23,5 @@ CAPI_ADMIN_PW=${capi_admin_pw}
 CAPI_ADMIN_EMAIL=${capi_admin_email}
 CAPI_ADMIN_UUID=${capi_admin_uuid}
 
-DNSAPI_HTTP_PORT=${dnsapi_http_port}
-DNSAPI_HTTP_USER=${dnsapi_http_user}
-DNSAPI_HTTP_PASS=${dnsapi_http_pass}
-
 DBCONN_RETRY_AFTER=${dbconn_retry_after}
 DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}

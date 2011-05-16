@@ -12,38 +12,36 @@ if [[ ! -e "${TARGET_DIR}" ]]; then
   mkdir -p ${TARGET_DIR}
 fi
 
-# We have two apps running into this zone:
-for app in capi dnsapi; do
-  APP_NAME="${app}"
+APP_NAME="capi"
 
-  VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/VERSION)
-  APP_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-app-${VERSION}$")
-  DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
-  STAMP=$(date +'%F-%H-%M-%S-%Z')
+VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/VERSION)
+APP_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-app-${VERSION}$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
+STAMP=$(date +'%F-%H-%M-%S-%Z')
 
-  # We might want to take more than one backup of the same version:
-  BACKUP_VERSION="${VERSION}-${STAMP}"
+# We might want to take more than one backup of the same version:
+BACKUP_VERSION="${VERSION}-${STAMP}"
 
-  # We cannot backup if cannot find application dataset:
-  if [[ -z $APP_DATASET ]]; then
-    echo "FATAL: Cannot find '${APP_NAME}' application dataset"
-    exit 102
-  fi
+# We cannot backup if cannot find application dataset:
+if [[ -z $APP_DATASET ]]; then
+  echo "FATAL: Cannot find '${APP_NAME}' application dataset"
+  exit 102
+fi
 
-  # Same if cannot find data dataset:
-  if [[ -z $DATA_DATASET ]]; then
-    echo "FATAL: Cannot find '${APP_NAME}' data dataset"
-    exit 103
-  fi
+# Same if cannot find data dataset:
+if [[ -z $DATA_DATASET ]]; then
+  echo "FATAL: Cannot find '${APP_NAME}' data dataset"
+  exit 103
+fi
 
-  # Check if Rakefile exists first
-  if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
-    backup=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake18 -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
-    # Only attempt to backup the DB if there's a pg:backup task
-    if [[ -n $backup ]]; then
-      echo "==> Creating PostgreSQL Backup with version ${BACKUP_VERSION}"
-      /usr/sbin/zlogin ${ZONE} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake18 pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
-      if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump ]]; then
+# Check if Rakefile exists first
+if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
+  backup=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake18 -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
+  # Only attempt to backup the DB if there's a pg:backup task
+  if [[ -n $backup ]]; then
+    echo "==> Creating PostgreSQL Backup with version ${BACKUP_VERSION}"
+    /usr/sbin/zlogin ${ZONE} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake18 pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
+    if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump ]]; then
         echo "Successfully created database backup: '/zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump'"
       else
         echo "FATAL: Cannot create database backup"
@@ -102,7 +100,7 @@ for app in capi dnsapi; do
 
   # Create a file to hold the $BACKUP_VERSION for the restore script:
   echo "${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"
-done
+
 
 echo "All done!!!"
 exit 0

@@ -83,59 +83,6 @@ if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"
 fi
 
-# DNS API specific
-
-if [[ ! -e /opt/smartdc/dnsapi/config/database.yml ]]; then
-  echo "Creating DNS API config files."
-  su - jill -c "cd /opt/smartdc/dnsapi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/dnsapi/Rakefile"
-fi
-sleep 1
-
-# Note these files should have been created by previous Rake task.
-# If we copy these files post "gsed", everything is reset:
-if [[ ! -e /opt/smartdc/dnsapi/config/config.ru ]]; then
-  cp /opt/smartdc/dnsapi/config/config.ru.sample /opt/smartdc/dnsapi/config/config.ru
-fi
-
-if [[ ! -e /opt/smartdc/dnsapi/config/config.yml ]]; then
-  cp /opt/smartdc/dnsapi/config/config.yml.sample /opt/smartdc/dnsapi/config/config.yml
-fi
-
-if [[ ! -e /opt/smartdc/dnsapi/gems/gems ]] || [[ $(ls /opt/smartdc/dnsapi/gems/gems| wc -l) -eq 0 ]]; then
-  echo "Unpacking frozen gems for DNS API."
-  (cd /opt/smartdc/dnsapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/dnsapi/Rakefile)
-fi
-
-if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.smf ]]; then
-  echo "Creating DNS API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='dnsapi'; working_directory='/opt/smartdc/dnsapi'; puts ERB.new(File.read('/opt/smartdc/dnsapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/dnsapi/config/unicorn.smf
-  chown jill:jill /opt/smartdc/dnsapi/config/unicorn.smf
-fi
-
-if [[ ! -e /opt/smartdc/dnsapi/config/unicorn.conf ]]; then
-  echo "Creating DNS API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8000'; worker_processes=1; working_directory='/opt/smartdc/dnsapi'; application='dnsapi'; puts ERB.new(File.read('/opt/smartdc/dnsapi/config/unicorn.conf.erb')).result" > /opt/smartdc/dnsapi/config/unicorn.conf
-  chown jill:jill /opt/smartdc/dnsapi/config/unicorn.conf
-fi
-
-if [[ -z $(cat /opt/smartdc/dnsapi/config/database.yml|grep dnsapi) ]]; then
-  echo "Configuring DNS API Database."
-  cat > /opt/smartdc/dnsapi/config/database.yml <<DNSAPI_DB
-
-:production: &prod
-  :adapter: postgres
-  :database: dnsapi
-  :host: $POSTGRES_HOST
-  :username: $POSTGRES_USER
-  :password: $POSTGRES_PW
-  :encoding: UTF-8
-
-DNSAPI_DB
-fi
-
-if [[ ! -e /opt/smartdc/dnsapi/tmp/pids ]]; then
-  su - jill -c "mkdir -p /opt/smartdc/dnsapi/tmp/pids"
-fi
 
 # Just in case, create /var/logadm
 if [[ ! -d /var/logadm ]]; then
@@ -145,6 +92,5 @@ fi
 # Log rotation:
 cat >> /etc/logadm.conf <<LOGADM
 capi -C 100 -c -s 10m /opt/smartdc/capi/log/*.log
-dnsapi -C 100 -c -s 10m /opt/smartdc/dnsapi/log/*.log
 postgresql -C 5 -c -s 100m /var/log/postgresql90.log
 LOGADM
