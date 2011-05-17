@@ -49,24 +49,3 @@ cd /root/
 rm -Rf /opt/smartdc/pubapi-repo
 rm /root/pubapi-app-timestamp
 
-# Adding dataset based update service for the app:
-cat >"/opt/smartdc/pubapi-data/pubapi-update-service.sh" <<UPDATE
-#!/usr/bin/bash
-
-APP_NAME='pubapi'
-
-APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
-DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
-
-if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
-  echo "Calling \$APP_NAME-update"
-  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby18 /opt/smartdc/\$APP_NAME/smartdc/update
-else
-  echo "\$APP_NAME is up to date"
-fi
-
-exit 0
-
-UPDATE
-
-chmod +x /opt/smartdc/pubapi-data/pubapi-update-service.sh

@@ -4,9 +4,6 @@ echo "99 finalizing mapi zone"
 
 app_name='mapi'
 
-# from zoneinit-common:
-ruby_app_update_service $app_name
-
 #
 # Call symlink_ruby (imported from 97-zoneinit-common)
 #
@@ -232,19 +229,6 @@ if [[ -z \$(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker_client.smf
   sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/zonetracker_client:default refresh
-fi
-
-
-if [[ ! \$(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
-  echo "Importing '${app_name}-update' service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/platform/smartdc/mapi-update:default refresh
-fi
-
-if [[  "\$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
-  echo "Enabling '${app_name}-update' service"
-  /usr/sbin/svcadm enable -s ${app_name}-update
 fi
 
 ## Setup and call the verify script

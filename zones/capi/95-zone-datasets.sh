@@ -47,26 +47,4 @@ cd /root/
 rm -Rf /opt/smartdc/$app-repo
 rm /root/$app-app-timestamp
 
-# Adding dataset based update service for the app:
-cat >"/opt/smartdc/$app-data/$app-update-service.sh" <<UPDATE
-#!/usr/bin/bash
-
-APP_NAME='$app'
-
-APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
-DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
-
-if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
-  echo "Calling \$APP_NAME-update"
-  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby18 /opt/smartdc/\$APP_NAME/smartdc/update
-else
-  echo "\$APP_NAME is up to date"
-fi
-
-exit 0
-
-UPDATE
-
-chmod +x /opt/smartdc/$app-data/$app-update-service.sh
-
 

@@ -4,10 +4,6 @@ echo "99 finalizing pubapi zone"
 
 app_name='pubapi'
 
-# from zoneinit-common:
-ruby_app_update_service $app_name
-
-
 #
 # Call symlink_ruby (imported from 97-zoneinit-common)
 #
@@ -70,15 +66,4 @@ if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
   su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake18 db:migrate)"
 fi
 
-if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
-  echo "Importing '${app_name}-update' service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/platform/smartdc/pubapi-update:default refresh
-fi
-
-if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online" && ! -n ${KEEP_DATA_DATASET} ]]; then
-  echo "Enabling '${app_name}-update' service"
-  /usr/sbin/svcadm enable -s ${app_name}-update
-fi
 

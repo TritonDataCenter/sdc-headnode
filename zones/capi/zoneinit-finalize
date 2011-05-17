@@ -12,8 +12,6 @@ symlink_ruby
 #
 create_jill_account
 
-ruby_app_update_service 'capi'
-
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
@@ -108,18 +106,6 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   ADMIN_EMAIL="${CAPI_ADMIN_EMAIL}" \
   /opt/local/bin/rake18 install:capi_admin -f /opt/smartdc/capi/Rakefile"
 sleep 1
-
-if [[ ! \$(/usr/bin/svcs -a|grep capi-update) ]]; then
-  echo "Importing 'capi-update' service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/capi-update.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/platform/smartdc/capi-update:default refresh
-fi
-
-if [[  "\$(/usr/bin/svcs -Ho state capi-update)" != "online"  ]]; then
-  echo "Enabling 'capi-update' service"
-  /usr/sbin/svcadm enable -s capi-update
-fi
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
 echo "Deleting '${app_name}-setup' service"

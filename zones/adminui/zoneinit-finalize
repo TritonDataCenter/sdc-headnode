@@ -14,9 +14,6 @@ symlink_ruby
 #
 create_jill_account
 
-# from zoneinit-common:
-ruby_app_update_service $app_name
-
 # We need to generate our own self signed certificate for Nginx:
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
@@ -36,18 +33,7 @@ chown -R jill:jill /opt/smartdc
 chown root:root /home
 chmod 0555 /home
 
-if [[ ! $(/usr/bin/svcs -a|grep ${app_name}-update) ]]; then
-  echo "Importing '${app_name}-update' service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/$app_name-update.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/platform/smartdc/$app_name-update:default refresh
-fi
-
 if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
-  if [[  "$(/usr/bin/svcs -Ho state ${app_name}-update)" != "online"  ]]; then
-    echo "Enabling '${app_name}-update' service"
-    /usr/sbin/svcadm enable -s ${app_name}-update
-  fi
 
   ## Call the verify script
   (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
