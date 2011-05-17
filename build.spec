@@ -13,8 +13,8 @@
       }
   ]
   , "adminui-checkout": "origin/release-20110512"
-  , "atropos-tarball": "^atropos-develop-20110210.tar.bz2$"
-  , "ca-tarball": "^ca-pkg-master-20110512-.*.tar.bz2$"
+  , "atropos-tarball": "atropos-develop-20110210.tar.bz2"
+  , "ca-tarball": "ca-pkg-master-20110512-2-g157dd01.tar.bz2"
   , "capi-checkout": "origin/release-20110512"
   , "dhcpd-checkout": "origin/release-20110512"
   , "mapi-checkout": "origin/release-20110512"
