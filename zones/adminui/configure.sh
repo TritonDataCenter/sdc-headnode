@@ -74,7 +74,7 @@ fi
 
 if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
   echo "Creating MAPI Admin UI config files."
-  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/adminui/Rakefile"
+  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
 fi
 sleep 1
 
@@ -86,18 +86,18 @@ fi
 
 if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MAPI Admin UI."
-  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/adminui/Rakefile)
+  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
   echo "Creating MAPI Admin UI Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
   chown jill:jill /opt/smartdc/adminui/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
   echo "Creating MAPI Admin UI Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
+  /opt/local/bin/ruby -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
   chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
 fi
 
@@ -118,7 +118,7 @@ su - jill -c "cd /opt/smartdc/adminui; \
   MAPI_URL=$MAPI_URL \
   MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
   MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
-  /opt/local/bin/rake18 config -f /opt/smartdc/adminui/Rakefile"
+  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
