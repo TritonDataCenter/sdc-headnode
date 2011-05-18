@@ -30,18 +30,18 @@ fi
 
 if [[ $(ls /opt/smartdc/pubapi/gems/gems 2>/dev/null | wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Public API."
-  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/pubapi/Rakefile)
+  (cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/pubapi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/unicorn.smf ]]; then
   echo "Creating Public API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='pubapi'; working_directory='/opt/smartdc/pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.smf
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='pubapi'; working_directory='/opt/smartdc/pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.smf
   chown jill:jill /opt/smartdc/pubapi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/pubapi/config/unicorn.conf ]]; then
   echo "Creating Public API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='${PRIVATE_IP}:8080'; worker_processes=1; working_directory='/opt/smartdc/pubapi'; application='pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.conf
+  /opt/local/bin/ruby -rerb -e "app_port='${PRIVATE_IP}:8080'; worker_processes=1; working_directory='/opt/smartdc/pubapi'; application='pubapi'; puts ERB.new(File.read('/opt/smartdc/pubapi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/pubapi/config/unicorn.conf
   chown jill:jill /opt/smartdc/pubapi/config/unicorn.conf
 fi
 
@@ -63,7 +63,7 @@ chmod 0555 /home
 
 if [[ ! -e /opt/smartdc/pubapi/db/production.db ]]; then
   echo "Creating Public API database."
-  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake18 db:migrate)"
+  su - jill -c "(cd /opt/smartdc/pubapi; PATH=/opt/local/bin:$PATH RACK_ENV=production /opt/local/bin/rake db:migrate)"
 fi
 
 
