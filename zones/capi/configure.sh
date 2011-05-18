@@ -22,7 +22,7 @@ fi
 # CAPI specific
 
 if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
-  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake18 dev:configs -f /opt/smartdc/capi/Rakefile"
+  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake dev:configs -f /opt/smartdc/capi/Rakefile"
 fi
 
 # Note these files should have been created by previous Rake task.
@@ -37,25 +37,25 @@ if [[ ! -e /opt/smartdc/capi/config/config.yml ]]; then
    MAIL_FROM="${MAIL_FROM}" \
    CAPI_HTTP_ADMIN_USER="${CAPI_HTTP_ADMIN_USER}" \
    CAPI_HTTP_ADMIN_PW="${CAPI_HTTP_ADMIN_PW}" \
-   /opt/local/bin/rake18 install:config -f /opt/smartdc/capi/Rakefile && \
+   /opt/local/bin/rake install:config -f /opt/smartdc/capi/Rakefile && \
    sleep 1 && \
    chown jill:jill /opt/smartdc/capi/config/config.yml
 fi
 
 if [[ ! -e /opt/smartdc/capi/gems/gems ]] || [[ $(ls /opt/smartdc/capi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for Customers API."
-  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake18 gems:deploy -f /opt/smartdc/capi/Rakefile)
+  (cd /opt/smartdc/capi; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/capi/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.smf ]]; then
   echo "Creating Customers API Unicorn Manifest."
-  /opt/local/bin/ruby18 -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='capi'; working_directory='/opt/smartdc/capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.smf.erb')).result" > /opt/smartdc/capi/config/unicorn.smf
   chown jill:jill /opt/smartdc/capi/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/capi/config/unicorn.conf ]]; then
   echo "Creating Customers API Unicorn Configuration file."
-  /opt/local/bin/ruby18 -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
+  /opt/local/bin/ruby -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/capi'; application='capi'; puts ERB.new(File.read('/opt/smartdc/capi/smartdc/unicorn.conf.erb')).result" > /opt/smartdc/capi/config/unicorn.conf
   chown jill:jill /opt/smartdc/capi/config/unicorn.conf
 fi
 

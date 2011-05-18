@@ -173,12 +173,12 @@ sleep 10
 
 # Restore the PostgreSQL dump on data dataset if exists:
 if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
-  restore=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake18 -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:restore)
+  restore=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:restore)
   # Only attempt to restore the DB if there's a pg:restore task
   if [[ -n $restore ]]; then
     if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump ]]; then
       echo "==> Restoring PostgreSQL DB to previous version"
-      /usr/sbin/zlogin ${ZONE} VERSION=${PG_DUMP_VERSION} /opt/local/bin/rake18 pg:restore -f /opt/smartdc/${APP_NAME}/Rakefile
+      /usr/sbin/zlogin ${ZONE} VERSION=${PG_DUMP_VERSION} /opt/local/bin/rake pg:restore -f /opt/smartdc/${APP_NAME}/Rakefile
       if [[ $? -gt 0 ]]; then
         echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump'."
         exit 113
