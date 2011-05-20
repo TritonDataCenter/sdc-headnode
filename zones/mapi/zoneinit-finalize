@@ -50,10 +50,14 @@ setup_agents()
 {
   cd /var/tmp
 
-  if [[ \$(uname -s) == 'Linux' ]]; then
-    AGENTS_SHAR="${AGENTS_FILE_HVM_VERSION}"
-  else
-    AGENTS_SHAR="${AGENTS_FILE_VERSION}"
+  AGENTS_SHAR=\$1
+
+  if [[ -z \${AGENTS_SHAR} ]]; then
+    if [[ \$(uname -s) == 'Linux' ]]; then
+      AGENTS_SHAR="${AGENTS_FILE_HVM_VERSION}"
+    else
+      AGENTS_SHAR="${AGENTS_FILE_VERSION}"
+    fi
   fi
 
   /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
@@ -76,7 +80,7 @@ setup_agents()
 
 
 if [[ ! -d /opt/smartdc/agents/bin ]]; then
-  setup_agents
+  setup_agents \$1
 fi
 
 if [[ \$(uname -s) == 'Linux' ]]; then
