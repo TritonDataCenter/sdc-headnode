@@ -46,6 +46,7 @@ function install_node_config
         # pull out those config options we want to keep
         (
             . ${USB_COPY}/config
+            . ${USB_COPY}/config.inc/generic
 
             # Options here should match key names from the headnode's config
             # that we want on compute nodes.
@@ -95,6 +96,7 @@ function install_config_file
     # pull out those config options we want to keep
     filename=$(
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         eval echo "\${${option}}"
     )
 
@@ -110,6 +112,7 @@ function update_datasets
     # pull out those config options we want to keep
     assets_ip=$(
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         eval echo "\${${option}}"
     )
 
@@ -161,6 +164,7 @@ if [[ -f "${src}/zoneconfig" ]]; then
     # need to pull these two values this way.
     zoneips=$(
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         . ${src}/zoneconfig
         echo "${PRIVATE_IP},${PUBLIC_IP}"
     )
@@ -222,6 +226,7 @@ if [[ -f "${src}/zoneconfig" ]]; then
     # done in a subshell to avoid further namespace polution.
     (
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         . ${src}/zoneconfig
 
         for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do

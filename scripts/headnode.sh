@@ -102,6 +102,7 @@ function install_config_file
     # pull out those config options we want to keep
     filename=$(
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         eval echo "\${${option}}"
     )
 
@@ -117,6 +118,7 @@ function update_datasets
     # pull out those config options we want to keep
     assets_ip=$(
         . ${USB_COPY}/config
+	. ${USB_COPY}/config.inc/generic
         eval echo "\${${option}}"
     )
 
