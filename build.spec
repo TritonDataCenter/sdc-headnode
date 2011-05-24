@@ -3,8 +3,8 @@
   , "use-proxy": "false"
   , "build-tgz": "true"
   , "build-hvm": "false"
-  , "hvm-agents": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/agents-hvm-20110512T114512Z.sh"
-  , "hvm-platform": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/platform-HVM-20110512T114512Z.tgz"
+  , "hvm-agents": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/agents-hvm-20110520T062820Z.sh"
+  , "hvm-platform": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/platform-HVM-20110520T062824Z.tgz"
   , "agents-shar": "develop"
   , "datasets": [
       { "name": "smartos-1.3.13"
