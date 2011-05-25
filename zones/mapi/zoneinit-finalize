@@ -154,6 +154,24 @@ fi
 cat > "/opt/smartdc/$app_name-data/$app_name-setup-service.sh" <<SETUP_SERVICE
 #!/usr/bin/bash
 
+set -o errexit
+
+function fatal
+{
+    echo "$app_name-setup-service.sh error: \$*"
+    echo "Initial data import failed, changing mcp_api service to maintenance status"
+    /usr/sbin/svcadm mark -t "maintenance" mcp_api
+    exit 1
+}
+
+function errexit
+{
+    [[ \$1 -ne 0 ]] || exit 0
+    fatal "error exit status \$1"
+}
+
+trap 'errexit \$?' EXIT
+
 POSTGRES_HOST='$POSTGRES_HOST'
 POSTGRES_USER='$POSTGRES_USER'
 POSTGRES_PW='$POSTGRES_PW'
@@ -277,6 +295,11 @@ done
     SERVER_ROLE="$SERVER_ROLE" \
     PACKAGE_SIZES="$PACKAGE_SIZES" \
  /opt/local/bin/rake dev:initial_data) 2>&1 | tee /tmp/initial_data.output
+
+if [[ \${PIPESTATUS[0]} -gt 0 ]]; then
+  fatal "Initial data import failed, changing mcp_api service to maintenance status"
+fi
+
 rm -f /tmp/initial_data.output /tmp/pgpasswd
 
 # Remove the service, we don't wanna run it again (maybe also delete the script?)
