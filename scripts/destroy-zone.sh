@@ -21,7 +21,12 @@ fi
 echo -n "Destroying '${zone}':"
 zoneadm -z ${zone} halt || /bin/true
 
-state=`zoneadm -z ${zone} list -p | cut -d: -f3`
+state=`zoneadm -z ${zone} list -p 2>&1 | cut -d: -f3`
+if [ "$state" == " No such zone configured" ]; then
+	echo " ... DONE!"
+	exit 0
+fi
+
 while [ "$state" != "installed" ]; do
 	sleep 5
 	state=`zoneadm -z ${zone} list -p | cut -d: -f3`
