@@ -176,6 +176,13 @@ if [[ $1 == "-r" ]]; then
     fi
 fi
 
+NO_CONFIG_FILE=0
+if [[ $1 == "-c" ]]; then
+    shift
+    NO_CONFIG_FILE=1
+    echo "Building with no config file in the image. "
+fi
+
 BUILD_TYPE=$1
 if [[ -z ${BUILD_TYPE} ]]; then
     BUILD_TYPE="coal"
@@ -336,17 +343,21 @@ function copy_base
 
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
-        if [[ -f config/config.coal.local ]]; then
-          cp config/config.coal.local ${STAGE}/config
-        else
-          cp config/config.coal ${STAGE}/config
+        if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+            if [[ -f config/config.coal.local ]]; then
+              cp config/config.coal.local ${STAGE}/config
+            else
+              cp config/config.coal ${STAGE}/config
+            fi
         fi
         cp -r config/config.coal.inc ${STAGE}/config.inc
     else
-        if [[ -f config/config.usb.local ]]; then
-          cp config/config.usb.local ${STAGE}/config
-        else
-          cp config/config.usb ${STAGE}/config
+        if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+            if [[ -f config/config.usb.local ]]; then
+              cp config/config.usb.local ${STAGE}/config
+            else
+              cp config/config.usb ${STAGE}/config
+            fi
         fi
         cp -r config/config.usb.inc ${STAGE}/config.inc
     fi
