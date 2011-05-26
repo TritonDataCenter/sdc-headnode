@@ -204,6 +204,13 @@ echo "Auto Upgrading MCP API Database."
 su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
 sleep 1
 
+# We might be upgrading an older version of MAPI, special fixes here:
+legacy_config=\$(cat /opt/smartdc/mapi-data/config/config.ru |grep CloudControlApi)
+if [[ \${legacy_config} ]]; then
+  echo "Upgrading MAPI RackUp configuration"
+  \$(/opt/local/bin/gsed -i"" -e "s/CloudControlApi/MAPI/" /opt/smartdc/mapi-data/config/config.ru)
+fi
+
 if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
   echo "Importing MCP API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/unicorn.smf
