@@ -256,16 +256,6 @@ fi
 ## Setup and call the verify script
 echo "$POSTGRES_PW" > /tmp/pgpasswd
 
-USE_DATASETS=
-for avail_ds in \$(echo '${ALL_DATASETS}' | tr ',' ' '); do
-    for ds in \$(echo '${DATASETS}' | tr ',' ' '); do
-        if [[ \$(echo "\${avail_ds}" | cut -d '-' -f1) == \${ds} ]]; then
-            [[ -n \${USE_DATASETS} ]] && USE_DATASETS="\${USE_DATASETS},"
-            USE_DATASETS="\${USE_DATASETS}\${avail_ds%.*.*}"
-        fi
-    done
-done
-
 # (cd /opt/smartdc/mapi && ./script/verify_setup.sh)
 (cd /opt/smartdc/mapi && RACK_ENV=production \
     DHCP_RANGE_START="$DHCP_RANGE_START" \
@@ -287,7 +277,6 @@ done
     EXTERNAL_END_IP="$EXTERNAL_END_IP" \
     EXTERNAL_VLAN_ID="$EXTERNAL_VLAN_ID" \
     IMG_TYPE="$IMG_TYPE" \
-    DATASETS="\${USE_DATASETS}" \
     COMPANY_NAME="$COMPANY_NAME" \
     LOCATION="$LOCATION" \
     RACK_NAME="$RACK_NAME" \
