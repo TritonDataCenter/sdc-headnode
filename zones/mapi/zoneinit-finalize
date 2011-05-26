@@ -205,8 +205,7 @@ su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake stan
 sleep 1
 
 # We might be upgrading an older version of MAPI, special fixes here:
-legacy_config=\$(cat /opt/smartdc/mapi-data/config/config.ru |grep CloudControlApi)
-if [[ \${legacy_config} ]]; then
+if [[ ! -z \$(cat /opt/smartdc/mapi-data/config/config.ru|grep CloudControlApi) ]]; then
   echo "Upgrading MAPI RackUp configuration"
   \$(/opt/local/bin/gsed -i"" -e "s/CloudControlApi/MAPI/" /opt/smartdc/mapi-data/config/config.ru)
 fi
