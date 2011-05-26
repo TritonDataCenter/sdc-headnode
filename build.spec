@@ -2,7 +2,7 @@
     "platform-release": "develop"
   , "use-proxy": "false"
   , "build-tgz": "true"
-  , "build-hvm": "false"
+  , "build-hvm": "true"
   , "hvm-agents": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/agents-hvm-20110526T001037Z.sh"
   , "hvm-platform": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/platform-HVM-20110526T001043Z.tgz"
   , "agents-shar": "develop"
