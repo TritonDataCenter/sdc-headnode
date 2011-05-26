@@ -82,6 +82,7 @@ if [[ $? -eq 0 ]]; then
             -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
             --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
             -H "Accept: application/json" \
+            -d platform_type="hvm" \
             -d name=${version} >/dev/null 2>&1; then
 
             echo "==> FAILED to add to list of platforms, you'll need to update manually"
