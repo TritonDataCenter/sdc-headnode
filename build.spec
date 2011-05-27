@@ -1,11 +1,11 @@
 {
     "platform-release": "develop"
+  , "hvm-platform-release": "HVM"
   , "use-proxy": "false"
   , "build-tgz": "true"
   , "build-hvm": "true"
-  , "hvm-agents": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/agents-hvm-20110526T182727Z.sh"
-  , "hvm-platform": "https://guest:GrojhykMid@216.57.203.66:444/coal/hvm/platform-HVM-20110526T182732Z.tgz"
   , "agents-shar": "develop"
+  , "hvm-agents-shar": "hvm"
   , "datasets": [
       { "name": "smartos-1.3.13"
       , "uuid": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5"

@@ -451,12 +451,21 @@ function copy_platform
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
 
+    # platform_file is optional, if specified, that platform will be used
+    # instead of looking for the newest that matches platform-<release>
+    platform_file=$1
+    platform_release=$2
+
+    # If master is "true" this platform is the one we'll use as the headnode's
+    # platform, so we install it for that.  If not, we'll just copy to data dir
+    master=$3
+
     valid_platform="false"
-    if [ -z $PLATFORM_FILE ]; then
+    if [[ -z ${platform_file} ]]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            if [[ -n "${PLATFORM_RELEASE}" ]]; then
+            if [[ -n "${platform_release}" ]]; then
                 latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
-                    | ${GREP} "href=\"platform-${PLATFORM_RELEASE}-[0-9]" \
+                    | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
                     | cut -d'"' -f2 | sort | tail -1)
             else
                 latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
@@ -484,67 +493,60 @@ function copy_platform
             rm -f ${image}
             image=
             # unset image and try again
-            copy_platform
+            copy_platform "${platform_file}" "${platform_release}" "${master}"
         fi
     else
-        image=${PLATFORM_FILE}
+        image=${platform_file}
         echo "==> Using ${image} as platform image"
         if ! valid_archive "${image}"; then
             fatal "Refusing to use corrupt platform ${image}"
         fi
     fi
 
-    export USING_PLATFORM=${image}
+    if [[ -z ${master} || ${master} != "true" ]]; then
+        cp ${image} ${STAGE}/data/
+    else
+        export USING_PLATFORM=${image}
 
-    LIVEIMG_VERSION=`basename ${image} \
-        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+        LIVEIMG_VERSION=`basename ${image} \
+            | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
-    echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
-        mv platform-* os/${LIVEIMG_VERSION}/platform) \
-        || fatal "Unable to unpack platform"
-    if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
-        (cd ${STAGE}/ \
-            && mkdir -p private \
-            && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
-                private/root.password.${LIVEIMG_VERSION}) \
-            || fatal "Unable to move root.password"
+        echo "==> Unpacking `basename ${image}`"
+        (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+            mv platform-* os/${LIVEIMG_VERSION}/platform) \
+            || fatal "Unable to unpack platform"
+        if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
+            (cd ${STAGE}/ \
+                && mkdir -p private \
+                && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
+                    private/root.password.${LIVEIMG_VERSION}) \
+                || fatal "Unable to move root.password"
+        fi
+        root_pw=$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})
+        echo "Root password is: '${root_pw}'"
+
+        # Create the menu.lst file
+
+        cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
+            -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
+            > ${STAGE}/boot/grub/menu.lst
+
+        # Rename log file here since we know the buildstamp now
+        mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
+        LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
     fi
-    echo "Root password is: '$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})'"
-
-    # Create the menu.lst file
-
-    cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
-        -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
-        > ${STAGE}/boot/grub/menu.lst
-
-    # Rename log file here since we know the buildstamp now
-    mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
-    LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
 
     loops=
 }
 
-function copy_agents
+function get_agents
 {
     [[ -z "${loops}" ]] && loops=0
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
-    # See if there's a specific agents we're supposed to use
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json agents-shar)
-    fi
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json agents-shar)
-    fi
-    if [[ -z ${agents_shar} ]]; then
-        agents_shar="master"
-    fi
-
     # We treat agents_shar as a pattern and grab the latest one which matches
+    agents_shar=$1
 
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
@@ -610,7 +612,7 @@ function copy_agents
             rm -f ${ROOT}/cache/${use_agents} \
                 ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
             use_agents=
-            copy_agents
+            get_agents ${agents_shar}
         fi
 
         echo "==> Copying ${use_agents}"
@@ -618,6 +620,24 @@ function copy_agents
     fi
 
     loops=
+}
+
+function copy_agents
+{
+    # See if there's a specific agents we're supposed to use
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json agents-shar)
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json agents-shar)
+    fi
+    if [[ -z ${agents_shar} ]]; then
+        agents_shar="master"
+    fi
+
+    get_agents ${agents_shar}
 }
 
 function copy_datasets
@@ -1017,47 +1037,37 @@ function copy_hvm_files
     if [[ -f "${ROOT}/build.spec.local" ]]; then
         BUILD_HVM=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json build-hvm)
-        HVM_PLATFORM=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-platform)
-        HVM_AGENTS=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-agents)
+        HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-platform-release)
+        HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-agents-shar)
     fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${BUILD_HVM} ]]; then
             BUILD_HVM=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json build-hvm)
         fi
-        if [[ -z ${HVM_PLATFORM} ]]; then
-            HVM_PLATFORM=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json hvm-platform)
+        if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
+            HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-platform-release)
         fi
-        if [[ -z ${HVM_AGENTS} ]]; then
-            HVM_AGENTS=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json hvm-agents)
+        if [[ -z ${HVM_AGENTS_SHAR} ]]; then
+            HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-agents-shar)
         fi
+    fi
+
+    if [[ -z ${HVM_AGENTS_SHAR} ]]; then
+        HVM_AGENTS_SHAR="hvm"
+    fi
+    if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
+        HVM_PLATFORM_RELEASE="hvm"
     fi
 
     if [[ ${BUILD_HVM} == "true" ]]; then
         echo "HAVE_HVM=true" >> ${STAGE}/zones/adminui/zoneconfig
-
-        if [[ ! -d "${ROOT}/hvm" ]]; then
-            mkdir -p ${ROOT}/hvm
-        fi
-
-        if [[ $(find ${ROOT}/hvm/ -name "platform-HVM-*" | wc -l) -eq 0 ]]; then
-            (cd ${ROOT}/hvm \
-                && curl ${SPEED_LIMIT} -k --progress -O ${HVM_PLATFORM})
-        fi
-
-        if [[ $(find ${ROOT}/hvm/ -name "agents-hvm-*" | wc -l) -eq 0 ]]; then
-            (cd ${ROOT}/hvm \
-                && curl ${SPEED_LIMIT} -k --progress -O ${HVM_AGENTS})
-        fi
-
-        echo "==> Copying in hvm platform(s)"
-        cp ${ROOT}/hvm/platform-HVM-* ${STAGE}/data/
-        echo "==> Copying in hvm agents"
-        cp ${ROOT}/hvm/agents-hvm-* ${STAGE}/ur-scripts/
+        get_agents ${HVM_AGENTS_SHAR}
+        copy_platform "${HVM_PLATFORM_FILE}" "${HVM_PLATFORM_RELEASE}" "false"
     fi
 }
 
@@ -1174,7 +1184,7 @@ create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
-copy_platform
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true"
 copy_agents
 copy_datasets
 copy_zones
