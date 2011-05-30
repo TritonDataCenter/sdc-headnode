@@ -191,6 +191,9 @@ else
   echo "Verified PostgreSQL availability, moving forward."
 fi
 
+# Without this, mapi db existence checking will always fail:
+echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /root/.pgpass
+chmod 0600 /root/.pgpass
 
 if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
