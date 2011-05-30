@@ -163,10 +163,10 @@ MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT=$(proxy "https://guest:GrojhykMid@assets.joyent.us/datasets")
 DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
+ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
 
 # Figure out first what we're building, and load the proper include
 
@@ -848,7 +848,7 @@ function get_latest
     latest=
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl ${SPEED_LIMIT} -k -sS ${ASSETS_ROOT}/liveimg/ \
+        for file in $(curl ${SPEED_LIMIT} -k -sS ${ASSETS_ROOT}/ \
             | ${GREP} "href=" \
             | cut -d'"' -f2 \
             | ${GREP} "${FS_PATTERN}"); do
@@ -903,7 +903,7 @@ function get_fs_tarball
 
             (cd ${ROOT}/cache \
                 && curl ${SPEED_LIMIT} --progress-bar -k ${CURL_OPTS} \
-                -fO ${ASSETS_ROOT}/liveimg/${filename})
+                -fO ${ASSETS_ROOT}/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
             echo "==> Downloaded ${filename} for ${zone}"
