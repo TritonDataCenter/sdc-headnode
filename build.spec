@@ -2,6 +2,7 @@
     "platform-release": "develop"
   , "hvm-platform-release": "HVM"
   , "use-proxy": "false"
+  , "proxy-ip": "10.0.1.122"
   , "build-tgz": "true"
   , "build-hvm": "true"
   , "agents-shar": "develop"

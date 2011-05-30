@@ -67,14 +67,23 @@ function check_proxy
     if [[ -f "${ROOT}/build.spec.local" ]]; then
         USE_PROXY=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json use-proxy)
+        PROXY_IP=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json proxy-ip)
     fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${USE_PROXY} ]]; then
             USE_PROXY=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json use-proxy)
         fi
+        if [[ -z ${PROXY_IP} ]]; then
+            PROXY_IP=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json proxy-ip)
+        fi
     fi
     if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
+        NOPROXY="true"
+    fi
+    if [[ -z ${PROXY_IP} ]]; then
         NOPROXY="true"
     fi
 
@@ -82,7 +91,7 @@ function check_proxy
       if netstat -rn | grep -q 10\.0\.1\.1 ; then
         echo "Checking for proxy"
         PROXY=`curl ${SPEED_LIMIT} -m 1 -s \
-            http://10.0.1.8/proxy-usb-headnode/location 2> /dev/null || true`
+            http://${PROXY_IP}/proxy-usb-headnode/location 2> /dev/null || true`
         if [ "$PROXY" == "vancouver" ]; then
           echo "Vancouver proxy found."
         elif [ -n "$PROXY" ]; then
@@ -112,8 +121,7 @@ function proxy
       PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\1,')
       HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\2,' | tr : _)
       FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\3,')
-      #echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH" 1>&2
-      echo "http://10.0.1.8/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
+      echo "http://${PROXY_IP}/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
     else
       echo $1
     fi
