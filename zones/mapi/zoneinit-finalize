@@ -203,6 +203,17 @@ if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep map
   su - jill -c "/opt/local/bin/createdb -U postgres -h \$POSTGRES_HOST mapi"
 fi
 
+# Remove hardcoded fastercsv dependency for dm-serializer and dm-types:
+if [[ ! -z \$(cat /opt/local/lib/ruby/gems/1.9/specifications/dm-types-1.0.2.gemspec|grep fastercsv) ]]; then
+  echo "Removing hardcoded fastercsv dependency on dm-types gem"
+  \$(/opt/local/bin/gsed -i"" -e "/fastercsv/d" /opt/local/lib/ruby/gems/1.9/specifications/dm-types-1.0.2.gemspec)
+fi
+
+if [[ ! -z \$(cat /opt/local/lib/ruby/gems/1.9/specifications/dm-serializer-1.0.2.gemspec|grep fastercsv) ]]; then
+  echo "Removing hardcoded fastercsv dependency on dm-serializer gem"
+  \$(/opt/local/bin/gsed -i"" -e "/fastercsv/d" /opt/local/lib/ruby/gems/1.9/specifications/dm-serializer-1.0.2.gemspec)
+fi
+
 echo "Auto Upgrading MCP API Database."
 su - jill -c "cd /opt/smartdc/mapi; RACK_ENV=production /opt/local/bin/rake standalone:db:autoupgrade -f /opt/smartdc/mapi/Rakefile"
 sleep 1

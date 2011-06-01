@@ -145,8 +145,6 @@ if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
   /usr/sbin/svcadm enable -s mdnsresponder
 fi
 
-
-
 echo "Generating MAPI config files."
 host=`hostname`
 amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
