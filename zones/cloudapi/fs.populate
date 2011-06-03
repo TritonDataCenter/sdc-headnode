@@ -2,7 +2,14 @@
 
 set -e
 
-echo "cloudapi-rp target: [${CHECKOUT_TARGET}]"
+
+MAKE=/opt/local/bin/gmake
+if [[ `uname` == "Darwin" ]]; then
+    MAKE=/usr/bin/make
+fi
+
+
+echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
@@ -19,13 +26,15 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
         exit 1
     fi
 else
-    git clone git@git.joyent.com:cloudapi-rp.git cloudapi
+    git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
-    git checkout ${CHECKOUT_TARGET}
-    rm -rf .git
+    git checkout master
+    make git
+    mkdir -p ./build
+    $MAKE build/.cloud-api.npm.installed
+    cd ..
 fi
 
-cd ..
 
 echo "cloudapi-v1 target: [${CHECKOUT_TARGET}]"
 
@@ -48,24 +57,4 @@ else
     rm -rf .git
 fi
 
-cd ..
-echo "cloudapi-v2 target: [${CHECKOUT_TARGET}]"
-
-if [[ -n ${CLOUDAPI_V2_DIR} ]]; then
-    if [[ -d ${CLOUDAPI_V2_DIR} ]]; then
-        echo "taking cloudapi from ${CLOUDAPI_V2_DIR}"
-        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
-        mkdir cloudapi-v2-repo
-        (cd ${CLOUDAPI_V2_DIR} && tar -cf - ./) | (cd cloudapi-v2-repo && tar -xf -)
-        cd cloudapi-v2-repo
-    else
-        echo "FATAL: ${CLOUDAPI_V2_DIR} is not a directory"
-        exit 1
-    fi
-else
-    git clone git@git.joyent.com:cloud-api.git v2
-    cd v2
-    git checkout ${CHECKOUT_TARGET}
-    rm -rf .git
-fi
 

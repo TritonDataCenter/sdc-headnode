@@ -4,7 +4,7 @@
 
 # v1
 cat > /opt/smartdc/v1/config/production.json <<HERE
-{ 
+{
   "name": "Joyent Public API",
   "url": "http://${PUBLIC_IP}/v1",
   "capi": {
@@ -33,10 +33,10 @@ cat > /opt/smartdc/v1/config/production.json <<HERE
 HERE
 
 # v2
-cat > /opt/smartdc/v2/cfg/config.json <<HERE
+cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
 {
-  "siteName": "http://127.0.0.1",
-  "port": 8200,
+  "siteName": "${CLOUDAPI_EXTERNAL_URL}",
+  "port": 80,
   "logLevel": 4,
   "capi": {
     "uri": "${CAPI_URL}",
@@ -61,7 +61,26 @@ cat > /opt/smartdc/v2/cfg/config.json <<HERE
     }
   },
   "ca": {
-    "uri": "http://10.99.99.9:23181"
-  }
+    "uri": "${MAPI_URL}",
+    "username": "${MAPI_HTTP_ADMIN_USER}",
+    "password": "${MAPI_HTTP_ADMIN_PW}"
+  },
+  "datasets": {
+    "smartos": {
+      "1.3.13": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5",
+      "_default": "1.3.13"
+    },
+    "nodejs": {
+      "1.1.4": "41da9c2e-7175-11e0-bb9f-536983f41cd8",
+      "_default": "1.1.4"
+    },
+    "ubuntu": {
+      "10.04.2.1": "b66fb52a-6a8a-11e0-94cd-b347300c5a06",
+      "_default": "10.04.2.1"
+    },
+    "_default": "smartos"
+  },
+  "default_network": "external",
+  "default_package": "regular_128"
 }
 HERE
