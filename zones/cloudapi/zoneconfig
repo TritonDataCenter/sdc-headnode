@@ -8,6 +8,7 @@ PUBLIC_IP=${cloudapi_external_ip-${cloudapi_admin_ip}}
 PUBLIC_API_PRIVATE_URL=${cloudapi_client_url}
 
 CLOUDAPI_EXTERNAL_URL=${cloudapi_external_url}
+DATACENTER_NAME=${datacenter_name}
 EXTERNAL_URL=${cloudapi_external_url}
 
 CAPI_API_PRIVATE_URL=${capi_client_url}

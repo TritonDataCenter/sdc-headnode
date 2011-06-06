@@ -81,6 +81,9 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "_default": "smartos"
   },
   "default_network": "external",
-  "default_package": "regular_128"
+  "default_package": "regular_128",
+  "datacenters": {
+    "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
+  }
 }
 HERE

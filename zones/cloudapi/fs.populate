@@ -31,7 +31,7 @@ else
     git checkout master
     make git
     mkdir -p ./build
-    $MAKE build/.cloud-api.npm.installed
+    npm install
     cd ..
 fi
 
