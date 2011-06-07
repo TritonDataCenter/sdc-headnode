@@ -358,7 +358,12 @@ function copy_base
               cp config/config.coal ${STAGE}/config
             fi
         fi
-        cp -r config/config.coal.inc ${STAGE}/config.inc
+
+        if [[ -d config/config.coal.inc.local ]]; then
+            cp -r config/config.coal.inc.local ${STAGE}/config.inc
+        else
+            cp -r config/config.coal.inc ${STAGE}/config.inc
+        fi
     else
         if [[ ${NO_CONFIG_FILE} == 0 ]]; then
             if [[ -f config/config.usb.local ]]; then
@@ -367,7 +372,12 @@ function copy_base
               cp config/config.usb ${STAGE}/config
             fi
         fi
-        cp -r config/config.usb.inc ${STAGE}/config.inc
+
+        if [[ -d config/config.usb.inc.local ]]; then
+            cp -r config/config.usb.inc.local ${STAGE}/config.inc
+        else
+            cp -r config/config.usb.inc ${STAGE}/config.inc
+        fi
     fi
 
     echo "==> Copying in scripts/"
