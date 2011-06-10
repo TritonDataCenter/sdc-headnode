@@ -223,7 +223,8 @@ export TERM=sun-color
 stty erase ^H
 clear
 
-echo "                        Headnode System Configuration"
+echo "                  Joyent Smart Data Center"
+echo "                Headnode System Configuration"
 echo
 echo "You must answer the following questions to configure the headnode."
 echo "You will have a chance to review and correct your answers, as well as a"
@@ -243,10 +244,15 @@ while [ /usr/bin/true ]; do
 	promptval "Enter a location for this datacenter" "$datacenter_location"
 	datacenter_location="$val"
 
+
+        echo 
+	echo "Each headnode in a data center must have a unique ID" 
+        echo "if you only have one headnode just hit enter"
+	
 	promptval "Enter your headnode ID" "$datacenter_headnode_id"
 	datacenter_headnode_id="$val"
 
-	promptval "Enter the domain name" "$domainname"
+	promptval "Enter the admin network domain name" "$domainname"
 	domainname="$val"
 
 	promptval "Enter an administrator email address" "$mail_to"
@@ -265,22 +271,22 @@ while [ /usr/bin/true ]; do
 	promptnic "Admin network"
 	admin_nic="$val"
 
-	promptnet "Admin network IP address" "$admin_ip"
+	promptnet "(admin) headnode IP address" "$admin_ip"
 	admin_ip="$val"
 
-	promptnet "Admin network netmask" "$admin_netmask"
+	promptnet "(admin) headnode netmask" "$admin_netmask"
 	admin_netmask="$val"
 
 	promptnic "External network"
 	external_nic="$val"
 
-	promptnet "External network IP address" "$external_ip"
+	promptnet "(external) headnode IP address" "$external_ip"
 	external_ip="$val"
 
-	promptnet "External network netmask" "$external_netmask"
+	promptnet "(external) headnode netmask" "$external_netmask"
 	external_netmask="$val"
 
-	promptnet "Enter the IP address of your gateway router" \
+	promptnet "Enter the IP address of your default gateway router" \
 	    "$headnode_default_gateway"
 	headnode_default_gateway="$val"
 
@@ -293,6 +299,7 @@ while [ /usr/bin/true ]; do
 	promptval "Default DNS search domain" "$dns_domain"
 	dns_domain="$val"
 
+	echo 
 	echo "By default the headnode acts as an NTP server for the admin" \
 	    "network. You"
 	echo "can set the headnode to be an NTP client to syncronize to" \
