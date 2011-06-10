@@ -28,11 +28,12 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
-    git checkout master
-    make git
-    mkdir -p ./build
+    git checkout ${CHECKOUT_TARGET}
     npm install
-    cd ..
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+    cd node_modules/sdc-clients
+    git checkout ${CHECKOUT_TARGET}
+    cd ../../
 fi
 
 
