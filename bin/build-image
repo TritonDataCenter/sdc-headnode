@@ -18,6 +18,13 @@
 set -o errexit
 set -o pipefail
 
+# Check for NPM up front
+which npm 2>&1 > /dev/null
+if [[ $? != 0 ]] || [[ `npm -v` != 1\.* ]]; then
+    echo "build-image requires npm 1.0.x to be in your path"
+    exit 1
+fi
+
 # write output to log file
 ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"

@@ -2,13 +2,6 @@
 
 set -e
 
-
-MAKE=/opt/local/bin/gmake
-if [[ `uname` == "Darwin" ]]; then
-    MAKE=/usr/bin/make
-fi
-
-
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -20,19 +13,31 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
         # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
         mkdir cloudapi-repo
         (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
-        cd cloudapi-repo
     else
         echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
         exit 1
     fi
 else
+    # cloud-api snubs the develop branch.
+    TARGET=${CHECKOUT_TARGET}
+    if [[ ${TARGET} == "origin/develop" ]]; then
+	TARGET=master
+    fi
+
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
-    git checkout master
-    make git
-    mkdir -p ./build
+    git checkout ${TARGET}
     npm install
-    cd ..
+    rm -rf .git
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
+    cd node_modules/sdc-clients
+    git checkout ${TARGET}
+    rm -rf .git
+    cd ../http-signature
+    git checkout ${TARGET}
+    rm -rf .git
+    cd ../../../
 fi
 
 
@@ -44,7 +49,6 @@ if [[ -n ${CLOUDAPI_V1_DIR} ]]; then
         # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
         mkdir cloudapi-v1-repo
         (cd ${CLOUDAPI_V1_DIR} && tar -cf - ./) | (cd cloudapi-v1-repo && tar -xf -)
-        cd cloudapi-v1-repo
     else
         echo "FATAL: ${CLOUDAPI_V1_DIR} is not a directory"
         exit 1
