@@ -27,12 +27,12 @@ cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node /opt/smartdc/cloudapi/server.js &amp;"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/cloudapi/server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/cloudapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
-          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
         </method_environment>
       </method_context>
@@ -88,7 +88,7 @@ cat > /opt/smartdc/v1/v1_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node server.js &amp;"
+      exec="/opt/smartdc/node/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/v1">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
