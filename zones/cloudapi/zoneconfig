@@ -24,10 +24,14 @@ CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
 CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
 CAPI_CACHE_SIZE=${pubapi_capi_cache_size}
 CAPI_CACHE_AGE=${pubapi_capi_cache_age}
+CAPI_ADMIN_LOGIN=${capi_admin_login}
 
 DEFAULT_DATACENTER=${pubapi_default_datacenter}
 SMARTOS_DEFAULT_LIMIT=${pubapi_smartos_default_limit}
 NODEJS_DEFAULT_LIMIT=${pubapi_nodejs_default_limit}
+
+PORTAL_ADMIN_IP=${portal_admin_ip}
+RABBIT_IP=${rabbitmq_admin_ip}
 
 MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}

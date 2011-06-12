@@ -21,13 +21,17 @@ else
     # cloud-api snubs the develop branch.
     TARGET=${CHECKOUT_TARGET}
     if [[ ${TARGET} == "origin/develop" ]]; then
-	TARGET=master
+        TARGET=master
     fi
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
     git checkout ${TARGET}
     npm install
+    if [[ $? != 0 ]]; then
+        echo "[cloudapi] npm install failed"
+        exit 1
+    fi
     rm -rf .git
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
     git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
