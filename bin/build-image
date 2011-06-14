@@ -711,7 +711,8 @@ function copy_datasets
             fatal "Download uri for dataset ${name} not present in manifest"
         fi
 
-        copy_dataset ${name} ${uri}
+        local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
+        copy_dataset ${name} ${uri} ${sha1}
         echo "==> Copying ${name} manifest"
         cp ${manifest} ${STAGE}/datasets/
 
@@ -736,6 +737,7 @@ function copy_dataset
 {
   local dataset=$1
   local dataset_uri=$2
+  local dataset_sha1=$3
 
   dataset_file=$(basename ${dataset_uri})
   if [ -e ${ROOT}/cache/${dataset_file} ]; then
@@ -762,18 +764,14 @@ function copy_dataset
       fi
   fi
 
-  if [[ ${dataset_file} =~ gz$ ]]; then
-      if ! gzip -t ${ROOT}/cache/${dataset_file}; then
-          rm -f ${ROOT}/cache/${dataset_file}
-          fatal "Corrupt ${dataset_file}, deleted! Try build again."
-      fi
-  elif ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-      rm -f ${ROOT}/cache/${dataset_file}
-      fatal "Corrupt ${dataset_file}, deleted! Try build again."
+  local cached_dataset_sha1=$(shasum ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
+    rm -f ${ROOT}/cache/${dataset_file}
+    fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
   fi
 
   echo "==> Copying ${dataset_file}"
-  cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+  ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 
 #
