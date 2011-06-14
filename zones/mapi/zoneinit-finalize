@@ -334,6 +334,18 @@ chmod 0555 /home
 # If we are upgrading, need to restore the DB backup, run migrations and
 # import the application services:
 if [[ -n ${KEEP_DATA_DATASET} ]]; then
+
+  # Remove hardcoded fastercsv dependency for dm-serializer and dm-types:
+  if [[ ! -z $(cat /opt/local/lib/ruby/gems/1.9/specifications/dm-types-1.0.2.gemspec|grep fastercsv) ]]; then
+    echo "Removing hardcoded fastercsv dependency on dm-types gem"
+    $(/opt/local/bin/gsed -i"" -e "/fastercsv/d" /opt/local/lib/ruby/gems/1.9/specifications/dm-types-1.0.2.gemspec)
+  fi
+
+  if [[ ! -z $(cat /opt/local/lib/ruby/gems/1.9/specifications/dm-serializer-1.0.2.gemspec|grep fastercsv) ]]; then
+    echo "Removing hardcoded fastercsv dependency on dm-serializer gem"
+    $(/opt/local/bin/gsed -i"" -e "/fastercsv/d" /opt/local/lib/ruby/gems/1.9/specifications/dm-serializer-1.0.2.gemspec)
+  fi
+
   data_version=$(cat /opt/smartdc/${app_name}-data/VERSION)
   dump_file_path=$(ls /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump)
   dump_file=$(basename ${dump_file_path%.*})
