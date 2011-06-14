@@ -128,6 +128,14 @@ is_net()
 	return 0
 }
 
+# Optional input
+promptopt()
+{
+	val=
+	printf "%s [press enter for none]: " "$1"
+	read val
+}
+
 promptval()
 {
 	val=""
@@ -316,6 +324,9 @@ while [ /usr/bin/true ]; do
 	promptnet "(external) headnode netmask" "$external_netmask"
 	external_netmask="$val"
 
+	promptopt "External network VLAN ID"
+	external_vlan_id="$val"
+
 	promptnet "Enter the IP address of your default gateway router" \
 	    "$headnode_default_gateway"
 	headnode_default_gateway="$val"
@@ -354,6 +365,11 @@ while [ /usr/bin/true ]; do
 	echo "External network MAC address: $external_nic"
 	echo "External network IP address: $external_ip"
 	echo "External network netmask: $external_netmask"
+	if [ -z "$external_vlan_id" ]; then
+		echo "External network VLAN ID: [none]"
+	else
+		echo "External network VLAN ID: $external_vlan_id"
+	fi
 	echo "Gateway router IP address: $headnode_default_gateway"
 	echo "DNS servers: $dns_resolver1,$dns_resolver2"
 	echo "Default DNS search domain: $dns_domain"
@@ -474,7 +490,11 @@ echo "external_nic_tag=external" >>$tmp_config
 echo "external_ip=$external_ip" >>$tmp_config
 echo "external_gateway=$headnode_default_gateway" >>$tmp_config
 echo "external_netmask=$external_netmask" >>$tmp_config
-echo "# external_vlan_id=999" >>$tmp_config
+if [ -z "$external_vlan_id" ]; then
+	echo "# external_vlan_id=999" >>$tmp_config
+else
+	echo "external_vlan_id=$external_vlan_id" >>$tmp_config
+fi
 echo "external_network_name=external" >>$tmp_config
 echo "external_network=$external_network" >>$tmp_config
 echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
