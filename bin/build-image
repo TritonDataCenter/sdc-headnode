@@ -1050,7 +1050,6 @@ function copy_devtools
 
 function copy_hvm_files
 {
-    BUILD_HVM="false"
     if [[ -f "${ROOT}/build.spec.local" ]]; then
         BUILD_HVM=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json build-hvm)
@@ -1074,6 +1073,9 @@ function copy_hvm_files
         fi
     fi
 
+    if [[ -z ${BUILD_HVM} ]]; then
+        BUILD_HVM="false"
+    fi
     if [[ -z ${HVM_AGENTS_SHAR} ]]; then
         HVM_AGENTS_SHAR="hvm"
     fi
