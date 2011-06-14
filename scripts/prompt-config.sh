@@ -24,11 +24,27 @@ sigexit()
 }
 
 #
+# Get the max. IP addr for the given field, based in the netmask.
+# That is, if netmask is 255, then its just the input field, otherwise its
+# the host portion of the netmask (e.g. netmask 224 -> 31).
+# Param 1 is the field and param 2 the mask for that field.
+#
+max_fld()
+{
+	if [ $2 -eq 255 ]; then
+		fmax=$1
+	else
+		fmax=$((255 & ~$2))
+	fi
+}
+
+#
 # Converts an IP and netmask to a network
 # For example: 10.99.99.7 + 255.255.255.0 -> 10.99.99.0
 # Each field is in the net_a, net_b, net_c and net_d variables.
-# Also, net_addr stores the address of the host w/o the network number (e.g.
-# 7 in the 10.99.99.7 example above).
+# Also, host_addr stores the address of the host w/o the network number (e.g.
+# 7 in the 10.99.99.7 example above).  Also, max_host stores the max. host
+# number (e.g. 10.99.99.254 in the example above).
 #
 ip_netmask_to_network()
 {
@@ -43,12 +59,26 @@ ip_netmask_to_network()
 	net_c=$3
 	net_d=$4
 	addr_d=$net_d
+
 	set -- $NETMASK
+
+	# Calculate the maximum host address
+	max_fld "$net_a" "$1"
+	max_a=$fmax
+	max_fld "$net_b" "$2"
+	max_b=$fmax
+	max_fld "$net_c" "$3"
+	max_c=$fmax
+	max_fld "$net_d" "$4"
+	max_d=$(expr $fmax - 1)
+	max_host="$max_a.$max_b.$max_c.$max_d"
+
 	net_a=$(($net_a & $1))
 	net_b=$(($net_b & $2))
 	net_c=$(($net_c & $3))
 	net_d=$(($net_d & $4))
-	net_addr=$(($addr_d & ~$4))
+
+	host_addr=$(($addr_d & ~$4))
 	IFS=$OLDIFS
 }
 
@@ -344,7 +374,7 @@ admin_network="$net_a.$net_b.$net_c.$net_d"
 #
 # Calculate admin network IP address for each zone
 #
-next_addr=$(expr $net_addr + 1)
+next_addr=$(expr $host_addr + 1)
 adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -378,16 +408,16 @@ dhcp_next_server="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-dhcp_range_end="$net_a.$net_b.$net_c.199"
+dhcp_range_end="$max_host"
 
 #
 # Calculate external network
 #
 ip_netmask_to_network "$external_ip" "$external_netmask"
-next_addr=$(expr $net_addr + 1)
+next_addr=$(expr $host_addr + 1)
 external_network="$net_a.$net_b.$net_c.$net_d"
 external_provisionable_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-external_provisionable_end="$net_a.$net_b.$net_c.254"
+external_provisionable_end="$max_host"
 
 #
 # Generate config file
