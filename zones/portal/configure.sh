@@ -14,7 +14,7 @@ exports.config = {
   displayCouponField : false,
   externalUrl : "${EXTERNAL_URL}",
   publicAPIUrlV1 : "${PUBLIC_API_PRIVATE_URL}",
-	publicApiUrl : "${CLOUD_API_PRIVATE_URL}",
+	publicAPIUrl : "${CLOUD_API_PRIVATE_URL}",
   publicAPIVersion : '6.1.0',
   privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
   privateCAPIUrl : "${CAPI_API_PRIVATE_URL}",
