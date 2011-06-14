@@ -22,7 +22,6 @@ contains /etc/hosts to define the name ( so that the network service can bring
 up the interface ) as well as anything else that needs to be in the zone ( for
 example ISC-DHCPD )
 
-
 Directory structure
 -------------------
 
