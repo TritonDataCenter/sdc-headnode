@@ -87,3 +87,4 @@ or rmformat -l
 USB key creation currently only works on Solaris-ish. If you are using SmartOS
 (ie, the VMWare image or USB headnode) you will need to run the script
 devtools/devmode.sh to set up the environment.
+
