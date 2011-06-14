@@ -12,8 +12,13 @@ cd /opt/smartdc/adminui-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
 # Export complete repo into adminui:
 cd /opt/smartdc/adminui-repo
-
 /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/
+
+cd /opt/smartdc/adminui-repo/public/javascripts/ca-vis/
+/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/public/javascripts/ca-vis/
+
+cd /opt/smartdc/adminui-repo/public/javascripts/ca-vis/d3/
+/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/public/javascripts/ca-vis/d3/
 
 # Export only config into adminui-data:
 cd /opt/smartdc/adminui-repo
