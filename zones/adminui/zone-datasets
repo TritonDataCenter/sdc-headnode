@@ -1,4 +1,4 @@
-echo -n "adminui/adminui-data, " >>/dev/console
+printf "%-56s" "Creating zone adminui-data..." >>/dev/console
 if [[ -f "${USB_COPY}/backup/adminui-data.zfs" ]]; then
   zfs receive zones/adminui/adminui-data < "${USB_COPY}/backup/adminui-data.zfs"
   # Remove the snapshot created when received the zfs file:
@@ -7,11 +7,13 @@ if [[ -f "${USB_COPY}/backup/adminui-data.zfs" ]]; then
 else
   zfs create zones/adminui/adminui-data
 fi
+printf "%4s\n" "done" >> /dev/console
+
 zonecfg -z adminui 'add dataset; set name="zones/adminui/adminui-data"; end; verify; commit'
 STAMP=$(cat /zones/adminui/root/opt/smartdc/adminui-VERSION)
-echo -n "adminui/adminui-app-${STAMP} " >>/dev/console
+printf "%-56s" "Creating zone adminui-app-${STAMP}..." >>/dev/console
 zfs create zones/adminui/adminui-app-${STAMP}
 echo "$STAMP">/zones/adminui/root/root/adminui-app-timestamp
 cmd="add dataset; set name=zones/adminui/adminui-app-$STAMP; end; verify; commit"
 zonecfg -z adminui $cmd
-echo -n ". " >> /dev/console
+printf "%4s\n" "done" >> /dev/console

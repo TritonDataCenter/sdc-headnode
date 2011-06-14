@@ -1,4 +1,4 @@
-echo -n "pubapi/pubapi-data, " >>/dev/console
+printf "%-56s" "Creating zone pubapi-data..." >>/dev/console
 # We don't want to create the dataset if it already exists and it is on a
 # known path:
 if [[ -f "${USB_COPY}/backup/pubapi-data.zfs" ]]; then
@@ -9,11 +9,13 @@ if [[ -f "${USB_COPY}/backup/pubapi-data.zfs" ]]; then
 else
   zfs create zones/pubapi/pubapi-data
 fi
+printf "%4s\n" "done" >>/dev/console
+
 zonecfg -z pubapi 'add dataset; set name="zones/pubapi/pubapi-data"; end; verify; commit'
 STAMP=$(cat /zones/pubapi/root/opt/smartdc/pubapi-VERSION)
-echo -n "pubapi/pubapi-app-${STAMP} " >>/dev/console
+printf "%-56s" "Creating zone pubapi-app-${STAMP}..." >>/dev/console
 zfs create zones/pubapi/pubapi-app-${STAMP}
 echo "$STAMP">/zones/pubapi/root/root/pubapi-app-timestamp
 cmd="add dataset; set name=zones/pubapi/pubapi-app-$STAMP; end; verify; commit"
 zonecfg -z pubapi $cmd
-echo -n ". " >>/dev/console
+printf "%4s\n" "done" >>/dev/console

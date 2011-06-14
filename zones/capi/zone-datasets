@@ -1,4 +1,4 @@
-echo -n "capi/capi-data, " >>/dev/console
+printf "%-56s" "Creating zone capi-data..." >> /dev/console
 
 if [[ -f "${USB_COPY}/backup/capi-data.zfs" ]]; then
   zfs receive zones/capi/capi-data < "${USB_COPY}/backup/capi-data.zfs"
@@ -8,13 +8,15 @@ if [[ -f "${USB_COPY}/backup/capi-data.zfs" ]]; then
 else
   zfs create zones/capi/capi-data
 fi
+printf "%4s\n" "done" >> /dev/console
+
 
 zonecfg -z capi "add dataset; set name=zones/capi/capi-data; end; verify; commit"
 STAMP=$(cat /zones/capi/root/opt/smartdc/capi-VERSION)
-echo -n "capi/capi-app-${STAMP} " >>/dev/console
+printf "%-56s" "Creating zone capi-app-${STAMP}..." >>/dev/console
 zfs create zones/capi/capi-app-${STAMP}
 echo "$STAMP">/zones/capi/root/root/capi-app-timestamp
 cmd="add dataset; set name=zones/capi/capi-app-$STAMP; end; verify; commit"
 zonecfg -z capi $cmd
-echo -n ". " >> /dev/console
+printf "%4s\n" "done" >> /dev/console
 

@@ -188,7 +188,7 @@ zone_dhcp_server=$(eval "echo \${CONFIG_${zone}_dhcp_server}")
 [[ -n ${zone_dhcp_server} ]] &&
     zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
 
-echo -n "Creating zone ${zone}... " >&${CONSOLE_FD}
+printf "%-56s" "Creating zone ${zone}... " >&${CONSOLE_FD}
 zonecfg -z ${zone} -f ${src}/config
 
 eval zone_cpu_shares=\${CONFIG_${zone}_cpu_shares}
@@ -226,7 +226,7 @@ if [[ -f "${src}/zoneconfig" ]]; then
     # done in a subshell to avoid further namespace polution.
     (
         . ${USB_COPY}/config
-	. ${USB_COPY}/config.inc/generic
+ 	      . ${USB_COPY}/config.inc/generic
         . ${src}/zoneconfig
 
         for var in $(cat ${src}/zoneconfig | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
@@ -333,7 +333,10 @@ if [[ "${zone}" == "mapi" ]]; then
     update_datasets assets_admin_ip
 fi
 
+printf "%4s\n" "done" >&${CONSOLE_FD}
+
 # Create additional zone datasets when required:
+# additional creation output is in the zone-datasets script
 if [[ -f "${src}/zone-datasets" ]]; then
     source "${src}/zone-datasets"
 fi
@@ -370,23 +373,28 @@ grep -v "/var/svc/log" ${dest}/root/zoneinit.d/11-files.delete \
        ${dest}/root/zoneinit.d/11-files.delete
 
 zoneadm -z ${zone} boot
-echo "done." >&${CONSOLE_FD}
 
 if [[ ${wait_for_zoneinit} == "true" ]]; then
     if [ -e /zones/${zone}/root/root/zoneinit ]; then
-        echo -n "${zone}: waiting for zoneinit." >&${CONSOLE_FD}
+        msg="${zone}: waiting for zoneinit"
         loops=0
         while [ -e /zones/${zone}/root/root/zoneinit ]; do
-            sleep 10
-            echo -n "." >&${CONSOLE_FD}
+            # its a spinner
+            printf "%-56s%s\r" "${msg}" "-"  >&${CONSOLE_FD} ; sleep 0.05
+            printf "%-56s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
+            printf "%-56s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
+            printf "%-56s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
+
+            # counter goes up every 0.2 seconds
+            # wait 10 minutes
             loops=$((${loops} + 1))
-            [ ${loops} -ge 59 ] && break
+            [ ${loops} -ge 2999 ] && break
         done
-        if [ ${loops} -ge 59 ]; then
-            echo " timeout!" >&${CONSOLE_FD}
+        if [ ${loops} -ge 2999 ]; then
+            printf "%-56s%8s\n" "${msg}" "timeout!"  >&${CONSOLE_FD}
             ls -l /zones/${zone}/root/root
         else
-            echo " done." >&${CONSOLE_FD}
+            printf "%-56s%4s\n" "${msg}" "done"  >&${CONSOLE_FD}
             # remove the pkgsrc dir now that zoneinit is done
             if [[ -d /zones/${zone}/root/pkgsrc ]]; then
                 rm -rf /zones/${zone}/root/pkgsrc

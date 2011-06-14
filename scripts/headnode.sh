@@ -157,12 +157,12 @@ if [[ ${POOLS} == "no pools available" ]]; then
         fatal "FATAL: unable to find 'smartos' dataset."
     fi
 
-    echo -n "Importing zone template dataset... " >&${CONSOLE_FD}
+    printf "%-56s" "Importing zone template dataset... " >&${CONSOLE_FD}
     bzcat ${USB_PATH}/datasets/${ds_file} \
         | zfs recv zones/${ds_uuid} \
         || fatal "unable to import ${template}"
 
-    echo "done." >&${CONSOLE_FD}
+    printf "%4s\n" "done" >&${CONSOLE_FD}
 
     reboot
     exit 2
@@ -207,19 +207,24 @@ if [ -n "${CREATEDZONES}" ]; then
     # So that we can spin them all up in parallel and cook our laps
     for zone in ${CREATEDZONES}; do
         if [ -e /zones/${zone}/root/root/zoneinit ]; then
-            echo -n "${zone}: waiting for zoneinit." >&${CONSOLE_FD}
+        	  msg="${zone}: waiting for zoneinit"
             loops=0
             while [ -e /zones/${zone}/root/root/zoneinit ]; do
-                sleep 10
-                echo -n "." >&${CONSOLE_FD}
+                printf "%-56s%s\r" "${msg}" "-"  >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-56s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-56s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-56s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
+      
+                # counter goes up every 0.2 seconds
+                # wait 10 minutes
                 loops=$((${loops} + 1))
-                [ ${loops} -ge 59 ] && break
+                [ ${loops} -ge 2999 ] && break
             done
-            if [ ${loops} -ge 59 ]; then
-                echo " timeout!" >&${CONSOLE_FD}
+            if [ ${loops} -ge 2999 ]; then
+                printf "%-56s%8s\n" "${msg}" "timeout!"  >&${CONSOLE_FD}
                 ls -l /zones/${zone}/root/root >&${CONSOLE_FD}
             else
-                echo " done." >&${CONSOLE_FD}
+                printf "%-56s%4s\n" "${msg}" "done"  >&${CONSOLE_FD}
                 # remove the pkgsrc dir now that zoneinit is done
                 if [[ -d /zones/${zone}/root/pkgsrc ]]; then
                     rm -rf /zones/${zone}/root/pkgsrc
@@ -236,9 +241,9 @@ if [ -n "${CREATEDZONES}" ]; then
         which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
             | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then
-            echo -n "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
+            printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
             (cd /var/tmp ; bash ${which_agents})
-            echo "done." >&${CONSOLE_FD}
+            printf "%4s\n" "done" >&${CONSOLE_FD}
         else
             fatal "No agents-*.sh found!"
         fi
@@ -248,7 +253,7 @@ if [ -n "${CREATEDZONES}" ]; then
     # The svc installing the zones is still running since we haven't exited
     # yet, so the svc count should be 1 for us to end successfully.
     # If they're not up after 4 minutes, report a possible issue.
-    echo -n "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
+    printf "%-56s\n" "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
     i=0
     while [ $i -lt 16 ]; do
         nstarting=`svcs -Zx 2>&1 | grep -c "State:"`
@@ -269,7 +274,7 @@ if [ -n "${CREATEDZONES}" ]; then
 
     # Install any HVM platforms that are sitting around, do this here since MAPI is now up.
     install_hvm_platforms
-
+    
     echo "==> Setup complete.  Press [enter] to get login prompt." \
        >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
