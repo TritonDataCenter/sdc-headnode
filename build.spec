@@ -1,5 +1,5 @@
 {
-    "platform-release": "20110512T181025Z"
+    "platform-release": "20110615T180030Z"
   , "use-proxy": "false"
   , "build-tgz": "true"
   , "agents-shar": "release-20110512-20110524T160025Z"
