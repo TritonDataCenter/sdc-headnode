@@ -2,7 +2,7 @@
     "platform-release": "20110512T181025Z"
   , "use-proxy": "false"
   , "build-tgz": "true"
-  , "agents-shar": "release-20110512-20110512T204456Z"
+  , "agents-shar": "release-20110512-20110524T160025Z"
   , "datasets": [
       { "name": "smartos-1.3.12"
       , "uuid": "febaa412-6417-11e0-bc56-535d219f2590"
@@ -13,8 +13,8 @@
       }
   ]
   , "adminui-checkout": "origin/release-20110512"
-  , "atropos-tarball": "^atropos-release-20110512-.*.tar.bz2$"
-  , "ca-tarball": "^ca-pkg-release-20110512-.*.tar.bz2$"
+  , "atropos-tarball": "atropos-develop-20110210.tar.bz2"
+  , "ca-tarball": "ca-pkg-master-20110512-2-g157dd01.tar.bz2"
   , "capi-checkout": "origin/release-20110512"
   , "dhcpd-checkout": "origin/release-20110512"
   , "mapi-checkout": "origin/release-20110512"
