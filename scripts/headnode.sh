@@ -274,10 +274,10 @@ if [ -n "${CREATEDZONES}" ]; then
 
     # Install any HVM platforms that are sitting around, do this here since MAPI is now up.
     install_hvm_platforms
-    
-    echo "==> Setup complete.  Press [enter] to get login prompt." \
-       >&${CONSOLE_FD}
-    echo "" >&${CONSOLE_FD}
+   
+    clear
+    printf "\033[1;37m%s\033[0;37m\n" \ 
+    "==> Setup complete.  Press [enter] to get login prompt." >&${CONSOLE_FD}
 fi
 
 exit 0
