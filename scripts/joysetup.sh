@@ -180,46 +180,46 @@ setup_datasets()
   datasets=$(zfs list -H -o name | xargs)
   
   if ! echo $datasets | grep dump > /dev/null; then
-    echo -n "Making dump zvol... " >&4
+    printf "%-56s" "Making dump zvol... " >&4
     create_dump
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${CONFDS} > /dev/null; then
-    echo -n "Initializing config dataset for zones... " >&4
+    printf "%-56s" "Initializing config dataset for zones... " >&4
     zfs create ${CONFDS} || fatal "failed to create the config dataset"
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
     zfs set mountpoint=legacy ${CONFDS}
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
     if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
-        echo -n "Creating usbkey dataset... " >&4
+        printf "%-56s" "Creating usbkey dataset... " >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
-        echo "done." >&4
+        printf "%4s\n" "done" >&4
     fi
   fi
 
   if ! echo $datasets | grep ${COREDS} > /dev/null; then
-    echo -n "Creating global cores dataset... " >&4
+    printf "%-56s" "Creating global cores dataset... " >&4
     zfs create -o quota=10g -o mountpoint=/zones/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${OPTDS} > /dev/null; then
-    echo -n "Creating opt dataset... " >&4
+    printf "%-56s" "Creating opt dataset... " >&4
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${VARDS} > /dev/null; then
-    echo -n "Initializing var dataset... " >&4
+    printf "%-56s" "Initializing var dataset... " >&4
     zfs create ${VARDS} || \
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
@@ -229,7 +229,7 @@ setup_datasets()
     fi
 
     zfs set mountpoint=legacy ${VARDS}
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
   fi
 }
 
@@ -247,15 +247,15 @@ create_swap()
     fi
 
     if [[ $(uname -s) == 'Linux' ]]; then
-        echo -n "Creating swap volume... " >&4
+        printf "%-56s" "Creating swap volume... " >&4
         lvcreate -L ${swapsize}G -n swap smartdc
         mkswap -f /dev/smartdc/swap
         swapon /dev/smartdc/swap
     else
         if ! zfs list -H -o name ${SWAPVOL}; then
-            echo -n "Creating swap zvol... " >&4
+            printf "%-56s" "Creating swap zvol... " >&4
             zfs create -V ${swapsize}g ${SWAPVOL}
-            echo "done." >&4
+            printf "%4s\n" "done" >&4
         fi
     fi
 }
@@ -286,7 +286,7 @@ install_configs()
     fi
 
     if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
-        echo -n "Compute node, installing config files... " >&4
+        printf "%-56s" "Compute node, installing config files... " >&4
         if [[ ! -d $TEMP_CONFIGS ]]; then
             fatal "config files not present in /var/tmp"
         fi
@@ -297,7 +297,7 @@ install_configs()
         fi
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
-        echo "done." >&4
+        printf "%4s\n" "done" >&4
 
         # re-load config here, since it will have just changed
         # (also location will be detected properly now)
@@ -319,36 +319,36 @@ create_vg()
 
 create_lvm_datasets()
 {
-    echo -n "Creating global cores dataset... " >&4
+    printf "%-56s" "Creating global cores dataset... " >&4
     lvcreate -L 5G -n cores smartdc
     mkfs.ext3 /dev/smartdc/cores
     mkdir -p /cores
     mount -text3 /dev/smartdc/cores /cores
     chmod 1777 /cores
     echo '/cores/core.%t.%u.%g.%s.%s' >/proc/sys/kernel/core_pattern
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
 
-    echo -n "Creating opt dataset... " >&4
+    printf "%-56s" "Creating opt dataset... " >&4
     lvcreate -L 5G -n opt smartdc
     mkfs.ext3 /dev/smartdc/opt
     mount -text3 /dev/smartdc/opt /opt
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
 
-    echo -n "Initializing var dataset... " >&4
+    printf "%-56s" "Initializing var dataset... " >&4
     lvcreate -L 5G -n var smartdc
     mkfs.ext3 /dev/smartdc/var
     mount -text3 /dev/smartdc/var /mnt
     (cd /var && tar -cpf - ./) | (cd /mnt && tar -xf -)
     umount /mnt
     mount -text3 /dev/smartdc/var /var
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
 
-    echo -n "Initializing vms dataset... " >&4
+    printf "%-56s" "Initializing vms dataset... " >&4
     mkdir -p /etc/vms
     lvcreate -L 1G -n vms smartdc
     mkfs.ext3 /dev/smartdc/vms
     mount -text3 /dev/smartdc/vms /etc/vms
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
 }
 
 output_vg_info()

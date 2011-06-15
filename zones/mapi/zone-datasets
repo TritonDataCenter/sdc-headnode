@@ -1,4 +1,4 @@
-echo -n "mapi/mapi-data, " >>/dev/console
+printf "%-56s" "Creating zone mapi-data..." >>/dev/console
 # We don't want to create the dataset if it already exists and it is on a
 # known path:
 if [[ -f "${USB_COPY}/backup/mapi-data.zfs" ]]; then
@@ -9,15 +9,15 @@ if [[ -f "${USB_COPY}/backup/mapi-data.zfs" ]]; then
 else
   zfs create zones/mapi/mapi-data
 fi
+printf "%4s\n" "done" >> /dev/console
 
 zonecfg -z mapi 'add dataset; set name="zones/mapi/mapi-data"; end; verify; commit'
 STAMP=$(cat /zones/mapi/root/opt/smartdc/mapi-VERSION)
-echo -n "mapi/mapi-app-${STAMP} " >>/dev/console
+printf "%-56s" "Creating zone mapi-app-${STAMP}..." >>/dev/console
 zfs create zones/mapi/mapi-app-${STAMP}
 echo "$STAMP">/zones/mapi/root/root/mapi-app-timestamp
 cmd="add dataset; set name=zones/mapi/mapi-app-$STAMP; end; verify; commit"
 zonecfg -z mapi $cmd
-echo -n ". " >> /dev/console
 # Trying to do not add an extra file to copy agents script to mapi zone
 mkdir -p /zones/mapi/root/opt/smartdc/agent-scripts
 cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
@@ -29,3 +29,5 @@ sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json
 # Datasets
 mkdir -p /zones/mapi/root/opt/smartdc/datasets
 cp -R ${USB_COPY}/datasets/*.dsmanifest /zones/mapi/root/opt/smartdc/datasets
+
+printf "%4s\n" "done" >> /dev/console
