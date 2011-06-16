@@ -172,7 +172,7 @@ MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-DATASETS_ROOT=$(proxy "https://joyent:H0neyB4dger@datasets.joyent.com/datasets")
+DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.us")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
 ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
@@ -691,13 +691,13 @@ function copy_datasets
         uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
         headnode_zones=$(echo "${datasets_json}" \
             | ${ROOT}/bin/json ${index}.headnode_zones)
-        manifest="${ROOT}/datasets/${name}.dsmanifest"
+        manifest="${ROOT}/cache/${name}.dsmanifest"
 
         if [[ ! -f $manifest ]] ; then
             if [[ ${HAVE_INTERNET} == "true" ]]; then
                 echo "==> Downloading ${name} manifest"
 
-                DATASET_URL="${DATASETS_ROOT}/${uuid}"
+                DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
                 (curl ${SPEED_LIMIT} \
                     --progress-bar -k -o ${manifest} ${DATASET_URL}) \
                     || fatal "Unable to download ${name} manifest"
@@ -707,7 +707,8 @@ function copy_datasets
             fi
         fi
 
-        uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+        local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
+        local uri="${DSAPI_URL}/datasets/${uuid}/${path}"
         uri=$(proxy ${uri})
         if [[ -z ${uri} ]]; then
             fatal "Download uri for dataset ${name} not present in manifest"
