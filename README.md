@@ -70,7 +70,6 @@ Likewise for the others zones using these envvars:
     PUBAPI_DIR
     CLOUDAPI_DIR
 
-TODO: test this actually works with "bin/build-image"
 
 
 # Re-building a single zone
@@ -95,7 +94,18 @@ from a local working copy as follows (using the "mapi" zone as an example):
 
 4.  Recreate the zone:
 
-        ssh -A root@10.99.99.7
-        /usbkey/scripts/destroy-zone.sh mapi
-        /usbkey/scripts/create-zone.sh mapi -w
+        ssh -A root@10.99.99.7 /usbkey/scripts/destroy-zone.sh mapi
+
+    and then reboot your VM to recreate MAPI and run initializations.
+
+
+Likewise for the others zones using these envvars:
+
+    ADMINUI_DIR
+    CAPI_DIR
+    BOOTER_DIR
+    MAPI_DIR
+    PORTAL_DIR
+    PUBAPI_DIR
+    CLOUDAPI_DIR
 

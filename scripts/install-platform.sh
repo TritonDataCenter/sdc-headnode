@@ -33,27 +33,26 @@ if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]
     version="HVM-${version}"
 fi
 
-if [[ -d ${usbmnt}/os/${version} ]]; then
-    echo "FATAL: ${usbmnt}/os/${version} already exists."
-    exit 1
+if [[ ! -d ${usbmnt}/os/${version} ]]; then
+    echo "==> Unpacking ${version} to ${usbmnt}/os"
+    curl --progress -k ${input} \
+        | (mkdir -p ${usbmnt}/os/${version} \
+        && cd ${usbmnt}/os/${version} \
+        && gunzip | tar -xf - 2>/tmp/install_platform.log \
+        && mv platform-* platform
+    )
+
+    if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
+         mv -f ${usbmnt}/os/${version}/platform/root.password \
+             ${usbmnt}/private/root.password.${version}
+    fi
 fi
 
-echo "==> Unpacking ${version} to ${usbmnt}/os"
-curl --progress -k ${input} \
-    | (mkdir -p ${usbmnt}/os/${version} \
-    && cd ${usbmnt}/os/${version} \
-    && gunzip | tar -xf - 2>/tmp/install_platform.log \
-    && mv platform-* platform
-)
-
-if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
-     mv -f ${usbmnt}/os/${version}/platform/root.password \
-         ${usbmnt}/private/root.password.${version}
+if [[ ! -d ${usbcpy}/os/${version} ]]; then
+    echo "==> Copying ${version} to ${usbcpy}/os"
+    mkdir -p ${usbcpy}/os
+    (cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
 fi
-
-echo "==> Copying ${version} to ${usbcpy}/os"
-mkdir -p ${usbcpy}/os
-(cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
 
 if [[ ${mounted} == "true" ]]; then
     echo "==> Unmounting USB Key"
@@ -62,9 +61,26 @@ fi
 
 echo "==> Adding to list of available platforms"
 
+# Wait until MAPI is actually up. Attempts to guarantee that (watching the MAPI svc)
+# before calling this script aren't reliable.
+mapi_ping="curl -f --connect-timeout 2 -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} --url http://${CONFIG_mapi_admin_ip}/"
+for i in {1..12}; do
+    if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` == "0" ]]; then
+        break
+    fi
+    sleep 5
+done
+if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` != "0" ]]; then
+    echo "FAILED waiting for MAPI to come up, can't update."
+    exit 1
+fi
+
 curr_list=$(curl -s -f -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
     --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null || /bin/true)
 if [[ $? -eq 0 ]]; then
+    # MAPI returned empty content for "no platform images".
+    [[ -z "${curr_list}" ]] && curr_list='[]'
+
     elements=$(echo "${curr_list}" | json length)
     found="false"
     idx=0
