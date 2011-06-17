@@ -166,8 +166,8 @@ dnsapi_http_user=admin
 dnsapi_http_pass=joypass123
 
 dsapi_url=https://datasets.joyent.com
-dsapi_http_user=joyent
-dsapi_http_pass=H0neyB4dger
+dsapi_http_user=honeybadger
+dsapi_http_pass=IEatSnakes4Fun
 
 mapi_admin_ip=10.99.99.8
 mapi_client_url=http://10.99.99.8:80

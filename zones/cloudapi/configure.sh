@@ -6,18 +6,17 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
 {
   "siteName": "${CLOUDAPI_EXTERNAL_URL}",
   "port": 80,
-  "datacenter": "${DATACENTER_NAME}",
   "logLevel": 4,
   "capi": {
     "uri": "${CAPI_URL}",
     "username": "${CAPI_HTTP_ADMIN_USER}",
     "password": "${CAPI_HTTP_ADMIN_PW}",
     "authCache": {
-      "size": 1000,
+      "size": 100,
       "expiry": 60
     },
     "accountCache": {
-      "size": 1000,
+      "size": 100,
       "expiry": 300
     }
   },
@@ -26,7 +25,7 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "username": "${MAPI_HTTP_ADMIN_USER}",
     "password": "${MAPI_HTTP_ADMIN_PW}",
     "datasetCache": {
-      "size": 1000,
+      "size": 100,
       "expiry": 300
     }
   },
@@ -41,14 +40,23 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "password": "guest",
     "vhost": "/"
   },
-  "default_limits": {
-    "smartos": 1,
-    "nodejs": 1,
-    "ubuntu": 1
+  "v1": {
+    "host": "${V1_IP}",
+    "port": 8080
   },
-  "default_dataset": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5",
+  "datacenter": "${DATACENTER_NAME}",
   "datacenters": {
     "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
+  },
+  "provisionAuthHook": {
+    "plugin": "./plugins/capi_limits",
+    "config": {
+      "defaults": {
+        "smartos": 1,
+        "nodejs": 1,
+        "ubuntu": 1
+      }
+    }
   },
   "ipThrottles": {
     "all": {

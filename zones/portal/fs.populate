@@ -31,9 +31,17 @@ else
     git clone git@git.joyent.com:public-web-client.git portal
     cd portal
     git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    git submodule update --init --recursive
     touch ../portal-VERSION
     git describe --tags > ../portal-VERSION
     mnfst_string="portal@"${CHECKOUT_TARGET}
+
+
+		# cd /opt/smartdc/portal/public/javascripts/ca-vis/
+		# /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/portal/public/javascripts/ca-vis/
+		# 
+		# cd /opt/smartdc/portal/public/javascripts/ca-vis/d3/
+		# /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/portal/public/javascripts/ca-vis/d3/
 
 fi
 
