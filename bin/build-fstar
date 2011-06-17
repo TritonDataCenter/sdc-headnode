@@ -54,12 +54,6 @@ case ${ZONE} in
             exit 1
         fi
         ;;
-    dsapi)
-        if [[ -z ${DSAPI_DIR} ]]; then
-            echo "Need DSAPI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
     capi)
         if [[ -z ${CAPI_DIR} || -z ${DNSAPI_DIR} ]]; then
             echo "Need CAPI_DIR and DNSAPI_DIR env for ${zone}"
