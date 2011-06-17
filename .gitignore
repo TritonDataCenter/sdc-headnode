@@ -16,3 +16,4 @@
 /hvm/platform*
 /hvm/agents*
 /recipe.*
+/*.tar.bz2

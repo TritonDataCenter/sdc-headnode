@@ -98,14 +98,18 @@ esac
 
 
 # do in /tmp because only root can write in mnt
+fstar=${ROOT}/${ZONE}.tar.bz2
+rm -f ${fstar}
 mkdir -p /tmp/fs.${ZONE}.$$
 cp -pPR ${ZONEDIR}/fs.populate ${ZONEDIR}/fs.root /tmp/fs.${ZONE}.$$
 (cd /tmp/fs.${ZONE}.$$/fs.root \
-    && ../fs.populate \
-    && tar -jcvf ${ROOT}/${ZONE}.tar.bz2 ./ \
+    && RECIPE_FILE=/dev/null ../fs.populate \
+    && tar -jcvf ${fstar} ./ \
     && rm -rf /tmp/fs.${ZONE}.$$)
 if [[ $? -ne 0 ]]; then
     fatal "Failed create ${ZONE}.tar.bz2 for ${ZONE}"
+else
+    echo "Created '${fstar}'."
 fi
 
 exit 0
