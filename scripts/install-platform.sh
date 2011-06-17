@@ -64,7 +64,7 @@ echo "==> Adding to list of available platforms"
 # Wait until MAPI is actually up. Attempts to guarantee that (watching the MAPI svc)
 # before calling this script aren't reliable.
 mapi_ping="curl -f --connect-timeout 2 -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} --url http://${CONFIG_mapi_admin_ip}/"
-for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+for i in {1..12}; do
     if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` == "0" ]]; then
         break
     fi
