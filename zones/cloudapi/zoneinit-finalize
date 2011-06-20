@@ -2,9 +2,8 @@
 
 echo "99 finalizing cloudapi zone"
 
-# We need to generate our own self signed certificate for Nginx:
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/cloudapi/cfg/key.pem -out /opt/smartdc/cloudapi/cfg/cert.pem -days 365
 
 echo Creating manifest for cloudapi:
 cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE

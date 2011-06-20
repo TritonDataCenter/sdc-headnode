@@ -192,7 +192,7 @@ cloudapi_admin_ip=10.99.99.15
 # cloudapi_external_vlan=0
 cloudapi_root_pw=joypass123
 cloudapi_admin_pw=joypass123
-cloudapi_external_url=http://10.99.99.15
+cloudapi_external_url=https://10.99.99.15
 
 pubapi_admin_ip=10.99.99.13
 pubapi_client_url=http://10.99.99.13:8080/v1

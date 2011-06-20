@@ -5,7 +5,9 @@
 cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
 {
   "siteName": "${CLOUDAPI_EXTERNAL_URL}",
-  "port": 80,
+  "port": 443,
+  "cert": "./cfg/cert.pem",
+  "key": "./cfg/key.pem",
   "logLevel": 4,
   "capi": {
     "uri": "${CAPI_URL}",
