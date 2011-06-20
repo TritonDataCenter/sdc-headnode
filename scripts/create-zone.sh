@@ -65,6 +65,7 @@ function install_node_config
                 capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
+                dhcp_lease_time \
                 ; do
 
                 value=$(eval echo \${${opt}})
