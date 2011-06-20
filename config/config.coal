@@ -143,6 +143,7 @@ atropos_admin_pw=joypass123
 ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
+ca_client_url=http://10.99.99.9:23181
 
 capi_is_local=true
 capi_admin_ip=10.99.99.11
