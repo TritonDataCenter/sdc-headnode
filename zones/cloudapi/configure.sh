@@ -6,8 +6,8 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
 {
   "siteName": "${CLOUDAPI_EXTERNAL_URL}",
   "port": 443,
-  "cert": "./cfg/cert.pem",
-  "key": "./cfg/key.pem",
+  "cert": "./ssl/cert.pem",
+  "key": "./ssl/key.pem",
   "logLevel": 4,
   "capi": {
     "uri": "${CAPI_URL}",
@@ -32,9 +32,7 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     }
   },
   "ca": {
-    "uri": "${MAPI_URL}",
-    "username": "${MAPI_HTTP_ADMIN_USER}",
-    "password": "${MAPI_HTTP_ADMIN_PW}"
+    "uri": "${CA_URL}"
   },
   "rabbitmq": {
     "host": "${RABBIT_IP}",

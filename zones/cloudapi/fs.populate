@@ -34,6 +34,7 @@ else
     fi
     rm -rf .git
     rm -f cfg/*
+    mkdir -p ssl
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
     git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
     cd node_modules/sdc-clients
