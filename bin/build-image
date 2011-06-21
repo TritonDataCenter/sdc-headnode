@@ -206,11 +206,7 @@ if [[ -z ${BUILD_TYPE} ]]; then
 fi
 if [[ ${PLATFORM} == 'Darwin' ]]; then
     case ${BUILD_TYPE} in
-        vmware)
-            source ${ROOT}/bin/include-vmware-osx
-            version
-            ;;
-        coal)
+        vmware|coal)
             source ${ROOT}/bin/include-coal-osx
             version
             ;;
