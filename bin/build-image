@@ -558,6 +558,8 @@ function copy_platform
         # Rename log file here since we know the buildstamp now
         mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
         LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
+        rm -f ${LOGDIR}/latest
+        ln -s ${LOGFILE} ${LOGDIR}/latest
     fi
 
     loops=
