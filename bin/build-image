@@ -206,11 +206,7 @@ if [[ -z ${BUILD_TYPE} ]]; then
 fi
 if [[ ${PLATFORM} == 'Darwin' ]]; then
     case ${BUILD_TYPE} in
-        vmware)
-            source ${ROOT}/bin/include-vmware-osx
-            version
-            ;;
-        coal)
+        vmware|coal)
             source ${ROOT}/bin/include-coal-osx
             version
             ;;
@@ -489,17 +485,13 @@ function copy_platform
 
     valid_platform="false"
     if [[ -z ${platform_file} ]]; then
+        [[ -z "${platform_release}" ]] \
+            && fatal "Must define 'platform_file' or 'platform_release' " \
+                     "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            if [[ -n "${platform_release}" ]]; then
-                latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
-                    | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
-                    | cut -d'"' -f2 | sort | tail -1)
-            else
-                latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
-                    | ${GREP} "href=\"platform-[0-9]" \
-                    | cut -d'"' -f2 | sort | tail -1)
-            fi
-
+            latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
+                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
@@ -508,7 +500,8 @@ function copy_platform
                   || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
-            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head -1)
+            latest_image=$(cd ${ROOT}/cache \
+                && ls platform-${platform_release}-*.tgz | head -1)
             if [[ -z ${latest_image} ]]; then
                 fatal "Unable to find a platform image and we have no Internet."
             fi
@@ -561,6 +554,8 @@ function copy_platform
         # Rename log file here since we know the buildstamp now
         mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
         LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
+        rm -f ${LOGDIR}/latest
+        ln -s ${LOGFILE} ${LOGDIR}/latest
     fi
 
     loops=
