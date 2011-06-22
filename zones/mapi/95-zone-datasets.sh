@@ -10,14 +10,13 @@ zfs set mountpoint=/opt/smartdc/mapi "zones/mapi/mapi-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/mapi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
+
 # Export complete repo into mapi:
-cd /opt/smartdc/mapi-repo
+cd /opt/smartdc
+(cd mapi-repo && tar cf - .) | (cd mapi && tar xfp -)
+rm -rf mapi/.git
 
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/mapi/
-
-# Export only config into mapi-data:
-cd /opt/smartdc/mapi-repo
-# Create some directories into mapi-data
+# Create some directories into mapi-data (export only config into mapi-data).
 mkdir -p /opt/smartdc/mapi-data/log
 mkdir -p /opt/smartdc/mapi-data/tmp/pids
 
@@ -42,6 +41,7 @@ echo "${REVISION}">/opt/smartdc/mapi-data/REVISION
 echo "${REVISION}">/opt/smartdc/mapi/REVISION
 
 # Save VERSION (Updates based on this):
+cd /opt/smartdc/mapi-repo
 APP_VERSION=$(/opt/local/bin/git describe --tags)
 if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
   echo "${APP_VERSION}">/opt/smartdc/mapi-data/VERSION
