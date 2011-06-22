@@ -16,6 +16,10 @@ headnode_nat=true
 # Install agents by default
 install_agents=true
 
+# Agents will be installed here
+agents_root=/opt/smartdc/agents
+zonetracker_database_path=${agents_root}/db/zonetracker.sqlite3
+
 # Set this to the name of a file in config.inc and it will be copied in as
 # root's .ssh/authorized_keys in GZs:
 root_authorized_keys_file=root.authorized_keys
