@@ -619,6 +619,9 @@ echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
+echo >>$tmp_config
+
+echo "phonehome_automatic=true" >>$tmp_config
 
 echo
 echo "Your configuration is about to be applied."

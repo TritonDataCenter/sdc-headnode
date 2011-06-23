@@ -206,3 +206,5 @@ rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
+
+phonehome_automatic=false
