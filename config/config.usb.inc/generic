@@ -18,7 +18,7 @@ install_agents=true
 
 # Agents will be installed here
 agents_root=/opt/smartdc/agents
-zonetracker_database_path=${agents_root}/db/zonetracker.sqlite3
+zonetracker_database_path=/opt/smartdc/agents/db/zonetracker.sqlite3
 
 
 # Set this to the name of a file in config.inc and it will be copied in as

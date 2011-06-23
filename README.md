@@ -84,20 +84,24 @@ from a local working copy as follows (using the "mapi" zone as an example):
 
     This will just build a "mapi.tar.bz2".
 
-2.  Mount the usbkey in COAL headnode:
+2.  Copy in the fs tarball:
 
         ssh root@10.99.99.7 /usbkey/scripts/mount-usb.sh
-
-3.  Copy in the fs tarball:
-
         scp mapi.tar.bz2 root@10.99.99.7:/mnt/usbkey/zones/mapi/fs.tar.bz2
+        scp mapi.tar.bz2 root@10.99.99.7:/usbkey/zones/mapi/fs.tar.bz2
+    
+    Note, we copy it into both the USB key (necessary to be there for
+    reboot) and into the usbkey copy (in case you re-create the zone
+    without a reboot).
 
-4.  Recreate the zone:
+3.  Recreate the zone:
 
         ssh -A root@10.99.99.7 /usbkey/scripts/destroy-zone.sh mapi
+        ssh -A root@10.99.99.7 /usbkey/scripts/create-zone.sh mapi -w
 
-    and then reboot your VM to recreate MAPI and run initializations.
-
+Warning: In general this requires your changes to be locally commited
+(tho not pushed). HEAD-465 added support for uncommited changes for
+MAPI_DIR, but not for the others.
 
 Likewise for the others zones using these envvars:
 
