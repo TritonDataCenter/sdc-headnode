@@ -166,8 +166,7 @@ fi
 
 check_proxy
 
-MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-06-23/deps")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
@@ -403,7 +402,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl -k ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
@@ -490,7 +489,7 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
-                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | ${GREP} "href=\"platform-${platform_release}\.tgz" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
