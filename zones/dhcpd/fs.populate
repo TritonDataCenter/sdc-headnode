@@ -25,17 +25,12 @@ if [[ -n ${BOOTER_DIR} ]]; then
         exit 1
     fi
 else
-    mkdir -p root/opt/smartdc
-    cd root/opt/smartdc
     git clone git@git.joyent.com:booter.git booter
     cd booter
     git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
     mnfst_string="booter@"${CHECKOUT_TARGET}
 fi
 
-rm -f config.js
-#touch ../booter-VERSION
-#git describe --tags > ../booter-VERSION
 if [[ $dorebuild == 1 ]]; then
     git reset --hard ${checkout_sha}
 else
@@ -43,3 +38,11 @@ else
     echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
+# Clone into pwd/booter, but install to this dir:
+INSTALL_DIR=`pwd`/../root/opt/smartdc/booter
+#VERSION=$(git describe --tags)
+DESTDIR=${INSTALL_DIR} make install-dhcpd
+cd ..
+rm -rf booter
+#cd ${INSTALL_DIR}
+#echo ${VERSION} > ../booter-VERSION
