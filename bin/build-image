@@ -171,10 +171,12 @@ MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/rel
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.us")
+# See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
+# details on user used with DSAPI.
+DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
+AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
+ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}")
 
 # Figure out first what we're building, and load the proper include
 
@@ -761,7 +763,7 @@ function copy_dataset
       fi
   fi
 
-  local cached_dataset_sha1=$(shasum ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  local cached_dataset_sha1=$(/usr/bin/sum -x sha1 ${ROOT}/cache/${dataset_file} | awk '{print $1}')
   if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
     rm -f ${ROOT}/cache/${dataset_file}
     fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
