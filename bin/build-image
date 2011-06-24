@@ -171,7 +171,9 @@ MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/rel
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.us")
+# See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
+# details on user used with DSAPI.
+DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
 ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
