@@ -34,7 +34,7 @@
           "atropos/release-20110623/atropos-release-*"
         , "cloud_analytics/release-20110623/cabase-release-*"
         , "cloud_analytics/release-20110623/cainstsvc-release-20110623-*"
-        , "dataset_manager/release-20110623/dataset_manager-20110623-*"
+        , "dataset_manager/release-20110623/dataset_manager-release-20110623-*"
         , "heartbeater/release-20110623/heartbeater-release-20110623-*"
         , "provisioner/release-20110623/provisioner-release-20110623-*"
         , "smartlogin/release-20110623/smartlogin-release-20110623-*"
