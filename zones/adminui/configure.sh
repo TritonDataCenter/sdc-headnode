@@ -136,7 +136,7 @@ if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
 fi
 
-su - jill -c "bash /opt/smartdc/adminui/fix_yajl.sh"
+su - jill -c "bash /opt/smartdc/adminui/script/fix_yajl.sh"
 
 # Just in case, create /var/logadm
 if [[ ! -d /var/logadm ]]; then
