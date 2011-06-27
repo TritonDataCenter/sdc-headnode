@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-set -o xtrace
 
 
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
