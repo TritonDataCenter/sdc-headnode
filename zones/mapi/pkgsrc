@@ -17,6 +17,7 @@ scmgit-base-1.7.3.4nb1
 libuuid-1.36
 ruby19-base-1.9.2pl180
 ruby19-bcrypt-2.1.2
+ruby19-readline-1.9.2pl180
 ruby19-json-pure-1.4.6
 ruby19-addressable-2.2.2
 ruby19-eventmachine-0.12.10nb3
