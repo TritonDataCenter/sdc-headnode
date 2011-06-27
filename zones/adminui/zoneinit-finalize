@@ -26,8 +26,80 @@ echo "Importing MAPI Admin UI Unicorn Manifest"
 sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/network/smartdc/application/adminui:default refresh
 
+
 # Ensure everything in /opt/smartdc is owned by jill
-chown -R jill:jill /opt/smartdc
+chown -R jill:jill /opt/smartdc/adminui
+chown -R jill:jill /opt/smartdc/adminui-data
+
+echo Creating manifest for caproxy:
+cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="caproxy">
+  <service name="smartdc/app/caproxy" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/local/bin/node /opt/smartdc/caproxy/caproxy.js &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+          <envvar name="ADMINUI_PATH" value="/opt/smartdc/adminui" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">caproxy daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Importing caproxy-manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/caproxy/caproxy-manifest.xml
+
+sleep 5
+
+echo "Enablig service caproxy"
+/usr/sbin/svcadm enable smartdc/app/caproxy
 
 # fix perms on /home
 chown root:root /home
@@ -38,11 +110,4 @@ if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
   ## Call the verify script
   (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
 
-  # Setup for HVM if it's enabled.
-  if [[ -n ${HAVE_HVM} && ${HAVE_HVM} == "true" ]]; then
-    gsed -i -e "s/^\(development:.*\)/\1\n  hvm_enabled: true/" /opt/smartdc/adminui/config/config.yml
-  fi
-  cat /opt/smartdc/adminui/config/config.yml
-
 fi
-

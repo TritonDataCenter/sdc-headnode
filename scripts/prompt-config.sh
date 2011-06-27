@@ -398,6 +398,7 @@ next_addr=$(expr $next_addr + 1)
 atropos_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 ca_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+ca_client_url="http://${ca_admin_ip}:23181"
 next_addr=$(expr $next_addr + 1)
 capi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 capi_client_url="http://${capi_admin_ip}:8080"
@@ -554,6 +555,7 @@ echo "atropos_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "ca_admin_ip=$ca_admin_ip" >>$tmp_config
+echo "ca_client_url=$ca_client_url" >>$tmp_config
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config

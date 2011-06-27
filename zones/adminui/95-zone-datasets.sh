@@ -10,21 +10,13 @@ zfs set mountpoint=/opt/smartdc/adminui "zones/adminui/adminui-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/adminui-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
-# Export complete repo into adminui:
-cd /opt/smartdc/adminui-repo
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/
 
-cd /opt/smartdc/adminui-repo/public/javascripts/ca-vis/
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/public/javascripts/ca-vis/
+cp -Rf /opt/smartdc/adminui-repo/* /opt/smartdc/adminui
 
-cd /opt/smartdc/adminui-repo/public/javascripts/ca-vis/d3/
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/adminui/public/javascripts/ca-vis/d3/
-
-# Export only config into adminui-data:
-cd /opt/smartdc/adminui-repo
 # Create some directories into adminui-data
 mkdir -p /opt/smartdc/adminui-data/log
 mkdir -p /opt/smartdc/adminui-data/tmp/pids
+
 # Remove and symlink directories:
 if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
   mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
@@ -48,4 +40,3 @@ echo "${APP_VERSION}">/opt/smartdc/adminui/VERSION
 cd /root/
 rm -Rf /opt/smartdc/adminui-repo
 rm /root/adminui-app-timestamp
-

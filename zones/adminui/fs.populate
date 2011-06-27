@@ -28,13 +28,29 @@ if [[ -n ${ADMINUI_DIR} ]]; then
         exit 1
     fi
 else
-    git clone git@git.joyent.com:mcp_api_admin.git adminui-repo
+    git clone git@git.joyent.com:mcp_api_admin.git -b $(basename ${CHECKOUT_TARGET}) adminui-repo
     cd adminui-repo
-    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
     git submodule update --init --recursive
     mnfst_string="adminui-repo@"${CHECKOUT_TARGET}
 fi
 
+
+if [[ -d caproxy ]]; then
+  cd caproxy
+  echo "[ADMINUI] Installing npm modules"
+  npm install
+
+  if [[ $? != 0 ]]; then
+      echo "[ADMINUI] npm install failed"
+      exit 1
+  fi
+  cd ..
+fi
+
+mv caproxy ../
+
+# Remove all .git directories from the repo
+find . -type d -name ".git" -exec echo {} \;
 
 if [[ $dorebuild == 0 ]]; then
     head=$(git symbolic-ref HEAD)
