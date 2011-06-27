@@ -2,6 +2,7 @@
 
 set -e
 
+
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -26,7 +27,17 @@ else
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
+    mkdir -p ssl
+    mkdir -p node_modules
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
+
+    # CloudAPI checkout
     git checkout ${TARGET}
+    echo ${TARGET} > VERSION
+    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+
+    # Install NPM modules
     npm install
     if [[ $? != 0 ]]; then
         echo "[cloudapi] npm install failed"
@@ -34,15 +45,22 @@ else
     fi
     rm -rf .git
     rm -f cfg/*
-    mkdir -p ssl
-    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
+
+    # SDCClients checkout
     cd node_modules/sdc-clients
     git checkout ${TARGET}
+    echo ${TARGET} > VERSION
+    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git
+
+    # HttpSignature checkout
     cd ../http-signature
     git checkout ${TARGET}
+    echo ${TARGET} > VERSION
+    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git
+
+    # Back up to where we were (/opt/smartdc)
     cd ../../../
 fi
 

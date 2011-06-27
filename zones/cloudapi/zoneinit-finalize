@@ -2,10 +2,17 @@
 
 echo "99 finalizing cloudapi zone"
 
+echo "Installing local node.js"
+cd /opt/smartdc
+/usr/bin/gtar -z -m -xf /opt/tmp/node.tgz
+cd -
+/usr/bin/rm -fr /opt/tmp
+/usr/bin/chown -R root:root /opt/smartdc
+
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/cloudapi/ssl/key.pem -out /opt/smartdc/cloudapi/ssl/cert.pem -days 365
 
-echo Creating manifest for cloudapi:
+echo "Creating SMF manifest"
 cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -66,7 +73,6 @@ cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-echo Creating manifest for v1:
 cat > /opt/smartdc/v1/v1_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
