@@ -22,6 +22,10 @@ http {
         server ${PRIVATE_IP}:8080;
     }
 
+    upstream caproxy {
+        server ${PRIVATE_IP}:8081;
+    }
+
     server {
         listen 80;
         rewrite ^(.*) https://\$server_addr\$request_uri permanent;
@@ -48,6 +52,20 @@ http {
             break;
         }
 
+        location /ca {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://caproxy;
+            break;
+        }
+
+
         error_page   500 502 503 504  /50x.html;
         location = /50x.html {
             root   share/examples/nginx/html;
@@ -71,13 +89,6 @@ else
   /usr/sbin/svcadm enable -s nginx
 fi
 
-
-if [[ ! -e /opt/smartdc/adminui/config/config.yml ]]; then
-  echo "Creating MAPI Admin UI config files."
-  su - jill -c "cd /opt/smartdc/adminui; /opt/local/bin/rake dev:configs -f /opt/smartdc/adminui/Rakefile"
-fi
-sleep 1
-
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
 if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
@@ -85,23 +96,23 @@ if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
 fi
 
 if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
-  echo "Unpacking frozen gems for MAPI Admin UI."
+  echo "[ADMINUI] Unpacking frozen gems"
   (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
 fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
-  echo "Creating MAPI Admin UI Unicorn Manifest."
+  echo "[ADMINUI] Creating Unicorn Manifest."
   /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
   chown jill:jill /opt/smartdc/adminui/config/unicorn.smf
 fi
 
 if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
-  echo "Creating MAPI Admin UI Unicorn Configuration file."
+  echo "[ADMINUI] Creating Unicorn Configuration file."
   /opt/local/bin/ruby -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
   chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
 fi
 
-echo "Installing MAPI Admin UI Config file."
+echo "[ADMINUI] Generating config.json"
 host=`hostname`
 
 su - jill -c "cd /opt/smartdc/adminui; \
@@ -118,6 +129,7 @@ su - jill -c "cd /opt/smartdc/adminui; \
   MAPI_URL=$MAPI_URL \
   MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
   MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
+  HVM=$HAVE_HVM \
   /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
