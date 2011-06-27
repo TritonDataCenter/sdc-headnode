@@ -1,9 +1,9 @@
-#!/usr/bin/bash
+#!/bin/bash
 #
 # Copyright (c) 2010 Joyent Inc., All rights reserved.
 #
 
-PATH=/usr/bin:/usr/sbin
+PATH=/usr/bin:/usr/sbin:/sbin:/bin
 export PATH
 
 ZPOOL=zones
@@ -14,6 +14,13 @@ OPTDS=$ZPOOL/opt
 VARDS=$ZPOOL/var
 USBKEYDS=$ZPOOL/usbkey
 SWAPVOL=${ZPOOL}/swap
+MIN_SWAP=2
+DEFAULT_SWAP=0.25x
+
+# Fix staircase on Linux
+if [[ $(uname -s) == 'Linux' ]]; then
+    stty onlcr opost </dev/console >/dev/console 2>&1
+fi
 
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
@@ -34,10 +41,76 @@ for p in $*; do
   export arg_${k}=${v}
 done
 
+# Load SYSINFO_* and CONFIG_* values
+. /lib/sdc/config.sh
+load_sdc_sysinfo
+load_sdc_config
+
 fatal()
 {
     echo "Error: $1" >&4
     exit 1
+}
+
+function ceil
+{
+    x=$1
+
+    if [[ $(uname -s) != 'Linux' ]]; then
+        # ksh93 supports a bunch of math functions that don't exist in bash.
+        # including floating point stuff.
+        expression="echo \$((ceil(${x})))"
+        result=$(ksh93 -c "${expression}")
+    else
+	# On SunOS we use ksh93, on Linux perl?!  Which is worse?
+        result=$(perl -e "use POSIX qw/ceil/; my \$num = (${x}); print ceil(\$num) . \"\n\";")
+    fi
+
+    echo ${result}
+}
+
+#
+# Value can be in x (multiple of RAM) or g (GiB)
+#
+# eg: result=$(swap_in_GiB "0.25x")
+#     result=$(swap_in_GiB "1.5x")
+#     result=$(swap_in_GiB "2x")
+#     result=$(swap_in_GiB "8g")
+#
+function swap_in_GiB
+{
+    swap=$(echo $1 | tr [:upper:] [:lower:])
+
+    # Find system RAM for multiple
+    RAM_MiB=${SYSINFO_MiB_of_Memory}
+    RAM_GiB=$(ceil "${RAM_MiB} / 1024.0")
+
+    swap_val=${swap%?}      # number
+    swap_arg=${swap#${swap%?}}  # x or g
+
+    result=
+    case ${swap_arg} in
+        x)
+        result=$(ceil "${swap_val} * ${RAM_GiB}")
+    ;;
+        g)
+        result=${swap_val}
+    ;;
+        *)
+        echo "Unhandled swap argument: '${swap}'"
+        return 1
+    ;;
+    esac
+
+    if [[ -n ${result} ]]; then
+        if [[ ${result} -lt ${MIN_SWAP} ]]; then
+            echo ${MIN_SWAP}
+        else
+            echo ${result}
+        fi
+    fi
+
+    return 0
 }
 
 #
@@ -46,6 +119,11 @@ fatal()
 create_zpool()
 {
     disks=''
+    
+    # if the pool already exists, don't create it again
+    if /usr/sbin/zpool list -H -o name ${ZPOOL}; then
+      return 0
+    fi
 
     if /usr/bin/bootparams | grep "headnode=true"; then
         for disk in `/usr/bin/disklist -n`; do
@@ -99,36 +177,49 @@ create_dump()
 #
 setup_datasets()
 {
-    echo -n "Making dump zvol... " >&4
+  datasets=$(zfs list -H -o name | xargs)
+  
+  if ! echo $datasets | grep dump > /dev/null; then
+    printf "%-56s" "Making dump zvol... " >&4
     create_dump
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
+  fi
 
-    echo -n "Initializing config dataset for zones... " >&4
+  if ! echo $datasets | grep ${CONFDS} > /dev/null; then
+    printf "%-56s" "Initializing config dataset for zones... " >&4
     zfs create ${CONFDS} || fatal "failed to create the config dataset"
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
     zfs set mountpoint=legacy ${CONFDS}
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
+  fi
 
+  if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
     if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
-        echo -n "Creating usbkey dataset... " >&4
+        printf "%-56s" "Creating usbkey dataset... " >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
-        echo "done." >&4
+        printf "%4s\n" "done" >&4
     fi
+  fi
 
-    echo -n "Creating global cores dataset... " >&4
-    zfs create -o quota=1g -o mountpoint=/zones/global/cores \
+  if ! echo $datasets | grep ${COREDS} > /dev/null; then
+    printf "%-56s" "Creating global cores dataset... " >&4
+    zfs create -o quota=10g -o mountpoint=/zones/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
+  fi
 
-    echo -n "Creating opt dataset... " >&4
+  if ! echo $datasets | grep ${OPTDS} > /dev/null; then
+    printf "%-56s" "Creating opt dataset... " >&4
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
+  fi
 
-    echo -n "Initializing var dataset... " >&4
+  if ! echo $datasets | grep ${VARDS} > /dev/null; then
+    printf "%-56s" "Initializing var dataset... " >&4
     zfs create ${VARDS} || \
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
@@ -138,27 +229,35 @@ setup_datasets()
     fi
 
     zfs set mountpoint=legacy ${VARDS}
-    echo "done." >&4
+    printf "%4s\n" "done" >&4
+  fi
 }
 
 create_swap()
 {
-    USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
-    USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
-
-    swapsize=2g
-
     if [ -n "${arg_swap}" ]; then
-        swapsize=${arg_swap}
-    elif [ -f "${USB_COPY}/config" ]; then
-        swapsize=$(grep "^swap=" ${USB_COPY}/config | cut -d'=' -f2-)
-    elif [ -f "${USB_PATH}/config" ]; then
-        swapsize=$(grep "^swap=" ${USB_PATH}/config | cut -d'=' -f2-)
+        # From cmdline
+        swapsize=$(swap_in_GiB ${arg_swap})
+    elif [ -n "${CONFIG_swap}" ]; then
+        # From config
+        swapsize=$(swap_in_GiB ${CONFIG_swap})
+    else
+        # Fallback
+        swapsize=$(swap_in_GiB ${DEFAULT_SWAP})
     fi
 
-    echo -n "Creating swap zvol... " >&4
-    zfs create -V ${swapsize} ${SWAPVOL}
-    echo "done." >&4
+    if [[ $(uname -s) == 'Linux' ]]; then
+        printf "%-56s" "Creating swap volume... " >&4
+        lvcreate -L ${swapsize}G -n swap smartdc
+        mkswap -f /dev/smartdc/swap
+        swapon /dev/smartdc/swap
+    else
+        if ! zfs list -H -o name ${SWAPVOL}; then
+            printf "%-56s" "Creating swap zvol... " >&4
+            zfs create -V ${swapsize}g ${SWAPVOL}
+            printf "%4s\n" "done" >&4
+        fi
+    fi
 }
 
 # We send info about the zpool when we have one, either because we created it or it already existed.
@@ -181,75 +280,125 @@ install_configs()
     SMARTDC=/opt/smartdc/config/
     TEMP_CONFIGS=/var/tmp/node.config/
 
+    # On standalone machines we don't get config in /var/tmp
+    if [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
+        return 0
+    fi
+
     if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
-        echo -n "Compute node, installing config files... " >&4
+        printf "%-56s" "Compute node, installing config files... " >&4
         if [[ ! -d $TEMP_CONFIGS ]]; then
             fatal "config files not present in /var/tmp"
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
-        mount -F zfs zones/opt /opt
+        if [[ $(uname -s) != 'Linux' ]]; then
+            mount -F zfs zones/opt /opt || echo "/opt already mounted"
+        fi
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
-        echo "done." >&4
+        printf "%4s\n" "done" >&4
+
+        # re-load config here, since it will have just changed
+        # (also location will be detected properly now)
+        SDC_CONFIG_FILENAME=
+        load_sdc_config
     fi
 }
 
-# On compute node if we can pull datasets from assets zone on headnode, do that.
-install_datasets()
+create_vg()
 {
-    if [[ -n $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
-        return 0
-    fi
+    disks=
+    for disk in $(sysinfo -p | grep "^Disk_.*_size" | cut -d'_' -f2); do
+        pvcreate --zero y --metadatasize 1018k /dev/${disk}
+	disks="${disks} /dev/${disk}"
+    done
 
-    . /lib/sdc/config.sh
-    load_sdc_config
-
-    if [[ -n "${CONFIG_compute_node_initial_datasets}" ]] && [[ -n "${CONFIG_assets_admin_ip}" ]]; then
-        assets=${CONFIG_assets_admin_ip}
-        for ds in $(echo "${CONFIG_compute_node_initial_datasets}" | tr ',' ' '); do
-            echo "Installing dataset: ${ds} from ${assets}..." >&4
-            if ! curl -k --progress-bar http://${assets}/datasets/${ds}.zfs.bz2 2>&4 | bzip2 -d | zfs receive -e zones; then
-                echo " \\_ FAILED!" >&4
-            fi
-
-            if [[ "${ds}" == "nodejs-0.4.0" ]] && [[ ! -e "/opt/nodejs" ]]; then
-
-                # XXX SPECIAL CASE node dataset needs more magic!
-
-                latest_release=$( (curl -k -sS http://${assets}/datasets/ || /bin/true) \
-                    | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -n 1)
-
-                echo "Installing extra magic for ${ds} from ${assets}..." >&4
-                if ! (cd /opt && curl -k --progress-bar -sS http://${assets}/datasets/${latest_release} 2>&4 | gzcat | tar -xf -); then
-                    echo " \\_ FAILED!" >&4
-                fi
-            fi
-        done
-    fi
-
-    return 0
+    vgcreate smartdc ${disks}
 }
 
-POOLS=`zpool list`
-if [[ ${POOLS} == "no pools available" ]]; then
-    create_zpool
-    setup_datasets
-    create_swap
-    install_configs
-    install_datasets
-    output_zpool_info
-    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-        # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
+create_lvm_datasets()
+{
+    printf "%-56s" "Creating global cores dataset... " >&4
+    lvcreate -L 5G -n cores smartdc
+    mkfs.ext3 /dev/smartdc/cores
+    mkdir -p /cores
+    mount -text3 /dev/smartdc/cores /cores
+    chmod 1777 /cores
+    echo '/cores/core.%t.%u.%g.%s.%s' >/proc/sys/kernel/core_pattern
+    printf "%4s\n" "done" >&4
+
+    printf "%-56s" "Creating opt dataset... " >&4
+    lvcreate -L 5G -n opt smartdc
+    mkfs.ext3 /dev/smartdc/opt
+    mount -text3 /dev/smartdc/opt /opt
+    printf "%4s\n" "done" >&4
+
+    printf "%-56s" "Initializing var dataset... " >&4
+    lvcreate -L 5G -n var smartdc
+    mkfs.ext3 /dev/smartdc/var
+    mount -text3 /dev/smartdc/var /mnt
+    (cd /var && tar -cpf - ./) | (cd /mnt && tar -xf -)
+    umount /mnt
+    mount -text3 /dev/smartdc/var /var
+    printf "%4s\n" "done" >&4
+
+    printf "%-56s" "Initializing vms dataset... " >&4
+    mkdir -p /etc/vms
+    lvcreate -L 1G -n vms smartdc
+    mkfs.ext3 /dev/smartdc/vms
+    mount -text3 /dev/smartdc/vms /etc/vms
+    printf "%4s\n" "done" >&4
+}
+
+output_vg_info()
+{
+    results=$(vgs --separator '	' --units G --noheadings -o vg_name,vg_uuid,vg_size,vg_free | sed -e "s/^[ 	]*//")
+    name=$(echo "${results}" | cut -d'	' -f1)
+    echo "${results}	ONLINE	/${name}"
+}
+
+if [[ $(uname -s) == 'Linux' ]]; then
+    if [[ -z $(vgs) ]]; then
+
+        # TODO: see if we can tell if there's a zpool, if so, fail.
+
+        # rpool   7786468255783555057     278G    21.9G   ONLINE  /rpool
+        create_vg
+        create_lvm_datasets
+        install_configs
+        create_swap
+        output_vg_info
+        # We exit with 113 which is a special code that tells ur-agent to:
         #
         #   1. pretend we exited with status 0
         #   2. send back the response to rabbitmq for this job
         #   3. reboot
         #
         exit 113
+    else
+        output_vg_info
     fi
 else
-    output_zpool_info
+    POOLS=`zpool list`
+    if [[ ${POOLS} == "no pools available" ]]; then
+        create_zpool
+        setup_datasets
+        install_configs
+        create_swap
+        output_zpool_info
+        if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+            # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
+            #
+            #   1. pretend we exited with status 0
+            #   2. send back the response to rabbitmq for this job
+            #   3. reboot
+            #
+            exit 113
+        fi
+    else
+        output_zpool_info
+    fi
 fi
 
 exit 0

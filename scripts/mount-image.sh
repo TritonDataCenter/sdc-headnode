@@ -3,8 +3,9 @@
 # Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
+current_image=$(uname -v | cut -d '_' -f2)
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
-image="${usbmnt}/platform/i86pc/amd64/boot_archive"
+image="${usbmnt}/os/${current_image}/platform/i86pc/amd64/boot_archive"
 mnt=/image
 
 function fatal

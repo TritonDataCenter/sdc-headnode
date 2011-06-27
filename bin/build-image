@@ -22,10 +22,22 @@ set -o pipefail
 ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
+TAR=tar
+GREP=grep
+
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
-# 2>&1
+THIS_VERSION=$(date -u +%Y%m%dT%H%M%SZ).$(git symbolic-ref HEAD \
+    | cut -d'/' -f3)-$(git describe)
+
+if [ -f build-number.txt ]; then
+    THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
+        | sed -n 's,^build\.number=\(.*\),\1,p')"
+fi
+
+RECIPE=$(pwd)/recipe.${THIS_VERSION}
+
 echo ">> Starting build at $(date)"
 
 function fatal
@@ -49,34 +61,169 @@ function check_nodejs
     fi
 }
 
+function check_npm
+{
+
+    if [[ ! `which npm` ]] || [[ `npm -v` != 1\.* ]]; then
+	echo "build-image requires npm 1.0.x to be in your path"
+	exit 1
+    fi
+}
+
+function check_proxy
+{
+    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        USE_PROXY=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json use-proxy)
+        PROXY_IP=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json proxy-ip)
+    fi
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        if [[ -z ${USE_PROXY} ]]; then
+            USE_PROXY=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json use-proxy)
+        fi
+        if [[ -z ${PROXY_IP} ]]; then
+            PROXY_IP=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json proxy-ip)
+        fi
+    fi
+    if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
+        NOPROXY="true"
+    fi
+    if [[ -z ${PROXY_IP} ]]; then
+        NOPROXY="true"
+    fi
+
+    if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
+      if netstat -rn | grep -q 10\.0\.1\.1 ; then
+        echo "Checking for proxy"
+        PROXY=`curl ${SPEED_LIMIT} -m 1 -s \
+            http://${PROXY_IP}/proxy-usb-headnode/location 2> /dev/null || true`
+        if [ "$PROXY" == "vancouver" ]; then
+          echo "Vancouver proxy found."
+        elif [ -n "$PROXY" ]; then
+          echo "Unknown proxy: $PROXY"
+        else
+          echo "No proxy found."
+        fi
+      fi
+    else
+        echo "Proxy disabled."
+    fi
+}
+
+function proxy
+{
+    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
+
+    if [ "$PROXY" = "vancouver" ]; then
+
+      # Sorry about the gnarly regexes - we want to generate URLs that look like:
+      #
+      # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
+      # /http/guest_GrojhykMid@10.0.1.8/platform
+      # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
+      # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
+
+      PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\1,')
+      HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\2,' | tr : _)
+      FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)/(.*)$,\3,')
+      echo "http://${PROXY_IP}/proxy-usb-headnode/$PROTO/$HOST/$FILEPATH"
+    else
+      echo $1
+    fi
+}
+
 trap 'errexit $? $LINENO' EXIT
 
 STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
-MASTER_PLATFORM_URL="https://guest:GrojhykMid@coal.joyent.us/coal/live_147"
+
+SPEED_LIMIT=
+if [[ -f "${ROOT}/build.spec.local" ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json no-internet)
+    SPEED_LIMIT=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json speed-limit)
+fi
+if [[ -f "${ROOT}/build.spec" ]]; then
+    if [[ -z ${NO_INTERNET} ]]; then
+        NO_INTERNET=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json no-internet)
+    fi
+    if [[ -z ${SPEED_LIMIT} ]]; then
+        SPEED_LIMIT=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json speed-limit)
+    fi
+fi
+
+if [[ -n ${SPEED_LIMIT} ]]; then
+    SPEED_LIMIT="--limit-rate ${SPEED_LIMIT}"
+fi
+
+check_proxy
+
+MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
+MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
-ASSETS_ROOT="https://guest:GrojhykMid@assets.joyent.us/datasets"
-PKGSRC_ROOT="http://pkgsrc.joyent.com/2010Q3/All"
+# See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
+# details on user used with DSAPI.
+DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
+PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
+AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
+ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
 
 # Figure out first what we're building, and load the proper include
 
 PLATFORM=$(uname -s)
+
+if [[ $1 == "-r" ]]; then
+    shift
+    RECIPE=$1
+    REBUILD_FROM_RECIPE=1
+    shift
+    echo "Rebuilding from ${RECIPE}..."
+    if [[ ! -f $RECIPE ]]; then
+        echo "Could not find rebuild recipe file..."
+        exit 1
+    fi
+fi
+
+NO_CONFIG_FILE=0
+if [[ $1 == "-c" ]]; then
+    shift
+    NO_CONFIG_FILE=1
+    echo "Building with no config file in the image. "
+fi
+
 BUILD_TYPE=$1
 if [[ -z ${BUILD_TYPE} ]]; then
-    BUILD_TYPE="vmware"
+    BUILD_TYPE="coal"
 fi
 if [[ ${PLATFORM} == 'Darwin' ]]; then
     case ${BUILD_TYPE} in
-        vmware)
-            source ${ROOT}/bin/include-vmware-osx
+        vmware|coal)
+            source ${ROOT}/bin/include-coal-osx
             version
             ;;
         usb)
             source ${ROOT}/bin/include-usb-osx
+            version
+            ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
+            ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
             version
             ;;
         *)
@@ -85,6 +232,10 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
     case ${BUILD_TYPE} in
+        coal)
+            source ${ROOT}/bin/include-vmware-linux
+            version
+            ;;
         vmware)
             source ${ROOT}/bin/include-vmware-linux
             version
@@ -92,6 +243,16 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
         usb)
             echo "Linux-usb";
             exit 0
+            ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
+            ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
+            version
             ;;
         *)
             fatal "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
@@ -103,6 +264,20 @@ elif [[ ${PLATFORM} == 'SunOS' ]]; then
             source ${ROOT}/bin/include-usb-smartos
             version
             ;;
+        coal)
+            source ${ROOT}/bin/include-coal-smartos
+            version
+            ;;
+        upgrade)
+            ONLY_UPGRADE=true
+            source ${ROOT}/bin/include-tar-generic
+            version
+            echo "==> Building upgrade image"
+            ;;
+        tar)
+            source ${ROOT}/bin/include-tar-generic
+            version
+            ;;
         *)
             fatal "FATAL: Unsupported build type on SmartOS: ${BUILD_TYPE}"
             ;;
@@ -112,7 +287,7 @@ else
 fi
 
 echo -n "==> Checking for Internets... "
-if ! can_has_internets; then
+if [[ ${NO_INTERNET} == "true" ]] || ! can_has_internets; then
     echo "No Internets! Activating countermeasures!"
     HAVE_INTERNET="false"
 else
@@ -177,25 +352,39 @@ function copy_base
 
     echo "==> Copying in grub menu"
     mkdir -p ${STAGE}/boot/grub
-    cp boot/grub/menu.lst ${STAGE}/boot/grub/menu.lst
+    cp boot/grub/menu.lst.tmpl ${STAGE}/boot/grub/menu.lst.tmpl
     cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
     cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
 
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
-        if [[ -f config/config.coal.local ]]; then
-          cp config/config.coal.local ${STAGE}/config
-        else
-          cp config/config.coal ${STAGE}/config
+        if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+            if [[ -f config/config.coal.local ]]; then
+              cp config/config.coal.local ${STAGE}/config
+            else
+              cp config/config.coal ${STAGE}/config
+            fi
         fi
-        cp -r config/config.coal.inc ${STAGE}/config.inc
+
+        if [[ -d config/config.coal.inc.local ]]; then
+            cp -r config/config.coal.inc.local ${STAGE}/config.inc
+        else
+            cp -r config/config.coal.inc ${STAGE}/config.inc
+        fi
     else
-        if [[ -f config/config.usb.local ]]; then
-          cp config/config.usb.local ${STAGE}/config
-        else
-          cp config/config.usb ${STAGE}/config
+        if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+            if [[ -f config/config.usb.local ]]; then
+              cp config/config.usb.local ${STAGE}/config
+            else
+              cp config/config.usb ${STAGE}/config
+            fi
         fi
-        cp -r config/config.usb.inc ${STAGE}/config.inc
+
+        if [[ -d config/config.usb.inc.local ]]; then
+            cp -r config/config.usb.inc.local ${STAGE}/config.inc
+        else
+            cp -r config/config.usb.inc ${STAGE}/config.inc
+        fi
     fi
 
     echo "==> Copying in scripts/"
@@ -206,6 +395,9 @@ function copy_base
 
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones
+
+    echo "==> Copying in rc/"
+    cp -r rc ${STAGE}/rc
 }
 
 function copy_pkgsrc
@@ -213,7 +405,7 @@ function copy_pkgsrc
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         (cd ${ROOT}/cache \
             && rm -f md5sums.txt \
-            && curl --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
+            && curl ${SPEED_LIMIT} --progress-bar -O ${PKGSRC_ROOT}/md5sums.txt) \
             || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
     elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
         fatal "Don't have cached md5sums.txt file, can't build. " \
@@ -225,7 +417,7 @@ function copy_pkgsrc
         | uniq \
         | sed -e "s/$/.tgz/")
     for pkgfile in $pkgs; do
-        MD5=$(grep " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1)
+        MD5=$(${GREP} " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1 || true)
         if [[ -z ${MD5} ]]; then
             fatal "Unable to find md5sum for ${pkgfile}, " \
                 "must be fixed before we can continue."
@@ -243,7 +435,8 @@ function copy_pkgsrc
             rm -f ${ROOT}/cache/${pkgfile}
             if [[ ${HAVE_INTERNET} == "true" ]]; then
                 (cd ${ROOT}/cache \
-                    && curl --progress-bar -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
+                    && curl ${SPEED_LIMIT} \
+                    --progress-bar -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
                     || fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
             else
                 fatal "Need Internet to download ${pkgfile}"
@@ -254,13 +447,13 @@ function copy_pkgsrc
     done
 
     echo "==> Creating pkgsrc.tar"
-    (cd ${ROOT}/cache && tar -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
+    (cd ${ROOT}/cache && ${TAR} -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
 function valid_tgz_archive
 {
     filename=$1
-    if [[ -f ${filename} ]] && tar -ztf ${filename} > /dev/null; then
+    if [[ -f ${filename} ]] && ${TAR} -ztf ${filename} > /dev/null; then
         return 0
     else
         return 1
@@ -270,7 +463,7 @@ function valid_tgz_archive
 function valid_archive
 {
     filename=$1
-    if [[ -f ${filename} ]] && tar -tf ${filename} > /dev/null; then
+    if [[ -f ${filename} ]] && ${TAR} -tf ${filename} > /dev/null; then
         return 0
     else
         return 1
@@ -283,26 +476,34 @@ function copy_platform
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
 
+    # platform_file is optional, if specified, that platform will be used
+    # instead of looking for the newest that matches platform-<release>
+    platform_file=$1
+    platform_release=$2
+
+    # If master is "true" this platform is the one we'll use as the headnode's
+    # platform, so we install it for that.  If not, we'll just copy to data dir
+    master=$3
+
     valid_platform="false"
-    if [ -z $PLATFORM_FILE ]; then
+    if [[ -z ${platform_file} ]]; then
+        [[ -z "${platform_release}" ]] \
+            && fatal "Must define 'platform_file' or 'platform_release' " \
+                     "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            if [[ -n "${PLATFORM_RELEASE}" ]]; then
-                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-${PLATFORM_RELEASE}\.tgz" \
-                    | cut -d'"' -f2 | sort | tail -1)
-            else
-                latest_image=$(curl -k -sS ${PLATFORM_URL}/ \
-                    | grep "href=\"platform-[0-9]" \
-                    | cut -d'"' -f2 | sort | tail -1)
-            fi
+            latest_image=$(curl ${SPEED_LIMIT} -k -sS ${PLATFORM_URL}/ \
+                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
-                  && curl --progress-bar -k -O ${PLATFORM_URL}/${latest_image}) \
+                  && curl ${SPEED_LIMIT} \
+                  --progress-bar -k -O ${PLATFORM_URL}/${latest_image}) \
                   || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
-            latest_image=$(cd ${ROOT}/cache && ls platform-*.tgz | head)
+            latest_image=$(cd ${ROOT}/cache \
+                && ls platform-${platform_release}-*.tgz | head -1)
             if [[ -z ${latest_image} ]]; then
                 fatal "Unable to find a platform image and we have no Internet."
             fi
@@ -314,67 +515,74 @@ function copy_platform
             rm -f ${image}
             image=
             # unset image and try again
-            copy_platform
+            copy_platform "${platform_file}" "${platform_release}" "${master}"
         fi
     else
-        image=${PLATFORM_FILE}
+        image=${platform_file}
         echo "==> Using ${image} as platform image"
         if ! valid_archive "${image}"; then
             fatal "Refusing to use corrupt platform ${image}"
         fi
     fi
 
-    echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; tar -zxf ${image}; mv platform-* platform) \
-        || fatal "Unable to unpack platform"
-    if [[ -f ${STAGE}/platform/root.password ]]; then
-        (cd ${STAGE}/ \
-            && mkdir -p private \
-            && mv -f platform/root.password private/) \
-            || fatal "Unable to move root.password"
-    fi
-    echo "Root password is: '$(cat ${STAGE}/private/root.password)'"
-    LIVEIMG_VERSION=`basename ${image} \
-        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+    if [[ -z ${master} || ${master} != "true" ]]; then
+        cp ${image} ${STAGE}/data/
+    else
+        export USING_PLATFORM=${image}
 
-    # Rename log file here since we know the buildstamp now
-    mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
-    LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
+        LIVEIMG_VERSION=`basename ${image} \
+            | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+
+        echo "==> Unpacking `basename ${image}`"
+        (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+            mv platform-* os/${LIVEIMG_VERSION}/platform) \
+            || fatal "Unable to unpack platform"
+        if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
+            (cd ${STAGE}/ \
+                && mkdir -p private \
+                && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
+                    private/root.password.${LIVEIMG_VERSION}) \
+                || fatal "Unable to move root.password"
+        fi
+        root_pw=$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})
+        echo "Root password is: '${root_pw}'"
+
+        # Create the menu.lst file
+
+        cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
+            -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
+            > ${STAGE}/boot/grub/menu.lst
+
+        # Rename log file here since we know the buildstamp now
+        mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
+        LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
+        rm -f ${LOGDIR}/latest
+        ln -s ${LOGFILE} ${LOGDIR}/latest
+    fi
 
     loops=
 }
 
-function copy_agents
+function get_agents
 {
     [[ -z "${loops}" ]] && loops=0
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
-    # See if there's a specific agents we're supposed to use
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json agents-shar)
-    fi
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json agents-shar)
-    fi
-    if [[ -z ${agents_shar} ]]; then
-        agents_shar="master"
-    fi
-
     # We treat agents_shar as a pattern and grab the latest one which matches
+    agents_shar=$1
 
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
-            | grep "href=\"agents" \
-            | grep "${agents_shar}" \
+        latest_agents=$(curl ${SPEED_LIMIT} \
+            -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+            | ${GREP} "href=\"agents" \
+            | ${GREP} "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
     else
-        latest_agents=$(cd ${ROOT}/cache
+        latest_agents=$(cd ${ROOT}/cache \
             && ls agents-*.sh \
-            | grep "${agents_shar}" \
+            | ${GREP} "${agents_shar}" \
             | tail -1)
     fi
     if [[ -z ${latest_agents} ]]; then
@@ -397,9 +605,11 @@ function copy_agents
             AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
             AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
 
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_URL}) \
+            (cd ${ROOT}/cache && curl ${SPEED_LIMIT} \
+                --progress-bar -k -O ${AGENT_URL}) \
                 || fatal "Unable to download ${AGENT_URL}"
-            (cd ${ROOT}/cache && curl --progress-bar -k -O ${AGENT_MD_URL}) \
+            (cd ${ROOT}/cache && curl ${SPEED_LIMIT} \
+                --progress-bar -k -O ${AGENT_MD_URL}) \
                 || fatal "Unable to download ${AGENT_MD_URL}"
         else
             fatal "Don't have required '${use_agents}' " \
@@ -426,7 +636,7 @@ function copy_agents
             rm -f ${ROOT}/cache/${use_agents} \
                 ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
             use_agents=
-            copy_agents
+            get_agents ${agents_shar}
         fi
 
         echo "==> Copying ${use_agents}"
@@ -436,86 +646,244 @@ function copy_agents
     loops=
 }
 
-# Called to get the magic missing bits from the nodejs dataset
-function get_node_magic
+function copy_agents
 {
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download nodejs magic, looping!"
-
-    valid_magic="false"
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        NODE_SERVICE_RELEASES="${MASTER_PLATFORM_URL}/node"
-        latest_release=$(curl -k -sS ${NODE_SERVICE_RELEASES}/ \
-            | grep "href=\"node_service-.*\.tgz" | cut -d'"' -f2 | sort | tail -1)
-        if [[ ! -f "${ROOT}/cache/${latest_release}" ]]; then
-            echo "==> Downloading ${latest_release}"
-            (cd ${ROOT}/cache \
-                && curl --progress-bar -k \
-                -O ${NODE_SERVICE_RELEASES}/${latest_release}) \
-                || fatal "Unable to download ${latest_release}"
-        fi
-    else
-        latest_release=$(cd ${ROOT}/cache && ls node_service-*.tgz | head)
-        if [[ -z ${latest_release} ]]; then
-            fatal "Unable to find a node_service magicball " \
-                "and we have no Internet."
-        fi
+    # See if there's a specific agents we're supposed to use
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json agents-shar)
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
+        agents_shar=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json agents-shar)
+    fi
+    if [[ -z ${agents_shar} ]]; then
+        agents_shar="master"
     fi
 
-    magicball=${ROOT}/cache/${latest_release}
-    if [[ -f ${magicball} ]] && ! valid_tgz_archive ${magicball}; then
-        echo "Removing corrupt ${magicball}"
-        rm -f ${magicball}
-        # unset and try again
-        magicball=
-        get_node_magic
-    fi
-
-    # if we get here, we should have the file and it's valid!
-    cp ${magicball} ${STAGE}/datasets/
-
-    loops=
+    get_agents ${agents_shar}
 }
 
 function copy_datasets
 {
-    datasets=( bare-1.2.8 protemplate-2.5.2 nodejs-0.4.0 )
-    mkdir -p  ${STAGE}/datasets
-    for dataset in ${datasets[@]}
-    do
-        dataset_file="${dataset}.zfs.bz2"
-        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-            echo "==> Corrupt ${dataset_file}, deleting..."
-            rm -f ${ROOT}/cache/${dataset_file}
-        fi
+    mkdir -p ${STAGE}/datasets
+    mkdir -p ${ROOT}/datasets
 
-        if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+    datasets_json=
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json "datasets")
+    fi
+    [[ -n ${datasets_json} ]] \
+        || fatal "Unable to find datasets information in build.spec"
+
+    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
+    index=0
+    while [[ ${index} -lt ${num_datasets} ]]; do
+        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
+        uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
+        headnode_zones=$(echo "${datasets_json}" \
+            | ${ROOT}/bin/json ${index}.headnode_zones)
+        manifest="${ROOT}/cache/${name}.dsmanifest"
+
+        if [[ ! -f $manifest ]] ; then
             if [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${dataset_file}"
-                (cd ${ROOT}/cache && curl --progress-bar -k \
-                    -O ${ASSETS_ROOT}/${dataset_file}) \
-                    || fatal "Unable to download ${dataset_file}"
+                echo "==> Downloading ${name} manifest"
+
+                DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
+                (curl ${SPEED_LIMIT} \
+                    --progress-bar -k -o ${manifest} ${DATASET_URL}) \
+                    || fatal "Unable to download ${name} manifest"
             else
-                fatal "Don't have Internet, and don't have valid " \
-                    "${dataset_file}. Can't build."
+                fatal "Don't have required '${name}' manifest" \
+                    "and can't download (no Internet)"
             fi
         fi
 
-        if ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-            rm -f ${ROOT}/cache/${dataset_file}
-            fatal "Corrupt ${dataset_file}, deleted! Try build again."
+        local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
+        local uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+        uri=$(proxy ${uri})
+        if [[ -z ${uri} ]]; then
+            fatal "Download uri for dataset ${name} not present in manifest"
         fi
 
-        echo "==> Copying ${dataset_file}"
-        cp ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+        local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
+        copy_dataset ${name} ${uri} ${sha1}
+        echo "==> Copying ${name} manifest"
+        cp ${manifest} ${STAGE}/datasets/
 
-        if [[ ${dataset} == "nodejs-0.4.0" ]]; then
-            # the nodejs-0.4.0 dataset is magical and "special" so it needs
-            # more stuff
-            get_node_magic
+        # Since create-zone.sh needs to know which dataset it should use to
+        # base the headnode zones on, we create these files here, one which
+        # contains the filename of the 'smartos' dataset and one that contains
+        # its UUID.
+        #
+        # Note: ${dataset_file} is set by copy_dataset
+        if [[ -n ${headnode_zones} && ${headnode_zones} == "true" ]]; then
+            echo "${uuid}" > ${STAGE}/datasets/smartos.uuid
+            echo "${dataset_file}" > ${STAGE}/datasets/smartos.filename
         fi
+
+        index=$((${index} + 1))
     done
+}
+
+# This is temporary, until we have all the SDC datasets at the same place.
+# It might be good anyway to add a little check to verify arguments are given.
+function copy_dataset
+{
+  local dataset=$1
+  local dataset_uri=$2
+  local dataset_sha1=$3
+
+  dataset_file=$(basename ${dataset_uri})
+  if [ -e ${ROOT}/cache/${dataset_file} ]; then
+    if [[ ${dataset_file} =~ gz$ ]]; then
+        if ! gzip -t ${ROOT}/cache/${dataset_file}; then
+            echo "==> Corrupt ${dataset_file}, deleting..."
+            rm -f ${ROOT}/cache/${dataset_file}
+        fi
+    elif ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+        echo "==> Corrupt ${dataset_file}, deleting..."
+        rm -f ${ROOT}/cache/${dataset_file}
+    fi
+  fi
+
+  if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+      if [[ ${HAVE_INTERNET} == "true" ]]; then
+          echo "==> Downloading ${dataset_file}"
+          (cd ${ROOT}/cache && curl ${SPEED_LIMIT} --progress-bar -k \
+              -O ${dataset_uri}) \
+              || fatal "Unable to download ${dataset_file}"
+      else
+          fatal "Don't have Internet, and don't have valid " \
+              "${dataset_file}. Can't build."
+      fi
+  fi
+
+  local cached_dataset_sha1=$(shasum ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
+    rm -f ${ROOT}/cache/${dataset_file}
+    fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
+  fi
+
+  echo "==> Copying ${dataset_file}"
+  ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+}
+
+#
+# RETURNS (via echo):
+#
+# The value considered newer between a and b
+# If values are same: a
+#
+function newer_of
+{
+    a=$1
+    b=$2
+
+    if [[ -z ${b} ]]; then
+        fatal "is_newer() usage: is_newer \$a \$b"
+    fi
+
+    if [[ -z ${a} ]]; then
+        echo "${b}" # newer since we have b but not a!
+        return 0
+    fi
+
+    # Strip off .tar.bz2 or .tbz2 extension (if has one)
+    # break into elements separated by - _ or .
+    a_array=(`echo "${a}" \
+        | sed -e "s/\.tar\.bz2$//" \
+        | sed -e "s/\.tbz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+    b_array=(`echo "${b}" \
+        | sed -e "s/\.tar\.bz2$//" \
+        | sed -e "s/\.tbz2$//" \
+        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
+
+    idx=0
+    while [[ -n ${a_array[${idx}]} || -n ${b_array[${idx}]} ]]; do
+        a_val=${a_array[${idx}]}
+        b_val=${b_array[${idx}]}
+
+        #echo "a[${a_val}] vs b[${b_val}]" >&2
+
+        # if one is empty at this idx, return the other
+        if [[ -z ${a_val} ]]; then
+            echo "${b}"
+            return 0
+        fi
+        if [[ -z ${b_val} ]]; then
+            echo "${a}"
+            return 0
+        fi
+
+        if [[ ${a_val} == ${b_val} ]]; then
+            # same, so do nothing this loop
+            true
+        elif [[ ${a_val} =~ ^[0-9]+$ && ${b_val} =~ ^[0-9]+$ ]]; then
+            # all digits (sort numerically)
+            if [[ ${b_val} -gt ${a_val} ]]; then
+                echo "${b}"
+            else
+                echo "${a}"
+            fi
+            return 0
+        else
+            # not all digits (sort lexicographically)
+            if [[ ${b_val} > ${a_val} ]]; then
+                echo "${b}"
+            else
+                echo "${a}"
+            fi
+            return 0
+        fi
+
+        idx=$((${idx} + 1))
+    done
+    #echo "COMPARING: '${a}' vs '${b}'" >&2
+
+    echo "${a}"
+    return 0
+}
+
+function get_latest
+{
+    target=$1
+
+    [[ -z ${target} ]] && fatal "get_latest(): No target specified."
+
+    # not a file so assume it's a pattern, find the latest
+    FS_PATTERN=${target}
+
+    latest=
+
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        for file in $(curl ${SPEED_LIMIT} -k -sS ${ASSETS_ROOT}/ \
+            | ${GREP} "href=" \
+            | cut -d'"' -f2 \
+            | ${GREP} "${FS_PATTERN}"); do
+
+            #echo "LATEST BEF: ${latest}"
+            latest=$(newer_of "${latest}" "${file}")
+            #echo "LATEST NOW: ${latest}"
+        done
+        [[ $? -ne 0 || -z ${latest} ]] \
+            && fatal "Error getting file list for ${FS_PATTERN}"
+    else
+        for file in $(cd ${ROOT}/cache && ls -1 | ${GREP} "${FS_PATTERN}"); do
+            #echo "(cached) LATEST BEFORE: ${latest}"
+            latest=$(newer_of "${latest}" "${file}")
+            #echo "(cached) LATEST NOW: ${latest}"
+        done
+    fi
+
+    echo "${latest}"
+    return 0
 }
 
 function get_fs_tarball
@@ -534,36 +902,29 @@ function get_fs_tarball
 
     if [[ -f ${target} ]]; then
         # if this is the filename of an existing file, we'll use that
-        cp ${target} ${ROOT}/cache/${output_filename}
+        if [[ ${target} != "${ROOT}/cache/${output_filename}" ]]; then
+            cp ${target} ${ROOT}/cache/${output_filename}
+        fi
     else
         # not a file so assume it's a pattern, find the latest
         FS_PATTERN=${target}
 
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            filename=$(curl -k -sS ${ASSETS_ROOT}/liveimg/ \
-                | grep "href=" \
-                | cut -d'"' -f2 \
-                | grep "${FS_PATTERN}" \
-                | sort | tail -1)
-            [[ $? -ne 0 || -z ${filename} ]] \
-                && fatal "Error getting file list for ${FS_PATTERN}"
+        filename=$(get_latest ${target})
 
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
             CURL_OPTS=
             [[ -f ${ROOT}/cache/${filename} ]] \
                 && CURL_OPTS="-z ${ROOT}/cache/${filename}"
 
             (cd ${ROOT}/cache \
-                && curl --progress-bar -k ${CURL_OPTS} \
-                -fO ${ASSETS_ROOT}/liveimg/${filename})
+                && curl ${SPEED_LIMIT} --progress-bar -k ${CURL_OPTS} \
+                -fO ${ASSETS_ROOT}/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
             echo "==> Downloaded ${filename} for ${zone}"
 
             cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
         else
-            filename=$(cd ${ROOT}/cache && ls -1 \
-                | grep "${FS_PATTERN}" | tail -1)
-
             [[ -z ${filename} ]] \
                 && fatal "Don't have Internet and don't have cached " \
                 "version of ${FS_PATTERN}"
@@ -602,9 +963,15 @@ function build_fs_tarball
         mkdir -p /tmp/fs.${zone}.$$
         cp -pPR ${zone_dir}/fs.populate ${zone_dir}/fs.root /tmp/fs.${zone}.$$
         rm -rf ${zone_dir}/fs.{populate,root}
-        (cd /tmp/fs.${zone}.$$/fs.root \
-            && ../fs.populate \
-            && tar -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        if [[ $REBUILD_FROM_RECIPE == 1 ]]; then
+            (cd /tmp/fs.${zone}.$$/fs.root \
+                && RECIPE_FILE=$RECIPE ../fs.populate -r\
+                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        else
+            (cd /tmp/fs.${zone}.$$/fs.root \
+                && RECIPE_FILE=$RECIPE ../fs.populate \
+                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
+        fi
         if [[ $? -ne 0 ]]; then
             fatal "Failed to populate fs.tar.bz2 for ${zone}"
         fi
@@ -625,6 +992,10 @@ function copy_zones
         tarball_pattern=
         target_checkout=
 
+        if [[ ${HAVE_INTERNET} != "true" ]]; then
+            override=${ROOT}/cache/${zone}.tar.bz2
+        fi
+
         if [[ -f ${ROOT}/build.spec.local ]]; then
             tarball_pattern=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-tarball")
@@ -636,6 +1007,16 @@ function copy_zones
                 | ${ROOT}/bin/json "${zone}-tarball")
             target_checkout=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-checkout")
+        fi
+
+        # Symlinks aren't supported on pcfs, so we copy the files
+        if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
+            rm ${STAGE}/zones/${zone}/backup
+            cp ${ROOT}/zones/${zone}/backup ${STAGE}/zones/${zone}/backup
+        fi
+        if [[ -L ${ROOT}/zones/${zone}/restore ]]; then
+            rm ${STAGE}/zones/${zone}/restore
+            cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
         if [[ -n ${override} ]]; then
@@ -652,6 +1033,10 @@ function copy_zones
 
         if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
             fatal "Unable to find or build fs.tar.bz2 for ${zone}"
+        else
+            # Keep a copy in cache so we can build next time with no Internet
+            cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
+                ${ROOT}/cache/${zone}.tar.bz2
         fi
 
         if [[ "${IMG_TYPE}" == "coal" ]]; then
@@ -669,38 +1054,189 @@ function copy_devtools
     fi
 }
 
+function copy_hvm_files
+{
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        BUILD_HVM=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json build-hvm)
+        HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-platform-release)
+        HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-agents-shar)
+    fi
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        if [[ -z ${BUILD_HVM} ]]; then
+            BUILD_HVM=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json build-hvm)
+        fi
+        if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
+            HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-platform-release)
+        fi
+        if [[ -z ${HVM_AGENTS_SHAR} ]]; then
+            HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-agents-shar)
+        fi
+    fi
+
+    if [[ -z ${BUILD_HVM} ]]; then
+        BUILD_HVM="false"
+    fi
+    if [[ -z ${HVM_AGENTS_SHAR} ]]; then
+        HVM_AGENTS_SHAR="hvm"
+    fi
+    if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
+        HVM_PLATFORM_RELEASE="hvm"
+    fi
+
+    if [[ ${BUILD_HVM} == "true" ]]; then
+        echo "HAVE_HVM=true" >> ${STAGE}/zones/adminui/zoneconfig
+        get_agents ${HVM_AGENTS_SHAR}
+        copy_platform "${HVM_PLATFORM_FILE}" "${HVM_PLATFORM_RELEASE}" "false"
+    fi
+}
+
+function create_upgrade
+{
+    rm -rf ${ROOT}/cache/upgrade
+    mkdir -p ${ROOT}/cache/upgrade/usbkey
+    cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
+    cp ${STAGE}/config ${STAGE}/config.default
+    chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
+    (cd ${STAGE} \
+        && env GZIP=-9 \
+        ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
+        boot/grub/menu.lst.tmpl \
+        config.default \
+        data \
+        datasets/smartos* \
+        rc \
+        scripts \
+        ur-scripts \
+        zoneinit \
+        zones \
+    )
+
+    mkdir -p ${ROOT}/cache/upgrade/platform
+    cp ${USING_PLATFORM} ${ROOT}/cache/upgrade/platform
+}
+
 function copy_to_mount
 {
-    (cd ${STAGE} && tar ${TAR_ROOT} -cf - ./) \
-        | (cd ${MNT_DIR} && ${SUCMD} tar --no-same-owner -xvf -) \
+    echo "${THIS_VERSION}" > ${STAGE}/version
+    (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
+        | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
+}
+
+function get_upgrade_params
+{
+    upgrades_json=
+    agents_json=
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        upgrades_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "upgrades")
+        if [[ -n ${upgrades_json} ]]; then
+            agents_json=$(echo ${upgrades_json} \
+                | ${ROOT}/bin/json "agents")
+        fi
+    fi
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${upgrades_json} ]]; then
+        upgrades_json=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json "upgrades")
+        if [[ -n ${upgrades_json} ]]; then
+            if [[ -z ${agents_json} ]]; then
+                agents_json=$(echo ${upgrades_json} \
+                    | ${ROOT}/bin/json "agents")
+            fi
+        fi
+    fi
+    [[ -n ${agents_json} ]] \
+        || fatal "Unable to find upgrade.agents information in build.spec"
+
+    num_agents=$(echo "${agents_json}" | ${ROOT}/bin/json length)
+
+    AGENTS=
+
+    index=0
+    while [[ ${index} -lt ${num_agents} ]]; do
+        AGENTS[${index}]=$(echo "${agents_json}" \
+            | ${ROOT}/bin/json ${index})
+        index=$((${index} + 1))
+    done
+}
+
+function get_latest_upgrade_agent
+{
+    url=$1
+    pattern=$2
+    out_dir=$3
+
+    latest=$(curl ${SPEED_LIMIT} -k -sS ${url}/ \
+                 | ${GREP} "href=\"${pattern}" \
+                 | cut -d'"' -f2 | sort | tail -1)
+
+    oldwd=$(pwd)
+    cd ${out_dir}
+    curl ${SPEED_LIMIT} -k --progress -O ${url}/${latest}
+    cd ${oldwd}
+    echo "==> downloaded ${latest}"
+}
+
+function get_upgrade_agents
+{
+    mkdir -p ${ROOT}/cache/upgrade/agents
+    for agent in "${AGENTS[@]}"; do
+        url="${AGENTS_BASE}/$(dirname ${agent})"
+        pattern=$(basename ${agent})
+        get_latest_upgrade_agent "${url}" "${pattern}" "${ROOT}/cache/upgrade/agents"
+    done
+}
+
+function pack_upgrade
+{
+    echo "${THIS_VERSION}" > ${ROOT}/cache/upgrade/VERSION
+
+    (cd ${ROOT}/cache \
+        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${THIS_VERSION}.tgz upgrade)
 }
 
 # Main()
 
 check_nodejs
+check_npm
 test_rootperms
 create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
-copy_platform
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true"
 copy_agents
 copy_datasets
 copy_zones
 copy_devtools
-unpack_image
-add_manifests
-mount_image
-trap 'cleanup' EXIT
-copy_to_mount
-cleanup
-create_output
+copy_hvm_files
+$(mv $RECIPE ${STAGE}/recipe)
+if [[ -z ${ONLY_UPGRADE} ]]; then
+    unpack_image
+    add_manifests
+    mount_image
+    trap 'cleanup' EXIT
+    copy_to_mount
+    cleanup
+    create_output
+else
+    create_upgrade
+    get_upgrade_params
+    get_upgrade_agents
+    pack_upgrade
+fi
 
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
 if [[ -f ${LOGFILE} ]]; then
-    cat ${LOGFILE} | grep -v "" > ${LOGFILE}.tmp \
+    cat ${LOGFILE} | ${GREP} -v "
+" > ${LOGFILE}.tmp \
     && mv ${LOGFILE}.tmp ${LOGFILE}
 fi
 

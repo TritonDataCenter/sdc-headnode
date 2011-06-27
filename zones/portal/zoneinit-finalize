@@ -2,27 +2,9 @@
 
 echo "99 finalizing portal zone"
 
-# node request package runs fine in npm, but here, we need to explicitly setup an index.js
-# to map it to something plain node understands
-if [ ! -e /opt/smartdc/portal/deps/request/index.js ]; then
-    (cd /opt/smartdc/portal/deps/request; ln -s main.js index.js)
-fi
-
-# Update the config with the correct values.
-cat > /opt/smartdc/portal/config.js <<HERE
-exports.config = {
-  displayCouponField : false,
-  publicApiUrl : "http://${PUBLIC_API_PRIVATE_IP}:8080/v1",
-  privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
-  privateCAPIUrl : "http://${CAPI_API_PRIVATE_IP}:8080",
-  CAPIuser : "admin",
-  CAPIpassword : "tot@ls3crit",
-  CAPIMetaCAKey : "portal-coal",
-  CAPIMetaCABlessed : "blessed-instrumentation",
-  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
-  clientCABlackList : [ 'nic', 'syscall', 'io', { cpu : ['utilization'] } ],
-}
-HERE
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
 
 echo Creating manifest for portal: 
 cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
@@ -52,7 +34,7 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
-          <envvar name="PORT" value="80" />
+          <envvar name="PORT" value="4000" />
           <envvar name="NODE_ENV" value="production" />
         </method_environment>
       </method_context>
@@ -92,12 +74,13 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
+
 echo Importing portal_manifest.xml
-svccfg import /opt/smartdc/portal/portal_manifest.xml
+/usr/sbin/svccfg import /opt/smartdc/portal/portal_manifest.xml
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/smartdc/site/portal:default refresh
 echo Enablig service portal
-svcadm enable smartdc/site/portal
-
-
-
-
+/usr/sbin/svcadm enable smartdc/site/portal
 

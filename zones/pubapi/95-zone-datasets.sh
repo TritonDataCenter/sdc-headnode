@@ -21,44 +21,31 @@ cd /opt/smartdc/pubapi-repo
 # Create some directories into pubapi-data
 mkdir -p /opt/smartdc/pubapi-data/log
 mkdir -p /opt/smartdc/pubapi-data/tmp/pids
+mkdir -p /opt/smartdc/pubapi-data/db
 # Remove and symlink directories:
-mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/pubapi/config /opt/smartdc/pubapi-data/config
+else
+  rm -Rf /opt/smartdc/pubapi/config
+fi
 rm -Rf /opt/smartdc/pubapi/log
 rm -Rf /opt/smartdc/pubapi/tmp
 rm -Rf /opt/smartdc/pubapi/config
 ln -s /opt/smartdc/pubapi-data/log /opt/smartdc/pubapi/log
 ln -s /opt/smartdc/pubapi-data/tmp /opt/smartdc/pubapi/tmp
 ln -s /opt/smartdc/pubapi-data/config /opt/smartdc/pubapi/config
+ln -s /opt/smartdc/pubapi-data/db /opt/smartdc/pubapi/db
 # Save REVISION:
 echo "${REVISION}">/opt/smartdc/pubapi-data/REVISION
 echo "${REVISION}">/opt/smartdc/pubapi/REVISION
 # Save VERSION (Updates based on this):
 APP_VERSION=$(/opt/local/bin/git describe --tags)
-echo "${APP_VERSION}">/opt/smartdc/pubapi-data/VERSION
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  echo "${APP_VERSION}">/opt/smartdc/pubapi-data/VERSION
+fi
 echo "${APP_VERSION}">/opt/smartdc/pubapi/VERSION
 # Cleanup build products:
 cd /root/
 rm -Rf /opt/smartdc/pubapi-repo
 rm /root/pubapi-app-timestamp
 
-# Adding dataset based update service for the app:
-cat >"/opt/smartdc/pubapi-data/pubapi-update-service.sh" <<UPDATE
-#!/usr/bin/bash
-
-APP_NAME='pubapi'
-
-APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
-DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
-
-if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
-  echo "Calling \$APP_NAME-update"
-  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby /opt/smartdc/\$APP_NAME/smartdc/update
-else
-  echo "\$APP_NAME is up to date"
-fi
-
-exit 0
-
-UPDATE
-
-chmod +x /opt/smartdc/pubapi-data/pubapi-update-service.sh

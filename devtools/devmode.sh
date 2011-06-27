@@ -13,11 +13,16 @@
 # DO NOT USE UNLESS YOU NEED IT AND DO NOT WRITE SOFTWARE THAT DEPENDS ON THIS.
 #
 
-ROOT_DIR=$(cd $(dirname $0); pwd)
-PKG_REPO="http://pkgsrc.joyent.com/2010Q3/All"
-PKGSRC_TGZ="https://guest:GrojhykMid@assets.joyent.us/datasets/misc/pkgsrc-base-2010Q3.tgz"
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+set -o errexit
+set -o pipefail
 
-if [[ "$(uname)" != "SunOS" ]] || [[ ! -f /etc/joyent_buildstamp ]]; then
+ROOT_DIR=$(cd $(dirname $0); pwd)
+PKG_REPO="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All"
+BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
+
+if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
     exit 1 
 fi
@@ -37,35 +42,21 @@ if [[ -z $(grep "hosts.* dns" /etc/nsswitch.conf) ]]; then
         && cp /tmp/nsswitch.conf.new /etc/nsswitch.conf
 fi
 
-if [[ ! -x /opt/local/sbin/pkg_add ]]; then
+if [[ ! -x /opt/local/bin/pkgin ]]; then
     echo "==> Installing minimal pkgsrc"
-    (cd /opt && curl -k ${PKGSRC_TGZ} | gtar -zxf -)
+    (cd /opt && curl -k ${BOOTSTRAP_TGZ} | gtar -C/ -zxf -)
+    echo "PKG_PATH=${PKG_REPO}" >> \
+      /opt/local/etc/pkg_install.conf
+    echo "==> Installing pkgin"
+    mkdir -p /opt/local/etc/pkgin
+    echo ${PKG_REPO} > /opt/local/etc/pkgin/repositories.conf
+    /opt/local/bin/pkgin update
 fi
 
 if [[ -z $(crle | grep '/opt/gcc/lib') ]]; then
     echo "==> Setting up crle"
-    crle -u -l /opt/gcc/lib
     crle -u -l /opt/local/lib
 fi
-
-if [[ ! -f /opt/local/etc/pkgin/repositories.conf ]]; then
-    echo "==> Setting up pkgsrc repo"
-    cat >/opt/local/etc/pkgin/repositories.conf <<EOF
-# $Id: repositories.conf,v 1.1 2009/06/05 19:43:22 imil Exp $
-#
-# Pkgin repositories list
-#
-# Simply add repositories one below the other
-#
-# WARNING: order matters, duplicates will not be added, if two
-# repositories hold the same package, it will be fetched from
-# the first one listed in this file.
-
-${PKG_REPO}/
-EOF
-fi
-/opt/local/bin/pkgin update
-
 
 if [[ -z $(mount | grep "^/root") ]]; then
     echo "==> Setting up persistent /root"

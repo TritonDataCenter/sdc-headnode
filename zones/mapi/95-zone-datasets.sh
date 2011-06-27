@@ -10,54 +10,46 @@ zfs set mountpoint=/opt/smartdc/mapi "zones/mapi/mapi-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/mapi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
+
 # Export complete repo into mapi:
-cd /opt/smartdc/mapi-repo
+cd /opt/smartdc
+(cd mapi-repo && tar cf - .) | (cd mapi && tar xfp -)
+rm -rf mapi/.git
 
-/opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/mapi/
-
-# Export only config into mapi-data:
-cd /opt/smartdc/mapi-repo
-# Create some directories into mapi-data
+# Create some directories into mapi-data (export only config into mapi-data).
 mkdir -p /opt/smartdc/mapi-data/log
 mkdir -p /opt/smartdc/mapi-data/tmp/pids
+
 # Remove and symlink directories:
-mv /opt/smartdc/mapi/config /opt/smartdc/mapi-data/config
+# NOTE: We don't want to override config dir if we are in the middle of
+# restoring a backup or upgrading:
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/mapi/config /opt/smartdc/mapi-data/config
+else
+  rm -Rf /opt/smartdc/mapi/config
+fi
+
 rm -Rf /opt/smartdc/mapi/log
 rm -Rf /opt/smartdc/mapi/tmp
 rm -Rf /opt/smartdc/mapi/config
 ln -s /opt/smartdc/mapi-data/log /opt/smartdc/mapi/log
 ln -s /opt/smartdc/mapi-data/tmp /opt/smartdc/mapi/tmp
 ln -s /opt/smartdc/mapi-data/config /opt/smartdc/mapi/config
+
 # Save REVISION:
 echo "${REVISION}">/opt/smartdc/mapi-data/REVISION
 echo "${REVISION}">/opt/smartdc/mapi/REVISION
+
 # Save VERSION (Updates based on this):
+cd /opt/smartdc/mapi-repo
 APP_VERSION=$(/opt/local/bin/git describe --tags)
-echo "${APP_VERSION}">/opt/smartdc/mapi-data/VERSION
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  echo "${APP_VERSION}">/opt/smartdc/mapi-data/VERSION
+fi
 echo "${APP_VERSION}">/opt/smartdc/mapi/VERSION
+
 # Cleanup build products:
 cd /root/
 rm -Rf /opt/smartdc/mapi-repo
 rm /root/mapi-app-timestamp
 
-# Adding dataset based update service for the app:
-cat >"/opt/smartdc/mapi-data/mapi-update-service.sh" <<UPDATE
-#!/usr/bin/bash
-
-APP_NAME='mapi'
-
-APP_VERSION=\$(cat /opt/smartdc/\$APP_NAME/VERSION)
-DATA_VERSION=\$(cat /opt/smartdc/\$APP_NAME-data/VERSION)
-
-if [[ "\$APP_VERSION" != "\$DATA_VERSION" ]]; then
-  echo "Calling \$APP_NAME-update"
-  FROM_SMARTDC_VERSION=\$DATA_VERSION TO_SMARTDC_VERSION=\$APP_VERSION /opt/local/bin/ruby /opt/smartdc/\$APP_NAME/smartdc/update
-else
-  echo "\$APP_NAME is up to date"
-fi
-
-exit 0
-
-UPDATE
-
-chmod +x /opt/smartdc/mapi-data/mapi-update-service.sh

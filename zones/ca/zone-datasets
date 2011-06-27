@@ -1,0 +1,4 @@
+printf "%-56s" "Creating zone ca-data..." >>/dev/console
+zfs create -o compression=on zones/ca/ca-data
+zonecfg -z ca "add dataset; set name=zones/ca/ca-data; end; verify; commit"
+printf "%4s\n" "done" >> /dev/console

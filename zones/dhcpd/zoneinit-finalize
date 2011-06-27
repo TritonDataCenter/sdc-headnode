@@ -2,8 +2,6 @@
 
 echo "99 finalizing dhcpd zone"
 
-export MAPI_IP
-export MAPI_PW
-export PRIVATE_IP
-/opt/smartdc/bin/booter-service-setup
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
 

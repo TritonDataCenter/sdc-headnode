@@ -7,6 +7,7 @@ SUCMD='sudo'
 MNT_DIR="/Volumes/USB-headnode.vmdk"
 MD5CMD="md5 -r"
 GZCAT=gzcat
+TAR=tar
 IMG_TYPE="coal" # if we're VMWare we're COAL
 SUDO_PROMPT="[sudo] Password: "; export SUDO_PROMPT
 
@@ -53,7 +54,7 @@ function unpack_image
 {
     echo -n "==> Unpacking VMWare image... "
     rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
-    (cd ${ROOT}/cache && tar -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
+    (cd ${ROOT}/cache && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
         || fatal "Unable to unpack image"
     echo "done."
 }
@@ -81,7 +82,7 @@ function add_manifests
         && find . -type f -exec ${MD5CMD} {} \;) \
         > ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
     [[ $? -eq 0 ]] || fatal "Unable to add md5 manifest"
-    mv -f ${STAGE}/platform/i86pc/amd64/boot_archive.manifest \
+    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
         ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest
     chmod 444 ${ROOT}/cache/USB-headnode.vmwarevm/boot_archive.manifest \
         ${ROOT}/cache/USB-headnode.vmwarevm/usb_key.manifest
@@ -105,18 +106,18 @@ function create_output
           | sed -n 's,^build\.number=\(.*\),\1,p')"
     fi
 
-    if [[ -f ${ROOT}/cache/stage/private/root.password ]]; then
-        echo "==> Copying root.password"
-        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password \
-            ${ROOT}/cache/USB-headnode.vmwarevm/root.password
-        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password
+    if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password.${LIVEIMG_VERSION}"
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} \
+            ${ROOT}/cache/USB-headnode.vmwarevm/root.password.${LIVEIMG_VERSION}
+        ${SUCMD} chmod 400 ${ROOT}/cache/USB-headnode.vmwarevm/root.password.${LIVEIMG_VERSION}
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
         echo "==> Creating coal-147-${output_version}.tgz"
         (cd ${ROOT}/cache \
             && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
-            && tar -zcf ${ROOT}/coal-147-${output_version}.tgz \
+            && ${TAR} -zcf ${ROOT}/coal-147-${output_version}.tgz \
             USB-headnode.vmwarevm) \
             || fatal "Unable to create .tgz output file."
     else

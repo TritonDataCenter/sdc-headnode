@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -e
+
+echo "cloudapi target: [${CHECKOUT_TARGET}]"
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+if [[ -n ${CLOUDAPI_DIR} ]]; then
+    if [[ -d ${CLOUDAPI_DIR} ]]; then
+        echo "taking cloudapi from ${CLOUDAPI_DIR}"
+        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
+        mkdir cloudapi-repo
+        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
+    else
+        echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
+        exit 1
+    fi
+else
+    # cloud-api snubs the develop branch.
+    TARGET=${CHECKOUT_TARGET}
+    if [[ ${TARGET} == "origin/develop" ]]; then
+        TARGET=master
+    fi
+
+    git clone git@git.joyent.com:cloud-api.git cloudapi
+    cd cloudapi
+    git checkout ${TARGET}
+    npm install
+    if [[ $? != 0 ]]; then
+        echo "[cloudapi] npm install failed"
+        exit 1
+    fi
+    rm -rf .git
+    rm -f cfg/*
+    mkdir -p ssl
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
+    cd node_modules/sdc-clients
+    git checkout ${TARGET}
+    rm -rf .git
+    cd ../http-signature
+    git checkout ${TARGET}
+    rm -rf .git
+    cd ../../../
+fi
+
+
+echo "cloudapi-v1 target: [${CHECKOUT_TARGET}]"
+
+if [[ -n ${CLOUDAPI_V1_DIR} ]]; then
+    if [[ -d ${CLOUDAPI_V1_DIR} ]]; then
+        echo "taking cloudapi from ${CLOUDAPI_V1_DIR}"
+        # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
+        mkdir cloudapi-v1-repo
+        (cd ${CLOUDAPI_V1_DIR} && tar -cf - ./) | (cd cloudapi-v1-repo && tar -xf -)
+    else
+        echo "FATAL: ${CLOUDAPI_V1_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:cloudapi-v1.git v1
+    cd v1
+    git checkout ${CHECKOUT_TARGET}
+    ./node_modules/.bin/coffee -c .
+    rm -rf .git
+fi
+
+

@@ -5,10 +5,26 @@
 // See <https://github.com/trentm/json>.
 //
 
-var VERSION = "1.1.4";
+var VERSION = "1.3.1";
 
 var sys = require('sys');
-var Script = process.binding('evals').Script;
+var runInNewContext;
+try {
+  runInNewContext = require('vm').runInNewContext;
+} catch (ex) {
+  runInNewContext = process.binding('evals').Script.runInNewContext;  // node v0.2
+}
+
+
+
+//--- exports for module usage
+
+exports.main = main;
+exports.parseLookup = parseLookup;
+
+// As an exported API, these are still experimental:
+exports.processDatum = processDatum;
+exports.processDatumExperimental = processDatumExperimental;
 
 
 
@@ -31,6 +47,8 @@ function printHelp() {
   sys.puts("  -H            drop any HTTP header block");
   sys.puts("  -i            output using node's `sys.inspect`");
   sys.puts("  -j            output using `JSON.stringfy`, i.e. strict JSON");
+  sys.puts("  -x, --experimental");
+  sys.puts("                enable experimental features: '*' in lookup");
   sys.puts("");
   sys.puts("Examples:");
   sys.puts("  curl -s http://search.twitter.com/search.json?q=node.js | json");
@@ -56,7 +74,8 @@ function parseArgv(argv) {
     quiet: false,
     dropHeaders: false,
     outputSysInspect: false,
-    outputJSON: false
+    outputJSON: false,
+    experimental: false
   };
   
   // Turn '-iH' into '-i -H'.
@@ -93,6 +112,10 @@ function parseArgv(argv) {
       case "-j": // output with JSON.stringify
         parsed.outputJSON = true;
         break;
+      case "-x":
+      case "--experimental":
+        parsed.experimental = true;
+        break;
       default: // arguments
         if (parsed.lookup === null) {
           parsed.lookup = arg;
@@ -102,6 +125,7 @@ function parseArgv(argv) {
         break;
     } 
   }
+  //TODO: '--' handling and error on a first arg that looks like an option.
 
   return parsed;
 }
@@ -113,6 +137,235 @@ function warn(o) {
 
 function isInteger(s) {
   return (s.search(/^-?[0-9]+$/) == 0);
+}
+
+
+// Parse a lookup string into a list of lookup bits. E.g.:
+//    "a.b.c" -> ["a","b","c"]
+//    "b['a']" -> ["b","['a']"]
+function parseLookup(lookup) {
+  //var debug = console.warn;
+  var debug = function() {};
+  
+  var bits = [];
+  debug("\n*** "+lookup+" ***")
+
+  bits = [];
+  var bit = "";
+  var states = [null];
+  var escaped = false;
+  var ch = null;
+  for (var i=0; i < lookup.length; ++i) {
+    var escaped = (!escaped && ch === '\\');
+    var ch = lookup[i];
+    debug("-- i="+i+", ch="+JSON.stringify(ch)+" escaped="+JSON.stringify(escaped))
+    debug("states: "+JSON.stringify(states))
+
+    if (escaped) {
+      bit += ch;
+      continue;
+    }
+
+    switch (states[states.length-1]) {
+    case null:
+      switch (ch) {
+      case '"':
+      case "'":
+        states.push(ch);
+        bit += ch;
+        break;
+      case '[':
+        states.push(ch);
+        if (bit !== "") {
+          bits.push(bit);
+          bit = ""
+        }
+        bit += ch;
+        break;
+      case '.':
+        if (bit !== "") {
+          bits.push(bit);
+          bit = ""
+        }
+        break;
+      default:
+        bit += ch;
+        break;
+      }
+      break;
+
+    case '[':
+      bit += ch;
+      switch (ch) {
+      case '"':
+      case "'":
+      case '[':
+        states.push(ch);
+        break;
+      case ']':
+        states.pop();
+        if (states[states.length-1] === null) {
+          bits.push(bit);
+          bit = ""
+        }
+        break;
+      }
+      break;
+
+    case '"':
+      bit += ch;
+      switch (ch) {
+      case '"':
+        states.pop();
+        if (states[states.length-1] === null) {
+          bits.push(bit);
+          bit = ""
+        }
+        break;
+      }
+      break;
+
+    case "'":
+      bit += ch;
+      switch (ch) {
+      case "'":
+        states.pop();
+        if (states[states.length-1] === null) {
+          bits.push(bit);
+          bit = ""
+        }
+        break;
+      }
+      break;
+    }
+    debug("bit: "+JSON.stringify(bit))
+    debug("bits: "+JSON.stringify(bits))
+  }
+
+  if (bit !== "") {
+    bits.push(bit);
+    bit = ""
+  }
+
+  debug(JSON.stringify(lookup)+" -> "+JSON.stringify(bits))
+  return bits
+}
+
+/**
+ * Process the input JSON object.
+ *
+ * @argument datum {Object}  The parsed JSON object.
+ * @argument args {Object} Command-line args from parseArgv.
+ */
+function processDatum(datum, args) {
+  if (args.lookup) {
+    var bits = parseLookup(args.lookup);
+
+    // Put it back together with some convenience transformations.
+    lookup = "";
+    var isJSIdentifier = /^[$A-Za-z_][0-9A-Za-z_]*$/;
+    for (var i=0; i < bits.length; i++) {
+      var bit = bits[i];
+      if (bit[0] === '[') {
+        lookup += bit;
+      } else if (! isJSIdentifier(bits[i])) {
+        // Allow a non-JS-indentifier token, e.g. `json foo-bar`.
+        lookup += '["' + bits[i].replace('"', '\\"') + '"]';
+      } else {
+        lookup += '.' + bits[i];
+      }
+    }
+
+    datum = runInNewContext("(" + JSON.stringify(datum) + ")" + lookup);
+  }
+  
+  // Print out results.
+  var output = null;
+  if (args.outputSysInspect) {
+    output = sys.inspect(datum, false, Infinity, true);
+  } else if (args.outputJSON) {
+    if (typeof datum !== 'undefined') {
+      output = JSON.stringify(datum, null, 2);
+    }
+  } else {
+    if (typeof datum === 'string') {
+      output = datum;
+    } else if (typeof datum !== 'undefined') {
+      output = JSON.stringify(datum, null, 2);
+    }
+  }
+  if (output && output.length) {
+    process.stdout.write(output);
+    process.stdout.write('\n');
+  }
+}
+
+/**
+ * Experimenal processing of the input JSON object.
+ * This is turned on by the "-x|--experimental" switch.
+ *
+ * - add support for '*' in lookup
+ */
+function processDatumExperimental(datum, args) {
+  var data = [datum];
+  if (args.lookup) {
+    var bits = parseLookup(args.lookup);
+
+    var isJSIdentifier = /^[$A-Za-z_][0-9A-Za-z_]*$/;
+    var i = 0;
+    var lookup = "";
+    while (i < bits.length) {
+      var bit = bits[i];
+      if (bit === '*') {
+        if (lookup) {
+          data = data.map(function(d) {
+              return runInNewContext("(" + JSON.stringify(d) + ")" + lookup);
+            }).filter(function(d) { return d !== undefined });
+          lookup = "";
+        }
+        var newdata = [];
+        data.forEach(function(d) {
+          newdata = newdata.concat(d);
+        });
+        data = newdata;
+      } else if (bit[0] === '[') {
+        lookup += bit;
+      } else if (! isJSIdentifier(bits[i])) {
+        // Allow a non-JS-indentifier token, e.g. `json foo-bar`.
+        lookup += '["' + bits[i].replace('"', '\\"') + '"]';
+      } else {
+        lookup += '.' + bits[i];
+      }
+      i++;
+    }
+    if (lookup) {
+    data = data.map(function(d) {
+          return runInNewContext("(" + JSON.stringify(d) + ")" + lookup);
+        }).filter(function(d) { return d !== null });
+    }
+  }
+  
+  // Print out results.
+  data.forEach(function(d) {
+    var output = null;
+    if (args.outputSysInspect) {
+      output = sys.inspect(d, false, Infinity, true);
+    } else if (args.outputJSON) {
+      if (typeof d !== 'undefined') {
+        output = JSON.stringify(d, null, 2);
+      }
+    } else {
+      if (typeof d === 'string') {
+        output = d;
+      } else if (typeof d !== 'undefined') {
+        output = JSON.stringify(d, null, 2);
+      }
+    }
+    if (output && output.length) {
+      process.stdout.write(output);
+      process.stdout.write('\n');
+    }
+  })
 }
 
 
@@ -130,8 +383,8 @@ function main(argv) {
     return;
   }
   if (args.extra.length) {
-    sys.puts("error: too many arguments: extra="+args.extra);
-    return 1;
+    sys.puts("json: error: too many arguments: extra="+args.extra);
+    process.exit(1);
   }
   
   var buffer = "";
@@ -144,106 +397,56 @@ function main(argv) {
   
   stdin.on('end', function () {
     // Take off a leading HTTP header if any and pass it through.
-    if (buffer.slice(0,5) === "HTTP/") {
-      var index = buffer.indexOf('\r\n\r\n');
-      var sepLen = 4;
-      if (index == -1) {
-        index = buffer.indexOf('\n\n');
-        sepLen = 2;
-      }
-      if (index != -1) {
-        if (! args.dropHeaders) {
-          process.stdout.write(buffer.slice(0, index+sepLen));
+    while (true) {
+      if (buffer.slice(0,5) === "HTTP/") {
+        var index = buffer.indexOf('\r\n\r\n');
+        var sepLen = 4;
+        if (index == -1) {
+          index = buffer.indexOf('\n\n');
+          sepLen = 2;
         }
-        buffer = buffer.slice(index+sepLen);
+        if (index != -1) {
+          if (! args.dropHeaders) {
+            process.stdout.write(buffer.slice(0, index+sepLen));
+          }
+          var is100Continue = (buffer.slice(0, 21) === "HTTP/1.1 100 Continue");
+          buffer = buffer.slice(index+sepLen);
+          if (is100Continue) {
+            continue;
+          }
+        }
       }
+      break;
     }
 
     // Expect the remainder to be JSON.
     if (! buffer.length) {
       return;
     }
-    var data;
+    var datum;
     try {
-      data = JSON.parse(buffer);
+      datum = JSON.parse(buffer);
     } catch(ex) {
       // Doesn't look like JSON. Just print it out and move on.
       if (! args.quiet) {
-        warn("warning: doesn't look like JSON: "+ex+" (buffer="+JSON.stringify(buffer)+")");
+        warn("json: error: doesn't look like JSON: "+ex+" (buffer="+JSON.stringify(buffer)+")");
       }
       process.stdout.write(buffer);
       if (buffer.length && buffer[buffer.length-1] !== "\n") {
         process.stdout.write('\n');
       }
-      return;
+      process.exit(1);
     }
     
-    if (args.lookup) {
-      // Parse command line lookup string into separate parts of the lookup.
-      var split = args.lookup.split(/(\.|\[)/);
-      var bits = [];
-      var save = null;
-      for (var i=0; i < split.length; i++) {
-        var bit = split[i];
-        switch (bit) {
-        case '':
-          break;
-        case '.':
-          save = null;
-          break;
-        case '[':
-          save = bit;
-          break;
-        default:
-          if (save) {
-            bits.push(save + bit);
-          } else {
-            bits.push(bit);
-          }
-          save = null;
-          break;
-        }
-      }
-
-      // Put it back together with some convenience transformations.
-      lookup = "";
-      var isJSIdentifier = /^[$A-Za-z_][0-9A-Za-z_]*$/;
-      for (var i=0; i < bits.length; i++) {
-        var bit = bits[i];
-        if (bit[0] === '[') {
-          lookup += bit;
-        } else if (! isJSIdentifier(bits[i])) {
-          // Allow a non-JS-indentifier token, e.g. `json foo-bar`.
-          lookup += '["' + bits[i].replace('"', '\\"') + '"]';
-        } else {
-          lookup += '.' + bits[i];
-        }
-      }
-
-      data = Script.runInNewContext("(" + JSON.stringify(data) + ")" + lookup);
-    }
-    
-    // Print out results.
-    if (args.outputSysInspect) {
-      process.stdout.write(sys.inspect(data, false, Infinity, true));
-    } else if (args.outputJSON) {
-      if (typeof data !== 'undefined') {
-        process.stdout.write(JSON.stringify(data, null, 2));
-      }
+    // Process and emit the JSON data.
+    if (args.experimental) {
+      processDatumExperimental(datum, args);
     } else {
-      if (typeof data === 'string') {
-        process.stdout.write(data);
-      } else if (typeof data !== 'undefined') {
-        process.stdout.write(JSON.stringify(data, null, 2));
-      }
+      processDatum(datum, args);
     }
-    process.stdout.write('\n');
   });
 }
 
 if (require.main === module) {
-  var retval = main(process.argv);
-  if (retval) {
-    process.exit(retval);
-  }
+  main(process.argv);
 }

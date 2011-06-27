@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+. ${ROOT}/bin/include-usb-osx
+IMG_TYPE="coal"
+COAL_VMDK="${USB_SIZE}.coal.vmdk"
+
+function version
+{
+    echo "==> Building with variables from include-coal-osx"
+}
+
+function create_output
+{
+    echo "==> Checking current GIT branch"
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" \
+        || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name=${branch_name##refs/heads/}
+
+    if [[ "$branch_name" != "master" ]]; then
+      output_version="${branch_name}-${LIVEIMG_VERSION}"
+    else
+      output_version="${LIVEIMG_VERSION}"
+    fi
+
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt \
+          | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
+    if [[ -n ${MNT_DIR} ]]; then
+        ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+        sync; sync
+        MNT_DIR=
+    fi
+
+    if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password.${LIVEIMG_VERSION}"
+        rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        cp ${STAGE}/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+    else
+        rm -f ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+    fi
+
+    echo -n "==> Unpacking VMWare image... "
+    rm -rf ${ROOT}/cache/USB-headnode.vmwarevm
+    (cd ${ROOT}/cache && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
+        || fatal "Unable to unpack image"
+    (cd ${ROOT}/cache/USB-headnode.vmwarevm \
+        && ${TAR} -jxvf ${ROOT}/usb/${TEMPLATE_IMG} ${OUTPUT_IMG} \
+        && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
+        > USB-headnode.vmdk)
+    echo "done."
+
+    # Copy in ${ROOT}/cache/${OUTPUT_IMG}
+    echo -n "==> Copying in ${OUTPUT_IMG}... "
+    mv ${ROOT}/cache/${OUTPUT_IMG} \
+        ${ROOT}/cache/USB-headnode.vmwarevm/${OUTPUT_IMG}
+    echo "done."
+
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating coal-${output_version}.tgz"
+        (cd ${ROOT}/cache \
+            && rm -rf coal-${output_version}-${USB_SIZE}.vmwarevm \
+            && mv USB-headnode.vmwarevm coal-${output_version}-${USB_SIZE}.vmwarevm \
+            && ${TAR} -zcf ${ROOT}/coal-${output_version}-${USB_SIZE}.tgz \
+            root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE}.vmwarevm *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    else
+        mv ${ROOT}/cache/USB-headnode.vmwarevm ${ROOT}/coal-${output_version}-${USB_SIZE}.vmwarevm
+    fi
+}

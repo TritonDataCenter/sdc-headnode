@@ -25,47 +25,47 @@
 #
 function mdns_announce
 {
-	local name=$1
-	local port=$2
-	local mdns=$3
+    local name=$1
+    local port=$2
+    local mdns=$3
 
-	local hosts
-	local ipnodes
-	local zoneip
-	local nsswitch="/etc/nsswitch.conf"
+    local hosts
+    local ipnodes
+    local zoneip
+    local nsswitch="/etc/nsswitch.conf"
 
-	local service=`echo $name | tr '[:upper:]' '[:lower:]'`
-	local announcer="${service}-announcer"
-	local manifest="/opt/local/share/smf/manifest/${announcer}.xml"
+    local service=`echo $name | tr '[:upper:]' '[:lower:]'`
+    local announcer="${service}-announcer"
+    local manifest="/opt/local/share/smf/manifest/${announcer}.xml"
 
-	#
-	# Configure nsswitch to use mDNS, and enable multicast DNS:
-	#
-	hosts=$(grep ^hosts $nsswitch)
+    #
+    # Configure nsswitch to use mDNS, and enable multicast DNS:
+    #
+    hosts=$(grep ^hosts $nsswitch)
 
-	if [[ ! $(echo $hosts | grep mdns) ]]; then
-		$(/opt/local/bin/gsed -i"" \
-		    -e "s/^hosts.*$/hosts: files mdns dns/" $nsswitch)
-	fi
+    if [[ ! $(echo $hosts | grep mdns) ]]; then
+        $(/opt/local/bin/gsed -i"" \
+            -e "s/^hosts.*$/hosts: files mdns dns/" $nsswitch)
+    fi
 
-	ipnodes=$(grep ^ipnodes $nsswitch)
+    ipnodes=$(grep ^ipnodes $nsswitch)
 
-	if [[ ! $(echo $ipnodes | grep mdns) ]]; then
-		$(/opt/local/bin/gsed -i"" \
-		    -e "s/^ipnodes.*$/ipnodes: files mdns dns/" $nsswitch)
-	fi
+    if [[ ! $(echo $ipnodes | grep mdns) ]]; then
+        $(/opt/local/bin/gsed -i"" \
+            -e "s/^ipnodes.*$/ipnodes: files mdns dns/" $nsswitch)
+    fi
 
-	if [[ $(svcs -Ho state dns/multicast) != "online" ]]; then
-		svcadm enable -s dns/multicast
-	fi
+    if [[ $(svcs -Ho state dns/multicast) != "online" ]]; then
+        svcadm enable -s dns/multicast
+    fi
 
-	zoneip=$(ifconfig $(zonename)0 | grep inet | awk '{print $2}')
+    zoneip=$(ifconfig $(zonename)0 | grep inet | awk '{print $2}')
 
-	#
-	# Create the SMF manifest -- which certainly does not make this function
-	# any easier on the eyes...
-	#
-	cat > $manifest <<EOF
+    #
+    # Create the SMF manifest -- which certainly does not make this function
+    # any easier on the eyes...
+    #
+    cat > $manifest <<EOF
 <?xml version='1.0'?>
 <!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
 <service_bundle type='manifest' name='export'>
@@ -101,11 +101,63 @@ function mdns_announce
 </service_bundle>
 EOF
 
-	if  ( ! svcs -a | grep $announcer ); then
-		svccfg import $manifest
-	fi
+    if  ( ! svcs -a | grep $announcer ); then
+        /usr/sbin/svccfg import $manifest
+        sleep 10 # XXX
+        #/usr/sbin/svccfg -s svc:/site/${announcer}:default refresh
+    fi
 
-	if [[ $(svcs -Ho state $announcer) != "online" ]]; then
-		svcadm enable -s $announcer
-	fi
+    if [[ $(svcs -Ho state $announcer) != "online" ]]; then
+        if ! svcadm enable -s $announcer; then
+            echo "WARNING: Failed to enable ${announcer}"
+        fi
+    fi
 }
+
+
+#
+# symlink_ruby() just creates missing symlinks to ruby18 and irb18 on zones
+# running ruby applications.
+# It does not expect any argument.
+#
+function symlink_ruby
+{
+  # These happen to do not be created always:
+  if [[ ! -e /opt/local/bin/ruby ]]; then
+    echo "Symlinking ruby"
+    ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+  fi
+
+  if [[ ! -e /opt/local/bin/irb ]]; then
+    echo "Symlinking irb"
+    ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+  fi
+}
+
+#
+# It's pretty obvious what create_jill_account() does. Intended to run on zones
+# running ruby applications. It does not expect any arguments, for now.
+#
+function create_jill_account
+{
+  echo "Creating jill account"
+  groupadd jill
+  useradd -g jill -d /opt/smartdc jill
+  chown -R jill:jill /opt/smartdc
+
+  # XXX /etc/oshadow breaks changepass, not sure yet what's putting it there.
+  if [[ -f /etc/oshadow ]]; then
+      echo "WARNING: removing /etc/oshadow"
+      rm -f /etc/oshadow
+  fi
+
+  echo "jill:naiWaic8sh" | /opt/local/sbin/changepass -n -m
+  usermod -P 'Service Management' jill
+  usermod -s /usr/bin/bash jill
+  # Properly set PATH and other relevant stuff.
+  cp /home/admin/.bash_profile /opt/smartdc/.bash_profile
+  cp /home/admin/.bashrc /opt/smartdc/.bashrc
+  cp /home/admin/.irbrc /opt/smartdc/.irbrc
+  cp /home/admin/.profile /opt/smartdc/.profile
+}
+

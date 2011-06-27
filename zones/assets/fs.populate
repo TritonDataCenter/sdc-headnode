@@ -2,15 +2,4 @@
 
 set -e
 
-echo "dsapi target: [${CHECKOUT_TARGET}]"
-
-mkdir -p root/opt/smartdc
-cd root/opt/smartdc
-git clone git@git.joyent.com:dsapi.git dsapi
-cd dsapi 
-git checkout ${CHECKOUT_TARGET}
-rm -rf .git
-#rm -f config.js
-#touch ../booter-VERSION
-#git describe --tags > ../booter-VERSION
-
+exit 0

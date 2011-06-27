@@ -1,34 +1,30 @@
 #!/bin/bash
 
-if [[ -z "${MAPI_IP}" ]] || [[ -z "${MAPI_PW}" ]] || [[ -z "${PRIVATE_IP}" ]]; then
-    echo "Must set MAPI_IP, MAPI_PW and PRIVATE_IP environment variables"
+if [[ -z "${MAPI_URL}" ]] || [[ -z "${MAPI_USER}" ]] ||[[ -z "${MAPI_PW}" ]] || [[ -z "${PRIVATE_IP}" ]]; then
+    echo "Must set MAPI_URL, MAPI_USER, MAPI_PW and PRIVATE_IP environment variables"
     exit 1
 fi
 
 cat > /opt/smartdc/booter/config.js <<CONFIG
 exports.config = {
-  mapiUrl  : "http://${MAPI_IP}:8080",
-  user     : "admin",
+  mapiUrl  : "${MAPI_URL}",
+  user     : "${MAPI_USER}",
   password : "${MAPI_PW}",
   listenIp : "0.0.0.0",
   tftpRoot : '/tftpboot',
-  dhcpIp   : "${PRIVATE_IP}"
+  defaultGateway : "${DHCP_GATEWAY}",
+  dhcpIp         : "${PRIVATE_IP}",
+  leaseTime      : "${DHCP_LEASE_TIME}"
 }
 CONFIG
 
-# Update the config with the correct values.
-
-ETC="/opt/smartdc/booter/etc"
-[ ! -d $ETC ] && mkdir -p $ETC
-
-for SVC in dhcpd tftpd; do
-    MANIFEST="${ETC}/${SVC}_manifest.xml"
-    echo Creating manifest for service $SVC: $MANIFEST
-    cat > ${MANIFEST} <<HERE
+tmp=`mktemp`
+echo "Creating manifest for dhcpd"
+cat > ${tmp} <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="${SVC}">
-  <service name="smartdc/site/${SVC}" type="service" version="0.0.1">
+<service_bundle type="manifest" name="dhcpd">
+  <service name="smartdc/site/dhcpd" type="service" version="0.0.1">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -44,7 +40,7 @@ for SVC in dhcpd tftpd; do
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/node ${SVC}.js"
+      exec="/usr/bin/node dhcpd.js"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/booter">
         <!-- <method_credential user="root" group="staff"/> -->
@@ -76,12 +72,11 @@ for SVC in dhcpd tftpd; do
 
     </property_group>
 
-
     <stability value="Evolving"/>
 
     <template>
       <common_name>
-        <loctext xml:lang="C">booter daemon (node)</loctext>
+        <loctext xml:lang="C">dhcpd booter (node)</loctext>
       </common_name>
     </template>
 
@@ -89,11 +84,55 @@ for SVC in dhcpd tftpd; do
 
 </service_bundle>
 HERE
-    echo Importing ${MANIFEST}
-    svccfg import ${MANIFEST}
-    echo Enablig service ${SVC}
-    svcadm enable smartdc/site/${SVC}
-done
+
+echo "Importing dhcpd manifest"
+/usr/sbin/svccfg import ${tmp}
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/smartdc/site/dhcpd:default refresh
+echo "Enabling dhcpd service"
+/usr/sbin/svcadm enable smartdc/site/dhcpd
+rm $tmp
+
+# Import in.tftpd service manifest
+tmp=`mktemp`
+echo "Creating manifest for in.tftpd"
+cat > ${tmp} <<EOF
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
+<service_bundle type='manifest' name='export'>
+	<service name='network/tftpd' type='service' version='0'>
+    <create_default_instance enabled='true'/>
+    <single_instance/>
+    <dependency name='network' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/milestone/network:default'/>
+    </dependency>
+    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
+      <service_fmri value='svc:/system/filesystem/local'/>
+    </dependency>
+		<exec_method name='start' type='method' exec='/opt/local/sbin/in.tftpd -l -s /tftpboot' timeout_seconds='60' />
+		<exec_method name='restart' type='method' exec=':kill' timeout_seconds='60' />
+		<exec_method name='stop' type='method' exec=':kill' timeout_seconds='60' />
+    <property_group name='application' type='application'/>
+    <property_group name='startd' type='framework'>
+      <propval name='ignore_error' type='astring' value='core,signal'/>
+    </property_group>
+    <stability value='Evolving'/>
+    <template>
+      <common_name>
+        <loctext xml:lang='C'>tftp-hpa</loctext>
+      </common_name>
+    </template>
+  </service>
+</service_bundle>
+EOF
+
+echo "Importing tftpd manifest"
+/usr/sbin/svccfg import ${tmp}
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/network/tftpd:default refresh
+echo "Enabling tftpd service"
+/usr/sbin/svcadm enable network/tftpd
+rm $tmp
 
 
 

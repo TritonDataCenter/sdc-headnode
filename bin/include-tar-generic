@@ -1,0 +1,99 @@
+#!/bin/bash
+#
+# Copyright (c) 2010 Joyent Inc., All rights reserved.
+#
+
+PLATFORM=$(uname -s)
+SUCMD='sudo'
+MNT_DIR="${ROOT}/mnt"
+GZCAT="zcat"
+IMG_TYPE="usb"
+case "$PLATFORM" in
+  Darwin)
+    MD5CMD="md5 -r"
+    TAR=gnutar
+    TAR_ROOT=""
+    ;;
+  SunOS)
+    MD5CMD="md5sum"
+    TAR=gtar
+    TAR_ROOT="--owner=root --group=root"
+    ;;
+  Linux)
+    MD5CMD="md5sum"
+    TAR=tar
+    TAR_ROOT="--owner=root --group=root"
+    ;;
+  *)
+    echo "Platform $PLATFORM not supported."
+    exit 1
+esac
+USER=$(whoami)
+
+function can_has_internets
+{
+    if ping -c 1 8.8.8.8 >/dev/null 2>&1 || ping -c 1 4.2.2.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+function version
+{
+    echo "==> Building with variables from include-tar-smartos"
+}
+
+function cleanup
+{
+    rm -rf /tmp/fs.*.$$
+}
+
+function unpack_image
+{
+    # nop
+    true
+}
+
+function mount_image
+{
+    ${SUCMD} rm -rf ${MNT_DIR}
+    mkdir -p ${MNT_DIR}
+}
+
+function add_manifests
+{
+    # build manifest of USB files + move in boot_archive manifest
+    rm -f ${ROOT}/cache/usb_key.manifest
+    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${MNT_DIR}/usb_key.manifest
+    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
+        ${MNT_DIR}/boot_archive.manifest
+    chmod 444 ${MNT_DIR}/boot_archive.manifest ${MNT_DIR}/usb_key.manifest
+}
+
+function create_output
+{
+    echo "==> Checking current GIT branch"
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name=${branch_name##refs/heads/}
+
+    if [[ "$branch_name" != "master" ]]; then
+      output_version="${branch_name}-${LIVEIMG_VERSION}"
+    else
+      output_version="${LIVEIMG_VERSION}"
+    fi
+    if [ -f build-number.txt ]; then
+      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
+    fi
+
+
+    if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
+        echo "==> Copying root.password"
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ${MNT_DIR}/root.password.${LIVEIMG_VERSION}
+        ${SUCMD} chmod 400 ${MNT_DIR}/root.password.${LIVEIMG_VERSION}
+    fi
+
+    echo "==> Creating boot-147-${output_version}.tgz"
+    ${SUCMD} chown -R ${USER} ${MNT_DIR}
+    ${TAR} -zcf ${ROOT}/boot-147-${output_version}.tgz -C ${MNT_DIR} .
+}
+

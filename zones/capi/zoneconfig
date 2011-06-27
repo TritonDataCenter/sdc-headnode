@@ -7,16 +7,21 @@ PUBLIC_IP=${capi_external_ip-${capi_admin_ip}}
 ROOT_PW=${capi_root_pw}
 ADMIN_PW=${capi_admin_pw}
 TMPFS=512m
+WORKERS=${capi_workers}
 
-POSTGRES_HOST=localhost
+POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres
 POSTGRES_PW=postgres
+
+CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
+CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}
 
 CAPI_ADMIN_LOGIN=${capi_admin_login}
 CAPI_ADMIN_PW=${capi_admin_pw}
 CAPI_ADMIN_EMAIL=${capi_admin_email}
 CAPI_ADMIN_UUID=${capi_admin_uuid}
 
-DNSAPI_HTTP_PORT=${dnsapi_http_port}
-DNSAPI_HTTP_USER=${dnsapi_http_user}
-DNSAPI_HTTP_PASS=${dnsapi_http_pass}
+DBCONN_RETRY_AFTER=${dbconn_retry_after}
+DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}

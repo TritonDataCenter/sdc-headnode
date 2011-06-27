@@ -1,0 +1,115 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+
+#export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+
+set -o errexit
+set -o pipefail
+
+# write output to log file
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+ZONE=$1
+ERR=
+
+echo "ROOT: ${ROOT}"
+
+if [[ -z ${ZONE} || ! -d ${ROOT}/zones/${ZONE} ]]; then
+    echo "No such zone '${ZONE}'"
+    ERR=1
+fi
+ZONEDIR="${ROOT}/zones/${ZONE}"
+echo "${ZONEDIR}"
+if [[ ! -x ${ZONEDIR}/fs.populate ]]; then
+    echo "Zone '${ZONE}' has no fs.populate script"
+    ERR=2
+fi
+if [[ ! -d ${ZONEDIR}/fs.root ]]; then
+    echo "Zone '${ZONE}' has no fs.root dir"
+    ERR=3
+fi
+
+if [[ -n ${ERR} ]]; then
+    echo "Usage: $0 <zone>"
+    exit 1
+fi
+
+
+case ${ZONE} in
+    adminui)
+        if [[ -z ${ADMINUI_DIR} ]]; then
+            echo "Need ADMINUI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    capi)
+        if [[ -z ${CAPI_DIR} || -z ${DNSAPI_DIR} ]]; then
+            echo "Need CAPI_DIR and DNSAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    dhcpd)
+        if [[ -z ${BOOTER_DIR} ]]; then
+            echo "Need BOOTER_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    mapi)
+        if [[ -z ${MAPI_DIR} ]]; then
+            echo "Need MAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    portal)
+        if [[ -z ${PORTAL_DIR} ]]; then
+            echo "Need PORTAL_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    cloudapi)
+        if [[ -z ${CLOUDAPI_DIR} ]]; then
+            echo "Need CLOUDAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    pubapi)
+        if [[ -z ${PUBAPI_DIR} ]]; then
+            echo "Need PUBAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Unhandled zone: ${zone}"
+        exit 1
+        ;;
+esac
+
+
+# do in /tmp because only root can write in mnt
+fstar=${ROOT}/${ZONE}.tar.bz2
+rm -f ${fstar}
+mkdir -p /tmp/fs.${ZONE}.$$
+cp -pPR ${ZONEDIR}/fs.populate ${ZONEDIR}/fs.root /tmp/fs.${ZONE}.$$
+(cd /tmp/fs.${ZONE}.$$/fs.root \
+    && RECIPE_FILE=/dev/null ../fs.populate \
+    && tar -jcvf ${fstar} ./ \
+    && rm -rf /tmp/fs.${ZONE}.$$)
+if [[ $? -ne 0 ]]; then
+    fatal "Failed create ${ZONE}.tar.bz2 for ${ZONE}"
+else
+    echo "Created '${fstar}'."
+fi
+
+exit 0
