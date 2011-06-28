@@ -30,7 +30,7 @@ if [[ -n ${PORTAL_DIR} ]]; then
 else
     git clone git@git.joyent.com:public-web-client.git portal
     cd portal
-    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    $(git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
     git submodule update --init --recursive
     touch ../portal-VERSION
     git describe --tags > ../portal-VERSION

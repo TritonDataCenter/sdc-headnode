@@ -32,7 +32,7 @@ if [[ -n ${CAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:customers_api.git capi-repo
     cd capi-repo
-    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    $(git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
     mnfst_string="capi-repo@"${CHECKOUT_TARGET}
 fi
 

@@ -26,7 +26,7 @@ else
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
-    git checkout ${TARGET}
+    $(git checkout ${TARGET} || /usr/bin/true)
     npm install
     if [[ $? != 0 ]]; then
         echo "[cloudapi] npm install failed"
@@ -38,10 +38,10 @@ else
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
     git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
     cd node_modules/sdc-clients
-    git checkout ${TARGET}
+    $(git checkout ${TARGET} || /usr/bin/true)
     rm -rf .git
     cd ../http-signature
-    git checkout ${TARGET}
+    $(git checkout ${TARGET} || /usr/bin/true)
     rm -rf .git
     cd ../../../
 fi
@@ -62,7 +62,7 @@ if [[ -n ${CLOUDAPI_V1_DIR} ]]; then
 else
     git clone git@git.joyent.com:cloudapi-v1.git v1
     cd v1
-    git checkout ${CHECKOUT_TARGET}
+    $(git checkout ${CHECKOUT_TARGET} || /usr/bin/true)
     ./node_modules/.bin/coffee -c .
     rm -rf .git
 fi
