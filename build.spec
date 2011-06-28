@@ -1,6 +1,6 @@
 {
     "platform-release": "20110623T174013Z"
-  , "hvm-platform-release": "HVM"
+  , "hvm-platform-release": "HVM-20110623T170642Z"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.122"
   , "build-tgz": "true"
