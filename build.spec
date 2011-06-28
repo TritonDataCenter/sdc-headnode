@@ -6,7 +6,7 @@
   , "build-tgz": "true"
   , "build-hvm": "true"
   , "agents-shar": "release-20110623"
-  , "hvm-agents-shar": "hvm"
+  , "hvm-agents-shar": "hvm-20110623T170638Z"
   , "datasets": [
       { "name": "smartos-1.3.13"
       , "uuid": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5"
