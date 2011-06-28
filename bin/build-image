@@ -24,7 +24,11 @@ LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
 TAR=tar
 GREP=grep
-
+if [[ `uname -s` == 'SunOS' ]]; then
+  SUM='/usr/bin/sum -x sha1'
+else
+  SUM='shasum'
+fi
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
@@ -764,7 +768,7 @@ function copy_dataset
       fi
   fi
 
-  local cached_dataset_sha1=$(shasum ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  local cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
   if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
     rm -f ${ROOT}/cache/${dataset_file}
     fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
