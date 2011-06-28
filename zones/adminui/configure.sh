@@ -18,6 +18,19 @@ http {
     sendfile        on;
     keepalive_timeout  65;
 
+    gzip  on;
+    gzip_http_version 1.1;
+    gzip_vary on;
+    gzip_comp_level 6;
+    gzip_proxied any;
+    gzip_types text/plain text/html text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # see http://blog.leetsoft.com/2007/7/25/nginx-gzip-ssl
+    gzip_buffers 16 8k;
+
+    # Disable gzip for certain browsers.
+    gzip_disable "MSIE [1-6].(?!.*SV1)";
+
     upstream adminui {
         server ${PRIVATE_IP}:8080;
     }
@@ -50,6 +63,11 @@ http {
 
             proxy_pass http://adminui;
             break;
+        }
+
+        location ~ ^/(javascripts|stylesheets|images|favicon\.ico) {
+          root /opt/smartdc/adminui/public;
+          expires max;
         }
 
         location /ca {
@@ -135,6 +153,8 @@ su - jill -c "cd /opt/smartdc/adminui; \
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
 fi
+
+bash /opt/smartdc/adminui/script/fix_yajl.sh
 
 # Just in case, create /var/logadm
 if [[ ! -d /var/logadm ]]; then
