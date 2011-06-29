@@ -13,7 +13,7 @@
 #
 
 #export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -o xtrace
+set -o xtrace
 
 set -o errexit
 set -o pipefail
