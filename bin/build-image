@@ -146,7 +146,7 @@ STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
 
-CURL_OPTS=
+CURL_OPTS="-k"
 SPEED_LIMIT=
 if [[ -f "${ROOT}/build.spec.local" ]]; then
     NO_INTERNET=$(cat ${ROOT}/build.spec.local \
@@ -177,8 +177,7 @@ fi
 
 check_proxy
 
-MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+MASTER_PLATFORM_URL=$(proxy "https://guest:GrojhykMid@216.57.203.66:444/coal/releases/2011-06-30/deps")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
@@ -187,8 +186,8 @@ fi
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
+AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
+ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/appzones")
 
 # Figure out first what we're building, and load the proper include
 
