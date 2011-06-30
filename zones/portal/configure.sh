@@ -32,7 +32,30 @@ exports.config = {
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr" }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr" }},
   ],
-  listenIp : "${PRIVATE_IP}"
+  listenIp : "${PRIVATE_IP}",
+  machineListFields : [ 
+			{ name: "type", heading: "Type", sortable: true, width: 104 },
+      { name: "name",heading: "Machine name", sortable: true,
+        mutate: function (n, machine) {
+          var displayName = machine.name ||
+                            machine.hostname ||
+                            "Unnamed SmartMachine";
+          if (displayName.length > 30) {
+            displayName = displayName.substr(0, 30) + "…";
+          }
+          return displayName;
+        },
+        width: 280 },
+      { name: "ips", heading: "Public IP Address", sortable: true, width: 140 },
+      { name: "memory", heading: "RAM", sortable: true, width: 83 },
+      { name: "created", date: true, heading: "Age", sortable: true, width: 130 },
+      { name: "state", heading: "Status", sortable: true, width: 125 } 
+    ],
+	  provisionOptions :
+	    [ { name: "package", alwaysShow: true, heading: "Package" },
+	      { name: "dataset", alwaysShow: true, heading: "SmartMachine Type" },
+	      { name: "name", heading: "Machine name" }
+	    ]
 }
 HERE
 
