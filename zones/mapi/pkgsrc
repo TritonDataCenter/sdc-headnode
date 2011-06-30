@@ -51,6 +51,7 @@ ruby19-builder-3.0.0
 ruby19-bunny-0.6.0
 ruby19-amqp-0.6.7
 ruby19-yajl-0.8.2
+ruby19-validatable-1.6.7
 mDNSResponder-214.3.2nb1
 ruby19-dnssd-1.4
 nginx-0.8.53
