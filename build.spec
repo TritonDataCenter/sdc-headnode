@@ -1,5 +1,5 @@
 {
-    "platform-release": "develop"
+    "platform-release": "master"
   , "hvm-platform-release": "HVM"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.108"
