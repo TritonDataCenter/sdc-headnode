@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -o xtrace
 
 if [[ $1 == "-r" ]]; then
     dorebuild=1
