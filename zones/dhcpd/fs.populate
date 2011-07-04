@@ -27,7 +27,8 @@ if [[ -n ${BOOTER_DIR} ]]; then
 else
     git clone git@git.joyent.com:booter.git booter
     cd booter
-    $(git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
+    branch=$(basename ${CHECKOUT_TARGET})
+    (git checkout -b ${branch} || /usr/bin/true)
     mnfst_string="booter@"${CHECKOUT_TARGET}
 fi
 

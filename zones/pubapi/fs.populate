@@ -29,7 +29,7 @@ if [[ -n ${PUBAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:public_api.git pubapi-repo
     cd pubapi-repo
-    $(git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
+    (git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
     mnfst_string="pubapi-repo@"${CHECKOUT_TARGET}
 fi
 

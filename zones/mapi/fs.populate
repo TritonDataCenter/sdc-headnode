@@ -29,7 +29,8 @@ if [[ -n ${MAPI_DIR} ]]; then
 else
     git clone git@git.joyent.com:mcp_api_gateway.git mapi-repo
     cd mapi-repo
-    $(git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
+    branch=$(basename ${CHECKOUT_TARGET})
+    (git checkout $branch  || /usr/bin/true)
     mnfst_string="mapi-repo@"${CHECKOUT_TARGET}
 fi
 
