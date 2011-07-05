@@ -197,6 +197,10 @@ PLATFORM=$(uname -s)
 if [[ $1 == "-r" ]]; then
     shift
     RECIPE=$1
+    # Turn relative paths in to absolute paths
+    if [[ -z $(dirname $RECIPE | grep ^/) ]]; then
+        RECIPE=$(pwd)/$RECIPE
+    fi
     REBUILD_FROM_RECIPE=1
     shift
     echo "Rebuilding from ${RECIPE}..."
@@ -1013,11 +1017,15 @@ function copy_zones
             target_checkout=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
-        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${FS_TARBALL} ]]; then
+        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${tarball_pattern} ]]; then
             tarball_pattern=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-tarball")
             target_checkout=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-checkout")
+        fi
+
+        if [[ -z ${target_checkout} ]]; then
+            target_checkout=$GIT_BRANCH
         fi
 
         # Symlinks aren't supported on pcfs, so we copy the files

@@ -80,7 +80,7 @@ if [[ -n ${CLOUDAPI_V1_DIR} ]]; then
 else
     git clone git@git.joyent.com:cloudapi-v1.git v1
     cd v1
-    $(git checkout ${CHECKOUT_TARGET} || /usr/bin/true)
+    (git checkout ${CHECKOUT_TARGET} || /usr/bin/true)
     ./node_modules/.bin/coffee -c .
     rm -rf .git
 fi
