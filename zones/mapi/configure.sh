@@ -72,6 +72,11 @@ http {
             break;
         }
 
+        location /docs {
+            root /opt/smartdc/mapi/public;
+            index index.html;
+        }
+
         location ~ ^/ca(/.*)?$ {
             proxy_set_header  X-Real-IP  \$remote_addr;
             proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;

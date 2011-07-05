@@ -274,9 +274,18 @@ if [ -n "${CREATEDZONES}" ]; then
 
     # Install any HVM platforms that are sitting around, do this here since MAPI is now up.
     install_hvm_platforms
+   
+    # Run a post-install script. This feature is not formally supported in SDC
+    if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
+    	printf "%-56s\n" "Executing post-install script..." >&${CONSOLE_FD}
+    	bash ${USB_COPY}/scripts/post-install.sh
+    fi
+
+    # clear the screen
+    echo "[H[J" >&${CONSOLE_FD}
     
     echo "==> Setup complete.  Press [enter] to get login prompt." \
-       >&${CONSOLE_FD}
+        >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
 fi
 
