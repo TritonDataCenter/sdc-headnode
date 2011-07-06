@@ -582,7 +582,7 @@ echo "dnsapi_http_user=admin" >>$tmp_config
 echo "dnsapi_http_pass=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "dsapi_url=https://datasets.${domainname}" >>$tmp_config
+echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
 echo "dsapi_http_user=joyent" >>$tmp_config
 echo "dsapi_http_pass=H0neyB4dger" >>$tmp_config
 echo >>$tmp_config
