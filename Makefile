@@ -1,6 +1,3 @@
-ifeq ($(VERSION), "")
-	@echo "Use gmake"
-endif
 
 all: coal
 
