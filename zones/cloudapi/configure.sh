@@ -108,35 +108,3 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   }
 }
 HERE
-
-
-
-# v1
-cat > /opt/smartdc/v1/config/production.json <<HERE
-{
-  "name": "Joyent Public API",
-  "url": "http://${PUBLIC_IP}/v1",
-  "capi": {
-    "url": "${CAPI_URL}",
-    "username": "${CAPI_HTTP_ADMIN_USER}",
-    "password": "${CAPI_HTTP_ADMIN_PW}"
-  },
-  "mapi": {
-    "${DEFAULT_DATACENTER}": {
-      "url": "${MAPI_URL}",
-      "username": "${MAPI_HTTP_ADMIN_USER}",
-      "password": "${MAPI_HTTP_ADMIN_PW}",
-      "resources": {
-        "nodejs": {
-          "repo": true,
-          "domain": "*.no.de",
-          "ram": [128, 256, 512, 1024, 2048, 4096]
-        },
-        "smartos": {
-          "ram": [128, 256, 512, 1024, 2048, 4096]
-        }
-      }
-    }
-  }
-}
-HERE
