@@ -1,8 +1,7 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 # XXX - TODO
 # - if $ntp_hosts == "local", configure ntp for no external time source
-# - add additional validation for inputs e.g. email address
 # - try to figure out why ^C doesn't intr when running under SMF
 
 PATH=/usr/sbin:/usr/bin
@@ -14,6 +13,11 @@ mail_to="root@localhost"
 ntp_hosts="pool.ntp.org"
 dns_resolver1="8.8.8.8"
 dns_resolver2="8.8.4.4"
+
+# Globals
+declare -a states
+declare -a nics
+declare -a assigned
 
 sigexit()
 {
@@ -128,6 +132,15 @@ is_net()
 	return 0
 }
 
+# Tests if input is an email address
+is_email() {
+  regex="^[a-z0-9!#\$%&'*+/=?^_\`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_\`{|}~-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.?)+[a-z0-9]([a-z0-9-]*[a-z0-9])?\$"
+  ADDRESS=$1
+  
+  [[ $ADDRESS =~ $regex ]] && return 0
+	return 1
+}
+
 # Optional input
 promptopt()
 {
@@ -153,6 +166,24 @@ promptval()
 	done
 }
 
+promptemail()
+{
+	val=""
+	def="$2"
+	while [ -z "$val" ]; do
+		if [ -n "$def" ]; then
+			printf "%s [%s]: " "$1" "$def"
+		else
+			printf "%s: " "$1"
+		fi
+		read val
+		[ -z "$val" ] && val="$def"
+    is_email "$val" || val=""
+		[ -n "$val" ] && break
+		echo "A valid email address must be provided."
+	done
+}
+
 # Input must be a valid network number (see is_net())
 promptnet()
 {
@@ -172,6 +203,18 @@ promptnet()
 	done
 }
 
+printnics()
+{
+	i=1
+	printf "%-6s %-9s %-18s %-7s %-10s\n" "Number" "Link" "MAC Address" "State" \
+	  "Network"
+	while [ $i -le $nic_cnt ]; do
+		printf "%-6d %-9s %-18s %-7s %-10s\n" $i ${nics[$i]} ${macs[$i]} ${states[$i]} \
+		  ${assigned[i]}
+		((i++))
+	done
+}
+
 # Must choose a valid NIC on this system
 promptnic()
 {
@@ -180,24 +223,22 @@ promptnic()
 		return
 	fi
 
-	i=1
-	printf "%6s %9s %18s\n" "Number" "Link" "MAC Address"
-	while [ $i -le $nic_cnt ]; do
-		printf "%6d %9s %18s\n" $i ${nics[$i]} ${macs[$i]}
-		i=`expr $i + 1`
-	done
-
+  printnics
 	num=0
 	while [ /usr/bin/true ]; do
 		printf "Enter the number of the NIC for the %s interface: " \
 		   "$1"
 		read num
-		if [ $num -ge 1 -a $num -le $nic_cnt ]; then
+    if ! [[ "$num" =~ ^[0-9]+$ ]] ; then
+      echo ""
+    elif [ $num -ge 1 -a $num -le $nic_cnt ]; then
 			mac_addr="${macs[$num]}"
+			assigned[$num]=$1
 			break
 		fi
-		echo "Invalid selection.  You must choose between 1 and" \
-		   "$nic_cnt."
+		# echo "You must choose between 1 and $nic_cnt."
+    updatenicstates
+    printnics
 	done
 
 	val=$mac_addr
@@ -234,6 +275,34 @@ promptpw()
 	done
 }
 
+updatenicstates()
+{
+	states=(1)
+  #states[0]=1
+  while IFS=: read -r link state ; do
+    states=( ${states[@]-} $(echo "$state") )
+  done < <(dladm show-phys -po link,state 2>/dev/null)
+}
+
+
+printheader() 
+{
+  local newline=
+  local cols=`tput cols`
+  local subheader=$1
+  
+  if [ $cols -gt 80 ] ;then
+    newline='\n'
+  fi
+  
+  clear
+  for i in {1..80} ; do printf "-" ; done && printf "$newline"
+  printf " %-40s\n" "Smart Data Center (SDC) Setup"
+  printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
+  for i in {1..80} ; do printf "-" ; done && printf "$newline"
+
+}
+
 trap sigexit SIGINT
 
 USBMNT=$1
@@ -241,72 +310,90 @@ USBMNT=$1
 #
 # Get local NIC info
 #
-declare -a nics
 nic_cnt=0
-while read -r link addr
-do
-	if [ "$link" != "LINK" ]; then
-		nic_cnt=`expr $nic_cnt + 1`
-		nics[$nic_cnt]=$link
-		macs[$nic_cnt]=$addr
-	fi
-done < <(dladm show-phys -m -o link,address 2>/dev/null)
+
+while IFS=: read -r link addr ; do
+    ((nic_cnt++))
+    nics[$nic_cnt]=$link
+    macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
+    assigned[$nic_cnt]="-"
+done < <(dladm show-phys -pmo link,address 2>/dev/null)
 
 if [[ $nic_cnt -lt 1 ]]; then
 	echo "ERROR: cannot configure the system, no NICs were found."
 	exit 0
 fi
 
-export TERM=sun-color
-stty erase ^H
-clear
+updatenicstates
 
-echo "                  Joyent Smart Data Center"
-echo "                Headnode System Configuration"
-echo
-echo "You must answer the following questions to configure the headnode."
-echo "You will have a chance to review and correct your answers, as well as a"
-echo "chance to edit the final configuration, before it is applied."
-echo
+export TERM=sun-color
+export TERM=xterm-color
+stty erase ^H
+
+printheader "Copyright 2011, Joyent, Inc."
+
+message="
+You must answer the following questions to configure the headnode.
+You will have a chance to review and correct your answers, as well as a
+chance to edit the final configuration, before it is applied.
+
+Press [enter] to continue\n\n"
+
+printf "$message"
+read continue;
 
 #
 # Main loop to prompt for user input
 #
 while [ /usr/bin/true ]; do
-	promptval "Enter the company name" "$datacenter_company_name"
+
+  printheader "Datacenter Information"
+  message="
+The following questions will be used to configure your headnode identity. 
+This identity information is used to uniquely identify your headnode as well
+as help with management of distributed systems. If you are setting up a second 
+headnode at a datacenter, then please have the ID of the previous headnode 
+handy.\n\n"
+
+  printf "$message"
+
+  promptval "Enter the company name" "$datacenter_company_name"
 	datacenter_company_name="$val"
 
 	promptval "Enter a name for this datacenter" "$datacenter_name"
 	datacenter_name="$val"
 
-	promptval "Enter a location for this datacenter" "$datacenter_location"
+	promptval "Enter the City and State for this datacenter" "$datacenter_location"
 	datacenter_location="$val"
 
-
-        echo 
-	echo "Each headnode in a data center must have a unique ID" 
-        echo "if you only have one headnode just hit enter"
-	
-	promptval "Enter your headnode ID" "$datacenter_headnode_id"
+	promptval "Enter your headnode ID or press enter to accept the default" "$datacenter_headnode_id"
 	datacenter_headnode_id="$val"
 
-	promptval "Enter the admin network domain name" "$domainname"
-	domainname="$val"
+  printheader "Networking" 
+  message="
+Several applications will be made available on these networks using IP 
+addresses which are automatically incremented based on the headnode IP. 
+In order to detetermine what IP addresses have been assigned to SDC, you can 
+either review the configuration prior to its application, or you can run 
+'sdc-netinfo' after the install.
 
-	promptval "Enter an administrator email address" "$mail_to"
-	mail_to="$val"
+Press [enter] to continue\n\n"
 
-	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
-	promptval "Address support email should appear from" "$mail_from"
-	mail_from="$val"
+  printf "$message"
+  read continue
 
-	promptpw "Enter root password"
-	root_shadow="$val"
-
-	promptpw "Enter admin password"
-	zone_admin_pw="$val"
-
-	promptnic "Admin network"
+  printheader "Networking - Admin"
+  message="
+The admin network is used for management traffic and other information that
+flows between the Compute Nodes and the Headnode in an SDC cluster. The Admin
+network will be used to automatically provision new compute nodes. It is
+important that the Admin network be used exclusively for SDC management. 
+Please note that DHCP traffic will be present on this network following the 
+installation. The Admin network is connected in VLAN ACCESS mode only.\n\n"
+  
+  printf "$message"
+	
+  promptnic "'admin'"
 	admin_nic="$val"
 
 	promptnet "(admin) headnode IP address" "$admin_ip"
@@ -315,7 +402,15 @@ while [ /usr/bin/true ]; do
 	promptnet "(admin) headnode netmask" "$admin_netmask"
 	admin_netmask="$val"
 
-	promptnic "External network"
+  printheader "Networking - External"
+  message="
+The external network is used by the headnode and its applications to connect to
+external networks. That is, it can be used to communicate with either the
+Internet, an intranet, or any other WAN.\n\n"
+  
+  printf "$message"
+
+	promptnic "'external'"
 	external_nic="$val"
 
 	promptnet "(external) headnode IP address" "$external_ip"
@@ -324,33 +419,74 @@ while [ /usr/bin/true ]; do
 	promptnet "(external) headnode netmask" "$external_netmask"
 	external_netmask="$val"
 
-	promptopt "External network VLAN ID"
+	promptopt "(external) VLAN ID"
 	external_vlan_id="$val"
 
-	promptnet "Enter the IP address of your default gateway router" \
-	    "$headnode_default_gateway"
+  printheader "Networking - Continued"
+  message=""
+  
+  printf "$message"
+
+  echo "The default gateway will determine which network will"
+  echo "be used to connect to other networks. This will almost"
+  echo "certainly be the router connected to your 'External'"
+  echo "network."
+  echo
+	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
 	headnode_default_gateway="$val"
 
-	promptval "Primary DNS server IP address" "$dns_resolver1"
+  echo
+  echo "The DNS servers set here will be used to provide name"
+  echo "resolution abilities to the SDC cluster itself. These will"
+  echo "also be default DNS servers for zones provisioned on the"
+  echo "'external' network"
+  echo
+	promptval "Enter the Primary DNS server IP" "$dns_resolver1"
 	dns_resolver1="$val"
-
-	promptval "Secondary DNS server IP address" "$dns_resolver2"
+	promptval "Enter the Secondary DNS server IP" "$dns_resolver2"
 	dns_resolver2="$val"
-
+	promptval "Enter the headnode domain name" "$domainname"
+	domainname="$val"
 	promptval "Default DNS search domain" "$dns_domain"
 	dns_domain="$val"
-
+	
 	echo 
-	echo "By default the headnode acts as an NTP server for the admin" \
-	    "network. You"
-	echo "can set the headnode to be an NTP client to syncronize to" \
-	    "another NTP server."
-
+	echo "By default the headnode acts as an NTP server for the admin"
+	echo "network. You can set the headnode to be an NTP client to syncronize"
+	echo "to another NTP server."
 	promptval "Enter an NTP server IP address or hostname" "$ntp_hosts"
 	ntp_hosts="$val"
 
-	clear
-	echo "Verify that the following values are correct:"
+ 
+  printheader "Account Information"
+  message="
+There are two primary accounts for managing a Smart Data Center. 
+These are 'admin', and 'root'. Each user can have a unique password. Most of 
+the interaction you will have with SDC will be using the 'admin' user, unless
+otherwise specified. SDC also has the ability to send notification emails to a
+specific address. Each of these values will be configured below.\n\n"
+
+  printf "$message"
+	
+	promptpw "Enter root password"
+	root_shadow="$val"
+	
+	promptpw "Enter admin password"
+	zone_admin_pw="$val"
+	
+	promptemail "Administrator email goes to" "$mail_to"
+	mail_to="$val"
+
+	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
+	promptemail "Support email should appear from" "$mail_from"
+	mail_from="$val"
+
+  printheader "Verify Configuration"
+	message=""
+  
+  printf "$message"
+
+  echo "Verify that the following values are correct:"
 	echo
 	echo "Company name: $datacenter_company_name"
 	echo "Datacenter name: $datacenter_name"
@@ -631,5 +767,5 @@ promptval "Would you like to edit the final configuration file?" "n"
 [ "$val" == "y" ] && vi $tmp_config
 
 clear
-echo "The headnode will now finish configuration and reboot."
+echo "The headnode will now finish configuration and reboot. Please wait..."
 mv $tmp_config $USBMNT/config
