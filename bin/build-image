@@ -506,7 +506,7 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${CURL_OPTS} -k -sS ${PLATFORM_URL}/ \
-                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | ${GREP} "href=\"platform-${platform_release}.tgz" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
