@@ -583,6 +583,10 @@ echo "# This file was auto-generated and must be source-able by bash." \
 echo "#" >>$tmp_config
 echo >>$tmp_config
 
+# If in a VM, setup coal so networking will work.
+platform=$(smbios -t1 | nawk '{if ($1 == "Product:") print $2}')
+[ "$platform" == "VMware" ] && echo "coal=true" >>$tmp_config
+
 echo "swap=0.25x" >>$tmp_config
 echo "compute_node_swap=0.25x" >>$tmp_config
 echo >>$tmp_config
@@ -612,18 +616,15 @@ echo >>$tmp_config
 echo "# admin_nic is the nic admin_ip will be connected to for headnode zones."\
     >>$tmp_config
 echo "admin_nic=$admin_nic" >>$tmp_config
-echo "admin_nic_tag=admin" >>$tmp_config
 echo "admin_ip=$admin_ip" >>$tmp_config
-echo "admin_network_name=admin" >>$tmp_config
 echo "admin_netmask=$admin_netmask" >>$tmp_config
 echo "admin_network=$admin_network" >>$tmp_config
-echo "admin_gateway=$headnode_default_gateway" >>$tmp_config
+echo "admin_gateway=$admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
     >>$tmp_config
 echo "external_nic=$external_nic" >>$tmp_config
-echo "external_nic_tag=external" >>$tmp_config
 echo "external_ip=$external_ip" >>$tmp_config
 echo "external_gateway=$headnode_default_gateway" >>$tmp_config
 echo "external_netmask=$external_netmask" >>$tmp_config
@@ -632,7 +633,6 @@ if [ -z "$external_vlan_id" ]; then
 else
 	echo "external_vlan_id=$external_vlan_id" >>$tmp_config
 fi
-echo "external_network_name=external" >>$tmp_config
 echo "external_network=$external_network" >>$tmp_config
 echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
 echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
@@ -719,8 +719,8 @@ echo "dnsapi_http_pass=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
-echo "dsapi_http_user=joyent" >>$tmp_config
-echo "dsapi_http_pass=H0neyB4dger" >>$tmp_config
+echo "dsapi_http_user=honeybadger" >>$tmp_config
+echo "dsapi_http_pass=IEatSnakes4Fun" >>$tmp_config
 echo >>$tmp_config
 
 echo "mapi_admin_ip=$mapi_admin_ip" >>$tmp_config
