@@ -132,6 +132,20 @@ function upgrade_usbkey
     fi
 }
 
+function upgrade_pools
+{
+    #
+    # All ZFS pools should have atime=off.  If an operator wants to enable atime
+    # on a particular dataset, this setting won't affect that setting, since any
+    # datasets with a modified atime property will no longer inherit that
+    # setting from the pool's setting.
+    #
+    for pool in $(zpool list -Hp -o name); do
+         zfs set atime=off ${pool} || \
+              fatal "failed to set atime=off on pool ${pool}"
+    done
+}
+
 function import_datasets
 {
     ds_uuid=$(cat ${usbmnt}/datasets/smartos.uuid)
@@ -310,6 +324,8 @@ check_versions
 backup_usbkey
 upgrade_usbkey
 trap cleanup EXIT
+
+upgrade_pools
 
 # import new headnode dataset if there's one (used for new headnode zones)
 import_datasets

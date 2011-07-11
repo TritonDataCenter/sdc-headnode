@@ -31,8 +31,6 @@ for p in $*; do
   k=$(echo "${p}" | cut -d'=' -f1)
   v=$(echo "${p}" | cut -d'=' -f2-)
   export arg_${k}=${v}
-  echo ${k}
-  echo ${v}
 done
 
 # Load SYSINFO_* and CONFIG_* values
@@ -160,7 +158,7 @@ create_zpool()
     disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
     printf "%-56s" "Creating pool $pool... " >&4
 
-    if [[ -n ${profile} ]]; then
+    if [[ -z ${profile} ]]; then
         case ${disk_count} in
         0)
              fatal "no disks found, can't create zpool"
@@ -180,6 +178,8 @@ create_zpool()
     zpool create ${pool} ${profile} ${disks} || \
         fatal "failed to create pool ${pool}"
 
+    zfs set atime=off ${pool}
+
     printf "%4s\n" "done" >&4
 
     IFS=$OLDIFS
@@ -189,11 +189,11 @@ create_zpools()
 {
     if /usr/bin/bootparams | grep "headnode=true"; then
         export SYS_ZPOOL=zones
-        create_zpool $SYS_ZPOOL
+        create_zpool ${SYS_ZPOOL}
     else
         if [[ -z "${arg_pools}" ]]; then
             export SYS_ZPOOL=zones
-            create_zpool $SYS_ZPOOL
+            create_zpool ${SYS_ZPOOL}
         else
             IFS=,
             for pool in ${arg_pools}; do
@@ -206,11 +206,11 @@ create_zpools()
         fi
     fi
 
-    export CONFDS=$SYS_ZPOOL/config
-    export COREDS=$SYS_ZPOOL/cores
-    export OPTDS=$SYS_ZPOOL/opt
-    export VARDS=$SYS_ZPOOL/var
-    export USBKEYDS=$SYS_ZPOOL/usbkey
+    export CONFDS=${SYS_ZPOOL}/config
+    export COREDS=${SYS_ZPOOL}/cores
+    export OPTDS=${SYS_ZPOOL}/opt
+    export VARDS=${SYS_ZPOOL}/var
+    export USBKEYDS=${SYS_ZPOOL}/usbkey
     export SWAPVOL=${SYS_ZPOOL}/swap
 
     #
@@ -229,7 +229,7 @@ create_zpools()
 create_dump()
 {
     # Get avail zpool size - this assumes we're not using any space yet.
-    base_size=`zfs get -H -p -o value available $SYS_ZPOOL`
+    base_size=`zfs get -H -p -o value available ${SYS_ZPOOL}`
     # Convert to MB
     base_size=`expr $base_size / 1000000`
     # Calculate 5% of that
@@ -275,7 +275,7 @@ setup_datasets()
 
   if ! echo $datasets | grep ${COREDS} > /dev/null; then
     printf "%-56s" "Creating global cores dataset... " >&4
-    zfs create -o quota=10g -o mountpoint=/$SYS_ZPOOL/global/cores \
+    zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
     printf "%4s\n" "done" >&4
@@ -337,7 +337,7 @@ output_zpool_info()
     IFS=$'\n'
     for line in $(zpool list -H -o name,guid,size,free,health); do
         name=$(echo "${line}" | awk '{ print $1 }')
-        mountpoint=$(zfs get -H mountpoint $SYS_ZPOOL | awk '{ print $3 }')
+        mountpoint=$(zfs get -H mountpoint ${SYS_ZPOOL} | awk '{ print $3 }')
         printf "${line}\t${mountpoint}\n"
     done
     IFS=$OLDIFS
@@ -363,7 +363,7 @@ install_configs()
 
         # mount /opt before doing this or changes are not going to be persistent
         if [[ $(uname -s) != 'Linux' ]]; then
-            mount -F zfs $SYS_ZPOOL/opt /opt || echo "/opt already mounted"
+            mount -F zfs ${SYS_ZPOOL}/opt /opt || echo "/opt already mounted"
         fi
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
