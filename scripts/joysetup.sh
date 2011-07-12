@@ -140,11 +140,13 @@ create_zpool()
         profile=$(eval echo \${arg_${pool}_profile})
     fi
 
-    # if the pool already exists, don't create it again
+    # If the pool already exists, don't create it again.
     if /usr/sbin/zpool list -H -o name $pool; then
         return 0
     fi
 
+    # If we're creating a pool for a headnode, or if a list of disks is not
+    # specified for a pool, include all disks in the default pool.
     if /usr/bin/bootparams | grep "headnode=true" || [[ -z $disks ]]; then
         disks=
         for disk in `/usr/bin/disklist -n`; do
@@ -158,27 +160,48 @@ create_zpool()
     disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
     printf "%-56s" "Creating pool $pool... " >&4
 
+    # If no pool profile was provided, use a default based on the number of
+    # devices in that pool.
     if [[ -z ${profile} ]]; then
         case ${disk_count} in
         0)
-             fatal "no disks found, can't create zpool"
-        ;;
+             fatal "no disks found, can't create zpool";;
         1)
-             profile=""
-        ;;
+             profile="";;
         2)
-             profile=mirror
-        ;;
+             profile=mirror;;
         *)
-             profile=raidz
-        ;;
+             profile=raidz;;
         esac
     fi
 
-    zpool create ${pool} ${profile} ${disks} || \
-        fatal "failed to create pool ${pool}"
+    # The zpool command doesn't accept the 'striped' profile, but creates a
+    # striped pool when no profile is specified.
+    if [[ ${profile} == "striped" ]]; then
+        profile=""
+    fi
 
-    zfs set atime=off ${pool}
+    zpool_args=""
+
+    # When creating a mirrored pool, create a mirrored pair of devices out of
+    # every two disks.
+    if [[ ${profile} == "mirror" ]]; then
+        ii=0
+        for disk in ${disks}; do
+            if [[ $(( $ii % 2 )) -eq 0 ]]; then
+                  zpool_args="${zpool_args} ${profile}"
+            fi
+            zpool_args="${zpool_args} ${disk}"
+            ii=$(($ii + 1))
+        done
+    else
+        zpool_args="${profile} ${disks}"
+    fi
+
+    zpool create ${pool} ${zpool_args} || \
+        fatal "failed to create pool ${pool}"
+    zfs set atime=off ${pool} || \
+        fatal "failed to set atime=off for pool ${pool}"
 
     printf "%4s\n" "done" >&4
 
