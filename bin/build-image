@@ -604,7 +604,10 @@ function get_agents
         fatal "Unable to find latest agents!"
     fi
     use_agents=${latest_agents}
-
+    if [[ ! -z ${AGENTS_SHAR_OVERRIDE} ]]; then
+        use_agents=$(basename ${AGENTS_SHAR_OVERRIDE})
+        cp $(dirname ${AGENTS_SHAR_OVERRIDE})/$(basename $use_agents .sh).* ${ROOT}/cache/
+    fi
     if [[ -z ${use_agents} ]]; then
         fatal "Unable to determine which agents to use!"
     fi
