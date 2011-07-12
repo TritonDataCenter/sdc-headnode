@@ -9,10 +9,6 @@
 # other_netmask=255.255.255.0
 # other_vlan_id=888
 
-# Set to true if you want the GZ on the headnode to NAT traffic from the admin
-# network to the external network:
-headnode_nat=true
-
 # Install agents by default
 install_agents=true
 

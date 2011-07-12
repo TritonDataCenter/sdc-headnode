@@ -5,7 +5,8 @@ usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smart
 USBKEYS=`/usr/bin/disklist -a`
 for key in ${USBKEYS}; do
     if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
-        /usr/sbin/mount -F pcfs -o foldcase /dev/dsk/${key}p0:1 ${usbmnt};
+        /usr/sbin/mount -F pcfs -o foldcase,noatime /dev/dsk/${key}p0:1 \
+            ${usbmnt};
         if [[ $? == "0" ]]; then
             if [[ ! -f ${usbmnt}/.joyliveusb ]]; then
                 /usr/sbin/umount ${usbmnt};
