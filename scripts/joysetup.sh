@@ -206,6 +206,9 @@ create_zpools()
         fi
     fi
 
+    svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
+    svccfg -s svc:/system/smartdc/init:default refresh
+
     export CONFDS=${SYS_ZPOOL}/config
     export COREDS=${SYS_ZPOOL}/cores
     export OPTDS=${SYS_ZPOOL}/opt
