@@ -178,6 +178,13 @@ POSTGRES_PW='$POSTGRES_PW'
 
 PGPASSFILE=/opt/smartdc/.pgpass
 
+# Postgres starts out with the default pw of 'postgres'.  We need to change
+# it to POSTGRES_PW before we can do anything else.
+export PGPASSWORD=postgres
+/opt/local/bin/psql -U postgres \
+    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1
+export -n PGPASSWORD
+
 # Given PostgreSQL will be into a separated zone, we cannot rely into SMF
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
