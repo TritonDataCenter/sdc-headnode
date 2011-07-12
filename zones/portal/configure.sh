@@ -28,9 +28,9 @@ exports.config = {
   },
   defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
   defaultCAChoices : [
-    { label : "HTTP server operations", params : { module : "node", stat : "httpd_ops", decomposition : "raddr" }},
-    { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr" }},
-    { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr" }},
+    { label : "HTTP server operations", params : { module : "node", stat : "httpd_ops", decomposition : "raddr", "idle-max" : 30 }},
+    { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
+    { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
   listenIp : "${PRIVATE_IP}",
   machineListFields : [ 
