@@ -663,6 +663,15 @@ root_shadow=$(/usr/lib/cryptpass "$root_shadow")
 echo "root_shadow='${root_shadow}'" >>$tmp_config
 echo >>$tmp_config
 
+#
+# Currently we're using the same pw as we use for zones, but we may want
+# to add another prompt for this as a 3rd pw.
+#
+echo "# This is the entry from /etc/shadow for the admin user" >>$tmp_config
+admin_shadow=$(/usr/lib/cryptpass "$zone_admin_pw")
+echo "admin_shadow='${admin_shadow}'" >>$tmp_config
+echo >>$tmp_config
+
 echo "ntp_hosts=$ntp_hosts" >>$tmp_config
 
 echo "compute_node_ntp_hosts=$admin_ip" >>$tmp_config
