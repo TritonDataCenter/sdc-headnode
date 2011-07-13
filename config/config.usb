@@ -77,6 +77,9 @@ initial_script=scripts/headnode.sh
 # This is the entry from /etc/shadow for root (default password: 'root')
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 
+# This is the entry from /etc/shadow for the admin user (default: 'admin')
+admin_shadow='$5$JF.WWoRG$zgQA4tkeaavy//nLi7hl9/p7KzPMej2n36b7pu/isn9'
+
 #
 # To specify NTP servers for the headnode you can either use:
 #

@@ -9,7 +9,7 @@ ADMIN_PW=${mapi_admin_pw}
 TMPFS=512m
 POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres
-POSTGRES_PW=postgres
+POSTGRES_PW=PgresPass123
 WORKERS=${mapi_workers}
 
 MAIL_TO=${mail_to}

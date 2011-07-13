@@ -8,15 +8,15 @@
   , "agents-shar": "master"
   , "hvm-agents-shar": "hvm"
   , "datasets": [
-      { "name": "smartos-1.3.13"
-      , "uuid": "63ce06d8-7ae7-11e0-b0df-1fcf8f45c5d5"
+      { "name": "smartos-1.3.15"
+      , "uuid": "184c9b38-ad3d-11e0-bad6-1b7240aaa5fc"
       , "headnode_zones": "true"
       }
     , { "name": "nodejs-1.1.4"
       , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }
-    , { "name": "ubuntu-10.04.2.2"
-      , "uuid": "6f6b0a2e-8dcd-11e0-9d84-000c293238eb"
+    , { "name": "ubuntu-10.04.2.3"
+      , "uuid": "3ee607e0-acfa-11e0-891d-f7db5c24f5ba"
       }
   ]
   , "adminui-checkout": "origin/master"
