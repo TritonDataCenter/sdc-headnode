@@ -58,7 +58,8 @@ exports.config = {
 	  provisionOptions :
 	    [ { name: "package", alwaysShow: true, heading: "Package" },
 	      { name: "dataset", alwaysShow: true, heading: "SmartMachine Type" },
-	      { name: "name", heading: "Machine name" }
+	      { name: "name", heading: "Machine name" },
+	      { name: "password", heading: "Machine Password" }
 	    ]
 }
 HERE
