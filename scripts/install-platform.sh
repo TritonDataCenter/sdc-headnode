@@ -7,11 +7,30 @@ set -o errexit
 set -o pipefail
 #set -o xtrace
 
+function usage()
+{
+    echo "Usage: $0 <platform URI>"
+    echo "(URI can be file:///, http://, anything curl supports or a filename)"
+    exit 1
+}
+
 input=$1
 if [[ -z ${input} ]]; then
-    echo "Usage: $0 <platform URI>"
-    echo "(URI can be file:///, http://, or anything curl supports)"
-    exit 1
+    usage
+fi
+
+if echo "${input}" | grep "^[a-z]*://"; then
+    # input is a url style pattern
+    /bin/true
+else
+    if [[ -f ${input} ]]; then
+       dir=$(cd $(dirname ${input}); pwd)
+       file=$(basename ${input})
+       input="file://${dir}/${file}"
+    else
+       echo "File: '${input}' not found."
+       usage
+    fi
 fi
 
 mounted="false"
