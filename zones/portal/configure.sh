@@ -46,7 +46,11 @@ exports.config = {
           return displayName;
         },
         width: 280 },
-      { name: "ips", heading: "Public IP Address", sortable: true, width: 140 },
+      { name: "ips", heading: "Public IP Address", sortable: true,
+      	mutate: function (n, machine) {
+        	return machine.ips[0];
+      	},
+ 			width: 140 },
       { name: "memory", heading: "RAM", sortable: true, width: 83 },
       { name: "created", date: true, heading: "Age", sortable: true, width: 130 },
       { name: "state", heading: "Status", sortable: true, width: 125 } 
