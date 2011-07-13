@@ -65,6 +65,19 @@ POSTGRES_PW='$POSTGRES_PW'
 
 PGPASSFILE=/opt/smartdc/.pgpass
 
+# This is a workaround.  Normally we would want a proper SMF dependency on the
+# postgresql svc, but its too late in the release cycle so we're going to
+# hardcode a loop to check the state of the svc here.  We should fix this
+# later.
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+    svc=\$(/usr/bin/svcs -H network/postgresql)
+    state=\${svc%% * *}
+    [ "\$state" == "online" ] && break
+    sleep 5
+done
+# No matter what the state now, we move on.
+
 # Postgres starts out with the default pw of 'postgres'.  We need to change
 # it to POSTGRES_PW before we can do anything else.
 export PGPASSWORD=postgres
