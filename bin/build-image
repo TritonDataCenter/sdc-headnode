@@ -188,7 +188,7 @@ fi
 check_proxy
 
 MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/releases/2011-07-14/deps")
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
@@ -197,8 +197,8 @@ fi
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
+AGENTS_BASE=${MASTER_PLATFORM_URL}
+ASSETS_ROOT=${MASTER_PLATFORM_URL}
 
 # Figure out first what we're building, and load the proper include
 
@@ -517,7 +517,7 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${CURL_OPTS} -k -sS ${PLATFORM_URL}/ \
-                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | ${GREP} "href=\"platform-${platform_release}" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
