@@ -199,7 +199,7 @@ promptnet()
 		[ -z "$val" ] && val="$def"
 		is_net "$val" || val=""
 		[ -n "$val" ] && break
-		echo "A valid netowrk number (n.n.n.n) must be provided."
+		echo "A valid network number (n.n.n.n) must be provided."
 	done
 }
 
@@ -373,7 +373,7 @@ handy.\n\n"
   message="
 Several applications will be made available on these networks using IP 
 addresses which are automatically incremented based on the headnode IP. 
-In order to detetermine what IP addresses have been assigned to SDC, you can 
+In order to determine what IP addresses have been assigned to SDC, you can
 either review the configuration prior to its application, or you can run 
 'sdc-netinfo' after the install.
 
@@ -452,7 +452,7 @@ Internet, an intranet, or any other WAN.\n\n"
 	
 	echo 
 	echo "By default the headnode acts as an NTP server for the admin"
-	echo "network. You can set the headnode to be an NTP client to syncronize"
+	echo "network. You can set the headnode to be an NTP client to synchronize"
 	echo "to another NTP server."
 	promptval "Enter an NTP server IP address or hostname" "$ntp_hosts"
 	ntp_hosts="$val"
