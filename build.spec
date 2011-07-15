@@ -36,7 +36,7 @@
         , "cloud_analytics/release-20110714/cainstsvc-release-20110714-*"
         , "dataset_manager/release-20110714/dataset_manager-release-20110714-*"
         , "heartbeater/release-20110714/heartbeater-release-20110714-*"
-        , "provisioner/release-20110714/provisioner-release-20110714-*"
+        , "provisioner-v2/release-20110714/provisioner-v2-release-20110714-*"
         , "smartlogin/release-20110714/smartlogin-release-20110714-*"
         , "zonetracker/release-20110714/zonetracker-release-20110714-*"
       ]
