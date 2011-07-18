@@ -333,6 +333,7 @@ if [[ $nic_cnt -lt 1 ]]; then
 	exit 0
 fi
 
+ifconfig -a plumb
 updatenicstates
 
 export TERM=sun-color
