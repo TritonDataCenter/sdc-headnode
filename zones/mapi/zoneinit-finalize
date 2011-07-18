@@ -194,8 +194,14 @@ done
 # Postgres starts out with the default pw of 'postgres'.  We need to change
 # it to POSTGRES_PW before we can do anything else.
 export PGPASSWORD=postgres
-/opt/local/bin/psql -U postgres \
-    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1
+if ! /opt/local/bin/psql -U postgres \
+    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
+    # We failed to change the pw.  This might happen if we already changed it
+    # but the method failed later and we are re-running.  Since we are running
+    # with errexit, we need to handle a failure, but we assume the pw is
+    # already updated and just note this.
+    echo "Changing the default password failed"
+fi
 export -n PGPASSWORD
 
 # Given PostgreSQL will be into a separated zone, we cannot rely into SMF
