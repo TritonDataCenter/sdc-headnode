@@ -15,8 +15,8 @@
     , { "name": "nodejs-1.1.4"
       , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }
-    , { "name": "ubuntu-10.04.2.3"
-      , "uuid": "3ee607e0-acfa-11e0-891d-f7db5c24f5ba"
+    , { "name": "ubuntu-10.04.2.4"
+      , "uuid": "512daa10-af08-11e0-818d-37d03c73bc7b"
       }
   ]
   , "adminui-checkout": "origin/master"
