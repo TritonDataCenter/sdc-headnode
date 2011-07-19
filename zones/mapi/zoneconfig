@@ -51,3 +51,6 @@ RACK_SIZE=${default_rack_size}
 SERVER_ROLE=${default_server_role}
 PACKAGE_SIZES=${default_package_sizes}
 
+HTTP_ADMIN_USER=${mapi_http_admin_user}
+HTTP_ADMIN_PW=${mapi_http_admin_pw}
+
