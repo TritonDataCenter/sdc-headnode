@@ -434,6 +434,20 @@ Internet, an intranet, or any other WAN.\n\n"
 	promptopt "(external) VLAN ID"
 	external_vlan_id="$val"
 
+	if [[ -z "$external_provisionable_start" ]]; then
+		ip_netmask_to_network "$external_ip" "$external_netmask"
+		next_addr=$(expr $host_addr + 1)
+		external_provisionable_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+		external_provisionable_end="$max_host"
+	fi
+	promptnet "Starting provisionable IP address" \
+	   "$external_provisionable_start"
+	external_provisionable_start="$val"
+
+	promptnet "Ending provisionable IP address" \
+	   "$external_provisionable_end"
+	external_provisionable_end="$val"
+
 	printheader "Networking - Continued"
 	message=""
   
@@ -523,6 +537,8 @@ specific address. Each of these values will be configured below.\n\n"
 	else
 		echo "External network VLAN ID: $external_vlan_id"
 	fi
+	echo "Starting provisionable IP address: $external_provisionable_start"
+	echo "Ending provisionable IP address: $external_provisionable_end"
 	echo "Gateway router IP address: $headnode_default_gateway"
 	echo "DNS servers: $dns_resolver1,$dns_resolver2"
 	echo "Default DNS search domain: $dns_domain"
@@ -584,10 +600,7 @@ dhcp_range_end="$max_host"
 # Calculate external network
 #
 ip_netmask_to_network "$external_ip" "$external_netmask"
-next_addr=$(expr $host_addr + 1)
 external_network="$net_a.$net_b.$net_c.$net_d"
-external_provisionable_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-external_provisionable_end="$max_host"
 
 #
 # Generate config file
