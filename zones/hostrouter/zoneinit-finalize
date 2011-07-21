@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "99 finalizing hostrouter zone"
+
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+source /opt/smartdc/bin/configure.sh
+
+echo Importing hostrouter-service.xml
+/usr/sbin/svccfg import /opt/smartdc/hostrouter/hostrouter-service.xml
+sleep 10 # XXX
+#/usr/sbin/svccfg -s svc:/smartdc/site/portal:default refresh
+echo Enablig service hostrouter
+/usr/sbin/svcadm enable smartdc/site/hostrouter

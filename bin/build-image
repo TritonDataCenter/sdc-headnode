@@ -17,6 +17,7 @@ set -o errexit
 set -o pipefail
 
 # write output to log file
+unset CDPATH
 ROOT=$(cd $(dirname $0)/../; pwd)
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"

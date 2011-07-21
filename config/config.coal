@@ -206,4 +206,15 @@ rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
 
+hostrouter_admin_ip=10.99.99.16
+# hostrouter_external_ip=10.88.88.16
+# hostrouter_external_vlan=0
+hostrouter_root_pw=joypass123
+hostrouter_admin_pw=joypass123
+hostrouter_external_url=https://10.99.99.16
+hostrouter_riakhost=10.99.99.16
+hostrouter_riakbucket=hostnames
+hostrouter_riakport=8098
+hostrouter_riakapi=http
+
 phonehome_automatic=false
