@@ -1,0 +1,11 @@
+{application,eper,
+             [{description,"Erlang Performance and Debugging Tools"},
+              {vsn,"0.60"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {modules,[bread,bread_server,dtop,dtopConsumer,dtop_replay,eper,
+                        gen_serv,getopt,logReader,loggerConsumer,ntop,
+                        ntopConsumer,prf,prfConsumer,prfDog,prfHost,prfNet,
+                        prfPrc,prfSys,prfTarg,prfTrc,prf_crypto,redbug,
+                        redbugConsumer,redbug_msc,replay_trc,watchdog,
+                        watchdogConsumer,watchdogLogger]}]}.

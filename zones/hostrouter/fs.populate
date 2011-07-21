@@ -1,0 +1,48 @@
+#!/bin/bash
+
+set -e
+
+echo RECIPE_FILE=$RECIPE_FILE
+
+dorebuild=0
+
+if [[ $1 == "-r" ]]; then
+    dorebuild=1
+    CHECKOUT_TARGET=$(grep "^hostrouter" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
+    checkout_sha=$(grep "^hostrouter" $RECIPE_FILE | cut -d ' ' -f 2)
+fi
+
+echo "Hostrouter target: [${CHECKOUT_TARGET}]"
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+if [[ -n ${HOSTROUTER_DIR} ]]; then
+    if [[ -d ${HOSTROUTER_DIR} ]]; then
+        echo "taking hostrouter from ${HOSTROUTER_DIR}"
+        # XXX HOSTROUTER_DIR must be a git repo (so git describe works)
+        mkdir hostrouter
+        (cd ${HOSTROUTER_DIR} && tar -cf - ./) | (cd hostrouter && tar -xf -)
+        cd hostrouter
+        npm install
+        mnfst_string="hostrouter@"$(git name-rev --name-only HEAD)
+    else
+        echo "FATAL: ${HOSTROUTER_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:node-hostrouter.git hostrouter
+    cd hostrouter
+    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    npm install
+    touch ../hostrouter-VERSION
+    (git describe --tags || echo "0.0.0") > ../hostrouter-VERSION
+    mnfst_string="hostrouter@"${CHECKOUT_TARGET}
+fi
+
+if [[ $dorebuild == 1 ]]; then
+    git reset --hard ${checkout_sha}
+else
+    head_sha=$(cat .git/$(git symbolic-ref HEAD))
+    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
+fi

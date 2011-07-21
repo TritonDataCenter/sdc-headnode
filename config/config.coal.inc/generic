@@ -86,3 +86,7 @@ pubapi_smartos_default_limit=1
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=128m
+
+hostrouter_cpu_shares=50
+hostrouter_max_lwps=1000
+hostrouter_memory_cap=128m

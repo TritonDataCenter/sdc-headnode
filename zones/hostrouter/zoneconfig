@@ -1,0 +1,7 @@
+TEMPLATE_VERSION=0.0.1
+ZONENAME=hostrouter
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+TMPFS=512m
+PRIVATE_IP=${hostrouter_admin_ip}
+PUBLIC_IP=${hostrouter_external_ip-${hostrouter_admin_ip}}
