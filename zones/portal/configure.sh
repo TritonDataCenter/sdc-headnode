@@ -2,12 +2,6 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/bin/configure
 
-# node request package runs fine in npm, but here, we need to explicitly setup an index.js
-# to map it to something plain node understands
-if [ ! -e /opt/smartdc/portal/deps/request/index.js ]; then
-    (cd /opt/smartdc/portal/deps/request; ln -s main.js index.js)
-fi
-
 # Update the config with the correct values.
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
