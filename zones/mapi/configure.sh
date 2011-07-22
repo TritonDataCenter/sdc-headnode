@@ -165,6 +165,8 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   DHCP_LEASE_TIME="${DHCP_LEASE_TIME}" \
   ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
+  HTTP_ADMIN_USER="${HTTP_ADMIN_USER}" \
+  HTTP_ADMIN_PW="${HTTP_ADMIN_PW}" \
  /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile && \
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
