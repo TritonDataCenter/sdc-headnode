@@ -5,7 +5,7 @@
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
   , "build-hvm": "true"
-  , "agents-shar": "release-20110714-20110714T182947Z"
+  , "agents-shar": "release-20110714-20110722T221948Z"
   , "hvm-agents-shar": "hvm-20110714T185745Z"
   , "datasets": [
       { "name": "smartos-1.3.15"
