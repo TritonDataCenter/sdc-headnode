@@ -34,8 +34,7 @@ exports.config = {
   ],
   listenIp : "${PRIVATE_IP}",
   machineListFields : [ 
-			{ name: "type", heading: "Type", sortable: true, width: 104 },
-      { name: "name",heading: "Machine name", sortable: true,
+      { name: "name", heading: "Machine name", sortable: true,
         mutate: function (n, machine) {
           var displayName = machine.name ||
                             machine.hostname ||
@@ -50,16 +49,15 @@ exports.config = {
       	mutate: function (n, machine) {
         	return machine.ips[0];
       	},
- 			width: 140 },
+ 			  width: 140 },
       { name: "memory", heading: "RAM", sortable: true, width: 83 },
       { name: "created", date: true, heading: "Age", sortable: true, width: 130 },
       { name: "state", heading: "Status", sortable: true, width: 125 } 
     ],
 	  provisionOptions :
-	    [ { name: "package", alwaysShow: true, heading: "Package" },
-	      { name: "dataset", alwaysShow: true, heading: "SmartMachine Type" },
-	      { name: "name", heading: "Machine name" },
-	      { name: "password", heading: "Machine Password" }
+	    [ { name: "package", alwaysShow: false, allowed: ["node_128"] },
+	      { name: "dataset", alwaysShow: false, allowed: ["nodejs"] },
+	      { name: "name", heading: "Hostname" }
 	    ]
 }
 HERE
