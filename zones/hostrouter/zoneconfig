@@ -5,3 +5,8 @@ RESOLVERS=${dns_resolvers/,/ }
 TMPFS=512m
 PRIVATE_IP=${hostrouter_admin_ip}
 PUBLIC_IP=${hostrouter_external_ip-${hostrouter_admin_ip}}
+
+HOSTROUTER_RIAKHOST=${hostrouter_riakhost}
+HOSTROUTER_RIAKPORT=${hostrouter_riakport}
+HOSTROUTER_RIAKAPI=${hostrouter_riakapi}
+HOSTROUTER_HOSTNAME=${HOSTNAME}
