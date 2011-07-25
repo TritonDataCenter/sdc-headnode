@@ -57,14 +57,6 @@ else
     fi
 
     git checkout ${TARGET}
-    npm run-script postinstall
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-    rm -rf .git .gitmodules .gitignore
-
-    # HttpSignature checkout
-    cd ../http-signature
-    git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git .gitmodules .gitignore
