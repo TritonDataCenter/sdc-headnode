@@ -111,24 +111,6 @@ function install_config_file
     fi
 }
 
-function update_datasets
-{
-    option=$1
-
-    # pull out those config options we want to keep
-    assets_ip=$(
-        . ${USB_COPY}/config
-	. ${USB_COPY}/config.inc/generic
-        eval echo "\${${option}}"
-    )
-
-    # Rewrite the new local dataset url
-    # Hardcoded global assets url?
-    for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
-        /usr/bin/sed -i "" -e "s|\"url\": \"https:.*/|\"url\": \"http://${assets_ip}/|" $file
-    done
-}
-
 trap 'errexit $?' EXIT
 
 DEBUG="true"
