@@ -12,6 +12,11 @@ if [[ $1 == "-r" ]]; then
     checkout_sha=$(grep "^hostrouter" $RECIPE_FILE | cut -d ' ' -f 2)
 fi
 
+if [[ ${CHECKOUT_TARGET} == "origin/develop" ]]; then
+    CHECKOUT_TARGET=master
+fi
+
+
 echo "Hostrouter target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
