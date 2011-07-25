@@ -19,6 +19,9 @@
     , { "name": "ubuntu-10.04.2.4"
       , "uuid": "512daa10-af08-11e0-818d-37d03c73bc7b"
       }
+    , { "name": "ubuntu-10.04.2.5"
+      , "uuid": "d393e7ea-b6eb-11e0-a8bd-00219b97a9bf"
+      }
   ]
   , "adminui-checkout": "origin/master"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"

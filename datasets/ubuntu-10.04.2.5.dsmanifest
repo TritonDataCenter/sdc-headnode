@@ -1,0 +1,36 @@
+{
+  "uuid": "d393e7ea-b6eb-11e0-a8bd-00219b97a9bf",
+  "name": "ubuntu",
+  "version": "10.04.2.5",
+  "description": "Ubuntu 10.04.2 VM image",
+  "type": "zvol",
+  "platform_type": "smartos",
+  "os": "linux",
+  "files": [
+    {
+      "path": "ubuntu-10.04.2.5.zfs.bz2",
+      "sha1": "081e005d873c605d3a5195ab7fcf7951d77dba58",
+      "size": 185366821,
+      "url": "https://guest:GrojhykMid@216.57.203.66:444/coal/beta/ubuntu-10.04.2.5.zfs.bz2"
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ],
+    "ssh_key": true
+  },
+  "disk_driver": "virtio",
+  "nic_driver": "virtio",
+  "creator_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
+  "creator_name": "sdc",
+  "cloud_name": "sdc",
+  "urn": "sdc:sdc:ubuntu:10.04.2.5",
+  "published_at": "2011-07-25T18:30:30.300Z",
+  "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
+  "created_at": "2011-07-25T18:30:30.300Z",
+  "updated_at": "2011-07-25T18:30:30.300Z"
+}

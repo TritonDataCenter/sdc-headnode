@@ -746,7 +746,9 @@ function copy_datasets
         manifest="${ROOT}/cache/${name}.dsmanifest"
 
         if [[ ! -f $manifest ]] ; then
-            if [[ ${HAVE_INTERNET} == "true" ]]; then
+            if [[ -f ${ROOT}/datasets/${name}.dsmanifest ]]; then
+                cp ${ROOT}/datasets/${name}.dsmanifest ${manifest}
+            elif [[ ${HAVE_INTERNET} == "true" ]]; then
                 echo "==> Downloading ${name} manifest"
 
                 DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
@@ -760,7 +762,11 @@ function copy_datasets
         fi
 
         local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
-        local uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+        local uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+        if [[ -n $(echo "${uri}" | grep "datasets.joyent.com" 2>/dev/null) ]]; then
+            # use proper credentials when talking to datasets.joyent.com
+            uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+        fi
         uri=$(proxy ${uri})
         if [[ -z ${uri} ]]; then
             fatal "Download uri for dataset ${name} not present in manifest"
