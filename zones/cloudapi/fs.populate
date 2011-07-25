@@ -2,6 +2,8 @@
 
 set -e
 
+# FIXME: Set this programmatically.
+CHECKOUT_TARGET="origin/hostrouter"
 
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
