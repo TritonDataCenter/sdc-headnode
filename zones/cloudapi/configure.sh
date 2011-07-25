@@ -48,27 +48,48 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   "datacenters": {
     "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
   },
-  "preProvisionHook": {
-    "plugin": "./plugins/capi_limits",
-    "enabled": true,
-    "config": {
-      "defaults": {
-        "smartos": 1,
-        "nodejs": 1,
-        "ubuntu": 1
+  "preProvisionHook": [
+    {
+      "plugin": "./plugins/capi_limits",
+      "enabled": true,
+      "config": {
+        "defaults": {
+          "nodejs": 10
+        }
+      }
+    },
+    {
+      "plugin": "./plugins/hostname-verify.js",
+      "enabled": true,
+      "config": {}
+    }
+  ],
+  "postProvisionHook": [
+    {
+      "plugin": "./plugins/hostname-assign.js",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "plugin": "./plugins/ssh-proxy-setup.js",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "plugin": "./plugins/cname-setup.js",
+      "enabled": true
+    },
+    {
+      "plugin": "./plugins/machine_email",
+      "enabled": false,
+      "config": {
+        "sendmail": "/opt/local/sbin/sendmail -i",
+        "from": "support@joyent.com",
+        "subject": "Your SmartDataCenter machine is provisioning",
+        "body": "Check /my/machines for updates"
       }
     }
-  },
-  "postProvisionHook": {
-    "plugin": "./plugins/machine_email",
-    "enabled": false,
-    "config": {
-      "sendmail": "/opt/local/sbin/sendmail -i",
-      "from": "support@joyent.com",
-      "subject": "Your SmartDataCenter machine is provisioning",
-      "body": "Check /my/machines for updates"
-    }
-  },
+  ],
   "ipThrottles": {
     "all": {
       "ip": true,
@@ -116,6 +137,12 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
         }
       }
     }
+  },
+  "hostRouter": {
+    "hostname": "${HOSTROUTER_HOSTNAME}",
+    "riakhost": "${HOSTROUTER_RIAKHOST}",
+    "riakport": ${HOSTROUTER_RIAKPORT},
+    "riakapi": "${HOSTROUTER_RIAKAPI}"
   }
 }
 HERE

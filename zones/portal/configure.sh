@@ -27,9 +27,13 @@ exports.config = {
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
   listenIp : "${PRIVATE_IP}",
-  machineListFields : [ 
-      { name: "name", heading: "Machine name", sortable: true,
+
+  machineListFields :
+    [ { name: "name",
+        heading: "Machine name",
+        sortable: true,
         mutate: function (n, machine) {
+          // legacy
           var displayName = machine.name ||
                             machine.hostname ||
                             "Unnamed SmartMachine";
@@ -39,20 +43,37 @@ exports.config = {
           return displayName;
         },
         width: 280 },
-      { name: "ips", heading: "Public IP Address", sortable: true,
-      	mutate: function (n, machine) {
-        	return machine.ips[0];
-      	},
- 			  width: 140 },
-      { name: "memory", heading: "RAM", sortable: true, width: 83 },
-      { name: "created", date: true, heading: "Age", sortable: true, width: 130 },
-      { name: "state", heading: "Status", sortable: true, width: 125 } 
-    ],
-	  provisionOptions :
-	    [ { name: "package", alwaysShow: false, allowed: ["node_128"] },
-	      { name: "dataset", alwaysShow: false, allowed: ["nodejs"] },
-	      { name: "name", heading: "Hostname" }
-	    ]
+
+      { name: "memory",
+        heading: "RAM",
+        sortable: true,
+        width: 83 },
+
+      { name: "created",
+        date: true,
+        heading: "Age",
+        sortable: true,
+        width: 130 },
+
+      { name: "state",
+        heading: "Status",
+        sortable: true,
+        width: 125 } ],
+
+  provisionOptions :
+    [ { name: "package",
+        alwaysShow: false,
+        allowed: ["node_128"],
+        heading: "Package" },
+
+      { name: "dataset",
+        alwaysShow: false,
+        allowed: ["nodejs"],
+        heading: "SmartMachine Type" },
+
+      { name: "name",
+        heading: "Hostname (*.no.de)" } ]
+
 }
 HERE
 
