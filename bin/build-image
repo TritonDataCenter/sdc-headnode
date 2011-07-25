@@ -43,8 +43,9 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     set -o xtrace
 fi
 
-THIS_VERSION=$(date -u +%Y%m%dT%H%M%SZ).$(git symbolic-ref HEAD \
-    | cut -d'/' -f3)-$(git describe)
+THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
+
+THIS_VERSION=$(date -u +%Y%m%dT%H%M%SZ).${THIS_BRANCH}-$(git describe)
 
 if [ -f build-number.txt ]; then
     THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
@@ -188,8 +189,20 @@ fi
 
 check_proxy
 
-MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json master-url)
+
+if [[ -z $MASTER_PLATFORM_URL ]]; then
+    if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
+      RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
+      RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
+      MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/${RELEASE_DIR}/deps/"
+      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}")
+    else
+      MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
+      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+    fi
+fi
 
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
@@ -198,8 +211,8 @@ fi
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-AGENTS_BASE=$(proxy "${MASTER_REPO}/coal/live_147/agents")
-ASSETS_ROOT=$(proxy "${MASTER_REPO}/coal/live_147/assets")
+AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
+ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/assets")
 
 # Figure out first what we're building, and load the proper include
 
@@ -518,7 +531,7 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${CURL_OPTS} -k -sS ${PLATFORM_URL}/ \
-                | ${GREP} "href=\"platform-${platform_release}-[0-9]" \
+                | ${GREP} "href=\"platform-${platform_release}*" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
