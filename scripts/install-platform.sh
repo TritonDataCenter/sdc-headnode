@@ -5,7 +5,6 @@
 
 set -o errexit
 set -o pipefail
-#set -o xtrace
 
 function usage()
 {
@@ -46,10 +45,13 @@ if [[ -z $(mount | grep ^${usbmnt}) ]]; then
     mounted="true"
 fi
 
+platform_type=smartos
+
 # this should result in something like 20110318T170209Z
 version=$(basename "${input}" .tgz | tr [:lower:] [:upper:] | sed -e "s/.*\-\(2.*Z\)$/\1/")
 if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]]; then
     version="HVM-${version}"
+    platform_type=hvm
 fi
 
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
@@ -117,7 +119,7 @@ if [[ $? -eq 0 ]]; then
             -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
             --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
             -H "Accept: application/json" \
-            -d platform_type="hvm" \
+            -d platform_type=${platform_type} \
             -d name=${version} >/dev/null 2>&1; then
 
             echo "==> FAILED to add to list of platforms, you'll need to update manually"
