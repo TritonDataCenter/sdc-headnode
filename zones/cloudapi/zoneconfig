@@ -43,6 +43,6 @@ PORTAL_ADMIN_IP=${portal_admin_ip}
 RABBIT_IP=${rabbitmq_admin_ip}
 
 HOSTROUTER_RIAKHOST=${hostrouter_riakhost}
-HOSTROUTER_RIAKBUCKET=${hostrouter_riakbucket}
 HOSTROUTER_RIAKPORT=${hostrouter_riakport}
 HOSTROUTER_RIAKAPI=${hostrouter_riakapi}
+HOSTROUTER_HOSTNAME=hostrouter.${dns_domain}
