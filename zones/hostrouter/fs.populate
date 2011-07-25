@@ -38,7 +38,7 @@ if [[ -n ${HOSTROUTER_DIR} ]]; then
 else
     git clone git@git.joyent.com:node-hostrouter.git hostrouter
     cd hostrouter
-    git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET}
+    git checkout ${CHECKOUT_TARGET}
     npm install
     touch ../hostrouter-VERSION
     (git describe --tags || echo "0.0.0") > ../hostrouter-VERSION
