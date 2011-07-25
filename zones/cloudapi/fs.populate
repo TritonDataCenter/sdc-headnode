@@ -3,9 +3,9 @@
 set -e
 
 # FIXME: Set this programmatically.
-CHECKOUT_TARGET="origin/hostrouter"
+CLOUD_TARGET="origin/hostrouter"
 
-echo "cloudapi target: [${CHECKOUT_TARGET}]"
+echo "cloudapi target: [${CLOUD_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
@@ -22,21 +22,21 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
     fi
 else
     # cloud-api snubs the develop branch.
-    TARGET=${CHECKOUT_TARGET}
-    if [[ ${TARGET} == "origin/develop" ]]; then
-        TARGET=master
-    fi
+    TARGET=${CLOUD_TARGET}
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
+    echo "testing git"
+    git remote -v
+    ls -laF .git
+    git fetch -a origin
+    git checkout ${TARGET} -b $(basename ${TARGET})
+
     mkdir -p ssl
     mkdir -p node_modules
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
     git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
 
-    # CloudAPI checkout
-    git fetch -a origin
-    git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
@@ -50,6 +50,12 @@ else
 
     # SDCClients checkout
     cd node_modules/sdc-clients
+    TARGET=${CHECKOUT_TARGET}
+
+    if [[ ${TARGET} == "origin/develop" ]]; then
+        TARGET=master
+    fi
+
     git checkout ${TARGET}
     npm run-script postinstall
     echo ${TARGET} > VERSION
