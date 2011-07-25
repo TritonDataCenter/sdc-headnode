@@ -524,21 +524,28 @@ function copy_platform
     # platform, so we install it for that.  If not, we'll just copy to data dir
     master=$3
 
+    # If platform_subdir is set, we look in that dir under PLATFORM_URL
+    platform_subdir="/$4"
+    if [[ ${platform_subdir} == '/' ]]; then
+        platform_subdir=
+    fi
+
     valid_platform="false"
     if [[ -z ${platform_file} ]]; then
         [[ -z "${platform_release}" ]] \
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
-            latest_image=$(curl ${CURL_OPTS} -k -sS ${PLATFORM_URL}/ \
+            latest_image=$(curl ${CURL_OPTS} -k -sS \
+                ${PLATFORM_URL}${platform_subdir}/ \
                 | ${GREP} "href=\"platform-${platform_release}*" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
                   && curl ${CURL_OPTS} \
-                  -k -O ${PLATFORM_URL}/${latest_image}) \
-                  || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
+                  -k -O ${PLATFORM_URL}${platform_subdir}/${latest_image}) \
+                  || fatal "Unable to download ${PLATFORM_URL}${platform_subdir}/${latest_image}"
             fi
         else
             latest_image=$(cd ${ROOT}/cache \
@@ -554,7 +561,7 @@ function copy_platform
             rm -f ${image}
             image=
             # unset image and try again
-            copy_platform "${platform_file}" "${platform_release}" "${master}"
+            copy_platform "${platform_file}" "${platform_release}" "${master}" "${platform_subdir}"
         fi
     else
         image=${platform_file}
@@ -611,10 +618,16 @@ function get_agents
     # We treat agents_shar as a pattern and grab the latest one which matches
     agents_shar=$1
 
+    # if agents_subdir is set, pull agents from that dir
+    agents_subdir="/$2"
+    if [[ ${agents_subdir} == '/' ]]; then
+        agents_subdir=
+    fi
+
     # Figure out for sure which one we want
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         latest_agents=$(curl ${CURL_OPTS} \
-            -k -sS ${MASTER_PLATFORM_URL}/ur-scripts/ \
+            -k -sS ${MASTER_PLATFORM_URL}/ur-scripts${agents_subdir}/ \
             | ${GREP} "href=\"agents" \
             | ${GREP} "${agents_shar}" \
             | cut -d'"' -f2 | sort | tail -1)
@@ -643,7 +656,7 @@ function get_agents
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             echo "==> Downloading ${use_agents}"
 
-            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts"
+            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts${agents_subdir}"
             AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
             AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
 
@@ -678,7 +691,7 @@ function get_agents
             rm -f ${ROOT}/cache/${use_agents} \
                 ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
             use_agents=
-            get_agents ${agents_shar}
+            get_agents ${agents_shar} "${agents_subdir}"
         fi
 
         echo "==> Copying ${use_agents}"
@@ -703,7 +716,7 @@ function copy_agents
         agents_shar="master"
     fi
 
-    get_agents ${agents_shar}
+    get_agents ${agents_shar} ""
 }
 
 function copy_datasets
@@ -1109,6 +1122,8 @@ function copy_hvm_files
             | ${ROOT}/bin/json hvm-platform-release)
         HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json hvm-agents-shar)
+        HVM_SUBDIR=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-subdir)
     fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${BUILD_HVM} ]]; then
@@ -1122,6 +1137,10 @@ function copy_hvm_files
         if [[ -z ${HVM_AGENTS_SHAR} ]]; then
             HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json hvm-agents-shar)
+        fi
+        if [[ -z ${HVM_SUBDIR} ]]; then
+            HVM_SUBDIR=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json hvm-subdir)
         fi
     fi
 
@@ -1137,8 +1156,8 @@ function copy_hvm_files
 
     if [[ ${BUILD_HVM} == "true" ]]; then
         echo "HAVE_HVM=true" >> ${STAGE}/zones/adminui/zoneconfig
-        get_agents ${HVM_AGENTS_SHAR}
-        copy_platform "${HVM_PLATFORM_FILE}" "${HVM_PLATFORM_RELEASE}" "false"
+        get_agents ${HVM_AGENTS_SHAR} "${HVM_SUBDIR}"
+        copy_platform "${HVM_PLATFORM_FILE}" "${HVM_PLATFORM_RELEASE}" "false" "${HVM_SUBDIR}"
     fi
 }
 
@@ -1256,7 +1275,7 @@ create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
-copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true"
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true" "${PLATFORM_SUBDIR}"
 copy_agents
 copy_datasets
 copy_zones
