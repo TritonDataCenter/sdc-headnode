@@ -12,7 +12,6 @@
 *.swp
 /tmp
 /.DS_Store
-/datasets
 /hvm/platform*
 /hvm/agents*
 /recipe.*
