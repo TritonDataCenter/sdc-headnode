@@ -1,6 +1,7 @@
 {
     "platform-release": "master"
   , "hvm-platform-release": "HVM"
+  , "hvm-subdir": "release-20110714"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
