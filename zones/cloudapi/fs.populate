@@ -35,7 +35,6 @@ else
     mkdir -p ssl
     mkdir -p node_modules
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
 
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
