@@ -35,6 +35,7 @@ else
     git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
 
     # CloudAPI checkout
+    git fetch -a origin
     git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
