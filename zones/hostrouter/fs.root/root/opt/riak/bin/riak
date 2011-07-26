@@ -2,6 +2,8 @@
 # -*- tab-width:4;indent-tabs-mode:nil -*-
 # ex: ts=4 sw=4 et
 
+set -x
+
 RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
 RUNNER_SCRIPT=${0##*/}
 
@@ -69,9 +71,14 @@ case "$1" in
     start)
         # Make sure there is not already a node running
         RES=`$NODETOOL ping`
+        PING_EXIT=$?
         if [ "$RES" = "pong" ]; then
             echo "Node is already running!"
             exit 1
+        elif [ $PING_EXIT -ne 0 ]; then
+            echo "Failed to ping successfully in riak start."
+            echo "$RES"
+            exit $PING_EXIT
         fi
         HEART_COMMAND="$RUNNER_SCRIPT_DIR/$SCRIPT start"
         export HEART_COMMAND

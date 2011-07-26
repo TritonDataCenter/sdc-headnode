@@ -4,10 +4,10 @@
 
 # Update the config with the correct values.
 cat >> /opt/smartdc/hostrouter/config.js <<CONFIG
-exports.riakhost = "${hostrouter_riakhost}"
-exports.riakbucket = "${hostrouter_riakbucket}"
-exports.riakport = "${hostrouter_riakport}"
-exports.riakapi = "${hostrouter_riakapi}"
+exports.riakhost = "${HOSTROUTER_RIAKHOST}"
+exports.riakport = ${HOSTROUTER_RIAKPORT}
+exports.riakapi = "${HOSTROUTER_RIAKAPI}"
+exports.riakbucket = "hostnames"
 exports.port = 80
 CONFIG
 
