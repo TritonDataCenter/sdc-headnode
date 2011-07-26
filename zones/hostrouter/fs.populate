@@ -19,9 +19,6 @@ fi
 
 echo "Hostrouter target: [${CHECKOUT_TARGET}]"
 
-# make sure that "nobody" owns the riak folder, so that riak can run properly
-chown -R nobody root/opt/riak
-
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
 
