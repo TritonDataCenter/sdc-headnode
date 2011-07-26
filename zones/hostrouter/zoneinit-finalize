@@ -11,3 +11,4 @@ sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/smartdc/site/portal:default refresh
 echo Enablig service hostrouter
 /usr/sbin/svcadm enable smartdc/site/hostrouter
+
