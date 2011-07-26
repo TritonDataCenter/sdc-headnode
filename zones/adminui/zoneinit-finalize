@@ -26,11 +26,6 @@ echo "Importing MAPI Admin UI Unicorn Manifest"
 sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/network/smartdc/application/adminui:default refresh
 
-
-# Ensure everything in /opt/smartdc is owned by jill
-chown -R jill:jill /opt/smartdc/adminui
-chown -R jill:jill /opt/smartdc/adminui-data
-
 echo Creating manifest for caproxy:
 cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
 <?xml version="1.0"?>
@@ -100,6 +95,9 @@ sleep 5
 
 echo "Enablig service caproxy"
 /usr/sbin/svcadm enable smartdc/app/caproxy
+
+# Ensure everything in /opt/smartdc is owned by jill
+chown -R jill:jill /opt/smartdc
 
 # fix perms on /home
 chown root:root /home
