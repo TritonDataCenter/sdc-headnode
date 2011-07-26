@@ -168,6 +168,10 @@ EOF
 # value of "riak".  Super duper insecure and bad!
 
 
+# make sure that "nobody" owns the riak folder, so that riak can run properly
+chown -R nobody /opt/riak
+
+
 # Setup and configure riak
 if [[ -z $(/usr/bin/svcs -a|grep riak) ]]; then
   echo "Importing riak service"
