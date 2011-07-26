@@ -5,17 +5,12 @@
 # Update the config with the correct values.
 cat > /opt/smartdc/portal/config.js <<HERE
 exports.config = {
-  displayCouponField : false,
   externalUrl : "${EXTERNAL_URL}",
-  publicAPIUrlV1 : "${PUBLIC_API_PRIVATE_URL}",
 	publicAPIUrl : "${CLOUD_API_PRIVATE_URL}",
   publicAPIVersion : '6.1.0',
-  privateCAUrl : "http://${MAPI_API_PRIVATE_IP}:80",
   privateCAPIUrl : "${CAPI_API_PRIVATE_URL}",
   CAPIuser : "${CAPI_HTTP_ADMIN_USER}",
   CAPIpassword : "${CAPI_HTTP_ADMIN_PW}",
-  CAPIMetaCAKey : "portal-coal",
-  CAPIMetaCABlessed : "blessed-instrumentation",
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-replay@no.de>",
