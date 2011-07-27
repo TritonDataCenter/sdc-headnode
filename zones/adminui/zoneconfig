@@ -9,6 +9,7 @@ ADMIN_PW=${adminui_admin_pw}
 ADMINUI_IP=${adminui_admin_ip}
 TMPFS=512m
 WORKERS=${adminui_workers}
+HELP_URL=${adminui_help_url}
 
 DATACENTER_NAME=${datacenter_name}
 

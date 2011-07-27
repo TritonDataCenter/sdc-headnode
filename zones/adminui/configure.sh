@@ -135,6 +135,7 @@ host=`hostname`
 
 su - jill -c "cd /opt/smartdc/adminui; \
   DATACENTER_NAME=$DATACENTER_NAME \
+  HELP_URL=$HELP_URL \
   ADMINUI_IP=$ADMINUI_IP \
   MAIL_FROM=$MAIL_FROM \
   MAIL_TO=$MAIL_TO \
