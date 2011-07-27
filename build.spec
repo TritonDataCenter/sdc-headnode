@@ -1,5 +1,5 @@
 {
-    "platform-release": "20110718T171715Z"
+    "platform-release": "20110727T202724Z"
   , "hvm-platform-release": "HVM-20110726T001212Z"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
