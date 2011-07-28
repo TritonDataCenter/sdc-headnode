@@ -37,17 +37,31 @@ fi
 
 if [[ -d caproxy ]]; then
   cd caproxy
-  echo "[ADMINUI] Installing npm modules"
+  echo "[ADMINUI] caproxy - Installing npm modules"
   npm install
 
   if [[ $? != 0 ]]; then
-      echo "[ADMINUI] npm install failed"
+      echo "[ADMINUI] caproxy - npm install failed"
       exit 1
   fi
   cd ..
 fi
 
 mv caproxy ../
+
+if [[ -d consoleproxy ]]; then
+  cd consoleproxy
+  echo "[ADMINUI] consoleproxy - Installing npm modules"
+  npm install
+
+  if [[ $? != 0 ]]; then
+      echo "[ADMINUI] consoleproxy - npm install failed"
+      exit 1
+  fi
+  cd ..
+fi
+
+mv consoleproxy ../
 
 # Remove all .git directories from the repo
 find . -type d -name ".git" -exec echo {} \;
