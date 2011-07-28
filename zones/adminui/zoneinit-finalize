@@ -26,6 +26,82 @@ echo "Importing MAPI Admin UI Unicorn Manifest"
 sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/network/smartdc/application/adminui:default refresh
 
+
+
+
+echo Creating manifest for consoleproxy:
+cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="consoleproxy">
+  <service name="smartdc/app/consoleproxy" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+          <envvar name="ADMINUI_PATH" value="/opt/smartdc/adminui" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">consoleproxy daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Importing consoleproxy-manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/consoleproxy/consoleproxy-manifest.xml
+
+ln -sf /opt/local/etc/openssl/private/selfsigned.pem /opt/smartdc/consoleproxy/self.pem
+
+echo "Enablig service consoleproxy"
+/usr/sbin/svcadm enable smartdc/app/consoleproxy
+
+
+
+
 echo Creating manifest for caproxy:
 cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
 <?xml version="1.0"?>
@@ -90,8 +166,6 @@ HERE
 
 echo "Importing caproxy-manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/caproxy/caproxy-manifest.xml
-
-sleep 5
 
 echo "Enablig service caproxy"
 /usr/sbin/svcadm enable smartdc/app/caproxy
