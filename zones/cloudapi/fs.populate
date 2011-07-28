@@ -40,7 +40,7 @@ else
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
     # Install NPM modules
-    npm install
+    npm install --node-version=0.4.9
     if [[ $? != 0 ]]; then
         echo "[cloudapi] npm install failed"
         exit 1
