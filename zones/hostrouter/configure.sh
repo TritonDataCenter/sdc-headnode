@@ -36,6 +36,8 @@ cat >> /opt/riak/etc/vm.args <<EOF
 -env ERL_FULLSWEEP_AFTER 0
 EOF
 
+#FIXME: Put the cert and stuff there so that https works.
+# See PAAS-269
 cat >> /opt/riak/etc/app.config <<EOF
 [
  %% Riak Core config
@@ -45,11 +47,14 @@ cat >> /opt/riak/etc/app.config <<EOF
 
               %% http is a list of IP addresses and TCP ports that the Riak
               %% HTTP interface will bind.
-              %{http, [ {"${PRIVATE_IP}", 8098 } ]},
+              {http, [ {"${PRIVATE_IP}", 8098 } ]},
 
               %% https is a list of IP addresses and TCP ports that the Riak
               %% HTTPS interface will bind.
-              {https, [{ "${PRIVATE_IP}", 8098 }]},
+              %%
+              %% FIXME: It would be better to use https, but we need a
+              %% cert etc.
+              %{https, [{ "${PRIVATE_IP}", 8098 }]},
 
               %% default cert and key locations for https can be overridden
               %% with the ssl config variable
