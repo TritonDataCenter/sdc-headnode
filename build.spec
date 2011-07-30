@@ -6,7 +6,7 @@
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
   , "build-hvm": "true"
-  , "agents-shar": "master"
+  , "agents-shar": "mg"
   , "hvm-agents-shar": "hvm"
   , "datasets": [
       { "name": "smartos-1.3.15"
@@ -25,7 +25,7 @@
   ]
   , "adminui-checkout": "origin/master"
   , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
-  , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
+  , "ca-tarball": "^ca-pkg-mg-.*.tar.bz2$"
   , "capi-checkout": "origin/master"
   , "dhcpd-checkout": "origin/master"
   , "mapi-checkout": "origin/master"
