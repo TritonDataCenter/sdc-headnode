@@ -36,6 +36,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
     BASH_IS_NOT_ANCIENT='true'
 fi
 
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+
 if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
     export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
@@ -188,21 +191,28 @@ fi
 
 check_proxy
 
-MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json master-url)
 
-if [[ -z $MASTER_PLATFORM_URL ]]; then
+
+# Determine from where to get dependent packages.
+
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+    MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json master-url)
+fi
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
-      RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
-      RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
-      MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444/coal/releases/${RELEASE_DIR}/deps/"
-      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}")
-    else
-      MASTER_REPO="https://guest:GrojhykMid@216.57.203.66:444"
-      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+        # Special case for 'release-$date' Bamboo release builds.
+        RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
+        RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
+        MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/releases/${RELEASE_DIR}/deps/
     fi
 fi
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+    MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/live_147
+fi
+MASTER_PLATFORM_URL=$(proxy "$MASTER_PLATFORM_URL")
 
+#TODO(trent): Is anyone setting PLATFORM_URL for builds? If not drop the alias.
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
@@ -212,6 +222,8 @@ DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
 ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/assets")
+
+
 
 # Figure out first what we're building, and load the proper include
 
