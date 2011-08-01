@@ -357,6 +357,19 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
   dump_file=$(basename ${dump_file_path%.*})
   db_backup_version=$(echo ${dump_file} | cut -c '6-')
 
+  # Postgres starts out with the default pw of 'postgres'.  We need to change
+  # it to POSTGRES_PW before we can do anything else.
+  export PGPASSWORD=postgres
+  if ! /opt/local/bin/psql -U postgres \
+      -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
+      # We failed to change the pw.  This might happen if we already changed it
+      # but the method failed later and we are re-running.  Since we are running
+      # with errexit, we need to handle a failure, but we assume the pw is
+      # already updated and just note this.
+      echo "Changing the default password failed"
+  fi
+  export -n PGPASSWORD
+
   if [[ -f ${dump_file_path} ]]; then
     echo "Restoring PostgreSQL DB to previous version"
     VERSION=${db_backup_version} /opt/local/bin/rake pg:restore -f /opt/smartdc/${app_name}/Rakefile
