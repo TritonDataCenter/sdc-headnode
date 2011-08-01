@@ -1,6 +1,6 @@
 The values that need to change in the vmdk file for the different images are:
 
-RW 3906250 FLAT "<USB_IMAGE_FILE>" 0 (the second number here) 
+RW 3906250 FLAT "<USB_IMAGE_FILE>" 0 (the second field here) 
 
  - and -
 
@@ -14,4 +14,4 @@ To calculate the cylinders:
 
     echo $((2000000000 / 512 / (16 * 63)))
 
-And update these files in a Xgb.coal.vmdk file.
+And update these lines in a Xgb.coal.vmdk file.
