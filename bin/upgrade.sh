@@ -140,7 +140,7 @@ function upgrade_pools
     # datasets with a modified atime property will no longer inherit that
     # setting from the pool's setting.
     #
-    for pool in $(zpool list -Hp -o name); do
+    for pool in $(zpool list -H -o name); do
          zfs set atime=off ${pool} || \
               fatal "failed to set atime=off on pool ${pool}"
     done
