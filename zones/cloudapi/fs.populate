@@ -35,7 +35,7 @@ else
     mkdir -p ssl
     mkdir -p node_modules
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-    git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
+    #git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
 
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
@@ -63,11 +63,11 @@ else
     rm -rf .git .gitmodules .gitignore
 
     # HttpSignature checkout
-    cd ../http-signature
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-    rm -rf .git .gitmodules .gitignore
+    # cd ../http-signature
+    # git checkout ${TARGET}
+    # echo ${TARGET} > VERSION
+    # git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    # rm -rf .git .gitmodules .gitignore
 
     # Back up to where we were (/opt/smartdc)
     cd ../../../
