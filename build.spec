@@ -1,11 +1,11 @@
 {
-    "platform-release": "20110727T202724Z"
+    "platform-release": "20110802T190624Z"
   , "hvm-platform-release": "HVM-20110726T001212Z"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
   , "build-hvm": "true"
-  , "agents-shar": "release-20110714-20110726T230725Z"
+  , "agents-shar": "release-20110714-20110802T214032Z"
   , "hvm-agents-shar": "hvm-20110726T001206Z"
   , "datasets": [
       { "name": "smartos-1.3.15"

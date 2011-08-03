@@ -1,0 +1,18 @@
+# Disk DescriptorFile
+version=1
+encoding= #"UTF-8"
+CID=fffffffe
+parentCID=ffffffff
+isNativeSnapshot="no"
+createType="monolithicFlat"
+
+# Extent description
+RW 7812500 FLAT "<USB_IMAGE_FILE>" 0
+
+# The Disk Data Base 
+#DDB
+
+ddb.geometry.cylinders = "7750"
+ddb.geometry.heads = "16"
+ddb.geometry.sectors = "63"
+ddb.adapterType = "ide"
