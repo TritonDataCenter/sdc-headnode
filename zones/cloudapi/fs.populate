@@ -1,11 +1,11 @@
 #!/bin/bash
 
 set -e
+set -x
 
 # FIXME: Set this programmatically.
-CLOUD_TARGET="origin/hostrouter"
 
-echo "cloudapi target: [${CLOUD_TARGET}]"
+echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc
@@ -22,7 +22,7 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
     fi
 else
     # cloud-api snubs the develop branch.
-    TARGET=${CLOUD_TARGET}
+    TARGET=${CHECKOUT_TARGET}
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
