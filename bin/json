@@ -268,7 +268,7 @@ function processDatum(datum, args) {
       var bit = bits[i];
       if (bit[0] === '[') {
         lookup += bit;
-      } else if (! isJSIdentifier(bits[i])) {
+      } else if (! isJSIdentifier.exec(bits[i])) {
         // Allow a non-JS-indentifier token, e.g. `json foo-bar`.
         lookup += '["' + bits[i].replace('"', '\\"') + '"]';
       } else {
@@ -330,7 +330,7 @@ function processDatumExperimental(datum, args) {
         data = newdata;
       } else if (bit[0] === '[') {
         lookup += bit;
-      } else if (! isJSIdentifier(bits[i])) {
+      } else if (! isJSIdentifier.exec(bits[i])) {
         // Allow a non-JS-indentifier token, e.g. `json foo-bar`.
         lookup += '["' + bits[i].replace('"', '\\"') + '"]';
       } else {
