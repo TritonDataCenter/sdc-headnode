@@ -36,6 +36,9 @@ else
     git describe --tags > ../portal-VERSION
     mnfst_string="portal@"${CHECKOUT_TARGET}
 
+    npm install --node-version 0.4.9
+    npm explore sdc-clients -- npm install
+
 
 		# cd /opt/smartdc/portal/public/javascripts/ca-vis/
 		# /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/portal/public/javascripts/ca-vis/
