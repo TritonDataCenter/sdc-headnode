@@ -19,6 +19,7 @@ set -o errexit
 set -o pipefail
 
 # write output to log file
+unset CDPATH
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 ZONE=$1
