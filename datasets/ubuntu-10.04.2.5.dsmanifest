@@ -23,6 +23,7 @@
     ],
     "ssh_key": true
   },
+  "cpu_type": "host",
   "disk_driver": "virtio",
   "nic_driver": "virtio",
   "creator_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
