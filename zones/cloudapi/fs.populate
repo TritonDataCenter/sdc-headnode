@@ -14,8 +14,8 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
     if [[ -d ${CLOUDAPI_DIR} ]]; then
         echo "taking cloudapi from ${CLOUDAPI_DIR}"
         # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
-        mkdir cloudapi-repo
-        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
+        mkdir cloudapi
+        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi && tar -xf -)
     else
         echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
         exit 1
