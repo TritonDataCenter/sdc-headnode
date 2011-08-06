@@ -48,13 +48,19 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   "datacenters": {
     "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
   },
+  "postDeleteHook": [
+    {
+      "plugin": "./plugins/hostname-remove.js",
+      "enabled": true
+    }
+  ],
   "preProvisionHook": [
     {
       "plugin": "./plugins/capi_limits",
       "enabled": true,
       "config": {
         "defaults": {
-          "nodejs": 10
+          "nodejs": 3
         }
       }
     },
@@ -83,7 +89,13 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
       "plugin": "./plugins/machine_email",
       "enabled": false,
       "config": {
-        "sendmail": "/opt/local/sbin/sendmail -i",
+        "smtp": {
+          "host": "127.0.0.1",
+          "port": 25,
+          "use_authentication": false,
+          "user": "",
+          "pass": ""
+        },
         "from": "support@joyent.com",
         "subject": "Your SmartDataCenter machine is provisioning",
         "body": "Check /my/machines for updates"
