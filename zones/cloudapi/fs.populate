@@ -25,50 +25,53 @@ else
     TARGET=${CHECKOUT_TARGET}
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
-    cd cloudapi
-    echo "testing git"
-    git remote -v
-    ls -laF .git
+
     git fetch -a origin
     git checkout ${TARGET} -b $(basename ${TARGET})
-
-    mkdir -p ssl
-    mkdir -p node_modules
-    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-    #git clone git@git.joyent.com:node-http-signing.git node_modules/http-signature
-
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-
-    # Install NPM modules
-    npm install
-    if [[ $? != 0 ]]; then
-        echo "[cloudapi] npm install failed"
-        exit 1
-    fi
-    rm -rf .git .gitmodules .gitignore cfg/* tst Makefile docs/*.restdown tools
-
-    # SDCClients checkout
-    cd node_modules/sdc-clients
-    TARGET=${CHECKOUT_TARGET}
-
-    if [[ ${TARGET} == "origin/develop" ]]; then
-        TARGET=master
-    fi
-
-    git checkout ${TARGET}
-    npm run-script postinstall
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-    rm -rf .git .gitmodules .gitignore
-
-    # HttpSignature checkout
-    # cd ../http-signature
-    # git checkout ${TARGET}
-    # echo ${TARGET} > VERSION
-    # git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-    # rm -rf .git .gitmodules .gitignore
-
-    # Back up to where we were (/opt/smartdc)
-    cd ../../../
 fi
+
+cd cloudapi
+
+# all the rest of this is necessary for both the usb-headnode build
+# as well as the bin/build-fstar case.
+
+mkdir -p ssl
+mkdir -p node_modules
+if ! [ -d node_modules/sdc-clients ]; then
+  git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+fi
+
+echo ${TARGET} > VERSION
+git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+
+# Install NPM modules
+npm install --node-version 0.4.9
+if [[ $? != 0 ]]; then
+    echo "[cloudapi] npm install failed"
+    exit 1
+fi
+rm -rf .git .gitmodules .gitignore cfg/* tst Makefile docs/*.restdown tools
+
+# SDCClients checkout
+cd node_modules/sdc-clients
+TARGET=${CHECKOUT_TARGET}
+
+if [[ ${TARGET} == "origin/develop" ]]; then
+    TARGET=master
+fi
+
+git checkout ${TARGET}
+npm run-script postinstall
+echo ${TARGET} > VERSION
+git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+rm -rf .git .gitmodules .gitignore
+
+# HttpSignature checkout
+# cd ../http-signature
+# git checkout ${TARGET}
+# echo ${TARGET} > VERSION
+# git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+# rm -rf .git .gitmodules .gitignore
+
+# Back up to where we were (/opt/smartdc)
+cd ../../../
