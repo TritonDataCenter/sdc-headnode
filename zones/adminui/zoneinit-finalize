@@ -50,7 +50,7 @@ cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js &amp;"
+      exec="/opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/consoleproxy">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -123,7 +123,7 @@ cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node /opt/smartdc/caproxy/caproxy.js &amp;"
+      exec="/opt/local/bin/node /opt/smartdc/caproxy/caproxy.js"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/caproxy">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
