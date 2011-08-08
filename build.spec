@@ -28,7 +28,6 @@
   , "mapi-checkout": "origin/master"
   , "portal-checkout": "origin/master"
   , "cloudapi-checkout": "origin/master"
-  , "pubapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
   , "upgrades": {
       "agents": [

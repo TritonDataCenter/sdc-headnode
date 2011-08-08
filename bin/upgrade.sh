@@ -15,8 +15,15 @@ ROOT=$(pwd)
 export SDC_UPGRADE_ROOT=${ROOT}
 
 #
-# IMPORTANT, this purposefully does not include 'portal' and 'pubapi' since those
-# zones are handled differently for upgrades (since they may be customized).
+# Zones we used to have, but which are no more.
+#
+OBSOLETE_ZONES=( \
+    pubapi
+)
+
+#
+# IMPORTANT, this purposefully does not include 'portal' since that
+# zone is handled differently for upgrades (since it may be customized).
 #
 RECREATE_ZONES=( \
     assets \
@@ -172,6 +179,11 @@ function recreate_zones
 {
     # dhcpd zone expects this to exist, so make sure it does:
     mkdir -p ${usbcpy}/os
+
+    # Delete obsolete zones
+    for zone in "${OBSOLETE_ZONES[@]}"; do
+        ${usbcpy}/scripts/destroy-zone.sh ${zone}
+    done
 
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
