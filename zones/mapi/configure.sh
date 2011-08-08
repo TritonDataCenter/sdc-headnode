@@ -171,11 +171,8 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
-# Note these files should have been created by previous Rake task.
-# If we copy these files post "gsed", everything is reset:
-if [[ ! -e /opt/smartdc/mapi/config/config.ru ]]; then
-  cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
-fi
+# Update config.ru
+cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
 
 if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
