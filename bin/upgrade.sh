@@ -26,7 +26,9 @@ RECREATE_ZONES=( \
     rabbitmq \
     mapi \
     adminui \
-    capi
+    capi \
+    cloudapi \
+    pubapi
 )
 
 mounted_usb="false"
