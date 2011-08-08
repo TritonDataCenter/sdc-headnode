@@ -3,7 +3,9 @@
 set -e
 set -x
 
-# FIXME: Set this programmatically.
+if [[ ${CHECKOUT_TARGET} == "origin/develop" ]]; then
+    CHECKOUT_TARGET=master
+fi
 
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
@@ -20,17 +22,14 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
         echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
         exit 1
     fi
+    cd cloudapi
 else
-    # cloud-api snubs the develop branch.
-    TARGET=${CHECKOUT_TARGET}
-
     git clone git@git.joyent.com:cloud-api.git cloudapi
-
+    cd cloudapi
     git fetch -a origin
-    git checkout ${TARGET} -b $(basename ${TARGET})
+    git checkout ${CHECKOUT_TARGET} -b $(basename ${CHECKOUT_TARGET})
 fi
 
-cd cloudapi
 
 # all the rest of this is necessary for both the usb-headnode build
 # as well as the bin/build-fstar case.
@@ -41,8 +40,8 @@ if ! [ -d node_modules/sdc-clients ]; then
   git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
 fi
 
-echo ${TARGET} > VERSION
-git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+echo ${CHECKOUT_TARGET} > VERSION
+git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
 # Install NPM modules
 npm install --node-version 0.4.9
@@ -54,23 +53,18 @@ rm -rf .git .gitmodules .gitignore cfg/* tst Makefile docs/*.restdown tools
 
 # SDCClients checkout
 cd node_modules/sdc-clients
-TARGET=${CHECKOUT_TARGET}
 
-if [[ ${TARGET} == "origin/develop" ]]; then
-    TARGET=master
-fi
-
-git checkout ${TARGET}
+git checkout ${CHECKOUT_TARGET}
 npm run-script postinstall
-echo ${TARGET} > VERSION
-git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+echo ${CHECKOUT_TARGET} > VERSION
+git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 rm -rf .git .gitmodules .gitignore
 
 # HttpSignature checkout
 # cd ../http-signature
-# git checkout ${TARGET}
-# echo ${TARGET} > VERSION
-# git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+# git checkout ${CHECKOUT_TARGET}
+# echo ${CHECKOUT_TARGET} > VERSION
+# git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 # rm -rf .git .gitmodules .gitignore
 
 # Back up to where we were (/opt/smartdc)
