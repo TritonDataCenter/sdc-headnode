@@ -18,6 +18,7 @@ export SDC_UPGRADE_ROOT=${ROOT}
 # Zones we used to have, but which are no more.
 #
 OBSOLETE_ZONES=( \
+    atropos \
     pubapi
 )
 
@@ -27,7 +28,6 @@ OBSOLETE_ZONES=( \
 #
 RECREATE_ZONES=( \
     assets \
-    atropos \
     ca \
     dhcpd \
     rabbitmq \

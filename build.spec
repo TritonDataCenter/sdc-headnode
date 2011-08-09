@@ -21,7 +21,6 @@
       }
   ]
   , "adminui-checkout": "origin/master"
-  , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
   , "capi-checkout": "origin/master"
   , "dhcpd-checkout": "origin/master"
@@ -31,8 +30,7 @@
   , "rabbitmq-checkout": "origin/master"
   , "upgrades": {
       "agents": [
-          "atropos/master/atropos-master-*"
-        , "cloud_analytics/master/cabase-master-*"
+          "cloud_analytics/master/cabase-master-*"
         , "cloud_analytics/master/cainstsvc-master-*"
         , "dataset_manager/master/dataset_manager-master-*"
         , "heartbeater/master/heartbeater-master-*"

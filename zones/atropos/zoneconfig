@@ -1,9 +1,0 @@
-TEMPLATE_VERSION=0.0.1
-ZONENAME=atropos
-HOSTNAME=${ZONENAME}.${dns_domain}
-RESOLVERS=${dns_resolvers/,/ }
-PRIVATE_IP=${atropos_admin_ip}
-PUBLIC_IP=${atropos_external_ip-${atropos_admin_ip}}
-ROOT_PW=${atropos_root_pw}
-ADMIN_PW=${atropos_admin_pw}
-TMPFS=512m

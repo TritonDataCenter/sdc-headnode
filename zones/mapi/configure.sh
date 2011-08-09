@@ -225,10 +225,6 @@ echo "Creating MAPI Ur Client Manifest."
 RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:ur -f /opt/smartdc/mapi/Rakefile
 chown jill:jill /opt/smartdc/mapi/config/ur_client.smf
 
-echo "Creating MAPI Atropos Client Manifest."
-RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:atropos -f /opt/smartdc/mapi/Rakefile
-chown jill:jill /opt/smartdc/mapi/config/atropos_client.smf
-
 echo "Creating MAPI ZoneTracker Client Manifest."
 RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:zonetracker -f /opt/smartdc/mapi/Rakefile
 chown jill:jill /opt/smartdc/mapi/config/zonetracker_client.smf

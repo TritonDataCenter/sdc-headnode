@@ -136,10 +136,6 @@ assets_admin_ip=10.99.99.6
 assets_root_pw=joypass123
 assets_admin_pw=joypass123
 
-atropos_admin_ip=10.99.99.12
-atropos_root_pw=joypass123
-atropos_admin_pw=joypass123
-
 ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123

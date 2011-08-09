@@ -34,10 +34,6 @@ assets_cpu_shares=50
 assets_max_lwps=1000
 assets_memory_cap=1024m
 
-atropos_cpu_shares=50
-atropos_max_lwps=1000
-atropos_memory_cap=1024m
-
 capi_cpu_shares=50
 capi_max_lwps=1000
 capi_memory_cap=1024m

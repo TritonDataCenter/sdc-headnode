@@ -85,7 +85,7 @@ fi
 
 if [[ \$(uname -s) == 'Linux' ]]; then
   # Return SmartDC services statuses on STDOUT:
-  initctl list | grep "heartbeater\|atropos\|provisioner" | sed -e "s/\(.*running\)/online \1/"
+  initctl list | grep "heartbeater\|provisioner" | sed -e "s/\(.*running\)/online \1/"
 else
   # Return SmartDC services statuses on STDOUT:
   echo \$(svcs -a -o STATE,FMRI|grep smartdc)
@@ -277,13 +277,6 @@ if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep atropos_client) ]]; then
-  echo "Importing MCP API Atropos Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/atropos_client.smf
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/atropos_client:default refresh
-fi
-
 if [[ -z \$(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
   echo "Importing MCP API ZoneTracker Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker_client.smf
@@ -420,13 +413,6 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/heartbeater_client.smf
     sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
-  fi
-
-  if [[ -z $(/usr/bin/svcs -a|grep atropos_client) ]]; then
-    echo "Importing MCP API Atropos Client Manifest"
-    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/atropos_client.smf
-    sleep 10 # XXX
-    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/atropos_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep zonetracker_client) ]]; then

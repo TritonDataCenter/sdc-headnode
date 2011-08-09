@@ -564,8 +564,6 @@ adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
-atropos_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-next_addr=$(expr $next_addr + 1)
 ca_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 ca_client_url="http://${ca_admin_ip}:23181"
 next_addr=$(expr $next_addr + 1)
@@ -719,11 +717,6 @@ echo >>$tmp_config
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
 echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-echo "atropos_admin_ip=$atropos_admin_ip" >>$tmp_config
-echo "atropos_root_pw=$zone_admin_pw" >>$tmp_config
-echo "atropos_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "ca_admin_ip=$ca_admin_ip" >>$tmp_config

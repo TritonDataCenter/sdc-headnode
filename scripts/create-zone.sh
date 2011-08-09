@@ -54,7 +54,6 @@ function install_node_config
                 datacenter_name \
                 root_authorized_keys_file \
                 assets_admin_ip \
-                atropos_admin_ip \
                 compute_node_ntp_conf_file \
                 compute_node_ntp_hosts \
                 compute_node_swap \
