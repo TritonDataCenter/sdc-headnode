@@ -1209,70 +1209,6 @@ function copy_to_mount
         || fatal "Unable to copy files to mount"
 }
 
-function get_upgrade_params
-{
-    upgrades_json=
-    agents_json=
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        upgrades_json=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json "upgrades")
-        if [[ -n ${upgrades_json} ]]; then
-            agents_json=$(echo ${upgrades_json} \
-                | ${ROOT}/bin/json "agents")
-        fi
-    fi
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${upgrades_json} ]]; then
-        upgrades_json=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json "upgrades")
-        if [[ -n ${upgrades_json} ]]; then
-            if [[ -z ${agents_json} ]]; then
-                agents_json=$(echo ${upgrades_json} \
-                    | ${ROOT}/bin/json "agents")
-            fi
-        fi
-    fi
-    [[ -n ${agents_json} ]] \
-        || fatal "Unable to find upgrade.agents information in build.spec"
-
-    num_agents=$(echo "${agents_json}" | ${ROOT}/bin/json length)
-
-    AGENTS=
-
-    index=0
-    while [[ ${index} -lt ${num_agents} ]]; do
-        AGENTS[${index}]=$(echo "${agents_json}" \
-            | ${ROOT}/bin/json ${index})
-        index=$((${index} + 1))
-    done
-}
-
-function get_latest_upgrade_agent
-{
-    url=$1
-    pattern=$2
-    out_dir=$3
-
-    latest=$(curl ${CURL_OPTS} -k -sS ${url}/ \
-                 | ${GREP} "href=\"${pattern}" \
-                 | cut -d'"' -f2 | sort | tail -1)
-
-    oldwd=$(pwd)
-    cd ${out_dir}
-    curl ${CURL_OPTS} -k -O ${url}/${latest}
-    cd ${oldwd}
-    echo "==> downloaded ${latest}"
-}
-
-function get_upgrade_agents
-{
-    mkdir -p ${ROOT}/cache/upgrade/agents
-    for agent in "${AGENTS[@]}"; do
-        url="${AGENTS_BASE}/$(dirname ${agent})"
-        pattern=$(basename ${agent})
-        get_latest_upgrade_agent "${url}" "${pattern}" "${ROOT}/cache/upgrade/agents"
-    done
-}
-
 function pack_upgrade
 {
     echo "${THIS_VERSION}" > ${ROOT}/cache/upgrade/VERSION
@@ -1307,8 +1243,6 @@ if [[ -z ${ONLY_UPGRADE} ]]; then
     create_output
 else
     create_upgrade
-    get_upgrade_params
-    get_upgrade_agents
     pack_upgrade
 fi
 

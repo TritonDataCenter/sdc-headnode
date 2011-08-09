@@ -217,76 +217,8 @@ function recreate_zones
           rm ${usbcpy}/backup/${zone}-data.zfs
         fi
     done
-
-    # Make sure we set the npm user correctly for the atropos registry, since the
-    # atropos zone may have been recreated.
-    if [[ -x /opt/smartdc/agents/bin/setup-npm-user ]]; then
-        /opt/smartdc/agents/bin/setup-npm-user joyent joyent atropos@joyent.com
-    fi
 }
 
-function backup_npm_registry
-{
-    atropos_ip=$1
-    backup_dir=$2
-
-    mkdir -p ${backup_dir}
-    echo "==> Backuping up npm registry from atropos"
-
-    for agent in $(curl -s http://${atropos_ip}:5984/jsregistry/_design/app/_rewrite \
-        | json | grep '^  \"' | cut -d '"' -f2); do
-
-        echo "==> Looking for tarballs for agent '${agent}'"
-        output=$(curl -s http://${atropos_ip}:5984/jsregistry/${agent}/)
-        json_output=$(echo ${output} | /usr/bin/json > "${backup_dir}/${agent}.json")
-        declare -a uris
-
-        # Grab the URIs and replace any target with the correct IP (no DNS!)
-        # Also fix the URL for npm which for some reason picks a different format.
-        uris=$(cat "${backup_dir}/${agent}.json" \
-            | grep tarball \
-            | awk '{print $2}' \
-            | tr -s '"' ' ' \
-            | sed -e "s|http://.*:5984|http://${atropos_ip}:5984|" \
-            | sed -e "s|:5984/npm/-|:5984/jsregistry/_design/app/_rewrite/npm/-|")
-
-        if [[ -z ${uris} ]]; then
-            echo "--> Cannot find agent '${agent}' in atropos registry, skipping"
-        else
-            for uri in ${uris}; do
-                echo "==> Downloading: ${uri}"
-                basename=$(echo "${uri}" | sed 's|^.*://.*/||g')
-                curl --progress-bar $uri -o "${backup_dir}/${basename}" \
-                    || echo "failed to download '${basename}'"
-            done
-        fi
-        rm "${backup_dir}/${agent}.json"
-    done
-}
-
-function restore_npm_registry
-{
-    backup_dir=$1
-
-    echo "==> Restoring npm registry to atropos from ${backup_dir}"
-
-    # Once everything is done, go publish them again
-    agent_files=$(ls ${backup_dir}/*)
-    for agent_file in ${agent_files[@]}; do
-        /opt/smartdc/agents/bin/agents-npm publish ${agent_file}
-    done
-}
-
-function install_new_agents
-{
-    if [[ -d ${ROOT}/agents ]]; then
-        echo "==> Publishing new npm agents to atropos"
-        agent_files=$(ls ${ROOT}/agents/*)
-        for agent_file in ${agent_files[@]}; do
-            /opt/smartdc/agents/bin/agents-npm publish ${agent_file}
-        done
-    fi
-}
 
 function install_platform
 {
@@ -301,25 +233,6 @@ function install_platform
             echo "INFO: ${usbcpy}/os/${platformversion} already exists, skipping update."
         fi
     fi
-}
-
-function reenable_agents
-{
-    oldifs=$IFS
-    IFS=$'\n'
-
-    for line in $(svcs -Ho STA,FMRI smartdc/agent/* | tr -s ' '); do
-        state=${line%% *}
-        fmri=${line#* }
-
-        if [[ ${state} == "MNT" ]]; then
-            svcadm disable -s ${fmri}
-            svcadm enable -s ${fmri}
-        fi
-
-    done
-
-    IFS=${oldifs}
 }
 
 mount_usbkey
@@ -342,13 +255,7 @@ upgrade_pools
 # import new headnode dataset if there's one (used for new headnode zones)
 import_datasets
 
-backup_npm_registry "${CONFIG_atropos_admin_ip}" ${backup_dir}/npm_registry
 recreate_zones
-restore_npm_registry ${backup_dir}/npm_registry
-reenable_agents
-
-# If there are new agents in this upgrade, publish them to atropos
-install_new_agents
 
 # new platform!
 install_platform
@@ -358,14 +265,6 @@ echo "${new_version}" > ${usbmnt}/version
 
 if [[ $doupgrade == true ]]; then
   /usbkey/scripts/switch-platform.sh ${platformversion}
-  index=0
-  numservers=$(/smartdc/bin/sdc-mapi /servers | /usr/bin/json -H length )
-  while [[ ${index} -lt ${numservers} ]]; do
-    echo "Upgrading agents on server ${index} of ${numservers}"
-    name=$(basename `/smartdc/bin/sdc-mapi /servers | /usr/bin/json -H ${index}.uri`)
-    /smartdc/bin/sdc-mapi /admin/servers/${name}/atropos/install -F "package=agent"
-    index=$((${index}+1))
-  done
   echo "Activating upgrade complete"
 fi
 exit 0
