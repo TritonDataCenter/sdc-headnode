@@ -9,8 +9,8 @@
   , "agents-shar": "master"
   , "hvm-agents-shar": "hvm"
   , "datasets": [
-      { "name": "smartos-1.3.15"
-      , "uuid": "184c9b38-ad3d-11e0-bad6-1b7240aaa5fc"
+      { "name": "smartos-1.3.17"
+      , "uuid": "bb6d5a10-c330-11e0-8f18-9fbfcd26660b"
       , "headnode_zones": "true"
       }
     , { "name": "nodejs-1.1.4"
