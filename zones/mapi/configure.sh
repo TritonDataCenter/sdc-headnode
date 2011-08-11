@@ -4,6 +4,10 @@
 
 # Calculate the bitcounts
 source /lib/sdc/network.sh
+ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
+ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
+EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
+EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
 
 echo "listen_addresses='localhost'" >> /var/pgsql/data90/postgresql.conf
 
