@@ -3,14 +3,12 @@
 # for whatever the reason using /opt/smartdc/bin/configure
 
 # Update the config with the correct values.
-cat > /opt/smartdc/portal/config.js <<HERE
+mkdir -p /opt/smartdc/portal/cfg
+cat > /opt/smartdc/portal/cfg/config.js <<HERE
 exports.config = {
   externalUrl : "${EXTERNAL_URL}",
-	publicAPIUrl : "${CLOUD_API_PRIVATE_URL}",
-  publicAPIVersion : '6.1.0',
-  privateCAPIUrl : "${CAPI_API_PRIVATE_URL}",
-  CAPIuser : "${CAPI_HTTP_ADMIN_USER}",
-  CAPIpassword : "${CAPI_HTTP_ADMIN_PW}",
+  capiConfig : "./cfg/capi.json",
+  cloudApiConfig : "./cfg/cloudApi.json",
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-replay@no.de>",
@@ -22,34 +20,47 @@ exports.config = {
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
   listenIp : "${PRIVATE_IP}",
-  machineListFields : [ 
-			{ name: "type", heading: "Type", sortable: true, width: 104 },
-      { name: "name",heading: "Machine name", sortable: true,
-        mutate: function (n, machine) {
-          var displayName = machine.name ||
-                            machine.hostname ||
-                            "Unnamed SmartMachine";
-          if (displayName.length > 30) {
-            displayName = displayName.substr(0, 30) + "…";
-          }
-          return displayName;
-        },
-        width: 280 },
-      { name: "ips", heading: "Public IP Address", sortable: true,
-      	mutate: function (n, machine) {
-        	return machine.ips[0];
-      	},
- 			width: 140 },
-      { name: "memory", heading: "RAM", sortable: true, width: 83 },
-      { name: "created", date: true, heading: "Age", sortable: true, width: 130 },
-      { name: "state", heading: "Status", sortable: true, width: 125 } 
-    ],
-	  provisionOptions :
-	    [ { name: "package", alwaysShow: true, heading: "Package" },
-	      { name: "dataset", alwaysShow: true, heading: "SmartMachine Type" },
-	      { name: "name", heading: "Machine name" },
-	      { name: "password", heading: "Machine Password" }
-	    ]
+  machineListConfig : "./cfg/machineListFields.json",
+  provisionOptionsConfig : "./cfg/provisionOptions.json"
+}
+HERE
+
+cat > /opt/smartdc/portal/cfg/capi.json <<HERE
+{
+  "uri": "${CAPI_API_PRIVATE_URL}",
+  "username": "${CAPI_HTTP_ADMIN_USER}",
+  "password": "${CAPI_HTTP_ADMIN_PW}"
+}
+HERE
+
+cat > /opt/smartdc/portal/cfg/cloudApi.json <<HERE
+{
+  "url": "${CLOUD_API_PRIVATE_URL}",
+  "version": "6.1.0"
+}
+HERE
+
+cat > /opt/smartdc/portal/cfg/machineListFields.json <<HERE
+{
+  "machineListFields": [
+    { "name": "type", "heading": "Type", "sortable": true, "width": 104 },
+    { "name": "name", "heading": "Machine name", "sortable": true, "mutate": "abbrevName", "width": 280 },
+    { "name": "ips", "heading": "Public IP Address", "sortable": true, "width": 140 },
+    { "name": "memory", "heading": "RAM", "sortable": true, "width": 83 },
+    { "name": "created", "date": true, "heading": "Age", "sortable": true, "width": 130 },
+    { "name": "state", "heading": "Status", "sortable": true, "width": 125 }
+  ]
+}
+HERE
+
+cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
+{
+  "provisionOptions": [
+    { "name": "package", "alwaysShow": true, "heading": "Package" },
+    { "name": "dataset", "alwaysShow": true, "heading": "SmartMachine Type" },
+    { "name": "name", "heading": "Machine name" },
+    { "name": "password", "heading": "Machine Password" }
+  ]
 }
 HERE
 
