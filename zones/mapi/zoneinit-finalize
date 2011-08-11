@@ -60,7 +60,7 @@ setup_agents()
     fi
   fi
 
-  /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
+  /usr/bin/curl --silent --show-error -O http://localhost/ur-scripts/\${AGENTS_SHAR}
 
   if [[ ! -f /var/tmp/\${AGENTS_SHAR} ]]; then
     fatal "failed to download agents setup script"
@@ -172,7 +172,6 @@ function errexit
 
 trap 'errexit \$?' EXIT
 
-POSTGRES_HOST='$POSTGRES_HOST'
 POSTGRES_USER='$POSTGRES_USER'
 POSTGRES_PW='$POSTGRES_PW'
 
@@ -218,15 +217,15 @@ else
 fi
 
 # Without this, mapi db existence checking will always fail:
-echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /root/.pgpass
+echo "localhost:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /root/.pgpass
 chmod 0600 /root/.pgpass
 
-if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep mapi) ]]; then
+if [[ -z \$(/opt/local/bin/psql -U postgres -h localhost -c "\\l"|grep mapi) ]]; then
   echo "Creating mapi database"
-  echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  echo "localhost:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h \$POSTGRES_HOST mapi"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h localhost mapi"
 fi
 
 echo "Removing hardcoded fastercsv and json_pure dependency on dm-types gem"

@@ -32,11 +32,11 @@ http {
     gzip_disable "MSIE [1-6].(?!.*SV1)";
 
     upstream adminui {
-        server ${PRIVATE_IP}:8080;
+        server localhost:8080;
     }
 
     upstream caproxy {
-        server ${PRIVATE_IP}:8081;
+        server localhost:8081;
     }
 
     server {
@@ -162,6 +162,10 @@ bash /opt/smartdc/adminui/script/fix_yajl.sh
 if [[ ! -d /var/logadm ]]; then
   mkdir -p /var/logadm
 fi
+
+# make it easier to find logs
+mkdir -p /var/log/smartdc
+ln -s /opt/smartdc/adminui/log /var/log/smartdc/adminui
 
 # Log rotation:
 cat >> /etc/logadm.conf <<LOGADM

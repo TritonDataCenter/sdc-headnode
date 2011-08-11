@@ -4,14 +4,8 @@
 
 # Calculate the bitcounts
 source /lib/sdc/network.sh
-ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
-ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
-EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
-EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
 
-# Since we need to access the postgres server from other zones, we need to add configuration
-echo "listen_addresses='localhost,${PRIVATE_IP}'" >> /var/pgsql/data90/postgresql.conf
-echo "host    all    all    ${ADMIN_NETWORK}/${ADMIN_BITCOUNT}    password" >> /var/pgsql/data90/pg_hba.conf
+echo "listen_addresses='localhost'" >> /var/pgsql/data90/postgresql.conf
 
 # enable slow query logging (anything beyond 200ms right now)
 echo "log_min_duration_statement = 200" >> /var/pgsql/data90/postgresql.conf
@@ -33,71 +27,60 @@ fi
 # We need to override nginx.conf on reconfigure, and it's safe to do during setup:
 echo "Creating nginx configuration file"
 cat >/opt/local/etc/nginx/nginx.conf <<NGINX
-user  www  www;
+user www www;
 worker_processes  1;
+error_log /var/log/nginx/error.log;
+pid /var/run/nginx.pid;
 
 events {
-    worker_connections  1024;
+  worker_connections  1024;
+  use /dev/poll;
 }
 
 http {
-    include       /opt/local/etc/nginx/mime.types;
-    default_type  application/octet-stream;
+  include /opt/local/etc/nginx/mime.types;
+  default_type  application/octet-stream;
+  access_log /var/log/nginx/access.log;
+  
+  sendfile on;
+  keepalive_timeout  65;
 
-    sendfile        on;
-    keepalive_timeout  65;
+  upstream mapi {
+    server 127.0.0.1:8080;
+  }
 
-    upstream mapi {
-        server ${PRIVATE_IP}:8080;
+  server {
+    listen 80;
+
+    location / {
+      root   share/examples/nginx/html;
+      index  index.html index.htm;
+
+      proxy_set_header  X-Real-IP  \$remote_addr;
+      proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header Host \$http_host;
+      proxy_redirect off;
+
+      proxy_pass http://mapi;
+      break;
     }
 
-    upstream configsvc {
-        server ${CA_PRIVATE_IP}:23181;
+    location /docs {
+        root /opt/smartdc/mapi/public;
+        index index.html;
     }
 
-    server {
-        listen       ${PRIVATE_IP}:80;
-        server_name  localhost;
-
-        location / {
-            root   share/examples/nginx/html;
-            index  index.html index.htm;
-
-            proxy_set_header  X-Real-IP  \$remote_addr;
-            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header Host \$http_host;
-            proxy_redirect off;
-
-            proxy_pass http://mapi;
-            break;
-        }
-
-        location /docs {
-            root /opt/smartdc/mapi/public;
-            index index.html;
-        }
-
-        location ~ ^/ca(/.*)?$ {
-            proxy_set_header  X-Real-IP  \$remote_addr;
-            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header Host \$http_host;
-            proxy_redirect off;
-
-            proxy_pass http://configsvc;
-            break;
-        }
-
-        location /ur-scripts/ {
-            alias /opt/smartdc/agent-scripts/;
-            autoindex on;
-        }
-
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   share/examples/nginx/html;
-        }
-
+    location /ur-scripts/ {
+        alias /opt/smartdc/agent-scripts/;
+        autoindex on;
     }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   share/examples/nginx/html;
+    }
+
+  }
 }
 
 NGINX
@@ -141,13 +124,7 @@ fi
 if [[ ! $(/usr/bin/svcs -a|grep mdnsresponder) ]]; then
   echo "Importing mDNSResponder service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/mdnsresponder.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/network/dns/mdnsresponder:default refresh
-fi
-
-if [[  "$(/usr/bin/svcs -Ho state mdnsresponder)" != "online"  ]]; then
-  echo "Enabling mDNSResponder service."
-  /usr/sbin/svcadm enable -s mdnsresponder
+  /usr/sbin/svcadm enable mdnsresponder
 fi
 
 echo "Generating MAPI config files."
@@ -164,7 +141,6 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   EMAIL_PREFIX="[MCP API $host]" \
   MAC_PREFIX="${MAPI_MAC_PREFIX}" \
   DHCP_LEASE_TIME="${DHCP_LEASE_TIME}" \
-  ATROPOS_ZONE_URI="${ATROPOS_PRIVATE_IP}:5984" \
   HTTP_ADMIN_USER="${HTTP_ADMIN_USER}" \
   HTTP_ADMIN_PW="${HTTP_ADMIN_PW}" \
  /opt/local/bin/rake dev:configs -f /opt/smartdc/mapi/Rakefile && \
@@ -233,6 +209,10 @@ chown jill:jill /opt/smartdc/mapi/config/zonetracker_client.smf
 if [[ ! -d /var/logadm ]]; then
   mkdir -p /var/logadm
 fi
+
+# Link logs to common places
+mkdir -p /var/log/smartdc
+ln -s /opt/smartdc/mapi/log /var/log/smartdc/mapi
 
 # Log rotation:
 cat >> /etc/logadm.conf <<LOGADM
