@@ -1,9 +1,2 @@
-gcc-compiler-4.5.2
-gcc-runtime-4.5.2
-gcc-tools-0
-gmake-3.82nb1
 grep-2.5.3
 pcre-8.11
-pkg_alternatives-1.5
-python26-2.6.6nb6
-scmgit-1.7.3.4
