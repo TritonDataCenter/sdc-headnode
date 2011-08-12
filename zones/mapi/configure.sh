@@ -151,8 +151,17 @@ amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
   sleep 1 && \
   chown jill:jill /opt/smartdc/mapi/config/config.yml)
 
-# Update config.ru
-cp /opt/smartdc/mapi/config/config.ru.sample /opt/smartdc/mapi/config/config.ru
+
+echo "Creating Rackup Configuration file."
+cat > /opt/smartdc/mapi/config/config.ru <<RACKUP
+require File.expand_path(File.join(File.dirname(__FILE__), '..', 'cloud_control_api'))
+
+require File.expand_path(File.join(File.dirname(__FILE__), '..','cloud_control_api', 'helpers'))
+require File.expand_path(File.join(File.dirname(__FILE__), '..','cloud_control_api', 'application'))
+
+run MAPI::Application.new
+RACKUP
+
 
 if [[ ! -e /opt/smartdc/mapi/gems/gems ]] || [[ $(ls /opt/smartdc/mapi/gems/gems| wc -l) -eq 0 ]]; then
   echo "Unpacking frozen gems for MCP API."
