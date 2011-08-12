@@ -60,7 +60,7 @@ setup_agents()
     fi
   fi
 
-  /usr/bin/curl --silent --show-error -O http://localhost/ur-scripts/\${AGENTS_SHAR}
+  /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
 
   if [[ ! -f /var/tmp/\${AGENTS_SHAR} ]]; then
     fatal "failed to download agents setup script"
