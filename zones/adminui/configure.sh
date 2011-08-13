@@ -113,6 +113,9 @@ if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
   cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
 fi
 
+# Workaround for overwritten init.rb
+cp /opt/smartdc/adminui/script/init.rb /opt/smartdc/adminui/config/init.rb
+
 if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
   echo "[ADMINUI] Unpacking frozen gems"
   (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
