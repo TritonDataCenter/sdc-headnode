@@ -1,17 +1,18 @@
 {
-  "uuid": "d393e7ea-b6eb-11e0-a8bd-00219b97a9bf",
+  "uuid": "e173ecd7-4809-4429-af12-5d11bcc29fd8",
   "name": "ubuntu",
-  "version": "10.04.2.5",
+  "version": "10.04.2.7",
   "description": "Ubuntu 10.04.2 VM image",
   "type": "zvol",
   "platform_type": "smartos",
   "os": "linux",
+  "image_size": 5120,
   "files": [
     {
-      "path": "ubuntu-10.04.2.5.zfs.bz2",
-      "sha1": "081e005d873c605d3a5195ab7fcf7951d77dba58",
-      "size": 185366821,
-      "url": "https://guest:GrojhykMid@216.57.203.66:444/coal/beta/ubuntu-10.04.2.5.zfs.bz2"
+      "path": "ubuntu-10.04.2.7.zfs.bz2",
+      "sha1": "abc6af6062a3d1f007ddd3a56021e42b56b13616",
+      "size": 185550722,
+      "url": "https://guest:GrojhykMid@216.57.203.66:444/coal/beta/ubuntu-10.04.2.7.zfs.bz2"
     }
   ],
   "requirements": {
@@ -29,9 +30,9 @@
   "creator_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
   "creator_name": "sdc",
   "cloud_name": "sdc",
-  "urn": "sdc:sdc:ubuntu:10.04.2.5",
-  "published_at": "2011-07-25T18:30:30.300Z",
+  "urn": "sdc:sdc:ubuntu:10.04.2.7",
+  "published_at": "2011-08-12T18:30:30.300Z",
   "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
-  "created_at": "2011-07-25T18:30:30.300Z",
-  "updated_at": "2011-07-25T18:30:30.300Z"
+  "created_at": "2011-08-12T18:30:30.300Z",
+  "updated_at": "2011-08-12T18:30:30.300Z"
 }
