@@ -28,6 +28,7 @@ RECREATE_ZONES=( \
     adminui \
     capi \
     cloudapi \
+    portal \
     pubapi
 )
 
