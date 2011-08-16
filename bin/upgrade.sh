@@ -130,7 +130,7 @@ function backup_usbkey
 
 function upgrade_usbkey
 {
-    usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
+    local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
 
@@ -147,6 +147,7 @@ function upgrade_pools
     # datasets with a modified atime property will no longer inherit that
     # setting from the pool's setting.
     #
+    local pool
     for pool in $(zpool list -H -o name); do
          zfs set atime=off ${pool} || \
               fatal "failed to set atime=off on pool ${pool}"
@@ -155,8 +156,8 @@ function upgrade_pools
 
 function import_datasets
 {
-    ds_uuid=$(cat ${usbmnt}/datasets/smartos.uuid)
-    ds_file=$(cat ${usbmnt}/datasets/smartos.filename)
+    local ds_uuid=$(cat ${usbmnt}/datasets/smartos.uuid)
+    local ds_file=$(cat ${usbmnt}/datasets/smartos.filename)
 
     if [[ -z ${ds_uuid} ]]; then
         fatal "no uuid set in ${usbmnt}/datasets/smartos.uuid"
@@ -181,6 +182,7 @@ function recreate_zones
     mkdir -p ${usbcpy}/os
 
     # Delete obsolete zones
+    local zone
     for zone in "${OBSOLETE_ZONES[@]}"; do
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
     done
@@ -223,8 +225,9 @@ function recreate_zones
 function install_platform
 {
     # Install new platform
-    platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
+    local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
     if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
+        # 'platformversion' is intentionally global.
         platformversion=$(basename "${platformupdate}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
 
         if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
