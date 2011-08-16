@@ -65,30 +65,6 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
       "body": "Check /my/machines for updates"
     }
   },
-  "ipThrottles": {
-    "all": {
-      "ip": true,
-      "burst": 9,
-      "rate": 3,
-      "overrides": {
-        "${PORTAL_ADMIN_IP}": {
-          "burst": 0,
-          "rate": 0
-        }
-      }
-    },
-    "analytics": {
-      "ip": true,
-      "burst": 100,
-      "rate": 10,
-      "overrides": {
-        "${PORTAL_ADMIN_IP}": {
-          "burst": 0,
-          "rate": 0
-        }
-      }
-    }
-  },
   "userThrottles": {
     "all": {
       "username": true,
