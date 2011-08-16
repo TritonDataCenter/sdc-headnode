@@ -97,6 +97,7 @@ function check_versions
 
 function backup_usbkey
 {
+    # 'backup_dir' is intentionally global.
     backup_dir=${usbcpy}/backup/${existing_version}.$(date -u +%Y%m%dT%H%M%SZ)
 
     if [[ -d ${backup_dir} ]]; then
@@ -219,9 +220,9 @@ function recreate_zones
 function backup_npm_registry
 {
     atropos_ip=$1
-    backup_dir=$2
+    local npm_backup_dir=$2
 
-    mkdir -p ${backup_dir}
+    mkdir -p ${npm_backup_dir}
     echo "==> Backuping up npm registry from atropos"
 
     for agent in $(curl -s http://${atropos_ip}:5984/jsregistry/_design/app/_rewrite \
@@ -229,12 +230,12 @@ function backup_npm_registry
 
         echo "==> Looking for tarballs for agent '${agent}'"
         output=$(curl -s http://${atropos_ip}:5984/jsregistry/${agent}/)
-        json_output=$(echo ${output} | /usr/bin/json > "${backup_dir}/${agent}.json")
+        json_output=$(echo ${output} | /usr/bin/json > "${npm_backup_dir}/${agent}.json")
         declare -a uris
 
         # Grab the URIs and replace any target with the correct IP (no DNS!)
         # Also fix the URL for npm which for some reason picks a different format.
-        uris=$(cat "${backup_dir}/${agent}.json" \
+        uris=$(cat "${npm_backup_dir}/${agent}.json" \
             | grep tarball \
             | awk '{print $2}' \
             | tr -s '"' ' ' \
@@ -247,22 +248,22 @@ function backup_npm_registry
             for uri in ${uris}; do
                 echo "==> Downloading: ${uri}"
                 basename=$(echo "${uri}" | sed 's|^.*://.*/||g')
-                curl --progress-bar $uri -o "${backup_dir}/${basename}" \
+                curl --progress-bar $uri -o "${npm_backup_dir}/${basename}" \
                     || echo "failed to download '${basename}'"
             done
         fi
-        rm "${backup_dir}/${agent}.json"
+        rm "${npm_backup_dir}/${agent}.json"
     done
 }
 
 function restore_npm_registry
 {
-    backup_dir=$1
+    local npm_backup_dir=$1
 
-    echo "==> Restoring npm registry to atropos from ${backup_dir}"
+    echo "==> Restoring npm registry to atropos from ${npm_backup_dir}"
 
     # Once everything is done, go publish them again
-    agent_files=$(ls ${backup_dir}/*)
+    agent_files=$(ls ${npm_backup_dir}/*)
     for agent_file in ${agent_files[@]}; do
         /opt/smartdc/agents/bin/agents-npm publish ${agent_file}
     done
