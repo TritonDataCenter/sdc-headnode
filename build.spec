@@ -39,6 +39,7 @@
         , "provisioner-v2/release-20110714/provisioner-v2-release-20110714-*"
         , "smartlogin/release-20110714/smartlogin-release-20110714-*"
         , "zonetracker/release-20110714/zonetracker-release-20110714-*"
+        , "zonetracker-v2/release-20110714/zonetracker-v2-release-20110714-*"
       ]
   }
 }
