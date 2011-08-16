@@ -270,4 +270,11 @@ if [ -n "${CREATEDZONES}" ]; then
     echo "" >&${CONSOLE_FD}
 fi
 
+if [[ -f /usbkey/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
+  ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat /usbkey/webinfo.tar | tar -xf - )
+fi
+
+( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
+
+
 exit 0

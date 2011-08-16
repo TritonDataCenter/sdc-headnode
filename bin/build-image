@@ -1176,6 +1176,26 @@ function copy_hvm_files
     fi
 }
 
+function copy_webinfo
+{
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json sdc-webinfo-checkout)
+    fi
+    if [[ -f "${ROOT}/build.spec" ]]; then
+        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec \
+            | ${ROOT}/bin/json sdc-webinfo-checkout)
+    fi
+    if [[ -z $WEBINFO_CHECKOUT ]]; then
+        WEBINFO_CHECKOUT="origin/master"
+    fi
+    ( mkdir -p /tmp/$$.webinfo && cd /tmp/$$.webinfo && \
+        git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
+        cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \
+        $TAR -cf ${STAGE}/webinfo.tar --exclude .git webinfo )
+        
+}
+
 function create_upgrade
 {
     rm -rf ${ROOT}/cache/upgrade
@@ -1232,6 +1252,8 @@ copy_datasets
 copy_zones
 copy_devtools
 copy_hvm_files
+copy_webinfo
+
 $(mv $RECIPE ${STAGE}/recipe)
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image

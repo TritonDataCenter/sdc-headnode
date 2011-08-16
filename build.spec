@@ -28,6 +28,7 @@
   , "portal-checkout": "origin/master"
   , "cloudapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
+  , "sdc-webinfo-checkout": "origin/master"
   , "upgrades": {
       "agents": [
           "cloud_analytics/master/cabase-master-*"
