@@ -62,12 +62,12 @@ cat >> /opt/riak/etc/app.config <<EOF
               %       {certfile, "etc/cert.pem"},
               %       {keyfile, "etc/key.pem"}
               %      ]},
-              
+
               %% riak_handoff_port is the TCP port that Riak uses for
               %% intra-cluster data handoff.
               {handoff_port, 8099 },
               {cluster_name, "hostrouter"},
-              {ring_creation_size, 256}
+              {ring_creation_size, 64}
              ]},
 
  %% Riak KV config
