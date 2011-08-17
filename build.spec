@@ -15,8 +15,8 @@
     , { "name": "nodejs-1.1.4"
       , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }
-    , { "name": "hostrouter-0.0.1"
-      , "uuid": "c6292d80-c84e-11e0-80bd-4b770dba8479"
+    , { "name": "hostrouter-0.0.2"
+      , "uuid": "013a5350-c92a-11e0-9487-7350de97c51f"
       }
     , { "name": "nodejs-1.2.0"
       , "uuid": "af94b64a-bfd7-11e0-a588-134eea62e34a"
