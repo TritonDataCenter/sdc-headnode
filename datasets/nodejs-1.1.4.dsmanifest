@@ -1,0 +1,27 @@
+{
+  "name": "nodejs",
+  "version": "1.1.4",
+  "type": "template",
+  "description": "node.js git-deploy PaaS dataset",
+  "created_at": "2011-04-28T17:33:45.775Z",
+  "updated_at": "2011-04-28T17:33:45.775Z",
+  "os": "smartos",
+  "files": [
+    {
+      "path": "nodejs-1.1.4.zfs.bz2",
+      "sha1": "9ef94294618ebd13bcc4b99cff291bec918c95fb",
+      "size": 396175516,
+      "url": "https://joyent:H0neyB4dger@datasets.joyent.com/assets/nodejs-1.1.4.zfs.bz2"
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ]
+  },
+  "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8",
+  "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52"
+}

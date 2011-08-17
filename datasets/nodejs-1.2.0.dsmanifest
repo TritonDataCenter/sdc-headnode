@@ -1,0 +1,32 @@
+{
+  "name": "nodejs",
+  "version": "1.2.0",
+  "type": "zone-dataset",
+  "description": "Node.js git-deploy PaaS dataset",
+  "created_at": "2011-08-06T02:56:39.382Z",
+  "updated_at": "2011-08-06T02:56:39.396Z",
+  "os": "smartos",
+  "files": [
+    {
+      "path": "nodejs-1.2.0.zfs.bz2",
+      "sha1": "123045f845011539cc03a3893acef4359108d2ab",
+      "size": 317774037,
+      "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/nodejs/nodejs-1.2.0.zfs.bz2"
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ]
+  },
+  "uuid": "af94b64a-bfd7-11e0-a588-134eea62e34a",
+  "creator_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
+  "creator_name": "sdc",
+  "platform_type": "smartos",
+  "cloud_name": "sdc",
+  "vendor_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
+  "urn": "sdc:sdc:nodejs:1.2.0"
+}
