@@ -5,7 +5,7 @@
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
-  , "build-hvm": "true"
+  , "build-hvm": "false"
   , "agents-shar": "mg"
   , "hvm-agents-shar": "hvm"
   , "datasets": [
@@ -16,27 +16,21 @@
     , { "name": "nodejs-1.1.4"
       , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }
-    , { "name": "ubuntu-10.04.2.4"
-      , "uuid": "512daa10-af08-11e0-818d-37d03c73bc7b"
-      }
     , { "name": "ubuntu-10.04.2.5"
       , "uuid": "d393e7ea-b6eb-11e0-a8bd-00219b97a9bf"
       }
   ]
   , "adminui-checkout": "origin/master"
-  , "atropos-tarball": "^atropos-develop-.*.tar.bz2$"
   , "ca-tarball": "^ca-pkg-mg-.*.tar.bz2$"
   , "capi-checkout": "origin/master"
   , "dhcpd-checkout": "origin/master"
   , "mapi-checkout": "origin/master"
   , "portal-checkout": "origin/master"
   , "cloudapi-checkout": "origin/master"
-  , "pubapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
   , "upgrades": {
       "agents": [
-          "atropos/master/atropos-master-*"
-        , "cloud_analytics/master/cabase-master-*"
+          "cloud_analytics/master/cabase-master-*"
         , "cloud_analytics/master/cainstsvc-master-*"
         , "dataset_manager/master/dataset_manager-master-*"
         , "heartbeater/master/heartbeater-master-*"

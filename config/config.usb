@@ -136,10 +136,6 @@ assets_admin_ip=10.99.99.6
 assets_root_pw=joypass123
 assets_admin_pw=joypass123
 
-atropos_admin_ip=10.99.99.12
-atropos_root_pw=joypass123
-atropos_admin_pw=joypass123
-
 ca_admin_ip=10.99.99.9
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
@@ -193,14 +189,6 @@ cloudapi_admin_ip=10.99.99.15
 cloudapi_root_pw=joypass123
 cloudapi_admin_pw=joypass123
 cloudapi_external_url=https://10.99.99.15
-
-pubapi_admin_ip=10.99.99.13
-pubapi_client_url=http://10.99.99.13:8080/v1
-# pubapi_external_ip=10.88.88.13
-# pubapi_external_vlan=0
-pubapi_root_pw=joypass123
-pubapi_admin_pw=joypass123
-pubapi_default_datacenter=coal
 
 rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123

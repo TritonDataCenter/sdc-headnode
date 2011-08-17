@@ -15,6 +15,7 @@
 
 set -o errexit
 set -o pipefail
+set -o xtrace
 
 # write output to log file
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -72,6 +73,16 @@ function errexit
 
 function check_nodejs
 {
+    [[ ! `which node` ]] && fatal "build-image requires node to be in your path"
+
+    ver=`node --version`
+    micro=${ver##*.}
+    front=${ver%.*}
+    minor=${front##*.}
+
+    [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
+    [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
+
     if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
         echo "Your version of node.js is ok!"
     else
@@ -143,7 +154,7 @@ function proxy
       # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
       # /http/guest_GrojhykMid@10.0.1.8/platform
       # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
-      # /https/guest_GrojhykMid@216.57.203.66_444/coal/live_147/agents
+      # /https/guest_GrojhykMid@216.57.203.68/coal/live_147/agents
 
       PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)(/.*)?$,\1,')
       HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)(/.*)?$,\2,' | tr : _)
@@ -201,10 +212,13 @@ if [[ -z "$MASTER_PLATFORM_URL" ]]; then
 fi
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
-        # Special case for 'release-$date' Bamboo release builds.
-        RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
-        RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
-        MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/releases/${RELEASE_DIR}/deps/
+      RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
+      RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
+      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68/coal/releases/${RELEASE_DIR}/deps/"
+      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}")
+    else
+      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68"
+      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
     fi
 fi
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
@@ -1211,70 +1225,6 @@ function copy_to_mount
         || fatal "Unable to copy files to mount"
 }
 
-function get_upgrade_params
-{
-    upgrades_json=
-    agents_json=
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        upgrades_json=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json "upgrades")
-        if [[ -n ${upgrades_json} ]]; then
-            agents_json=$(echo ${upgrades_json} \
-                | ${ROOT}/bin/json "agents")
-        fi
-    fi
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${upgrades_json} ]]; then
-        upgrades_json=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json "upgrades")
-        if [[ -n ${upgrades_json} ]]; then
-            if [[ -z ${agents_json} ]]; then
-                agents_json=$(echo ${upgrades_json} \
-                    | ${ROOT}/bin/json "agents")
-            fi
-        fi
-    fi
-    [[ -n ${agents_json} ]] \
-        || fatal "Unable to find upgrade.agents information in build.spec"
-
-    num_agents=$(echo "${agents_json}" | ${ROOT}/bin/json length)
-
-    AGENTS=
-
-    index=0
-    while [[ ${index} -lt ${num_agents} ]]; do
-        AGENTS[${index}]=$(echo "${agents_json}" \
-            | ${ROOT}/bin/json ${index})
-        index=$((${index} + 1))
-    done
-}
-
-function get_latest_upgrade_agent
-{
-    url=$1
-    pattern=$2
-    out_dir=$3
-
-    latest=$(curl ${CURL_OPTS} -k -sS ${url}/ \
-                 | ${GREP} "href=\"${pattern}" \
-                 | cut -d'"' -f2 | sort | tail -1)
-
-    oldwd=$(pwd)
-    cd ${out_dir}
-    curl ${CURL_OPTS} -k -O ${url}/${latest}
-    cd ${oldwd}
-    echo "==> downloaded ${latest}"
-}
-
-function get_upgrade_agents
-{
-    mkdir -p ${ROOT}/cache/upgrade/agents
-    for agent in "${AGENTS[@]}"; do
-        url="${AGENTS_BASE}/$(dirname ${agent})"
-        pattern=$(basename ${agent})
-        get_latest_upgrade_agent "${url}" "${pattern}" "${ROOT}/cache/upgrade/agents"
-    done
-}
-
 function pack_upgrade
 {
     echo "${THIS_VERSION}" > ${ROOT}/cache/upgrade/VERSION
@@ -1309,8 +1259,6 @@ if [[ -z ${ONLY_UPGRADE} ]]; then
     create_output
 else
     create_upgrade
-    get_upgrade_params
-    get_upgrade_agents
     pack_upgrade
 fi
 

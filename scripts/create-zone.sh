@@ -54,7 +54,6 @@ function install_node_config
                 datacenter_name \
                 root_authorized_keys_file \
                 assets_admin_ip \
-                atropos_admin_ip \
                 compute_node_ntp_conf_file \
                 compute_node_ntp_hosts \
                 compute_node_swap \
@@ -121,7 +120,7 @@ function update_datasets
     # Rewrite the new local dataset url
     # Hardcoded global assets url?
     for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
-        /usr/bin/sed -i "" -e "s|\"url\": \"https:.*/|\"url\": \"http://${assets_ip}/|" $file
+        /usr/bin/sed -i "" -e "s|\"url\": \"https:.*/|\"url\": \"http://${assets_ip}/datasets/|" $file
     done
 }
 

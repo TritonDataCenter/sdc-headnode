@@ -9,7 +9,7 @@ GZCAT=gzcat
 GREP=ggrep
 TAR=gtar
 IMG_TYPE="usb"
-USB_SIZE="2gb"
+USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 

@@ -27,7 +27,40 @@ sleep 10 # XXX
 #/usr/sbin/svccfg -s svc:/network/smartdc/application/adminui:default refresh
 
 
+if [[ ! -f /opt/smartdc/bin/smartdc-consoleproxy ]]; then
 
+cat > /opt/smartdc/bin/smartdc-consoleproxy << EOF
+#!/bin/bash
+#
+# Copyright 2011 Joyent, Inc.  All rights reserved.
+#
+
+set -o xtrace
+
+. /lib/svc/share/smf_include.sh
+
+PATH=/usr/sbin:/usr/bin; export PATH
+
+case "\$1" in
+'start')
+    /opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js 2>&1 &
+    ;;
+
+'stop')
+    ;;
+
+*)
+    echo "Usage: \$0 { start | stop }"
+    exit \$SMF_EXIT_ERR_FATAL
+    ;;
+esac
+exit \$SMF_EXIT_OK
+fi
+EOF
+
+    chmod 555 /opt/smartdc/bin/smartdc-consoleproxy
+
+fi
 
 echo Creating manifest for consoleproxy:
 cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
@@ -50,7 +83,7 @@ cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js &amp;"
+      exec="/opt/smartdc/bin/smartdc-consoleproxy %m"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/consoleproxy">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -99,8 +132,40 @@ ln -sf /opt/local/etc/openssl/private/selfsigned.pem /opt/smartdc/consoleproxy/s
 echo "Enablig service consoleproxy"
 /usr/sbin/svcadm enable smartdc/app/consoleproxy
 
+if [[ ! -f /opt/smartdc/bin/smartdc-caproxy ]]; then
 
+cat > /opt/smartdc/bin/smartdc-caproxy << EOF
+#!/bin/bash
+#
+# Copyright 2011 Joyent, Inc.  All rights reserved.
+#
 
+set -o xtrace
+
+. /lib/svc/share/smf_include.sh
+
+PATH=/usr/sbin:/usr/bin; export PATH
+
+case "\$1" in
+'start')
+    /opt/local/bin/node /opt/smartdc/caproxy/caproxy.js 2>&1 &
+    ;;
+
+'stop')
+    ;;
+
+*)
+    echo "Usage: \$0 { start | stop }"
+    exit \$SMF_EXIT_ERR_FATAL
+    ;;
+esac
+exit \$SMF_EXIT_OK
+fi
+EOF
+
+    chmod 555 /opt/smartdc/bin/smartdc-caproxy
+
+fi
 
 echo Creating manifest for caproxy:
 cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
@@ -123,7 +188,7 @@ cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node /opt/smartdc/caproxy/caproxy.js &amp;"
+      exec="/opt/smartdc/bin/smartdc-caproxy %m"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/caproxy">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>

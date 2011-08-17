@@ -21,10 +21,6 @@ fi
 
 # CAPI specific
 
-if [[ ! -e /opt/smartdc/capi/config/database.yml ]]; then
-  su - jill -c "cd /opt/smartdc/capi; /opt/local/bin/rake dev:configs -f /opt/smartdc/capi/Rakefile"
-fi
-
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
 if [[ ! -e /opt/smartdc/capi/config/config.ru ]]; then
@@ -59,9 +55,8 @@ if [[ ! -e /opt/smartdc/capi/config/unicorn.conf ]]; then
   chown jill:jill /opt/smartdc/capi/config/unicorn.conf
 fi
 
-if [[ -z $(cat /opt/smartdc/capi/config/database.yml|grep capi) ]]; then
-  echo "Configuring Customers API Database."
-  cat > /opt/smartdc/capi/config/database.yml <<CAPI_DB
+echo "Configuring Customers API Database."
+cat > /opt/smartdc/capi/config/database.yml <<CAPI_DB
 :development: &defaults
   :adapter: postgres
   :database: capi
@@ -77,7 +72,6 @@ if [[ -z $(cat /opt/smartdc/capi/config/database.yml|grep capi) ]]; then
   :database: capi
 
 CAPI_DB
-fi
 
 if [[ ! -e /opt/smartdc/capi/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/capi/tmp/pids"

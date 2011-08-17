@@ -111,24 +111,6 @@ function install_config_file
     fi
 }
 
-function update_datasets
-{
-    option=$1
-
-    # pull out those config options we want to keep
-    assets_ip=$(
-        . ${USB_COPY}/config
-	. ${USB_COPY}/config.inc/generic
-        eval echo "\${${option}}"
-    )
-
-    # Rewrite the new local dataset url
-    # Hardcoded global assets url?
-    for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
-        /usr/bin/sed -i "" -e "s|\"url\": \"https:.*/|\"url\": \"http://${assets_ip}/|" $file
-    done
-}
-
 trap 'errexit $?' EXIT
 
 DEBUG="true"
@@ -236,8 +218,7 @@ if [ -n "${CREATEDZONES}" ]; then
     # We do this here because agents assume rabbitmq is up and by this point it
     # should be.
     if [[ ( $CONFIG_install_agents != "false"   && \
-            $CONFIG_install_agents != "0"     ) && \
-          ! -e "/opt/smartdc/agents/bin/atropos-agent" ]]; then
+            $CONFIG_install_agents != "0"     ) ]]; then
         which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
             | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then

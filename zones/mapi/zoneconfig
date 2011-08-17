@@ -42,7 +42,6 @@ ALL_DATASETS=${assets_available_dataset_list}
 
 DBCONN_RETRY_AFTER=${dbconn_retry_after}
 DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}
-ATROPOS_PRIVATE_IP=${atropos_admin_ip}
 
 COMPANY_NAME=${datacenter_company_name}
 LOCATION=${datacenter_location}
