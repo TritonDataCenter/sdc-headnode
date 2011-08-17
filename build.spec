@@ -35,7 +35,6 @@
         , "cloud_analytics/master/cainstsvc-master-*"
         , "dataset_manager/master/dataset_manager-master-*"
         , "heartbeater/master/heartbeater-master-*"
-        , "provisioner/master/provisioner-master-*"
         , "provisioner-v2/master/provisioner-v2-master-*"
         , "smartlogin/master/smartlogin-master-*"
         , "zonetracker/master/zonetracker-master-*"
