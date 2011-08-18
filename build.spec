@@ -12,13 +12,13 @@
       , "uuid": "184c9b38-ad3d-11e0-bad6-1b7240aaa5fc"
       , "headnode_zones": "true"
       }
-    , { "name": "hostrouter-0.0.3"
-      , "uuid": "c9fce11a-c9cd-11e0-a6e0-dfa49f484f3c"
-      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.3.zfs.bz2"
+    , { "name": "hostrouter-0.0.4"
+      , "uuid": "a70338fc-c9ec-11e0-8111-6b2ba9fd279e"
+      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.4.zfs.bz2"
       }
-    , { "name": "nodejs-1.2.1"
-      , "uuid": "c07e7660-c92f-11e0-8078-7373122f78d0"
-      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/nodejs/nodejs-1.2.1.zfs.bz2"
+    , { "name": "nodejs-1.2.2"
+      , "uuid": "f1de788c-c9f1-11e0-9096-6f381c887a65"
+      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/nodejs/nodejs-1.2.2.zfs.bz2"
       }
   ]
   , "adminui-checkout": "origin/release-20110714"
