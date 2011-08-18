@@ -12,14 +12,11 @@
       , "uuid": "184c9b38-ad3d-11e0-bad6-1b7240aaa5fc"
       , "headnode_zones": "true"
       }
-    , { "name": "nodejs-1.1.4"
-      , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
-      }
     , { "name": "hostrouter-0.0.2"
       , "uuid": "013a5350-c92a-11e0-9487-7350de97c51f"
       }
-    , { "name": "nodejs-1.2.0"
-      , "uuid": "af94b64a-bfd7-11e0-a588-134eea62e34a"
+    , { "name": "nodejs-1.2.1"
+      , "uuid": "c07e7660-c92f-11e0-8078-7373122f78d0"
       }
   ]
   , "adminui-checkout": "origin/release-20110714"
