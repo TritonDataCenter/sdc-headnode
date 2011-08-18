@@ -1,7 +1,34 @@
-<html>
-<head><title>401 Authorization Required</title></head>
-<body bgcolor="white">
-<center><h1>401 Authorization Required</h1></center>
-<hr><center>nginx/0.7.65</center>
-</body>
-</html>
+{
+  "name": "hostrouter",
+  "version": "0.0.3",
+  "type": "zone-dataset",
+  "description": "no.de hostrouter template",
+  "published_at": "2011-08-18T19:10Z",
+  "os": "smartos",
+  "files": [
+    {
+      "path": "hostrouter-0.0.3.zfs.bz2",
+      "sha1": "9e6a9260df26b5aeffd7561936cc40a58369fa5d",
+      "size": 63258750,
+      "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.3.zfs.bz2"
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      },
+      {
+        "name": "net1",
+        "description": "private"
+      },
+      {
+        "name": "net2",
+        "description": "hostrouteradmin"
+      }
+    ]
+  },
+  "urn": "sdc:sdc:hostrouter:0.0.3",
+  "uuid": "c9fce11a-c9cd-11e0-a6e0-dfa49f484f3c"
+}
