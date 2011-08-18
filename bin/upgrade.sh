@@ -286,8 +286,8 @@ function install_platform
     if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
         platformversion=$(basename "${platformupdate}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
 
-        if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
-            ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
+        if [[ -z ${platformversion} || ! -d ${usbmnt}/os/${platformversion} ]]; then
+            ${usbmnt}/scripts/install-platform.sh file://${platformupdate}
         else
             echo "INFO: ${usbcpy}/os/${platformversion} already exists, skipping update."
         fi
