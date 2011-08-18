@@ -72,12 +72,12 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   ],
   "postProvisionHook": [
     {
-      "plugin": "./plugins/hostname-assign.js",
+      "plugin": "./plugins/ssh-proxy-setup.js",
       "enabled": true,
       "config": {}
     },
     {
-      "plugin": "./plugins/ssh-proxy-setup.js",
+      "plugin": "./plugins/hostname-assign.js",
       "enabled": true,
       "config": {}
     },
@@ -100,6 +100,13 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
         "subject": "Your SmartDataCenter machine is provisioning",
         "body": "Check /my/machines for updates"
       }
+    }
+  ],
+  "translateMachineHook": [
+    {
+      "plugin": "./plugins/machine-add-sshport.js",
+      "enabled": true,
+      "config": {}
     }
   ],
   "ipThrottles": {
