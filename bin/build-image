@@ -16,6 +16,10 @@
 set -o errexit
 set -o pipefail
 
+if [[ $DEBUG != "" ]]; then
+  set -x
+fi
+
 # write output to log file
 unset CDPATH
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -718,31 +722,48 @@ function copy_datasets
         headnode_zones=$(echo "${datasets_json}" \
             | ${ROOT}/bin/json ${index}.headnode_zones)
         manifest="${ROOT}/cache/${name}.dsmanifest"
+        custom="${ROOT}/datasets/${name}.dsmanifest"
+        DID_CUSTOM=
 
-        if [[ ! -f $manifest ]] ; then
-            if [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${name} manifest"
-
-                DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
-                (curl ${CURL_OPTS} \
-                    -k -o ${manifest} ${DATASET_URL}) \
-                    || fatal "Unable to download ${name} manifest"
-            else
-                fatal "Don't have required '${name}' manifest" \
-                    "and can't download (no Internet)"
-            fi
+        if [[ -f $custom ]] ; then
+          cp $custom $manifest
+          local url=$(cat $custom | ${ROOT}/bin/json files[0].url)
+          local sha1=$(cat $custom | ${ROOT}/bin/json files[0].sha1)
+          if [[ ! -z $url ]] && [[ ! -z $sha1 ]] ; then
+            # have a custom url for a built-in dataset
+            echo "==> Using $custom manifest"
+            copy_dataset ${name} ${url} ${sha1}
+            DID_CUSTOM=true
+          fi
         fi
 
-        local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
-        local uri="${DSAPI_URL}/datasets/${uuid}/${path}"
-        uri=$(proxy ${uri})
-        if [[ -z ${uri} ]]; then
-            fatal "Download uri for dataset ${name} not present in manifest"
+        if [[ -z $DID_CUSTOM ]] ; then
+          if [[ ! -f $manifest ]] ; then
+              if [[ ${HAVE_INTERNET} == "true" ]]; then
+                  echo "==> Downloading ${name} manifest"
+
+                  DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
+                  (curl ${CURL_OPTS} \
+                      -k -o ${manifest} ${DATASET_URL}) \
+                      || fatal "Unable to download ${name} manifest"
+              else
+                  fatal "Don't have required '${name}' manifest" \
+                      "and can't download (no Internet)"
+              fi
+          fi
+
+          local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
+          local uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+          uri=$(proxy ${uri})
+          if [[ -z ${uri} ]]; then
+              fatal "Download uri for dataset ${name} not present in manifest"
+          fi
+
+          local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
+          copy_dataset ${name} ${uri} ${sha1}
+          echo "==> Copying ${name} manifest"
         fi
 
-        local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
-        copy_dataset ${name} ${uri} ${sha1}
-        echo "==> Copying ${name} manifest"
         cp ${manifest} ${STAGE}/datasets/
 
         # Since create-zone.sh needs to know which dataset it should use to

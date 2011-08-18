@@ -14,9 +14,11 @@
       }
     , { "name": "hostrouter-0.0.2"
       , "uuid": "013a5350-c92a-11e0-9487-7350de97c51f"
+      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.2.zfs.bz2"
       }
     , { "name": "nodejs-1.2.1"
       , "uuid": "c07e7660-c92f-11e0-8078-7373122f78d0"
+      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/nodejs/nodejs-1.2.1.zfs.bz2"
       }
   ]
   , "adminui-checkout": "origin/release-20110714"
