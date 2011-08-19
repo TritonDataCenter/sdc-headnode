@@ -435,10 +435,25 @@ Internet, an intranet, or any other WAN.\n\n"
 	external_vlan_id="$val"
 
 	if [[ -z "$external_provisionable_start" ]]; then
+		# By default, start the provisionable range at .5, but
+		# check for collision with $external_ip and increment if
+		# necessary.
+		#
+		# external_provisionable_end should be either max_host or
+		# $external_ip-1 if $external_ip is in the provisionable range.
+
 		ip_netmask_to_network "$external_ip" "$external_netmask"
-		next_addr=$(expr $host_addr + 1)
-		external_provisionable_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-		external_provisionable_end="$max_host"
+
+		if [[ $host_addr -eq 5 ]]; then
+			next_addr=$(expr $host_addr + 1)
+		else
+			next_addr=5
+		fi
+		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
+
+		# check if external_ip is between us and max_host
+		[[ $host_addr -gt $next_addr ]] && max_d=$(expr $host_addr - 1)
+		external_provisionable_end="$max_a.$max_b.$max_c.$max_d"
 	fi
 	promptnet "Starting provisionable IP address" \
 	   "$external_provisionable_start"
