@@ -1,13 +1,13 @@
-echo "95 configuring capi zone datasets"
+echo "95 configuring $ZONENAME zone datasets"
 
 app='capi'
 # This needs to run after scmgit pkgsrc package has been installed:
 
 # $app-data dataset name will remain the same always:
-zfs set mountpoint=/opt/smartdc/$app-data zones/capi/$app-data
+zfs set mountpoint=/opt/smartdc/$app-data zones/$ZONENAME/$app-data
 # $app-app-ISO_DATE dataset name will change:
 STAMP=$(cat /root/$app-app-timestamp)
-zfs set mountpoint=/opt/smartdc/$app "zones/capi/$app-app-$STAMP"
+zfs set mountpoint=/opt/smartdc/$app "zones/$ZONENAME/$app-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/$app-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)

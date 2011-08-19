@@ -1,19 +1,19 @@
-printf "%-56s" "Creating zone adminui-data..." >>/dev/console
-if [[ -f "${USB_COPY}/backup/adminui-data.zfs" ]]; then
-  zfs receive zones/adminui/adminui-data < "${USB_COPY}/backup/adminui-data.zfs"
+printf "%-56s" "Creating zone ${ZONENAME}-data..." >>/dev/console
+if [[ -f "${USB_COPY}/backup/${ZONENAME}-data.zfs" ]]; then
+  zfs receive zones/${ZONENAME}/adminui-data < "${USB_COPY}/backup/adminui-data.zfs"
   # Remove the snapshot created when received the zfs file:
-  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "adminui\/adminui-data@")
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "${ZONENAME}\/adminui-data@")
   zfs destroy ${DATA_DS_SNAP}
 else
-  zfs create zones/adminui/adminui-data
+  zfs create zones/${ZONENAME}/adminui-data
 fi
 printf "%4s\n" "done" >> /dev/console
 
-zonecfg -z adminui 'add dataset; set name="zones/adminui/adminui-data"; end; verify; commit'
-STAMP=$(cat /zones/adminui/root/opt/smartdc/adminui-VERSION)
+zonecfg -z ${ZONENAME} "add dataset; set name="zones/${ZONENAME}/adminui-data"; end; verify; commit"
+STAMP=$(cat /zones/${ZONENAME}/root/opt/smartdc/adminui-VERSION)
 printf "%-56s" "Creating zone adminui-app-${STAMP}..." >>/dev/console
-zfs create zones/adminui/adminui-app-${STAMP}
-echo "$STAMP">/zones/adminui/root/root/adminui-app-timestamp
-cmd="add dataset; set name=zones/adminui/adminui-app-$STAMP; end; verify; commit"
-zonecfg -z adminui $cmd
+zfs create zones/${ZONENAME}/adminui-app-${STAMP}
+echo "$STAMP">/zones/${ZONENAME}/root/root/adminui-app-timestamp
+cmd="add dataset; set name=zones/${ZONENAME}/adminui-app-$STAMP; end; verify; commit"
+zonecfg -z ${ZONENAME} $cmd
 printf "%4s\n" "done" >> /dev/console

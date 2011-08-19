@@ -3,10 +3,10 @@ echo "95 configuring adminui datasets"
 # This needs to run after scmgit pkgsrc package has been installed:
 
 # adminui-data dataset name will remain the same always:
-zfs set mountpoint=/opt/smartdc/adminui-data zones/adminui/adminui-data
+zfs set mountpoint=/opt/smartdc/adminui-data zones/$ZONENAME/adminui-data
 # adminui-app-ISO_DATE dataset name will change:
 STAMP=$(cat /root/adminui-app-timestamp)
-zfs set mountpoint=/opt/smartdc/adminui "zones/adminui/adminui-app-$STAMP"
+zfs set mountpoint=/opt/smartdc/adminui "zones/$ZONENAME/adminui-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/adminui-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)

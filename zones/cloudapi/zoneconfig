@@ -1,5 +1,4 @@
 TEMPLATE_VERSION=0.0.1
-ZONENAME=cloudapi
 HOSTNAME=${ZONENAME}.${dns_domain}
 RESOLVERS=${dns_resolvers/,/ }
 MAIL_TO=${mail_to}

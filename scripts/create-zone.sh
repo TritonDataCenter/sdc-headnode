@@ -131,6 +131,7 @@ trap 'errexit $?' EXIT
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
 
 zone=$1
+ZONENAME=$zone
 opt=$2
 if [[ -z ${zone} || ! -d ${USB_COPY}/zones/${zone} || ! -z $3 ]] \
   || [[ -n ${opt} && ${opt} != "-w" ]]; then
@@ -355,12 +356,11 @@ fi
 
 # Add all "system"/USB zones to /etc/hosts in the GZ
 if [[ -f ${dest}/root/root/zoneconfig ]]; then
-    zonename=$(grep "^ZONENAME=" ${dest}/root/root/zoneconfig | cut -d"'" -f2)
     hostname=$(grep "^HOSTNAME=" ${dest}/root/root/zoneconfig | cut -d"'" -f2)
     priv_ip=$(grep "^PRIVATE_IP=" ${dest}/root/root/zoneconfig | cut -d"'" -f2)
-    if [[ -n ${zonename} ]] && [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
+    if [[ -n ${hostname} ]] && [[ -n ${priv_ip} ]]; then
         grep "^${priv_ip}  " /etc/hosts >/dev/null \
-          || printf "${priv_ip}\t${zonename} ${hostname}\n" >> /etc/hosts
+          || printf "${priv_ip}\t${ZONENAME} ${hostname}\n" >> /etc/hosts
     fi
 fi
 
