@@ -1,16 +1,16 @@
 {
   "name": "hostrouter",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "zone-dataset",
   "description": "no.de hostrouter template",
-  "published_at": "2011-08-18T22:51Z",
+  "published_at": "2011-08-19T01:36Z",
   "os": "smartos",
   "files": [
     {
-      "path": "hostrouter-0.0.4.zfs.bz2",
-      "sha1": "d2633b80ca0af03afe20e1257efadd26a0bc3dcf",
-      "size": 63221348,
-      "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.4.zfs.bz2"
+      "path": "hostrouter-0.0.5.zfs.bz2",
+      "sha1": "aace4b3b214d3862e76d2112ad07e20044cfef81",
+      "size": 63231458,
+      "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.5.zfs.bz2"
     }
   ],
   "requirements": {
@@ -29,6 +29,6 @@
       }
     ]
   },
-  "urn": "sdc:sdc:hostrouter:0.0.4",
-  "uuid": "a70338fc-c9ec-11e0-8111-6b2ba9fd279e"
+  "urn": "sdc:sdc:hostrouter:0.0.5",
+  "uuid": "ba83db22-ca03-11e0-9a1a-af5dab45ed5b"
 }

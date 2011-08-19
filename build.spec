@@ -12,9 +12,9 @@
       , "uuid": "184c9b38-ad3d-11e0-bad6-1b7240aaa5fc"
       , "headnode_zones": "true"
       }
-    , { "name": "hostrouter-0.0.4"
-      , "uuid": "a70338fc-c9ec-11e0-8111-6b2ba9fd279e"
-      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.4.zfs.bz2"
+    , { "name": "hostrouter-0.0.5"
+      , "uuid": "ba83db22-ca03-11e0-9a1a-af5dab45ed5b"
+      , "url": "https://guest:GrojhykMid@216.57.203.68/stuff/isaacs/hostrouter/hostrouter-0.0.5.zfs.bz2"
       }
     , { "name": "nodejs-1.2.2"
       , "uuid": "f1de788c-c9f1-11e0-9096-6f381c887a65"
