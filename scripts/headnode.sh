@@ -16,10 +16,10 @@
 #
 set -o errexit
 set -o pipefail
-set -o xtrace
+# this is set below
+# set -o xtrace
 
 CONSOLE_FD=4 ; export CONSOLE_FD
-exec 4>>/dev/console
 
 function fatal
 {
@@ -113,7 +113,18 @@ function install_config_file
 
 trap 'errexit $?' EXIT
 
-DEBUG="true"
+#
+# On initial install, do the extra logging, but for restore, we want cleaner
+# output.
+#
+if [ $# == 0 ]; then
+	DEBUG="true"
+	exec 4>>/dev/console
+	set -o xtrace
+else
+	exec 4>>/dev/stdout
+	restore=1
+fi
 
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
@@ -223,7 +234,11 @@ if [ -n "${CREATEDZONES}" ]; then
             | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then
             printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
-            (cd /var/tmp ; bash ${which_agents})
+            if [ -z "$restore" ]; then
+                (cd /var/tmp ; bash ${which_agents})
+            else
+                (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
+            fi
             printf "%4s\n" "done" >&${CONSOLE_FD}
         else
             fatal "No agents-*.sh found!"
@@ -237,7 +252,7 @@ if [ -n "${CREATEDZONES}" ]; then
     printf "%-56s\n" "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
     i=0
     while [ $i -lt 16 ]; do
-        nstarting=`svcs -Zx 2>&1 | grep -c "State:"`
+        nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
         if [ $nstarting -lt 2 ]; then
                 break
         fi
@@ -262,12 +277,14 @@ if [ -n "${CREATEDZONES}" ]; then
     	bash ${USB_COPY}/scripts/post-install.sh
     fi
 
-    # clear the screen
-    echo "[H[J" >&${CONSOLE_FD}
+    if [ -z "$restore" ]; then
+	# clear the screen
+	echo "[H[J" >&${CONSOLE_FD}
     
-    echo "==> Setup complete.  Press [enter] to get login prompt." \
-        >&${CONSOLE_FD}
-    echo "" >&${CONSOLE_FD}
+	echo "==> Setup complete.  Press [enter] to get login prompt." \
+	    >&${CONSOLE_FD}
+	echo "" >&${CONSOLE_FD}
+    fi
 fi
 
 if [[ -f /usbkey/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
