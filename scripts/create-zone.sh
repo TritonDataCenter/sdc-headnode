@@ -308,11 +308,16 @@ if [[ -n "${zone_admin_ip}" ]] && [[ -n ${zone_admin_netmask} ]]; then
     echo "${zone_admin_ip} netmask ${zone_admin_netmask}" \
         > ${dest}/etc/hostname.${zone}0
 fi
-if [[ -n "${zone_external_ip}" ]] && [[ -n ${zone_external_netmask} ]] \
-    && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+if [[ -n "${zone_external_ip}" ]]; then
+    if [[ "${zone_external_ip}" == "dhcp" ]]; then
+        touch ${dest}/etc/dhcp.${zone}1
 
-    echo "${zone_external_ip} netmask ${zone_external_netmask}" \
-        > ${dest}/etc/hostname.${zone}1
+    elif [[ -n ${zone_external_netmask} ]] \
+        && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
+
+        echo "${zone_external_ip} netmask ${zone_external_netmask}" \
+            > ${dest}/etc/hostname.${zone}1
+    fi
 fi
 
 # this allows a zone-specific motd message to be appended
