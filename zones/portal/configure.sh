@@ -11,7 +11,7 @@ exports.config = {
   cloudApiConfig : "./cfg/cloudApi.json",
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
-    sender : "no-reply <no-replay@no.de>",
+    sender : "no-reply <no-reply@no.de>",
   },
   defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
   defaultCAChoices : [
@@ -21,7 +21,9 @@ exports.config = {
   ],
   listenIp : "${PRIVATE_IP}",
   machineListConfig : "./cfg/machineListFields.json",
-  provisionOptionsConfig : "./cfg/provisionOptions.json"
+  provisionOptionsConfig : "./cfg/provisionOptions.json",
+	siteCopyFile : './local.joyent.en.js',
+  siteThemeName : 'node'
 }
 HERE
 
@@ -56,10 +58,10 @@ HERE
 cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
 {
   "provisionOptions": [
-    { "name": "package", "alwaysShow": true, "heading": "Package" },
-    { "name": "dataset", "alwaysShow": true, "heading": "SmartMachine Type" },
-    { "name": "name", "heading": "Machine name" },
-    { "name": "password", "heading": "Machine Password" }
+    { "name": "package", "alwaysShow": true, "label": "form.label.package" },
+    { "name": "dataset", "alwaysShow": true, "label": "form.label.smartmachine_type" },
+    { "name": "name", "label": "form.label.machine_name" },
+    { "name": "password", "label": "form.label.machine_password" }
   ]
 }
 HERE
