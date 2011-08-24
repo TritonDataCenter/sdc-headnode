@@ -36,6 +36,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
     BASH_IS_NOT_ANCIENT='true'
 fi
 
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+
 if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
     export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
@@ -198,10 +201,15 @@ fi
 
 check_proxy
 
-MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json master-url)
 
-if [[ -z $MASTER_PLATFORM_URL ]]; then
+
+# Determine from where to get dependent packages.
+
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+    MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
+                | ${ROOT}/bin/json master-url)
+fi
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
       RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
       RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
@@ -212,7 +220,12 @@ if [[ -z $MASTER_PLATFORM_URL ]]; then
       MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
     fi
 fi
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+    MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/live_147
+fi
+MASTER_PLATFORM_URL=$(proxy "$MASTER_PLATFORM_URL")
 
+#TODO(trent): Is anyone setting PLATFORM_URL for builds? If not drop the alias.
 if [ -z "${PLATFORM_URL}" ]; then
     PLATFORM_URL=${MASTER_PLATFORM_URL}
 fi
@@ -222,6 +235,8 @@ DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
 PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
 ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/assets")
+
+
 
 # Figure out first what we're building, and load the proper include
 
@@ -1052,6 +1067,14 @@ function build_fs_tarball
 
 function copy_zones
 {
+    if [[ -n $ZONE_DIR ]]; then
+        export ADMINUI_DIR=${ZONE_DIR}/mcp_api_admin
+        export CAPI_DIR=${ZONE_DIR}/customers_api
+        export BOOTER_DIR=${ZONE_DIR}/booter
+        export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
+        export PORTAL_DIR=${ZONE_DIR}/public-web-client
+        export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
+    fi
     for zone in $(ls ${STAGE}/zones); do
 
         mkdir -p ${STAGE}/zones/${zone}
