@@ -66,6 +66,22 @@ cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
 }
 HERE
 
+
+cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
+{
+  "signupOptions": [
+    { "name": "email_address", "label": "form.label.email", "required" : "true" },
+    { "name": "login", "label": "form.label.username", "required" : "true" },
+    { "name": "password", "label": "form.label.password", "required" : "true", "type" : "password" },
+    { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
+    { "name": "last_name", "label": "form.label.last_name", "required" : "false" },    
+    { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
+    { "name": "phone", "label": "form.label.phone_number", "required" : "false"}
+  ]
+}
+HERE
+
+
 # We need to override nginx.conf on reconfigure, and it's safe to do during setup:
 echo "Creating nginx configuration file"
 cat >/opt/local/etc/nginx/nginx.conf <<NGINX
