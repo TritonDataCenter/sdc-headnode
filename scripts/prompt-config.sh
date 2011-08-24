@@ -411,8 +411,13 @@ installation. The Admin network is connected in VLAN ACCESS mode only.\n\n"
 	promptnet "(admin) headnode IP address" "$admin_ip"
 	admin_ip="$val"
 
+	[[ -z "$admin_netmask" ]] && admin_netmask="255.255.255.0"
+
 	promptnet "(admin) headnode netmask" "$admin_netmask"
 	admin_netmask="$val"
+
+	promptnet "(admin) gateway IP address" "$admin_gateway"
+	admin_gateway="$val"
 
 	printheader "Networking - External"
 	message="
@@ -428,8 +433,13 @@ Internet, an intranet, or any other WAN.\n\n"
 	promptnet "(external) headnode IP address" "$external_ip"
 	external_ip="$val"
 
+	[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
+
 	promptnet "(external) headnode netmask" "$external_netmask"
 	external_netmask="$val"
+
+	promptnet "(external) gateway IP address" "$external_gateway"
+	external_gateway="$val"
 
 	promptopt "(external) VLAN ID"
 	external_vlan_id="$val"
@@ -474,6 +484,9 @@ other networks. This will almost certainly be the router connected to your
 'External' network.\n\n"
 
 	printf "$message"
+
+	[[ -z "$headnode_default_gateway" ]] && \
+	    headnode_default_gateway="$admin_gateway"
 
 	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
 	headnode_default_gateway="$val"
@@ -541,19 +554,19 @@ specific address. Each of these values will be configured below.\n\n"
 	echo "Administrator email address: $mail_to"
 	echo "Email appears from: $mail_from"
 	echo "Domain name: $domainname"
-	echo "Admin network MAC address: $admin_nic"
-	echo "Admin network IP address: $admin_ip"
-	echo "Admin network netmask: $admin_netmask"
-	echo "External network MAC address: $external_nic"
-	echo "External network IP address: $external_ip"
-	echo "External network netmask: $external_netmask"
 	if [ -z "$external_vlan_id" ]; then
-		echo "External network VLAN ID: [none]"
+		ext_vlanid="none"
 	else
-		echo "External network VLAN ID: $external_vlan_id"
+		ext_vlanid="$external_vlan_id"
 	fi
-	echo "Starting provisionable IP address: $external_provisionable_start"
-	echo "Ending provisionable IP address: $external_provisionable_end"
+	printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
+	    "IPaddr" "Netmask" "Gateway" "VLAN"
+	printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
+	    $admin_ip $admin_netmask $admin_gateway "none"
+	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
+	    $external_ip $external_netmask $external_gateway $ext_vlanid
+	printf "Provisionable IP range: %s - %s\n" \
+	    $external_provisionable_start $external_provisionable_end
 	echo "Gateway router IP address: $headnode_default_gateway"
 	echo "DNS servers: $dns_resolver1,$dns_resolver2"
 	echo "Default DNS search domain: $dns_domain"
@@ -659,14 +672,14 @@ echo "admin_nic=$admin_nic" >>$tmp_config
 echo "admin_ip=$admin_ip" >>$tmp_config
 echo "admin_netmask=$admin_netmask" >>$tmp_config
 echo "admin_network=$admin_network" >>$tmp_config
-echo "admin_gateway=$admin_ip" >>$tmp_config
+echo "admin_gateway=$admin_gateway" >>$tmp_config
 echo >>$tmp_config
 
 echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
     >>$tmp_config
 echo "external_nic=$external_nic" >>$tmp_config
 echo "external_ip=$external_ip" >>$tmp_config
-echo "external_gateway=$headnode_default_gateway" >>$tmp_config
+echo "external_gateway=$external_gateway" >>$tmp_config
 echo "external_netmask=$external_netmask" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# external_vlan_id=999" >>$tmp_config
@@ -679,7 +692,7 @@ echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
 echo >>$tmp_config
 
 echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
-echo "compute_node_default_gateway=$admin_ip" >>$tmp_config
+echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
 echo >>$tmp_config
 
 echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config
