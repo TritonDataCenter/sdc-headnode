@@ -1,1 +1,122 @@
-../../common/restore.simple
+#!/usr/bin/bash
+
+if [[ $# != 2 ]]; then
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
+fi
+
+
+ZONE=$1
+TARGET_DIR=$2
+
+APP_NAME="${ZONE}"
+BASE="${TARGET_DIR}/${APP_NAME}"
+
+# Note these include the .zfs extension
+DATA_DATASET=$(ls  ${BASE}|grep data)
+PG_DUMP_VERSION=$(cat ${BASE}/RESTORE)
+
+# We cannot restore if cannot find data dataset:
+if [[ -z $DATA_DATASET ]]; then
+  echo "FATAL: Cannot find '${APP_NAME}' data dataset"
+  exit 102
+fi
+
+# No problem at all if the services are not running into the zone:
+echo "==> Disabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
+services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
+for service in $services; do
+  if [[ $service != 'svc:/system/filesystem/smartdc:default' ]]; then
+    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm disable "$service")
+  fi
+done
+
+sleep 5 # Ensure we give time enough to the services to be disabled
+
+# We're gonna check for existing zone datasets.
+# If they're there, we'll remove them.
+PREVIOUS_DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
+
+# We cannot restore if cannot find data dataset:
+if [[ -z $PREVIOUS_DATA_DATASET ]]; then
+  if [[ ! -z $(/usr/sbin/zonecfg -z ${ZONE} info dataset|grep "${PREVIOUS_DATA_DATASET}$") ]]; then
+    echo "==> Removing '${PREVIOUS_DATA_DATASET}' from the zone"
+    /usr/sbin/zonecfg -z ${ZONE} remove dataset name="${PREVIOUS_DATA_DATASET}" 2>&1
+    if [[ $? -gt 0 ]]; then
+      echo "FATAL: Unable to remove previous data dataset from '${ZONE}' zone"
+      exit 104
+    fi
+  fi
+fi
+
+echo "==> Halting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} halt
+sleep 5
+
+# Destroy previous datasets, (could have same name and we could be trying
+# to restore them from a previous backup)
+if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_DATA_DATASET}") ]]; then
+  echo "==> Destroying dataset '${PREVIOUS_DATA_DATASET}'"
+  /usr/sbin/zfs destroy -r "${PREVIOUS_DATA_DATASET}"
+  if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to zfs destroy '${PREVIOUS_DATA_DATASET}' dataset"
+    exit 106
+  fi
+fi
+
+
+# ZFS receive the datasets from the backup:
+if [[ -z $(zfs list -H -o name|grep "${ZONE}\/${DATA_DATASET%.*}$") ]]; then
+  echo "==> Receiving '${BASE}/${DATA_DATASET}'"
+  /usr/sbin/zfs receive -v "zones/${ZONE}/${DATA_DATASET%.*}" < "${BASE}/${DATA_DATASET}"
+  if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to zfs receive data dataset"
+    exit 108
+  fi
+fi
+
+# Add new datasets to the zone and set mounpoint
+
+if [[ -z $(zonecfg -z ${ZONE} info dataset|grep "${ZONE}\/${DATA_DATASET%.*}$") ]]; then
+  echo "==> Adding new dataset ('${DATA_DATASET%.*}') to the zone"
+  cmd="add dataset; set name=zones/${ZONE}/${DATA_DATASET%.*}; end; verify; commit"
+  /usr/sbin/zonecfg -z ${ZONE} $cmd 2>&1
+  if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to add new data dataset to '${ZONE}' zone"
+    exit 110
+  fi
+fi
+
+# Now we need to reboot the zone in order to be able to set mountpoints for the
+# new datasets properly:
+
+echo "==> Booting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} boot
+
+# Double check mountpoint for backup datasets:
+if [[ "$(zfs get -H -o value mountpoint zones/${ZONE}/${DATA_DATASET%.*})" != "/var/smartdc/${APP_NAME}"  ]]; then
+  echo "==> Setting mountpoint for dataset '${DATA_DATASET%.*}'"
+  /usr/sbin/zlogin ${ZONE} /usr/sbin/zfs set mountpoint=/var/smartdc/${APP_NAME} "zones/${ZONE}/${DATA_DATASET%.*}"
+  if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"
+    exit 112
+  fi
+fi
+
+echo "==> Waiting for 10 seconds while the zone services are running ..."
+sleep 10
+
+echo "==> Enabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
+
+services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
+for service in $services; do
+  if [[ $service != 'svc:/system/filesystem/smartdc:default' ]]; then
+    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm enable "$service")
+  fi
+done
+
+sleep 5
+
+echo "==> All done!!!"
+
+exit 0
