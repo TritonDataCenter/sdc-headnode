@@ -183,6 +183,11 @@ portal_root_pw=joypass123
 portal_admin_pw=joypass123
 portal_external_url=https://10.99.99.14
 
+cloudauth_admin_ip=10.99.99.13
+cloudauth_root_pw=joypass123
+cloudauth_admin_pw=joypass123
+cloudauth_external_url=https://10.99.99.13
+
 cloudapi_admin_ip=10.99.99.15
 # cloudapi_external_ip=10.88.88.15
 # cloudapi_external_vlan=0

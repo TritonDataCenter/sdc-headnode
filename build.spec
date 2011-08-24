@@ -26,6 +26,7 @@
   , "dhcpd-checkout": "origin/master"
   , "mapi-checkout": "origin/master"
   , "portal-checkout": "origin/master"
+  , "cloudauth-checkout": "origin/master"
   , "cloudapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
   , "sdc-webinfo-checkout": "origin/master"
