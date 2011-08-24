@@ -22,6 +22,7 @@ exports.config = {
   listenIp : "${PRIVATE_IP}",
   machineListConfig : "./cfg/machineListFields.json",
   provisionOptionsConfig : "./cfg/provisionOptions.json",
+  signupOptionsConfig : './cfg/signupOptions.json',
 	siteCopyFile : './local.joyent.en.js',
   siteThemeName : 'node'
 }
