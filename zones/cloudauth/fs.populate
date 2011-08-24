@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+
+echo "cloudauth target: [${CHECKOUT_TARGET}]"
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+if [[ -n ${CLOUDAUTH_DIR} ]]; then
+    if [[ -d ${CLOUDAUTH_DIR} ]]; then
+        echo "taking cloudauth from ${CLOUDAUTH_DIR}"
+        # XXX CLOUDAUTH_DIR must be a git repo (so git describe works)
+        mkdir cloudauth-repo
+        (cd ${CLOUDAUTH_DIR} && tar -cf - ./) | (cd cloudauth-repo && tar -xf -)
+    else
+        echo "FATAL: ${CLOUDAUTH_DIR} is not a directory"
+        exit 1
+    fi
+else
+    git clone git@git.joyent.com:cloudauth.git cloudauth
+    cd cloudauth
+    mkdir -p ssl
+    git checkout ${CHECKOUT_TARGET}
+    
+    # we have binaries to deal with...
+    rm -rf node_modules/xml2js-expat
+    npm install --node-version=0.4.9
+    if [[ $? != 0 ]]; then
+        echo "[cloudauth] npm install failed"
+        exit 1
+    fi
+    
+    touch ../cloudauth-VERSION
+    # git describe --tags > ../cloudauth-VERSION
+    mnfst_string="cloudauth@"${CHECKOUT_TARGET}
+    cd ..
+fi
