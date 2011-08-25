@@ -2,6 +2,7 @@ perl-5.12.2nb1
 iodbc-3.52.7
 libffi-3.0.9
 python26-2.6.6nb6
+py26-numpy-1.4.1
 py26-setuptools-0.6c11nb1
 expat-2.0.1nb2
 xmlcatmgr-2.2nb1
