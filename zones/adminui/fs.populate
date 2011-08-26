@@ -34,33 +34,7 @@ else
     mnfst_string="adminui-repo@"${CHECKOUT_TARGET}
 fi
 
-
-if [[ -d caproxy ]]; then
-  cd caproxy
-  echo "[ADMINUI] caproxy - Installing npm modules"
-  npm install
-
-  if [[ $? != 0 ]]; then
-      echo "[ADMINUI] caproxy - npm install failed"
-      exit 1
-  fi
-  cd ..
-fi
-
 mv caproxy ../
-
-if [[ -d consoleproxy ]]; then
-  cd consoleproxy
-  echo "[ADMINUI] consoleproxy - Installing npm modules"
-  npm install
-
-  if [[ $? != 0 ]]; then
-      echo "[ADMINUI] consoleproxy - npm install failed"
-      exit 1
-  fi
-  cd ..
-fi
-
 mv consoleproxy ../
 
 # Remove all .git directories from the repo
