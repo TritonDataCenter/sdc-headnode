@@ -1,5 +1,5 @@
 {
-    "platform-release": "master"
+    "platform-release": "20110826T212040Z"
   , "hvm-platform-release": "HVM"
   , "hvm-subdir": "release-20110714"
   , "use-proxy": "false"
