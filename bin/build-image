@@ -211,9 +211,9 @@ if [[ -z "$MASTER_PLATFORM_URL" ]]; then
 fi
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
-      RELEASEDATE=$(echo $BRANCH | cut -d '-' -f2)
-      RELEASEDIR=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
-      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68/coal/releases/${RELEASE_DIR}/deps/"
+      releasedate=$(echo $THIS_BRANCH | cut -d '-' -f2)
+      release_dir=${releasedate:0:4}-${releasedate:4:2}-${releasedate:6:2}
+      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68/coal/releases/${release_dir}/deps/"
       MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}")
     else
       MASTER_REPO="https://guest:GrojhykMid@216.57.203.68"
