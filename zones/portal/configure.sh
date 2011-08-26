@@ -60,7 +60,7 @@ cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
 {
   "provisionOptions": [
     { "name": "package", "alwaysShow": true, "label": "form.label.package" },
-    { "name": "dataset", "alwaysShow": true, "label": "form.label.smartmachine_type" },
+    { "name": "dataset", "alwaysShow": true, "label": "form.label.machine_type" },
     { "name": "name", "label": "form.label.machine_name" },
     { "name": "password", "label": "form.label.machine_password" }
   ]
