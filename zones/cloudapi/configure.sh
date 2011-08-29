@@ -40,7 +40,6 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "password": "guest",
     "vhost": "/"
   },
-  "datacenter": "${DATACENTER_NAME}",
   "datacenters": {
     "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
   },
@@ -48,6 +47,7 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "plugin": "./plugins/capi_limits",
     "enabled": true,
     "config": {
+      "datacenter": "${DATACENTER_NAME}",
       "defaults": {
         "smartos": 1,
         "nodejs": 1,
