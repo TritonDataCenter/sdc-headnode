@@ -212,7 +212,7 @@ if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_i
    zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi
 
-zoneadm -z ${zone} install -t ${ds_uuid} >&5 2>&1
+zoneadm -z ${zone} install -x nodataset -t ${ds_uuid} >&5 2>&1
 
 (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
 chown root:sys /zones/${zone}
