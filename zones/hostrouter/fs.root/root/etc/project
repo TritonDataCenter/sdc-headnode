@@ -1,0 +1,7 @@
+system:0::::
+user.root:1::::
+noproject:2::::
+default:3::::
+group.staff:10::::
+hostrouterp:101:hostrouter:nobody::process.max-file-descriptor=(basic,65536,deny)
+hostroutersshp:102:hostrouter-ssh:nobody::process.max-file-descriptor=(basic,65536,deny)
