@@ -24,8 +24,8 @@ source /opt/smartdc/bin/configure.sh
 
 # Generate the agents setup script:
 
-AGENTS_FILE_VERSION=$(ls -1t /opt/smartdc/agent-scripts/|grep agents- | grep -v -- "-hvm-" | tail -n1)
-AGENTS_FILE_HVM_VERSION=$(ls -1t /opt/smartdc/agent-scripts/|grep agents-hvm- | tail -n1)
+AGENTS_FILE_VERSION=$(ls -1t /opt/smartdc/agent-scripts/agents-*.sh | grep -v -- "-hvm-" | head -n1)
+AGENTS_FILE_HVM_VERSION=$(ls -1t /opt/smartdc/agent-scripts/agents-hvm-*.sh | head -n1)
 
 echo "Generating agents setup file at '/opt/smartdc/mapi-data/setup_agents.sh'"
 
