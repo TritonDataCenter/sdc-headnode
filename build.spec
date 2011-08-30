@@ -29,16 +29,4 @@
   , "cloudapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
   , "sdc-webinfo-checkout": "origin/master"
-  , "upgrades": {
-      "agents": [
-          "cloud_analytics/master/cabase-master-*"
-        , "cloud_analytics/master/cainstsvc-master-*"
-        , "dataset_manager/master/dataset_manager-master-*"
-        , "heartbeater/master/heartbeater-master-*"
-        , "provisioner-v2/master/provisioner-v2-master-*"
-        , "smartlogin/master/smartlogin-master-*"
-        , "zonetracker/master/zonetracker-master-*"
-        , "zonetracker-v2/master/zonetracker-v2-master-*"
-      ]
-  }
 }
