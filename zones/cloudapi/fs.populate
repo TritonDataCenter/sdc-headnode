@@ -12,12 +12,13 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
     if [[ -d ${CLOUDAPI_DIR} ]]; then
         echo "taking cloudapi from ${CLOUDAPI_DIR}"
         # XXX CLOUDAPI_DIR must be a git repo (so git describe works)
-        mkdir cloudapi-repo
-        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi-repo && tar -xf -)
+        mkdir cloudapi
+        (cd ${CLOUDAPI_DIR} && tar -cf - ./) | (cd cloudapi && tar -xf -)
     else
         echo "FATAL: ${CLOUDAPI_DIR} is not a directory"
         exit 1
     fi
+    cd cloudapi
 else
     # cloud-api snubs the develop branch.
     TARGET=${CHECKOUT_TARGET}
@@ -30,12 +31,11 @@ else
     mkdir -p ssl
     mkdir -p node_modules
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-
     # CloudAPI checkout
     git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
-
+fi
     # Install NPM modules
     npm install --node-version=0.4.9
     if [[ $? != 0 ]]; then
@@ -53,4 +53,3 @@ else
 
     # Back up to where we were (/opt/smartdc)
     cd ../../../
-fi

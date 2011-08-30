@@ -19,10 +19,13 @@ if [[ -n ${PORTAL_DIR} ]]; then
     if [[ -d ${PORTAL_DIR} ]]; then
         echo "taking portal from ${PORTAL_DIR}"
         # XXX PORTAL_DIR must be a git repo (so git describe works)
-        mkdir portal-repo
-        (cd ${PORTAL_DIR} && tar -cf - ./) | (cd portal-repo && tar -xf -)
-        cd portal-repo
-        mnfst_string="portal@"$(git name-rev --name-only HEAD)
+        mkdir portal
+        (cd ${PORTAL_DIR} && tar -cf - ./) | (cd portal && tar -xf -)
+        cd portal
+        npm install
+        cd node_modules/sdc-clients
+        npm install
+        cd ../..
     else
         echo "FATAL: ${PORTAL_DIR} is not a directory"
         exit 1
