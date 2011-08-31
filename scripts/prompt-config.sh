@@ -305,7 +305,6 @@ printheader()
   fi
   
   clear
-  for i in {1..80} ; do printf "-" ; done && printf "$newline"
   printf " %-40s\n" "Smart Data Center (SDC) Setup"
   printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
   for i in {1..80} ; do printf "-" ; done && printf "$newline"
@@ -423,7 +422,8 @@ installation. The Admin network is connected in VLAN ACCESS mode only.\n\n"
 	message="
 The external network is used by the headnode and its applications to connect to
 external networks. That is, it can be used to communicate with either the
-Internet, an intranet, or any other WAN.\n\n"
+Internet, an intranet, or any other WAN.  There are four application zones
+visible on the external network which will need assigned addresses.\n\n"
   
 	printf "$message"
 
@@ -445,31 +445,80 @@ Internet, an intranet, or any other WAN.\n\n"
 	external_vlan_id="$val"
 
 	if [[ -z "$external_provisionable_start" ]]; then
-		# By default, start the provisionable range at .5, but
-		# check for collision with $external_ip and increment if
-		# necessary.
-		#
-		# external_provisionable_end should be either max_host or
-		# $external_ip-1 if $external_ip is in the provisionable range.
+		# Initialize the external IP defaults for adminui, capi,
+		# cloudapi and portal.  By default we'll use the range .3 - .6
+		# but we need to check for collisions on the external IP
+		# and gateway.
+
+		ip_netmask_to_network "$external_gateway" "$external_netmask"
+		gw_host_addr=$host_addr
 
 		ip_netmask_to_network "$external_ip" "$external_netmask"
 
-		if [[ $host_addr -eq 5 ]]; then
-			next_addr=$(expr $host_addr + 1)
+		# Is external IP or external gateway in our externally visible
+		# zone range (there are 4 of these zones)?
+		if [[ ( $host_addr -ge 3 && $host_addr -le 6 ) ||
+		      ( $gw_host_addr -ge 3 && $gw_host_addr -le 6 ) ]]; then
+			next_addr=7
 		else
-			next_addr=5
+			next_addr=3
 		fi
+
+		adminui_external_ip="$net_a.$net_b.$net_c.$next_addr"
+		next_addr=$(expr $next_addr + 1)
+		capi_external_ip="$net_a.$net_b.$net_c.$next_addr"
+		next_addr=$(expr $next_addr + 1)
+		cloudapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
+		next_addr=$(expr $next_addr + 1)
+		portal_external_ip="$net_a.$net_b.$net_c.$next_addr"
+
+		# By default, start the provisionable range 5 addrs after the
+		# external IPs for the zones above.
+		#
+		# external_provisionable_end should be either max_host or
+		# $low_max-1 if $low_max is in the provisionable range.
+		# low_max is based on either the external or gateway IP
+
+		next_addr=$(expr $next_addr + 5)
 		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
 
-		# check if external_ip is between us and max_host
-		[[ $host_addr -gt $next_addr ]] && max_d=$(expr $host_addr - 1)
+		# check if external_ip or gateway is between us and max_host
+		if [[ $gw_host_addr -gt $next_addr && \
+		      $host_addr -gt $next_addr ]]; then
+			if [[ $gw_host_addr -gt $host_addr ]]; then
+				low_max=$host_addr
+			else
+				low_max=$gw_host_addr
+			fi
+		elif [[ $gw_host_addr -gt $next_addr ]]; then
+			low_max=$gw_host_addr
+		elif [[ $host_addr -gt $next_addr ]]; then
+			low_max=$host_addr
+		else
+			low_max=$max_d
+		fi
+
+		max_d=$(expr $low_max - 1)
 		external_provisionable_end="$max_a.$max_b.$max_c.$max_d"
 	fi
+
+	promptnet " AdminUI zone external IP address" "$adminui_external_ip"
+	adminui_external_ip="$val"
+
+	promptnet "    CAPI zone external IP address" "$capi_external_ip"
+	capi_external_ip="$val"
+
+	promptnet "CloudAPI zone external IP address" "$cloudapi_external_ip"
+	cloudapi_external_ip="$val"
+
+	promptnet "  Portal zone external IP address" "$portal_external_ip"
+	portal_external_ip="$val"
+
 	promptnet "Starting provisionable IP address" \
 	   "$external_provisionable_start"
 	external_provisionable_start="$val"
 
-	promptnet "Ending provisionable IP address" \
+	promptnet "  Ending provisionable IP address" \
 	   "$external_provisionable_end"
 	external_provisionable_end="$val"
 
@@ -479,7 +528,7 @@ Internet, an intranet, or any other WAN.\n\n"
 	printf "$message"
 
 	message="
-The default gateway will determine which network will be used to connect to
+The default gateway will determine which router will be used to connect to
 other networks. This will almost certainly be the router connected to your
 'External' network.\n\n"
 
@@ -545,32 +594,36 @@ specific address. Each of these values will be configured below.\n\n"
   
 	printf "$message"
 
-	echo "Verify that the following values are correct:"
-	echo
-	echo "Company name: $datacenter_company_name"
-	echo "Datacenter name: $datacenter_name"
-	echo "Datacenter location: $datacenter_location"
-	echo "Headnode ID: $datacenter_headnode_id"
-	echo "Administrator email address: $mail_to"
-	echo "Email appears from: $mail_from"
-	echo "Domain name: $domainname"
+	printf "Company name: $datacenter_company_name\n"
+	printf "Datacenter Name: %s, Location: %s\n" \
+	    "$datacenter_name" "$datacenter_location"
+	printf "Headnode ID: $datacenter_headnode_id\n"
+	printf "Email Admin Address: %s, From: %s\n" \
+	    "$mail_to" "$mail_from"
+	printf "Domain name: $domainname\n"
 	if [ -z "$external_vlan_id" ]; then
 		ext_vlanid="none"
 	else
 		ext_vlanid="$external_vlan_id"
 	fi
 	printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
-	    "IPaddr" "Netmask" "Gateway" "VLAN"
+	    "IP addr." "Netmask" "Gateway" "VLAN"
 	printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
 	    $admin_ip $admin_netmask $admin_gateway "none"
 	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
 	    $external_ip $external_netmask $external_gateway $ext_vlanid
+	echo
+	printf "%-10s %15s %15s %15s %15s\n" "Zone:" \
+	    "AdminUI" "CAPI" "CloudAPI" "Portal"
+	printf "%-10s %15s %15s %15s %15s\n" "IP Addr." \
+	    "$adminui_external_ip" "$capi_external_ip" \
+	    "$cloudapi_external_ip" "$portal_external_ip"
 	printf "Provisionable IP range: %s - %s\n" \
 	    $external_provisionable_start $external_provisionable_end
-	echo "Gateway router IP address: $headnode_default_gateway"
-	echo "DNS servers: $dns_resolver1,$dns_resolver2"
-	echo "Default DNS search domain: $dns_domain"
-	echo "NTP server: $ntp_hosts"
+	printf "Gateway router IP address: $headnode_default_gateway\n"
+	printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
+	    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
+	printf "NTP server: $ntp_hosts\n"
 	echo
 
 	promptval "Is this correct?" "y"
@@ -589,31 +642,44 @@ admin_network="$net_a.$net_b.$net_c.$net_d"
 #
 next_addr=$(expr $host_addr + 1)
 adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 next_addr=$(expr $next_addr + 1)
 assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 next_addr=$(expr $next_addr + 1)
 ca_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 ca_client_url="http://${ca_admin_ip}:23181"
+
 next_addr=$(expr $next_addr + 1)
 capi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 capi_client_url="http://${capi_admin_ip}:8080"
+
 next_addr=$(expr $next_addr + 1)
 dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 next_addr=$(expr $next_addr + 1)
 mapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 mapi_client_url="http://${mapi_admin_ip}:80"
-next_addr=$(expr $next_addr + 1)
-portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-portal_external_url="https://${portal_admin_ip}"
+
+# Portal zone is NOT on the admin net
+# portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+portal_external_url="https://${portal_external_ip}"
+
 next_addr=$(expr $next_addr + 1)
 cloudapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-cloudapi_external_url="https://${cloudapi_admin_ip}"
+cloudapi_external_url="https://${cloudapi_external_ip}"
+
 next_addr=$(expr $next_addr + 1)
 rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
 next_addr=$(expr $next_addr + 1)
+billapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+billapi_external_url="http://${billapi_admin_ip}"
+
+next_addr=$(expr $next_addr + 1)
 dhcp_next_server="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -738,8 +804,11 @@ echo "# Zone-specific configs" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_admin_ip=$adminui_admin_ip" >>$tmp_config
+echo "adminui_external_ip=$adminui_external_ip" >>$tmp_config
+echo "# adminui_external_vlan=0" >>$tmp_config
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
 
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
@@ -756,6 +825,8 @@ echo >>$tmp_config
 echo "capi_is_local=true" >>$tmp_config
 echo "capi_admin_ip=$capi_admin_ip" >>$tmp_config
 echo "capi_client_url=$capi_client_url" >>$tmp_config
+echo "capi_external_ip=$capi_external_ip" >>$tmp_config
+echo "# capi_external_vlan=0" >>$tmp_config
 echo "capi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "capi_http_admin_user=admin" >>$tmp_config
 echo "capi_http_admin_pw=tot@ls3crit" >>$tmp_config
@@ -791,13 +862,16 @@ echo "mapi_http_admin_pw=tot@ls3crit" >>$tmp_config
 echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
 echo >>$tmp_config
 
-echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
+echo "portal_external_ip=$portal_external_ip" >>$tmp_config
+echo "# portal_external_vlan=0" >>$tmp_config
 echo "portal_root_pw=$zone_admin_pw" >>$tmp_config
 echo "portal_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "portal_external_url=$portal_external_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "cloudapi_admin_ip=$cloudapi_admin_ip" >>$tmp_config
+echo "cloudapi_external_ip=$cloudapi_external_ip" >>$tmp_config
+echo "# cloudapi_external_vlan=0" >>$tmp_config
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "cloudapi_external_url=$cloudapi_external_url" >>$tmp_config
@@ -807,6 +881,14 @@ echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
+echo >>$tmp_config
+
+echo "billapi_admin_ip=$billapi_admin_ip" >>$tmp_config
+echo "billapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "billapi_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "billapi_external_url=$billapi_external_url" >>$tmp_config
+echo "billapi_http_admin_user=admin" >>$tmp_config
+echo "billapi_http_admin_pw=tot@ls3crit" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config
