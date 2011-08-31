@@ -90,6 +90,12 @@ case ${ZONE} in
             exit 1
         fi
         ;;
+    billapi)
+        if [[ -z ${BILLAPI_DIR} ]]; then
+            echo "Need BILLAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
     *)
         echo "Unhandled zone: ${zone}"
         exit 1

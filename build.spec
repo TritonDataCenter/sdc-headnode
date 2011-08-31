@@ -27,6 +27,7 @@
   , "mapi-checkout": "origin/master"
   , "portal-checkout": "origin/master"
   , "cloudapi-checkout": "origin/master"
+  , "billapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
   , "sdc-webinfo-checkout": "origin/master"
 }

@@ -190,6 +190,15 @@ cloudapi_root_pw=joypass123
 cloudapi_admin_pw=joypass123
 cloudapi_external_url=https://10.99.99.15
 
+billapi_admin_ip=10.99.99.16
+# billapi_external_ip=10.88.88.16
+# billapi_external_vlan=0
+billapi_root_pw=joypass123
+billapi_admin_pw=joypass123
+billapi_external_url=https://10.99.99.16
+billapi_http_admin_user=admin
+billapi_http_admin_pw=joypass123
+
 rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123

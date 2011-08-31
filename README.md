@@ -69,6 +69,7 @@ Likewise for the others zones using these envvars:
     PORTAL_DIR
     PUBAPI_DIR
     CLOUDAPI_DIR
+    BILLAPI_DIR
 
 
 

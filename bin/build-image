@@ -1074,6 +1074,7 @@ function copy_zones
         export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
         export PORTAL_DIR=${ZONE_DIR}/public-web-client
         export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
+        export BILLAPI_DIR=${ZONE_DIR}/billing_api
     fi
     for zone in $(ls ${STAGE}/zones); do
 
