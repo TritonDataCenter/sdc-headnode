@@ -396,11 +396,12 @@ Press [enter] to continue"
 	printheader "Networking - Admin"
 	message="
 The admin network is used for management traffic and other information that
-flows between the Compute Nodes and the Headnode in an SDC cluster. The Admin
-network will be used to automatically provision new compute nodes. It is
-important that the Admin network be used exclusively for SDC management. 
-Please note that DHCP traffic will be present on this network following the 
-installation. The Admin network is connected in VLAN ACCESS mode only.\n\n"
+flows between the Compute Nodes and the Headnode in an SDC cluster. This network
+will be used to automatically provision new compute nodes and there are several
+application zones which are assigned sequential IP addresses on this network. It
+is important that this network be used exclusively for SDC management. Note that
+DHCP traffic will be present on this network following the installation and that
+this network is connected in VLAN ACCESS mode only.\n\n"
   
 	printf "$message"
 	
@@ -417,6 +418,15 @@ installation. The Admin network is connected in VLAN ACCESS mode only.\n\n"
 
 	promptnet "(admin) gateway IP address" "$admin_gateway"
 	admin_gateway="$val"
+
+	if [[ -z "$admin_zone_ip" ]]; then
+		ip_netmask_to_network "$admin_ip" "$admin_netmask"
+		next_addr=$(expr $host_addr + 1)
+		admin_zone_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	fi
+
+	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip"
+	admin_zone_ip="$val"
 
 	printheader "Networking - External"
 	message="
@@ -600,7 +610,8 @@ specific address. Each of these values will be configured below.\n\n"
 	printf "Headnode ID: $datacenter_headnode_id\n"
 	printf "Email Admin Address: %s, From: %s\n" \
 	    "$mail_to" "$mail_from"
-	printf "Domain name: $domainname\n"
+	printf "Domain name: %s, Gateway IP address: %s\n" \
+	    $domainname $headnode_default_gateway
 	if [ -z "$external_vlan_id" ]; then
 		ext_vlanid="none"
 	else
@@ -618,9 +629,9 @@ specific address. Each of these values will be configured below.\n\n"
 	printf "%-10s %15s %15s %15s %15s\n" "IP Addr." \
 	    "$adminui_external_ip" "$capi_external_ip" \
 	    "$cloudapi_external_ip" "$portal_external_ip"
+	printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
 	printf "Provisionable IP range: %s - %s\n" \
 	    $external_provisionable_start $external_provisionable_end
-	printf "Gateway router IP address: $headnode_default_gateway\n"
 	printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
 	    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
 	printf "NTP server: $ntp_hosts\n"
@@ -640,7 +651,8 @@ admin_network="$net_a.$net_b.$net_c.$net_d"
 #
 # Calculate admin network IP address for each zone
 #
-next_addr=$(expr $host_addr + 1)
+ip_netmask_to_network "$admin_zone_ip" "$admin_netmask"
+next_addr=$host_addr
 adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
