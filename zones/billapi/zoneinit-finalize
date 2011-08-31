@@ -130,7 +130,7 @@ cat > /opt/riak/etc/app.config <<EOF
               %% riak_handoff_port is the TCP port that Riak uses for
               %% intra-cluster data handoff.
               {handoff_port, 8099 },
-              {cluster_name, "hostrouter"},
+              {cluster_name, "sdc"},
               {ring_creation_size, 64}
              ]},
 
@@ -357,15 +357,18 @@ HERE
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
-echo Importing billapi_manifest.xml
+echo "Importing RIAK manifest"
+/usr/sbin/svccfg import /opt/smartdc/billapi/riak.xml
+
+echo "Importing billapi_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_manifest.xml
 
-echo Importing billapi_consumer_manifest.xml
+echo "Importing billapi_consumer_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_consumer_manifest.xml
 
 sleep 10 # XXX
-echo Enablig service billapi
+echo "Enablig service billapi"
 /usr/sbin/svcadm enable smartdc/site/billapi
-echo Enablig service billapi-consumer
+echo "Enablig service billapi-consumer"
 /usr/sbin/svcadm enable smartdc/site/billapi-consumer
 
