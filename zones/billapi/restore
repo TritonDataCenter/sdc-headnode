@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o errexit
+#set -o xtrace
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <src_directory>"
+    exit 1
+fi
+
+ZONE=$1
+SRC_DIR=$2
+
+echo "==> Done!"
+
+exit 0
+
