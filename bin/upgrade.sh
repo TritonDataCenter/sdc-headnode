@@ -33,7 +33,8 @@ RECREATE_ZONES=( \
     rabbitmq \
     mapi \
     adminui \
-    capi
+    capi \
+    billapi
 )
 
 mounted_usb="false"
