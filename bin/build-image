@@ -206,7 +206,7 @@ check_proxy
 
 
 # Determine from where to get dependent packages.
-if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+if [[ -z "$MASTER_PLATFORM_URL"  && -f ${ROOT}/build.spec.local ]]; then
     MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json master-url)
 fi
