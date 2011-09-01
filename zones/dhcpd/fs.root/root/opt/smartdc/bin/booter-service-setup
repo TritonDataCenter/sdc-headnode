@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source /opt/smartdc/etc/zoneconfig
+
 if [[ -z "${MAPI_URL}" ]] || [[ -z "${MAPI_USER}" ]] ||[[ -z "${MAPI_PW}" ]] || [[ -z "${PRIVATE_IP}" ]]; then
     echo "Must set MAPI_URL, MAPI_USER, MAPI_PW and PRIVATE_IP environment variables"
     exit 1
@@ -14,7 +16,8 @@ exports.config = {
   tftpRoot : '/tftpboot',
   defaultGateway : "${DHCP_GATEWAY}",
   dhcpIp         : "${PRIVATE_IP}",
-  leaseTime      : "${DHCP_LEASE_TIME}"
+  leaseTime      : "${DHCP_LEASE_TIME}",
+  netmask        : "${ADMIN_NETMASK}",
 }
 CONFIG
 

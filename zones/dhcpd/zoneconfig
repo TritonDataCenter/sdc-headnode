@@ -11,3 +11,4 @@ TMPFS=512m
 MAPI_URL=${mapi_client_url}
 MAPI_USER=${mapi_http_admin_user}
 MAPI_PW=${mapi_http_admin_pw}
+ADMIN_NETMASK=${admin_netmask}
