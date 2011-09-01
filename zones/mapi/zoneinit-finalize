@@ -309,6 +309,7 @@ echo "$POSTGRES_PW" > /tmp/pgpasswd
     RACK_SIZE="$RACK_SIZE" \
     SERVER_ROLE="$SERVER_ROLE" \
     PACKAGE_SIZES="$PACKAGE_SIZES" \
+    RESOLVER_LIST="$RESOLVER_LIST" \
  /opt/local/bin/rake dev:initial_data) 2>&1 | tee /tmp/initial_data.output
 
 if [[ \${PIPESTATUS[0]} -gt 0 ]]; then
