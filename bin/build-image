@@ -101,12 +101,6 @@ function check_npm
 function check_proxy
 {
     # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        USE_PROXY=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json use-proxy)
-        PROXY_IP=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json proxy-ip)
-    fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${USE_PROXY} ]]; then
             USE_PROXY=$(cat ${ROOT}/build.spec \
@@ -117,6 +111,13 @@ function check_proxy
                 | ${ROOT}/bin/json proxy-ip)
         fi
     fi
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        USE_PROXY=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json use-proxy)
+        PROXY_IP=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json proxy-ip)
+    fi
+
     if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
         NOPROXY="true"
     fi
@@ -172,14 +173,6 @@ CLEANED=0
 
 CURL_OPTS=
 SPEED_LIMIT=
-if [[ -f "${ROOT}/build.spec.local" ]]; then
-    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json no-internet)
-    SPEED_LIMIT=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json speed-limit)
-    CURL_OPTS=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json curl-opts)
-fi
 if [[ -f "${ROOT}/build.spec" ]]; then
     if [[ -z ${NO_INTERNET} ]]; then
         NO_INTERNET=$(cat ${ROOT}/build.spec \
@@ -194,6 +187,15 @@ if [[ -f "${ROOT}/build.spec" ]]; then
             | ${ROOT}/bin/json curl-opts)
     fi
 fi
+if [[ -f "${ROOT}/build.spec.local" ]]; then
+    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json no-internet)
+    SPEED_LIMIT=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json speed-limit)
+    CURL_OPTS=$(cat ${ROOT}/build.spec.local \
+        | ${ROOT}/bin/json curl-opts)
+fi
+
 
 if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
@@ -204,6 +206,10 @@ check_proxy
 
 
 # Determine from where to get dependent packages.
+if [[ -z "$MASTER_PLATFORM_URL" ]]; then
+    MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json master-url)
+fi
 
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
@@ -749,14 +755,15 @@ function copy_datasets
     mkdir -p ${ROOT}/datasets
 
     datasets_json=
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        datasets_json=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json "datasets")
-    fi
     if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
         datasets_json=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json "datasets")
     fi
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        datasets_json=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "datasets")
+    fi
+
     [[ -n ${datasets_json} ]] \
         || fatal "Unable to find datasets information in build.spec"
 
@@ -1090,18 +1097,19 @@ function copy_zones
             override=${ROOT}/cache/${zone}.tar.bz2
         fi
 
-        if [[ -f ${ROOT}/build.spec.local ]]; then
-            tarball_pattern=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json "${zone}-tarball")
-            target_checkout=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json "${zone}-checkout")
-        fi
         if [[ -f ${ROOT}/build.spec ]] && [[ -z ${tarball_pattern} ]]; then
             tarball_pattern=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-tarball")
             target_checkout=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
+        if [[ -f ${ROOT}/build.spec.local ]]; then
+            tarball_pattern=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json "${zone}-tarball")
+            target_checkout=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json "${zone}-checkout")
+        fi
+
 
         if [[ -z ${target_checkout} ]]; then
             target_checkout=$GIT_BRANCH
@@ -1154,16 +1162,6 @@ function copy_devtools
 
 function copy_hvm_files
 {
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        BUILD_HVM=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json build-hvm)
-        HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-platform-release)
-        HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-agents-shar)
-        HVM_SUBDIR=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-subdir)
-    fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${BUILD_HVM} ]]; then
             BUILD_HVM=$(cat ${ROOT}/build.spec \
@@ -1181,6 +1179,16 @@ function copy_hvm_files
             HVM_SUBDIR=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json hvm-subdir)
         fi
+    fi
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        BUILD_HVM=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json build-hvm)
+        HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-platform-release)
+        HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-agents-shar)
+        HVM_SUBDIR=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json hvm-subdir)
     fi
 
     if [[ -z ${BUILD_HVM} ]]; then
@@ -1202,14 +1210,15 @@ function copy_hvm_files
 
 function copy_webinfo
 {
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json sdc-webinfo-checkout)
-    fi
     if [[ -f "${ROOT}/build.spec" ]]; then
         WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json sdc-webinfo-checkout)
     fi
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json sdc-webinfo-checkout)
+    fi
+
     if [[ -z $WEBINFO_CHECKOUT ]]; then
         WEBINFO_CHECKOUT="origin/master"
     fi
