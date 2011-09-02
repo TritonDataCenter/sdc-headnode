@@ -112,10 +112,12 @@ function check_proxy
         fi
     fi
     if [[ -f "${ROOT}/build.spec.local" ]]; then
-        USE_PROXY=$(cat ${ROOT}/build.spec.local \
+        USE_PROXY_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json use-proxy)
-        PROXY_IP=$(cat ${ROOT}/build.spec.local \
+        if [[ -n ${USE_PROXY_LOCAL} ]]; then USE_PROXY=${USE_PROXY_LOCAL}; fi
+        PROXY_IP_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json proxy-ip)
+        if [[ -n ${PROXY_IP_LOCAL} ]]; then PROXY_IP=${PROXY_IP_LOCAL}; fi
     fi
 
     if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
@@ -188,12 +190,15 @@ if [[ -f "${ROOT}/build.spec" ]]; then
     fi
 fi
 if [[ -f "${ROOT}/build.spec.local" ]]; then
-    NO_INTERNET=$(cat ${ROOT}/build.spec.local \
+    NO_INTERNET_LOCAL=$(cat ${ROOT}/build.spec.local \
         | ${ROOT}/bin/json no-internet)
-    SPEED_LIMIT=$(cat ${ROOT}/build.spec.local \
+    if [[ -n ${NO_INTERNET_LOCAL} ]]; then NO_INTERNET=${NO_INTERNET_LOCAL}; fi
+    SPEED_LIMIT_LOCAL=$(cat ${ROOT}/build.spec.local \
         | ${ROOT}/bin/json speed-limit)
-    CURL_OPTS=$(cat ${ROOT}/build.spec.local \
+    if [[ -n ${SPEED_LIMIT_LOCAL} ]]; then SPEED_LIMIT=${SPEED_LIMIT_LOCAL}; fi
+    CURL_OPTS_LOCAL=$(cat ${ROOT}/build.spec.local \
         | ${ROOT}/bin/json curl-opts)
+    if [[ -n ${CURL_OPTS_LOCAL} ]]; then CURL_OPTS=${CURL_OPTS_LOCAL}; fi
 fi
 
 
@@ -203,18 +208,18 @@ fi
 
 check_proxy
 
-
-
 # Determine from where to get dependent packages.
-if [[ -z "$MASTER_PLATFORM_URL"  && -f ${ROOT}/build.spec.local ]]; then
-    MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json master-url)
-fi
-
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json master-url)
 fi
+
+if [[ -f ${ROOT}/build.spec.local ]]; then
+    MASTER_PLATFORM_URL_LOCAL=$(cat ${ROOT}/build.spec.local \
+                | ${ROOT}/bin/json master-url)
+    if [[ -n ${MASTER_PLATFORM_URL_LOCAL} ]]; then MASTER_PLATFORM_URL=${MASTER_PLATFORM_URL_LOCAL}; fi
+fi
+
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
       RELEASEDATE=$(echo $THIS_BRANCH | cut -d '-' -f2)
@@ -226,10 +231,6 @@ if [[ -z "$MASTER_PLATFORM_URL" ]]; then
       MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
     fi
 fi
-if [[ -z "$MASTER_PLATFORM_URL" ]]; then
-    MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/live_147
-fi
-MASTER_PLATFORM_URL=$(proxy "$MASTER_PLATFORM_URL")
 
 #TODO(trent): Is anyone setting PLATFORM_URL for builds? If not drop the alias.
 if [ -z "${PLATFORM_URL}" ]; then
@@ -376,12 +377,6 @@ function load_buildspec
 {
     # local is read first and options are only read from build.spec
     # only if they're not set in build.spec.local
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json platform-release)
-        BUILD_TGZ=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json build-tgz)
-    fi
 
     if [[ -f "${ROOT}/build.spec" ]]; then
         if [[ -z ${PLATFORM_RELEASE} ]]; then
@@ -392,6 +387,14 @@ function load_buildspec
             BUILD_TGZ=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json build-tgz)
         fi
+    fi
+    if [[ -f "${ROOT}/build.spec.local" ]]; then
+        PLATFORM_RELEASE_LOCAL=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json platform-release)
+        if [[ -n ${PLATFORM_RELEASE_LOCAL} ]]; then PLATFORM_RELEASE=${PLATFORM_RELEASE_LOCAL}; fi
+        BUILD_TGZ_LOCAL=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json build-tgz)
+        if [[ -n ${BUILD_TGZ_LOCAL} ]]; then BUILD_TGZ=${BUILD_TGZ_LOCAL}; fi
     fi
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
@@ -734,14 +737,16 @@ function get_agents
 function copy_agents
 {
     # See if there's a specific agents we're supposed to use
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json agents-shar)
-    fi
     if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
         agents_shar=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json agents-shar)
     fi
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        agents_shar_local=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json agents-shar)
+        if [[ -n ${agents_shar_local} ]]; then agents_shar=${agents_shar_local}; fi
+    fi
+
     if [[ -z ${agents_shar} ]]; then
         agents_shar="master"
     fi
@@ -755,13 +760,14 @@ function copy_datasets
     mkdir -p ${ROOT}/datasets
 
     datasets_json=
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        datasets_json=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json "datasets")
-    fi
     if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
         datasets_json=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json "datasets")
+    fi
+    if [[ -f ${ROOT}/build.spec.local ]]; then
+        datasets_json_local=$(cat ${ROOT}/build.spec.local \
+            | ${ROOT}/bin/json "datasets")
+        if [[ -n ${datasets_json_local} ]]; then datasets_json=${datasets_json_local}; fi
     fi
 
     [[ -n ${datasets_json} ]] \
@@ -1104,10 +1110,12 @@ function copy_zones
                 | ${ROOT}/bin/json "${zone}-checkout")
         fi
         if [[ -f ${ROOT}/build.spec.local ]]; then
-            tarball_pattern=$(cat ${ROOT}/build.spec.local \
+            tarball_pattern_local=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-tarball")
-            target_checkout=$(cat ${ROOT}/build.spec.local \
+            if [[ -n ${tarball_pattern_local} ]]; then tarball_pattern=${tarball_pattern_local}; fi
+            target_checkout_local=$(cat ${ROOT}/build.spec.local \
                 | ${ROOT}/bin/json "${zone}-checkout")
+            if [[ -n ${target_checkout_local} ]]; then target_checkout=${target_checkout_local}; fi
         fi
 
 
@@ -1181,14 +1189,19 @@ function copy_hvm_files
         fi
     fi
     if [[ -f "${ROOT}/build.spec.local" ]]; then
-        BUILD_HVM=$(cat ${ROOT}/build.spec.local \
+        BUILD_HVM_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json build-hvm)
-        HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec.local \
+        if [[ -n ${BUILD_HVM_LOCAL} ]]; then BUILD_HVM=${BUILD_HVM_LOCAL}; fi
+
+        HVM_PLATFORM_RELEASE_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json hvm-platform-release)
-        HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec.local \
+        if [[ -n ${HVM_PLATFORM_RELEASE_LOCAL} ]]; then HVM_PLATFORM_RELEASE=${HVM_PLATFORM_RELEASE_LOCAL}; fi
+        HVM_AGENTS_SHAR_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json hvm-agents-shar)
-        HVM_SUBDIR=$(cat ${ROOT}/build.spec.local \
+        if [[ -n ${HVM_AGENTS_SHAR_LOCAL} ]]; then HVM_AGENTS_SHAR=${HVM_AGENTS_SHAR_LOCAL}; fi
+        HVM_SUBDIR_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json hvm-subdir)
+        if [[ -n ${HVM_SUBDIR_LOCAL} ]]; then HVM_SUBDIR=${HVM_SUBDIR_LOCAL}; fi
     fi
 
     if [[ -z ${BUILD_HVM} ]]; then
@@ -1215,8 +1228,9 @@ function copy_webinfo
             | ${ROOT}/bin/json sdc-webinfo-checkout)
     fi
     if [[ -f "${ROOT}/build.spec.local" ]]; then
-        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec.local \
+        WEBINFO_CHECKOUT_LOCAL=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json sdc-webinfo-checkout)
+        if [[ -n ${WEBINFO_CHECKOUT_LOCAL} ]]; then WEBINFO_CHECKOUT=${WEBINFO_CHECKOUT_LOCAL}; fi
     fi
 
     if [[ -z $WEBINFO_CHECKOUT ]]; then
