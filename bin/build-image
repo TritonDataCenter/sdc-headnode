@@ -15,7 +15,6 @@
 
 set -o errexit
 set -o pipefail
-set -o xtrace
 
 # write output to log file
 ROOT=$(cd $(dirname $0)/../; pwd)
