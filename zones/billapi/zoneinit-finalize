@@ -152,7 +152,7 @@ source /opt/smartdc/bin/configure.sh
 
 echo "Importing RIAK manifest"
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
-/usr/sbin/svcadm enable epmd
+/usr/sbin/svcadm enable -s epmd
 sleep 2
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/riak.xml
 /usr/sbin/svcadm enable riak
