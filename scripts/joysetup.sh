@@ -9,11 +9,6 @@ export PATH
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
 
-# Fix staircase on Linux
-if [[ $(uname -s) == 'Linux' ]]; then
-    stty onlcr opost </dev/console >/dev/console 2>&1
-fi
-
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
 
@@ -48,15 +43,10 @@ function ceil
 {
     x=$1
 
-    if [[ $(uname -s) != 'Linux' ]]; then
-        # ksh93 supports a bunch of math functions that don't exist in bash.
-        # including floating point stuff.
-        expression="echo \$((ceil(${x})))"
-        result=$(ksh93 -c "${expression}")
-    else
-	# On SunOS we use ksh93, on Linux perl?!  Which is worse?
-        result=$(perl -e "use POSIX qw/ceil/; my \$num = (${x}); print ceil(\$num) . \"\n\";")
-    fi
+    # ksh93 supports a bunch of math functions that don't exist in bash.
+    # including floating point stuff.
+    expression="echo \$((ceil(${x})))"
+    result=$(ksh93 -c "${expression}")
 
     echo ${result}
 }
@@ -342,17 +332,29 @@ create_swap()
         swapsize=$(swap_in_GiB ${DEFAULT_SWAP})
     fi
 
-    if [[ $(uname -s) == 'Linux' ]]; then
-        printf "%-56s" "Creating swap volume... " >&4
-        lvcreate -L ${swapsize}G -n swap smartdc
-        mkswap -f /dev/smartdc/swap
-        swapon /dev/smartdc/swap
-    else
-        if ! zfs list -H -o name ${SWAPVOL}; then
-            printf "%-56s" "Creating swap zvol... " >&4
+    if ! zfs list -H -o name ${SWAPVOL}; then
+        printf "%-56s" "Creating swap zvol... " >&4
+
+        #
+	# We cannot allow the swap size to be less than the size of DRAM, lest
+	# we run into the availrmem double accounting issue for locked
+	# anonymous memory that is backed by in-memory swap (which will
+	# severely and artificially limit VM tenancy).  We will therfore not
+	# create a swap device smaller than DRAM -- but we still allow for the
+	# configuration variable to account for actual consumed space by using
+	# it to set the refreservation on the swap volume if/when the
+	# specified size is smaller than DRAM.
+        #
+        minsize=$(swap_in_GiB 1x)
+
+        if [[ $minsize -gt $swapsize ]]; then
+            zfs create -V ${minsize}g ${SWAPVOL}
+            zfs set refreservation=${swapsize}g ${SWAPVOL}
+        else
             zfs create -V ${swapsize}g ${SWAPVOL}
-            printf "%4s\n" "done" >&4
         fi
+
+        printf "%4s\n" "done" >&4
     fi
 }
 
@@ -388,9 +390,8 @@ install_configs()
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
-        if [[ $(uname -s) != 'Linux' ]]; then
-            mount -F zfs ${SYS_ZPOOL}/opt /opt || echo "/opt already mounted"
-        fi
+        mount -F zfs ${SYS_ZPOOL}/opt /opt || echo "/opt already mounted"
+
         mkdir -p /opt/smartdc/
         mv $TEMP_CONFIGS $SMARTDC
         printf "%4s\n" "done" >&4
@@ -454,47 +455,24 @@ output_vg_info()
     echo "${results}	ONLINE	/${name}"
 }
 
-if [[ $(uname -s) == 'Linux' ]]; then
-    if [[ -z $(vgs) ]]; then
-
-        # TODO: see if we can tell if there's a zpool, if so, fail.
-
-        # rpool   7786468255783555057     278G    21.9G   ONLINE  /rpool
-        create_vg
-        create_lvm_datasets
-        install_configs
-        create_swap
-        output_vg_info
-        # We exit with 113 which is a special code that tells ur-agent to:
+POOLS=`zpool list`
+if [[ ${POOLS} == "no pools available" ]]; then
+    create_zpools
+    setup_datasets
+    install_configs
+    create_swap
+    output_zpool_info
+    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+        # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
         #
         #   1. pretend we exited with status 0
         #   2. send back the response to rabbitmq for this job
         #   3. reboot
         #
         exit 113
-    else
-        output_vg_info
     fi
 else
-    POOLS=`zpool list`
-    if [[ ${POOLS} == "no pools available" ]]; then
-        create_zpools
-        setup_datasets
-        install_configs
-        create_swap
-        output_zpool_info
-        if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-            # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
-            #
-            #   1. pretend we exited with status 0
-            #   2. send back the response to rabbitmq for this job
-            #   3. reboot
-            #
-            exit 113
-        fi
-    else
-        output_zpool_info
-    fi
+    output_zpool_info
 fi
 
 exit 0
