@@ -396,12 +396,12 @@ Press [enter] to continue"
 	printheader "Networking - Admin"
 	message="
 The admin network is used for management traffic and other information that
-flows between the Compute Nodes and the Headnode in an SDC cluster. This network
-will be used to automatically provision new compute nodes and there are several
-application zones which are assigned sequential IP addresses on this network. It
-is important that this network be used exclusively for SDC management. Note that
-DHCP traffic will be present on this network following the installation and that
-this network is connected in VLAN ACCESS mode only.\n\n"
+flows between the Compute Nodes and the Headnode in an SDC cluster. This
+network will be used to automatically provision new compute nodes and there are
+several application zones which are assigned sequential IP addresses on this
+network. It is important that this network be used exclusively for SDC
+management. Note that DHCP traffic will be present on this network following
+the installation and that this network is connected in VLAN ACCESS mode only.\n\n"
   
 	printf "$message"
 	
@@ -545,7 +545,7 @@ other networks. This will almost certainly be the router connected to your
 	printf "$message"
 
 	[[ -z "$headnode_default_gateway" ]] && \
-	    headnode_default_gateway="$admin_gateway"
+	    headnode_default_gateway="$external_gateway"
 
 	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
 	headnode_default_gateway="$val"
