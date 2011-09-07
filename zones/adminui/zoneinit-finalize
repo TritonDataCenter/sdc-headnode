@@ -23,9 +23,6 @@ source /opt/smartdc/bin/configure.sh
 
 echo "Importing MAPI Admin UI Unicorn Manifest"
 /usr/sbin/svccfg import /opt/smartdc/adminui/config/unicorn.smf
-sleep 10 # XXX
-#/usr/sbin/svccfg -s svc:/network/smartdc/application/adminui:default refresh
-
 
 if [[ ! -f /opt/smartdc/bin/smartdc-consoleproxy ]]; then
 

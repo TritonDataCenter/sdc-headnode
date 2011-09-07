@@ -210,7 +210,6 @@ echo "Importing billapi_consumer_manifest.xml"
 echo "Importing billapi_queue_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_queue_manifest.xml
 
-sleep 10 # XXX
 echo "Enablig service billapi"
 /usr/sbin/svcadm enable smartdc/site/billapi
 echo "Enablig service billapi-consumer"

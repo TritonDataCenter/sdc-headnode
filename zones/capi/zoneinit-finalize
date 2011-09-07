@@ -124,7 +124,6 @@ sleep 1
 if [[ -z \$(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/application/capi:default refresh
 fi
 
@@ -205,7 +204,6 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
   if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
     echo "Importing Customers API Unicorn Manifest"
     /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/application/capi:default refresh
   fi
 

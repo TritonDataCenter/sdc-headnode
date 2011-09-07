@@ -98,7 +98,6 @@ NGINX
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
   echo "Importing nginx service"
   /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/nginx:default refresh
   /usr/sbin/svcadm enable -s nginx
 else

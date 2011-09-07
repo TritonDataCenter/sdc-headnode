@@ -234,42 +234,36 @@ fi
 if [[ -z \$(/usr/bin/svcs -a|grep mcp_api) ]]; then
   echo "Importing MCP API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/unicorn.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/application/mcp_api:default refresh
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep provisioner_client) ]]; then
   echo "Importing MCP API Provisioner Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/provisioner_client.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/provisioner_client:default refresh
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep ur_client) ]]; then
   echo "Importing MAPI Ur Agent Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/ur_client.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/ur_client:default refresh
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep datasetmanager_client) ]]; then
   echo "Importing MCP API DatasetManager Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/datasetmanager_client.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/datasetmanager_client:default refresh
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
   echo "Importing MCP API Heartbeater Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater_client.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
 fi
 
 if [[ -z \$(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
   echo "Importing MCP API ZoneTracker Client Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/zonetracker_client.smf
-  sleep 10 # XXX
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/zonetracker_client:default refresh
 fi
 
@@ -373,42 +367,36 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
   if [[ -z $(/usr/bin/svcs -a|grep mcp_api) ]]; then
     echo "Importing MCP API Unicorn Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/unicorn.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/application/mcp_api:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep provisioner_client) ]]; then
     echo "Importing MCP API Provisioner Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/provisioner_client.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/provisioner_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep ur_client) ]]; then
     echo "Importing MAPI Ur Agent Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/ur_client.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/ur_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep datasetmanager_client) ]]; then
     echo "Importing MCP API DatasetManager Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/datasetmanager_client.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/datasetmanager_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
     echo "Importing MCP API Heartbeater Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/heartbeater_client.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep zonetracker_client) ]]; then
     echo "Importing MCP API ZoneTracker Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/zonetracker_client.smf
-    sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/zonetracker_client:default refresh
   fi
 fi

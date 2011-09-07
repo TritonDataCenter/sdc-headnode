@@ -79,6 +79,5 @@ source /opt/smartdc/bin/configure.sh
 echo Importing cloudapi_manifest.xml
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/cloudapi_manifest.xml
 
-sleep 10 # XXX
 echo Enablig service cloudapi
 /usr/sbin/svcadm enable smartdc/site/cloudapi
