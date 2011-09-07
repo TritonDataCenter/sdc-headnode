@@ -25,7 +25,6 @@ source /opt/smartdc/bin/configure.sh
 # Generate the agents setup script:
 
 AGENTS_FILE_VERSION=$(ls -1t /opt/smartdc/agent-scripts/ | grep '^agents-.*\.sh' | grep -v -- "-hvm-" | head -n1)
-AGENTS_FILE_HVM_VERSION=$(ls -1t /opt/smartdc/agent-scripts/ | grep '^agents-hvm-.*\.sh' | head -n1)
 
 echo "Generating agents setup file at '/opt/smartdc/mapi-data/setup_agents.sh'"
 
@@ -53,11 +52,7 @@ setup_agents()
   AGENTS_SHAR=\$1
 
   if [[ -z \${AGENTS_SHAR} ]]; then
-    if [[ \$(uname -s) == 'Linux' ]]; then
-      AGENTS_SHAR="${AGENTS_FILE_HVM_VERSION}"
-    else
-      AGENTS_SHAR="${AGENTS_FILE_VERSION}"
-    fi
+    AGENTS_SHAR="${AGENTS_FILE_VERSION}"
   fi
 
   /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
@@ -83,13 +78,8 @@ if [[ ! -d /opt/smartdc/agents/bin ]]; then
   setup_agents \$1
 fi
 
-if [[ \$(uname -s) == 'Linux' ]]; then
-  # Return SmartDC services statuses on STDOUT:
-  initctl list | grep "heartbeater\|provisioner" | sed -e "s/\(.*running\)/online \1/"
-else
-  # Return SmartDC services statuses on STDOUT:
-  echo \$(svcs -a -o STATE,FMRI|grep smartdc)
-fi
+# Return SmartDC services statuses on STDOUT:
+echo \$(svcs -a -o STATE,FMRI|grep smartdc)
 
 # Scripts to be executed by Ur need to explicitly return an exit status code:
 exit 0
