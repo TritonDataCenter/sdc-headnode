@@ -135,7 +135,21 @@ function upgrade_usbkey
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
 
-        # XXX (this is the point where we'd fix the config in /mnt/usbkey/config)
+        # this is the point where we fix the config in /mnt/usbkey/config
+
+        # Add a capi_external_url entry if not there and CAPI has an external
+        # IP configured.
+	grep "^capi_external_url=" /mnt/usbkey/config >/dev/null 2>&1
+        if [[ $? != 0 ]]; then
+            # try to add new config entry if CAPI has an external IP
+	    capi_external_ip=`grep "^capi_external_ip=" /mnt/usbkey/config`
+            if [[ $? == 0 ]]; then
+                capi_external_ip=`echo $capi_external_ip | cut -d= -f2`
+                echo "capi_external_url=http://$capi_external_ip:8080" \
+                    >> /mnt/usbkey/config
+            fi
+        fi
+
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
     fi
 }
