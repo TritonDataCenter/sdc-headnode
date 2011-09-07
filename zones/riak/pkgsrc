@@ -1,0 +1,11 @@
+perl-5.12.2nb1
+iodbc-3.52.7
+libffi-3.0.9
+erlang-14.1.1
+pcre-8.11
+gcc-compiler-4.5.2
+gcc-runtime-4.5.2
+gcc-tools-0
+scmgit-1.7.3.4
+gmake-3.82nb1
+riak-0.14.2

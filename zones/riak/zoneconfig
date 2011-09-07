@@ -1,0 +1,12 @@
+TEMPLATE_VERSION=0.0.1
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+PRIVATE_IP=${riak_admin_ip}
+PUBLIC_IP=${riak_admin_ip}
+ROOT_PW=${riak_root_pw}
+ADMIN_PW=${riak_admin_pw}
+TMPFS=512m
+RIAK_IP=${riak_admin_ip}
+RIAK_PORT=8098
+RIAK_COOKIE=a0a6e1a375117c58d77221f10c5ce12e
+

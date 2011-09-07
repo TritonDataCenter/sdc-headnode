@@ -34,7 +34,8 @@ RECREATE_ZONES=( \
     mapi \
     adminui \
     capi \
-    billapi
+    billapi \
+    riak
 )
 
 mounted_usb="false"
