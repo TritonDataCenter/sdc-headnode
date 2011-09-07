@@ -5,9 +5,6 @@ echo "99 finalizing billapi zone"
 echo "Installing local node.js"
 cd /opt/smartdc
 /usr/bin/gtar -z -m -xf /opt/tmp/node.tgz
-# cd /opt
-# echo "Installing local RIAK"
-# /usr/bin/gtar -z -m -xf /opt/tmp/riak.tgz
 cd -
 /usr/bin/rm -fr /opt/tmp
 /usr/bin/chown -R root:root /opt/smartdc
@@ -15,15 +12,6 @@ cd -
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/billapi/ssl/key.pem -out /opt/smartdc/billapi/ssl/cert.pem -days 365
 
-echo "Configuring RIAK:"
-echo "Binding RIAK to Admin IP."
-$(/opt/local/bin/gsed -i"" -e "s/127.0.0.1/${PRIVATE_IP}/" /opt/local/etc/riak/app.config)
-echo "Using InnoStore backend as default."
-$(/opt/local/bin/gsed -i"" -e "s/storage_backend, riak_kv_bitcask_backend/storage_backend, riak_kv_innostore_backend/" /opt/local/etc/riak/app.config)
-echo "Updating RIAK node name."
-$(/opt/local/bin/gsed -i"" -e "s/riak@127.0.0.1/riak@${PRIVATE_IP}/" /opt/local/etc/riak/vm.args)
-echo "Setting RIAK cluster cookie"
-$(/opt/local/bin/gsed -i"" -e "s/setcookie riak/setcookie ${RIAK_COOKIE}/" /opt/local/etc/riak/vm.args)
 
 echo "Creating HTTP Server SMF manifest"
 cat > /opt/smartdc/billapi/billapi_manifest.xml <<HERE
@@ -149,13 +137,6 @@ HERE
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
-
-echo "Importing RIAK manifest"
-/usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
-/usr/sbin/svcadm enable -s epmd
-sleep 2
-/usr/sbin/svccfg import /opt/local/share/smf/manifest/riak.xml
-/usr/sbin/svcadm enable riak
 
 echo "Importing billapi_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_manifest.xml
