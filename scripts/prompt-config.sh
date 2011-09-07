@@ -476,6 +476,8 @@ visible on the external network which will need assigned addresses.\n\n"
 
 		adminui_external_ip="$net_a.$net_b.$net_c.$next_addr"
 		next_addr=$(expr $next_addr + 1)
+		billapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
+		next_addr=$(expr $next_addr + 1)
 		capi_external_ip="$net_a.$net_b.$net_c.$next_addr"
 		next_addr=$(expr $next_addr + 1)
 		cloudapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
@@ -514,6 +516,9 @@ visible on the external network which will need assigned addresses.\n\n"
 
 	promptnet " AdminUI zone external IP address" "$adminui_external_ip"
 	adminui_external_ip="$val"
+
+	promptnet " BillAPI zone external IP address" "$billapi_external_ip"
+	billapi_external_ip="$val"
 
 	promptnet "    CAPI zone external IP address" "$capi_external_ip"
 	capi_external_ip="$val"
@@ -624,10 +629,10 @@ specific address. Each of these values will be configured below.\n\n"
 	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
 	    $external_ip $external_netmask $external_gateway $ext_vlanid
 	echo
-	printf "%-10s %15s %15s %15s %15s\n" "Zone:" \
-	    "AdminUI" "CAPI" "CloudAPI" "Portal"
-	printf "%-10s %15s %15s %15s %15s\n" "IP Addr." \
-	    "$adminui_external_ip" "$capi_external_ip" \
+	printf "%15s %15s %15s %15s %15s\n" \
+	    "AdminUI" "BillAPI" "CAPI" "CloudAPI" "Portal"
+	printf "%15s %15s %15s %15s %15s\n" \
+	    "$adminui_external_ip" "$billapi_external_ip" "$capi_external_ip" \
 	    "$cloudapi_external_ip" "$portal_external_ip"
 	printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
 	printf "Provisionable IP range: %s - %s\n" \
@@ -689,7 +694,7 @@ rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
 next_addr=$(expr $next_addr + 1)
 billapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-billapi_external_url="http://${billapi_admin_ip}"
+billapi_external_url="http://${billapi_external_ip}"
 
 next_addr=$(expr $next_addr + 1)
 riak_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -919,6 +924,7 @@ echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
 echo "billapi_admin_ip=$billapi_admin_ip" >>$tmp_config
+echo "billapi_external_ip=$billapi_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# billapi_external_vlan=0" >>$tmp_config
 else
