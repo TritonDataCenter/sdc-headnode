@@ -692,6 +692,9 @@ billapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 billapi_external_url="http://${billapi_admin_ip}"
 
 next_addr=$(expr $next_addr + 1)
+riak_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+next_addr=$(expr $next_addr + 1)
 dhcp_next_server="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 # Add 5 to leave some room
@@ -926,6 +929,11 @@ echo "billapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "billapi_external_url=$billapi_external_url" >>$tmp_config
 echo "billapi_http_admin_user=admin" >>$tmp_config
 echo "billapi_http_admin_pw=tot@ls3crit" >>$tmp_config
+echo >>$tmp_config
+
+echo "riak_admin_ip=$riak_admin_ip" >>$tmp_config
+echo "riak_root_pw=$zone_admin_pw" >>$tmp_config
+echo "riak_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config
