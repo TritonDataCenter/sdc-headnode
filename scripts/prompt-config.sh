@@ -665,6 +665,7 @@ ca_client_url="http://${ca_admin_ip}:23181"
 next_addr=$(expr $next_addr + 1)
 capi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 capi_client_url="http://${capi_admin_ip}:8080"
+capi_external_url="http://${capi_external_ip}:8080"
 
 next_addr=$(expr $next_addr + 1)
 dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -674,9 +675,8 @@ mapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 mapi_client_url="http://${mapi_admin_ip}:80"
 
 # Portal zone is NOT on the admin net
-# XXX it is for now
-next_addr=$(expr $next_addr + 1)
-portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+# next_addr=$(expr $next_addr + 1)
+# portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 portal_external_url="https://${portal_external_ip}"
 
 next_addr=$(expr $next_addr + 1)
@@ -844,6 +844,7 @@ echo "capi_is_local=true" >>$tmp_config
 echo "capi_admin_ip=$capi_admin_ip" >>$tmp_config
 echo "capi_client_url=$capi_client_url" >>$tmp_config
 echo "capi_external_ip=$capi_external_ip" >>$tmp_config
+echo "capi_external_url=$capi_external_url" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# capi_external_vlan=0" >>$tmp_config
 else
@@ -884,8 +885,7 @@ echo "mapi_http_admin_pw=tot@ls3crit" >>$tmp_config
 echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
 echo >>$tmp_config
 
-# XXX portal on admin net for now
-echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
+# echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
 echo "portal_external_ip=$portal_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# portal_external_vlan=0" >>$tmp_config

@@ -161,6 +161,11 @@ if [[ -z ${ds_uuid} ]]; then
     fatal "Unable to find UUID of smartos dataset."
 fi
 
+if [[ "${zone}" == "portal" ]]; then
+    [[ -z "$CONFIG_capi_external_url" ]] && \
+        fatal "Invalid or obsolete config file"
+fi
+
 if [[ -f "${src}/zoneconfig" ]]; then
     # zoneconfig can use variables from usbkey/config, so we
     # need to pull these two values this way.
@@ -207,7 +212,9 @@ if [[ -n "${zone_memory_cap}" ]]; then
     zonecfg -z ${zone} "add capped-memory; set physical=${zone_memory_cap}; end"
 fi
 
-zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; ${zone_dhcp_server_enable}; end; exit"
+if [[ "${zone}" != "portal" ]]; then
+    zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; ${zone_dhcp_server_enable}; end; exit"
+fi
 if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
    zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi

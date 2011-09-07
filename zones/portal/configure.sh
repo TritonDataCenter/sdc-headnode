@@ -30,7 +30,7 @@ HERE
 
 cat > /opt/smartdc/portal/cfg/capi.json <<HERE
 {
-  "uri": "${CAPI_API_PRIVATE_URL}",
+  "uri": "${CAPI_API_EXTERNAL_URL}",
   "username": "${CAPI_HTTP_ADMIN_USER}",
   "password": "${CAPI_HTTP_ADMIN_PW}"
 }
@@ -38,7 +38,7 @@ HERE
 
 cat > /opt/smartdc/portal/cfg/cloudApi.json <<HERE
 {
-  "url": "${CLOUD_API_PRIVATE_URL}",
+  "url": "${CLOUD_API_EXTERNAL_URL}",
   "version": "6.1.0"
 }
 HERE
