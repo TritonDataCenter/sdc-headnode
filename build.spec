@@ -1,5 +1,5 @@
 {
-    "platform-release": "20110906T212644Z"
+    "platform-release": "20110907T170754Z"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
