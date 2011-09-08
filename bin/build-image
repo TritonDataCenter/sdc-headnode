@@ -51,8 +51,10 @@ THIS_TIMESTAMP=${TIMESTAMP}
 if [[ -z "$THIS_TIMESTAMP" ]]; then
     THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
 fi
-THIS_GITDESCRIBE=g$(git describe --all --long | awk -F'-g' '{print $NF}')
+AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
+THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
+
 
 # "THIS_BUILDSTAMP" is the new sane replacement for "THIS_VERSION". However,
 # "THIS_VERSION" ends up in /usbkey/version. *Currently* I'm too much of a
