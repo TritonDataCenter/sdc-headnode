@@ -41,59 +41,6 @@ function create_latest_link
     (cd ${USB_COPY}/os && ln -s ${latest} latest)
 }
 
-function find_platform_id
-{
-    platform_id=
-
-    for line in $(/smartdc/bin/sdc-mapi /admin/platform_images \
-        | /usr/xpg4/bin/grep -e '"id"' -e '"name"' \
-        | tr -d ' ,"' \
-        | tr ':' '=' \
-        | xargs -L 2 \
-        | tr ' ' ',' \
-        | grep "HVM-"); do
-
-        # we should have something like id=1,name=xyz
-        # set these as variables id and name
-        eval ${line%,*}
-        eval ${line#*,}
-
-        if [[ -n ${id} && -n ${name} ]]; then
-            ary[${id}]=${name}
-        fi
-    done
-
-    latest_hvm=$(echo ${ary[@]} | tr ' ' '\n' | sort | tail -1)
-
-    i=0
-    while [[ -z ${platform_id} ]]; do
-        if [[ ${latest_hvm} == ${ary[${i}]} ]]; then
-            platform_id=${i};
-        fi
-        i=$((${i} + 1))
-    done
-}
-
-function create_hvm_server_role
-{
-    find_platform_id
-    if [[ -n ${platform_id} ]]; then
-        /smartdc/bin/sdc-mapi /admin/server_roles -X POST -F name=hvm -F platform_image_id=${platform_id}
-    fi
-}
-
-function install_hvm_platforms
-{
-    platforms=$(find ${USB_COPY}/data -name "platform-hvm-*.tgz")
-    if [[ -n ${platforms} ]]; then
-        for f in ${platforms}; do
-            ${USB_COPY}/scripts/install-platform.sh file://${f}
-            rm -f ${f}
-        done
-        create_hvm_server_role
-    fi
-}
-
 function install_config_file
 {
     option=$1
@@ -230,6 +177,7 @@ if [ -n "${CREATEDZONES}" ]; then
     # should be.
     if [[ ( $CONFIG_install_agents != "false"   && \
             $CONFIG_install_agents != "0"     ) ]]; then
+        # We exclude any old hvm platforms that might be sitting around.
         which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
             | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then
@@ -268,9 +216,6 @@ if [ -n "${CREATEDZONES}" ]; then
             >&${CONSOLE_FD}
     fi
 
-    # Install any HVM platforms that are sitting around, do this here since MAPI is now up.
-    install_hvm_platforms
-   
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
     	printf "%-56s\n" "Executing post-install script..." >&${CONSOLE_FD}

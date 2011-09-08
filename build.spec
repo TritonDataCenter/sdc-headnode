@@ -1,13 +1,9 @@
 {
     "platform-release": "master"
-  , "hvm-platform-release": "HVM"
-  , "hvm-subdir": "release-20110714"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
-  , "build-hvm": "false"
   , "agents-shar": "master"
-  , "hvm-agents-shar": "hvm"
   , "datasets": [
       { "name": "smartos-1.3.17"
       , "uuid": "bb6d5a10-c330-11e0-8f18-9fbfcd26660b"

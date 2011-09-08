@@ -1174,59 +1174,6 @@ function copy_devtools
     fi
 }
 
-function copy_hvm_files
-{
-    if [[ -f "${ROOT}/build.spec" ]]; then
-        if [[ -z ${BUILD_HVM} ]]; then
-            BUILD_HVM=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json build-hvm)
-        fi
-        if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
-            HVM_PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json hvm-platform-release)
-        fi
-        if [[ -z ${HVM_AGENTS_SHAR} ]]; then
-            HVM_AGENTS_SHAR=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json hvm-agents-shar)
-        fi
-        if [[ -z ${HVM_SUBDIR} ]]; then
-            HVM_SUBDIR=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json hvm-subdir)
-        fi
-    fi
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        BUILD_HVM_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json build-hvm)
-        if [[ -n ${BUILD_HVM_LOCAL} ]]; then BUILD_HVM=${BUILD_HVM_LOCAL}; fi
-
-        HVM_PLATFORM_RELEASE_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-platform-release)
-        if [[ -n ${HVM_PLATFORM_RELEASE_LOCAL} ]]; then HVM_PLATFORM_RELEASE=${HVM_PLATFORM_RELEASE_LOCAL}; fi
-        HVM_AGENTS_SHAR_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-agents-shar)
-        if [[ -n ${HVM_AGENTS_SHAR_LOCAL} ]]; then HVM_AGENTS_SHAR=${HVM_AGENTS_SHAR_LOCAL}; fi
-        HVM_SUBDIR_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json hvm-subdir)
-        if [[ -n ${HVM_SUBDIR_LOCAL} ]]; then HVM_SUBDIR=${HVM_SUBDIR_LOCAL}; fi
-    fi
-
-    if [[ -z ${BUILD_HVM} ]]; then
-        BUILD_HVM="false"
-    fi
-    if [[ -z ${HVM_AGENTS_SHAR} ]]; then
-        HVM_AGENTS_SHAR="hvm"
-    fi
-    if [[ -z ${HVM_PLATFORM_RELEASE} ]]; then
-        HVM_PLATFORM_RELEASE="hvm"
-    fi
-
-    if [[ ${BUILD_HVM} == "true" ]]; then
-        echo "HAVE_HVM=true" >> ${STAGE}/zones/adminui/zoneconfig
-        get_agents ${HVM_AGENTS_SHAR} "${HVM_SUBDIR}"
-        copy_platform "${HVM_PLATFORM_FILE}" "${HVM_PLATFORM_RELEASE}" "false" "${HVM_SUBDIR}"
-    fi
-}
-
 function copy_webinfo
 {
     if [[ -f "${ROOT}/build.spec" ]]; then
@@ -1246,7 +1193,6 @@ function copy_webinfo
         git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
         cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \
         $TAR -cf ${STAGE}/webinfo.tar --exclude .git webinfo )
-        
 }
 
 function create_upgrade
@@ -1304,7 +1250,6 @@ copy_agents
 copy_datasets
 copy_zones
 copy_devtools
-copy_hvm_files
 copy_webinfo
 
 $(mv $RECIPE ${STAGE}/recipe)
