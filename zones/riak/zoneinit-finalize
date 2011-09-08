@@ -5,8 +5,6 @@ echo "99 finalizing riak zone"
 echo "Configuring RIAK:"
 echo "Binding RIAK to Admin IP."
 $(/opt/local/bin/gsed -i"" -e "s/127.0.0.1/${PRIVATE_IP}/" /opt/local/etc/riak/app.config)
-echo "Using InnoStore backend as default."
-$(/opt/local/bin/gsed -i"" -e "s/storage_backend, riak_kv_bitcask_backend/storage_backend, riak_kv_innostore_backend/" /opt/local/etc/riak/app.config)
 echo "Updating RIAK node name."
 $(/opt/local/bin/gsed -i"" -e "s/riak@127.0.0.1/riak@${PRIVATE_IP}/" /opt/local/etc/riak/vm.args)
 echo "Setting RIAK cluster cookie"
