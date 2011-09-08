@@ -45,10 +45,20 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     set -o xtrace
 fi
 
+# See MG's Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
+THIS_GITDESCRIBE=g$(git describe --all --long | awk -F'-g' '{print $NF}')
+THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 
-THIS_VERSION=$(date -u +%Y%m%dT%H%M%SZ).${THIS_BRANCH}-$(git describe)
-
+# "THIS_BUILDSTAMP" is the new sane replacement for "THIS_VERSION". However,
+# "THIS_VERSION" ends up in /usbkey/version. *Currently* I'm too much of a
+# panzy to change this format because I don't know what might be using that
+# version string. Will change after 6.5 is final.
+THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
 if [ -f build-number.txt ]; then
     THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
         | sed -n 's,^build\.number=\(.*\),\1,p')"
@@ -302,11 +312,7 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
     case ${BUILD_TYPE} in
-        coal)
-            source ${ROOT}/bin/include-vmware-linux
-            version
-            ;;
-        vmware)
+        coal|vmware)
             source ${ROOT}/bin/include-vmware-linux
             version
             ;;
@@ -1252,7 +1258,7 @@ function create_upgrade
     chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \
         && env GZIP=-9 \
-        ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-$(git describe).tgz \
+        ${TAR} -zcf ${ROOT}/cache/upgrade/usbkey/upgrade-${THIS_GITDESCRIBE}.tgz \
         boot/grub/menu.lst.tmpl \
         config.default \
         data \
@@ -1281,7 +1287,7 @@ function pack_upgrade
     echo "${THIS_VERSION}" > ${ROOT}/cache/upgrade/VERSION
 
     (cd ${ROOT}/cache \
-        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${THIS_VERSION}.tgz upgrade)
+        && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${THIS_BUILDSTAMP}.tgz upgrade)
 }
 
 # Main()
