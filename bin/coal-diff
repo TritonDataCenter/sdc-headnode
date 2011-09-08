@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2010 Joyent Inc., All Rights Reserved.
 #
-# This tool exists to do a diff between two COAL 147 images.
+# This tool exists to do a diff between two COAL images.
 #
 
 added = {}
@@ -14,7 +14,7 @@ data[:a] = {}
 data[:b] = {}
 
 if ARGV.size != 2 or !File.exist?(ARGV[0]) or !File.exist?(ARGV[1]) then
-  puts "Usage: #{$0} <coal-147-A.tgz> <coal-147-B.tgz>"
+  puts "Usage: #{$0} <coal-A.tgz> <coal-B.tgz>"
   exit 1
 end
 
