@@ -4,22 +4,24 @@
 #
 
 PLATFORM=$(uname -s)
-SUCMD='sudo'
 MNT_DIR="${ROOT}/mnt"
 GZCAT="zcat"
 IMG_TYPE="usb"
 case "$PLATFORM" in
   Darwin)
+    SUCMD='sudo'
     MD5CMD="md5 -r"
     TAR=gnutar
     TAR_ROOT=""
     ;;
   SunOS)
+    SUCMD='pfexec'
     MD5CMD="md5sum"
     TAR=gtar
     TAR_ROOT="--owner=root --group=root"
     ;;
   Linux)
+    SUCMD='sudo'
     MD5CMD="md5sum"
     TAR=tar
     TAR_ROOT="--owner=root --group=root"
