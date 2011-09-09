@@ -9,6 +9,7 @@ exports.config = {
   externalUrl : "${EXTERNAL_URL}",
   capiConfig : "./cfg/capi.json",
   cloudApiConfig : "./cfg/cloudApi.json",
+  machineQueryLimit : 500,
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-reply@no.de>",
@@ -75,7 +76,7 @@ cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
     { "name": "login", "label": "form.label.username", "required" : "true" },
     { "name": "password", "label": "form.label.password", "required" : "true", "type" : "password" },
     { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
-    { "name": "last_name", "label": "form.label.last_name", "required" : "false" },    
+    { "name": "last_name", "label": "form.label.last_name", "required" : "false" },
     { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
     { "name": "phone", "label": "form.label.phone_number", "required" : "false"}
   ]
