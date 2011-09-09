@@ -35,11 +35,8 @@ sigexit()
 #
 max_fld()
 {
-	if [ $2 -eq 255 ]; then
-		fmax=$1
-	else
-		fmax=$((255 & ~$2))
-	fi
+	comp=$((255 & ~$2))
+	fmax=$(($comp | $1))
 }
 
 #
@@ -473,6 +470,10 @@ visible on the external network which will need assigned addresses.\n\n"
 		else
 			next_addr=3
 		fi
+		# host_addr is the number of IPs above the subnet's start address, so
+		# convert these addresses to real (not relative) IPs:
+		next_addr=$(expr $net_d + $next_addr)
+		gw_host_addr=$(expr $net_d + $gw_host_addr)
 
 		adminui_external_ip="$net_a.$net_b.$net_c.$next_addr"
 		next_addr=$(expr $next_addr + 1)
