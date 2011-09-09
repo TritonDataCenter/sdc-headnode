@@ -40,7 +40,7 @@ HERE
 cat > /opt/smartdc/portal/cfg/cloudApi.json <<HERE
 {
   "url": "${CLOUD_API_EXTERNAL_URL}",
-  "version": "6.1.0"
+  "version": "6.5.0"
 }
 HERE
 
