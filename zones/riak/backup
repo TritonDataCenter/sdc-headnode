@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+# We know the name of our app:
+APP_NAME="${ZONE}"
+
+CMD=/opt/local/sbin/riak-admin
+
+# source to get the cookie value
+. /usbkey/zones/$ZONE/zoneconfig
+
+if [[ -z "$RIAK_COOKIE" ]]; then
+    echo "Unable to get riak cookie"
+    exit 104
+fi
+
+zstate=`zoneadm -z $ZONE list -p 2>/dev/null | cut -d: -f3`
+if [[ "$zstate" != "running" ]]; then
+    echo "$ZONE is not running"
+    exit 105
+fi
+
+# Get zones IP address
+IP_ADDR=`zlogin $ZONE ifconfig riak0 | nawk '{ if ($1 == "inet") print $2}'`
+
+if [[ -z "$IP_ADDR" ]]; then
+    echo "Unable to get zones IP address"
+    exit 106
+fi
+
+# Just in case, create the backup directory:
+[[ ! -e "${TARGET_DIR}" ]] && mkdir -p ${TARGET_DIR}
+
+STAMP=$(date +'%F-%H-%M-%S-%Z')
+BACKUP_FILE="${APP_NAME}-${STAMP}"
+
+# Create backup directory for the zone stuff:
+echo "==> Creating backup directory '${TARGET_DIR}/${APP_NAME}'"
+mkdir -p "${TARGET_DIR}/${APP_NAME}"
+
+# Setup a lofs mount into the zone for the backup directory
+mkdir -p /zones/$ZONE/root/backup
+mount -F lofs ${TARGET_DIR}/${APP_NAME} /zones/$ZONE/root/backup
+chmod 777 ${TARGET_DIR}/${APP_NAME}
+
+echo "==> Saving $APP_NAME backup"
+zlogin $ZONE "(export PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin; \
+    $CMD backup riak@$IP_ADDR $RIAK_COOKIE /backup/$BACKUP_FILE all)"
+if [[ $? -gt 0 ]]; then
+    echo "Unable to backup $APP_NAME"
+    umount /zones/$ZONE/root/backup
+    chmod 755 ${TARGET_DIR}/${APP_NAME}
+    exit 107
+fi
+
+echo "==> Cleaning up"
+umount /zones/$ZONE/root/backup
+chmod 755 ${TARGET_DIR}/${APP_NAME}
+
+# Create a file to hold the file name for the restore script:
+echo "${BACKUP_FILE}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"
+
+echo "All done!!!"
+exit 0
