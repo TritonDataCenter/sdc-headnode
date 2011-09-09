@@ -3,9 +3,9 @@
 # Before to proceed, ensure we disable all the smartdc services on the zone:
 # (I know the capi_ipf_setup is not needed here, but trying to write something
 # we can actually use for any of the ruby zones)
-echo "Disabling application service"
+echo "Disabling application services"
 /usr/sbin/svcadm disable -s billapi
-# /usr/sbin/svcadm disable -s billapi-queue
+/usr/sbin/svcadm disable -s billapi-queue
 /usr/sbin/svcadm disable -s billapi-consumer
 
 # Source configuration file first:
@@ -15,9 +15,9 @@ source /opt/smartdc/etc/zoneconfig
 source /opt/smartdc/bin/configure.sh
 
 # Re-enable our services post re-configuration:
-echo "Enabling application service"
+echo "Enabling application services"
 /usr/sbin/svcadm enable -s billapi
-# /usr/sbin/svcadm enable -s billapi-queue
+/usr/sbin/svcadm enable -s billapi-queue
 /usr/sbin/svcadm enable -s billapi-consumer
 
 # And exit:
