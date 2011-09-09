@@ -6,8 +6,8 @@
   , "build-hvm": "false"
   , "agents-shar": "release-20110901-20110909T043243Z"
   , "datasets": [
-      { "name": "smartos-1.3.17"
-      , "uuid": "bb6d5a10-c330-11e0-8f18-9fbfcd26660b"
+      { "name": "smartos-1.3.18"
+      , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
       , "headnode_zones": "true"
       }
     , { "name": "nodejs-1.1.4"
