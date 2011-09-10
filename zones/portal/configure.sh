@@ -14,7 +14,7 @@ exports.config = {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-reply@no.de>",
   },
-  defaultCAParams : { module : "node", stat : "httpd_ops", decomposition : "raddr" },
+  defaultCAParams : { module : "tcp", stat : "accepts", decomposition : "raddr" },
   defaultCAChoices : [
     { label : "HTTP server operations", params : { module : "node", stat : "httpd_ops", decomposition : "raddr", "idle-max" : 30 }},
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
