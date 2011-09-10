@@ -16,7 +16,7 @@ exports.config = {
   },
   defaultCAParams : { module : "tcp", stat : "accepts", decomposition : "raddr" },
   defaultCAChoices : [
-    { label : "HTTP server operations", params : { module : "node", stat : "httpd_ops", decomposition : "raddr", "idle-max" : 30 }},
+    { label : "TCP accept operations", params : { module : "tcp", stat : "accepts", decomposition : "raddr", "idle-max" : 30 }},
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
