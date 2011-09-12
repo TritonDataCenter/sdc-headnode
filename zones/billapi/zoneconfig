@@ -7,6 +7,7 @@ ROOT_PW=${billapi_root_pw}
 ADMIN_PW=${billapi_admin_pw}
 TMPFS=512m
 PRIVATE_IP=${billapi_admin_ip}
+PUBLIC_IP=${billapi_external_ip}
 
 BILLAPI_EXTERNAL_URL=${billapi_external_url}
 EXTERNAL_URL=${billapi_external_url}
