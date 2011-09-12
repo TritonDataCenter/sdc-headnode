@@ -8,7 +8,7 @@ usb:
 upgrade:
 	bin/build-image upgrade
 tar:
-	bin/build-image tar
+	bin/build-image -c tar
 sandwich:
 	@open http://xkcd.com/149/
 
