@@ -12,8 +12,9 @@ if [[ -n ${BILLAPI_DIR} ]]; then
     if [[ -d ${BILLAPI_DIR} ]]; then
         echo "taking billapi from ${BILLAPI_DIR}"
         # XXX BILLAPI_DIR must be a git repo (so git describe works)
-        mkdir billapi-repo
-        (cd ${BILLAPI_DIR} && tar -cf - ./) | (cd billapi-repo && tar -xf -)
+        mkdir billapi
+        mkdir billapi/ssl
+        (cd ${BILLAPI_DIR} && tar -cf - ./) | (cd billapi && tar -xf -)
     else
         echo "FATAL: ${BILLAPI_DIR} is not a directory"
         exit 1
