@@ -1,3 +1,4 @@
+blas-1.1nb2
 perl-5.12.2nb1
 iodbc-3.52.7
 libffi-3.0.9
@@ -6,6 +7,7 @@ py26-numpy-1.4.1
 py26-setuptools-0.6c11nb1
 expat-2.0.1nb2
 xmlcatmgr-2.2nb1
+lapack-3.1.1nb4
 libxml2-2.7.8nb2
 libgetopt-1.4.4
 libidn-1.19
