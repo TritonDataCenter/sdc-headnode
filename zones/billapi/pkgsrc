@@ -5,5 +5,5 @@ pcre-8.11
 gcc-compiler-4.5.2
 gcc-runtime-4.5.2
 gcc-tools-0
-scmgit-1.7.3.4
+scmgit-base-1.7.3.4nb1
 gmake-3.82nb1
