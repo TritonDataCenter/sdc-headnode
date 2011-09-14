@@ -8,3 +8,12 @@ gcc-runtime-4.5.2
 gcc-tools-0
 gmake-3.82nb1
 riak-0.14.2
+curl-7.21.3
+expat-2.0.1nb2
+libgetopt-1.4.4
+libidn-1.19
+libssh2-1.2.2nb1
+p5-Error-0.17016nb1
+scmgit-1.7.3.4
+scmgit-base-1.7.3.4nb1
+scmgit-docs-1.7.3.4
