@@ -348,6 +348,18 @@ Press [enter] to continue"
 printf "$message"
 read continue;
 
+if [ -f /tmp/config_in_progress ]; then
+	message="
+Configuration is already in progress on another terminal.
+This session can no longer perform system configuration.\n"
+	while [ /usr/bin/true ]; do
+		printf "$message"
+		read continue;
+	done
+
+fi
+touch /tmp/config_in_progress
+
 #
 # Main loop to prompt for user input
 #
