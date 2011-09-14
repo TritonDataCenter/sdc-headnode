@@ -78,7 +78,7 @@ cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
     { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
     { "name": "last_name", "label": "form.label.last_name", "required" : "false" },
     { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
-    { "name": "phone", "label": "form.label.phone_number", "required" : "false"}
+    { "name": "phone_number", "label": "form.label.phone_number", "required" : "false"}
   ]
 }
 HERE
