@@ -31,7 +31,7 @@ Mac setup:
 
     ./coal/coal-vmware-setup
 
-- You need nodejs >0.4.9 and npm 1.x installed and on your path. I typically
+- You need nodejs >=0.4.9 and npm 1.x installed and on your path. I typically
   build my own something like this:
 
     # Nodejs build.
@@ -60,7 +60,7 @@ SmartOS setup:
   building the platform -- some of which is also required for building
   usb-headnode.
 
-- You need nodejs >0.4.9 and npm 1.x installed and on your path. Here is one
+- You need nodejs >=0.4.9 and npm 1.x installed and on your path. Here is one
   way to do it:
 
     pkgin -y in nodejs-0.4.9
