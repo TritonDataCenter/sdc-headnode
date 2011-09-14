@@ -12,7 +12,9 @@ IMG_TYPE="usb"
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
-
+if [[ -z $IMG_TMP_DIR ]]; then
+	IMG_TMP_DIR=/tmp
+fi
 function can_has_internets
 {
     if ping 8.8.8.8 64 3 >/dev/null 2>&1 \
@@ -38,16 +40,16 @@ function cleanup
             IMG_DEV=
         fi
     fi
-    rm -rf /tmp/fs.*.$$
-    rm -rf /tmp/output.*.$$
+    rm -rf $IMG_TMP_DIR/fs.*.$$
+    rm -rf $IMG_TMP_DIR/output.*.$$
 }
 
 function unpack_image
 {
     echo -n "==> Unpacking USB image... "
-    [[ -f /tmp/${OUTPUT_IMG}.$$ ]] \
-        && rm -f /tmp/${OUTPUT_IMG}.$$
-    (cd /tmp && ${TAR} -zxf ${ROOT}/usb/${TEMPLATE_IMG} \
+    [[ -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$ ]] \
+        && rm -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$
+    (cd $IMG_TMP_DIR && ${TAR} -zxf ${ROOT}/usb/${TEMPLATE_IMG} \
         && mv ${OUTPUT_IMG} ${OUTPUT_IMG}.$$) \
         || fatal "Unable to unpack USB image"
     echo "done."
@@ -58,7 +60,7 @@ function mount_image
     echo -n "==> Mounting new USB image... "
     MNT_DIR=/mnt/tmp
     ${SUCMD} mkdir -p ${MNT_DIR}
-    LOOPBACK=$(${SUCMD} lofiadm -a /tmp/${OUTPUT_IMG}.$$)
+    LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/${OUTPUT_IMG}.$$)
     ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
 }
@@ -109,11 +111,11 @@ function create_output
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
         echo "==> Creating usb-${output_version}.tgz"
         (cd ${ROOT}/cache \
-            && mv /tmp/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG} \
+            && mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG} \
             && ${TAR} -zcf ${ROOT}/usb-${output_version}.tgz \
             root.password.${LIVEIMG_VERSION} usb-${output_version}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv /tmp/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG}
+        mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG}
     fi
 }

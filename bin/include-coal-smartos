@@ -6,7 +6,9 @@
 . ${ROOT}/bin/include-usb-smartos
 IMG_TYPE="coal"
 COAL_VMDK="${USB_SIZE}.coal.vmdk"
-
+if [[ -z $IMG_TMP_DIR ]]; then
+	  IMG_TMP_DIR=/tmp
+fi
 function version
 {
     echo "==> Building with variables from include-coal-smartos"
@@ -54,7 +56,7 @@ function create_output
 
     # Copy in ${ROOT}/cache/${OUTPUT_IMG}
     echo -n "==> Copying in ${OUTPUT_IMG}... "
-    mv /tmp/${OUTPUT_IMG}.$$ \
+    mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ \
         ${ROOT}/cache/USB-headnode.vmwarevm/${OUTPUT_IMG}
     echo "done."
 
