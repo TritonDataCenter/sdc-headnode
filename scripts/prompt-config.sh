@@ -83,6 +83,52 @@ ip_netmask_to_network()
 	IFS=$OLDIFS
 }
 
+# Sets two variables, use_lo and use_hi, which are the usable IP addrs for the
+# largest block of available host addresses on the subnet, based on the two
+# addrs the user has chosen for the GW and External Host IP.
+# We look at the three ranges (upper, middle, lower) defined by the two addrs.
+calc_ext_default_range()
+{
+	a1=$1
+	a2=$2
+
+	if [ $a1 -lt $a2 ]; then
+		lo=$a1
+		hi=$a2
+	else
+		lo=$a2
+		hi=$a1
+	fi
+
+	u_start=`expr $hi + 1`
+	m_start=`expr $lo + 1`
+	l_start=1
+
+	u_max=$max_d
+	m_max=`expr $hi - 1`
+	l_max=`expr $lo - 1`
+
+	up_range=`expr $max_d - $hi`
+	mid_range=`expr $hi - $lo`
+	lo_range=`expr $lo - 2`
+	[ $lo_range -lt 1 ] && lo_range=0
+
+	if [ $up_range -gt $mid_range ]; then
+		use_lo=$u_start
+		use_hi=$u_max
+		range=$up_range
+	else
+		use_lo=$m_start
+		use_hi=$m_max
+		range=$mid_range
+	fi
+
+	if [ $range -lt $lo_range ]; then
+		use_lo=$l_start
+		use_hi=$l_max
+	fi
+}
+
 # Tests whether entire string is a number.
 isdigit ()
 {
@@ -481,19 +527,15 @@ visible on the external network which will need assigned addresses.\n\n"
 
 		ip_netmask_to_network "$external_ip" "$external_netmask"
 
-		# Is external IP or external gateway in our externally visible
-		# zone range (there are 4 of these zones)?
-		if [[ ( $host_addr -ge 3 && $host_addr -le 6 ) ||
-		      ( $gw_host_addr -ge 3 && $gw_host_addr -le 6 ) ]]; then
-			next_addr=7
-		else
-			next_addr=3
-		fi
-		# host_addr is the number of IPs above the subnet's start address, so
-		# convert these addresses to real (not relative) IPs:
-		next_addr=$(expr $net_d + $next_addr)
+		# Get use_lo and use_hi values for defaults
+		calc_ext_default_range $gw_host_addr $host_addr
+
 		gw_host_addr=$(expr $net_d + $gw_host_addr)
 
+		# host_addr is the number of IPs above the subnet's start
+		# address, so convert these addresses to real (not relative)
+		# IPs:
+		next_addr=$(expr $net_d + $use_lo)
 		adminui_external_ip="$net_a.$net_b.$net_c.$next_addr"
 		next_addr=$(expr $next_addr + 1)
 		billapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
@@ -506,32 +548,10 @@ visible on the external network which will need assigned addresses.\n\n"
 
 		# By default, start the provisionable range 5 addrs after the
 		# external IPs for the zones above.
-		#
-		# external_provisionable_end should be either max_host or
-		# $low_max-1 if $low_max is in the provisionable range.
-		# low_max is based on either the external or gateway IP
-
 		next_addr=$(expr $next_addr + 5)
 		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
 
-		# check if external_ip or gateway is between us and max_host
-		if [[ $gw_host_addr -gt $next_addr && \
-		      $host_addr -gt $next_addr ]]; then
-			if [[ $gw_host_addr -gt $host_addr ]]; then
-				low_max=$host_addr
-			else
-				low_max=$gw_host_addr
-			fi
-		elif [[ $gw_host_addr -gt $next_addr ]]; then
-			low_max=$gw_host_addr
-		elif [[ $host_addr -gt $next_addr ]]; then
-			low_max=$host_addr
-		else
-			low_max=$max_d
-		fi
-
-		max_d=$(expr $low_max - 1)
-		external_provisionable_end="$max_a.$max_b.$max_c.$max_d"
+		external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
 	fi
 
 	promptnet " AdminUI zone external IP address" "$adminui_external_ip"
