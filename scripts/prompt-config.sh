@@ -142,9 +142,16 @@ is_email() {
 # Optional input
 promptopt()
 {
-	val=
-	printf "%s [press enter for none]: " "$1"
+	val=""
+	def="$2"
+	if [ -z "$def" ]; then
+		printf "%s [press enter for none]: " "$1"
+	else
+		printf "%s [%s]: " "$1" "$def"
+	fi
 	read val
+	# If def was null and they hit return, we just assign null to val
+	[ -z "$val" ] && val="$def"
 }
 
 promptval()
@@ -460,7 +467,7 @@ visible on the external network which will need assigned addresses.\n\n"
 	promptnet "(external) gateway IP address" "$external_gateway"
 	external_gateway="$val"
 
-	promptopt "(external) VLAN ID"
+	promptopt "(external) VLAN ID" "$external_vlan_id"
 	external_vlan_id="$val"
 
 	if [[ -z "$external_provisionable_start" ]]; then
