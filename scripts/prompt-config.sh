@@ -297,10 +297,17 @@ promptnic()
 
 promptpw()
 {
+	def="$3"
+
 	while [ /usr/bin/true ]; do
 		val=""
 		while [ -z "$val" ]; do
-			printf "%s: " "$1"
+			if [ -z "$def" ]; then
+				printf "%s: " "$1"
+			else
+				printf "%s [enter to keep existing]: " "$1"
+			fi
+
 			stty -echo
 			read val
 			stty echo
@@ -314,7 +321,12 @@ promptpw()
 	 				break
 				fi
 			else 
-				echo "A value must be provided."
+				if [ -n "$def" ]; then
+					val=$def
+	 				return
+				else
+					echo "A value must be provided."
+				fi
 			fi
 		done
 
@@ -623,19 +635,24 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
  
 	printheader "Account Information"
 	message="
-There are two primary accounts for managing a Smart Data Center. 
-These are 'admin', and 'root'. Each user can have a unique password. Most of 
-the interaction you will have with SDC will be using the 'admin' user, unless
-otherwise specified. SDC also has the ability to send notification emails to a
-specific address. Each of these values will be configured below.\n\n"
+There are two primary accounts for managing a Smart Data Center.  These are
+'admin', and 'root'. Each user can have a unique password. Most of the
+interaction you will have with SDC will be using the 'admin' user, unless
+otherwise specified.  There is also an internal HTTP API password used by
+various services to communicate with each other.  In addition, SDC has the
+ability to send notification emails to a specific address. Each of these
+values will be configured below.\n\n"
 
 	printf "$message"
 	
-	promptpw "Enter root password" "nolen"
+	promptpw "Enter root password" "nolen" "$root_shadow"
 	root_shadow="$val"
 	
-	promptpw "Enter admin password" "chklen"
+	promptpw "Enter admin password" "chklen" "$zone_admin_pw"
 	zone_admin_pw="$val"
+	
+	promptpw "Enter HTTP API svc password" "chklen" "$http_admin_pw"
+	http_admin_pw="$val"
 	
 	promptemail "Administrator email goes to" "$mail_to"
 	mail_to="$val"
@@ -900,7 +917,7 @@ else
 fi
 echo "capi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "capi_http_admin_user=admin" >>$tmp_config
-echo "capi_http_admin_pw=tot@ls3crit" >>$tmp_config
+echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "capi_admin_login=admin" >>$tmp_config
 echo "capi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "capi_admin_email=user@${domainname}" >>$tmp_config
@@ -929,7 +946,7 @@ echo "mapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "mapi_mac_prefix=90b8d0" >>$tmp_config
 echo "mapi_http_port=8080" >>$tmp_config
 echo "mapi_http_admin_user=admin" >>$tmp_config
-echo "mapi_http_admin_pw=tot@ls3crit" >>$tmp_config
+echo "mapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
 echo >>$tmp_config
 
@@ -974,7 +991,7 @@ echo "billapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "billapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "billapi_external_url=$billapi_external_url" >>$tmp_config
 echo "billapi_http_admin_user=admin" >>$tmp_config
-echo "billapi_http_admin_pw=tot@ls3crit" >>$tmp_config
+echo "billapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "riak_admin_ip=$riak_admin_ip" >>$tmp_config
