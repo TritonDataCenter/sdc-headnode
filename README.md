@@ -52,7 +52,8 @@ SmartOS setup:
   best current place for that is in the Joyent Development Lab in Bellingham,
   aka BH-1 (see <https://hub.joyent.com/wiki/display/dev/Development+Lab>).
 
-- Create a dev zone on one of the "bh1-build*" boxes and set it up as per
+- Create a dev zone on one of the "bh1-build*" boxes (I've used bh1-build0)
+  and set it up as per
   <https://hub.joyent.com/wiki/display/dev/Building+the+SmartOS+live+image+in+a+SmartOS+zone#BuildingtheSmartOSliveimageinaSmartOSzone-HiddenWIPinstructionsfromJoshforsettingthisuponbh1build2>.
 
   Currently, you need to follow the steps all the way to running "./configure"
@@ -63,10 +64,26 @@ SmartOS setup:
 - You need nodejs >=0.4.9 and npm 1.x installed and on your path. Here is one
   way to do it:
 
-    pkgin -y in nodejs-0.4.9
-    curl http://npmjs.org/install.sh | sh
+        pkgin -y in nodejs-0.4.9
+        curl http://npmjs.org/install.sh | sh
 
-See Trent's full attempt notes here: <https://gist.github.com/4e3a9ea4b467cb1cef6a>
+  WARNING: Installing npm 1.x into /opt/local like this collides with the
+  npm 0.2.x from pkgsrc. Agents builds like CA and the agents.git repos
+  require npm 0.2.x first on the PATH, so if you plan to build those
+  as well, then you can follow the layout used by MG builds
+  (see <https://mo.joyent.com/mountain-gorilla/blob/master/README.md>)
+  which is to install npm 1.x in "$HOME/opt/npm":
+  
+        pkgin -y in nodejs-0.4.9
+        mkdir -p $HOME/opt/npm
+        curl http://npmjs.org/install.sh | npm_config_prefix=$HOME/opt/npm clean=no sh
+
+  then if you want that one to be the default:
+  
+        npm config set prefix $HOME/opt/npm
+        cat >> $HOME/.bashrc <<ADDNPM
+        export PATH=$HOME/opt
+        ADDNPM
 
 
 # Configuration
