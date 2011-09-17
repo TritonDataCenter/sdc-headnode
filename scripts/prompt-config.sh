@@ -848,7 +848,7 @@ echo "# These are the dhcp settings for compute nodes on the admin network"\
     >>$tmp_config
 echo "dhcp_range_start=$dhcp_range_start" >>$tmp_config
 echo "dhcp_range_end=$dhcp_range_end" >>$tmp_config
-echo "dhcp_lease_time=6000" >>$tmp_config
+echo "dhcp_lease_time=86400" >>$tmp_config
 echo "dhcp_next_server=$dhcp_next_server" >>$tmp_config
 echo >>$tmp_config
 
