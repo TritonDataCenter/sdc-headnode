@@ -24,16 +24,24 @@ root_authorized_keys_file=root.authorized_keys
 
 adminui_cpu_shares=50
 adminui_max_lwps=1000
-adminui_memory_cap=128m
+adminui_memory_cap=1536m
 adminui_workers=3
 
 assets_cpu_shares=50
 assets_max_lwps=1000
-assets_memory_cap=128m
+assets_memory_cap=1536m
+
+billapi_cpu_shares=50
+billapi_max_lwps=1000
+billapi_memory_cap=1536m
+
+ca_cpu_shares=100
+ca_max_lwps=1000
+ca_memory_cap=1536m
 
 capi_cpu_shares=50
 capi_max_lwps=1000
-capi_memory_cap=128m
+capi_memory_cap=1536m
 capi_workers=3
 #
 # If the capi_allow_file file exists in config.inc/ it should contain a list of
@@ -47,30 +55,35 @@ capi_workers=3
 #
 capi_allow_file=capi.allow
 
+cloudapi_cpu_shares=50
+cloudapi_max_lwps=1000
+cloudapi_memory_cap=1536m
+
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
-dhcpd_memory_cap=128m
+dhcpd_memory_cap=1536m
 dhcpd_dhcp_server=1
-
-sbapi_url=https://report.joyent.com/servicebundles/
-sbapi_http_user=sdc6support
-sbapi_http_pass=4cea03de8bf6
 
 mapi_cpu_shares=50
 mapi_max_lwps=1000
-mapi_memory_cap=512m
+mapi_memory_cap=1536m
 mapi_workers=3
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
 portal_cpu_shares=50
 portal_max_lwps=1000
-portal_memory_cap=128m
+portal_memory_cap=1536m
 
-cloudapi_cpu_shares=50
-cloudapi_max_lwps=1000
-cloudapi_memory_cap=128m
+riak_cpu_shares=50
+riak_max_lwps=1000
+riak_memory_cap=1536m
 
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=128m
+rabbitmq_memory_cap=1536m
+
+sbapi_url=https://report.joyent.com/servicebundles/
+sbapi_http_user=sdc6support
+sbapi_http_pass=4cea03de8bf6
+
