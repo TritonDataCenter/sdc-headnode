@@ -22,16 +22,24 @@ if [[ -z $DATA_DATASET ]]; then
   exit 102
 fi
 
-# No problem at all if the services are not running into the zone:
-echo "==> Disabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
-services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
-for service in $services; do
-  if [[ $service != 'svc:/system/filesystem/smartdc:default' ]]; then
-    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm disable "$service")
-  fi
-done
+# We want to disable any of the old smartdc svcs to prevent the SMF repository
+# from being out of sync with the restored zone data.
+# The zone is halted when we start restoring so use svc to talk to the zone's
+# repo.
+echo "==> Disabling 'smartdc' services on zone '${ZONE}'"
+export SVCCFG_CHECKHASH=1
+export SVCCFG_REPOSITORY=/zones/${ZONE}/root/etc/svc/repository.db
+for service in `svccfg list | egrep smartdc`
+do
+	if [[ $service != "system/filesystem/smartdc" && \
+	    $service != "platform/smartdc/capi_ipf_setup" ]]; then
 
-sleep 5 # Ensure we give time enough to the services to be disabled
+		svccfg -s "$service:default" setprop general/enabled=false \
+		    >/dev/null 2>&1
+	fi
+done
+unset SVCCFG_CHECKHASH
+unset SVCCFG_REPOSITORY
 
 # We're gonna check for existing zone datasets.
 # If they're there, we'll remove them.
@@ -48,10 +56,6 @@ if [[ -z $PREVIOUS_DATA_DATASET ]]; then
     fi
   fi
 fi
-
-echo "==> Halting '${ZONE}' zone"
-/usr/sbin/zoneadm -z ${ZONE} halt
-sleep 5
 
 # Destroy previous datasets, (could have same name and we could be trying
 # to restore them from a previous backup)
@@ -87,6 +91,14 @@ if [[ -z $(zonecfg -z ${ZONE} info dataset|grep "${ZONE}\/${DATA_DATASET%.*}$") 
   fi
 fi
 
+# Older backups may not have had this config file
+if [[ -f "${BASE}/zoneconfig" ]]; then
+	echo "==> Restoring config file for zone '${ZONE}'"
+	cp ${BASE}/zoneconfig /zones/$ZONE/root/opt/smartdc/etc
+else
+	echo "Warning, older backup; missing config file for $ZONE"
+fi
+
 # Now we need to reboot the zone in order to be able to set mountpoints for the
 # new datasets properly:
 
@@ -116,6 +128,9 @@ for service in $services; do
 done
 
 sleep 5
+
+echo "==> Halting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} halt
 
 echo "==> All done!!!"
 

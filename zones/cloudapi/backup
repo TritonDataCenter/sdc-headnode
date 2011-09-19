@@ -3,9 +3,6 @@
 # Copyright (c) 2011 Joyent Inc., All rights reserved.
 #
 
-set -o errexit
-#set -o xtrace
-
 if [[ $# != 2 ]]; then
     echo "Usage: $0 <zone_name> <target_directory>"
     exit 1
@@ -13,27 +10,18 @@ fi
 
 ZONE=$1
 TARGET_DIR=$2
+CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
 
-TIMESTAMP=`TZ=UTC date "+%Y%m%dT%H%M%SZ"`
-BACKUP_SNAP="zones/${ZONE}@backup-${TIMESTAMP}"
-
-# Just in case, create the backup directory:
-if [[ ! -e "${TARGET_DIR}" ]]; then
-    mkdir -p ${TARGET_DIR}
+if [[ ! -d "${TARGET_DIR}" ]]; then
+    echo "Invalid directory: '${TARGET_DIR}'"
+    exit 1
 fi
 
-# Snapshot the zone
-echo "==> Creating temporary snapshot of '${ZONE}' dataset"
-/usr/sbin/zfs snapshot ${BACKUP_SNAP}
+# Create the backup directory:
+mkdir -p ${TARGET_DIR}/${ZONE}
 
-echo "==> Copying snapshot of '${ZONE}'"
-/usr/sbin/zfs send ${BACKUP_SNAP} > ${TARGET_DIR}/${ZONE}.zfs
+echo "==> Saving config file for zone '${ZONE}'"
+[ -f $CFG_FILE ] && cp $CFG_FILE ${TARGET_DIR}/${ZONE}
 
-echo "==> Removing temporary snapshot of '${ZONE}'"
-/usr/sbin/zfs destroy ${BACKUP_SNAP}
-
-echo "==> Writing timestamp"
-echo "${TIMESTAMP}" > ${TARGET_DIR}/timestamp
-
-echo "==> Done"
+echo "==> Done!"
 exit 0
