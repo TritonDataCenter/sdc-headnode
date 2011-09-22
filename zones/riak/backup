@@ -14,58 +14,47 @@ TARGET_DIR=$2
 # We know the name of our app:
 APP_NAME="${ZONE}"
 
-CMD=/opt/local/sbin/riak-admin
+STAMP=$(date +'%F-%H-%M-%S-%Z')
+BACKUP_VERSION="${APP_NAME}-${STAMP}"
 
-# source to get the cookie value
-. /usbkey/zones/$ZONE/zoneconfig
+ZONE_DATASET=$(zfs list -H -o name|grep "${ZONE}$")
 
-if [[ -z "$RIAK_COOKIE" ]]; then
-    echo "Unable to get riak cookie"
+# We cannot backup if cannot find zone's dataset:
+if [[ -z $ZONE_DATASET ]]; then
+  echo "FATAL: Cannot find '${APP_NAME}' dataset"
+  exit 103
+fi
+
+# Create dataset backup
+echo "==> Creating snapshot of '${APP_NAME}' dataset"
+zfs snapshot zones/${ZONE}@${BACKUP_VERSION} 2>&1
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to snapshot dataset"
     exit 104
-fi
-
-zstate=`zoneadm -z $ZONE list -p 2>/dev/null | cut -d: -f3`
-if [[ "$zstate" != "running" ]]; then
-    echo "$ZONE is not running"
-    exit 105
-fi
-
-# Get zones IP address
-IP_ADDR=`zlogin $ZONE ifconfig riak0 | nawk '{ if ($1 == "inet") print $2}'`
-
-if [[ -z "$IP_ADDR" ]]; then
-    echo "Unable to get zones IP address"
-    exit 106
 fi
 
 # Just in case, create the backup directory:
 [[ ! -e "${TARGET_DIR}" ]] && mkdir -p ${TARGET_DIR}
 
-STAMP=$(date +'%F-%H-%M-%S-%Z')
-BACKUP_FILE="${APP_NAME}-${STAMP}"
-
 # Create backup directory for the zone stuff:
 echo "==> Creating backup directory '${TARGET_DIR}/${APP_NAME}'"
 mkdir -p "${TARGET_DIR}/${APP_NAME}"
 
-# Setup a lofs mount into the zone for the backup directory
-mkdir -p /zones/$ZONE/root/backup
-mount -F lofs ${TARGET_DIR}/${APP_NAME} /zones/$ZONE/root/backup
-chmod 777 ${TARGET_DIR}/${APP_NAME}
-
-echo "==> Saving $APP_NAME backup"
-zlogin $ZONE "(export PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin; \
-    $CMD backup riak@$IP_ADDR $RIAK_COOKIE /backup/$BACKUP_FILE all)"
-if [[ $? -gt 0 ]]; then
-    echo "Unable to backup $APP_NAME"
-    umount /zones/$ZONE/root/backup
-    chmod 755 ${TARGET_DIR}/${APP_NAME}
-    exit 107
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var/db; \
+    tar cbf 512 ${TARGET_DIR}/${APP_NAME}/var_db.tar riak)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup database"
+    exit 105
+fi
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/local/etc; \
+    tar cbf 512 ${TARGET_DIR}/${APP_NAME}/etc.tar riak)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup configuration"
+    exit 106
 fi
 
-echo "==> Cleaning up"
-umount /zones/$ZONE/root/backup
-chmod 755 ${TARGET_DIR}/${APP_NAME}
+echo "==> Removing temporary snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}@${BACKUP_VERSION}"
 
 # Create a file to hold the file name for the restore script:
 echo "${BACKUP_FILE}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"
