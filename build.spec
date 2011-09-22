@@ -1,10 +1,10 @@
 {
-    "platform-release": "20110920T170811Z"
+    "platform-release": "20110922T212927Z"
   , "use-proxy": "false"
   , "proxy-ip": "10.0.1.138"
   , "build-tgz": "true"
   , "build-hvm": "false"
-  , "agents-shar": "release-20110901-20110920T022544Z"
+  , "agents-shar": "release-20110901-20110922T225656Z"
   , "datasets": [
       { "name": "smartos-1.3.18"
       , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
