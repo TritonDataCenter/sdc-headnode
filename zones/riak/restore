@@ -14,36 +14,6 @@ TARGET_DIR=$2
 # We know the name of our app:
 APP_NAME="${ZONE}"
 
-CMD=/opt/local/sbin/riak-admin
-
-# source to get the cookie value
-. /usbkey/zones/$ZONE/zoneconfig
-
-if [[ -z "$RIAK_COOKIE" ]]; then
-    echo "Unable to get riak cookie"
-    exit 105
-fi
- 
-echo "==> Booting '${ZONE}' zone"
-/usr/sbin/zoneadm -z ${ZONE} boot
-
-echo "==> Waiting for 10 seconds while the zone services are running ..."
-sleep 10
-
-zstate=`zoneadm -z $ZONE list -p 2>/dev/null | cut -d: -f3`
-if [[ "$zstate" != "running" ]]; then
-    echo "$ZONE is not running"
-    exit 105
-fi
-
-# Get zones IP address
-IP_ADDR=`zlogin $ZONE ifconfig riak0 | nawk '{ if ($1 == "inet") print $2}'`
-
-if [[ -z "$IP_ADDR" ]]; then
-    echo "Unable to get zones IP address"
-    exit 106
-fi
-
 if [[ ! -d "${TARGET_DIR}" || ! -d ${TARGET_DIR}/${APP_NAME} ]]; then
     echo "Missing backup directory"
     exit 107
@@ -54,30 +24,28 @@ if [[ ! -f ${TARGET_DIR}/${APP_NAME}/RESTORE ]]; then
     exit 108
 fi
 
-BACKUP_FILE=`cat ${TARGET_DIR}/${APP_NAME}/RESTORE`
-
-if [[ ! -f ${TARGET_DIR}/${APP_NAME}/$BACKUP_FILE ]]; then
+if [[ ! -f ${TARGET_DIR}/${APP_NAME}/etc.tar ]]; then
     echo "Incomplete backup directory"
     exit 109
 fi
 
-# Setup a lofs mount into the zone for the backup directory
-mkdir -p /zones/$ZONE/root/backup
-mount -F lofs ${TARGET_DIR}/${APP_NAME} /zones/$ZONE/root/backup
-
-echo "==> Restoring $APP_NAME backup"
-zlogin $ZONE "(export PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin; \
-    $CMD restore riak@$IP_ADDR $RIAK_COOKIE /backup/$BACKUP_FILE all)"
-if [[ $? -gt 0 ]]; then
-    echo "Unable to restore $APP_NAME"
-    umount /zones/$ZONE/root/backup
+if [[ ! -f ${TARGET_DIR}/${APP_NAME}/var_db.tar ]]; then
+    echo "Incomplete backup directory"
     exit 110
 fi
 
-echo "==> Cleaning up"
-umount /zones/$ZONE/root/backup
-
-/usr/sbin/zoneadm -z ${ZONE} halt
+echo "==> Restoring $APP_NAME backup"
+(cd /zones/$ZONE/root/var/db; tar xbf 512 ${TARGET_DIR}/${APP_NAME}/var_db.tar)
+if [[ $? -ne 0 ]]; then
+    echo "Error: restoring database"
+    exit 111
+fi
+(cd /zones/$ZONE/root/opt/local/etc; \
+    tar xbf 512 ${TARGET_DIR}/${APP_NAME}/etc.tar)
+if [[ $? -ne 0 ]]; then
+    echo "Error: restoring configuration"
+    exit 112
+fi
 
 echo "All done!!!"
 exit 0
