@@ -14,11 +14,13 @@ $(/opt/local/bin/gsed -i"" -e "s/setcookie riak/setcookie ${RIAK_COOKIE}/" /opt/
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
+# Ensure that we get the correct /etc/project settings for riak and FD limits
+gsed -i '/^riak/ c\riak:100:Riak default project:riak:riak:process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)' /etc/project
+
 echo "Importing RIAK manifest"
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
 /usr/sbin/svcadm enable -s epmd
 sleep 2
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/riak.xml
 /usr/sbin/svcadm enable riak
-
 
