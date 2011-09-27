@@ -1,0 +1,127 @@
+#!/usr/bin/bash
+
+# This script runs with the $CONFIG_assets_ip variable set to the assets zone
+# IP address.  Its up to this script to pull down the rest of the files it
+# needs from the assets zone and setup the zone for the given role.  This
+# script is run in the background by the mdata svc so its ok if it takes
+# a little while to install all of the pkgs.
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=ca
+app_name=$role
+
+function cafail
+{
+	echo "fatal: $*" >&2
+	exit 1
+}
+
+function casetprop
+{
+	local svc=$1 prop=$2 value=$3
+	[[ -n $value ]] || cafail "no value specified for $svc $prop"
+	svccfg -s $svc setprop com.joyent.ca,$prop = \
+	    astring: "$value" || cafail "failed to set $svc $prop = $val"
+}
+
+configure()
+{
+	#
+	# Update the SMF configuration to reflect this headnode's configuration.
+	#
+	svcadm disable -s caconfigsvc:default || \
+	    cafail "failed to disable configsvc"
+	casetprop caconfigsvc:default caconfig/amqp-host "$CA_AMQP_HOST"
+	casetprop caconfigsvc:default caconfig/mapi-host "$CA_MAPI_HOST"
+	casetprop caconfigsvc:default caconfig/mapi-port "$CA_MAPI_PORT"
+	casetprop caconfigsvc:default caconfig/mapi-user "$CA_MAPI_USER"
+	casetprop caconfigsvc:default caconfig/mapi-password "$CA_MAPI_PASSWORD"
+	svcadm refresh caconfigsvc:default || \
+	    cafail "failed to refresh configsvc"
+	svcadm enable -s caconfigsvc:default || \
+	    cafail "failed to re-enable configsvc"
+
+	fmris="$(svcs -H -ofmri caaggsvc) $(svcs -H -ofmri castashsvc)"
+	for fmri in $fmris; do
+		svcadm disable -s $fmri || cafail "failed to disable $fmri"
+		casetprop $fmri caconfig/amqp-host "$CA_AMQP_HOST"
+		svcadm refresh $fmri || cafail "failed to refresh $fmri"
+		svcadm enable -s $fmri || cafail "failed to re-enable $fmri"
+	done
+}
+
+cd /var/svc
+
+curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
+curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
+curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
+
+# We need some of the headnode config, but don't leave the files around
+. /var/svc/hn_config
+. /var/svc/hn_generic
+rm -f /var/svc/hn_config /var/svc/hn_generic
+# Load up the config values
+. /var/svc/zoneconfig
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	oldpw=`nawk -F= '{
+	    if ($1 == "CA_MAPI_PASSWORD")
+		print substr($2, 2, length($2) - 2)
+	}' /opt/smartdc/etc/zoneconfig`
+	[ "$mapi_http_admin_pw" == "$oldpw" ] && exit 0
+
+	echo "Updating ca configuration"
+	nawk -F= -v p=$mapi_http_admin_pw '{
+	    if ($1 == "CA_MAPI_PASSWORD")
+                printf("CA_MAPI_PASSWORD=\047%s\047\n", p)
+	    else
+                print $0
+	}' /opt/smartdc/etc/zoneconfig > /opt/smartdc/etc/zoneconfig.new
+	mv /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig
+	configure
+	svcadm restart \
+		caaggsvc:auto0 \
+		castashsvc:default \
+		caaggsvc:auto1 \
+		caconfigsvc:default
+	exit 0
+fi
+
+# Setup the zone
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
+curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+
+# XXX making dirs here but these should really be datasets
+# zones/capi/ca-data 			/var/smartdc/ca
+mkdir -p /opt/smartdc/ca-data
+
+# Unpack fs.tar and copy files into proper locations within the zone
+mkdir /.stage
+echo "unpack fs.tar"
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -) 
+rm -f /var/svc/fs.tar.bz2
+echo "install root"
+(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+rm -rf /.stage
+
+for i in `cat /var/svc/pkgsrc`
+do
+	pkgin -y install $i
+done
+
+echo "finalizing ca zone"
+
+# XXX zfs set mountpoint=/var/smartdc/ca zones/$ZONENAME/ca-data
+
+npm install /pkg/cabase.tar.gz
+npm install /pkg/caaggsvc.tar.gz
+npm install /pkg/castashsvc.tar.gz
+npm install /pkg/caconfigsvc.tar.gz
+
+configure
+
+touch /var/svc/setup_complete
+echo "setup done"

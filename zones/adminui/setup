@@ -1,0 +1,588 @@
+#!/usr/bin/bash
+
+# This script runs with the $CONFIG_assets_ip variable set to the assets zone
+# IP address.  Its up to this script to pull down the rest of the files it
+# needs from the assets zone and setup the zone for the given role.  This
+# script is run in the background by the mdata svc so its ok if it takes
+# a little while to install all of the pkgs.
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=adminui
+app_name=$role
+
+# symlink_ruby() just creates missing symlinks to ruby18 and irb18 on zones
+# running ruby applications.
+# It does not expect any argument.
+#
+function symlink_ruby
+{
+  # These happen to do not be created always:
+  if [[ ! -e /opt/local/bin/ruby ]]; then
+    echo "Symlinking ruby"
+    ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+  fi
+
+  if [[ ! -e /opt/local/bin/irb ]]; then
+    echo "Symlinking irb"
+    ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+  fi
+}
+
+#
+# It's pretty obvious what create_jill_account() does. Intended to run on zones
+# running ruby applications. It does not expect any arguments, for now.
+#
+function create_jill_account
+{
+  echo "Creating jill account"
+  groupadd jill
+  useradd -g jill -d /opt/smartdc jill
+  chown -R jill:jill /opt/smartdc
+
+  # XXX /etc/oshadow breaks changepass, not sure yet what's putting it there.
+  if [[ -f /etc/oshadow ]]; then
+      echo "WARNING: removing /etc/oshadow"
+      rm -f /etc/oshadow
+  fi
+
+  echo "jill:naiWaic8sh" | /opt/local/sbin/changepass -n -m
+  usermod -P 'Service Management' jill
+  usermod -s /usr/bin/bash jill
+  # Properly set PATH and other relevant stuff.
+  cp /home/admin/.bash_profile /opt/smartdc/.bash_profile
+  cp /home/admin/.bashrc /opt/smartdc/.bashrc
+  cp /home/admin/.irbrc /opt/smartdc/.irbrc
+  cp /home/admin/.profile /opt/smartdc/.profile
+}
+
+cd /var/svc
+
+curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
+curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
+curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
+
+# We need some of the headnode config, but don't leave the files around
+. /var/svc/hn_config
+. /var/svc/hn_generic
+rm -f /var/svc/hn_config /var/svc/hn_generic
+# Load up the config values
+. /var/svc/zoneconfig
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	oldpw=`nawk '{
+	    if ($1 == "\"mcp\":")
+		found = 1
+	    else if ($1 == "},")
+		found = 0
+
+	    if (found && $1 == "\"password\":")
+		print substr($2, 2, length($2) - 3)
+	}' /opt/smartdc/adminui-data/config/config.json`
+	[ "$mapi_http_admin_pw" == "$oldpw" ] && exit 0
+
+	echo "Updating adminui configuration"
+	nawk -v p=$mapi_http_admin_pw '{
+	    if ($1 == "\"capi\":" || $1 == "\"mcp\":")
+		change = 1
+	    else if ($1 == "},")
+		change = 0
+
+	    if (change && $1 == "\"password\":")
+		printf("    \"password\": \"%s\",\n", p)
+	    else
+		print $0
+	}' /opt/smartdc/adminui-data/config/config.json  \
+	 > /opt/smartdc/adminui-data/config/config.json.new
+	mv /opt/smartdc/adminui-data/config/config.json.new  \
+	   /opt/smartdc/adminui-data/config/config.json
+	chown jill:jill /opt/smartdc/adminui-data/config/config.json
+	svcadm restart adminui
+	exit 0
+fi
+
+# Setup the zone
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
+curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+
+# XXX making dirs here but these should really be datasets
+# zones/adminui/adminui-app-XXX		/opt/smartdc/adminui
+# zones/adminui/adminui-data 		/opt/smartdc/adminui-data
+mkdir -p /opt/smartdc/adminui
+mkdir -p /opt/smartdc/adminui-data
+
+# Unpack fs.tar and copy files into proper locations within the zone
+mkdir /.stage
+echo "unpack fs.tar"
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -) 
+rm -f /var/svc/fs.tar.bz2
+echo "install root"
+(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+echo "install site"
+(cd /.stage/site; tar cbf 512 - *) | (cd /lib/svc/manifest/site; tar xbf 512 -)
+rm -rf /.stage
+
+# XXX getting
+# pkgin -y install ruby19-yajl-0.8.2
+# there's more than one version available for this package.
+# please re-run pkgin with a package name matching one of the following:
+# ruby19-yajl-0.8.2
+# ruby19-yajl-0.8.2nb1
+# nothing to do.
+
+for i in `cat /var/svc/pkgsrc`
+do
+	pkgin -y install $i
+done
+
+echo "configuring adminui datasets"
+
+# This needs to run after scmgit pkgsrc package has been installed:
+
+# XXX adminui-data dataset name will remain the same always:
+# zfs set mountpoint=/opt/smartdc/adminui-data zones/$ZONENAME/adminui-data
+# adminui-app-ISO_DATE dataset name will change:
+# STAMP=$(cat /root/adminui-app-timestamp)
+# zfs set mountpoint=/opt/smartdc/adminui "zones/$ZONENAME/adminui-app-$STAMP"
+# Get git revision:
+cd /opt/smartdc/adminui-repo
+REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
+
+cp -Rf /opt/smartdc/adminui-repo/* /opt/smartdc/adminui
+
+# Create some directories into adminui-data
+mkdir -p /opt/smartdc/adminui-data/log
+mkdir -p /opt/smartdc/adminui-data/tmp/pids
+
+# Remove and symlink directories:
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
+else
+  rm -Rf /opt/smartdc/adminui/config
+fi
+rm -Rf /opt/smartdc/adminui/log
+rm -Rf /opt/smartdc/adminui/tmp
+rm -Rf /opt/smartdc/adminui/config
+ln -s /opt/smartdc/adminui-data/log /opt/smartdc/adminui/log
+ln -s /opt/smartdc/adminui-data/tmp /opt/smartdc/adminui/tmp
+ln -s /opt/smartdc/adminui-data/config /opt/smartdc/adminui/config
+# Save REVISION:
+echo "${REVISION}">/opt/smartdc/adminui-data/REVISION
+echo "${REVISION}">/opt/smartdc/adminui/REVISION
+# Save VERSION (Updates based on this):
+APP_VERSION=$(/opt/local/bin/git describe --tags)
+echo "${APP_VERSION}">/opt/smartdc/adminui-data/VERSION
+echo "${APP_VERSION}">/opt/smartdc/adminui/VERSION
+# Cleanup build products:
+cd /root/
+rm -Rf /opt/smartdc/adminui-repo
+rm /root/adminui-app-timestamp
+
+symlink_ruby
+create_jill_account
+
+mkdir -p /opt/smartdc/bin
+
+# We need to generate our own self signed certificate for Nginx:
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
+
+echo "Creating nginx configuration file"
+cat >/opt/local/etc/nginx/nginx.conf <<NGINX
+user  www  www;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    gzip  on;
+    gzip_http_version 1.1;
+    gzip_vary on;
+    gzip_comp_level 6;
+    gzip_proxied any;
+    gzip_types text/plain text/html text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # see http://blog.leetsoft.com/2007/7/25/nginx-gzip-ssl
+    gzip_buffers 16 8k;
+
+    # Disable gzip for certain browsers.
+    gzip_disable "MSIE [1-6].(?!.*SV1)";
+
+    upstream adminui {
+        server localhost:8080;
+    }
+
+    upstream caproxy {
+        server localhost:8081;
+    }
+
+    server {
+        listen 80;
+        rewrite ^(.*) https://\$server_addr\$request_uri permanent;
+    }
+
+    server {
+        listen       443    ssl;
+        server_name  adminui;
+        ssl on;
+        ssl_certificate /opt/local/etc/openssl/private/selfsigned.pem;
+        ssl_certificate_key /opt/local/etc/openssl/private/selfsigned.pem;
+        ssl_prefer_server_ciphers on;
+
+        location / {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://adminui;
+            break;
+        }
+
+        location ~ ^/(javascripts|stylesheets|images|favicon\.ico) {
+          root /opt/smartdc/adminui/public;
+          expires max;
+        }
+
+        location /ca {
+            root   share/examples/nginx/html;
+            index  index.html index.htm;
+
+            proxy_set_header  X-Real-IP  \$remote_addr;
+            proxy_set_header  X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header Host \$http_host;
+            proxy_redirect off;
+
+            proxy_pass http://caproxy;
+            break;
+        }
+
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+    }
+}
+
+NGINX
+
+# Setup and configure nginx
+if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
+  echo "Importing nginx service"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
+  #/usr/sbin/svccfg -s svc:/network/nginx:default refresh
+  /usr/sbin/svcadm enable -s nginx
+else
+  echo "Restarting nginx service"
+  /usr/sbin/svcadm disable -s nginx
+  /usr/sbin/svcadm enable -s nginx
+fi
+
+# Note these files should have been created by previous Rake task.
+# If we copy these files post "gsed", everything is reset:
+if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
+  cp /opt/smartdc/adminui/config/config.ru.sample /opt/smartdc/adminui/config/config.ru
+fi
+
+if [[ ! -e /opt/smartdc/adminui/gems/gems ]] || [[ $(ls /opt/smartdc/adminui/gems/gems| wc -l) -eq 0 ]]; then
+  echo "[ADMINUI] Unpacking frozen gems"
+  (cd /opt/smartdc/adminui; PATH=/opt/local/bin:$PATH /opt/local/bin/rake gems:deploy -f /opt/smartdc/adminui/Rakefile)
+fi
+
+if [[ ! -e /opt/smartdc/adminui/config/unicorn.smf ]]; then
+  echo "[ADMINUI] Creating Unicorn Manifest."
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='adminui'; working_directory='/opt/smartdc/adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/adminui/config/unicorn.smf
+  chown jill:jill /opt/smartdc/adminui/config/unicorn.smf
+fi
+
+if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
+  echo "[ADMINUI] Creating Unicorn Configuration file."
+  /opt/local/bin/ruby -rerb -e "app_port='8080'; worker_processes=$WORKERS; working_directory='/opt/smartdc/adminui'; application='adminui'; puts ERB.new(File.read('/opt/smartdc/adminui/config/unicorn.conf.erb')).result" > /opt/smartdc/adminui/config/unicorn.conf
+  chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
+fi
+
+echo "[ADMINUI] Generating config.json"
+host=`hostname`
+
+su - jill -c "cd /opt/smartdc/adminui; \
+  DATACENTER_NAME=$DATACENTER_NAME \
+  AMQP_HOST=$AMQP_HOST \
+  HELP_URL=$HELP_URL \
+  ADMINUI_IP=$ADMINUI_IP \
+  MAIL_FROM=$MAIL_FROM \
+  MAIL_TO=$MAIL_TO \
+  DSAPI_URL=$DSAPI_URL \
+  DSAPI_USER=$DSAPI_USER \
+  DSAPI_PASS=$DSAPI_PASS \
+  CAPI_URL=$CAPI_URL \
+  CA_CLIENT_URL=$CA_CLIENT_URL \
+  CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER \
+  CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW \
+  MAPI_URL=$MAPI_URL \
+  MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
+  MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
+  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
+
+if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
+  su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
+fi
+
+bash /opt/smartdc/adminui/script/fix_yajl.sh
+
+# Just in case, create /var/logadm
+if [[ ! -d /var/logadm ]]; then
+  mkdir -p /var/logadm
+fi
+
+# make it easier to find logs
+mkdir -p /var/log/smartdc
+ln -s /opt/smartdc/adminui/log /var/log/smartdc/adminui
+
+# Log rotation:
+cat >> /etc/logadm.conf <<LOGADM
+adminui -C 10 -c -s 100m /opt/smartdc/adminui/log/*.log
+nginx -C 5 -c -s 100m '/var/log/nginx/{access,error}.log'
+LOGADM
+
+echo "Importing MAPI Admin UI Unicorn Manifest"
+/usr/sbin/svccfg import /opt/smartdc/adminui/config/unicorn.smf
+
+if [[ ! -f /opt/smartdc/bin/smartdc-consoleproxy ]]; then
+
+cat > /opt/smartdc/bin/smartdc-consoleproxy << EOF
+#!/bin/bash
+#
+# Copyright 2011 Joyent, Inc.  All rights reserved.
+#
+
+set -o xtrace
+
+. /lib/svc/share/smf_include.sh
+
+PATH=/usr/sbin:/usr/bin; export PATH
+
+case "\$1" in
+'start')
+    /opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js 2>&1 &
+    ;;
+
+'stop')
+    ;;
+
+*)
+    echo "Usage: \$0 { start | stop }"
+    exit \$SMF_EXIT_ERR_FATAL
+    ;;
+esac
+exit \$SMF_EXIT_OK
+fi
+EOF
+
+    chmod 555 /opt/smartdc/bin/smartdc-consoleproxy
+
+fi
+
+echo Creating manifest for consoleproxy:
+cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="consoleproxy">
+  <service name="smartdc/app/consoleproxy" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/bin/smartdc-consoleproxy %m"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+          <envvar name="ADMINUI_PATH" value="/opt/smartdc/adminui" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/consoleproxy" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">consoleproxy daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Importing consoleproxy-manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/consoleproxy/consoleproxy-manifest.xml
+
+ln -sf /opt/local/etc/openssl/private/selfsigned.pem /opt/smartdc/consoleproxy/self.pem
+
+echo "Enablig service consoleproxy"
+/usr/sbin/svcadm enable smartdc/app/consoleproxy
+
+if [[ ! -f /opt/smartdc/bin/smartdc-caproxy ]]; then
+
+cat > /opt/smartdc/bin/smartdc-caproxy << EOF
+#!/bin/bash
+#
+# Copyright 2011 Joyent, Inc.  All rights reserved.
+#
+
+set -o xtrace
+
+. /lib/svc/share/smf_include.sh
+
+PATH=/usr/sbin:/usr/bin; export PATH
+
+case "\$1" in
+'start')
+    /opt/local/bin/node /opt/smartdc/caproxy/caproxy.js 2>&1 &
+    ;;
+
+'stop')
+    ;;
+
+*)
+    echo "Usage: \$0 { start | stop }"
+    exit \$SMF_EXIT_ERR_FATAL
+    ;;
+esac
+exit \$SMF_EXIT_OK
+fi
+EOF
+
+    chmod 555 /opt/smartdc/bin/smartdc-caproxy
+
+fi
+
+echo Creating manifest for caproxy:
+cat > /opt/smartdc/caproxy/caproxy-manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="caproxy">
+  <service name="smartdc/app/caproxy" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/bin/smartdc-caproxy %m"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+          <envvar name="ADMINUI_PATH" value="/opt/smartdc/adminui" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/caproxy" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">caproxy daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Importing caproxy-manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/caproxy/caproxy-manifest.xml
+
+echo "Enablig service caproxy"
+/usr/sbin/svcadm enable smartdc/app/caproxy
+
+# Ensure everything in /opt/smartdc is owned by jill
+chown -R jill:jill /opt/smartdc
+
+# fix perms on /home
+chown root:root /home
+chmod 0555 /home
+
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+
+  ## Call the verify script
+  (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
+
+fi
+
+touch /var/svc/setup_complete
+echo "setup done"

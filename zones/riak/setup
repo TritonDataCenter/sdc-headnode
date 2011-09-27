@@ -1,0 +1,85 @@
+#!/usr/bin/bash
+
+# This script runs with the $CONFIG_assets_ip variable set to the assets zone
+# IP address.  Its up to this script to pull down the rest of the files it
+# needs from the assets zone and setup the zone for the given role.  This
+# script is run in the background by the mdata svc so its ok if it takes
+# a little while to install all of the pkgs.
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=riak
+
+cd /var/svc
+
+curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
+curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
+curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
+
+# We need some of the headnode IP addrs, but don't leave the file around
+. /var/svc/hn_config
+. /var/svc/hn_generic
+rm -f /var/svc/hn_config
+# Load up the config values
+. /var/svc/zoneconfig
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
+	exit 0
+fi
+
+# Setup the zone
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
+curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+
+# Unpack fs.tar and copy files into proper locations within the zone
+mkdir /.stage
+echo "unpack fs.tar"
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -) 
+rm -f /var/svc/fs.tar.bz2
+echo "install root"
+(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+rm -rf /.stage
+
+for i in `cat /var/svc/pkgsrc`
+do
+	pkgin -y install $i
+done
+
+mkdir -p /opt/smartdc/etc
+echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
+
+# Update RIAK node name and cluster cookie
+IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+gsed -i -e s/127.0.0.1/$IPADDR/ /opt/local/etc/riak/app.config
+
+gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/local/etc/riak/vm.args
+gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" \
+    /opt/local/etc/riak/vm.args
+
+# Update the riak project using sed.  The projmod command needs its
+# -K option properly enclosed in quotes and it seems impossible to
+# properly escape that into the background command script.
+
+projmod -a -K "process.max-file-descriptor=(basic,4096,deny)" riak
+
+svccfg import /opt/local/share/smf/manifest/epmd.xml
+svcadm enable -s epmd
+sleep 2
+
+svccfg import /opt/local/share/smf/manifest/riak.xml
+svcadm enable riak
+sleep 5
+
+svcs riak
+
+# If not the first riak zone, then join the cluster.
+if [ -n "$riak_admin_ip" ]; then
+	echo "join riak cluster at $riak_admin_ip"
+	riak-admin join riak@$riak_admin_ip
+fi
+
+touch /var/svc/setup_complete
+echo "setup done"
