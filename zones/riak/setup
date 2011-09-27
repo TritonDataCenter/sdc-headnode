@@ -59,11 +59,7 @@ gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/local/etc/riak/vm.args
 gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" \
     /opt/local/etc/riak/vm.args
 
-# Update the riak project using sed.  The projmod command needs its
-# -K option properly enclosed in quotes and it seems impossible to
-# properly escape that into the background command script.
-
-projmod -a -K "process.max-file-descriptor=(basic,4096,deny)" riak
+projmod -a -K "process.max-file-descriptor=(basic,65535,deny)" riak
 
 svccfg import /opt/local/share/smf/manifest/epmd.xml
 svcadm enable -s epmd
