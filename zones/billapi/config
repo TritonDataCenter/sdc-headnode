@@ -1,5 +1,0 @@
-create -b
-set zonepath=/zones/billapi
-set brand=joyent
-set autoboot=true
-set ip-type=exclusive

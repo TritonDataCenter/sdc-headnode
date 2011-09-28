@@ -1,6 +1,0 @@
-create -b
-set zonepath=/zones/ca
-set brand=joyent
-set autoboot=true
-set ip-type=exclusive
-set limitpriv=default,proc_priocntl

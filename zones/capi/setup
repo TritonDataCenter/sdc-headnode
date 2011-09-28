@@ -91,9 +91,6 @@ fi
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
-# XXX making dirs here but these should really be datasets
-# zones/capi/capi-app-ev3-standup	/opt/smartdc/capi
-# zones/capi/capi-data 			/opt/smartdc/capi-data
 mkdir -p /opt/smartdc/capi
 mkdir -p /opt/smartdc/capi-data
 
@@ -118,12 +115,6 @@ echo "configuring $ZONENAME zone datasets"
 app='capi'
 # This needs to run after scmgit pkgsrc package has been installed:
 
-# XXX dataset setup
-# $app-data dataset name will remain the same always:
-# zfs set mountpoint=/opt/smartdc/$app-data zones/$ZONENAME/$app-data
-# $app-app-ISO_DATE dataset name will change:
-# STAMP=$(cat /root/$app-app-timestamp)
-# zfs set mountpoint=/opt/smartdc/$app "zones/$ZONENAME/$app-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/$app-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
@@ -260,46 +251,7 @@ capi -C 100 -c -s 10m /opt/smartdc/capi/log/*.log
 postgresql -C 5 -c -s 100m /var/log/postgresql90.log
 LOGADM
 
-echo "Creating $app_name-setup service"
-
-cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
-<?xml version='1.0'?>
-<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
-<service_bundle type='manifest' name='export'>
-  <service name='platform/smartdc/${app_name}-setup' type='service' version='0'>
-    <create_default_instance enabled='true'/>
-    <single_instance/>
-    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/system/filesystem/local'/>
-    </dependency>
-    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='180'>
-      <method_context>
-        <method_credential user='root' group='root'/>
-      </method_context>
-    </exec_method>
-    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
-    <property_group name='application' type='application'/>
-    <property_group name='startd' type='framework'>
-      <propval name='duration' type='astring' value='transient'/>
-    </property_group>
-    <stability value='Evolving'/>
-    <template>
-      <common_name>
-        <loctext xml:lang='C'>SmartDC Setup service ($app_name)</loctext>
-      </common_name>
-    </template>
-  </service>
-</service_bundle>
-SETUP_SMF
-
-cat > "/opt/smartdc/capi-data/capi-setup-service.sh" <<CAPI_SETUP_SERVICE
-#!/usr/bin/bash
-
 set -o xtrace
-
-POSTGRES_HOST='$POSTGRES_HOST'
-POSTGRES_USER='$POSTGRES_USER'
-POSTGRES_PW='$POSTGRES_PW'
 
 PGPASSFILE=/opt/smartdc/.pgpass
 
@@ -309,9 +261,9 @@ PGPASSFILE=/opt/smartdc/.pgpass
 # later.
 for i in 0 1 2 3 4 5 6 7 8 9
 do
-    svc=\$(/usr/bin/svcs -H network/postgresql)
-    state=\${svc%% * *}
-    [ "\$state" == "online" ] && break
+    svc=$(/usr/bin/svcs -H network/postgresql)
+    state=${svc%% * *}
+    [ "$state" == "online" ] && break
     sleep 5
 done
 # No matter what the state now, we move on.
@@ -333,9 +285,9 @@ export -n PGPASSWORD
 # to test DB availability. Need to ping the DB and proceed once we've
 # verified we can stablish a connection:
 
-RETRY_AFTER='$DBCONN_RETRY_AFTER' NUM_ATTEMPTS='$DBCONN_NUM_ATTEMPTS' RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/capi/script/psql-test-connect.rb
+RETRY_AFTER=$DBCONN_RETRY_AFTER NUM_ATTEMPTS=$DBCONN_NUM_ATTEMPTS RACK_ENV=production /opt/local/bin/ruby /opt/smartdc/capi/script/psql-test-connect.rb
 
-if [[ \$? -ne 0 ]]; then
+if [[ $? -ne 0 ]]; then
   echo "PostgreSQL not available after ${DBCONN_NUM_ATTEMPTS}, aborting."
   exit 1
 else
@@ -343,15 +295,15 @@ else
 fi
 
 # Without this, mapi db existence checking will always fail:
-echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /root/.pgpass
+echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /root/.pgpass
 chmod 0600 /root/.pgpass
 
-if [[ -z \$(/opt/local/bin/psql -U postgres -h \$POSTGRES_HOST -c "\\l"|grep capi) ]]; then
+if [[ -z $(/opt/local/bin/psql -U postgres -h $POSTGRES_HOST -c "\\l"|grep capi) ]]; then
   echo "Creating capi database"
-  echo "\$POSTGRES_HOST:*:*:\$POSTGRES_USER:\$POSTGRES_PW" >> /opt/smartdc/.pgpass
+  echo "$POSTGRES_HOST:*:*:$POSTGRES_USER:$POSTGRES_PW" >> /opt/smartdc/.pgpass
   chown jill /opt/smartdc/.pgpass
   chmod 0600 /opt/smartdc/.pgpass
-  su - jill -c "/opt/local/bin/createdb -U postgres -h \$POSTGRES_HOST capi"
+  su - jill -c "/opt/local/bin/createdb -U postgres -h $POSTGRES_HOST capi"
 fi
 
 echo "Auto Upgrading Customers API Database."
@@ -359,11 +311,17 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production /
 sleep 1
 
 
-if [[ -z \$(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
+if [[ -z $(/usr/bin/svcs -a|grep capi|grep -v capi-update|grep -v capi-setup|grep -v capi_ipf_setup) ]]; then
   echo "Importing Customers API Unicorn Manifest"
   /usr/sbin/svccfg import /opt/smartdc/capi/config/unicorn.smf
   #/usr/sbin/svccfg -s svc:/network/smartdc/application/capi:default refresh
 fi
+
+echo Importing sdc-ipf-setup.xml
+/usr/sbin/svccfg import /lib/svc/manifest/site/sdc-ipf-setup.xml
+
+echo Enabling service sdc-ipf-setup
+/usr/sbin/svcadm enable smartdc/capi_ipf_setup
 
 echo "Calling CAPI Admin User creation task."
 su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
@@ -374,24 +332,12 @@ su - jill -c "cd /opt/smartdc/capi; RACK_ENV=production SINATRA_ENV=production \
   /opt/local/bin/rake install:capi_admin -f /opt/smartdc/capi/Rakefile"
 sleep 1
 
-# Remove the service, we don't wanna run it again (maybe also delete the script?)
-echo "Deleting '${app_name}-setup' service"
-/usr/sbin/svccfg delete "platform/smartdc/capi-setup"
-
-# Ensure we remove the setup service manifest from this zones core boot manifests
-rm /lib/svc/manifest/site/capi-setup.xml
-
 echo "Writing customer.url file to /root/customer.url"
 echo "/customers/${CAPI_ADMIN_UUID}/zones" > /root/customer.url
 
-if [[ -f \$(svcprop -p 'capi/allowed_file' svc:/platform/smartdc/capi_ipf_setup) ]]; then
+if [[ -f $(svcprop -p 'capi/allowed_file' svc:/platform/smartdc/capi_ipf_setup) ]]; then
     svcadm enable svc:/network/ipfilter:default
 fi
-
-exit 0
-CAPI_SETUP_SERVICE
-
-chmod +x "/opt/smartdc/capi-data/capi-setup-service.sh"
 
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc

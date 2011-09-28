@@ -1,8 +1,6 @@
 TEMPLATE_VERSION=0.0.1
 HOSTNAME=${ZONENAME}.${dns_domain}
 RESOLVERS=${dns_resolvers/,/ }
-PRIVATE_IP=${ca_admin_ip}
-PUBLIC_IP=${ca_external_ip-${ca_admin_ip}}
 ROOT_PW=${ca_root_pw}
 ADMIN_PW=${ca_admin_pw}
 TMPFS=512m

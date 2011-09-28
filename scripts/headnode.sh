@@ -114,7 +114,7 @@ else
     ZONES=
 fi
 
-USBZONES=`ls ${USB_COPY}/zones`
+USBZONES="assets dhcpd mapi rabbitmq"
 ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
 CREATEDZONES=
 

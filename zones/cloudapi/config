@@ -1,5 +1,0 @@
-create -b
-set zonepath=/zones/cloudapi
-set brand=joyent
-set autoboot=true
-set ip-type=exclusive

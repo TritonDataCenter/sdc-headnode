@@ -1,11 +1,8 @@
 TEMPLATE_VERSION=0.0.1
 HOSTNAME=${ZONENAME}.${dns_domain}
 RESOLVERS=${dns_resolvers/,/ }
-PRIVATE_IP=${adminui_admin_ip}
-PUBLIC_IP=${adminui_external_ip-${adminui_admin_ip}}
 ROOT_PW=${adminui_root_pw}
 ADMIN_PW=${adminui_admin_pw}
-ADMINUI_IP=${adminui_admin_ip}
 TMPFS=512m
 WORKERS=${adminui_workers}
 HELP_URL=${adminui_help_url}

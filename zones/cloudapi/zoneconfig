@@ -6,8 +6,6 @@ MAIL_FROM=${mail_from}
 ROOT_PW=${cloudapi_root_pw}
 ADMIN_PW=${cloudapi_admin_pw}
 TMPFS=512m
-PRIVATE_IP=${cloudapi_admin_ip}
-PUBLIC_IP=${cloudapi_external_ip}
 
 CLOUDAPI_EXTERNAL_URL=${cloudapi_external_url}
 DATACENTER_NAME=${datacenter_name}

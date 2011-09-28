@@ -107,9 +107,6 @@ fi
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
-# XXX making dirs here but these should really be datasets
-# zones/adminui/adminui-app-XXX		/opt/smartdc/adminui
-# zones/adminui/adminui-data 		/opt/smartdc/adminui-data
 mkdir -p /opt/smartdc/adminui
 mkdir -p /opt/smartdc/adminui-data
 
@@ -124,14 +121,6 @@ echo "install site"
 (cd /.stage/site; tar cbf 512 - *) | (cd /lib/svc/manifest/site; tar xbf 512 -)
 rm -rf /.stage
 
-# XXX getting
-# pkgin -y install ruby19-yajl-0.8.2
-# there's more than one version available for this package.
-# please re-run pkgin with a package name matching one of the following:
-# ruby19-yajl-0.8.2
-# ruby19-yajl-0.8.2nb1
-# nothing to do.
-
 for i in `cat /var/svc/pkgsrc`
 do
 	pkgin -y install $i
@@ -141,11 +130,6 @@ echo "configuring adminui datasets"
 
 # This needs to run after scmgit pkgsrc package has been installed:
 
-# XXX adminui-data dataset name will remain the same always:
-# zfs set mountpoint=/opt/smartdc/adminui-data zones/$ZONENAME/adminui-data
-# adminui-app-ISO_DATE dataset name will change:
-# STAMP=$(cat /root/adminui-app-timestamp)
-# zfs set mountpoint=/opt/smartdc/adminui "zones/$ZONENAME/adminui-app-$STAMP"
 # Get git revision:
 cd /opt/smartdc/adminui-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)

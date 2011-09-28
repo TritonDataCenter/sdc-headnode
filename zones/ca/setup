@@ -94,8 +94,6 @@ fi
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
-# XXX making dirs here but these should really be datasets
-# zones/capi/ca-data 			/var/smartdc/ca
 mkdir -p /opt/smartdc/ca-data
 
 # Unpack fs.tar and copy files into proper locations within the zone
@@ -113,8 +111,6 @@ do
 done
 
 echo "finalizing ca zone"
-
-# XXX zfs set mountpoint=/var/smartdc/ca zones/$ZONENAME/ca-data
 
 npm install /pkg/cabase.tar.gz
 npm install /pkg/caaggsvc.tar.gz

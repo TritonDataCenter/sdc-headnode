@@ -506,9 +506,8 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 	message="
 The external network is used by the headnode and its applications to connect to
 external networks. That is, it can be used to communicate with either the
-Internet, an intranet, or any other WAN.  There are four application zones
-visible on the external network which will need assigned addresses.\n\n"
-  
+Internet, an intranet, or any other WAN.\n\n"
+
 	printf "$message"
 
 	promptnic "'external'"
@@ -529,11 +528,6 @@ visible on the external network which will need assigned addresses.\n\n"
 	external_vlan_id="$val"
 
 	if [[ -z "$external_provisionable_start" ]]; then
-		# Initialize the external IP defaults for adminui, capi,
-		# cloudapi and portal.  By default we'll use the range .3 - .6
-		# but we need to check for collisions on the external IP
-		# and gateway.
-
 		ip_netmask_to_network "$external_gateway" "$external_netmask"
 		gw_host_addr=$host_addr
 
@@ -544,42 +538,15 @@ visible on the external network which will need assigned addresses.\n\n"
 
 		gw_host_addr=$(expr $net_d + $gw_host_addr)
 
-		# host_addr is the number of IPs above the subnet's start
-		# address, so convert these addresses to real (not relative)
-		# IPs:
 		next_addr=$(expr $net_d + $use_lo)
-		adminui_external_ip="$net_a.$net_b.$net_c.$next_addr"
-		next_addr=$(expr $next_addr + 1)
-		billapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
-		next_addr=$(expr $next_addr + 1)
-		capi_external_ip="$net_a.$net_b.$net_c.$next_addr"
-		next_addr=$(expr $next_addr + 1)
-		cloudapi_external_ip="$net_a.$net_b.$net_c.$next_addr"
-		next_addr=$(expr $next_addr + 1)
-		portal_external_ip="$net_a.$net_b.$net_c.$next_addr"
 
 		# By default, start the provisionable range 5 addrs after the
-		# external IPs for the zones above.
+		# previous IP.
 		next_addr=$(expr $next_addr + 5)
 		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
 
 		external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
 	fi
-
-	promptnet " AdminUI zone external IP address" "$adminui_external_ip"
-	adminui_external_ip="$val"
-
-	promptnet " BillAPI zone external IP address" "$billapi_external_ip"
-	billapi_external_ip="$val"
-
-	promptnet "    CAPI zone external IP address" "$capi_external_ip"
-	capi_external_ip="$val"
-
-	promptnet "CloudAPI zone external IP address" "$cloudapi_external_ip"
-	cloudapi_external_ip="$val"
-
-	promptnet "  Portal zone external IP address" "$portal_external_ip"
-	portal_external_ip="$val"
 
 	promptnet "Starting provisionable IP address" \
 	   "$external_provisionable_start"
@@ -686,11 +653,6 @@ values will be configured below.\n\n"
 	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
 	    $external_ip $external_netmask $external_gateway $ext_vlanid
 	echo
-	printf "%15s %15s %15s %15s %15s\n" \
-	    "AdminUI" "BillAPI" "CAPI" "CloudAPI" "Portal"
-	printf "%15s %15s %15s %15s %15s\n" \
-	    "$adminui_external_ip" "$billapi_external_ip" "$capi_external_ip" \
-	    "$cloudapi_external_ip" "$portal_external_ip"
 	printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
 	printf "Provisionable IP range: %s - %s\n" \
 	    $external_provisionable_start $external_provisionable_end
@@ -711,23 +673,10 @@ ip_netmask_to_network "$admin_ip" "$admin_netmask"
 admin_network="$net_a.$net_b.$net_c.$net_d"
 
 #
-# Calculate admin network IP address for each zone
+# Calculate admin network IP address for each core zone
 #
-ip_netmask_to_network "$admin_zone_ip" "$admin_netmask"
-next_addr=$host_addr
-adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-
 next_addr=$(expr $next_addr + 1)
 assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-
-next_addr=$(expr $next_addr + 1)
-ca_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-ca_client_url="http://${ca_admin_ip}:23181"
-
-next_addr=$(expr $next_addr + 1)
-capi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-capi_client_url="http://${capi_admin_ip}:8080"
-capi_external_url="http://${capi_external_ip}:8080"
 
 next_addr=$(expr $next_addr + 1)
 dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -736,25 +685,9 @@ next_addr=$(expr $next_addr + 1)
 mapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 mapi_client_url="http://${mapi_admin_ip}:80"
 
-# Portal zone is NOT on the admin net
-# next_addr=$(expr $next_addr + 1)
-# portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-portal_external_url="https://${portal_external_ip}"
-
-next_addr=$(expr $next_addr + 1)
-cloudapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-cloudapi_external_url="https://${cloudapi_external_ip}"
-
 next_addr=$(expr $next_addr + 1)
 rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
-
-next_addr=$(expr $next_addr + 1)
-billapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-billapi_external_url="http://${billapi_external_ip}"
-
-next_addr=$(expr $next_addr + 1)
-riak_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
 dhcp_next_server="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -882,8 +815,6 @@ echo >>$tmp_config
 echo "# Zone-specific configs" >>$tmp_config
 echo >>$tmp_config
 
-echo "adminui_admin_ip=$adminui_admin_ip" >>$tmp_config
-echo "adminui_external_ip=$adminui_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# adminui_external_vlan=0" >>$tmp_config
 else
@@ -899,17 +830,11 @@ echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
 echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "ca_admin_ip=$ca_admin_ip" >>$tmp_config
-echo "ca_client_url=$ca_client_url" >>$tmp_config
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "capi_is_local=true" >>$tmp_config
-echo "capi_admin_ip=$capi_admin_ip" >>$tmp_config
-echo "capi_client_url=$capi_client_url" >>$tmp_config
-echo "capi_external_ip=$capi_external_ip" >>$tmp_config
-echo "capi_external_url=$capi_external_url" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# capi_external_vlan=0" >>$tmp_config
 else
@@ -950,8 +875,6 @@ echo "mapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
 echo >>$tmp_config
 
-# echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
-echo "portal_external_ip=$portal_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# portal_external_vlan=0" >>$tmp_config
 else
@@ -959,11 +882,8 @@ else
 fi
 echo "portal_root_pw=$zone_admin_pw" >>$tmp_config
 echo "portal_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "portal_external_url=$portal_external_url" >>$tmp_config
 echo >>$tmp_config
 
-echo "cloudapi_admin_ip=$cloudapi_admin_ip" >>$tmp_config
-echo "cloudapi_external_ip=$cloudapi_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# cloudapi_external_vlan=0" >>$tmp_config
 else
@@ -971,7 +891,6 @@ else
 fi
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "cloudapi_external_url=$cloudapi_external_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
@@ -980,8 +899,6 @@ echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
-echo "billapi_admin_ip=$billapi_admin_ip" >>$tmp_config
-echo "billapi_external_ip=$billapi_external_ip" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# billapi_external_vlan=0" >>$tmp_config
 else
@@ -989,12 +906,10 @@ else
 fi
 echo "billapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "billapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "billapi_external_url=$billapi_external_url" >>$tmp_config
 echo "billapi_http_admin_user=admin" >>$tmp_config
 echo "billapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "riak_admin_ip=$riak_admin_ip" >>$tmp_config
 echo "riak_root_pw=$zone_admin_pw" >>$tmp_config
 echo "riak_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
