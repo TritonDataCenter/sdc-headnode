@@ -113,7 +113,7 @@ mkdir -p /opt/smartdc/adminui-data
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
 echo "unpack fs.tar"
-(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -) 
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
 rm -f /var/svc/fs.tar.bz2
 echo "install root"
 (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
@@ -125,6 +125,9 @@ for i in `cat /var/svc/pkgsrc`
 do
 	pkgin -y install $i
 done
+
+# Need ADMINUI_IP for config.json
+ADMINUI_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 
 echo "configuring adminui datasets"
 
