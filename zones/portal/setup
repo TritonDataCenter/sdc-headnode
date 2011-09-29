@@ -52,7 +52,8 @@ fi
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
-PRIVATE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+PUBLIC_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+EXTERNAL_URL="https://$PUBLIC_IP"
 
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
@@ -160,7 +161,7 @@ exports.config = {
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
-  listenIp : "${PRIVATE_IP}",
+  listenIp : "${PUBLIC_IP}",
   machineListConfig : "./cfg/machineListFields.json",
   provisionOptionsConfig : "./cfg/provisionOptions.json",
   signupOptionsConfig : './cfg/signupOptions.json',
@@ -249,7 +250,7 @@ http {
     server_tokens off;
 
     upstream portal {
-        server ${PRIVATE_IP}:4000;
+        server ${PUBLIC_IP}:4000;
     }
 
     server {

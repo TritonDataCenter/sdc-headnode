@@ -75,6 +75,10 @@ do
 	pkgin -y install $i
 done
 
+# XXX is net1 external nic?
+EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
+CLOUDAPI_EXTERNAL_URL="https://$EXT_IPADDR"
+
 echo "finalizing cloudapi zone"
 
 echo "Installing local node.js"
