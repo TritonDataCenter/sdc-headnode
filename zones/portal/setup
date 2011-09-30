@@ -49,7 +49,7 @@ if [ -e /var/svc/setup_complete ]; then
 fi
 
 # Setup the zone
-curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2010q4
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
 PUBLIC_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
@@ -58,7 +58,7 @@ EXTERNAL_URL="https://$PUBLIC_IP"
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
 echo "unpack fs.tar"
-(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -) 
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
 rm -f /var/svc/fs.tar.bz2
 echo "install root"
 (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)

@@ -289,11 +289,13 @@ EOF
 [[ -f "${USB_COPY}/rc/zone.root.bashrc" ]] \
     && cp ${USB_COPY}/rc/zone.root.bashrc ${dest}/root/.bashrc
 
-if [[ -f "${src}/pkgsrc" ]]; then
+
+pkgsrc=`ls ${src}/pkgsrc_* | cut -d / -f 5`
+if [[ -n "${pkgsrc}" ]]; then
     mkdir -p ${dest}/root/pkgsrc
-    cp ${src}/pkgsrc ${dest}/root/pkgsrc/order
-    (cd ${dest}/root/pkgsrc && tar -xf ${USB_COPY}/data/pkgsrc.tar \
-      $(cat ${src}/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+    cp ${src}/${pkgsrc} ${dest}/root/pkgsrc/order
+    (cd ${dest}/root/pkgsrc && tar -xf ${USB_COPY}/data/${pkgsrc}.tar \
+      $(cat ${src}/${pkgsrc} | sed -e "s/$/.tgz/" | xargs))
     cp ${USB_COPY}/zoneinit/94-zone-pkgs.sh ${dest}/root/zoneinit.d
 fi
 

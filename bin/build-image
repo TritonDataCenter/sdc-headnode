@@ -251,11 +251,17 @@ fi
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
-PKGSRC_ROOT=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
 AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")
 ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/assets")
 
-
+# Support N version of pkgsrc
+PKGSRC_2010Q4=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
+PKGSRC_2011Q2=$(proxy "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/")
+PKGSRC_2011Q2_64=$(proxy "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/")
+PKGSRC_LIST=(
+    "pkgsrc_2011Q2|$PKGSRC_2011Q2"
+    "pkgsrc_2011Q2_64|$PKGSRC_2011Q2_64"
+    "pkgsrc_2010Q4|$PKGSRC_2010Q4" )
 
 # Figure out first what we're building, and load the proper include
 
@@ -482,52 +488,68 @@ function copy_base
 
 function copy_pkgsrc
 {
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        (cd ${ROOT}/cache \
-            && rm -f md5sums.txt \
-            && curl ${CURL_OPTS} -O ${PKGSRC_ROOT}/md5sums.txt) \
-            || fatal "Failed to download ${PKGSRC_ROOT}/md5sums.txt"
-    elif [[ ! -f ${ROOT}/cache/md5sums.txt ]]; then
-        fatal "Don't have cached md5sums.txt file, can't build. " \
-            "You need to find some Internet."
-    fi
-    pkgs=$(cat ${ROOT}/zones/*/pkgsrc \
-        | xargs -n1 \
-        | sort \
-        | uniq \
-        | sed -e "s/$/.tgz/")
-    for pkgfile in $pkgs; do
-        MD5=$(${GREP} " ${pkgfile}" ${ROOT}/cache/md5sums.txt | cut -d' ' -f1 || true)
-        if [[ -z ${MD5} ]]; then
-            fatal "Unable to find md5sum for ${pkgfile}, " \
-                "must be fixed before we can continue."
-        fi
+    echo "==> Copying in pkgsrc"
 
-        [[ -f ${ROOT}/cache/${pkgfile} ]] \
-            && ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${pkgfile} | cut -d' ' -f1)
+    for pkgsrc in ${PKGSRC_LIST[@]} ; do
+	local name=${pkgsrc%%|*}
+	local url=${pkgsrc##*|}
 
-        if [[ ! -f ${ROOT}/cache/${pkgfile} ]] \
-            || [[ -z ${ACTUAL_MD5} ]] \
-            || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+	local exists=$(find ${ROOT}/zones -type f -name ${name} )
+	[[ -z ${exists} ]] && continue
 
-            echo "==> Downloading ${pkgfile}"
-            # if this exists, it's corrupt
-            rm -f ${ROOT}/cache/${pkgfile}
-            if [[ ${HAVE_INTERNET} == "true" ]]; then
-                (cd ${ROOT}/cache \
-                    && curl ${CURL_OPTS} \
-                    -k -fO ${PKGSRC_ROOT}/${pkgfile}) \
-                    || fatal "could not download ${PKGSRC_ROOT}/${pkgfile}"
-            else
-                fatal "Need Internet to download ${pkgfile}"
-            fi
-        else
-            echo "==> Not downloading ${pkgfile} as existing file matches MD5"
-        fi
+	local cache_dir=${ROOT}/cache/${name}
+	mkdir -p ${cache_dir}
+
+	printf "%s likes to %s.\n" $KEY $VALUE
+	if [[ ${HAVE_INTERNET} == "true" ]]; then
+	    (cd ${cache_dir} \
+		&& rm -f md5sums.txt \
+		&& curl ${CURL_OPTS} -O ${url}/md5sums.txt) \
+		|| fatal "Failed to download ${url}/md5sums.txt"
+	elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
+	    fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
+		"can't build. You need to find some Internet."
+	fi
+
+	pkgs=$(cat ${ROOT}/zones/*/${name} \
+	    | xargs -n1 \
+	    | sort \
+	    | uniq \
+	    | sed -e "s/$/.tgz/")
+	for pkgfile in $pkgs; do
+	    MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
+	    if [[ -z ${MD5} ]]; then
+		fatal "Unable to find md5sum for ${pkgfile}, " \
+		    "must be fixed before we can continue."
+	    fi
+
+	    [[ -f ${cache_dir}/${pkgfile} ]] \
+		&& ACTUAL_MD5=$(${MD5CMD} ${cache_dir}/${pkgfile} | cut -d' ' -f1)
+
+	    if [[ ! -f ${cache_dir}/${pkgfile} ]] \
+		|| [[ -z ${ACTUAL_MD5} ]] \
+		|| [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+
+		echo "==> Downloading ${pkgfile}"
+                    # if this exists, it's corrupt
+		rm -f ${cache_dir}/${pkgfile}
+		if [[ ${HAVE_INTERNET} == "true" ]]; then
+		    (cd ${cache_dir} \
+			&& curl ${CURL_OPTS} \
+			-k -fO ${url}/${pkgfile}) \
+			|| fatal "could not download ${url}/${pkgfile}"
+		else
+		    fatal "Need Internet to download ${pkgfile}"
+		fi
+	    else
+		echo "==> Not downloading ${pkgfile} as existing file " \
+		    "matches MD5"
+	    fi
+	done
+
+	echo "==> Creating ${name}.tar"
+	(cd ${cache_dir} && ${TAR} -cvf ${STAGE}/data/${name}.tar ${pkgs})
     done
-
-    echo "==> Creating pkgsrc.tar"
-    (cd ${ROOT}/cache && ${TAR} -cvf ${STAGE}/data/pkgsrc.tar ${pkgs})
 }
 
 function valid_tgz_archive

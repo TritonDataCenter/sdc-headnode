@@ -104,7 +104,7 @@ if [ -e /var/svc/setup_complete ]; then
 fi
 
 # Setup the zone
-curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2010q4
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
 mkdir -p /opt/smartdc/adminui

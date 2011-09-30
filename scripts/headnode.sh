@@ -154,7 +154,7 @@ if [ -n "${CREATEDZONES}" ]; then
                 printf "%-56s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
                 printf "%-56s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
                 printf "%-56s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
-      
+
                 # counter goes up every 0.2 seconds
                 # wait 10 minutes
                 loops=$((${loops} + 1))
