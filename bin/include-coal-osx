@@ -52,6 +52,11 @@ function create_output
         > USB-headnode.vmdk)
     echo "done."
 
+    echo -n "==> Copying in root.password... "
+    cp ${STAGE}/private/root.password.${LIVEIMG_VERSION} \
+        ${ROOT}/cache/USB-headnode.vmwarevm/root.password.${LIVEIMG_VERSION}
+    echo "done."
+
     # Copy in ${ROOT}/cache/${OUTPUT_IMG}
     echo -n "==> Copying in ${OUTPUT_IMG}... "
     mv ${ROOT}/cache/${OUTPUT_IMG} \
@@ -67,6 +72,7 @@ function create_output
             root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv ${ROOT}/cache/USB-headnode.vmwarevm ${ROOT}/coal-${output_version}-${USB_SIZE}.vmwarevm
+        mv ${ROOT}/cache/USB-headnode.vmwarevm \
+            ${ROOT}/coal-${output_version}-${USB_SIZE}.vmwarevm
     fi
 }

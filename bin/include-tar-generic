@@ -88,8 +88,8 @@ function create_output
 
     if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
         echo "==> Copying root.password"
-        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ${MNT_DIR}/root.password.${LIVEIMG_VERSION}
-        ${SUCMD} chmod 400 ${MNT_DIR}/root.password.${LIVEIMG_VERSION}
+        ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
+        ${SUCMD} chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi
 
     echo "==> Creating boot-${output_version}.tgz"
