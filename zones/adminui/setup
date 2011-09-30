@@ -106,6 +106,7 @@ fi
 # Setup the zone
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2010q4
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+curl -k -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2010q4.tar
 
 mkdir -p /opt/smartdc/adminui
 mkdir -p /opt/smartdc/adminui-data
@@ -121,10 +122,18 @@ echo "install site"
 (cd /.stage/site; tar cbf 512 - *) | (cd /lib/svc/manifest/site; tar xbf 512 -)
 rm -rf /.stage
 
+# Install using local pkg repo
+mkdir -p /var/svc/pkgs
+(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
+      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+rm -f /var/svc/pkgsrc.tar
+
 for i in `cat /var/svc/pkgsrc`
 do
-	pkgin -y install $i
+	echo "Installing $i" 
+	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
+rm -rf /var/svc/pkgs
 
 # Need ADMINUI_IP for config.json
 ADMINUI_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
