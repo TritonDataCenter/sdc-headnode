@@ -1,1 +1,0 @@
--record(riakobject_pb, {bucket, key, val}).
