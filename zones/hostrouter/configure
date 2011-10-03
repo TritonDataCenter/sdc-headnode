@@ -4,7 +4,7 @@
 # (I know the capi_ipf_setup is not needed here, but trying to write something
 # we can actually use for any of the ruby zones)
 echo "Disabling application service"
-/usr/sbin/svcadm disable -s riak
+/usr/sbin/svcadm disable -s couchdb
 /usr/sbin/svcadm disable -s hostrouter
 
 # Source configuration file first:
@@ -16,6 +16,6 @@ source /opt/smartdc/bin/configure.sh
 # Re-enable our services post re-configuration:
 echo "Enabling application service"
 /usr/sbin/svcadm enable -s hostrouter
-/usr/sbin/svcadm enable -s riak
+/usr/sbin/svcadm enable -s couchdb
 # And exit:
 exit 0

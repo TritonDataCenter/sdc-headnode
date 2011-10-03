@@ -159,9 +159,8 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   },
   "hostRouter": {
     "hostname": "${HOSTROUTER_HOSTNAME}",
-    "riakhost": "${HOSTROUTER_RIAKHOST}",
-    "riakport": ${HOSTROUTER_RIAKPORT},
-    "riakapi": "${HOSTROUTER_RIAKAPI}"
+    "couchdb_host": "${HOSTROUTER_COUCHDB_HOST}",
+    "couchdb_port": ${HOSTROUTER_COUCHDB_PORT}
   }
 }
 HERE

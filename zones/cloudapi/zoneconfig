@@ -42,7 +42,6 @@ MAPI_HTTP_ADMIN_PW=${mapi_http_admin_pw}
 PORTAL_ADMIN_IP=${portal_admin_ip}
 RABBIT_IP=${rabbitmq_admin_ip}
 
-HOSTROUTER_RIAKHOST=${hostrouter_riakhost}
-HOSTROUTER_RIAKPORT=${hostrouter_riakport}
-HOSTROUTER_RIAKAPI=${hostrouter_riakapi}
+HOSTROUTER_COUCHDB_HOST=${hostrouter_couchdb_host}
+HOSTROUTER_COUCHDB_PORT=${hostrouter_couchdb_port}
 HOSTROUTER_HOSTNAME=hostrouter.${dns_domain}

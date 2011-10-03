@@ -6,7 +6,6 @@ TMPFS=512m
 PRIVATE_IP=${hostrouter_admin_ip}
 PUBLIC_IP=${hostrouter_external_ip-${hostrouter_admin_ip}}
 
-HOSTROUTER_RIAKHOST=${hostrouter_riakhost}
-HOSTROUTER_RIAKPORT=${hostrouter_riakport}
-HOSTROUTER_RIAKAPI=${hostrouter_riakapi}
+HOSTROUTER_COUCHDB_HOST=${hostrouter_couchdb_host}
+HOSTROUTER_COUCHDB_PORT=${hostrouter_couchdb_port}
 HOSTROUTER_HOSTNAME=${HOSTNAME}

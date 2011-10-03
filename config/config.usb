@@ -212,9 +212,7 @@ hostrouter_admin_ip=10.99.99.16
 hostrouter_root_pw=joypass123
 hostrouter_admin_pw=joypass123
 hostrouter_external_url=https://10.99.99.16
-hostrouter_riakhost=10.99.99.16
-hostrouter_riakbucket=hostnames
-hostrouter_riakport=8098
-hostrouter_riakapi=http
+hostrouter_couchdb_host=10.99.99.16
+hostrouter_couchdb_port=5984
 
 phonehome_automatic=true
