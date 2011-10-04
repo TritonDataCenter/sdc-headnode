@@ -3,7 +3,6 @@ var ddoc = { "_id": "_design/app"
            , "views": { ports: { map: portsViewMap } }
            }
 
-
 function portsList (head, req) {
   if (!req.query.server) {
     start({"code":"400", "headers": {"Content-Type": "application/json"}})
@@ -36,7 +35,7 @@ function portsList (head, req) {
     }
 
     out[val.port] = { port: val.targetPort
-                    , hostname: row.id
+                    , hostname: val.hostname
                     , ip: val.ip }
   }
 
@@ -46,9 +45,9 @@ function portsList (head, req) {
 function portsViewMap (doc) {
   // doc is something like:
   // { _id: "isaacs.no.de"
-  // , machines: { name: "isaacs.no.de"
-  //             , mapi: "stuff..."
-  //             , uuid: "etc" }
+  // , machine: { name: "isaacs.no.de"
+  //            , mapi: "stuff..."
+  //            , uuid: "etc" }
   // , server: "compute-node-uuid"
   // , ip: :"10.2.123.45"
   // , ports: { 54312: 22, 51337: 51337, 58080: 80 } }
@@ -61,15 +60,107 @@ function portsViewMap (doc) {
   // This emits something data for the portsList function.
 
   for (var p in doc.ports) {
-    emit(doc._id, { port: p
-                  , targetPort: doc.ports[p]
-                  , server: doc.server
-                  , ip: doc.ip })
+    emit(p, { port: p
+            , targetPort: doc.ports[p]
+            , server: doc.server
+            , hostname: doc._id
+            , ip: doc.ip })
+  }
+}
+
+// docs look like this:
+/*
+{
+  "_id": "observer.no.de",
+  "_rev": "1-421f797836d6aafd788a51b8697dad7b",
+  "owner": "170965cb-742c-4e87-83a9-fcdbc27969ec",
+  "ip": "10.2.128.65",
+  "ports": {
+    "18777": 18777,
+    "18780": 80,
+    "18788": 22
+  },
+  "server": "server-uuid-2",
+  "machine": {
+    "id": "540175d3-e90d-48ff-9aa4-8e09f3cb0f02",
+    "name": "observer.no.de",
+    "type": "smartmachine",
+    "state": "provisioning",
+    "dataset": "sdc:sdc:nodejs:1.2.3",
+    "ips": [
+      "10.2.128.65"
+    ],
+    "memory": 128,
+    "disk": 5120,
+    "metadata": {},
+    "created": "2011-08-26T23:45:37+00:00",
+    "updated": "2011-08-26T23:45:37+00:00",
+    "sshPort": 18788
+  }
+}
+*/
+
+function validate_doc_update (doc) {
+  function assert (ok, message) {
+    if (!ok) throw { forbidden: message }
+  }
+  function isUuid (s) {
+    return s &&
+      s.match(/[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}/i)
+  }
+  function isIp (s) {
+    return s &&
+      s.match(/[0-9]{1,3}(\.[0-9]{1,3}){3}/) &&
+      s.split(".").filter(function (n, i) {
+        n = parseInt(n, 10)
+        return n > 0 && n < 256 &&
+          (i !== 0 || (n !== 0 && n !== 127 && n !== 255))
+      }).length === 4
+  }
+  function isNumber (n) {
+    return typeof n === "number" && n === n
+  }
+
+  assert(isUuid(doc.owner), "owner must be uuid")
+  assert(isUuid(doc.server), "server must be uuid")
+  assert(isIp(doc.ip), "ip must be ip")
+  assert(doc.machine && typeof doc.machine,
+         "machine must be object")
+  assert(doc.machine.name === doc._id, "machine name must match _id")
+  assert(isUuid(doc.machine.id), "machine id must be uuid")
+  assert(Array.isArray(doc.machine.ips), "machine ips must be array")
+  assert(isNumber(doc.machine.memory),
+         "machine.memory must be number")
+  assert(isNumber(doc.machine.disk),
+         "machine.disk must be number")
+  assert(isNumber(doc.machine.sshPort),
+         "machine.sshPort must be number")
+
+  var c = Date.parse(doc.machine.created)
+    , m = Date.parse(doc.machine.updated)
+  assert(isNumber(c), "machine.created must be valid date")
+  assert(isNumber(m), "machine.modified must be valid date")
+  assert(m >= c, "machine.modified must be >= machine.created")
+
+  assert(doc.ports && typeof doc.ports === "object", "ports must be object")
+  assert(doc.ports[machine.sshPort] === 22, "sshPort must be mapped to :22")
+  var portBase = 16385;
+  var portRange = 49152;
+  for (var i in doc.ports) {
+    assert(String(parseInt(i)) === i,
+           "each key in ports must be simple integer")
+    assert(i >= portBase, "each port must be >= "+portBase)
+    assert(i <= portBase + portRange, "each port must be <= "+
+           (portBase + portRange))
+    assert(parseInt(doc[i]) === doc[i],
+           "each value in ports must be simple integer")
   }
 }
 
 // dump the JSON to send to couchdb
 console.log(JSON.stringify(ddoc, function (k, v) {
-  if (typeof v === "function") return v.toString()
+  if (typeof v === "function") {
+    return v.toString().replace(/^function [a-z_]+\(/i, "function (")
+  }
   return v
 }))
