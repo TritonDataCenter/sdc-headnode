@@ -38,9 +38,22 @@ else
   /usr/sbin/svcadm enable -s couchdb
 fi
 
+couch=http://localhost:${HOSTROUTER_COUCHDB_PORT}
+
 # create the databases for hostnames and portmapping
-curl -X PUT \
+curl $couch/hostrouter \
+     -X PUT \
      -u admin:a0a6e1a375117c58d77221f10c5ce12e \
      -H content-type:application/json \
-     -H accept:application/json \
-     http://${HOSTROUTER_COUCHDB_HOST}:${HOSTROUER_COUCHDB_PORT}/hostrouter
+     -H content-length:0 \
+     -H accept:application/json
+
+# create the design doc for the hostnames couchapp
+designdoc=$(node /root/hostnames-design-doc.js)
+curl $couch/hostrouter/_design/app \
+     -X PUT \
+     -d "${designdoc}" \
+     -u admin:a0a6e1a375117c58d77221f10c5ce12e \
+     -H content-type:application/json \
+     -H content-length:${#designdoc} \
+     -H accept:application/json
