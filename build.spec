@@ -27,8 +27,8 @@
   , "capi-checkout": "origin/release-20110714"
   , "dhcpd-checkout": "origin/release-20110714"
   , "mapi-checkout": "origin/release-20110714"
-  , "portal-checkout": "origin/lime-node"
-  , "cloudapi-checkout": "origin/lime-node"
+  , "portal-checkout": "origin/lime-node-couch"
+  , "cloudapi-checkout": "origin/lime-node-couch"
   , "pubapi-checkout": "origin/release-20110714"
   , "rabbitmq-checkout": "origin/release-20110714"
   , "upgrades": {
