@@ -40,6 +40,9 @@ fi
 
 couch=http://localhost:${HOSTROUTER_COUCHDB_PORT}
 
+# give it a second to start up.
+sleep 2
+
 # create the databases for hostnames and portmapping
 curl $couch/hostrouter \
      -X PUT \
