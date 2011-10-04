@@ -315,6 +315,72 @@ SETUP_SERVICE
 
 chmod +x "/opt/smartdc/$app_name-data/$app_name-setup-service.sh"
 
+
+echo "Creating SMF manifest for ssagent"
+cat > /opt/smartdc/mapi/ssagent/ssagent.smf <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="ssagent">
+  <service name="smartdc/app/ssagent" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/usr/bin/node /opt/smartdc/ssagent/ssagent/ssagent.js &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/mapi/ssagent">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="AMQP_HOST" value="${RABBITMQ_PRIVATE_IP}"/>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/mapi/ssagent" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/mapi/ssagent" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Screenshot Agent Daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+
+
+
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
 
@@ -374,6 +440,11 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
     echo "Importing MCP API Provisioner Client Manifest"
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/provisioner_client.smf
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/provisioner_client:default refresh
+  fi
+
+  if [[ -z $(/usr/bin/svcs -a|grep ssagent) ]]; then
+    echo "Importing MAPI Screenshot Agent Manifest"
+    /usr/sbin/svccfg import /opt/smartdc/${app_name}/ssagent/ssagent.smf
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep ur_client) ]]; then
