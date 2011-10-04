@@ -5,8 +5,8 @@
 
 # Update the config with the correct values.
 cat >> /opt/smartdc/hostrouter/config.js <<CONFIG
-exports.couchdbhost = "${HOSTROUTER_COUCHDB_HOST}"
-exports.couchdbport = ${HOSTROUTER_COUCHDB_PORT}
+exports.couchdb_host = "${HOSTROUTER_COUCHDB_HOST}"
+exports.couchdb_port = ${HOSTROUTER_COUCHDB_PORT}
 exports.port = 80
 CONFIG
 
