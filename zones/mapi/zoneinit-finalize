@@ -337,7 +337,7 @@ cat > /opt/smartdc/mapi/ssagent/ssagent.smf <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/node /opt/smartdc/ssagent/ssagent.js &amp;"
+      exec="/usr/bin/node /opt/smartdc/mapi/ssagent/ssagent.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/mapi/ssagent">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
