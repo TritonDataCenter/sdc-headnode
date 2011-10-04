@@ -29,7 +29,7 @@ CONFIG
 # Setup and configure couchdb
 if [[ -z $(/usr/bin/svcs -a|grep couchdb) ]]; then
   echo "Importing couchdb service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/couchdb.xml
+  /usr/sbin/svccfg import /root/couch-service.xml
   sleep 10 # XXX
   /usr/sbin/svcadm enable -s couchdb
 else
