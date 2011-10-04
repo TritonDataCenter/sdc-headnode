@@ -97,6 +97,9 @@ curl -k -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2010q4.tar
 
 mkdir -p /opt/smartdc/ca-data
 
+data_ds=`zfs list -H -oname | grep "data$"`
+[ -n "$data_ds" ] && zfs set mountpoint=/var/smartdc/ca $data_ds
+
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
 echo "unpack fs.tar"
