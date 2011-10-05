@@ -5,22 +5,9 @@ if [[ $# != 2 ]]; then
   exit 1
 fi
 
-
 ZONE=$1
 TARGET_DIR=$2
-
-APP_NAME="${ZONE}"
-BASE="${TARGET_DIR}/${APP_NAME}"
-
-# Note these include the .zfs extension
-DATA_DATASET=$(ls  ${BASE}|grep data)
-PG_DUMP_VERSION=$(cat ${BASE}/RESTORE)
-
-# We cannot restore if cannot find data dataset:
-if [[ -z $DATA_DATASET ]]; then
-  echo "FATAL: Cannot find '${APP_NAME}' data dataset"
-  exit 102
-fi
+ROLE="ca"
 
 # We want to disable any of the old smartdc svcs to prevent the SMF repository
 # from being out of sync with the restored zone data.
@@ -43,76 +30,44 @@ unset SVCCFG_REPOSITORY
 
 # We're gonna check for existing zone datasets.
 # If they're there, we'll remove them.
-PREVIOUS_DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
 
-# We cannot restore if cannot find data dataset:
-if [[ -z $PREVIOUS_DATA_DATASET ]]; then
-  if [[ ! -z $(/usr/sbin/zonecfg -z ${ZONE} info dataset|grep "${PREVIOUS_DATA_DATASET}$") ]]; then
-    echo "==> Removing '${PREVIOUS_DATA_DATASET}' from the zone"
-    /usr/sbin/zonecfg -z ${ZONE} remove dataset name="${PREVIOUS_DATA_DATASET}" 2>&1
-    if [[ $? -gt 0 ]]; then
-      echo "FATAL: Unable to remove previous data dataset from '${ZONE}' zone"
-      exit 104
-    fi
-  fi
+# Destroy previous dataset.
+if [[ -z "${DATA_DATASET}" ]]; then
+    echo "FATAL: Missing '${DATA_DATASET}' dataset"
+    exit 105
 fi
 
-# Destroy previous datasets, (could have same name and we could be trying
-# to restore them from a previous backup)
-if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_DATA_DATASET}") ]]; then
-  echo "==> Destroying dataset '${PREVIOUS_DATA_DATASET}'"
-  /usr/sbin/zfs destroy -r "${PREVIOUS_DATA_DATASET}"
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to zfs destroy '${PREVIOUS_DATA_DATASET}' dataset"
+echo "==> Destroying dataset '${DATA_DATASET}'"
+zfs destroy -r "${DATA_DATASET}"
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to zfs destroy '${DATA_DATASET}' dataset"
     exit 106
-  fi
 fi
 
-
-# ZFS receive the datasets from the backup:
-if [[ -z $(zfs list -H -o name|grep "${ZONE}\/${DATA_DATASET%.*}$") ]]; then
-  echo "==> Receiving '${BASE}/${DATA_DATASET}'"
-  /usr/sbin/zfs receive -v "zones/${ZONE}/${DATA_DATASET%.*}" < "${BASE}/${DATA_DATASET}"
-  if [[ $? -gt 0 ]]; then
+# ZFS receive the dataset from the backup:
+echo "==> Receiving '${TARGET_DIR}/${ROLE}/data.zfs'"
+zfs receive -v "${DATA_DATASET}" < "${TARGET_DIR}/${ROLE}/data.zfs"
+if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to zfs receive data dataset"
     exit 108
   fi
-fi
 
-# Add new datasets to the zone and set mounpoint
-
-if [[ -z $(zonecfg -z ${ZONE} info dataset|grep "${ZONE}\/${DATA_DATASET%.*}$") ]]; then
-  echo "==> Adding new dataset ('${DATA_DATASET%.*}') to the zone"
-  cmd="add dataset; set name=zones/${ZONE}/${DATA_DATASET%.*}; end; verify; commit"
-  /usr/sbin/zonecfg -z ${ZONE} $cmd 2>&1
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to add new data dataset to '${ZONE}' zone"
-    exit 110
-  fi
-fi
-
-# Older backups may not have had this config file
-if [[ -f "${BASE}/zoneconfig" ]]; then
-	echo "==> Restoring config file for zone '${ZONE}'"
-	cp ${BASE}/zoneconfig /zones/$ZONE/root/opt/smartdc/etc
-else
-	echo "Warning, older backup; missing config file for $ZONE"
-fi
-
-# Now we need to reboot the zone in order to be able to set mountpoints for the
-# new datasets properly:
+# Now we need to reboot the zone in order to be able to set mountpoint for the
+# new dataset properly:
 
 echo "==> Booting '${ZONE}' zone"
 /usr/sbin/zoneadm -z ${ZONE} boot
 
-# Double check mountpoint for backup datasets:
-if [[ "$(zfs get -H -o value mountpoint zones/${ZONE}/${DATA_DATASET%.*})" != "/var/smartdc/${APP_NAME}"  ]]; then
-  echo "==> Setting mountpoint for dataset '${DATA_DATASET%.*}'"
-  /usr/sbin/zlogin ${ZONE} /usr/sbin/zfs set mountpoint=/var/smartdc/${APP_NAME} "zones/${ZONE}/${DATA_DATASET%.*}"
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"
-    exit 112
-  fi
+# Double check mountpoint for backup dataset:
+if [[ "$(zfs get -H -o value mountpoint ${DATA_DATASET})" != "/var/smartdc/${ROLE}"  ]]; then
+    echo "==> Setting mountpoint for dataset '${DATA_DATASET}'"
+    zlogin ${ZONE} /usr/sbin/zfs set mountpoint=/var/smartdc/${ROLE} \
+       "${DATA_DATASET}"
+    if [[ $? -gt 0 ]]; then
+        echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"
+        exit 112
+    fi
 fi
 
 echo "==> Waiting for 10 seconds while the zone services are running ..."

@@ -1,1 +1,75 @@
-../../common/restore.rubyapp
+#!/usr/bin/bash
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+ROLE="capi"
+
+BU_VERS=$(cat ${TARGET_DIR}/${ROLE}/RESTORE)
+
+# We want to disable any of the old smartdc svcs to prevent the SMF repository
+# from being out of sync with the restored zone data.
+# The zone is halted when we start restoring so use svc to talk to the zone's
+# repo.
+echo "==> Disabling 'smartdc' services on zone '${ZONE}'"
+export SVCCFG_CHECKHASH=1
+export SVCCFG_REPOSITORY=/zones/${ZONE}/root/etc/svc/repository.db
+for service in `svccfg list | egrep smartdc`
+do
+	if [[ $service != "system/filesystem/smartdc" && \
+	    $service != "platform/smartdc/capi_ipf_setup" ]]; then
+
+		svccfg -s "$service:default" setprop general/enabled=false \
+		    >/dev/null 2>&1
+	fi
+done
+unset SVCCFG_CHECKHASH
+unset SVCCFG_REPOSITORY
+
+# Now we need to boot the zone to restore the database.
+
+echo "==> Booting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} boot
+
+echo "==> Waiting for 10 seconds while the zone services are running ..."
+sleep 10
+
+BU_PATH=/zones/${ZONE}/root/opt/smartdc/${ROLE}-data
+BU_FILE=${ROLE}-${BU_VERS}.pg_dump
+
+# Restore backup
+cp ${TARGET_DIR}/${ROLE}/${BU_FILE} ${BU_PATH}
+
+# Restore the PostgreSQL dump
+echo "==> Restoring PostgreSQL DB to previous version"
+zlogin ${ZONE} VERSION=${BU_VERS} \
+    /opt/local/bin/rake pg:restore -f /opt/smartdc/${ROLE}/Rakefile
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${ROLE}-data/${BU_FILE}'."
+    exit 113
+fi
+
+echo "==> Enabling 'smartdc' services on zone '${ZONE}' and waiting for 5 seconds"
+
+services=$(/usr/sbin/zlogin ${ZONE} /usr/bin/svcs -a -o FMRI|grep smartdc)
+for service in $services; do
+  if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
+    $(/usr/sbin/zlogin ${ZONE} /usr/sbin/svcadm enable "$service")
+  fi
+done
+
+sleep 5
+
+echo "==> Halting '${ZONE}' zone"
+/usr/sbin/zoneadm -z ${ZONE} halt
+
+echo "==> All done!!!"
+
+exit 0

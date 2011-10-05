@@ -1,1 +1,49 @@
-../../common/backup.rubyapp
+#!/usr/bin/bash
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+ROLE="capi"
+
+# Just in case, create the backup directory:
+if [[ ! -e "${TARGET_DIR}" ]]; then
+  mkdir -p ${TARGET_DIR}
+fi
+
+VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${ROLE}-data/VERSION)
+STAMP=$(date +'%F-%H-%M-%S-%Z')
+
+# We might want to take more than one backup of the same version:
+BU_VERS="${VERSION}-${STAMP}"
+
+echo "==> Creating PostgreSQL Backup with version ${BU_VERS}"
+BU_FILE=/zones/${ZONE}/root/opt/smartdc/${ROLE}-data/${ROLE}-${BU_VERS}.pg_dump
+
+zlogin ${ZONE} VERSION="${BU_VERS}" \
+    /opt/local/bin/rake pg:backup -f /opt/smartdc/${ROLE}/Rakefile
+if [[ ! -f $BU_FILE ]]; then
+      echo "FATAL: Cannot create database backup"
+      exit 104
+fi
+
+echo "Successfully created database backup: $BU_FILE"
+
+# Create backup directory for the zone stuff:
+echo "==> Creating backup directory '${TARGET_DIR}/${ROLE}'"
+mkdir -p "${TARGET_DIR}/${ROLE}"
+
+# Save backup
+cp $BU_FILE ${TARGET_DIR}/${ROLE}
+
+# Create a file to hold the $BU_VERS for the restore script:
+echo "${BU_VERS}" > "${TARGET_DIR}/${ROLE}/RESTORE"
+
+echo "All done!!!"
+exit 0

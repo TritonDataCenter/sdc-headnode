@@ -11,37 +11,31 @@ fi
 
 ZONE=$1
 TARGET_DIR=$2
-# We know the name of our app:
-APP_NAME="${ZONE}"
+ROLE="riak"
 
-if [[ ! -d "${TARGET_DIR}" || ! -d ${TARGET_DIR}/${APP_NAME} ]]; then
+if [[ ! -d "${TARGET_DIR}" || ! -d ${TARGET_DIR}/${ROLE} ]]; then
     echo "Missing backup directory"
     exit 107
 fi
 
-if [[ ! -f ${TARGET_DIR}/${APP_NAME}/RESTORE ]]; then
-    echo "Invalid backup directory"
-    exit 108
-fi
-
-if [[ ! -f ${TARGET_DIR}/${APP_NAME}/etc.tar ]]; then
+if [[ ! -f ${TARGET_DIR}/${ROLE}/etc.tar ]]; then
     echo "Incomplete backup directory"
     exit 109
 fi
 
-if [[ ! -f ${TARGET_DIR}/${APP_NAME}/var_db.tar ]]; then
+if [[ ! -f ${TARGET_DIR}/${ROLE}/var_db.tar ]]; then
     echo "Incomplete backup directory"
     exit 110
 fi
 
-echo "==> Restoring $APP_NAME backup"
-(cd /zones/$ZONE/root/var/db; tar xbf 512 ${TARGET_DIR}/${APP_NAME}/var_db.tar)
+echo "==> Restoring $ROLE backup"
+(cd /zones/$ZONE/root/var/db; tar xbf 512 ${TARGET_DIR}/${ROLE}/var_db.tar)
 if [[ $? -ne 0 ]]; then
     echo "Error: restoring database"
     exit 111
 fi
 (cd /zones/$ZONE/root/opt/local/etc; \
-    tar xbf 512 ${TARGET_DIR}/${APP_NAME}/etc.tar)
+    tar xbf 512 ${TARGET_DIR}/${ROLE}/etc.tar)
 if [[ $? -ne 0 ]]; then
     echo "Error: restoring configuration"
     exit 112
