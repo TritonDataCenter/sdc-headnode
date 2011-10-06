@@ -40,11 +40,22 @@ fi
 
 couch=http://localhost:${HOSTROUTER_COUCHDB_PORT}
 
-# give it a second to start up.
-sleep 2
+# give it a few seconds to start up.
+timeout=1
+maxtimeout=10
+while [ $timeout -lt $maxtimeout ]; do
+  sleep $timeout
+  if [ "$(curl http://localhost:${HOSTROUTER_COUCHDB_PORT} \
+         )" = '{"couchdb":"Welcome","version":"1.0.1"}' ]; then
+    timeout=$maxtimeout
+  else
+    let timeout=timeout+1
+  fi
+done
+
 
 # create the databases for hostnames and portmapping
-curl $couch/hostrouter \
+curl $couch/hostnames \
      -X PUT \
      -u admin:a0a6e1a375117c58d77221f10c5ce12e \
      -H content-type:application/json \
@@ -53,7 +64,7 @@ curl $couch/hostrouter \
 
 # create the design doc for the hostnames couchapp
 designdoc=$(node /root/hostnames-design-doc.js)
-curl $couch/hostrouter/_design/app \
+curl $couch/hostnames/_design/app \
      -X PUT \
      -d "${designdoc}" \
      -u admin:a0a6e1a375117c58d77221f10c5ce12e \
