@@ -9,6 +9,9 @@
       , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
       , "headnode_zones": "true"
       }
+    , { "name": "smartos64-1.4.7"
+      , "uuid": "141194fa-dd77-11e0-8539-27dd8d8264b8"
+      }
     , { "name": "nodejs-1.1.4"
       , "uuid": "41da9c2e-7175-11e0-bb9f-536983f41cd8"
       }

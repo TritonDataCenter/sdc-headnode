@@ -59,8 +59,8 @@ function install_node_config
                 compute_node_swap \
                 rabbitmq \
                 root_shadow \
-                capi_admin_ip \
-                capi_admin_uuid \
+                ufds_admin_ip \
+                ufds_admin_uuid \
                 capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
@@ -276,7 +276,7 @@ fi
 
 # Write the owner_uuid attribute so that smartlogin and zonetracker credit
 # these zones to the admin user
-zonecfg -z ${zone} "add attr; set name=owner-uuid; set type=string; set value=\"${CONFIG_capi_admin_uuid}\"; end; commit"
+zonecfg -z ${zone} "add attr; set name=owner-uuid; set type=string; set value=\"${CONFIG_ufds_admin_uuid}\"; end; commit"
 
 # Write the info about this datacenter to /.dcinfo so we can use it in
 # the zone.  Same file should be put in the GZ by smartdc:config
@@ -424,13 +424,7 @@ if [[ "${zone}" == "mapi" ]]; then
     install_node_config /zones/mapi/root/opt/smartdc/node.config
 fi
 
-# Install capi.allow if we've got one
-if [[ "${zone}" == "capi" ]]; then
-    mkdir -p /zones/capi/root/opt/smartdc
-    install_config_file capi_allow_file /zones/capi/root/opt/smartdc/capi.allow
-fi
-
-    # Enable compression for the "ca" zone.
+# Enable compression for the "ca" zone.
 if [[ "${zone}" == "ca" ]]; then
     zfs set compression=lzjb zones/ca
 fi

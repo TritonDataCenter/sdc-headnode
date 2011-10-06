@@ -137,16 +137,6 @@ assets_admin_pw=joypass123
 ca_root_pw=joypass123
 ca_admin_pw=joypass123
 
-capi_is_local=true
-capi_external_vlan=0
-capi_root_pw=joypass123
-capi_http_admin_user=admin
-capi_http_admin_pw=tot@ls3crit
-capi_admin_login=admin
-capi_admin_pw=joypass123
-capi_admin_email=user@joyent.com
-capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
-
 dhcpd_admin_ip=10.99.99.4
 dhcpd_root_pw=joypass123
 dhcpd_admin_pw=joypass123
@@ -190,5 +180,18 @@ rabbitmq_admin_ip=10.99.99.5
 rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
+
+ufds_is_local=true
+ufds_external_vlan=0
+ufds_root_pw=joypass123
+ufds_ldap_root_dn=cn=root
+ufds_ldap_root_pw=secret
+ufds_admin_login=admin
+ufds_admin_pw=joypass123
+ufds_admin_email=user@joyent.com
+ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
+# Legacy CAPI parameters
+capi_http_admin_user=admin
+capi_http_admin_pw=tot@ls3crit
 
 phonehome_automatic=false

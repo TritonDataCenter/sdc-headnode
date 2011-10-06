@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e
+
+
+echo "ufds target: [${CHECKOUT_TARGET}]"
+
+mkdir -p root/opt/smartdc
+cd root/opt/smartdc
+
+if [[ -n ${UFDS_DIR} ]]; then
+    if [[ -d ${UFDS_DIR} ]]; then
+        echo "taking cloudapi from ${UFDS_DIR}"
+        # XXX UFDS_DIR must be a git repo (so git describe works)
+        mkdir ufds
+        (cd ${UFDS_DIR} && tar -cf - ./) | (cd ufds && tar -xf -)
+    else
+        echo "FATAL: ${UFDS_DIR} is not a directory"
+        exit 1
+    fi
+    cd ufds
+else
+    TARGET=${CHECKOUT_TARGET}
+    if [[ ${TARGET} == "origin/develop" ]]; then
+        TARGET=master
+    fi
+
+    git clone git@git.joyent.com:ufds.git ufds
+    cd ufds
+    mkdir -p ssl
+    # UFDS checkout
+    git checkout ${TARGET}
+    echo ${TARGET} > VERSION
+    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+
+    rm -rf .git .gitmodules .gitignore cfg/* data tst Makefile docs/*.md README.md
+fi

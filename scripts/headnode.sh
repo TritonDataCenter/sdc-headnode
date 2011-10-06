@@ -128,8 +128,8 @@ for zone in $ALLZONES; do
         [[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
         skip=false
-        if [ "${zone}" == "capi" ] ; then
-            if ! ${CONFIG_capi_is_local} ; then
+        if [ "${zone}" == "ufds" ] ; then
+            if ! ${CONFIG_ufds_is_local} ; then
                 skip=true
             fi
         fi
