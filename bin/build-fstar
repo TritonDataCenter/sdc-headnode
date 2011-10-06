@@ -54,12 +54,6 @@ case ${ZONE} in
             exit 1
         fi
         ;;
-    capi)
-        if [[ -z ${CAPI_DIR} || -z ${DNSAPI_DIR} ]]; then
-            echo "Need CAPI_DIR and DNSAPI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
     dhcpd)
         if [[ -z ${BOOTER_DIR} ]]; then
             echo "Need BOOTER_DIR env for ${zone}"
@@ -93,6 +87,12 @@ case ${ZONE} in
     billapi)
         if [[ -z ${BILLAPI_DIR} ]]; then
             echo "Need BILLAPI_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
+    ufds)
+        if [[ -z ${UFDS_DIR} ]]; then
+            echo "Need UFDS_DIR env for ${zone}"
             exit 1
         fi
         ;;

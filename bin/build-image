@@ -1094,7 +1094,7 @@ function build_fs_tarball
         rm -rf ${zone_dir}/fs.{populate,root}
         if [[ $REBUILD_FROM_RECIPE == 1 ]]; then
             (cd /tmp/fs.${zone}.$$/fs.root \
-                && RECIPE_FILE=$RECIPE ../fs.populate -r\
+                && RECIPE_FILE=$RECIPE ../fs.populate -r \
                 && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
         else
             (cd /tmp/fs.${zone}.$$/fs.root \
@@ -1113,12 +1113,12 @@ function copy_zones
 {
     if [[ -n $ZONE_DIR ]]; then
         export ADMINUI_DIR=${ZONE_DIR}/mcp_api_admin
-        export CAPI_DIR=${ZONE_DIR}/customers_api
         export BOOTER_DIR=${ZONE_DIR}/booter
         export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
         export PORTAL_DIR=${ZONE_DIR}/public-web-client
         export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
         export BILLAPI_DIR=${ZONE_DIR}/billing_api
+        export UFDS_DIR=${ZONE_DIR}/ufds
     fi
     for zone in $(ls ${STAGE}/zones); do
 
