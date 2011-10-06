@@ -101,14 +101,18 @@ function portsViewMap (doc) {
 }
 */
 
-function validateDocUpdate (doc) {
+function validateDocUpdate (doc, oldDoc, user, dbCtx) {
+  if (doc._deleted) return
+
   function assert (ok, message) {
     if (!ok) throw { forbidden: message }
   }
+
   function isUuid (s) {
     return s &&
       s.match(/[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}/i)
   }
+
   function isIp (s) {
     return s &&
       s.match(/[0-9]{1,3}(\.[0-9]{1,3}){3}/) &&
@@ -118,6 +122,7 @@ function validateDocUpdate (doc) {
           (i !== 0 || (n !== 0 && n !== 127 && n !== 255))
       }).length === 4
   }
+
   function isNumber (n) {
     return typeof n === "number" && n === n
   }
@@ -144,7 +149,6 @@ function validateDocUpdate (doc) {
   assert(isNumber(doc.machine.sshPort),
          "machine.sshPort must be number")
 
-
   if (isNaN(Date.parse("2011-08-26T23:45:37+00:00"))) {
     // old spidermonkeys are annoying.
     Date.parse = (function (orig) {
@@ -153,6 +157,7 @@ function validateDocUpdate (doc) {
       }
     })(Date.parse)
   }
+
   var c = Date.parse(doc.machine.created) || (new Date(doc.machine.created).getTime())
     , u = Date.parse(doc.machine.updated) || (new Date(doc.machine.updated).getTime())
   assert(isNumber(c), "machine.created must be valid date "+doc.machine.created+" "+c)
