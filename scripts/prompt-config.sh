@@ -834,21 +834,6 @@ echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "capi_is_local=true" >>$tmp_config
-if [ -z "$external_vlan_id" ]; then
-	echo "# capi_external_vlan=0" >>$tmp_config
-else
-	echo "capi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "capi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "capi_http_admin_user=admin" >>$tmp_config
-echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "capi_admin_login=admin" >>$tmp_config
-echo "capi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "capi_admin_email=user@${domainname}" >>$tmp_config
-echo "capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
-echo >>$tmp_config
-
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dhcpd_admin_pw=$zone_admin_pw" >>$tmp_config
@@ -912,6 +897,24 @@ echo >>$tmp_config
 
 echo "riak_root_pw=$zone_admin_pw" >>$tmp_config
 echo "riak_admin_pw=$zone_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+echo "ufds_is_local=true" >>$tmp_config
+if [ -z "$external_vlan_id" ]; then
+	echo "# ufds_external_vlan=0" >>$tmp_config
+else
+	echo "ufds_external_vlan=$external_vlan_id" >>$tmp_config
+fi
+echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
+echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
+echo "ufds_ldap_root_pw=secret" >>$tmp_config
+echo "ufds_admin_login=admin" >>$tmp_config
+echo "ufds_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "ufds_admin_email=user@${domainname}" >>$tmp_config
+echo "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
+echo "# Legacy CAPI parameters" >>$tmp_config
+echo "capi_http_admin_user=admin" >>$tmp_config
+echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config
