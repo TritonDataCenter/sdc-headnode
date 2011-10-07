@@ -16,7 +16,9 @@ cd /var/svc
 curl -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
 curl -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
 curl -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
-curl -o ufds_deps.tgz -s $CONFIG_assets_ip:/extra/$role/ufds_deps.tgz
+
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/ufds
 
 # We need some of the headnode config, but don't leave the files around
 . /var/svc/hn_config
@@ -25,7 +27,15 @@ rm -f /var/svc/hn_config /var/svc/hn_generic
 # Load up the config values
 . /var/svc/zoneconfig
 
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+# However, this zone currently has no local configuration to sync up.
+if [ -e /var/svc/setup_complete ]; then
+	exit 0
+fi
+
 # Setup the zone
+curl -o ufds_deps.tgz -s $CONFIG_assets_ip:/extra/$role/ufds_deps.tgz
 curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
 curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 
