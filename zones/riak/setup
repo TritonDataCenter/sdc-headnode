@@ -91,3 +91,4 @@ fi
 
 touch /var/svc/setup_complete
 echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
