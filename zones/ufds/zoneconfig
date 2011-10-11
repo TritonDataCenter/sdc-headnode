@@ -16,3 +16,6 @@ UFDS_ADMIN_PW=${ufds_admin_pw}
 UFDS_ADMIN_EMAIL=${ufds_admin_email}
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
 DATACENTER_COMPANY_NAME=${datacenter_company_name}
+
+RIAK_IP=${riak_admin_ip}
+RIAK_PORT=8098

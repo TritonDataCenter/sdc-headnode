@@ -6,7 +6,7 @@
 # script is run in the background by the mdata svc so its ok if it takes
 # a little while to install all of the pkgs.
 
-PATH=/opt/local/bin:/opt/local/sbin:/opt/nodejs/bin:/opt/riak/bin:/usr/bin:/usr/sbin
+PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 role=ufds
 app_name=$role
@@ -35,9 +35,10 @@ if [ -e /var/svc/setup_complete ]; then
 fi
 
 # Setup the zone
-curl -o ufds_deps.tgz -s $CONFIG_assets_ip:/extra/$role/ufds_deps.tgz
 curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
 curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
+curl -o nodejs-0.4.12.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/nodejs-0.4.12.tar.bz2
 
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
@@ -48,16 +49,25 @@ echo "install root"
 (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
 rm -rf /.stage
 
+# Install from local pkgsrc
+mkdir -p /var/svc/pkgs
+(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
+      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+rm -f /var/svc/pkgsrc.tar
+
 for i in `cat /var/svc/pkgsrc`
 do
-	pkgin -y install $i
+	echo "Installing $i"
+	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
+rm -rf /var/svc/pkgs
 
-echo "Unpacking dependencies"
+# Install node/npm
+echo "Installing node and npm"
 cd /opt
-/usr/bin/gtar -z -m -xf /var/svc/ufds_deps.tgz
+/usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
 /usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
-rm -f /var/svc/ufds_deps.tgz
+rm -f /var/svc/nodejs-0.4.12.tar.bz2
 
 # Temporary until we figure out a build process for UFDS
 cd /opt/smartdc/ufds
@@ -230,7 +240,7 @@ cat > /opt/smartdc/ufds/cfg/config.json <<HERE
           "fingerprint": false
         },
         "client": {
-          "url": "http://localhost:8098",
+          "url": "http://${RIAK_IP}:${RIAK_PORT}",
           "clientId": "ufds",
           "retry": {
             "retries": 3,
@@ -248,15 +258,11 @@ HERE
 echo "Importing ufds_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
 
-echo "Importing ufds_capi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
-
-echo "Starting Riak"
-# This is just temporary crap until the real riak bits exist in headnode
-(ulimit -n 65535 && HOME=/root /opt/riak/bin/riak start)
-
 echo "Enabling service ufds"
 /usr/sbin/svcadm enable smartdc/site/ufds
+
+echo "Importing ufds_capi_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
 
 echo "Enabling service ufds-capi"
 /usr/sbin/svcadm enable smartdc/site/ufds-capi
