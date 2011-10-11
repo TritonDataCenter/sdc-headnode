@@ -45,7 +45,7 @@ if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup database"
     exit 105
 fi
-(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/local/etc; \
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/riak/etc; \
     tar cbf 512 ${TARGET_DIR}/${ROLE}/etc.tar riak)
 if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup configuration"

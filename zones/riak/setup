@@ -6,7 +6,7 @@
 # script is run in the background by the mdata svc so its ok if it takes
 # a little while to install all of the pkgs.
 
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/riak/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 role=riak
 
@@ -31,9 +31,10 @@ if [ -e /var/svc/setup_complete ]; then
 fi
 
 # Setup the zone
-curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2010q4
-curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
-curl -k -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2010q4.tar
+curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
+curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
+curl -o riak-1.0.0.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/riak-1.0.0.tar.bz2
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/riak
@@ -55,7 +56,7 @@ rm -f /var/svc/pkgsrc.tar
 
 for i in `cat /var/svc/pkgsrc`
 do
-	echo "Installing $i" 
+	echo "Installing $i"
 	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
 rm -rf /var/svc/pkgs
@@ -63,21 +64,27 @@ rm -rf /var/svc/pkgs
 mkdir -p /opt/smartdc/etc
 echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
 
+# Install Riak
+/usr/sbin/groupadd riak
+/usr/sbin/useradd -d / -g riak riak
+/usr/bin/passwd -l riak
+/usr/sbin/projadd -c "Riak 1.0 Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U riak -G riak riak
+
+cd /opt
+/usr/bin/gtar -jxf /var/svc/riak-1.0.0.tar.bz2
+mkdir -p /var/db/riak /var/log/riak
+/usr/bin/chown -R riak:riak /opt/riak /var/db/riak /var/log/riak
+rm -f /var/svc/riak-1.0.0.tar.bz2
+
 # Update RIAK node name and cluster cookie
-IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
-gsed -i -e s/127.0.0.1/$IPADDR/ /opt/local/etc/riak/app.config
+IPADDR=`/usr/sbin/ifconfig net0 | /usr/bin/nawk '/inet/ {print $2}'`
+gsed -i -e s/127.0.0.1/$IPADDR/ /opt/riak/etc/app.config
 
-gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/local/etc/riak/vm.args
-gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" \
-    /opt/local/etc/riak/vm.args
+gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/riak/etc/vm.args
+gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" /opt/riak/etc/vm.args
 
-projmod -a -K "process.max-file-descriptor=(basic,65535,deny)" riak
 
-svccfg import /opt/local/share/smf/manifest/epmd.xml
-svcadm enable -s epmd
-sleep 2
-
-svccfg import /opt/local/share/smf/manifest/riak.xml
+svccfg import /site/riak_smf_manifest.xml
 svcadm enable riak
 sleep 5
 
