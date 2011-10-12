@@ -17,7 +17,7 @@
     <method_context working_directory="/opt/riak" project="riak">
       <method_credential user="riak" group="riak" />
       <method_environment>
-        <envvar name="HOME" value="/" />
+        <envvar name="HOME" value="/opt/riak" />
         <envvar name="LOGNAME" value="riak" />
         <envvar name="PATH" value="/opt/riak/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/bin" />
         <envvar name="LD_PRELOAD" value="mpss.so.1" />
@@ -28,7 +28,7 @@
 
     <exec_method type="method"
 		 name="start"
-		 exec="/opt/riak/bin/riak start  &amp;"
+		 exec="/opt/riak/bin/riak start"
 		 timeout_seconds="60" />
 
     <exec_method type="method"

@@ -65,15 +65,16 @@ mkdir -p /opt/smartdc/etc
 echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
 
 # Install Riak
-/usr/sbin/groupadd riak
-/usr/sbin/useradd -d / -g riak riak
-/usr/bin/passwd -l riak
-/usr/sbin/projadd -c "Riak 1.0 Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U riak -G riak riak
-
 cd /opt
 /usr/bin/gtar -jxf /var/svc/riak-1.0.0.tar.bz2
 mkdir -p /var/db/riak /var/log/riak
+
+/usr/sbin/groupadd riak
+/usr/sbin/useradd -d /opt/riak -s /usr/bin/bash -g riak riak
+/usr/bin/passwd -l riak
+/usr/sbin/projadd -c "Riak 1.0 Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U riak -G riak riak
 /usr/bin/chown -R riak:riak /opt/riak /var/db/riak /var/log/riak
+
 rm -f /var/svc/riak-1.0.0.tar.bz2
 
 # Update RIAK node name and cluster cookie
