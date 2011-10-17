@@ -46,8 +46,8 @@ if [[ $? -gt 0 ]]; then
 fi
 
 # ZFS receive the dataset from the backup:
-echo "==> Receiving '${TARGET_DIR}/${ROLE}/data.zfs'"
-zfs receive -v "${DATA_DATASET}" < "${TARGET_DIR}/${ROLE}/data.zfs"
+echo "==> Receiving '${TARGET_DIR}/${ROLE}/ca-data.zfs'"
+zfs receive -v "${DATA_DATASET}" < "${TARGET_DIR}/${ROLE}/ca-data.zfs"
 if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to zfs receive data dataset"
     exit 108

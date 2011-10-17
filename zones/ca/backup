@@ -44,7 +44,7 @@ mkdir -p "${TARGET_DIR}/${ROLE}"
 
 echo "==> Saving data dataset"
 zfs send "zones/${ZONE}/data@${BACKUP_VERSION}" \
-    > "${TARGET_DIR}/${ROLE}/data.zfs" 2>&1
+    > "${TARGET_DIR}/${ROLE}/ca-data.zfs" 2>&1
 if [[ $? -gt 0 ]]; then
     echo "Unable to zfs send data dataset"
     exit 108
