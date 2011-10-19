@@ -1079,7 +1079,6 @@ function build_fs_tarball
     CHECKOUT_TARGET=$2
 
     [[ -n ${zone_dir} ]] || fatal "build_fs_tarball(): no zone dir specified."
-    [[ -z ${CHECKOUT_TARGET} ]] && CHECKOUT_TARGET='origin/develop'
     export CHECKOUT_TARGET
 
     zone=$(basename ${zone_dir})
@@ -1209,10 +1208,10 @@ function copy_webinfo
             | ${ROOT}/bin/json sdc-webinfo-checkout)
         if [[ -n ${WEBINFO_CHECKOUT_LOCAL} ]]; then WEBINFO_CHECKOUT=${WEBINFO_CHECKOUT_LOCAL}; fi
     fi
-
     if [[ -z $WEBINFO_CHECKOUT ]]; then
-        WEBINFO_CHECKOUT="origin/master"
+        fatal "Could not determine sdc-webinfo check target."
     fi
+
     ( mkdir -p /tmp/$$.webinfo && cd /tmp/$$.webinfo && \
         git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
         cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \

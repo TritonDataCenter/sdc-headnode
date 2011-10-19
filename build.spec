@@ -28,5 +28,6 @@
   , "cloudapi-checkout": "origin/master"
   , "billapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
+  , "ufds-checkout": "origin/master"
   , "sdc-webinfo-checkout": "origin/master"
 }

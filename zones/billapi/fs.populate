@@ -3,6 +3,10 @@
 set -e
 
 
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: billapi: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "billapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -20,12 +24,6 @@ if [[ -n ${BILLAPI_DIR} ]]; then
         exit 1
     fi
 else
-    # bill-api snubs the develop branch.
-    TARGET=${CHECKOUT_TARGET}
-    if [[ ${TARGET} == "origin/develop" ]]; then
-        TARGET=master
-    fi
-
     git clone git@git.joyent.com:billing_api.git billapi
     cd billapi
     mkdir -p ssl
@@ -34,9 +32,9 @@ else
     git clone git://github.com/orlandov/node-hydracp.git node_modules/hydracp
 
     # billAPI checkout
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    git checkout ${CHECKOUT_TARGET}
+    echo ${CHECKOUT_TARGET} > VERSION
+    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
     # Install NPM modules
     npm install --node-version=0.4.9
@@ -48,9 +46,9 @@ else
 
     # SDCClients checkout
     cd node_modules/sdc-clients
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    git checkout ${CHECKOUT_TARGET}
+    echo ${CHECKOUT_TARGET} > VERSION
+    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git .gitmodules .gitignore
 
     # Back up to where we were (/opt/smartdc)

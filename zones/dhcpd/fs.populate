@@ -10,6 +10,10 @@ if [[ $1 == "-r" ]]; then
     checkout_sha=$(grep "^booter" $RECIPE_FILE | cut -d ' ' -f 2)
 fi
 
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: booter: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "booter target: [${CHECKOUT_TARGET}]"
 
 if [[ -n ${BOOTER_DIR} ]]; then

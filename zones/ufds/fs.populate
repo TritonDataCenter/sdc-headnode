@@ -2,7 +2,10 @@
 
 set -e
 
-
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: ufds: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "ufds target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -20,19 +23,14 @@ if [[ -n ${UFDS_DIR} ]]; then
     fi
     cd ufds
 else
-    TARGET=${CHECKOUT_TARGET}
-    if [[ ${TARGET} == "origin/develop" ]]; then
-        TARGET=master
-    fi
-
     git clone git@git.joyent.com:ufds.git ufds
     cd ufds
     mkdir -p ssl
 
     # UFDS checkout
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    git checkout ${CHECKOUT_TARGET}
+    echo ${CHECKOUT_TARGET} > VERSION
+    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
     rm -rf .git .gitmodules .gitignore \
         cfg/*.coal cfg/config.json \

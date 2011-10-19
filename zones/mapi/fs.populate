@@ -9,6 +9,11 @@ if [[ $1 == "-r" ]]; then
     CHECKOUT_TARGET=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
     checkout_sha=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 2)
 fi
+
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: mapi: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "MAPI target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc

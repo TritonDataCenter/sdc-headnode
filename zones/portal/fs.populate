@@ -10,7 +10,11 @@ if [[ $1 == "-r" ]]; then
     checkout_sha=$(grep "^portal" $RECIPE_FILE | cut -d ' ' -f 2)
 fi
 
-echo "Portal target: [${CHECKOUT_TARGET}]"
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: portal: no CHECKOUT_TARGET"
+    exit 1
+fi
+echo "portal target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
 cd root/opt/smartdc

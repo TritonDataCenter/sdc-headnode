@@ -11,6 +11,10 @@ if [[ $1 == "-r" ]]; then
     checkout_sha=$(grep "^adminui-repo" $RECIPE_FILE | cut -d ' ' -f 2)
 fi
 
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: adminui: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "adminui target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc

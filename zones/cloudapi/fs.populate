@@ -3,6 +3,10 @@
 set -e
 
 
+if [[ -z "${CHECKOUT_TARGET}" ]]; then
+    echo "error: cloudapi: no CHECKOUT_TARGET"
+    exit 1
+fi
 echo "cloudapi target: [${CHECKOUT_TARGET}]"
 
 mkdir -p root/opt/smartdc
@@ -20,21 +24,15 @@ if [[ -n ${CLOUDAPI_DIR} ]]; then
     fi
     cd cloudapi
 else
-    # cloud-api snubs the develop branch.
-    TARGET=${CHECKOUT_TARGET}
-    if [[ ${TARGET} == "origin/develop" ]]; then
-        TARGET=master
-    fi
-
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
     mkdir -p ssl
     mkdir -p node_modules
     git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
     # CloudAPI checkout
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    git checkout ${CHECKOUT_TARGET}
+    echo ${CHECKOUT_TARGET} > VERSION
+    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 fi
     # Install NPM modules
     npm install --node-version=0.4.9
@@ -46,9 +44,9 @@ fi
 
     # SDCClients checkout
     cd node_modules/sdc-clients
-    git checkout ${TARGET}
-    echo ${TARGET} > VERSION
-    git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+    git checkout ${CHECKOUT_TARGET}
+    echo ${CHECKOUT_TARGET} > VERSION
+    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git .gitmodules .gitignore
 
     # Back up to where we were (/opt/smartdc)
