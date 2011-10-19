@@ -21,7 +21,6 @@
   ]
   , "adminui-checkout": "origin/master"
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
-  , "capi-checkout": "origin/master"
   , "dhcpd-checkout": "origin/master"
   , "mapi-checkout": "origin/master"
   , "portal-checkout": "origin/master"
