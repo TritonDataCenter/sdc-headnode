@@ -10,7 +10,7 @@ cd root/opt/smartdc
 
 if [[ -n ${UFDS_DIR} ]]; then
     if [[ -d ${UFDS_DIR} ]]; then
-        echo "taking cloudapi from ${UFDS_DIR}"
+        echo "taking ufds from ${UFDS_DIR}"
         # XXX UFDS_DIR must be a git repo (so git describe works)
         mkdir ufds
         (cd ${UFDS_DIR} && tar -cf - ./) | (cd ufds && tar -xf -)
