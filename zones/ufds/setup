@@ -198,62 +198,12 @@ cat > /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-cat > /opt/smartdc/ufds/cfg/config.json <<HERE
-{
-  "host": "${PRIVATE_IP}",
-  "port": 389,
-  "logLevel": "INFO",
-  "rootDN": "${UFDS_LDAP_ROOT_DN}",
-  "rootPassword": "${UFDS_LDAP_ROOT_PW}",
-  "schemaDirectory": "./schema",
-  "trees": {
-    "o=smartdc": {
-      "riak": {
-        "bucket": {
-          "name": "ufds",
-          "props": {
-            "n_val": 3,
-            "allow_mult": false,
-            "last_write_wins": false,
-            "r": "quorum",
-            "w": "quorum",
-            "dw": 0,
-            "rw": "quorum"
-          }
-        },
-        "uniqueIndexBucket": {
-          "name": "ufds_uindex",
-          "props": {
-            "n_val": 2,
-            "allow_mult": false,
-            "last_write_wins": false,
-            "r": "all",
-            "w": "all",
-            "dw": 0,
-            "rw": "all"
-          }
-        },
-        "indexes": {
-          "login": true,
-          "email": true,
-          "uuid": true,
-          "fingerprint": false
-        },
-        "client": {
-          "url": "http://${RIAK_IP}:${RIAK_PORT}",
-          "clientId": "ufds",
-          "retry": {
-            "retries": 3,
-            "factor": 2,
-            "minTimeout": 1000,
-            "maxTimeout": 10000
-          }
-        }
-      }
-    }
-  }
-}
-HERE
+# Update config file
+gsed -i -e "s/HOSTNAME/$PRIVATE_IP/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/RIAKIP/http:\/\/${RIAK_IP}:${RIAK_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
+mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
 
 echo "Importing ufds_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
@@ -298,7 +248,7 @@ sn: User
 objectclass: sdcPerson
 HERE
 
-(/usr/bin/ldapadd -h localhost -p 389 -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif)
+(LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://localhost:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif)
 rm -f /tmp/.bootstrap.ldif
 
 touch /var/svc/setup_complete

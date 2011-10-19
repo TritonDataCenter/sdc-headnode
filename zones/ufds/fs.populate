@@ -28,10 +28,15 @@ else
     git clone git@git.joyent.com:ufds.git ufds
     cd ufds
     mkdir -p ssl
+
     # UFDS checkout
     git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
-    rm -rf .git .gitmodules .gitignore cfg/* data tst Makefile docs/*.md README.md
+    rm -rf .git .gitmodules .gitignore \
+        cfg/*.coal cfg/config.json \
+        data tst Makefile \
+        docs/*.md README.md
+
 fi

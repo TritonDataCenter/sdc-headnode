@@ -73,13 +73,13 @@ SmartOS setup:
   as well, then you can follow the layout used by MG builds
   (see <https://mo.joyent.com/mountain-gorilla/blob/master/README.md>)
   which is to install npm 1.x in "$HOME/opt/npm":
-  
+
         pkgin -y in nodejs-0.4.9
         mkdir -p $HOME/opt/npm
         curl http://npmjs.org/install.sh | npm_config_prefix=$HOME/opt/npm clean=no sh
 
   then if you want that one to be the default:
-  
+
         npm config set prefix $HOME/opt/npm
         cat >> $HOME/.bashrc <<ADDNPM
         export PATH=$HOME/opt
@@ -141,7 +141,7 @@ for the "mapi" zone:
 Likewise for the others zones using these envvars:
 
     ADMINUI_DIR
-    CAPI_DIR
+    UFDS_DIR
     BOOTER_DIR
     MAPI_DIR
     PORTAL_DIR
