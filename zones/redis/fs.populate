@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+# nothing to do!
+
+exit 0

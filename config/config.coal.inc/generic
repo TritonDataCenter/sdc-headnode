@@ -71,6 +71,10 @@ rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=1536m
 
+redis_cpu_shares=50
+redis_max_lwps=1000
+redis_memory_cap=128m
+
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
 sbapi_http_pass=4cea03de8bf6

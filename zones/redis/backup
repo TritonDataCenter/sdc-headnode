@@ -1,0 +1,59 @@
+#!/usr/bin/bash
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+ROLE="redis"
+
+STAMP=$(date +'%F-%H-%M-%S-%Z')
+BACKUP_VERSION="${ROLE}-${STAMP}"
+
+ZONE_DATASET=$(zfs list -H -o name|grep "${ZONE}$")
+
+# We cannot backup if cannot find zone's dataset:
+if [[ -z $ZONE_DATASET ]]; then
+  echo "FATAL: Cannot find '${ROLE}' dataset"
+  exit 103
+fi
+
+# Create dataset backup
+echo "==> Creating snapshot of '${ROLE}' dataset"
+zfs snapshot zones/${ZONE}@${BACKUP_VERSION} 2>&1
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to snapshot dataset"
+    exit 104
+fi
+
+# Just in case, create the backup directory:
+[[ ! -e "${TARGET_DIR}" ]] && mkdir -p ${TARGET_DIR}
+
+# Create backup directory for the zone stuff:
+echo "==> Creating backup directory '${TARGET_DIR}/${ROLE}'"
+mkdir -p "${TARGET_DIR}/${ROLE}"
+
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var/db; \
+    tar cbf 512 ${TARGET_DIR}/${ROLE}/var_db.tar redis)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup database"
+    exit 105
+fi
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/redis/etc; \
+    tar cbf 512 ${TARGET_DIR}/${ROLE}/etc.tar redis)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup configuration"
+    exit 106
+fi
+
+echo "==> Removing temporary snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}/${ROLE}@${BACKUP_VERSION}"
+
+echo "All done!!!"
+exit 0

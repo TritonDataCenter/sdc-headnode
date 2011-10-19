@@ -79,6 +79,10 @@ rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=32g
 
+redis_cpu_shares=50
+redis_max_lwps=1000
+redis_memory_cap=128m
+
 riak_cpu_shares=50
 riak_max_lwps=1000
 riak_memory_cap=512m
