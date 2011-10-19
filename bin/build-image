@@ -501,7 +501,6 @@ function copy_pkgsrc
 	local cache_dir=${ROOT}/cache/${name}
 	mkdir -p ${cache_dir}
 
-	printf "%s likes to %s.\n" $KEY $VALUE
 	if [[ ${HAVE_INTERNET} == "true" ]]; then
 	    (cd ${cache_dir} \
 		&& rm -f md5sums.txt \
