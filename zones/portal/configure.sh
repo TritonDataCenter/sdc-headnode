@@ -25,7 +25,10 @@ exports.config = {
   provisionOptionsConfig : "./cfg/provisionOptions.json",
   signupOptionsConfig : './cfg/signupOptions.json',
 	siteCopyFile : './local.joyent.en.js',
-  siteThemeName : 'node'
+  siteThemeName : 'node',
+  extensionLocation : './extensions/',
+  viewExtensionLocation : './extensions/views/',
+  googleAnalyticsCode : false
 }
 HERE
 
