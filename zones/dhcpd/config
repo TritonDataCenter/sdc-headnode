@@ -10,3 +10,9 @@ set type=lofs
 add options ro
 add options nodevices
 end
+add net
+set physical=dhcpd0
+set vlan-id=0
+set global-nic=admin
+add property (name=dhcp_server,value=1)
+end

@@ -151,19 +151,12 @@ load_sdc_config
 
 src=${USB_COPY}/zones/${zone}
 
-zone_external_ip=
 zone_admin_ip=
-zone_external_netmask=
 zone_admin_netmask=
 
 ds_uuid=$(cat ${USB_COPY}/datasets/smartos.uuid)
 if [[ -z ${ds_uuid} ]]; then
     fatal "Unable to find UUID of smartos dataset."
-fi
-
-if [[ "${zone}" == "portal" ]]; then
-    [[ -z "$CONFIG_capi_external_url" ]] && \
-        fatal "Invalid or obsolete config file"
 fi
 
 if [[ -f "${src}/zoneconfig" ]]; then
@@ -176,24 +169,9 @@ if [[ -f "${src}/zoneconfig" ]]; then
         echo "${PRIVATE_IP},${PUBLIC_IP}"
     )
     zone_admin_ip=${zoneips%%,*}
-    zone_external_ip=${zoneips##*,}
 
     zone_admin_netmask=${CONFIG_admin_netmask}
-    zone_external_netmask=${CONFIG_external_netmask}
 fi
-
-zone_external_vlan=$(eval "echo \${CONFIG_${zone}_external_vlan}")
-[[ -n ${zone_external_vlan} ]] || zone_external_vlan=0
-
-zone_external_vlan_opts=
-if [[ -n "${zone_external_vlan}" ]] && [[ "${zone_external_vlan}" != "0" ]]; then
-    zone_external_vlan_opts="-v ${zone_external_vlan}"
-fi
-
-zone_dhcp_server_enable=""
-zone_dhcp_server=$(eval "echo \${CONFIG_${zone}_dhcp_server}")
-[[ -n ${zone_dhcp_server} ]] &&
-    zone_dhcp_server_enable="add property (name=dhcp_server,value=1)"
 
 printf "%-56s" "Creating zone ${zone}... " >&${CONSOLE_FD}
 zonecfg -z ${zone} -f ${src}/config
@@ -210,13 +188,6 @@ if [[ -n "${zone_max_lwps}" ]]; then
 fi
 if [[ -n "${zone_memory_cap}" ]]; then
     zonecfg -z ${zone} "add capped-memory; set physical=${zone_memory_cap}; end"
-fi
-
-if [[ "${zone}" != "portal" ]]; then
-    zonecfg -z ${zone} "add net; set physical=${zone}0; set vlan-id=0; set global-nic=admin; ${zone_dhcp_server_enable}; end; exit"
-fi
-if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-   zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi
 
 zoneadm -z ${zone} install -x nodataset -t ${ds_uuid} >&5 2>&1
@@ -317,17 +288,6 @@ if [[ -n "${zone_admin_ip}" ]] && [[ -n ${zone_admin_netmask} ]]; then
     echo "${zone_admin_ip} netmask ${zone_admin_netmask}" \
         > ${dest}/etc/hostname.${zone}0
 fi
-if [[ -n "${zone_external_ip}" ]]; then
-    if [[ "${zone_external_ip}" == "dhcp" ]]; then
-        touch ${dest}/etc/dhcp.${zone}1
-
-    elif [[ -n ${zone_external_netmask} ]] \
-        && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-
-        echo "${zone_external_ip} netmask ${zone_external_netmask}" \
-            > ${dest}/etc/hostname.${zone}1
-    fi
-fi
 
 # this allows a zone-specific motd message to be appended
 if [[ -f ${dest}/etc/motd && -f ${src}/motd.append ]]; then
@@ -336,11 +296,7 @@ fi
 
 # If there's a external IP set and headnode_default_gateway is set, use that.
 # Otherwise, use admin_gateway if that's set.
-if [[ -n "${zone_external_ip}" ]] \
-  && [[ -n ${CONFIG_headnode_default_gateway} ]] \
-  && [[ "${zone_external_ip}" != "${zone_admin_ip}" ]]; then
-    echo "${CONFIG_headnode_default_gateway}" > ${dest}/etc/defaultrouter
-elif [[ -n ${CONFIG_admin_gateway} ]]; then
+if [[ -n ${CONFIG_admin_gateway} ]]; then
     echo "${CONFIG_admin_gateway}" > ${dest}/etc/defaultrouter
 fi
 
@@ -422,11 +378,6 @@ fi
 if [[ "${zone}" == "mapi" ]]; then
     mkdir -p /zones/mapi/root/opt/smartdc/node.config
     install_node_config /zones/mapi/root/opt/smartdc/node.config
-fi
-
-# Enable compression for the "ca" zone.
-if [[ "${zone}" == "ca" ]]; then
-    zfs set compression=lzjb zones/ca
 fi
 
 # Fix the .bashrc -- See comments on:

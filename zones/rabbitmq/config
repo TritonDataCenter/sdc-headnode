@@ -3,3 +3,8 @@ set zonepath=/zones/rabbitmq
 set brand=joyent
 set autoboot=true
 set ip-type=exclusive
+add net
+set physical=rabbitmq0
+set vlan-id=0
+set global-nic=admin
+end

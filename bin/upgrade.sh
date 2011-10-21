@@ -4,48 +4,47 @@
 #
 # SUMMARY
 #
-# This is an example upgrade.sh script which shows how one will be built for an
-# actual SDC upgrade.
+# This upgrade script is delivered inside the upgrade image, so this script
+# is from the latest build, but the system will be running an earlier release.
+# The perform-upgrade.sh script from the earlier release unpacks the upgrade
+# image (which contains this script) into a temporary directory, then runs
+# this script.  Thus, the system will be running the old release while this
+# script executes and we cannot depend on any new system behavior from the
+# current release we're upgrading to.
 #
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
 
 BASH_XTRACEFD=4
 set -o xtrace
 
+declare -A ZONE_ADMIN_IP=()
+declare -A ZONE_EXTERNAL_IP=()
+
 ROOT=$(pwd)
-export SDC_UPGRADE_ROOT=${ROOT}
+export SDC_UPGRADE_DIR=${ROOT}
+export SDC_UPGRADE_SAVE=/var/tmp/upgrade_save
 
-#
-# Zones we used to have, but which are no more.
-#
-OBSOLETE_ZONES=( \
-    atropos \
-    pubapi
-)
+# We use the 6.5 rc11 build date to check the minimum upgradeable version.
+VERS_6_5=20110923
 
-#
-# IMPORTANT, this purposefully does not include 'portal' since that
-# zone is handled differently for upgrades (since it may be customized).
-#
-RECREATE_ZONES=( \
-    assets \
-    ca \
-    dhcpd \
-    rabbitmq \
-    mapi \
-    adminui \
-    capi \
-    billapi \
-    riak
-)
+CORE_ZONES="assets dhcpd mapi rabbitmq"
+OLD_EXTRA_ZONES="adminui billapi ca capi cloudapi portal riak"
+
+# This is the dependency order that extra zones must be installed in.
+ROLE_ORDER="ca riak ufds redis adminui billapi cloudapi portal"
+
+# This is the list of zones that did not exist in 6.5 and which have
+# no 6.5 equivalent (e.g. ufds replaces capi, so its not in this list).
+BRAND_NEW_ZONES="redis"
 
 mounted_usb="false"
-usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
-usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
-
-doupgrade=false
-if [[ $1 == "-d" ]]; then
-  doupgrade=true
-fi
+usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
+    svc:/system/filesystem/smartdc:default)"
+usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' \
+    svc:/system/filesystem/smartdc:default)"
 
 . /lib/sdc/config.sh
 load_sdc_sysinfo
@@ -63,7 +62,7 @@ function fatal
 {
     msg=$1
 
-    echo "--> FATAL: ${msg}"
+    echo "ERROR: ${msg}" >/dev/stderr
     exit 1
 }
 
@@ -78,27 +77,34 @@ function cleanup
 function mount_usbkey
 {
     if [[ -z $(mount | grep ^${usbmnt}) ]]; then
-        echo "==> Mounting USB key"
         ${usbcpy}/scripts/mount-usb.sh
         mounted_usb="true"
     fi
 }
 
+function umount_usbkey
+{
+	umount /mnt/usbkey
+        mounted_usb="false"
+}
+
 function check_versions
 {
-    new_version=$(cat ${ROOT}/VERSION)
+	new_version=$(cat ${ROOT}/VERSION)
 
-    existing_version=$(cat ${usbmnt}/version 2>/dev/null)
-    if [[ -z ${existing_version} ]]; then
-        echo "--> Warning: unable to find version file in ${usbmnt}, assuming build is ancient."
-        existing_version="ancient"
-    fi
+	existing_version=$(cat ${usbmnt}/version 2>/dev/null)
+	[[ -z ${existing_version} ]] && \
+	    fatal "unable to find version file in ${usbmnt}"
 
-    # TODO: check system / version to ensure it's possible to apply this update.
-    #
-    # This needs to be filled in manually as part of an actual SDC upgrade.
+	# Check version to ensure it's possible to apply this update.
+	# We only support upgrading from 6.5 or later builds.  The 6.5 rc11
+	# build date is in the version string and hardcoded in this script.
+	v_old=`echo $existing_version | \
+	    nawk -F. '{split($1, f, "T"); print f[1]}'`
+	[ $v_old -lt $VERS_6_5 ] && \
+	    fatal "the system must be running at least SDC 6.5 to be upgraded"
 
-    echo "==> Upgrading from ${existing_version} to ${new_version}"
+	printf "Upgrading from ${existing_version}\n    to ${new_version}\n"
 }
 
 function backup_usbkey
@@ -106,12 +112,12 @@ function backup_usbkey
     backup_dir=${usbcpy}/backup/${existing_version}.$(date -u +%Y%m%dT%H%M%SZ)
 
     if [[ -d ${backup_dir} ]]; then
-        fatal "unable to create back dir ${backup_dir}"
+        fatal "unable to create backup dir ${backup_dir}"
     fi
     mkdir -p ${backup_dir}/usbkey
     mkdir -p ${backup_dir}/zones
 
-    echo "==> Creating backup in ${backup_dir}"
+    printf "Creating USB backup in\n${backup_dir}\n"
 
     # touch these, just to make sure they exist (in case of ancient build)
     touch ${usbmnt}/datasets/smartos.uuid
@@ -135,21 +141,6 @@ function upgrade_usbkey
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
-
-        # this is the point where we fix the config in /mnt/usbkey/config
-
-        # Add a capi_external_url entry if not there and CAPI has an external
-        # IP configured.
-	grep "^capi_external_url=" /mnt/usbkey/config >/dev/null 2>&1
-        if [[ $? != 0 ]]; then
-            # try to add new config entry if CAPI has an external IP
-	    capi_external_ip=`grep "^capi_external_ip=" /mnt/usbkey/config`
-            if [[ $? == 0 ]]; then
-                capi_external_ip=`echo $capi_external_ip | cut -d= -f2`
-                echo "capi_external_url=http://$capi_external_ip:8080" \
-                    >> /mnt/usbkey/config
-            fi
-        fi
 
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
     fi
@@ -178,7 +169,7 @@ function import_datasets
     if [[ -z ${ds_uuid} ]]; then
         fatal "no uuid set in ${usbmnt}/datasets/smartos.uuid"
     else
-        echo "==> Ensuring ${ds_uuid} is imported."
+        echo "Ensuring dataset ${ds_uuid} is imported."
         if [[ -z $(zfs list | grep "^zones/${ds_uuid}") ]]; then
             # not already imported
             if [[ -f ${usbmnt}/datasets/${ds_file} ]]; then
@@ -192,98 +183,754 @@ function import_datasets
     fi
 }
 
-function recreate_zones
+# Similar to function in /smartdc/lib/sdc-common but we might not have that
+# available before we upgrade.
+check_mapi_err()
 {
-    # dhcpd zone expects this to exist, so make sure it does:
-    mkdir -p ${usbcpy}/os
+	hd=$(dd if=/tmp/sdc$$.out bs=1 count=6 2>/dev/null)
+	if [ "$hd" == "<html>" ]; then
+		emsg="mapi failure"
+		return
+	fi
 
-    # Delete obsolete zones
-    local zone
-    for zone in "${OBSOLETE_ZONES[@]}"; do
-        ${usbcpy}/scripts/destroy-zone.sh ${zone}
-    done
-
-    # Upgrade zones we can just recreate
-    for zone in "${RECREATE_ZONES[@]}"; do
-        if [[ "${zone}" == "capi" && -n ${CONFIG_capi_is_local} \
-            && ${CONFIG_capi_is_local} == "false" ]]; then
-            echo "--> Skipping CAPI zone, because CAPI is not local."
-            continue
-        fi
-        mkdir -p ${backup_dir}/zones/${zone}
-        if [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
-            /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
-                ${backup_dir}/zones/${zone}/
-        elif [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
-            ${usbcpy}/zones/${zone}/backup ${zone} \
-                ${backup_dir}/zones/${zone}/
-        else
-            echo "--> Warning: No backup script!"
-        fi
-
-        # If the zone has a data dataset, copy to the path create-zone.sh
-        # expects it for reuse:
-        if [[ -f ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ]]; then
-          cp ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ${usbcpy}/backup/
-        fi
-
-        ${usbcpy}/scripts/destroy-zone.sh ${zone}
-        ${usbcpy}/scripts/create-zone.sh ${zone} -w
-
-        # If we've copied the data dataset, remove it:
-        if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
-          rm ${usbcpy}/backup/${zone}-data.zfs
-        fi
-    done
+	emsg=`json </tmp/sdc$$.out | nawk '{
+		if ($1 == "\"errors\":") {
+			error=1
+			next
+		}
+		if (error) {
+			s=index($0, "\"")
+			tmp=substr($0, s + 1)
+			print substr(tmp, 1, length(tmp) - 1)
+			exit 1
+		}
+	}'`
+	return 0
 }
 
+# Get the mapi network uri for the given tag (admin or external)
+function get_net_tag_uri
+{
+	NET_URI=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/networks | json | nawk -v tag=$1 '{
+		if ($1 == "\"name\":") {
+			# strip quotes and comma
+			if (substr($2, 2, length($2) - 3) == tag)
+				found = 1
+		}
+		if (found && $1 == "\"uri\":") {
+			# strip quotes and comma
+			print substr($2, 2, length($2) - 3)
+			exit 0
+		}
+	    }'`
+}
+
+# We need to unreserve the IP addrs for the extra zones since those are
+# intermixed with the core zones.  We leave the two ranges:
+#     dhcp_range_start - dhcp_range_end
+#     external_provisionable_start - external_provisionable_end
+# as-is in the config file but now the extra zones can keep their previously
+# statically allocated IP addresses even though they are outside these ranges.
+# It doesn't hurt to unreserve addrs that are not reserved, so for simplicity
+# we always just do this.  We unreserve the addrs as we go along recreating
+# the extra zones to ensure that new zones without previously allocated addrs
+# won't steal one of the addrs needed by an old extra zone.
+function unreserve_ip_addrs
+{
+	get_net_tag_uri "admin"
+	ip="${ZONE_ADMIN_IP[$1]}"
+	[ -n "$ip" ] && \
+	    curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://${CONFIG_mapi_admin_ip}${NET_URI}/ips/unreserve \
+	    -X PUT -d start_ip=$ip -d end_ip=$ip | json 1>&4 2>&1
+
+	get_net_tag_uri "external"
+	ip="${ZONE_EXTERNAL_IP[$1]}"
+	[ -n "$ip" ] && \
+	    curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://${CONFIG_mapi_admin_ip}${NET_URI}/ips/unreserve \
+	    -X PUT -d start_ip=$ip -d end_ip=$ip | json 1>&4 2>&1
+}
+
+# $1 zone name
+# $2 role
+# Save the zone's admin and external IP addrs in the associative arrays keyed
+# on the zone's role.
+function get_zone_addrs
+{
+	addr=`zonecfg -z $1 info net | nawk -v nic="admin" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_ADMIN_IP[$2]="$addr"
+
+	addr=`zonecfg -z $1 info net | nawk -v nic="external" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_EXTERNAL_IP[$2]="$addr"
+}
+
+function get_sdc_zonelist
+{
+	ZONE_LIST=$CORE_ZONES
+	ROLE_LIST=""
+	OLD_CLEANUP="$CORE_ZONES"
+	NEW_CLEANUP=""
+
+	OLD_STYLE_ZONES=0
+	CAPI_FOUND=0
+	RIAK_FOUND=0
+
+	# Check for extra zones
+	for zone in `zoneadm list -cp | cut -f2 -d:`
+	do
+		[ "$zone" == "global" ] && continue
+
+		# Check for old-style name-based zone
+		match=0
+		for i in $OLD_EXTRA_ZONES
+		do
+			if [ $i == $zone ]; then
+				match=1
+				# Remember we saw the capi zone so we can
+				# convert to ufds later.
+				[ $i == "capi" ] && CAPI_FOUND=1
+
+				[ $i == "riak" ] && RIAK_FOUND=1
+				break
+			fi
+		done
+
+		if [ $match == 1 ]; then
+			ZONE_LIST="$ZONE_LIST $zone"
+			ROLE_LIST="$ROLE_LIST $zone"
+			OLD_CLEANUP="$OLD_CLEANUP $zone"
+			OLD_STYLE_ZONES=1
+
+			get_zone_addrs $zone $zone
+			continue
+		fi
+
+		# Check for new-style role-based zone
+		zpath=`zoneadm -z $zone list -p | cut -d: -f4`
+		sdir=`ls -d $zpath/root/var/smartdc/* 2>/dev/null`
+		[ -z "$sdir" ] && continue
+
+		role=${sdir##*/}
+		ZONE_LIST="$ZONE_LIST $zone"
+		ROLE_LIST="$ROLE_LIST $role"
+		NEW_CLEANUP="$NEW_CLEANUP $zone"
+		get_zone_addrs $zone $role
+
+		[ $role == "riak" ] && RIAK_FOUND=1
+	done
+}
+
+function shutdown_non_core_zones
+{
+	[ -n "$NEW_CLEANUP" ] && echo "Shutting down non-core zones"
+	for zone in $NEW_CLEANUP
+	do
+		zoneadm -z $zone halt
+	done
+}
+
+function shutdown_remaining_zones
+{
+	echo "Shutting down running zones"
+	for zone in `zoneadm list`
+	do
+		[ "$zone" == "global" ] && continue
+		zoneadm -z $zone halt
+	done
+}
+
+# must do this before we halt mapi
+function delete_new_sdc_zones
+{
+	# post 6.5 zones need to be deleted using sdc-setup -D
+	# If we have zones listed in NEW_CLEANUP, then we know they were
+	# provisioned through sdc-setup so this system will support deleting
+	# them through sdc-setup.
+	for zone in $NEW_CLEANUP
+	do
+		sdc-setup -D $zone 1>&4 2>&1
+	done
+}
+
+function delete_old_sdc_zones
+{
+	# 6.5 zones were not provisioned through mapi
+	for zone in $OLD_CLEANUP
+	do
+		zoneadm -z $zone uninstall -F
+		zonecfg -z $zone delete -F
+	done
+}
+
+function get_sdc_datasets
+{
+	MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://${CONFIG_mapi_admin_ip}/datasets | json | nawk '{
+		if ($1 == "\"name\":") {
+			# strip quotes and comma
+			nm = substr($2, 2, length($2) - 3)
+			}
+		if ($1 == "\"version\":") {
+			# strip quotes and comma
+			v = substr($2, 2, length($2) - 3)
+			printf("%s-%s.dsmanifest\n", nm, v)
+		}
+	}'`
+}
+
+function import_sdc_datasets
+{
+	for i in /usbkey/datasets/*.dsmanifest
+	do
+		bname=${i##*/}
+
+		match=0
+		for j in $MAPI_DS
+		do
+			if [ $bname == $j ]; then
+				match=1
+				break
+			fi
+		done
+
+		if [ $match == 0 ]; then
+			mv $i /tmp
+			bzname=${bname%.*}
+			mv /usbkey/datasets/$bzname.zfs.bz2 /tmp
+
+			sed -i "" -e \
+"s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
+			    /tmp/$bname
+			sdc-dsimport /tmp/$bname
+
+			rm -f /tmp/$bname /tmp/$bzname.zfs.bz2
+		fi
+	done
+}
+
+# Fix up the USB key config file
+function cleanup_config
+{
+	echo "Cleaning up configuration"
+	mount_usbkey
+
+	cat <<-SED_DONE >/tmp/upg.$$
+	/adminui_admin_ip=*/d
+	/adminui_external_ip=*/d
+	/ca_admin_ip=*/d
+	/ca_client_url=*/d
+	/portal_external_ip=*/d
+	/portal_external_url=*/d
+	/cloudapi_admin_ip=*/d
+	/cloudapi_external_ip=*/d
+	/cloudapi_external_url=*/d
+	/riak_admin_ip=*/d
+	/billapi_admin_ip=*/d
+	/billapi_external_ip=*/d
+	/billapi_external_url=*/d
+	SED_DONE
+
+	if [ "$CONFIG_capi_is_local" == "true" -o \
+	     "$CONFIG_ufds_is_local" == "true" ]; then
+		echo "/capi_*/d" >>/tmp/upg.$$
+	fi
+
+	sed -f /tmp/upg.$$ </mnt/usbkey/config >/tmp/config.$$
+
+	# If upgrading from a system without ufds, add ufds entries
+	egrep -s ufds_ /mnt/usbkey/config
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		ufds_is_local=$CONFIG_capi_is_local
+		ufds_external_vlan=0
+		ufds_root_pw=$CONFIG_capi_root_pw
+		ufds_ldap_root_dn=cn=root
+		ufds_ldap_root_pw=secret
+		ufds_admin_login=$CONFIG_capi_admin_login
+		ufds_admin_pw=$CONFIG_capi_admin_pw
+		ufds_admin_email=$CONFIG_capi_admin_email
+		ufds_admin_uuid=$CONFIG_capi_admin_uuid
+		# Legacy CAPI parameters
+		capi_http_admin_user=$CONFIG_capi_http_admin_user
+		capi_http_admin_pw=$CONFIG_capi_http_admin_pw
+		DONE
+	fi
+
+	# If upgrading from a system without redis, add redis entries
+	egrep -s redis_ /mnt/usbkey/config
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		redis_root_pw=$CONFIG_adminui_root_pw
+		redis_admin_pw=$CONFIG_adminui_admin_pw
+		DONE
+	fi
+
+	cp /tmp/config.$$ /mnt/usbkey/config
+	cp /mnt/usbkey/config /usbkey/config
+	rm -f /tmp/config.$$ /tmp/upg.$$
+
+	# Now adjust the memory caps in the generic file
+
+	if [ "$CONFIG_coal" == "true" ]; then
+		ca_cap="256m"
+		riak_cap="256m"
+	else
+		ca_cap="1024m"
+		riak_cap="512m"
+	fi
+
+	cat <<-SED_DONE >/tmp/upg.$$
+	s/adminui_memory_cap=.*/adminui_memory_cap=128m/
+	s/billapi_memory_cap=.*/billapi_memory_cap=128m/
+	s/ca_memory_cap=.*/ca_memory_cap=${ca_cap}/
+	s/cloudapi_memory_cap=.*/cloudapi_memory_cap=128m/
+	s/portal_memory_cap=.*/portal_memory_cap=128m/
+	s/riak_memory_cap=.*/riak_memory_cap=${riak_cap}/
+	/capi_*/d
+	SED_DONE
+
+	sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic >/tmp/config.$$
+
+	egrep -s ufds_ /mnt/usbkey/config.inc/generic
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		ufds_cpu_shares=100
+		ufds_max_lwps=1000
+		ufds_memory_cap=256m
+		DONE
+	fi
+
+	egrep -s redis_ /mnt/usbkey/config.inc/generic
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		redis_cpu_shares=50
+		redis_max_lwps=1000
+		redis_memory_cap=128m
+		DONE
+	fi
+
+	cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
+	cp /mnt/usbkey/config.inc/generic /usbkey/config.inc/generic
+	rm -f /tmp/config.$$ /tmp/upg.$$
+
+	umount_usbkey
+}
+
+# We restore the core zones as a side-effect during creation.
+# The create-zone script sees the presence of the ${zone}-data.zfs file
+# and sets KEEP_DATA_DATASET.
+function recreate_core_zones
+{
+	echo "Recreating core zones"
+	# dhcpd zone expects this to exist, so make sure it does:
+	mkdir -p ${usbcpy}/os
+
+	for zone in $CORE_ZONES
+	do
+	        # If the zone has a data dataset, copy to the path
+		# create-zone.sh expects it for reuse:
+		[ -f ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs ] && \
+		    cp ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs \
+			${usbcpy}/backup
+
+	        ${usbcpy}/scripts/create-zone.sh ${zone} -w
+
+	        # If we've copied the data dataset, remove it:
+		[[ -f ${usbcpy}/backup/${zone}-data.zfs ]] && \
+		    rm ${usbcpy}/backup/${zone}-data.zfs
+	done
+}
+
+# XXX Load capi data into riak for ufds
+# capi dump files are in $SDC_UPGRADE_SAVE/capi_dump
+function convert_capi_ufds
+{
+	echo "XXX Convert CAPI data to UFDS."
+}
+
+# Use mapi to reprovision the extra zones.
+function recreate_extra_zones
+{
+	NEW_EXTRA_ZONES=""
+
+	skip_boot=""
+	for role in $ROLE_ORDER
+	do
+		# Check to see if we should install a zone with a given role
+		match=0
+		capi_convert=0
+		for i in $ROLE_LIST
+		do
+			if [ $role == $i ]; then
+				match=1
+				break
+			fi
+		done
+
+		# Checks for new roles that didn't exist in 6.5.
+		# These checks need to work on post-6.5 too.
+
+		# If we had capi, replace it with ufds.
+		if [ $role == "ufds" -a $CAPI_FOUND == 1 ]; then
+			match=1
+			capi_convert=1
+			# Change role for IP addr. lookup
+			role="capi"
+		fi
+
+		# The OLD_STYLE_ZONES flag will be set if we're upgrading from
+		# 6.5.x so we should install any brand new zones as well.
+		if [ $match == 0 -a $OLD_STYLE_ZONES == 1 ]; then
+			# We need to create all new zones that didn't
+			# exist on 6.5.
+			for i in $BRAND_NEW_ZONES
+			do
+				if [ $role == $i ]; then
+					match=1
+					break
+				fi
+			done
+		fi
+
+		[ $match == 0 ] && continue
+
+		# Specify original IP address(es) (if we had that zone)
+		ip_addrs=""
+		[ -n "${ZONE_ADMIN_IP[$role]}" ] && \
+		    ip_addrs="${ZONE_ADMIN_IP[$role]}"
+		if [ -n "${ZONE_EXTERNAL_IP[$role]}" ]; then
+			if [ -n "$ip_addrs" ]; then
+		    		ip_addrs="$ip_addrs,${ZONE_EXTERNAL_IP[$role]}"
+			else
+		    		ip_addrs="${ZONE_EXTERNAL_IP[$role]}"
+			fi
+		fi
+
+		unreserve_ip_addrs $role
+
+		# Change role back to ufds
+		[ $capi_convert == 1 ] && role="ufds"
+
+		echo "Setup $role zone"
+		reuse_ip_cmd=""
+		[ -n "$ip_addrs" ] && reuse_ip_cmd="-R -I $ip_addrs"
+		zname=`sdc-setup -c headnode $reuse_ip_cmd -r $role 2>&4 | \
+		    nawk '{if ($1 == "New") print $3}'`
+
+		if [ -z "$zname" ]; then
+			echo "WARNING: failure setting up $role zone" \
+			    >/dev/stderr
+			continue
+		fi
+
+		NEW_EXTRA_ZONES="$zname $NEW_EXTRA_ZONES"
+
+		# Wait up to 10 minutes for asynchronous role setup to finish
+		echo "Wait for zone to finish seting up"
+		cnt=0
+		while [ $cnt -lt 60 ]; do
+			sleep 10
+			[ -e /zones/$zname/root/var/svc/setup_complete ] && \
+			    break
+			cnt=`expr $cnt + 1`
+		done
+		[ $cnt == 60 ] && \
+		    echo "WARNING: setup did not finish after 10 minutes"
+
+		# restore this zone from backup
+		zoneadm -z $zname halt
+
+		if [ -e  /usbkey/zones/$role/restore ]; then
+			echo "Upgrading zone"
+			/usbkey/zones/$role/restore $zname \
+			    $SDC_UPGRADE_DIR/bu.tmp 1>&4 2>&1
+		fi
+		echo "$role zone done"
+
+		# We need riak running to setup ufds
+		if [ "$role" == "riak" ]; then
+			zoneadm -z $zname boot
+			skip_boot=$zname
+
+			# If moving from capi to ufds, convert capi.
+			[ $CAPI_FOUND == 1 ] && convert_capi_ufds
+		fi
+	done
+
+	echo "Booting extra zones"
+	for zone in $NEW_EXTRA_ZONES
+	do
+		# riak already booted
+		[ "$zone" == "$skip_boot" ] && continue
+		zoneadm -z $zone boot
+	done
+
+	rm -rf $SDC_UPGRADE_DIR/bu.tmp
+}
 
 function install_platform
 {
-    # Install new platform
-    local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
-    if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
-        # 'platformversion' is intentionally global.
-        platformversion=$(basename "${platformupdate}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
+	local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
+	if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
+		# 'platformversion' is intentionally global.
+		platformversion=$(basename "${platformupdate}" | \
+		    sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
+	fi
 
-        if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
-            ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
-        else
-            echo "INFO: ${usbcpy}/os/${platformversion} already exists, skipping update."
+	[ -z "${platformversion}" ] && \
+	    fatal "unable to determine platform version"
+
+	if [[ -d ${usbcpy}/os/${platformversion} ]]; then
+		echo \
+	    "${usbcpy}/os/${platformversion} already exists, skipping update."
+		return
         fi
-    fi
+
+	mount_usbkey
+
+	echo "Unpacking ${platformversion} to ${usbmnt}/os"
+	curl --progress -k file://${platformupdate} | \
+	    (mkdir -p ${usbmnt}/os/${platformversion} \
+	    && cd ${usbmnt}/os/${platformversion} \
+	    && gunzip | tar -xf - 2>/tmp/install_platform.log \
+	    && mv platform-* platform
+	    )
+
+	[[ -f ${usbmnt}/os/${platformversion}/platform/root.password ]] && \
+	    mv -f ${usbmnt}/os/${platformversion}/platform/root.password \
+		${usbmnt}/private/root.password.${platformversion}
+
+	echo "Copying ${platformversion} to ${usbcpy}/os"
+	mkdir -p ${usbcpy}/os
+	(cd ${usbmnt}/os && \
+	    rsync -a ${platformversion}/ ${usbcpy}/os/${platformversion})
+
+	umount_usbkey
 }
 
-mount_usbkey
+function register_platform
+{
+	echo "Register new platform with MAPI"
+	local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
+	if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
+		${usbcpy}/scripts/install-platform.sh \
+		    file://${platformupdate} 1>&4 2>&1
+		[ $? != 0 ] && \
+		    echo "WARNING: failed to register platform with MAPI" \
+		    >/dev/stderr
+	fi
+}
 
-#
-# TODO: check a list of required config options and ensure config has them.
-# If existing config does not have them, tell the user to go add them and
-# go into a sleep loop, waiting for the config options to be there.  User
-# can add them from another terminal then we'll continue.  We can also
-# print the list with their default values from the new config.default.
-#
+function upgrade_agents
+{
+	# Get the latest agents shar
+	agents=`ls -t /usbkey/ur-scripts | head -1`
+	echo "Installing agents $agents"
+	bash /usbkey/ur-scripts/$agents 1>&4 2>&1
+}
+
+rm -rf $SDC_UPGRADE_SAVE
+mkdir -p $SDC_UPGRADE_SAVE
+
+# Make sure we can talk to the old MAPI
+curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+    http://$CONFIG_mapi_admin_ip/servers >/tmp/sdc$$.out 2>&1
+check_mapi_err
+rm -f /tmp/sdc$$.out
+[ -n "$emsg" ] && fatal "MAPI API is not responding"
+
+get_sdc_zonelist
+get_sdc_datasets
+
+if [ $RIAK_FOUND == 1 ]; then
+	message="
+We will be upgrading RIAK.  If you have other nodes in the RIAK cluster, you
+must now stop riak on those nodes and detach them from the cluster.  You should
+run the following commands in all of the other non-local RIAK zones:
+
+    riak-admin leave
+    riak stop
+
+After you have finished detaching the non-local RIAK zones,
+press [enter] to continue. "
+
+	printf "$message"
+	read continue;
+fi
+
+if [ $CAPI_FOUND == 1 ]; then
+	# If we had a capi zone but no riak zone on the headnode, then we
+	# won't be able to convert since the old 6.5 capi data is now stored
+	# in riak.
+	if [ $RIAK_FOUND == 0 ]; then
+		message="
+WARNING: A capi zone exists on this headnode but there is no riak zone.
+         A local riak zone is required to automatically migrate the CAPI data
+         forward into RIAK for UFDS.  The CAPI data will be dumped into
+         $SDC_UPGRADE_SAVE/capi_dump.
+         You will have to manually load this data into RIAK to complete the
+         upgrade.
+
+Press [enter] to continue "
+		printf "$message"
+		read continue;
+	fi
+
+	# dump capi
+	echo "Dump CAPI for RIAK conversion"
+	mkdir -p $SDC_UPGRADE_SAVE/capi_dump
+	tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
+	    -Atc '\\\\dt' capi | cut -d '|' -f2`
+	for i in $tables
+	do
+		zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 \
+		    -Upostgres -h127.0.0.1 -t $i capi \
+		    >$SDC_UPGRADE_SAVE/capi_dump/$i.dump
+	done
+fi
+
+trap cleanup EXIT
+
+# Can't shutdown core zones yet since we need those to delete MAPI provisioned
+# zones in delete_new_sdc_zones.  We also can't shutdown old-style zones
+# since they need to be running for sdc-backup to work on 6.5.
+shutdown_non_core_zones
+
+# Run full backup with the old sdc-backup code, then unpack the backup archive.
+# Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
+# existence of backup file.
+echo "Creating a backup"
+sdc-backup -d $SDC_UPGRADE_SAVE
+bfile=`ls $SDC_UPGRADE_SAVE/backup-* 2>/dev/null`
+[ -z "$bfile" ] && fatal "unable to make a backup"
+
+mkdir $SDC_UPGRADE_DIR/bu.tmp
+(cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
+
+mount_usbkey
 
 check_versions
 backup_usbkey
 upgrade_usbkey
-trap cleanup EXIT
 
 upgrade_pools
 
-# import new headnode dataset if there's one (used for new headnode zones)
+# import new headnode datasets (used for new headnode zones)
 import_datasets
 
-recreate_zones
+umount_usbkey
 
-# new platform!
+echo "Cleaning up existing zones"
+delete_new_sdc_zones
+# Wait a bit for zone deletion to finish
+sleep 10
+shutdown_remaining_zones
+delete_old_sdc_zones
+
+cleanup_config
+
+# We do the first part of installing the platform now so the new platform
+# is available for the new code to run on via the lofs mounts below.
 install_platform
+
+# We need the latest smartdc tools to provision the extra zones.
+echo "Mount the new image"
+mkdir -p /image
+mount -F ufs /usbkey/os/${platformversion}/platform/i86pc/amd64/boot_archive \
+    /image
+mount -F lofs /image/smartdc /smartdc
+
+# Make sure zones and agents have the latest /usr/node_modules and json
+# Trying to mount all of usr with the following command deadlocks:
+#     mount -F ufs -o ro -O /image/usr.lgz /usr
+mount -F ufs -o ro /image/usr.lgz /image/usr
+mount -F lofs -o ro /image/usr/node_modules /usr/node_modules
+mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
+
+# We restore the core zones as a side-effect during creation.
+recreate_core_zones
+
+# Wait till core zones are up before we try to import datasets.
+echo "Waiting for core zones to be ready"
+cnt=0
+while [ $cnt -lt 18 ]; do
+	bad_svcs=`svcs -Zx 2>/dev/null | wc -l`
+	[ $bad_svcs == 0 ] && break
+	sleep 10
+	cnt=`expr $cnt + 1`
+done
+[ $cnt == 18 ] && echo "WARNING: core svcs still not running after 3 minutes"
+
+# Make sure we can talk to the new MAPI
+curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+    http://$CONFIG_mapi_admin_ip/servers >/tmp/sdc$$.out 2>&1
+check_mapi_err
+rm -f /tmp/sdc$$.out
+[ -n "$emsg" ] && fatal "MAPI API is not responding, the upgrade is incomplete"
+
+# Now that MAPI is back up, register the new platform with mapi
+register_platform
+
+import_sdc_datasets
+
+upgrade_agents
 
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
-if [[ $doupgrade == true ]]; then
-  /usbkey/scripts/switch-platform.sh ${platformversion}
-  echo "Activating upgrade complete"
-fi
+# We have to re-delete since we restored mapi from a backup.
+# The zones should be cleaned up in the file system but we need to cleanup the
+# mapi DB.
+echo "Cleaning up MAPI database"
+delete_new_sdc_zones
+
+recreate_extra_zones
+
+/usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
+
+# Leave headnode setup for compute node upgrades of all roles
+for role in $ROLE_ORDER
+do
+	assetdir=/zones/assets/root/assets/extra/$role
+        mkdir -p $assetdir
+        cp /usbkey/zones/$role/* $assetdir
+        cp /usbkey/config $assetdir/hn_config
+        cp /usbkey/config.inc/generic $assetdir/hn_generic
+done
+
+message="
+The new image has been activated. You must reboot the system for the upgrade
+to take effect.  Once you have verified the upgrade is ok, you can remove the
+$SDC_UPGRADE_SAVE directory and its contents.\n\n"
+printf "$message"
+
+cp /tmp/perform_upgrade.* $SDC_UPGRADE_SAVE
 exit 0

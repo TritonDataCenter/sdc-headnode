@@ -10,3 +10,8 @@ set type=lofs
 add options ro
 add options nodevices
 end
+add net
+set physical=assets0
+set vlan-id=0
+set global-nic=admin
+end
