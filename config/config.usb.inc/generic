@@ -27,6 +27,10 @@ adminui_max_lwps=1000
 adminui_memory_cap=128m
 adminui_workers=8
 
+amon_cpu_shares=50
+amon_max_lwps=1000
+amon_memory_cap=128m
+
 assets_cpu_shares=50
 assets_max_lwps=1000
 assets_memory_cap=32g

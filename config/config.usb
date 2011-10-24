@@ -128,6 +128,9 @@ adminui_root_pw=joypass123
 adminui_admin_pw=joypass123
 adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter
 
+amon_root_pw=joypass123
+amon_admin_pw=joypass123
+
 redis_root_pw=joypass123
 redis_admin_pw=joypass123
 

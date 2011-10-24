@@ -1,0 +1,14 @@
+TEMPLATE_VERSION=0.0.1
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}
+ROOT_PW=${amon_root_pw}
+ADMIN_PW=${amon_admin_pw}
+TMPFS=512m
+
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+
+REDIS_IP=${redis_admin_ip}
+REDIS_PORT=6379

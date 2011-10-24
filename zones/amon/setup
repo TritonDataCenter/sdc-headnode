@@ -1,0 +1,148 @@
+#!/usr/bin/bash
+
+# This script runs with the $CONFIG_assets_ip variable set to the assets zone
+# IP address.  Its up to this script to pull down the rest of the files it
+# needs from the assets zone and setup the zone for the given role.  This
+# script is run in the background by the mdata svc so its ok if it takes
+# a little while to install all of the pkgs.
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=amon
+app_name=$role
+
+
+function amonfail() {
+    echo "fatal: $*" >&2
+    exit 1
+}
+
+
+cd /var/svc
+
+curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
+curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
+curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
+
+# We need some of the headnode config, but don't leave the files around
+. /var/svc/hn_config
+. /var/svc/hn_generic
+rm -f /var/svc/hn_config /var/svc/hn_generic
+# Load up the config values
+. /var/svc/zoneconfig
+
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/amon
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+    # TODO: need to update for change to UFDS_LDAP_ROOT_PW?
+    exit 0
+fi
+
+# Setup the zone
+curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
+curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
+curl -k -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
+
+# Unpack fs.tar and copy files into proper locations within the zone
+mkdir /.stage
+echo "unpack fs.tar"
+(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
+rm -f /var/svc/fs.tar.bz2
+echo "install root"
+(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+rm -rf /.stage
+
+# Install using local pkg repo
+mkdir -p /var/svc/pkgs
+(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
+      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+rm -f /var/svc/pkgsrc.tar
+
+for i in `cat /var/svc/pkgsrc`
+do
+	echo "Installing $i" 
+	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
+done
+rm -rf /var/svc/pkgs
+
+echo "Creating SMF manifest"
+cat > /var/tmp/amon_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="amon">
+  <service name="smartdc/site/amon" type="service" version="1.0.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method type="method" name="start"
+      exec="/opt/smartdc/amon/bin/amon-master -f %{config_file} -p 80 &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon" />
+    </exec_method>
+
+    <property_group name='application' type='application'>
+      <propval name='config_file' type='astring' value='/opt/smartdc/amon/cfg/amon-master.json'/>
+    </property_group>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <stability value="Stable"/>
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Amon Master daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
+{
+  "port": 80,
+  "ufds": {
+    "rootDn": "${UFDS_LDAP_ROOT_DN}",
+    "password": "${UFDS_LDAP_ROOT_PW}"
+  }
+}
+HERE
+
+echo "Importing Amon SMF manifest."
+/usr/sbin/svccfg import /var/tmp/amon_manifest.xml
+rm /var/tmp/amon_manifest.xml
+
+echo "Enablig 'amon' service."
+/usr/sbin/svcadm enable smartdc/site/amon
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &

@@ -825,6 +825,10 @@ echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
 
+echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amon_admin_pw=$zone_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
 echo "redis_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config

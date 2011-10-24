@@ -20,6 +20,7 @@
       }
   ]
   , "adminui-checkout": "origin/master"
+  , "amon-tarball": "^amon-master-master-20111024T190955Z-g2694dba.tar.bz2$"
   , "ca-tarball": "^ca-pkg-master-.*.tar.bz2$"
   , "dhcpd-checkout": "origin/master"
   , "mapi-checkout": "origin/master"
