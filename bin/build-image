@@ -587,12 +587,6 @@ function copy_platform
     # platform, so we install it for that.  If not, we'll just copy to data dir
     master=$3
 
-    # If platform_subdir is set, we look in that dir under PLATFORM_URL
-    platform_subdir="/$4"
-    if [[ ${platform_subdir} == '/' ]]; then
-        platform_subdir=
-    fi
-
     valid_platform="false"
     if [[ -z ${platform_file} ]]; then
         [[ -z "${platform_release}" ]] \
@@ -600,15 +594,15 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${CURL_OPTS} -k -sS \
-                ${PLATFORM_URL}${platform_subdir}/ \
+                ${PLATFORM_URL}/ \
                 | ${GREP} "href=\"platform-${platform_release}*" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
                   && curl ${CURL_OPTS} \
-                  -k -O ${PLATFORM_URL}${platform_subdir}/${latest_image}) \
-                  || fatal "Unable to download ${PLATFORM_URL}${platform_subdir}/${latest_image}"
+                  -k -O ${PLATFORM_URL}/${latest_image}) \
+                  || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
             fi
         else
             latest_image=$(cd ${ROOT}/cache \
@@ -624,7 +618,7 @@ function copy_platform
             rm -f ${image}
             image=
             # unset image and try again
-            copy_platform "${platform_file}" "${platform_release}" "${master}" "${platform_subdir}"
+            copy_platform "${platform_file}" "${platform_release}" "${master}"
         fi
     else
         image=${platform_file}
@@ -1268,7 +1262,7 @@ create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
-copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true" "${PLATFORM_SUBDIR}"
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true"
 copy_agents
 copy_datasets
 copy_zones
