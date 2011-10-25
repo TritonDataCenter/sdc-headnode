@@ -245,10 +245,6 @@ if [[ -z "$MASTER_PLATFORM_URL" ]]; then
 fi
 echo "MASTER_PLATFORM_URL: $MASTER_PLATFORM_URL"
 
-#TODO(trent): Is anyone setting PLATFORM_URL for builds? If not drop the alias.
-if [ -z "${PLATFORM_URL}" ]; then
-    PLATFORM_URL=${MASTER_PLATFORM_URL}
-fi
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
@@ -594,15 +590,15 @@ function copy_platform
                      "for call to 'copy_platform()'."
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             latest_image=$(curl ${CURL_OPTS} -k -sS \
-                ${PLATFORM_URL}/ \
+                ${MASTER_PLATFORM_URL}/ \
                 | ${GREP} "href=\"platform-${platform_release}*" \
                 | cut -d'"' -f2 | sort | tail -1)
             if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
                 echo "==> Downloading ${latest_image}"
                 (cd ${ROOT}/cache \
                   && curl ${CURL_OPTS} \
-                  -k -O ${PLATFORM_URL}/${latest_image}) \
-                  || fatal "Unable to download ${PLATFORM_URL}/${latest_image}"
+                  -k -O ${MASTER_PLATFORM_URL}/${latest_image}) \
+                  || fatal "Unable to download ${MASTER_PLATFORM_URL}/${latest_image}"
             fi
         else
             latest_image=$(cd ${ROOT}/cache \
