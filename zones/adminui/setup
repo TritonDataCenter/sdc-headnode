@@ -133,7 +133,7 @@ rm -f /var/svc/pkgsrc.tar
 
 for i in `cat /var/svc/pkgsrc`
 do
-	echo "Installing $i" 
+	echo "Installing $i"
 	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
 rm -rf /var/svc/pkgs
@@ -328,10 +328,10 @@ su - jill -c "cd /opt/smartdc/adminui; \
   DSAPI_URL=$DSAPI_URL \
   DSAPI_USER=$DSAPI_USER \
   DSAPI_PASS=$DSAPI_PASS \
-  CAPI_URL=$CAPI_URL \
   CA_CLIENT_URL=$CA_CLIENT_URL \
-  CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER \
-  CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW \
+  UFDS_URL=$UFDS_URL \
+  UFDS_ROOT_DN=$UFDS_ROOT_DN \
+  UFDS_ROOT_PW=$UFDS_ROOT_PW \
   MAPI_URL=$MAPI_URL \
   MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
   MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
