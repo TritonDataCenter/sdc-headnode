@@ -221,7 +221,7 @@ if [[ -z "$MASTER_PLATFORM_URL" ]]; then
     fi
 fi
 if [[ -z "$MASTER_PLATFORM_URL" ]]; then
-    MASTER_PLATFORM_URL=https://guest:GrojhykMid@216.57.203.66:444/coal/live_147
+    MASTER_PLATFORM_URL=https://guest:GrojhykMid@stuff.joyent.us/coal/live_147
 fi
 MASTER_PLATFORM_URL=$(proxy "$MASTER_PLATFORM_URL")
 
