@@ -43,21 +43,9 @@ ca_cpu_shares=100
 ca_max_lwps=1000
 ca_memory_cap=1024m
 
-capi_cpu_shares=50
-capi_max_lwps=1000
-capi_memory_cap=128m
-capi_workers=8
-#
-# If the capi_allow_file file exists in config.inc/ it should contain a list of
-# CIDR addresses like:
-#
-# 10.99.99.0/24
-# 10.88.88.0/24
-#
-# These networks are then the *only* ones allowed to connect to CAPI.  Without
-# this file existing and being populated *all* IPs will be allowed to connect.
-#
-capi_allow_file=capi.allow
+ufds_cpu_shares=100
+ufds_max_lwps=1000
+ufds_memory_cap=128m
 
 cloudapi_cpu_shares=50
 cloudapi_max_lwps=1000
