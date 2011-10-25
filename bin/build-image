@@ -248,8 +248,6 @@ echo "MASTER_PLATFORM_URL: $MASTER_PLATFORM_URL"
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
 DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
-AGENTS_BASE=$(proxy "${MASTER_PLATFORM_URL}/agents")  # unused?
-ASSETS_ROOT=$(proxy "${MASTER_PLATFORM_URL}/assets")
 
 # Support N version of pkgsrc
 PKGSRC_2010Q4=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
@@ -981,7 +979,7 @@ function get_latest
     latest=
 
     if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl ${CURL_OPTS} -k -sS ${ASSETS_ROOT}/ \
+        for file in $(curl ${CURL_OPTS} -k -sS ${MASTER_PLATFORM_URL}/assets/ \
             | ${GREP} "href=" \
             | cut -d'"' -f2 \
             | ${GREP} "${FS_PATTERN}"); do
@@ -1036,7 +1034,7 @@ function get_fs_tarball
 
             (cd ${ROOT}/cache \
                 && curl ${CURL_OPTS} -k ${EXISTING_TIMECHECK} \
-                -fO ${ASSETS_ROOT}/${filename})
+                -fO ${MASTER_PLATFORM_URL}/assets/${filename})
             [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
 
             echo "==> Downloaded ${filename} for ${zone}"
