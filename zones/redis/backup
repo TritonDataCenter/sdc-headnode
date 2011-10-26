@@ -46,7 +46,7 @@ if [[ $? -ne 0 ]]; then
     exit 105
 fi
 (cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/redis/etc; \
-    tar cbf 512 ${TARGET_DIR}/${ROLE}/etc.tar redis)
+    tar cbf 512 ${TARGET_DIR}/${ROLE}/etc.tar *)
 if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup configuration"
     exit 106
