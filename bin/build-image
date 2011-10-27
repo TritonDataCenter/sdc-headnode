@@ -273,11 +273,11 @@ if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
     echo "WARNING: using 'MASTER_PLATFORM_URL' envvar is deprecated, use 'BITS_URL' instead"
     BITS_URL=$MASTER_PLATFORM_URL
 fi
-if [[ -z "$BITS_URL"
+if [[ -z "$BITS_URL" && -f ${ROOT}/build.spec.local
       && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)" ]]; then
     BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)
 fi
-if [[ -z "$BITS_URL"
+if [[ -z "$BITS_URL" && -f ${ROOT}/build.spec.local
       && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)" ]]; then
     echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
     BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)
@@ -301,7 +301,7 @@ fi
 
 # Get BITS_BRANCH if necessary.
 if [[ -z "$BITS_DIR" ]]; then
-    if [[ -z "$BITS_BRANCH"
+    if [[ -z "$BITS_BRANCH" && -f ${ROOT}/build.spec.local
           && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)" ]]; then
         BITS_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)
     fi
