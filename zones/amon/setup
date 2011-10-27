@@ -141,7 +141,8 @@ echo "Importing Amon SMF manifest."
 rm /var/tmp/amon_manifest.xml
 
 echo "Enablig 'amon' service."
-/usr/sbin/svcadm enable smartdc/site/amon
+#TODO: re-enable once amon is back in working order (MON-9)
+/usr/sbin/svcadm disable smartdc/site/amon
 
 touch /var/svc/setup_complete
 echo "setup done"
