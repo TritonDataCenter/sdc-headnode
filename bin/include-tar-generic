@@ -78,22 +78,14 @@ function create_output
     branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
-    # Consider just using 'THIS_BUILDSTAMP' here. This implies that the
-    # datestamp might differ from the LIVEIMG_VERSION.
-    output_version="${branch_name}-${LIVEIMG_VERSION}-${THIS_GITDESCRIBE}"
-    if [ -f build-number.txt ]; then
-      output_version="$output_version-$(cat build-number.txt | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
-
-
     if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
         echo "==> Copying root.password"
         ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
         ${SUCMD} chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi
 
-    echo "==> Creating boot-${output_version}.tgz"
+    echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
     ${SUCMD} chown -R ${USER} ${MNT_DIR}
-    ${TAR} -zcf ${ROOT}/boot-${output_version}.tgz -C ${MNT_DIR} .
+    ${TAR} -zcf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
 }
 

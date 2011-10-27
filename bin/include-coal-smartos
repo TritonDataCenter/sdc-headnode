@@ -21,14 +21,6 @@ function create_output
         || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
-    # Consider just using 'THIS_BUILDSTAMP' here. This implies that the
-    # datestamp might differ from the LIVEIMG_VERSION.
-    output_version="${branch_name}-${LIVEIMG_VERSION}-${THIS_GITDESCRIBE}"
-    if [ -f build-number.txt ]; then
-      output_version="$output_version-$(cat build-number.txt \
-          | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
-
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
         ${SUCMD} lofiadm -d ${LOOPBACK}
@@ -61,14 +53,14 @@ function create_output
     echo "done."
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
-        echo "==> Creating coal-${output_version}.tgz"
+        echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
         (cd ${ROOT}/cache \
-            && rm -rf coal-${output_version}-${USB_SIZE}.vmwarevm \
-            && mv USB-headnode.vmwarevm coal-${output_version}-${USB_SIZE}.vmwarevm \
-            && ${TAR} -zcf ${ROOT}/coal-${output_version}-${USB_SIZE}.tgz \
-            root.password.${LIVEIMG_VERSION} coal-${output_version}-${USB_SIZE}.vmwarevm *.manifest)
+            && rm -rf coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+            && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+            && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
+            root.password.${LIVEIMG_VERSION} coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv ${ROOT}/cache/USB-headnode.vmwarevm ${ROOT}/coal-${output_version}-${USB_SIZE}.vmwarevm
+        mv ${ROOT}/cache/USB-headnode.vmwarevm ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm
     fi
 }

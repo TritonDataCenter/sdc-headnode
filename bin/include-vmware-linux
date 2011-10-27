@@ -81,14 +81,6 @@ function create_output
         || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
-    # Consider just using 'THIS_BUILDSTAMP' here. This implies that the
-    # datestamp might differ from the LIVEIMG_VERSION.
-    output_version="${branch_name}-${LIVEIMG_VERSION}-${THIS_GITDESCRIBE}"
-    if [ -f build-number.txt ]; then
-      output_version="$output_version-$(cat build-number.txt \
-          | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
-
     if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
         echo "==> Copying root.password.${LIVEIMG_VERSION}"
         ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} \
@@ -97,15 +89,15 @@ function create_output
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
-        echo "==> Creating coal-${output_version}.tgz"
+        echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
         (cd ${ROOT}/cache \
             && ${SUCMD} chown -R ${USER} USB-headnode.vmwarevm \
-            && ${TAR} -zcf ${ROOT}/coal-${output_version}.tgz \
+            && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}.tgz \
             USB-headnode.vmwarevm) \
             || fatal "Unable to create .tgz output"
     else
-        mv ${ROOT}/cache/USB-headnode.vmware coal-${output_version}.vmwarevm
-        ${SUCMD} chown -R ${USER} coal-${output_version}.vmwarevm
+        mv ${ROOT}/cache/USB-headnode.vmware coal-${THIS_BUILDSTAMP}.vmwarevm
+        ${SUCMD} chown -R ${USER} coal-${THIS_BUILDSTAMP}.vmwarevm
     fi
 
 }

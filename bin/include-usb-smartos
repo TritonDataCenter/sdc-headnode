@@ -85,14 +85,6 @@ function create_output
         || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
-    # Consider just using 'THIS_BUILDSTAMP' here. This implies that the
-    # datestamp might differ from the LIVEIMG_VERSION.
-    output_version="${branch_name}-${LIVEIMG_VERSION}-${THIS_GITDESCRIBE}"
-    if [ -f build-number.txt ]; then
-      output_version="$output_version-$(cat build-number.txt \
-          | sed -n 's,^build\.number=\(.*\),\1,p')"
-    fi
-
     if [[ -n ${MNT_DIR} ]]; then
         ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
         ${SUCMD} lofiadm -d ${LOOPBACK}
@@ -109,13 +101,13 @@ function create_output
     fi
 
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
-        echo "==> Creating usb-${output_version}.tgz"
+        echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
         (cd ${ROOT}/cache \
-            && mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG} \
-            && ${TAR} -zcf ${ROOT}/usb-${output_version}.tgz \
-            root.password.${LIVEIMG_VERSION} usb-${output_version}-${OUTPUT_IMG} *.manifest)
+            && mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+            && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
+            root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${output_version}-${OUTPUT_IMG}
+        mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
     fi
 }

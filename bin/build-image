@@ -12,14 +12,38 @@
 # propagates any non-zero exit values in a pipeline).
 #
 
-
 set -o errexit
 set -o pipefail
 
-# write output to log file
+
 ROOT=$(cd $(dirname $0)/../; pwd)
+
+
+# Write output to log file.
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
 LOGDIR="${ROOT}/log"
-LOGFILE="${LOGDIR}/build.log.$(date +%Y-%m-%d-%H-%M-%S).$$"
+LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
+
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
+    BASH_IS_NOT_ANCIENT='true'
+fi
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=4
+    set -o xtrace
+fi
+
+
+# Tools.
+AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
 TAR=tar
 GREP=grep
 if [[ `uname -s` == 'SunOS' ]]; then
@@ -29,46 +53,23 @@ else
 fi
 
 
-mkdir -p log
-exec > >(tee ${LOGFILE}) 2>&1
-
-if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
-    BASH_IS_NOT_ANCIENT='true'
-fi
-
-#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -x
-
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
-    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    export BASH_XTRACEFD=4
-    set -o xtrace
-fi
-
 # See MG's Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
-THIS_TIMESTAMP=${TIMESTAMP}
-if [[ -z "$THIS_TIMESTAMP" ]]; then
-    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
-fi
-AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
 THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
-
 
 # "THIS_BUILDSTAMP" is the new sane replacement for "THIS_VERSION". However,
 # "THIS_VERSION" ends up in /usbkey/version. *Currently* I'm too much of a
 # panzy to change this format because I don't know what might be using that
-# version string. Will change after 6.5 is final.
+# version string. Will change after 6.5 is final (TODO).
 THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
-if [ -f build-number.txt ]; then
-    THIS_VERSION="${THIS_VERSION}-$(cat build-number.txt \
-        | sed -n 's,^build\.number=\(.*\),\1,p')"
-fi
+
 
 RECIPE=$(pwd)/recipe.${THIS_VERSION}
 
 echo ">> Starting build at $(date)"
+
+
 
 function fatal
 {
@@ -220,30 +221,99 @@ fi
 
 check_proxy
 
-# Determine from where to get dependent packages.
-if [[ -z "$MASTER_PLATFORM_URL" ]]; then
-    MASTER_PLATFORM_URL=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json master-url)
+
+# Determine BITS_URL, BITS_BRANCH and BITS_DIR. These determine where this
+# build will get its dependent pre-built bits.
+#
+# "BITS_URL" can either be a URL directory, e.g.
+# "https://guest:GrojhykMid@216.57.203.68/stuff/builds", or a local
+# directory. If an existing local dir, then "BITS_DIR" will be set to that
+# for the build code below.
+#
+# If BITS_URL is a URL, it is expected to be of the following structure:
+#       $BITS_URL/
+#           agentsshar/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   AGENTS SHAR PACKAGE
+#           ca/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   CA ZONE FS TARBALL PACKAGE
+#           amon/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   AMON ZONE FS TARBALL PACKAGE
+#           ... likewise for ufds and platform.
+#
+# This is the build structure created by the SDC "mountain-gorilla" build
+# system that is being run by Jenkins CI
+# (https://hub.joyent.com/wiki/display/dev/Jenkins) and uploaded
+# to <https://stuff.joyent.us/stuff/builds>.
+#
+# As well, if BITS_URL is a URL, then BITS_BRANCH must also be specified.
+#
+# Ways to specify BITS_URL:
+# - BITS_URL envvar
+# - MASTER_PLATFORM_URL envvar (deprecated, backward-compat)
+# - "bits-url" entry in build.spec.local
+# - "master-url" entry in build.spec.local (deprecated, backward-compat)
+# - "bits-url" entry in build.spec
+#
+# Ways to specify BITS_BRANCH:
+# - BITS_BRANCH envvar
+# - "bits-branch" in build.spec.local
+# - "bits-branch" in build.spec
+
+# Get BITS_URL.
+if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
+    echo "WARNING: using 'MASTER_PLATFORM_URL' envvar is deprecated, use 'BITS_URL' instead"
+    BITS_URL=$MASTER_PLATFORM_URL
+fi
+if [[ -z "$BITS_URL"
+      && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)" ]]; then
+    BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)
+fi
+if [[ -z "$BITS_URL"
+      && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)" ]]; then
+    echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
+    BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)
+fi
+if [[ -z "$BITS_URL"
+      && ! -z "$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-url)" ]]; then
+    BITS_URL=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-url)
+fi
+[[ -z "$BITS_URL" ]] && fatal "Could not determine a BITS_URL."
+
+# Validate BITS_URL and set BITS_DIR if it is a dir.
+if [[ "${BITS_URL:0:8}" == "https://" || "${BITS_URL:0:7}" == "http://" ]]; then
+    BITS_URL=$(proxy "${BITS_URL}")
+    BITS_DIR=
+elif [[ -d "${BITS_URL}" ]]; then
+    BITS_DIR=$BITS_URL
+    echo "BITS_DIR (BITS_URL is a local dir): $BITS_DIR"
+else
+    fatal "BITS_URL ($BITS_URL) is not a known protocol or an existing dir"
 fi
 
-if [[ -f ${ROOT}/build.spec.local ]]; then
-    MASTER_PLATFORM_URL_LOCAL=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json master-url)
-    if [[ -n ${MASTER_PLATFORM_URL_LOCAL} ]]; then MASTER_PLATFORM_URL=${MASTER_PLATFORM_URL_LOCAL}; fi
-fi
-
-if [[ -z "$MASTER_PLATFORM_URL" ]]; then
-    if [[ `echo $THIS_BRANCH | grep 'release'` ]]; then
-      RELEASEDATE=$(echo $THIS_BRANCH | cut -d '-' -f2)
-      RELEASEDIR=${RELEASEDATE:0:4}-${RELEASEDATE:4:2}-${RELEASEDATE:6:2}
-      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68/coal/releases/${RELEASEDIR}/deps/"
-      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}")
-    else
-      MASTER_REPO="https://guest:GrojhykMid@216.57.203.68"
-      MASTER_PLATFORM_URL=$(proxy "${MASTER_REPO}/coal/live_147")
+# Get BITS_BRANCH if necessary.
+if [[ -z "$BITS_DIR" ]]; then
+    if [[ -z "$BITS_BRANCH"
+          && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)" ]]; then
+        BITS_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)
     fi
+    if [[ -z "$BITS_BRANCH"
+          && ! -z "$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-branch)" ]]; then
+        BITS_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-branch)
+    fi
+    [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
+    echo "BITS_BRANCH: $BITS_BRANCH"
 fi
-echo "MASTER_PLATFORM_URL: $MASTER_PLATFORM_URL"
+
+
 
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
@@ -566,6 +636,81 @@ function valid_archive
     fi
 }
 
+
+# Get a bit (from BIT_URL/BIT_DIR/BIT_BRANCH) to the local "cache/" dir.
+# If the file base name already exists in the cache dir, then it is not
+# re-downloaded.
+#
+# Local path of downloaded bit is set to `get_bit_rv` global.
+function get_bit
+{
+    # Presumption: This pattern is of the form
+    # "$single-level-dir/$file-regex-pattern".
+    pattern=$1
+    
+    # Note: intentionally a global.
+    get_bit_rv=
+
+    local pattern_dir=$(dirname $pattern)
+    local pattern_base="^$(basename $pattern)"
+    if [[ ! -z "$BITS_DIR" ]]; then
+        # Local BITS_DIR example:
+        #   /home/jill/joy/mountain-gorilla/bits
+        # where pattern='agentsshar/agents-master-*' is at:
+        #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
+        local latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "'${BITS_DIR}/${pattern}' did not match any files."
+        fi
+        local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
+        local cache_path=${ROOT}/cache/${latest_name}
+        if [[ ! -f $cache_path ]]; then
+            echo "Copying '${latest_path}' bit to cache."
+            cp ${latest_path} ${cache_path}
+        fi
+        get_bit_rv=${cache_path}
+    elif [[ ${HAVE_INTERNET} == "true" ]]; then
+        # BITS_URL URL example:
+        #   https://user:pass@stuff.joyent.us/stuff/builds
+        # where pattern='agentsshar/agents-master-*' is at:
+        #   https://user:pass@stuff.joyent.us/stuff/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
+        # where the "master" in "master-latest" is "BITS_BRANCH".
+        local url_dir="${BITS_URL}/${pattern_dir}/${BITS_BRANCH}-latest/${pattern_dir}"
+        local latest_name=$(curl ${CURL_OPTS} --fail -k -sS ${url_dir}/ \
+            | grep "href=\"" \
+            | cut -d'"' -f2 \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "Could not find '${pattern_base}' in '${url_dir}'."
+        fi
+        local cache_path=${ROOT}/cache/${latest_name}
+        if [[ ! -f $cache_path ]]; then
+            echo "Downloading '${url_dir}/${latest_name}' bit to cache."
+            (cd ${ROOT}/cache \
+                && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
+                    -O ${url_dir}/${latest_name} \
+                || fatal "Unable to download '${url_dir}/${latest_name}'.")
+        fi
+        get_bit_rv=${cache_path}
+    else
+        local latest_name=$(ls -1 ${ROOT}/cache/ \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "'${ROOT}/cache/${pattern}' did not match any files (and we have no Internet)."
+        fi
+        local latest_path=${ROOT}/cache/${latest_name}
+        echo "Use '${latest_path}' bit already in cache (no Internet)."
+        get_bit_rv=${latest_path}
+    fi
+}
+
 function copy_platform
 {
     [[ -z "${loops}" ]] && loops=0
@@ -574,45 +719,24 @@ function copy_platform
 
     # platform_file is optional, if specified, that platform will be used
     # instead of looking for the newest that matches platform-<release>
-    platform_file=$1
-    platform_release=$2
+    local platform_file=$1
+    local platform_release=$2
 
-    # If master is "true" this platform is the one we'll use as the headnode's
-    # platform, so we install it for that.  If not, we'll just copy to data dir
-    master=$3
-
-    valid_platform="false"
+    local image
     if [[ -z ${platform_file} ]]; then
         [[ -z "${platform_release}" ]] \
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            latest_image=$(curl ${CURL_OPTS} -k -sS \
-                ${MASTER_PLATFORM_URL}/ \
-                | ${GREP} "href=\"platform-${platform_release}*" \
-                | cut -d'"' -f2 | sort | tail -1)
-            if [[ ! -f "${ROOT}/cache/${latest_image}" ]]; then
-                echo "==> Downloading ${latest_image}"
-                (cd ${ROOT}/cache \
-                  && curl ${CURL_OPTS} \
-                  -k -O ${MASTER_PLATFORM_URL}/${latest_image}) \
-                  || fatal "Unable to download ${MASTER_PLATFORM_URL}/${latest_image}"
-            fi
-        else
-            latest_image=$(cd ${ROOT}/cache \
-                && ls platform-${platform_release}-*.tgz | head -1)
-            if [[ -z ${latest_image} ]]; then
-                fatal "Unable to find a platform image and we have no Internet."
-            fi
-        fi
 
-        image=${ROOT}/cache/${latest_image}
+        get_bit "platform/platform-${platform_release}-.*"
+        image=$get_bit_rv
+
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
             rm -f ${image}
             image=
             # unset image and try again
-            copy_platform "${platform_file}" "${platform_release}" "${master}"
+            copy_platform "${platform_file}" "${platform_release}"
         fi
     else
         image=${platform_file}
@@ -622,154 +746,88 @@ function copy_platform
         fi
     fi
 
-    if [[ -z ${master} || ${master} != "true" ]]; then
-        cp ${image} ${STAGE}/data/
-    else
-        export USING_PLATFORM=${image}
+    export USING_PLATFORM=${image}
 
-        LIVEIMG_VERSION=`basename ${image} \
-            | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+    LIVEIMG_VERSION=`basename ${image} \
+        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
-        echo "==> Unpacking `basename ${image}`"
-        (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
-            mv platform-* os/${LIVEIMG_VERSION}/platform) \
-            || fatal "Unable to unpack platform"
-        if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
-            (cd ${STAGE}/ \
-                && mkdir -p private \
-                && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
-                    private/root.password.${LIVEIMG_VERSION}) \
-                || fatal "Unable to move root.password"
-        fi
-        root_pw=$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})
-        echo "Root password is: '${root_pw}'"
-
-        # Create the menu.lst file
-
-        cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
-            -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
-            > ${STAGE}/boot/grub/menu.lst
-
-        # Rename log file here since we know the buildstamp now
-        mv ${LOGFILE} ${LOGDIR}/build.log.${LIVEIMG_VERSION}
-        LOGFILE="${LOGDIR}/build.log.${LIVEIMG_VERSION}"
-        rm -f ${LOGDIR}/latest
-        ln -s ${LOGFILE} ${LOGDIR}/latest
+    echo "==> Unpacking `basename ${image}`"
+    (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+        mv platform-* os/${LIVEIMG_VERSION}/platform) \
+        || fatal "Unable to unpack platform"
+    if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
+        (cd ${STAGE}/ \
+            && mkdir -p private \
+            && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
+                private/root.password.${LIVEIMG_VERSION}) \
+            || fatal "Unable to move root.password"
     fi
+    root_pw=$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})
+    echo "Root password is: '${root_pw}'"
+
+    # Create the menu.lst file
+    cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
+        -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
+        > ${STAGE}/boot/grub/menu.lst
+
+    # Rename log file here since we know the buildstamp now
+    mv ${LOGFILE} ${LOGDIR}/build.log.${THIS_TIMESTAMP}
+    LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
+    rm -f ${LOGDIR}/latest
+    ln -s ${LOGFILE} ${LOGDIR}/latest
 
     loops=
 }
 
-function get_agents
+function get_agentsshar
 {
     [[ -z "${loops}" ]] && loops=0
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
-    # We treat agents_shar as a pattern and grab the latest one which matches
-    agents_shar=$1
+    local agentsshar_branch=$1
 
-    # if agents_subdir is set, pull agents from that dir
-    agents_subdir="/$2"
-    if [[ ${agents_subdir} == '/' ]]; then
-        agents_subdir=
+    get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh"
+    local agentsshar_path=$get_bit_rv
+    get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum"
+    local agentsmd5_path=$get_bit_rv
+
+    # Make sure it's not corrupt.
+    local MD5=$(cat ${agentsmd5_path})
+    local ACTUAL_MD5=$(${MD5CMD} ${agentsshar_path} | cut -d' ' -f1)
+    if [[ -z ${MD5} ]] \
+        || [[ -z ${ACTUAL_MD5} ]] \
+        || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+        echo "Removing corrupt ${agentsshar_path}"
+        rm -f ${agentsshar_path} ${agentsmd5_path}
+        get_agentsshar ${agentsshar_branch}
     fi
 
-    # Figure out for sure which one we want
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        latest_agents=$(curl ${CURL_OPTS} \
-            -k -sS ${MASTER_PLATFORM_URL}/ur-scripts${agents_subdir}/ \
-            | ${GREP} "href=\"agents" \
-            | ${GREP} "${agents_shar}" \
-            | cut -d'"' -f2 | sort | tail -1)
-    else
-        latest_agents=$(cd ${ROOT}/cache \
-            && ls agents-*.sh \
-            | ${GREP} "${agents_shar}" \
-            | tail -1)
-    fi
-    if [[ -z ${latest_agents} ]]; then
-        fatal "Unable to find latest agents!"
-    fi
-    use_agents=${latest_agents}
-    if [[ ! -z ${AGENTS_SHAR_OVERRIDE} ]]; then
-        use_agents=$(basename ${AGENTS_SHAR_OVERRIDE})
-        cp $(dirname ${AGENTS_SHAR_OVERRIDE})/$(basename $use_agents .sh).* ${ROOT}/cache/
-    fi
-    if [[ -z ${use_agents} ]]; then
-        fatal "Unable to determine which agents to use!"
-    fi
-
-    echo "Using agents: [${use_agents}]"
-
-    if [[ ! -f "${ROOT}/cache/${use_agents}" ]] \
-        || [[ ! -f "${ROOT}/cache/`basename ${use_agents} .sh`.md5sum" ]]; then
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            echo "==> Downloading ${use_agents}"
-
-            AGENT_URL_BASE="${MASTER_PLATFORM_URL}/ur-scripts${agents_subdir}"
-            AGENT_URL="${AGENT_URL_BASE}/${use_agents}"
-            AGENT_MD_URL="${AGENT_URL_BASE}/`basename ${use_agents} .sh`.md5sum"
-
-            (cd ${ROOT}/cache && curl ${CURL_OPTS} \
-                -k -O ${AGENT_URL}) \
-                || fatal "Unable to download ${AGENT_URL}"
-            (cd ${ROOT}/cache && curl ${CURL_OPTS} \
-                -k -O ${AGENT_MD_URL}) \
-                || fatal "Unable to download ${AGENT_MD_URL}"
-        else
-            fatal "Don't have required '${use_agents}' " \
-                "and can't download (no Internet)"
-        fi
-    fi
-
+    echo "Copying $(basename agentsshar_path) to stage."
     mkdir -p ${STAGE}/ur-scripts
-
-    # Make sure it's not corrupt
-    if [[ -n "${use_agents}" ]] \
-        && [[ -f "${ROOT}/cache/${use_agents}" ]] \
-        && [[ -f "${ROOT}/cache/`basename ${use_agents} .sh`.md5sum" ]]; then
-
-        # Check the md5sum
-        MD5=$(cat ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum)
-        ACTUAL_MD5=$(${MD5CMD} ${ROOT}/cache/${use_agents} | cut -d' ' -f1)
-
-        if [[ -z ${MD5} ]] \
-            || [[ -z ${ACTUAL_MD5} ]] \
-            || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
-
-            echo "Removing corrupt ${use_agents}"
-            rm -f ${ROOT}/cache/${use_agents} \
-                ${ROOT}/cache/`basename ${use_agents} .sh`.md5sum
-            use_agents=
-            get_agents ${agents_shar} "${agents_subdir}"
-        fi
-
-        echo "==> Copying ${use_agents}"
-        cp ${ROOT}/cache/${use_agents} ${STAGE}/ur-scripts/${use_agents}
-    fi
+    cp ${agentsshar_path} ${STAGE}/ur-scripts/
 
     loops=
 }
 
-function copy_agents
+function copy_agentsshar
 {
-    # See if there's a specific agents we're supposed to use
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agents_shar} ]]; then
-        agents_shar=$(cat ${ROOT}/build.spec \
+    # See if there's a specific agents shar we're supposed to use
+    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agentsshar_branch} ]]; then
+        agentsshar_branch=$(cat ${ROOT}/build.spec \
             | ${ROOT}/bin/json agents-shar)
     fi
     if [[ -f ${ROOT}/build.spec.local ]]; then
-        agents_shar_local=$(cat ${ROOT}/build.spec.local \
+        agentsshar_branch_local=$(cat ${ROOT}/build.spec.local \
             | ${ROOT}/bin/json agents-shar)
-        if [[ -n ${agents_shar_local} ]]; then agents_shar=${agents_shar_local}; fi
+        if [[ -n ${agentsshar_branch_local} ]]; then agentsshar_branch=${agentsshar_branch_local}; fi
     fi
 
-    if [[ -z ${agents_shar} ]]; then
-        agents_shar="master"
+    if [[ -z ${agentsshar_branch} ]]; then
+        agentsshar_branch="master"
     fi
 
-    get_agents ${agents_shar} ""
+    get_agentsshar ${agentsshar_branch}
 }
 
 function copy_datasets
@@ -890,174 +948,55 @@ function copy_dataset
   ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 
+
+# Get a smartdc zone's FS tarball.
 #
-# RETURNS (via echo):
+# Usage:
+#   get_fs_tarball TARGET DST-DIR
 #
-# The value considered newer between a and b
-# If values are same: a
+# Example:
+#   get_fs_tarball 'ca/ca-pkg-master-.*.tar.bz2' cache/stage/zones/ca
+#       Here we want to find/download the latest ca-pkg-... tarball and copy
+#       it to cache/ca.tar.bz2 (where that "ca" is the basename of
+#       "zones/ca").
 #
-function newer_of
-{
-    a=$1
-    b=$2
-
-    if [[ -z ${b} ]]; then
-        fatal "is_newer() usage: is_newer \$a \$b"
-    fi
-
-    if [[ -z ${a} ]]; then
-        echo "${b}" # newer since we have b but not a!
-        return 0
-    fi
-
-    # Strip off .tar.bz2 or .tbz2 extension (if has one)
-    # break into elements separated by - _ or .
-    a_array=(`echo "${a}" \
-        | sed -e "s/\.tar\.bz2$//" \
-        | sed -e "s/\.tbz2$//" \
-        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
-    b_array=(`echo "${b}" \
-        | sed -e "s/\.tar\.bz2$//" \
-        | sed -e "s/\.tbz2$//" \
-        | sed -e "s/[-_.]/ /g" | tr -s ' '`)
-
-    idx=0
-    while [[ -n ${a_array[${idx}]} || -n ${b_array[${idx}]} ]]; do
-        a_val=${a_array[${idx}]}
-        b_val=${b_array[${idx}]}
-
-        #echo "a[${a_val}] vs b[${b_val}]" >&2
-
-        # if one is empty at this idx, return the other
-        if [[ -z ${a_val} ]]; then
-            echo "${b}"
-            return 0
-        fi
-        if [[ -z ${b_val} ]]; then
-            echo "${a}"
-            return 0
-        fi
-
-        if [[ ${a_val} == ${b_val} ]]; then
-            # same, so do nothing this loop
-            true
-        elif [[ ${a_val} =~ ^[0-9]+$ && ${b_val} =~ ^[0-9]+$ ]]; then
-            # all digits (sort numerically)
-            if [[ ${b_val} -gt ${a_val} ]]; then
-                echo "${b}"
-            else
-                echo "${a}"
-            fi
-            return 0
-        else
-            # not all digits (sort lexicographically)
-            if [[ ${b_val} > ${a_val} ]]; then
-                echo "${b}"
-            else
-                echo "${a}"
-            fi
-            return 0
-        fi
-
-        idx=$((${idx} + 1))
-    done
-    #echo "COMPARING: '${a}' vs '${b}'" >&2
-
-    echo "${a}"
-    return 0
-}
-
-function get_latest
-{
-    target=$1
-
-    [[ -z ${target} ]] && fatal "get_latest(): No target specified."
-
-    # not a file so assume it's a pattern, find the latest
-    FS_PATTERN=${target}
-
-    latest=
-
-    if [[ ${HAVE_INTERNET} == "true" ]]; then
-        for file in $(curl ${CURL_OPTS} -k -sS ${MASTER_PLATFORM_URL}/assets/ \
-            | ${GREP} "href=" \
-            | cut -d'"' -f2 \
-            | ${GREP} "${FS_PATTERN}"); do
-
-            #echo "LATEST BEF: ${latest}"
-            latest=$(newer_of "${latest}" "${file}")
-            #echo "LATEST NOW: ${latest}"
-        done
-        [[ $? -ne 0 || -z ${latest} ]] \
-            && fatal "Error getting file list for ${FS_PATTERN}"
-    else
-        for file in $(cd ${ROOT}/cache && ls -1 | ${GREP} "${FS_PATTERN}"); do
-            #echo "(cached) LATEST BEFORE: ${latest}"
-            latest=$(newer_of "${latest}" "${file}")
-            #echo "(cached) LATEST NOW: ${latest}"
-        done
-    fi
-
-    echo "${latest}"
-    return 0
-}
-
+#   get_fs_tarball /var/tmp/ca-pkg-master-1234.tar.bz2 cache/stage/zones/ca
+#       The "TARGET" can be a path to an existing file to use.
+#
 function get_fs_tarball
 {
-    target=$1
-    output=$2
+    local target=$1
+    local dst_dir=$2
 
-    if [[ -z ${output} ]] || [[ ! -d ${output} ]]; then
-        fatal "get_fs_tarball(): No output dir specified or not a directory."
+    if [[ -z ${dst_dir} ]] || [[ ! -d ${dst_dir} ]]; then
+        fatal "get_fs_tarball(): No destination dir specified or not a directory."
     fi
 
     [[ -z ${target} ]] && fatal "get_fs_tarball(): No target specified."
 
-    zone=$(basename ${output})
-    output_filename=${zone}.tar.bz2
-
+    # First get its and cache to cache/$zone.tar.bz2. Then we'll copy
+    # it to $dst_dir.
+    zone=$(basename ${dst_dir})
+    cache_path=${ROOT}/cache/${zone}.tar.bz2
     if [[ -f ${target} ]]; then
         # if this is the filename of an existing file, we'll use that
-        if [[ ${target} != "${ROOT}/cache/${output_filename}" ]]; then
-            cp ${target} ${ROOT}/cache/${output_filename}
+        if [[ ${target} != "${cache_path}" ]]; then
+            cp ${target} ${cache_path}
         fi
     else
         # not a file so assume it's a pattern, find the latest
-        FS_PATTERN=${target}
-
-        filename=$(get_latest ${target})
-
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            EXISTING_TIMECHECK=
-            [[ -f ${ROOT}/cache/${filename} ]] \
-                && EXISTING_TIMECHECK="-z ${ROOT}/cache/${filename}"
-
-            (cd ${ROOT}/cache \
-                && curl ${CURL_OPTS} -k ${EXISTING_TIMECHECK} \
-                -fO ${MASTER_PLATFORM_URL}/assets/${filename})
-            [[ $? -ne 0 ]] && fatal "Error getting file '${filename}'"
-
-            echo "==> Downloaded ${filename} for ${zone}"
-
-            cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
-        else
-            [[ -z ${filename} ]] \
-                && fatal "Don't have Internet and don't have cached " \
-                "version of ${FS_PATTERN}"
-
-            echo "==> Using [cached] ${filename} for ${zone}"
-            cp ${ROOT}/cache/${filename} ${ROOT}/cache/${output_filename}
-        fi
+        get_bit ${target}
+        local bit_cache_path=$get_bit_rv
+        cp ${bit_cache_path} ${cache_path}
     fi
 
-    if [[ -f ${ROOT}/cache/${output_filename} ]] \
-        && ! bzip2 -t ${ROOT}/cache/${output_filename}; then
-
-        fatal "Corrupt file ${output_filename}, please delete or fix and try again."
-    elif [[ ! -f ${ROOT}/cache/${output_filename} ]]; then
-        fatal "Unable to get file ${output_filename}"
+    # Validate and copy 
+    if [[ ! -f ${cache_path} ]]; then
+        fatal "Unable to get file '${cache_path}'."
+    elif ! bzip2 -t ${cache_path}; then
+        fatal "Corrupt file ${cache_path}, please delete or fix and try again."
     else
-        cp ${ROOT}/cache/${output_filename} ${output}/fs.tar.bz2
+        cp ${cache_path} ${dst_dir}/fs.tar.bz2
     fi
 }
 
@@ -1106,20 +1045,12 @@ function copy_zones
         export BILLAPI_DIR=${ZONE_DIR}/billing_api
         export UFDS_DIR=${ZONE_DIR}/ufds
     fi
-    for zone in $(ls ${STAGE}/zones); do
 
+    for zone in $(ls ${STAGE}/zones); do
         mkdir -p ${STAGE}/zones/${zone}
 
-        local override_var=$(echo $zone | tr '[:lower:]' '[:upper:]')_FS
-        override=$(eval echo \$${override_var})
-        FS_TARBALL=
         tarball_pattern=
         target_checkout=
-
-        if [[ ${HAVE_INTERNET} != "true" ]]; then
-            override=${ROOT}/cache/${zone}.tar.bz2
-        fi
-
         if [[ -f ${ROOT}/build.spec ]] && [[ -z ${tarball_pattern} ]]; then
             tarball_pattern=$(cat ${ROOT}/build.spec \
                 | ${ROOT}/bin/json "${zone}-tarball")
@@ -1134,8 +1065,6 @@ function copy_zones
                 | ${ROOT}/bin/json "${zone}-checkout")
             if [[ -n ${target_checkout_local} ]]; then target_checkout=${target_checkout_local}; fi
         fi
-
-
         if [[ -z ${target_checkout} ]]; then
             target_checkout=$GIT_BRANCH
         fi
@@ -1150,15 +1079,11 @@ function copy_zones
             cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
-        if [[ -n ${override} ]]; then
-            # If there was an override, use that withi highest priority
-            get_fs_tarball ${override} ${STAGE}/zones/${zone}
-        elif [[ -n ${tarball_pattern} ]]; then
-            # No override, so find latest that matches tarball_pattern
+        if [[ -n ${tarball_pattern} ]]; then
+            # Find latest that matches tarball_pattern.
             get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
         elif [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
             [ -d ${STAGE}/zones/${zone}/fs.root ]; then
-
             build_fs_tarball ${STAGE}/zones/${zone} ${target_checkout}
         fi
 
@@ -1256,8 +1181,8 @@ create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
-copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}" "true"
-copy_agents
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
+copy_agentsshar
 copy_datasets
 copy_zones
 copy_devtools
