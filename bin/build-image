@@ -770,9 +770,6 @@ function copy_platform
         -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
         > ${STAGE}/boot/grub/menu.lst
 
-    # Rename log file here since we know the buildstamp now
-    mv ${LOGFILE} ${LOGDIR}/build.log.${THIS_TIMESTAMP}
-    LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
     rm -f ${LOGDIR}/latest
     ln -s ${LOGFILE} ${LOGDIR}/latest
 
