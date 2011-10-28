@@ -53,7 +53,7 @@ else
 fi
 
 
-# See MG's Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
+# See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
 THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
@@ -68,7 +68,6 @@ THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
 RECIPE=$(pwd)/recipe.${THIS_VERSION}
 
 echo ">> Starting build at $(date)"
-
 
 
 function fatal
@@ -111,27 +110,25 @@ function check_npm
     fi
 }
 
+MERGED_SPEC=
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec);
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+fi
+
+function build_spec () {
+    local thing=$1;
+    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
+};
+
 function check_proxy
 {
     # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
-    if [[ -f "${ROOT}/build.spec" ]]; then
-        if [[ -z ${USE_PROXY} ]]; then
-            USE_PROXY=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json use-proxy)
-        fi
-        if [[ -z ${PROXY_IP} ]]; then
-            PROXY_IP=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json proxy-ip)
-        fi
-    fi
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        USE_PROXY_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json use-proxy)
-        if [[ -n ${USE_PROXY_LOCAL} ]]; then USE_PROXY=${USE_PROXY_LOCAL}; fi
-        PROXY_IP_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json proxy-ip)
-        if [[ -n ${PROXY_IP_LOCAL} ]]; then PROXY_IP=${PROXY_IP_LOCAL}; fi
-    fi
+    USE_PROXY=$(build_spec use-proxy)
+    PROXY_IP=$(build_spec proxy-ip)
 
     if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
         NOPROXY="true"
@@ -186,34 +183,9 @@ STAGE="${ROOT}/cache/stage"
 ERROR=0
 CLEANED=0
 
-CURL_OPTS=
-SPEED_LIMIT=
-if [[ -f "${ROOT}/build.spec" ]]; then
-    if [[ -z ${NO_INTERNET} ]]; then
-        NO_INTERNET=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json no-internet)
-    fi
-    if [[ -z ${SPEED_LIMIT} ]]; then
-        SPEED_LIMIT=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json speed-limit)
-    fi
-    if [[ -z ${CURL_OPTS} ]]; then
-        CURL_OPTS=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json curl-opts)
-    fi
-fi
-if [[ -f "${ROOT}/build.spec.local" ]]; then
-    NO_INTERNET_LOCAL=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json no-internet)
-    if [[ -n ${NO_INTERNET_LOCAL} ]]; then NO_INTERNET=${NO_INTERNET_LOCAL}; fi
-    SPEED_LIMIT_LOCAL=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json speed-limit)
-    if [[ -n ${SPEED_LIMIT_LOCAL} ]]; then SPEED_LIMIT=${SPEED_LIMIT_LOCAL}; fi
-    CURL_OPTS_LOCAL=$(cat ${ROOT}/build.spec.local \
-        | ${ROOT}/bin/json curl-opts)
-    if [[ -n ${CURL_OPTS_LOCAL} ]]; then CURL_OPTS=${CURL_OPTS_LOCAL}; fi
-fi
-
+CURL_OPTS=$(build_spec curl-opts)
+SPEED_LIMIT=$(build_spec speed-limit)
+NO_INTERNET=$(build_spec no-internet)
 
 if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
@@ -273,18 +245,12 @@ if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
     echo "WARNING: using 'MASTER_PLATFORM_URL' envvar is deprecated, use 'BITS_URL' instead"
     BITS_URL=$MASTER_PLATFORM_URL
 fi
-if [[ -z "$BITS_URL" && -f ${ROOT}/build.spec.local
-      && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)" ]]; then
-    BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-url)
+if [[ -z "$BITS_URL" ]]; then
+    BITS_URL=$(build_spec bits-url)
 fi
-if [[ -z "$BITS_URL" && -f ${ROOT}/build.spec.local
-      && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)" ]]; then
+if [[ -z "$BITS_URL" && ! -z "$(build_spec master-url)" ]]; then
     echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
-    BITS_URL=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json master-url)
-fi
-if [[ -z "$BITS_URL"
-      && ! -z "$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-url)" ]]; then
-    BITS_URL=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-url)
+    BITS_URL=$(build_spec master-url)
 fi
 [[ -z "$BITS_URL" ]] && fatal "Could not determine a BITS_URL."
 
@@ -301,14 +267,10 @@ fi
 
 # Get BITS_BRANCH if necessary.
 if [[ -z "$BITS_DIR" ]]; then
-    if [[ -z "$BITS_BRANCH" && -f ${ROOT}/build.spec.local
-          && ! -z "$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)" ]]; then
-        BITS_BRANCH=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json bits-branch)
+    if [[ -z "$BITS_BRANCH" ]]; then
+        BITS_BRANCH=$(build_spec bits-branch)
     fi
-    if [[ -z "$BITS_BRANCH"
-          && ! -z "$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-branch)" ]]; then
-        BITS_BRANCH=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json bits-branch)
-    fi
+
     [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
     echo "BITS_BRANCH: $BITS_BRANCH"
 fi
@@ -384,29 +346,7 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             ;;
     esac
 elif [[ ${PLATFORM} == 'Linux' ]]; then
-    case ${BUILD_TYPE} in
-        coal|vmware)
-            source ${ROOT}/bin/include-vmware-linux
-            version
-            ;;
-        usb)
-            echo "Linux-usb";
-            exit 0
-            ;;
-        upgrade)
-            ONLY_UPGRADE=true
-            source ${ROOT}/bin/include-tar-generic
-            version
-            echo "==> Building upgrade image"
-            ;;
-        tar)
-            source ${ROOT}/bin/include-tar-generic
-            version
-            ;;
-        *)
-            fatal "FATAL: Unsupported build type on Linux: ${BUILD_TYPE}"
-            ;;
-    esac
+    fatal "FATAL: Linux no longer supported"
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
         usb)
@@ -454,27 +394,9 @@ function test_rootperms
 
 function load_buildspec
 {
-    # local is read first and options are only read from build.spec
-    # only if they're not set in build.spec.local
-
-    if [[ -f "${ROOT}/build.spec" ]]; then
-        if [[ -z ${PLATFORM_RELEASE} ]]; then
-            PLATFORM_RELEASE=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json platform-release)
-        fi
-        if [[ -z ${BUILD_TGZ} ]]; then
-            BUILD_TGZ=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json build-tgz)
-        fi
-    fi
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        PLATFORM_RELEASE_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json platform-release)
-        if [[ -n ${PLATFORM_RELEASE_LOCAL} ]]; then PLATFORM_RELEASE=${PLATFORM_RELEASE_LOCAL}; fi
-        BUILD_TGZ_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json build-tgz)
-        if [[ -n ${BUILD_TGZ_LOCAL} ]]; then BUILD_TGZ=${BUILD_TGZ_LOCAL}; fi
-    fi
+    PLATFORM_RELEASE=$(build_spec platform-release)
+    BUILD_TGZ=$(build_spec build-tgz)
+    
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -810,14 +732,8 @@ function get_agentsshar
 function copy_agentsshar
 {
     # See if there's a specific agents shar we're supposed to use
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${agentsshar_branch} ]]; then
-        agentsshar_branch=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json agents-shar)
-    fi
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        agentsshar_branch_local=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json agents-shar)
-        if [[ -n ${agentsshar_branch_local} ]]; then agentsshar_branch=${agentsshar_branch_local}; fi
+    if [[ -z ${agentshar_branch} ]]; then
+        agentshar_branch=$(build_spec agents-shar)
     fi
 
     if [[ -z ${agentsshar_branch} ]]; then
@@ -832,16 +748,7 @@ function copy_datasets
     mkdir -p ${STAGE}/datasets
     mkdir -p ${ROOT}/datasets
 
-    datasets_json=
-    if [[ -f ${ROOT}/build.spec ]] && [[ -z ${datasets_json} ]]; then
-        datasets_json=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json "datasets")
-    fi
-    if [[ -f ${ROOT}/build.spec.local ]]; then
-        datasets_json_local=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json "datasets")
-        if [[ -n ${datasets_json_local} ]]; then datasets_json=${datasets_json_local}; fi
-    fi
+    datasets_json=$(build_spec datasets)
 
     [[ -n ${datasets_json} ]] \
         || fatal "Unable to find datasets information in build.spec"
@@ -1046,22 +953,9 @@ function copy_zones
     for zone in $(ls ${STAGE}/zones); do
         mkdir -p ${STAGE}/zones/${zone}
 
-        tarball_pattern=
-        target_checkout=
-        if [[ -f ${ROOT}/build.spec ]] && [[ -z ${tarball_pattern} ]]; then
-            tarball_pattern=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json "${zone}-tarball")
-            target_checkout=$(cat ${ROOT}/build.spec \
-                | ${ROOT}/bin/json "${zone}-checkout")
-        fi
-        if [[ -f ${ROOT}/build.spec.local ]]; then
-            tarball_pattern_local=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json "${zone}-tarball")
-            if [[ -n ${tarball_pattern_local} ]]; then tarball_pattern=${tarball_pattern_local}; fi
-            target_checkout_local=$(cat ${ROOT}/build.spec.local \
-                | ${ROOT}/bin/json "${zone}-checkout")
-            if [[ -n ${target_checkout_local} ]]; then target_checkout=${target_checkout_local}; fi
-        fi
+        tarball_pattern=$(build_spec ${zone}-tarball)
+        target_checkout=$(build_spec ${zone}-checkout)
+
         if [[ -z ${target_checkout} ]]; then
             target_checkout=$GIT_BRANCH
         fi
@@ -1109,15 +1003,7 @@ function copy_devtools
 
 function copy_webinfo
 {
-    if [[ -f "${ROOT}/build.spec" ]]; then
-        WEBINFO_CHECKOUT=$(cat ${ROOT}/build.spec \
-            | ${ROOT}/bin/json sdc-webinfo-checkout)
-    fi
-    if [[ -f "${ROOT}/build.spec.local" ]]; then
-        WEBINFO_CHECKOUT_LOCAL=$(cat ${ROOT}/build.spec.local \
-            | ${ROOT}/bin/json sdc-webinfo-checkout)
-        if [[ -n ${WEBINFO_CHECKOUT_LOCAL} ]]; then WEBINFO_CHECKOUT=${WEBINFO_CHECKOUT_LOCAL}; fi
-    fi
+    WEBINFO_CHECKOUT=$(build_spec sdc-webinfo-checkout)
     if [[ -z $WEBINFO_CHECKOUT ]]; then
         fatal "Could not determine sdc-webinfo check target."
     fi

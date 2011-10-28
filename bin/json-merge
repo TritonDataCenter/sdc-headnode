@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+
+var fs = require('fs');
+
+var left  = process.argv[2];
+var rights = process.argv[3];
+
+var merge = (function(){
+    
+    var toString = Object.prototype.toString,
+        obj = '[object Object]';
+
+    return function extend( deep /*, obj1, obj2, obj3 */ ) {
+        // take first argument, if its not a boolean
+        var args = arguments,
+            i = deep === true ? 1 : 0,
+            key,
+            target = args[i];
+        
+        for ( ++i; i < args.length; ++i ) {
+            for (key in args[i]) {
+                if ( deep === true && 
+                     target[key] && 
+                     // if not doing this check you may end in
+                     // endless loop if using deep option
+                     toString.call(args[i][key]) === obj &&
+                     toString.call(target[key]) === obj ) {
+                         
+                    extend( deep, target[key], args[i][key] );    
+                } else {
+                    target[key] = args[i][key];
+                }            
+            }
+        }  
+              
+        return target;
+    };
+}());
+
+function get_json_payload(a, b) {
+    var left_content  = fs.readFileSync(left, 'utf8');
+    var right_content = fs.readFileSync(rights, 'utf8');
+
+    var left_obj  = left_content  == '' ? {} : JSON.parse(left_content);
+    var right_obj = right_content == '' ? {} : JSON.parse(right_content);
+
+    var combined_obj = merge(true, left_obj, right_obj);
+    console.log(JSON.stringify(combined_obj));
+};
+
+fs.stat(left, function(err, stats) {
+    if(err) process.exit(1);
+
+    fs.stat(rights, function(err, stats) {
+        if(err) process.exit(1);
+
+        get_json_payload(left, rights);
+    });
+});
+

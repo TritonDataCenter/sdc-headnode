@@ -20,12 +20,6 @@ case "$PLATFORM" in
     TAR=gtar
     TAR_ROOT="--owner=root --group=root"
     ;;
-  Linux)
-    SUCMD='sudo'
-    MD5CMD="md5sum"
-    TAR=tar
-    TAR_ROOT="--owner=root --group=root"
-    ;;
   *)
     echo "Platform $PLATFORM not supported."
     exit 1
