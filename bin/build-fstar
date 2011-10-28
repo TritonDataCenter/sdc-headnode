@@ -103,13 +103,23 @@ case ${ZONE} in
 esac
 
 
+# Get CHECKOUT_TARGET.
+CHECKOUT_TARGET=
+if [[ -z "$CHECKOUT_TARGET" && -f ${ROOT}/build.spec.local ]]; then
+    CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "${ZONE}-checkout")
+fi
+if [[ -z "$CHECKOUT_TARGET" && -f ${ROOT}/build.spec ]]; then
+    CHECKOUT_TARGET=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "${ZONE}-checkout")
+fi
+
+
 # do in /tmp because only root can write in mnt
 fstar=${ROOT}/${ZONE}.tar.bz2
 rm -f ${fstar}
 mkdir -p /tmp/fs.${ZONE}.$$
 cp -pPR ${ZONEDIR}/fs.populate ${ZONEDIR}/fs.root /tmp/fs.${ZONE}.$$
 (cd /tmp/fs.${ZONE}.$$/fs.root \
-    && RECIPE_FILE=/dev/null ../fs.populate \
+    && CHECKOUT_TARGET=$CHECKOUT_TARGET RECIPE_FILE=/dev/null ../fs.populate \
     && tar -jcvf ${fstar} ./ \
     && rm -rf /tmp/fs.${ZONE}.$$)
 if [[ $? -ne 0 ]]; then
