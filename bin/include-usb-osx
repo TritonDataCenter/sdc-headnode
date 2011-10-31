@@ -3,7 +3,7 @@
 # Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
-SUCMD='sudo'
+SUCMD=''
 MD5CMD="md5 -r"
 GZCAT=gzcat
 TAR=tar
@@ -36,6 +36,7 @@ function cleanup
         if [[ -n ${IMG_DEV} ]]; then
             hdiutil detach ${IMG_DEV}
             IMG_DEV=
+            MNT_DIR=
         fi
     fi
     rm -rf /tmp/fs.*.$$
@@ -54,8 +55,9 @@ function unpack_image
 function mount_image
 {
     echo -n "==> Mounting new USB image... "
+    [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
     hdiutil attach ${ROOT}/cache/${OUTPUT_IMG} \
-        >/tmp/output.hdiattach.$$ -mountrandom /Volumes 2>&1
+        >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
     IMG_DEV=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
         | awk '{ print $1 }'`
     MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
@@ -84,8 +86,10 @@ function create_output
     branch_name=${branch_name##refs/heads/}
 
     if [[ -n ${MNT_DIR} ]]; then
-        ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+        hdiutil detach ${MNT_DIR} || /usr/bin/true
         sync; sync
+        IMG_DEV=
+        MNT_DEV=
     fi
 
     if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then

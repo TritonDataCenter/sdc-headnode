@@ -386,6 +386,7 @@ fi
 
 function test_rootperms
 {
+    [[ ${PLATFORM} == 'Darwin' ]] && return
     su_uid=$(${SUCMD} id -u)
     if [[ ${su_uid} -ne 0 ]]; then
         fatal "Can't get root priviledges."

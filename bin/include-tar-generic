@@ -9,7 +9,7 @@ GZCAT="zcat"
 IMG_TYPE="usb"
 case "$PLATFORM" in
   Darwin)
-    SUCMD='sudo'
+    SUCMD=''
     MD5CMD="md5 -r"
     TAR=gnutar
     TAR_ROOT=""
