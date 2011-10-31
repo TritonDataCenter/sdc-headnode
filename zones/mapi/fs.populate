@@ -2,14 +2,6 @@
 
 set -e
 
-dorebuild=0
-
-if [[ $1 == "-r" ]]; then
-    dorebuild=1
-    CHECKOUT_TARGET=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
-    checkout_sha=$(grep "^mapi-repo" $RECIPE_FILE | cut -d ' ' -f 2)
-fi
-
 if [[ -z "${CHECKOUT_TARGET}" ]]; then
     echo "error: mapi: no CHECKOUT_TARGET"
     exit 1
@@ -36,13 +28,6 @@ else
     cd mapi-repo
     (git checkout -b $(basename ${CHECKOUT_TARGET}) ${CHECKOUT_TARGET} || /usr/bin/true)
     mnfst_string="mapi-repo@"${CHECKOUT_TARGET}
-fi
-
-if [[ $dorebuild == 1 ]]; then
-    git reset --hard ${checkout_sha}
-else
-    head_sha=$(cat .git/$(git symbolic-ref HEAD))
-    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 touch ../mapi-VERSION

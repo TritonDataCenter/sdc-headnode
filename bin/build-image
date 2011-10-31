@@ -64,11 +64,7 @@ THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 # version string. Will change after 6.5 is final (TODO).
 THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
 
-
-RECIPE=$(pwd)/recipe.${THIS_VERSION}
-
 echo ">> Starting build at $(date)"
-
 
 function fatal
 {
@@ -295,19 +291,11 @@ PKGSRC_LIST=(
 PLATFORM=$(uname -s)
 
 if [[ $1 == "-r" ]]; then
+    # XXX - Temporary warning about recipes
+    echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
+    sleep 30
     shift
-    RECIPE=$1
-    # Turn relative paths in to absolute paths
-    if [[ -z $(dirname $RECIPE | grep ^/) ]]; then
-        RECIPE=$(pwd)/$RECIPE
-    fi
-    REBUILD_FROM_RECIPE=1
     shift
-    echo "Rebuilding from ${RECIPE}..."
-    if [[ ! -f $RECIPE ]]; then
-        echo "Could not find rebuild recipe file..."
-        exit 1
-    fi
 fi
 
 NO_CONFIG_FILE=0
@@ -922,15 +910,9 @@ function build_fs_tarball
         mkdir -p /tmp/fs.${zone}.$$
         cp -pPR ${zone_dir}/fs.populate ${zone_dir}/fs.root /tmp/fs.${zone}.$$
         rm -rf ${zone_dir}/fs.{populate,root}
-        if [[ $REBUILD_FROM_RECIPE == 1 ]]; then
-            (cd /tmp/fs.${zone}.$$/fs.root \
-                && RECIPE_FILE=$RECIPE ../fs.populate -r \
-                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
-        else
-            (cd /tmp/fs.${zone}.$$/fs.root \
-                && RECIPE_FILE=$RECIPE ../fs.populate \
-                && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
-        fi
+        (cd /tmp/fs.${zone}.$$/fs.root \
+            && ../fs.populate \
+            && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
         if [[ $? -ne 0 ]]; then
             fatal "Failed to populate fs.tar.bz2 for ${zone}"
         fi
@@ -1072,7 +1054,6 @@ copy_zones
 copy_devtools
 copy_webinfo
 
-$(mv $RECIPE ${STAGE}/recipe)
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image
     add_manifests

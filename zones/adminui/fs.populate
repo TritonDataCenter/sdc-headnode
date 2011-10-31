@@ -2,15 +2,6 @@
 
 set -e
 
-dorebuild=0
-
-if [[ $1 == "-r" ]]; then
-    dorebuild=1
-    # in this file we only care about the adminui repo
-    CHECKOUT_TARGET=$(grep "^adminui-repo" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
-    checkout_sha=$(grep "^adminui-repo" $RECIPE_FILE | cut -d ' ' -f 2)
-fi
-
 if [[ -z "${CHECKOUT_TARGET}" ]]; then
     echo "error: adminui: no CHECKOUT_TARGET"
     exit 1
@@ -44,11 +35,5 @@ mv consoleproxy ../
 # Remove all .git directories from the repo
 find . -type d -name ".git" -exec echo {} \;
 
-if [[ $dorebuild == 0 ]]; then
-    head=$(git symbolic-ref HEAD)
-    head_sha=$(cat .git/${head})
-    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
-else
-    git reset --hard ${checkout_sha}
-fi
-
+touch ../adminui-VERSION
+git describe --tags > ../adminui-VERSION

@@ -2,14 +2,6 @@
 
 set -e
 
-dorebuild=0
-
-if [[ $1 == "-r" ]]; then
-    dorebuild=1
-    CHECKOUT_TARGET=$(grep "^portal" $RECIPE_FILE | cut -d ' ' -f 1 | cut -d '@' -f 2)
-    checkout_sha=$(grep "^portal" $RECIPE_FILE | cut -d ' ' -f 2)
-fi
-
 if [[ -z "${CHECKOUT_TARGET}" ]]; then
     echo "error: portal: no CHECKOUT_TARGET"
     exit 1
@@ -51,13 +43,6 @@ else
 		# cd /opt/smartdc/portal/public/javascripts/ca-vis/d3/
 		# /opt/local/bin/git checkout-index -f -a --prefix=/opt/smartdc/portal/public/javascripts/ca-vis/d3/
 
-fi
-
-if [[ $dorebuild == 1 ]]; then
-    git reset --hard ${checkout_sha}
-else
-    head_sha=$(cat .git/$(git symbolic-ref HEAD))
-    echo ${mnfst_string}" "${head_sha} >> $RECIPE_FILE
 fi
 
 rm -f config.js

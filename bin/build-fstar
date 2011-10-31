@@ -119,7 +119,7 @@ rm -f ${fstar}
 mkdir -p /tmp/fs.${ZONE}.$$
 cp -pPR ${ZONEDIR}/fs.populate ${ZONEDIR}/fs.root /tmp/fs.${ZONE}.$$
 (cd /tmp/fs.${ZONE}.$$/fs.root \
-    && CHECKOUT_TARGET=$CHECKOUT_TARGET RECIPE_FILE=/dev/null ../fs.populate \
+    && CHECKOUT_TARGET=$CHECKOUT_TARGET ../fs.populate \
     && tar -jcvf ${fstar} ./ \
     && rm -rf /tmp/fs.${ZONE}.$$)
 if [[ $? -ne 0 ]]; then
