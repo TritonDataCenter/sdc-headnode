@@ -27,9 +27,6 @@ else
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
     git checkout ${CHECKOUT_TARGET}
-    
-    echo ${CHECKOUT_TARGET} > VERSION
-    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 fi
 
 
@@ -53,8 +50,6 @@ rm -rf .git .gitmodules .gitignore cfg/* tst Makefile docs/*.restdown tools
 # SDCClients checkout
 cd node_modules/sdc-clients
 git checkout ${CHECKOUT_TARGET}
-echo ${CHECKOUT_TARGET} > VERSION
-git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 rm -rf .git .gitmodules .gitignore
 
 # Back up to where we were (/opt/smartdc)

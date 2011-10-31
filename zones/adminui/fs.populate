@@ -52,5 +52,3 @@ else
     git reset --hard ${checkout_sha}
 fi
 
-touch ../adminui-VERSION
-git describe --tags > ../adminui-VERSION

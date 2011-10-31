@@ -44,9 +44,6 @@ fi
 
 # Clone into pwd/booter, but install to this dir:
 INSTALL_DIR=`pwd`/../root/opt/smartdc/booter
-#VERSION=$(git describe --tags)
 DESTDIR=${INSTALL_DIR} make install-dhcpd
 cd ..
 rm -rf booter
-#cd ${INSTALL_DIR}
-#echo ${VERSION} > ../booter-VERSION

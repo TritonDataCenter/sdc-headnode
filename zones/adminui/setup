@@ -145,10 +145,6 @@ echo "configuring adminui datasets"
 
 # This needs to run after scmgit pkgsrc package has been installed:
 
-# Get git revision:
-cd /opt/smartdc/adminui-repo
-REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
-
 cp -Rf /opt/smartdc/adminui-repo/* /opt/smartdc/adminui
 
 # Create some directories into adminui-data
@@ -167,13 +163,7 @@ rm -Rf /opt/smartdc/adminui/config
 ln -s /opt/smartdc/adminui-data/log /opt/smartdc/adminui/log
 ln -s /opt/smartdc/adminui-data/tmp /opt/smartdc/adminui/tmp
 ln -s /opt/smartdc/adminui-data/config /opt/smartdc/adminui/config
-# Save REVISION:
-echo "${REVISION}">/opt/smartdc/adminui-data/REVISION
-echo "${REVISION}">/opt/smartdc/adminui/REVISION
-# Save VERSION (Updates based on this):
-APP_VERSION=$(/opt/local/bin/git describe --tags)
-echo "${APP_VERSION}">/opt/smartdc/adminui-data/VERSION
-echo "${APP_VERSION}">/opt/smartdc/adminui/VERSION
+
 # Cleanup build products:
 cd /root/
 rm -Rf /opt/smartdc/adminui-repo

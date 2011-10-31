@@ -29,8 +29,6 @@ else
 
     # UFDS checkout
     git checkout ${CHECKOUT_TARGET}
-    echo ${CHECKOUT_TARGET} > VERSION
-    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
     rm -rf .git .gitmodules .gitignore \
         cfg/*.coal cfg/config.json \

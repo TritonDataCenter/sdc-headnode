@@ -33,8 +33,6 @@ else
 
     # billAPI checkout
     git checkout ${CHECKOUT_TARGET}
-    echo ${CHECKOUT_TARGET} > VERSION
-    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
 
     # Install NPM modules
     npm install --node-version=0.4.9
@@ -47,8 +45,6 @@ else
     # SDCClients checkout
     cd node_modules/sdc-clients
     git checkout ${CHECKOUT_TARGET}
-    echo ${CHECKOUT_TARGET} > VERSION
-    git log ${CHECKOUT_TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
     rm -rf .git .gitmodules .gitignore
 
     # Back up to where we were (/opt/smartdc)
