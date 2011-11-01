@@ -66,6 +66,7 @@ function install_node_config
                 capi_http_admin_pw \
                 dhcp_lease_time \
                 zonetracker_database_path \
+                amon_client_url \
                 ; do
 
                 value=$(eval echo \${${opt}})
