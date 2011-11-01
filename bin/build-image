@@ -374,6 +374,7 @@ fi
 
 function test_rootperms
 {
+    # root access is no longer required on OSX
     [[ ${PLATFORM} == 'Darwin' ]] && return
     su_uid=$(${SUCMD} id -u)
     if [[ ${su_uid} -ne 0 ]]; then
@@ -721,8 +722,8 @@ function get_agentsshar
 function copy_agentsshar
 {
     # See if there's a specific agents shar we're supposed to use
-    if [[ -z ${agentshar_branch} ]]; then
-        agentshar_branch=$(build_spec agents-shar)
+    if [[ -z ${agentsshar_branch} ]]; then
+        agentsshar_branch=$(build_spec agents-shar)
     fi
 
     if [[ -z ${agentsshar_branch} ]]; then

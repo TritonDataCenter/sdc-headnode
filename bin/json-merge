@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/*
+    This tool takes 2 json files and print out a merged version of the files
+    with the right hand side file taking precedence
+
+        ./json-merge left.json right.json
+*/
+
 var fs = require('fs');
 
 var left  = process.argv[2];

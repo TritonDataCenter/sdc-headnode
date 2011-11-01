@@ -3,6 +3,7 @@
 # Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
 #
 
+# sudo is no longer required on OSX
 SUCMD=''
 MD5CMD="md5 -r"
 GZCAT=gzcat

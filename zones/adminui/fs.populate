@@ -35,5 +35,3 @@ mv consoleproxy ../
 # Remove all .git directories from the repo
 find . -type d -name ".git" -exec echo {} \;
 
-touch ../adminui-VERSION
-git describe --tags > ../adminui-VERSION

@@ -9,6 +9,7 @@ GZCAT="zcat"
 IMG_TYPE="usb"
 case "$PLATFORM" in
   Darwin)
+    # sudo is no longer required on OSX builds
     SUCMD=''
     MD5CMD="md5 -r"
     TAR=gnutar
