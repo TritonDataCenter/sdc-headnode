@@ -87,7 +87,7 @@ cat > /var/tmp/amon_manifest.xml <<HERE
     </dependency>
 
     <exec_method type="method" name="start"
-      exec="/opt/smartdc/amon/bin/amon-master -f %{config_file} -p 80 &amp;"
+      exec="/opt/smartdc/amon/master/bin/amon-master -f %{config_file} -p 80 &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/amon">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
