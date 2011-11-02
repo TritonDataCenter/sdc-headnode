@@ -1033,6 +1033,7 @@ function create_upgrade
         zones \
     )
 
+    USING_PLATFORM=$(ls -1 $ROOT/cache/platform-*.tgz)
     mkdir -p ${ROOT}/cache/upgrade/platform
     cp ${USING_PLATFORM} ${ROOT}/cache/upgrade/platform
 }
