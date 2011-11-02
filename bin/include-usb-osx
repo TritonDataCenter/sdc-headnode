@@ -66,19 +66,6 @@ function mount_image
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
 }
 
-function add_manifests
-{
-    # build manifest of USB files + move in boot_archive manifest
-    rm -f ${ROOT}/cache/usb_key.manifest
-    (cd ${STAGE}/ \
-        && find . -type f -exec ${MD5CMD} {} \;) \
-        > ${ROOT}/cache/usb_key.manifest
-    [[ $? -eq 0 ]] || fatal "Unable to add manifests"
-    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
-        ${ROOT}/cache/boot_archive.manifest
-    chmod 444 ${ROOT}/cache/*.manifest
-}
-
 function create_output
 {
     echo "==> Checking current GIT branch"

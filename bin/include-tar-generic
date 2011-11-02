@@ -57,16 +57,6 @@ function mount_image
     mkdir -p ${MNT_DIR}
 }
 
-function add_manifests
-{
-    # build manifest of USB files + move in boot_archive manifest
-    rm -f ${ROOT}/cache/usb_key.manifest
-    (cd ${STAGE}/ && find . -type f -exec ${MD5CMD} {} \;) > ${MNT_DIR}/usb_key.manifest
-    mv -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
-        ${MNT_DIR}/boot_archive.manifest
-    chmod 444 ${MNT_DIR}/boot_archive.manifest ${MNT_DIR}/usb_key.manifest
-}
-
 function create_output
 {
     echo "==> Checking current GIT branch"
@@ -75,6 +65,7 @@ function create_output
 
     if [[ -f ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ]]; then
         echo "==> Copying root.password"
+        if [[ -e $ROOT/cache/root.password.${LIVEIMG_VERSION} ]]; then rm -f $ROOT/cache/root.password.${LIVEIMG_VERSION}; fi
         ${SUCMD} cp ${ROOT}/cache/stage/private/root.password.${LIVEIMG_VERSION} ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
         ${SUCMD} chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi

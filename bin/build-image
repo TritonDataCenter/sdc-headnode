@@ -305,6 +305,18 @@ if [[ $1 == "-c" ]]; then
     echo "Building with no config file in the image. "
 fi
 
+STAGE_DIR=
+if [[ $1 == "-s" ]]; then
+    shift
+    STAGE_DIR=$1
+    shift
+    if [[ ! -e "$STAGE_DIR" ]]; then
+        fatal "Could not loacte stage directory '$STAGE_DIR'"
+    fi
+    echo "Using stage directory at '$STAGE_DIR'"
+    LIVEIMG_VERSION=$(ls -1 $STAGE_DIR/os)
+fi
+
 BUILD_TYPE=$1
 if [[ -z ${BUILD_TYPE} ]]; then
     BUILD_TYPE="coal"
@@ -1039,21 +1051,38 @@ function pack_upgrade
         && GZIP=-9 ${TAR} -zcvf ${ROOT}/upgrade-${THIS_BUILDSTAMP}.tgz upgrade)
 }
 
+function add_manifests
+{
+    # build manifest of USB files + move in boot_archive manifest
+    rm -f ${ROOT}/cache/usb_key.manifest
+    (cd ${STAGE}/ \
+        && find . -type f -exec ${MD5CMD} {} \;) \
+        > ${ROOT}/cache/usb_key.manifest
+    [[ $? -eq 0 ]] || fatal "Unable to add manifests"
+    rm -f ${ROOT}/cache/boot_archive.manifest || true
+    cp ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
+        ${ROOT}/cache/boot_archive.manifest
+    chmod 444 ${ROOT}/cache/*.manifest
+}
+
 # Main()
 
 check_nodejs
 check_npm
 test_rootperms
-create_directories
-load_buildspec
-copy_base
-copy_pkgsrc
-copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
-copy_agentsshar
-copy_datasets
-copy_zones
-copy_devtools
-copy_webinfo
+
+if [[ -z "$STAGE_DIR" ]]; then
+    create_directories
+    load_buildspec
+    copy_base
+    copy_pkgsrc
+    copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
+    copy_agentsshar
+    copy_datasets
+    copy_zones
+    copy_devtools
+    copy_webinfo
+fi
 
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image
