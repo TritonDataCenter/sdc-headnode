@@ -1085,10 +1085,11 @@ if [[ -z "$STAGE_DIR" ]]; then
     copy_devtools
     copy_webinfo
 fi
+    
+copy_config
 
 if [[ -z ${ONLY_UPGRADE} ]]; then
     unpack_image
-    copy_config
     add_manifests
     mount_image
     trap 'cleanup' EXIT
