@@ -22,7 +22,7 @@ declare -A ZONE_EXTERNAL_IP=()
 export SDC_UPGRADE_DIR=/var/tmp/upgrade
 
 # This is the dependency order that extra zones must be installed in.
-ROLE_ORDER="ca riak ufds redis adminui billapi cloudapi portal"
+ROLE_ORDER="ca riak ufds redis amon adminui billapi cloudapi portal"
 
 function cleanup
 {
