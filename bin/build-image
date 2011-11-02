@@ -1074,7 +1074,6 @@ test_rootperms
 if [[ -z "$STAGE_DIR" ]]; then
     create_directories
     load_buildspec
-    copy_base
     copy_pkgsrc
     copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
     copy_agentsshar
@@ -1085,6 +1084,7 @@ if [[ -z "$STAGE_DIR" ]]; then
 fi
 
 if [[ -z ${ONLY_UPGRADE} ]]; then
+    copy_base
     unpack_image
     add_manifests
     mount_image
