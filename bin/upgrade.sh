@@ -34,11 +34,11 @@ CORE_ZONES="assets dhcpd mapi rabbitmq"
 OLD_EXTRA_ZONES="adminui billapi ca capi cloudapi portal riak"
 
 # This is the dependency order that extra zones must be installed in.
-ROLE_ORDER="ca riak ufds redis adminui billapi cloudapi portal"
+ROLE_ORDER="ca riak ufds redis amon adminui billapi cloudapi portal"
 
 # This is the list of zones that did not exist in 6.5 and which have
 # no 6.5 equivalent (e.g. ufds replaces capi, so its not in this list).
-BRAND_NEW_ZONES="redis"
+BRAND_NEW_ZONES="redis amon"
 
 mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
@@ -493,6 +493,15 @@ function cleanup_config
 		DONE
 	fi
 
+	# If upgrading from a system without amon, add amon entries
+	egrep -s amon_ /mnt/usbkey/config
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		amon_root_pw=$CONFIG_adminui_root_pw
+		amon_admin_pw=$CONFIG_adminui_admin_pw
+		DONE
+	fi
+
 	cp /tmp/config.$$ /mnt/usbkey/config
 	cp /mnt/usbkey/config /usbkey/config
 	rm -f /tmp/config.$$ /tmp/upg.$$
@@ -534,6 +543,15 @@ function cleanup_config
 		redis_cpu_shares=50
 		redis_max_lwps=1000
 		redis_memory_cap=128m
+		DONE
+	fi
+
+	egrep -s amon_ /mnt/usbkey/config.inc/generic
+	if [ $? != 0 ]; then
+		cat <<-DONE >>/tmp/config.$$
+		amon_cpu_shares=100
+		amon_max_lwps=1000
+		amon_memory_cap=256m
 		DONE
 	fi
 
