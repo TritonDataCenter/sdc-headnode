@@ -202,7 +202,7 @@ check_mapi_err()
 			s=index($0, "\"")
 			tmp=substr($0, s + 1)
 			print substr(tmp, 1, length(tmp) - 1)
-			exit 1
+			exit 0
 		}
 	}'`
 	return 0
@@ -641,7 +641,7 @@ function recreate_extra_zones
 
 		echo "Setup $role zone"
 		reuse_ip_cmd=""
-		[ -n "$ip_addrs" ] && reuse_ip_cmd="-R -I $ip_addrs"
+		[ -n "$ip_addrs" ] && reuse_ip_cmd="-I $ip_addrs"
 		zname=`sdc-setup -c headnode $reuse_ip_cmd -r $role 2>&4 | \
 		    nawk '{if ($1 == "New") print $3}'`
 
@@ -739,14 +739,68 @@ function install_platform
 function register_platform
 {
 	echo "Register new platform with MAPI"
-	local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
-	if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
-		${usbcpy}/scripts/install-platform.sh \
-		    file://${platformupdate} 1>&4 2>&1
-		[ $? != 0 ] && \
-		    echo "WARNING: failed to register platform with MAPI" \
+
+	local plat_id
+
+	# We can still see intermittent mapi errors after we just started mapi
+	# back up, even though we already checked mapi and it seemed to be
+	# running. Retry this command a few times if necessary.
+	local cnt=0
+	while [ $cnt -lt 5 ]; do
+		curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+		    http://$CONFIG_mapi_admin_ip/platform_images \
+		    -d platform_type=smartos -d name=$platformversion -X POST \
+		    >/tmp/sdc$$.out 2>&1
+		check_mapi_err
+		if [ -z "$emsg" ]; then
+			plat_id=`json </tmp/sdc$$.out | nawk '{
+				if ($1 == "\"id\":") {
+					# strip comma
+					print substr($2, 1, length($2) - 1)
+					exit 0
+				}
+			    }'`
+			rm -f /tmp/sdc$$.out
+			[ -n "$plat_id" ] && break
+		fi
+
+		echo "Error: MAPI failed to register platform" >/dev/stderr
+		printf "       %s\n" "$emsg" >/dev/stderr
+		echo "Retrying in 60 seconds" >/dev/stderr
+
+		sleep 60
+		cnt=`expr $cnt + 1`
+	done
+	if [ $cnt -ge 5 ]; then
+		echo "Error: registering platform failed after 5 retries" \
 		    >/dev/stderr
+		return
 	fi
+
+	echo "Make new platform the default for compute nodes"
+
+	curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/platform_images/$plat_id/make_default \
+	    -d '' -X PUT 1>&4 2>&1
+
+	# Get headnode server_role (probably also 1, but get it just in case).
+	local srole_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/servers/1 | json | nawk '{
+		if ($1 == "\"server_role_id\":") {
+			# strip comma
+			print substr($2, 1, length($2) - 1)
+			exit 0
+		}
+	    }'`
+
+	if [ -z "$srole_id" ]; then
+		echo "WARNING: unable to find headnode server role" >/dev/stderr
+		return
+	fi
+
+	curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/server_roles/$srole_id \
+	    -d platform_image_id=$plat_id -X PUT 1>&4 2>&1
 }
 
 function upgrade_agents
@@ -911,6 +965,8 @@ echo "${new_version}" > ${usbmnt}/version
 # mapi DB.
 echo "Cleaning up MAPI database"
 delete_new_sdc_zones
+# Wait a bit for zone deletion to finish
+sleep 10
 
 recreate_extra_zones
 
@@ -925,6 +981,12 @@ do
         cp /usbkey/config $assetdir/hn_config
         cp /usbkey/config.inc/generic $assetdir/hn_generic
 done
+assetdir=/zones/assets/root/assets/extra/upgrade
+rm -rf $assetdir
+mkdir -p $assetdir
+cp upgrade_cn $assetdir
+cp /usbkey/ur-scripts/$agents $assetdir/agents.sh
+cat /usbkey/config /usbkey/config.inc/generic >$assetdir/config
 
 message="
 The new image has been activated. You must reboot the system for the upgrade

@@ -1,0 +1,384 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+# SUMMARY
+#
+# This compute node upgrade script is delivered inside the upgrade image, so
+# this script is from the latest build.  During headnode upgrade it is copied
+# to the assets zone so that compute nodes can upgrade themselves using
+# sdc-upgrade after the headnode upgrade has completed.
+#
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
+
+# set -o xtrace
+
+declare -A ZONE_ADMIN_IP=()
+declare -A ZONE_EXTERNAL_IP=()
+
+export SDC_UPGRADE_DIR=/var/tmp/upgrade
+
+# This is the dependency order that extra zones must be installed in.
+ROLE_ORDER="ca riak ufds redis adminui billapi cloudapi portal"
+
+function cleanup
+{
+	[ -e $conf_bak ] && mv $conf_bak /opt/smartdc/config/node.config
+}
+
+function fatal
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    exit 1
+}
+
+function upgrade_pools
+{
+    #
+    # All ZFS pools should have atime=off.  If an operator wants to enable atime
+    # on a particular dataset, this setting won't affect that setting, since any
+    # datasets with a modified atime property will no longer inherit that
+    # setting from the pool's setting.
+    #
+    local pool
+    for pool in $(zpool list -H -o name); do
+         zfs set atime=off ${pool} || \
+              fatal "failed to set atime=off on pool ${pool}"
+    done
+}
+
+# Get the mapi network uri for the given tag (admin or external)
+function get_net_tag_uri
+{
+	NET_URI=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/networks | json | nawk -v tag=$1 '{
+		if ($1 == "\"name\":") {
+			# strip quotes and comma
+			if (substr($2, 2, length($2) - 3) == tag)
+				found = 1
+		}
+		if (found && $1 == "\"uri\":") {
+			# strip quotes and comma
+			print substr($2, 2, length($2) - 3)
+			exit 0
+		}
+	    }'`
+}
+
+# $1 zone name
+# $2 role
+# Save the zone's admin and external IP addrs in the associative arrays keyed
+# on the zone's role.
+function get_zone_addrs
+{
+	addr=`zonecfg -z $1 info net | nawk -v nic="admin" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_ADMIN_IP[$2]="$addr"
+
+	addr=`zonecfg -z $1 info net | nawk -v nic="external" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_EXTERNAL_IP[$2]="$addr"
+}
+
+function get_sdc_zonelist
+{
+	ZONE_LIST=""
+	ROLE_LIST=""
+
+	RIAK_FOUND=0
+
+	# Check for extra zones
+	for zone in `zoneadm list -cp | cut -f2 -d:`
+	do
+		[ "$zone" == "global" ] && continue
+
+		# Only need to check for new-style role-based zone
+		zpath=`zoneadm -z $zone list -p | cut -d: -f4`
+		sdir=`ls -d $zpath/root/var/smartdc/* 2>/dev/null`
+		[ -z "$sdir" ] && continue
+
+		role=${sdir##*/}
+		ZONE_LIST="$ZONE_LIST $zone"
+		ROLE_LIST="$ROLE_LIST $role"
+		get_zone_addrs $zone $role
+
+		[ $role == "riak" ] && RIAK_FOUND=1
+	done
+}
+
+function shutdown_sdc_zones
+{
+	for zone in $ZONE_LIST
+	do
+		zoneadm -z $zone halt
+	done
+}
+
+function delete_sdc_zones
+{
+	local creds="admin:$CONFIG_mapi_http_admin_pw"
+	local mapi=$CONFIG_mapi_admin_ip
+
+	for zone in $ZONE_LIST
+	do
+		echo "    $zone"
+		curl -s -u $creds \
+		    http://${mapi}/zones/$zone/mark_as_deactivated \
+	            -X POST >/dev/null 2>&1
+
+		sleep 1
+		curl -i -s -u $creds http://${mapi}/zones/$zone -X DELETE \
+		    >/tmp/sdc$$.out 2>&1
+
+		check_mapi_err
+		if [ -n "$emsg" ]; then
+			printf "Error: deleting zone %s\n" $zone >/dev/stderr
+			printf "       %s\n" "$emsg" >/dev/stderr
+			rm -f /tmp/sdc$$.out
+			continue
+		fi
+		rm -f /tmp/sdc$$.out
+
+		wait_for_done "Warning: deleting zone $zone timed out"
+	done
+}
+
+# $1 zone
+# $2 role
+function restore_sdc_zone
+{
+	BUDIR=$SDC_UPGRADE_DIR/bu.tmp
+
+	if [ ! -d $BUDIR/$2 ]; then
+		echo "Skipping zone $2 ($1), stateless"
+		return
+	fi
+
+	# Pull over the role's restore script
+	mkdir /tmp/restore.$$
+	curl -k -o /tmp/restore.$$/restore \
+	    -s $CONFIG_assets_admin_ip:/extra/$2/restore
+
+	# Check if we got an <html> file not found.
+	# That means that this role has no restore script.
+	hd=$(dd if=/tmp/restore.$$/restore bs=1 count=6 2>/dev/null)
+	if [ "$hd" == "<html>" ]; then
+		echo "Skipping zone $2 ($1), missing restore script"
+		rm -rf /tmp/restore.$$
+		return
+	fi
+
+	echo "Restoring zone $2 ($1)"
+
+	chmod +x /tmp/restore.$$/restore
+	/tmp/restore.$$/restore $1 $BUDIR >/dev/null 2>&1
+	res=$?
+	[ $res != 0 ] && warn "$res restoring $1"
+
+	rm -rf /tmp/restore.$$
+}
+
+# Use mapi to reprovision the extra zones.
+function recreate_extra_zones
+{
+	NEW_EXTRA_ZONES=""
+
+	for role in $ROLE_ORDER
+	do
+		# Check to see if we should install a zone with a given role
+		match=0
+		for i in $ROLE_LIST
+		do
+			if [ $role == $i ]; then
+				match=1
+				break
+			fi
+		done
+
+		[ $match == 0 ] && continue
+
+		# Specify original IP address(es) (if we had that zone)
+		ip_addrs=""
+		[ -n "${ZONE_ADMIN_IP[$role]}" ] && \
+		    ip_addrs="${ZONE_ADMIN_IP[$role]}"
+		if [ -n "${ZONE_EXTERNAL_IP[$role]}" ]; then
+			if [ -n "$ip_addrs" ]; then
+		    		ip_addrs="$ip_addrs,${ZONE_EXTERNAL_IP[$role]}"
+			else
+		    		ip_addrs="${ZONE_EXTERNAL_IP[$role]}"
+			fi
+		fi
+
+		cn_name=`uname -n`
+
+		echo "Setup $role zone"
+		reuse_ip_cmd=""
+		[ -n "$ip_addrs" ] && reuse_ip_cmd="-I $ip_addrs"
+		zname=`sdc-setup -c $cn_name -R $reuse_ip_cmd -r $role | \
+		    nawk '{if ($1 == "New") print $3}'`
+
+		if [ -z "$zname" ]; then
+			echo "WARNING: failure setting up $role zone" \
+			    >/dev/stderr
+			continue
+		fi
+
+		NEW_EXTRA_ZONES="$zname $NEW_EXTRA_ZONES"
+
+		# Wait up to 10 minutes for asynchronous role setup to finish
+		echo "Wait for zone to finish seting up"
+		cnt=0
+		while [ $cnt -lt 60 ]; do
+			sleep 10
+			[ -e /zones/$zname/root/var/svc/setup_complete ] && \
+			    break
+			cnt=`expr $cnt + 1`
+		done
+		[ $cnt == 60 ] && \
+		    echo "WARNING: setup did not finish after 10 minutes"
+
+		# restore this zone from backup
+		zoneadm -z $zname halt
+		restore_sdc_zone $zname $role
+
+		echo "$role zone done"
+	done
+
+	echo "Booting extra zones"
+	for zone in $NEW_EXTRA_ZONES
+	do
+		zoneadm -z $zone boot
+	done
+
+	rm -rf $SDC_UPGRADE_DIR/bu.tmp
+}
+
+# Make sure we have a new enough /usr/node_modules
+[ ! -e /usr/node_modules/system.js ] && \
+    fatal "You must reboot the system on the latest image to upgrade."
+
+# Make sure we have a sdc-setup that supports reprovisioning on CNs
+sdc-setup -R >/dev/null 2>&1
+[ $? != 0 ] && \
+    fatal "You must reboot the system on the latest image to upgrade."
+
+. /smartdc/lib/sdc-common
+
+. /lib/sdc/config.sh
+load_sdc_sysinfo
+load_sdc_config
+
+upgrade_pools
+
+# $SDC_UPGRADE_DIR was created by the sdc-upgrade command and we're running
+# this script from there.
+
+cd $SDC_UPGRADE_DIR
+curl -k -o agents.sh -s $CONFIG_assets_admin_ip:/extra/upgrade/agents.sh
+
+hd=$(dd if=$SDC_UPGRADE_DIR/agents.sh bs=1 count=6 2>/dev/null)
+if [ "$hd" == "<html>" ]; then
+	echo "No agent upgrade"
+else
+	echo "Upgrading agents"
+	bash $SDC_UPGRADE_DIR/agents.sh >$SDC_UPGRADE_DIR/upgrade.log 2>&1
+fi
+rm -rf $SDC_UPGRADE_DIR/agents.sh
+
+get_sdc_zonelist
+
+if [ -z "$ROLE_LIST" ]; then
+	echo "No zones to upgrade"
+	exit 0
+fi
+
+curl -k -o config -s $CONFIG_assets_admin_ip:/extra/upgrade/config
+hd=$(dd if=$SDC_UPGRADE_DIR/config bs=1 count=6 2>/dev/null)
+[ "$hd" == "<html>" ] && fatal "Missing config file"
+
+conf_bak=/opt/smartdc/config/node.config.bak
+trap cleanup EXIT
+
+# Save the CN config, use the remote one we just pulled instead
+cp /opt/smartdc/config/node.config $conf_bak
+cp config /opt/smartdc/config/node.config
+
+# Reload config values with the data we just pulled over
+load_sdc_config
+
+# Make sure we can talk to MAPI
+curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+    http://$CONFIG_mapi_admin_ip/servers >/tmp/sdc$$.out 2>&1
+check_mapi_err
+rm -f /tmp/sdc$$.out
+[ -n "$emsg" ] && fatal "MAPI API is not responding"
+
+if [ $RIAK_FOUND == 1 ]; then
+	message="
+We will be upgrading RIAK.  If you have other nodes in the RIAK cluster, you
+must now stop riak on those nodes and detach them from the cluster.  You should
+run the following commands in all of the other non-local RIAK zones:
+
+    riak-admin leave
+    riak stop
+
+After you have finished detaching the non-local RIAK zones,
+press [enter] to continue. "
+
+	printf "$message"
+	read continue;
+fi
+
+shutdown_sdc_zones
+
+# Run full backup then unpack the backup archive.
+echo "Creating a backup"
+sdc-backup -d $SDC_UPGRADE_DIR
+bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
+[ -z "$bfile" ] && fatal "unable to make a backup"
+
+mkdir $SDC_UPGRADE_DIR/bu.tmp
+(cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
+
+echo "Cleaning up existing zones"
+delete_sdc_zones
+# Wait a bit for zone deletion to finish
+sleep 10
+
+recreate_extra_zones
+
+message="
+The compute node has been upgraded. You should reboot the system for the
+upgrade to take effect.\n\n"
+printf "$message"
+
+exit 0
