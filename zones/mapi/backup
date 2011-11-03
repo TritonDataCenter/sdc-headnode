@@ -15,7 +15,10 @@ if [[ ! -e "${TARGET_DIR}" ]]; then
   mkdir -p ${TARGET_DIR}
 fi
 
-VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/VERSION)
+# Use the mapi VERSION file, not the mapi-data VERSION file, since the app
+# dataset version can change after an upgrade but the mapi-data version would
+# be restored.
+VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/VERSION)
 APP_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-app-${VERSION}$")
 DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
 STAMP=$(date +'%F-%H-%M-%S-%Z')
@@ -98,6 +101,7 @@ fi
 echo "==> Removing temporary snapshots of '${ZONE}'"
 /usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION}"
 /usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}"
+rm -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump
 
 # Copy additional files
 cp /zones/$ZONE/root/opt/smartdc/node.config/node.config \

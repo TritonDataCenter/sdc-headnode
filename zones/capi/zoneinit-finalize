@@ -169,7 +169,7 @@ chmod 0555 /home
 # import the application services:
 if [[ -n ${KEEP_DATA_DATASET} ]]; then
   data_version=$(cat /opt/smartdc/${app_name}-data/VERSION)
-  dump_file_path=$(ls /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump)
+  dump_file_path=$(ls -t /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump | head -1)
   dump_file=$(basename ${dump_file_path%.*})
   db_backup_version=$(echo ${dump_file} | cut -c '6-')
 
@@ -193,6 +193,7 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
       echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${app_name}-data/${app_name}-${db_backup_version}.pg_dump'."
       exit 1
     fi
+    rm -f ${dump_file_path}
   else
     echo "FATAL: Cannot find '${app_name}-${db_backup_version}.pg_dump' on the zone. Unable to restore."
     exit 1
