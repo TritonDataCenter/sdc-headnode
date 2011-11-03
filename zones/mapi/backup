@@ -101,6 +101,7 @@ fi
 echo "==> Removing temporary snapshots of '${ZONE}'"
 /usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION}"
 /usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}"
+rm -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump
 
 # Copy additional files
 cp /zones/$ZONE/root/opt/smartdc/node.config/node.config \

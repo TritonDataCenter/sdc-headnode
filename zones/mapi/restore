@@ -193,6 +193,7 @@ if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
         echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump'."
         exit 113
       fi
+      rm -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump
     else
       echo "FATAL: Cannot find '${APP_NAME}-${PG_DUMP_VERSION}.pg_dump' on the zone. Unable to restore."
     fi
