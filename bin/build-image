@@ -477,6 +477,20 @@ function copy_config {
     fi
 }
 
+function pkgin_get
+{
+    local url=$1
+    local file=$2
+    local dest=$3
+    local ver=$(echo ${url} | cut -d '/' -f5 -f6 -f7)
+
+    if [[ -n $PKGSRC_DIR ]]; then
+        cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
+    else
+        (cd ${dest} && curl -k -f0 ${CURL_OPTS} -O ${url}/${file})
+    fi
+}
+
 function copy_pkgsrc
 {
     echo "==> Copying in pkgsrc"
@@ -491,11 +505,11 @@ function copy_pkgsrc
 	local cache_dir=${ROOT}/cache/${name}
 	mkdir -p ${cache_dir}
 
-	if [[ ${HAVE_INTERNET} == "true" ]]; then
+	if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
 	    (cd ${cache_dir} \
 		&& rm -f md5sums.txt \
-		&& curl ${CURL_OPTS} -O ${url}/md5sums.txt) \
-		|| fatal "Failed to download ${url}/md5sums.txt"
+		&& pkgin_get ${url} md5sums.txt ./ ) \
+		|| fatal "Failed to download md5sums.txt"
 	elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
 	    fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
 		"can't build. You need to find some Internet."
@@ -523,10 +537,9 @@ function copy_pkgsrc
 		echo "==> Downloading ${pkgfile}"
                     # if this exists, it's corrupt
 		rm -f ${cache_dir}/${pkgfile}
-		if [[ ${HAVE_INTERNET} == "true" ]]; then
+		if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
 		    (cd ${cache_dir} \
-			&& curl ${CURL_OPTS} \
-			-k -fO ${url}/${pkgfile}) \
+			&& pkgin_get ${url} ${pkgfile} ./) \
 			|| fatal "could not download ${url}/${pkgfile}"
 		else
 		    fatal "Need Internet to download ${pkgfile}"
