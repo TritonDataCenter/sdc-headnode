@@ -159,6 +159,18 @@ function upgrade_pools
          zfs set atime=off ${pool} || \
               fatal "failed to set atime=off on pool ${pool}"
     done
+
+    #
+    # When this headnode was first setup, it may have had an incorrect dump
+    # device size.  Let's fix that.  The dump device should be half the size of
+    # available physical memory.
+    #
+    local system_pool=$(svcprop -p config/zpool smartdc/init)
+    local dumpsize=$(zfs get -Hp -o value volsize ${system_pool}/dump)
+    if [[ $dumpsize -eq 4294967296 ]]; then
+        local newsize_in_MiB=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
+        zfs set volsize=${newsize_in_MiB}m ${system_pool}/dump
+    fi
 }
 
 function import_datasets
