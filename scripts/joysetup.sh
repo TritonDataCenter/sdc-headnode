@@ -237,24 +237,17 @@ create_zpools()
 }
 
 #
-# XXX - may want to tweak this algorithm a bit (needs to work in production
-# and on coal)
-# Create a dump device zvol on persistent storage.  Make it either 5% of the
-# base ZFS dataset size or 4GB, whichever is less.
+# Create a dump device zvol on persistent storage.  The dump device is sized at
+# 50% of the available physical memory.  Only kernel pages (so neither ARC nor
+# user data) are included in the dump, and since those pages are compressed
+# using bzip, it's basically impossible for the dump device to be too small.
 #
 create_dump()
 {
-    # Get avail zpool size - this assumes we're not using any space yet.
-    base_size=`zfs get -H -p -o value available ${SYS_ZPOOL}`
-    # Convert to MB
-    base_size=`expr $base_size / 1000000`
-    # Calculate 5% of that
-    base_size=`expr $base_size / 20`
-    # Cap it at 4GB
-    [ ${base_size} -gt 4096 ] && base_size=4096
+    local dumpsize=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
 
     # Create the dump zvol
-    zfs create -V ${base_size}mb ${SYS_ZPOOL}/dump || \
+    zfs create -V ${dumpsize}mb ${SYS_ZPOOL}/dump || \
       fatal "failed to create the dump zvol"
 }
 
