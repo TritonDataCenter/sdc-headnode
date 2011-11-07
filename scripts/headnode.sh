@@ -239,4 +239,21 @@ fi
 ( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
 
 
+if [[ -f /.dcinfo ]]; then
+    eval $(cat /.dcinfo)
+fi
+
+if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
+    SDC_DATACENTER_HEADNODE_ID=0
+fi
+
+for zonename in rabbitmq dhcpd mapi assets; do
+    zoneuuid=$(/usr/vm/sbin/vmadm lookup zonename=${zonename})
+    zonealias=$(/usr/vm/sbin/vmadm json ${zoneuuid} | json "alias")
+    if [[ -z ${zonealias} ]]; then
+       /usr/vm/sbin/vmadm update ${zoneuuid} \
+           alias=${zonename}${SDC_DATACENTER_HEADNODE_ID}
+    fi
+done
+
 exit 0
