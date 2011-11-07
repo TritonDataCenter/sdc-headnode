@@ -482,7 +482,7 @@ function pkgin_get
     local url=$1
     local file=$2
     local dest=$3
-    local ver=$(echo ${url} | cut -d '/' -f5 -f6 -f7)
+    local ver=$(echo ${url} | cut -d '/' -f5-7)
 
     if [[ -n $PKGSRC_DIR ]]; then
         cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
