@@ -373,7 +373,56 @@ printheader()
 
 }
 
+configure_standby()
+{
+	printheader "Configuring Standby Headnode"
+	message="
+This standby headnode will be setup using the backup configuration, however
+you must select the new NICs for the admin and external networks.\n\n"
+
+	printf "$message"
+
+	while [ /usr/bin/true ]; do
+		promptnic "'admin'"
+		admin_nic="$val"
+
+		echo
+
+		promptnic "'external'"
+		external_nic="$val"
+
+		clear
+		printnics
+		promptval "Is this correct?" "y"
+		[ "$val" == "y" ] && break
+		clear
+	done
+
+	# update config
+	sed -e "s/admin_nic=.*/admin_nic=$admin_nic/" \
+            -e "s/external_nic=.*/external_nic=$external_nic/" \
+            $USBMNT/config >/tmp/config.$$
+
+	echo
+	echo "Your configuration is about to be applied."
+	promptval "Would you like to edit the final configuration file?" "n"
+	[ "$val" == "y" ] && vi /tmp/config.$$
+
+	mv /tmp/config.$$ $USBMNT/config
+}
+
 trap sigexit SIGINT
+
+standby=0
+
+while getopts "S" opt
+do
+	case "$opt" in
+		S)	standby=1;;
+	esac
+done
+
+shift $(($OPTIND - 1))
 
 USBMNT=$1
 
@@ -424,6 +473,13 @@ This session can no longer perform system configuration.\n"
 
 fi
 touch /tmp/config_in_progress
+
+# Branch down a different path when configuring a standby headnode which will
+# already have a config file.
+if [ $standby == 1 ]; then
+	configure_standby
+	exit 0
+fi
 
 #
 # Main loop to prompt for user input
