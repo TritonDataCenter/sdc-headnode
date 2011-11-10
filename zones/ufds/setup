@@ -223,22 +223,18 @@ cat > /tmp/.bootstrap.ldif <<HERE
 version: 1
 
 dn: o=smartdc
-changetype: add
 objectclass: organization
 o: smartdc
 
-dn: ou=customers, o=smartdc
-changetype: add
+dn: ou=users, o=smartdc
 objectclass: organizationalUnit
-ou: customers
+ou: users
 
-dn: ou=operators, o=smartdc
-changetype: add
+dn: ou=groups, o=smartdc
 objectclass: organizationalUnit
-ou: operators
+ou: groups
 
-dn: uuid=${UFDS_ADMIN_UUID}, ou=operators, o=smartdc
-changetype: add
+dn: uuid=${UFDS_ADMIN_UUID}, ou=users, o=smartdc
 login: ${UFDS_ADMIN_LOGIN}
 uuid: ${UFDS_ADMIN_UUID}
 userpassword: ${UFDS_ADMIN_PW}
@@ -246,6 +242,11 @@ email: ${UFDS_ADMIN_EMAIL}
 cn: Admin
 sn: User
 objectclass: sdcPerson
+
+dn: cn=operators, ou=groups, o=smartdc
+uniquemember: uuid=930896af-bf8c-48d4-885c-6573a94b1853, ou=users, o=smartdc
+objectclass: groupOfUniqueNames
+
 HERE
 
 (LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://localhost:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif)

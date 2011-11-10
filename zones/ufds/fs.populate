@@ -31,8 +31,7 @@ else
     git checkout ${CHECKOUT_TARGET}
 
     rm -rf .git .gitmodules .gitignore \
-        cfg/*.coal cfg/config.json \
-        data tst Makefile \
-        docs/*.md README.md
+        data tst docs/*.md ssl/* var build \
+        cfg/config.json Makefile node_modules
 
 fi
