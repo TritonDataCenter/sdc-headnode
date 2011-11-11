@@ -34,7 +34,7 @@ fi
 curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
 curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
-curl -o riak-1.0.0.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/riak-1.0.0.tar.bz2
+curl -o riak-1.0.0.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/riak-1.0.1.tar.bz2
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/riak
@@ -84,6 +84,8 @@ gsed -i -e s/127.0.0.1/$IPADDR/ /opt/riak/etc/app.config
 gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/riak/etc/vm.args
 gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" /opt/riak/etc/vm.args
 
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/riak/etc/key.pem -out /opt/riak/etc/cert.pem -days 3650
 
 svccfg import /site/riak_smf_manifest.xml
 svcadm enable riak
