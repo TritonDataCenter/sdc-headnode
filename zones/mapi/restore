@@ -184,8 +184,24 @@ if [[ "$(zfs get -H -o value mountpoint zones/${ZONE}/${DATA_DATASET%.*})" != "/
   fi
 fi
 
-echo "==> Waiting for 10 seconds while the zone services are running ..."
-sleep 10
+echo "==> Waiting for the zone's postgres to be running ..."
+cnt=0
+while [ $cnt -lt 30 ]
+do
+    state=`zlogin mapi svcs -H postgresql:pg90 2>&1 | nawk '{print $1}'`
+    [ "$state" == "online" ] && break
+    sleep 2
+    let cnt=$cnt+1
+done
+
+cnt=0
+while [ $cnt -lt 30 ]
+do
+    state=`zlogin mapi svcs -H postfix 2>&1 | nawk '{print $1}'`
+    [ "$state" == "online" ] && break
+    sleep 2
+    let cnt=$cnt+1
+done
 
 # Restore the PostgreSQL dump on data dataset if exists:
 if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
