@@ -202,7 +202,8 @@ HERE
 gsed -i -e "s/HOSTNAME/$PRIVATE_IP/" /opt/smartdc/ufds/cfg/config.json.in
 gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
 gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAKIP/http:\/\/${RIAK_IP}:${RIAK_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/RIAKIP/${RIAK_IP}/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/RIAKSSLPORT/${RIAK_SSL_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
 mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
 
 echo "Importing ufds_manifest.xml"

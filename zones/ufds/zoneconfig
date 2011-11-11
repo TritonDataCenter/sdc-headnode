@@ -18,4 +18,4 @@ UFDS_ADMIN_UUID=${ufds_admin_uuid}
 DATACENTER_COMPANY_NAME=${datacenter_company_name}
 
 RIAK_IP=${riak_admin_ip}
-RIAK_PORT=8098
+RIAK_SSL_PORT=9098
