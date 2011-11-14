@@ -8,6 +8,7 @@
   , "agents-shar": "master"
   , "amon-tarball": "amon/amon-master-master-.*.tar.bz2"
   , "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2"
+  , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
   , "datasets": [
       { "name": "smartos-1.3.18"
       , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
@@ -30,6 +31,5 @@
   , "cloudapi-checkout": "origin/master"
   , "billapi-checkout": "origin/master"
   , "rabbitmq-checkout": "origin/master"
-  , "ufds-checkout": "origin/master"
   , "sdc-webinfo-checkout": "origin/master"
 }

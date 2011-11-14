@@ -40,14 +40,16 @@ curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
 curl -o nodejs-0.4.12.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/nodejs-0.4.12.tar.bz2
 
-# Unpack fs.tar and copy files into proper locations within the zone
+# Install UFDS
+mkdir -p /opt/smartdc/ufds/ssl
 mkdir /.stage
 echo "unpack fs.tar"
 (cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
 rm -f /var/svc/fs.tar.bz2
 echo "install root"
-(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+(cd /.stage; tar cbf 512 - *) | (cd /opt/smartdc/ufds; tar xbf 512 -)
 rm -rf /.stage
+chown -R nobody:nobody /opt/smartdc/ufds
 
 # Install from local pkgsrc
 mkdir -p /var/svc/pkgs
@@ -68,11 +70,6 @@ cd /opt
 /usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
 /usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
 rm -f /var/svc/nodejs-0.4.12.tar.bz2
-
-# Temporary until we figure out a build process for UFDS
-cd /opt/smartdc/ufds
-/opt/nodejs/bin/npm install
-chown -R nobody:nobody node_modules
 
 echo "Creating log directory"
 mkdir -p /var/log/ufds
