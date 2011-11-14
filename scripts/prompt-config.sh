@@ -782,7 +782,7 @@ echo "# datacenter_name should be unique among your cloud," >>$tmp_config
 echo "# datacenter_headnode_id should be a positive integer that is unique" \
      >>$tmp_config
 echo "# for this headnode within that datacenter" >>$tmp_config
-echo "datacenter_name=$datacenter_name" >>$tmp_config
+echo "datacenter_name=\"$datacenter_name\"" >>$tmp_config
 echo "datacenter_company_name=\"$datacenter_company_name\"" >>$tmp_config
 echo "datacenter_location=\"$datacenter_location\"" >>$tmp_config
 echo "datacenter_headnode_id=$datacenter_headnode_id" >>$tmp_config
