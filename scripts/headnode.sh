@@ -9,6 +9,10 @@
 # 2 - rebooting (don't bother doing anything)
 #
 
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
+
 #
 # We set errexit (a.k.a. "set -e") to force an exit on error conditions, and
 # pipefail to force any failures in a pipeline to force overall failure.  We
@@ -64,6 +68,7 @@ trap 'errexit $?' EXIT
 # On initial install, do the extra logging, but for restore, we want cleaner
 # output.
 #
+restore=0
 if [ $# == 0 ]; then
 	DEBUG="true"
 	exec 4>>/dev/console
@@ -116,6 +121,38 @@ fi
 
 USBZONES="assets dhcpd mapi rabbitmq"
 ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
+
+# headnode.sh normally does the initial setup of the headnode when it first
+# boots.  This creates the core zones, installs agents, etc.  However, when
+# we are booting with the standby option, if there is a backup file on the
+# USB key, then we want to create plus restore things in this case.
+#
+# If we're setting up a standby headnode, we might have rebooted from the
+# joysetup in the block above.  In that case, joysetup left a cookie named 
+# /zones/.standby.  So we have two conditions to setup a standby headnode,
+# otherwise we setup normally.
+#
+# XXX what if boot standby and things are already setup?  Delete first?
+#
+# We want to be careful here since, sdc-restore -F will also run this
+# headnode.sh script (with the restore parameter) and we want that to work
+# even if the system was initially booted as a standby.
+standby=0
+if [ $restore == 0 ]; then
+	if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
+	    standby=1
+	elif [ -e /zones/.standby ]; then
+	    standby=1
+	fi
+fi
+
+if [ $standby == 1 ]; then
+    # See if there is a backup on the USB key
+    [ -d /usbkey/standby ] && \
+        bufile=/usbkey/standby/`ls -t /usbkey/standby 2>/dev/null | head -1`
+fi
+
+
 CREATEDZONES=
 
 # Create link for latest platform
@@ -133,6 +170,10 @@ for zone in $ALLZONES; do
                 skip=true
             fi
         fi
+
+	# If booted for standby headnode but no backup on USB, skip creating
+	# the zones at this point.
+	[[ $standby == 1 && -z "$bufile" ]] && skip=true
 
         if ! ${skip} ; then
             ${USB_COPY}/scripts/create-zone.sh ${zone}
@@ -182,7 +223,7 @@ if [ -n "${CREATEDZONES}" ]; then
             | grep -v -- '-hvm-' | tail -n1)
         if [[ -n ${which_agents} ]]; then
             printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
-            if [ -z "$restore" ]; then
+            if [ $restore == 0 ]; then
                 (cd /var/tmp ; bash ${which_agents})
             else
                 (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
@@ -216,19 +257,48 @@ if [ -n "${CREATEDZONES}" ]; then
             >&${CONSOLE_FD}
     fi
 
+    if [ $standby == 1 ]; then
+        if [ -n "$bufile" ]; then
+             # We have to do the restore in the background since svcs the
+             # restore will depend on are blocked waiting for the init svc
+             # to complete.
+             sdc-restore -S $bufile >&${CONSOLE_FD} 2>&1 &
+	fi
+
+	# Cleanup the cookie that joysetup might have left around.
+	rm -f /zones/.standby
+    fi
+
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
     	printf "%-56s\n" "Executing post-install script..." >&${CONSOLE_FD}
     	bash ${USB_COPY}/scripts/post-install.sh
     fi
 
-    if [ -z "$restore" ]; then
+    if [ $restore == 0 ]; then
 	# clear the screen
 	echo "[H[J" >&${CONSOLE_FD}
     
-	echo "==> Setup complete.  Press [enter] to get login prompt." \
-	    >&${CONSOLE_FD}
+        if [ $standby == 1 ]; then
+            echo "Restoring standby headnode" >&${CONSOLE_FD}
+        else
+            echo "==> Setup complete.  Press [enter] to get login prompt." \
+                >&${CONSOLE_FD}
+        fi
 	echo "" >&${CONSOLE_FD}
+    fi
+else
+    if [ $restore == 0 ]; then
+        if [[ $standby == 1 && -z "$bufile" ]]; then
+	    # clear the screen
+	    echo "[H[J" >&${CONSOLE_FD}
+    
+	    echo "==> Use sdc-restore to perform setup.  Press [enter] to get login prompt." \
+	        >&${CONSOLE_FD}
+	    echo "" >&${CONSOLE_FD}
+	    # Cleanup the cookie that joysetup might have left around.
+            rm -f /zones/.standby
+        fi
     fi
 fi
 
@@ -247,12 +317,14 @@ if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
     SDC_DATACENTER_HEADNODE_ID=0
 fi
 
-for zonename in rabbitmq dhcpd mapi assets; do
+for zonename in $USBZONES; do
     zoneuuid=$(/usr/vm/sbin/vmadm lookup zonename=${zonename})
-    zonealias=$(/usr/vm/sbin/vmadm json ${zoneuuid} | json "alias")
-    if [[ -z ${zonealias} ]]; then
-       /usr/vm/sbin/vmadm update ${zoneuuid} \
-           alias=${zonename}${SDC_DATACENTER_HEADNODE_ID}
+    if [ -n "$zoneuuid" ]; then
+        zonealias=$(/usr/vm/sbin/vmadm json ${zoneuuid} | json "alias")
+        if [[ -z ${zonealias} ]]; then
+            /usr/vm/sbin/vmadm update ${zoneuuid} \
+                alias=${zonename}${SDC_DATACENTER_HEADNODE_ID}
+        fi
     fi
 done
 

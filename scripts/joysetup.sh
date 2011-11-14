@@ -464,6 +464,14 @@ if [[ ${POOLS} == "no pools available" ]]; then
         #
         exit 113
     fi
+
+    # We're the headnode
+    if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
+        # We're booting up a standby headnode, leave a cookie so we can
+        # finish setting up standby after reboot
+        touch /zones/.standby
+    fi
+
 else
     output_zpool_info
 fi
