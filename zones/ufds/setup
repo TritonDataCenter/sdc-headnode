@@ -74,6 +74,10 @@ cd /opt/smartdc/ufds
 /opt/nodejs/bin/npm install
 chown -R nobody:nobody node_modules
 
+echo "Creating log directory"
+mkdir -p /var/log/ufds
+chown -R nobody:nobody /var/log/ufds
+
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem -days 365
 
