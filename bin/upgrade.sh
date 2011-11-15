@@ -611,7 +611,7 @@ function recreate_extra_zones
 {
 	NEW_EXTRA_ZONES=""
 
-	skip_boot=""
+	local skip_boot=""
 	for role in $ROLE_ORDER
 	do
 		# Check to see if we should install a zone with a given role
@@ -708,7 +708,13 @@ function recreate_extra_zones
 		# We need riak running to setup ufds
 		if [ "$role" == "riak" ]; then
 			zoneadm -z $zname boot
-			skip_boot=$zname
+			skip_boot"$zname $skip_boot"
+		fi
+
+		# We need ufds running to convert capi data
+		if [ "$role" == "ufds" ]; then
+			zoneadm -z $zname boot
+			skip_boot="$zname $skip_boot"
 
 			# If moving from capi to ufds, convert capi.
 			[ $CAPI_FOUND == 1 ] && convert_capi_ufds
@@ -718,8 +724,16 @@ function recreate_extra_zones
 	echo "Booting extra zones"
 	for zone in $NEW_EXTRA_ZONES
 	do
-		# riak already booted
-		[ "$zone" == "$skip_boot" ] && continue
+		# some zones already booted
+		skip=0
+		for i in $skip_boot
+		do
+			if [ "$zone" == "$i" ]; then
+				skip=1
+				break
+			fi
+		done
+		[ $skip == 1 ] && continue
 		zoneadm -z $zone boot
 	done
 
