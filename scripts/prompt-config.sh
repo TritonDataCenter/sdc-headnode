@@ -10,7 +10,7 @@ export PATH
 # Defaults
 datacenter_headnode_id=0
 mail_to="root@localhost"
-ntp_hosts="pool.ntp.org"
+ntp_hosts="68.0.14.76"
 dns_resolver1="8.8.8.8"
 dns_resolver2="8.8.4.4"
 
@@ -217,6 +217,33 @@ promptval()
 	done
 }
 
+prompt_host_ok_val()
+{
+	val=""
+	def="$2"
+	while [ -z "$val" ]; do
+		if [ -n "$def" ]; then
+			printf "%s [%s]: " "$1" "$def"
+		else
+			printf "%s: " "$1"
+		fi
+		read val
+		[ -z "$val" ] && val="$def"
+		if [ -n "$val" ]; then
+			printf "Checking connectivity..."
+			ping $val >/dev/null 2>&1
+			if [ $? != 0 ]; then
+				printf "UNREACHABLE\n"
+			else
+				printf "OK\n"
+			fi
+			break
+		else
+			echo "A value must be provided."
+		fi
+	done
+}
+
 promptemail()
 {
 	val=""
@@ -371,6 +398,17 @@ printheader()
   printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
   for i in {1..80} ; do printf "-" ; done && printf "$newline"
 
+}
+
+print_warning() 
+{
+	clear
+	printf "WARNING\n"
+	for i in {1..80} ; do printf "-" ; done && printf "\n"
+	printf "\n$1\n"
+
+	printf "\nPress [enter] to continue "
+	read continue
 }
 
 configure_standby()
@@ -631,15 +669,15 @@ other networks. This will almost certainly be the router connected to your
 	headnode_default_gateway="$val"
 
 	message="
-\nThe DNS servers set here will be used to provide name resolution abilities to
+The DNS servers set here will be used to provide name resolution abilities to
 the SDC cluster itself. These will also be default DNS servers for zones
 provisioned on the 'external' network.\n\n"
 
 	printf "$message"
 
-	promptval "Enter the Primary DNS server IP" "$dns_resolver1"
+	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1"
 	dns_resolver1="$val"
-	promptval "Enter the Secondary DNS server IP" "$dns_resolver2"
+	prompt_host_ok_val "Enter the Secondary DNS server IP" "$dns_resolver2"
 	dns_resolver2="$val"
 	promptval "Enter the headnode domain name" "$domainname"
 	domainname="$val"
@@ -647,14 +685,17 @@ provisioned on the 'external' network.\n\n"
 	dns_domain="$val"
 	
 	message="
-\nBy default the headnode acts as an NTP server for the admin network. You can
+By default the headnode acts as an NTP server for the admin network. You can
 set the headnode to be an NTP client to synchronize to another NTP server.\n"
 
 	printf "$message"
 
-	promptval "Enter an NTP server IP address or hostname" "$ntp_hosts"
+	prompt_host_ok_val \
+	    "Enter an NTP server IP address or hostname" "$ntp_hosts"
 	ntp_hosts="$val"
 
+	ntpdate -b $ntp_hosts >/dev/null 2>&1
+	[ $? != 0 ] && print_warning "NTP failure setting date and time"
  
 	printheader "Account Information"
 	message="
