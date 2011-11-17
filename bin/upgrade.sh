@@ -599,11 +599,14 @@ function recreate_core_zones
 	done
 }
 
-# XXX Load capi data into riak for ufds
+# Transform CAPI pg_dumps into LDIF, then load into UFDS
 # capi dump files are in $SDC_UPGRADE_SAVE/capi_dump
 function convert_capi_ufds
 {
-	echo "XXX Convert CAPI data to UFDS."
+	echo "Transforming CAPI postgres dumps to LDIF."
+	${usbcpy}/bin/capi2ldif.sh ${SDC_UPGRADE_SAVE}/capi_dump > $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
+	echo "Running ldapadd on transformed CAPI data (Blocked on OS-703!)"
+	# LDAPTLS_REQCERT=allow /usr/ldap/bin/ldapadd -H ${CONFIG_ufds_client_url} -D ${CONFIG_ufds_ldap_root_dn} -w ${CONFIG_ufds_ldap_root_pw} -f $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
 }
 
 # Use mapi to reprovision the extra zones.
@@ -954,6 +957,7 @@ shutdown_remaining_zones
 delete_old_sdc_zones
 
 cleanup_config
+load_sdc_config
 
 # We do the first part of installing the platform now so the new platform
 # is available for the new code to run on via the lofs mounts below.
