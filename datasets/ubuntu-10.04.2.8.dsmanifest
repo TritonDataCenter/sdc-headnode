@@ -12,7 +12,7 @@
       "path": "ubuntu-10.04.2.8.zfs.bz2",
       "sha1": "e876bdf1936cddb89d9161cae3125d609ac8c3fe",
       "size": 185563504,
-      "url": "https://guest:GrojhykMid@stuff.joyent.us/coal/beta/ubuntu-10.04.2.8.zfs.bz2"
+      "url": "https://datasets.joyent.com/datasets/ed481150-ddcb-11e0-85f7-4704fd6a9c7f/ubuntu-10.04.2.8.zfs.bz2"
     }
   ],
   "requirements": {
