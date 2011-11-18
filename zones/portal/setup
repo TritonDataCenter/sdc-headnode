@@ -205,7 +205,7 @@ cat > /opt/smartdc/portal/cfg/machineListFields.json <<HERE
   "machineListFields": [
     { "name": "type", "heading": "Type", "sortable": true, "width": 104 },
     { "name": "name", "heading": "Machine name", "sortable": true, "mutate": "abbrevName", "width": 280 },
-    { "name": "ips", "heading": "Public IP Address", "sortable": true, "width": 140 },
+    { "name": "ips", "heading": "IP Address(es)", "sortable": true, "width": 140 },
     { "name": "memory", "heading": "RAM", "sortable": true, "width": 83 },
     { "name": "created", "date": true, "heading": "Age", "sortable": true, "width": 130 },
     { "name": "state", "heading": "Status", "sortable": true, "width": 125 }
@@ -232,9 +232,8 @@ cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
     { "name": "login", "label": "form.label.username", "required" : "true" },
     { "name": "password", "label": "form.label.password", "required" : "true", "type" : "password" },
     { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
-    { "name": "last_name", "label": "form.label.last_name", "required" : "false" },
     { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
-    { "name": "phone_number", "label": "form.label.phone_number", "required" : "false"}
+    { "name": "last_name", "label": "form.label.last_name", "required" : "false" }
   ]
 }
 HERE
