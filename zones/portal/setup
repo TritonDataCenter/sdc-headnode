@@ -27,23 +27,14 @@ rm -f /var/svc/hn_config /var/svc/hn_generic
 # The user-script is downloaded and executed on every zone boot. We take
 # advantage of this to maintain the cached config values post-setup.
 if [ -e /var/svc/setup_complete ]; then
-	oldpw=`nawk '{
-	    if ($1 == "\"password\":")
-		print substr($2, 2, length($2) - 2)
-	}' /opt/smartdc/portal/cfg/capi.json`
-	[ "$capi_http_admin_pw" == "$oldpw" ] && exit 0
+  pwfile=`node -e 'JSON.stringify(require("/opt/smartdc/portal/cfg/config.js").config)' | json capi.passwordFile`
+  oldpw=`cat /opt/smartdc/portal/$pwfile`
+  [ "$capi_http_admin_pw" == "$oldpw" ] && exit 0
 
-	echo "Updating portal configuration"
-	nawk -v p=$capi_http_admin_pw '{
-	    if ($1 == "\"password\":")
-		printf("  \"password\": \"%s\"\n", p)
-	    else
-		print $0
-	}' /opt/smartdc/portal/cfg/capi.json \
-	 > /opt/smartdc/portal/cfg/capi.json.new
-	mv /opt/smartdc/portal/cfg/capi.json.new \
-	   /opt/smartdc/portal/cfg/capi.json
-	chown 502:staff /opt/smartdc/portal/cfg/capi.json
+  echo "Updating portal configuration"
+  echo -n $capi_http_admin_pw > $pwfile
+
+	chown 502:staff /opt/smartdc/portal/$pwfile
 	svcadm restart portal
 	exit 0
 fi
@@ -78,7 +69,7 @@ rm -f /var/svc/pkgsrc.tar
 
 for i in `cat /var/svc/pkgsrc`
 do
-	echo "Installing $i" 
+	echo "Installing $i"
 	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
 rm -rf /var/svc/pkgs
@@ -87,7 +78,7 @@ rm -rf /var/svc/pkgs
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
 
-echo Creating manifest for portal: 
+echo Creating manifest for portal:
 cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -159,85 +150,58 @@ HERE
 mkdir -p /opt/smartdc/portal/cfg
 cat > /opt/smartdc/portal/cfg/config.js <<HERE
 exports.config = {
-  externalUrl : "${EXTERNAL_URL}",
-  capiConfig : "./cfg/capi.json",
-  cloudApiConfig : "./cfg/cloudApi.json",
+  listenIp : "${PUBLIC_IP}",
+  siteCopyFile : './local.joyent.en.js',
+  siteThemeName : 'node',
+  extensionLocation : './extensions/',
+  viewExtensionLocation : './extensions/views/',
+  googleAnalyticsCode : false,
+  cloudApi : { url: "${CLOUD_API_EXTERNAL_URL}", "version": ">=6.5.0" },
   machineQueryLimit : 500,
+  capi : { uri : "${CAPI_API_EXTERNAL_URL}", username : "${CAPI_HTTP_ADMIN_USER}", passwordFile : "./cfg/capiPassword" },
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-reply@no.de>",
   },
+  externalUrl : "${EXTERNAL_URL}",
   defaultCAParams : { module : "tcp", stat : "accepts", decomposition : "raddr" },
   defaultCAChoices : [
     { label : "TCP accept operations", params : { module : "tcp", stat : "accepts", decomposition : "raddr", "idle-max" : 30 }},
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
-  listenIp : "${PUBLIC_IP}",
-  machineListConfig : "./cfg/machineListFields.json",
-  provisionOptionsConfig : "./cfg/provisionOptions.json",
-  signupOptionsConfig : './cfg/signupOptions.json',
-	siteCopyFile : './local.joyent.en.js',
-  siteThemeName : 'node',
-  extensionLocation : './extensions/',
-  viewExtensionLocation : './extensions/views/',
-  googleAnalyticsCode : false
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/capi.json <<HERE
-{
-  "uri": "${CAPI_API_EXTERNAL_URL}",
-  "username": "${CAPI_HTTP_ADMIN_USER}",
-  "password": "${CAPI_HTTP_ADMIN_PW}"
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/cloudApi.json <<HERE
-{
-  "url": "${CLOUD_API_EXTERNAL_URL}",
-  "version": ">=6.5.0"
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/machineListFields.json <<HERE
-{
-  "machineListFields": [
-    { "name": "type", "heading": "Type", "sortable": true, "width": 104 },
-    { "name": "name", "heading": "Machine name", "sortable": true, "mutate": "abbrevName", "width": 280 },
-    { "name": "ips", "heading": "IP Address(es)", "sortable": true, "width": 140 },
-    { "name": "memory", "heading": "RAM", "sortable": true, "width": 83 },
-    { "name": "created", "date": true, "heading": "Age", "sortable": true, "width": 130 },
-    { "name": "state", "heading": "Status", "sortable": true, "width": 125 }
+  machineListFields : [
+    { name: "type", heading: "Type", sortable: true, width: 104 },
+    { name: "name", heading: "Machine name", sortable: true,
+      mutate: function abbrevName(n, machine) {
+        var displayName = machine.name || machine.hostname || "Unnamed SmartMachine";
+        if (displayName.length > 30) {
+          displayName = displayName.substr(0, 30) + "…";
+        }
+        return displayName;
+      }
+      , width: 280 },
+    { name: "ips", heading: "Public IP Address", sortable: true, width: 140 },
+    { name: "memory", heading: "RAM", sortable: true, width: 83 },
+    { name: "created", "date": true, heading: "Age", sortable: true, width: 130 },
+    { name: "state", heading: "Status", sortable: true, width: 125 }
+  ],
+  signupOptions : [
+    { name: "email_address", label: "form.label.email", required : "true" },
+    { name: "login", label: "form.label.username", required : "true" },
+    { name: "password", label: "form.label.password", required : "true", "type" : "password" },
+    { name: "password_confirmation", label: "form.label.password_confirm", required : "true", "type" : "password" },
+    { name: "last_name", label: "form.label.last_name", required : "false" },
+    { name: "first_name", label: "form.label.first_name", required : "false" },
+    { name: "phone_number", label: "form.label.phone_number", required : "false"}
   ]
 }
 HERE
 
-cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
-{
-  "provisionOptions": [
-    { "name": "package", "alwaysShow": true, "label": "form.label.package" },
-    { "name": "dataset", "alwaysShow": true, "label": "form.label.dataset" },
-    { "name": "name", "label": "form.label.machine_name" },
-    { "name": "password", "label": "form.label.machine_password" }
-  ]
-}
+echo "Creating CAPI password file"
+cat >/opt/smartdc/portal/cfg/capiPassword <<HERE
+${CAPI_HTTP_ADMIN_PW}
 HERE
-
-
-cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
-{
-  "signupOptions": [
-    { "name": "email_address", "label": "form.label.email", "required" : "true" },
-    { "name": "login", "label": "form.label.username", "required" : "true" },
-    { "name": "password", "label": "form.label.password", "required" : "true", "type" : "password" },
-    { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
-    { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
-    { "name": "last_name", "label": "form.label.last_name", "required" : "false" }
-  ]
-}
-HERE
-
 
 # We need to override nginx.conf on reconfigure, and it's safe to do during setup:
 echo "Creating nginx configuration file"

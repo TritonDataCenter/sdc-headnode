@@ -14,12 +14,7 @@ ROLE="portal"
 CFG_TAGS="
 	extensionLocation
 	viewExtensionLocation
-	siteCopyFile
-	cloudApiConfig
-	capiConfig
-	machineListConfig
-	provisionOptionsConfig
-	signupOptionsConfig"
+	siteCopyFile"
 
 ZONEPATH=`zonecfg -z $ZONE info zonepath | cut -d " " -f2`
 
