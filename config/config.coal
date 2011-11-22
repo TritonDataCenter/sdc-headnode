@@ -126,7 +126,7 @@ compute_node_ntp_hosts=10.99.99.7
 adminui_external_vlan=0
 adminui_root_pw=joypass123
 adminui_admin_pw=joypass123
-adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter
+adminui_help_url=http://sdcdoc.joyent.com/
 
 amon_root_pw=joypass123
 amon_admin_pw=joypass123
