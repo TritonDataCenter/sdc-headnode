@@ -8,24 +8,19 @@
 # actual SDC upgrade.
 #
 
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
+
 BASH_XTRACEFD=4
 set -o xtrace
 
 ROOT=$(pwd)
 export SDC_UPGRADE_ROOT=${ROOT}
+export SDC_UPGRADE_SAVE=/zones
 
-#
-# Zones we used to have, but which are no more.
-#
-OBSOLETE_ZONES=( \
-    atropos \
-    pubapi
-)
+# We use the 6.5 rc11 build date to check the minimum upgradeable version.
+VERS_6_5=20110923
 
-#
-# IMPORTANT, this purposefully does not include 'portal' since that
-# zone is handled differently for upgrades (since it may be customized).
-#
 RECREATE_ZONES=( \
     assets \
     ca \
@@ -35,6 +30,7 @@ RECREATE_ZONES=( \
     adminui \
     capi \
     billapi \
+    portal \
     riak
 )
 
@@ -89,16 +85,18 @@ function check_versions
     new_version=$(cat ${ROOT}/VERSION)
 
     existing_version=$(cat ${usbmnt}/version 2>/dev/null)
-    if [[ -z ${existing_version} ]]; then
-        echo "--> Warning: unable to find version file in ${usbmnt}, assuming build is ancient."
-        existing_version="ancient"
-    fi
+    [[ -z ${existing_version} ]] && \
+        fatal "unable to find version file in ${usbmnt}"
 
-    # TODO: check system / version to ensure it's possible to apply this update.
-    #
-    # This needs to be filled in manually as part of an actual SDC upgrade.
+    # Check version to ensure it's possible to apply this update.
+    # We only support upgrading from 6.5 or later builds.  The 6.5 rc11
+    # build date is in the version string and hardcoded in this script.
+    v_old=`echo $existing_version | \
+        nawk -F. '{split($1, f, "T"); print f[1]}'`
+    [ $v_old -lt $VERS_6_5 ] && \
+        fatal "the system must be running at least SDC 6.5 to be upgraded"
 
-    echo "==> Upgrading from ${existing_version} to ${new_version}"
+    printf "Upgrading from ${existing_version}\n    to ${new_version}\n"
 }
 
 function backup_usbkey
@@ -135,8 +133,6 @@ function upgrade_usbkey
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
-
-        # this is the point where we fix the config in /mnt/usbkey/config
 
         # Add a capi_external_url entry if not there and CAPI has an external
         # IP configured.
@@ -204,16 +200,96 @@ function import_datasets
     fi
 }
 
+function get_sdc_datasets
+{
+    MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+        http://${CONFIG_mapi_admin_ip}/datasets | json | nawk '{
+            if ($1 == "\"name\":") {
+                # strip quotes and comma
+                nm = substr($2, 2, length($2) - 3)
+            }
+            if ($1 == "\"version\":") {
+                # strip quotes and comma
+                v = substr($2, 2, length($2) - 3)
+                printf("%s-%s.dsmanifest\n", nm, v)
+            }
+        }'`
+}
+
+function import_sdc_datasets
+{
+	echo "Import new SDC datasets"
+
+        get_sdc_datasets
+
+	for i in /usbkey/datasets/*.dsmanifest
+	do
+		bname=${i##*/}
+
+		match=0
+		for j in $MAPI_DS
+		do
+			if [ $bname == $j ]; then
+				match=1
+				break
+			fi
+		done
+
+		if [ $match == 0 ]; then
+			mv $i /tmp
+			bzname=${bname%.*}
+			mv /usbkey/datasets/$bzname.zfs.bz2 /tmp
+
+			sed -i "" -e \
+"s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
+			    /tmp/$bname
+			sdc-dsimport /tmp/$bname
+
+			rm -f /tmp/$bname /tmp/$bzname.zfs.bz2
+		fi
+	done
+}
+
+function upgrade_agents
+{
+	echo "Upgrade headnode agents"
+
+	# Get the latest agents shar
+	AGENTS=`ls -t /usbkey/ur-scripts | head -1`
+	echo "Installing agents $AGENTS"
+        # There is a bug in the agent installer and we have to run it twice
+        # since it fails on the first run.
+	bash /usbkey/ur-scripts/$AGENTS 1>&4 2>&1
+	bash /usbkey/ur-scripts/$AGENTS 1>&4 2>&1
+}
+
+function upgrade_cn_agents
+{
+	echo "Upgrade compute node agents"
+
+	local assetdir=/zones/assets/root/assets/extra/agents
+
+	mkdir -p $assetdir
+	cp /usbkey/ur-scripts/$AGENTS $assetdir
+
+        # There is a bug in the agent installer and we have to run it twice
+        # since it fails on the first run.
+	sdc-oneachnode -c "cd /var/tmp;
+	  curl -kOs $CONFIG_assets_admin_ip:/extra/agents/$AGENTS;
+	  (bash /var/tmp/$AGENTS </dev/null >/var/tmp/agent_install.log 2>&1;
+	   bash /var/tmp/$AGENTS </dev/null >>/var/tmp/agent_install.log 2>&1)&"
+
+	rm -f $assetdir/$AGENTS
+}
+
 function recreate_zones
 {
+    echo "Re-create zones"
+
     # dhcpd zone expects this to exist, so make sure it does:
     mkdir -p ${usbcpy}/os
 
-    # Delete obsolete zones
     local zone
-    for zone in "${OBSOLETE_ZONES[@]}"; do
-        ${usbcpy}/scripts/destroy-zone.sh ${zone}
-    done
 
     # Upgrade zones we can just recreate
     for zone in "${RECREATE_ZONES[@]}"; do
@@ -222,15 +298,19 @@ function recreate_zones
             echo "--> Skipping CAPI zone, because CAPI is not local."
             continue
         fi
+
+        echo "Re-creating $zone zone"
+
         mkdir -p ${backup_dir}/zones/${zone}
-        if [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
-            /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
-                ${backup_dir}/zones/${zone}/
-        elif [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
+	# Use the latest backup code from the new upgrade image if possible
+        if [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
             ${usbcpy}/zones/${zone}/backup ${zone} \
                 ${backup_dir}/zones/${zone}/
+        elif [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
+            /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
+                ${backup_dir}/zones/${zone}/
         else
-            echo "--> Warning: No backup script!"
+            echo "Info: stateless, no backup script"
         fi
 
         # If the zone has a data dataset, copy to the path create-zone.sh
@@ -243,40 +323,112 @@ function recreate_zones
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
 
         # If we've copied the data dataset, remove it:
-        if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
-          rm ${usbcpy}/backup/${zone}-data.zfs
+        [[ -f ${usbcpy}/backup/${zone}-data.zfs ]] && \
+            rm ${usbcpy}/backup/${zone}-data.zfs
+
+	zoneadm -z ${zone} halt
+	# wait until zone is halted
+        echo "Wait for zone to shutdown"
+        while true; do
+            sleep 3
+            state=`zoneadm -z ${zone} list -p | cut -d: -f3`
+            [ "$state" == "installed" ] && break
+        done
+
+	# Use the latest restore code from the new upgrade image if possible
+        if [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
+            ${usbcpy}/zones/${zone}/restore ${zone} \
+                ${backup_dir}/zones/${zone}/
+        elif [[ -x /zones/${zone}/root/opt/smartdc/bin/restore ]]; then
+            /zones/${zone}/root/opt/smartdc/bin/restore ${zone} \
+                ${backup_dir}/zones/${zone}/
         fi
+
+	zoneadm -z ${zone} boot
     done
 }
 
 
 function install_platform
 {
-    # Install new platform
+    echo "Install new platform"
+
     local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
     if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
         # 'platformversion' is intentionally global.
-        platformversion=$(basename "${platformupdate}" | sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
-
-        if [[ -z ${platformversion} || ! -d ${usbcpy}/os/${platformversion} ]]; then
-            ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
-        else
-            echo "INFO: ${usbcpy}/os/${platformversion} already exists, skipping update."
-        fi
+        platformversion=$(basename "${platformupdate}" | \
+            sed -e "s/.*\-\(2.*Z\)\.tgz/\1/")
     fi
+
+    [ -z "${platformversion}" ] && \
+        fatal "unable to determine platform version"
+
+    if [[ -d ${usbcpy}/os/${platformversion} ]]; then
+        echo "${usbcpy}/os/${platformversion} already exists, skipping update."
+        return
+    fi
+
+    ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
+
+    local plat_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+        http://$CONFIG_mapi_admin_ip/platform_images | json | \
+        nawk -v n="$platformversion" '{
+        if ($1 == "\"id\":") {
+            # strip comma
+            id = substr($2, 1, length($2) - 1)
+        }
+        if ($1 == "\"name\":") {
+            # strip quotes and comma
+            nm = substr($2, 2, length($2) - 3)
+            if (nm == n) {
+                   print id
+                   exit 0
+            }
+        }
+    }'`
+
+    [ -z "${plat_id}" ] && fatal "unable to determine platform ID"
+
+    echo "Make new platform the default for compute nodes"
+
+    curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+        http://$CONFIG_mapi_admin_ip/platform_images/$plat_id/make_default \
+        -d '' -X PUT 1>&4 2>&1
+
+    # Get headnode server_role (probably also 1, but get it just in case).
+    local srole_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+        http://$CONFIG_mapi_admin_ip/servers/1 | json | nawk '{
+            if ($1 == "\"server_role_id\":") {
+			# strip comma
+			print substr($2, 1, length($2) - 1)
+		}
+            }'`
+
+    if [ -z "$srole_id" ]; then
+        echo "WARNING: unable to find headnode server role" >/dev/stderr
+        return
+    fi
+
+    curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+        http://$CONFIG_mapi_admin_ip/server_roles/$srole_id \
+        -d platform_image_id=$plat_id -X PUT 1>&4 2>&1
 }
 
 mount_usbkey
-
-#
-# TODO: check a list of required config options and ensure config has them.
-# If existing config does not have them, tell the user to go add them and
-# go into a sleep loop, waiting for the config options to be there.  User
-# can add them from another terminal then we'll continue.  We can also
-# print the list with their default values from the new config.default.
-#
-
 check_versions
+umount ${usbmnt}
+mounted_usb="false"
+
+# Run full backup with the old sdc-backup code, then unpack the backup archive.
+# Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
+# existence of backup file.
+echo "Creating a backup"
+sdc-backup
+bfile=`ls /zones/backup-* 2>/dev/null`
+[ -z "$bfile" ] && fatal "unable to make a backup"
+
+mount_usbkey
+
 backup_usbkey
 upgrade_usbkey
 trap cleanup EXIT
@@ -286,16 +438,32 @@ upgrade_pools
 # import new headnode dataset if there's one (used for new headnode zones)
 import_datasets
 
+#
+# NOTE: we don't update the config file in any way since we assume this is
+# a minor upgrade from one 6.5.x version to another 6.5.y version and thus,
+# there are no config file changes necessary.
+#
+
 recreate_zones
 
-# new platform!
 install_platform
+
+import_sdc_datasets
+
+upgrade_agents
+
+upgrade_cn_agents
 
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
-if [[ $doupgrade == true ]]; then
-  /usbkey/scripts/switch-platform.sh ${platformversion}
-  echo "Activating upgrade complete"
-fi
+/usbkey/scripts/switch-platform.sh ${platformversion}
+echo "Activating upgrade complete"
+
+message="
+The new image has been activated. You must reboot the headnode for the upgrade
+to fully take effect.  Once you have verified the upgrade is ok, you can remove
+the backup in /zones and create a new backup for the latest image.\n\n"
+printf "$message"
+
 exit 0

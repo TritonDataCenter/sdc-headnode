@@ -91,6 +91,12 @@ if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_APP_DATASET}") ]]; then
     echo "FATAL: Unable to zfs destroy '${PREVIOUS_APP_DATASET}' dataset"
     exit 105
   fi
+
+  echo "==> Removing old dataset ('${PREVIOUS_APP_DATASET}') from the zone"
+  cmd="remove dataset name=${PREVIOUS_APP_DATASET}"
+  /usr/sbin/zonecfg -z ${ZONE} $cmd 2>&1
+  [[ $? -gt 0 ]] && \
+    echo "WARNING: Unable to remove application dataset from '${ZONE}' zone"
 fi
 
 if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_DATA_DATASET}") ]]; then

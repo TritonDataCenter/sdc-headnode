@@ -10,15 +10,51 @@ fi
 
 ZONE=$1
 SRC_DIR=$2
-CFG_FILE=/zones/$ZONE/root/opt/smartdc/portal/cfg/capi.json
+ROLE="portal"
 
-# Older backups may not have had this zone
-if [[ -d "${SRC_DIR}/${ZONE}" && -f "${SRC_DIR}/${ZONE}/capi.json" ]]; then
-	echo "==> Restoring config file for zone '${ZONE}'"
-	cp ${SRC_DIR}/${ZONE}/capi.json $CFG_FILE
+ZONEPATH=`zonecfg -z $ZONE info zonepath | cut -d " " -f2`
 
+BASE_DIR=$ZONEPATH/root/opt/smartdc/portal
+
+# Older backups may not have backed up this role
+if [[ -d "${SRC_DIR}/${ROLE}" && -f "${SRC_DIR}/${ROLE}/config.tar" ]]; then
+    echo "==> Restoring config files for zone '${ZONE}'"
+
+    cd $BASE_DIR
+    tar xbf 512 ${SRC_DIR}/${ROLE}/config.tar
+
+    # If we're restoring for an upgrade, then we may need to add some
+    # missing config entries.
+    CFG_FILE=$BASE_DIR/cfg/config.js
+
+    egrep -s "extensionLocation" $CFG_FILE
+    if [ $? != 0 ]; then
+        nawk '{
+            if ($1 != "siteThemeName") {
+                print $0
+                continue
+            }
+
+            # If siteThemeName is not the last entry, fatal
+            if (substr($0, length($0), 1) == ",")
+                exit 1
+
+            # Append the new entries at the end of the config
+            printf("%s,\n", $0)
+            printf("  extensionLocation : \047./extensions/\047,\n")
+            printf("  viewExtensionLocation : \047./extensions/views/\047,\n")
+            printf("  googleAnalyticsCode : false\n")
+        }' $CFG_FILE >/tmp/portal.$$
+
+        if [ $? != 0 ]; then
+            echo "Warning, unable to add new configuration entries for $ROLE"
+        else
+            cp /tmp/portal.$$ $CFG_FILE 
+            rm -f /tmp/portal.$$
+        fi
+    fi
 else
-	echo "Warning, older backup; missing config file for $ZONE"
+    echo "Warning, older backup; missing config files for $ROLE"
 fi
 
 echo "==> Done"
