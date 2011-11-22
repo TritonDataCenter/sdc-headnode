@@ -54,7 +54,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo "==> Removing temporary snapshot of '${ZONE}'"
-/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}@${BACKUP_VERSION}"
+/usr/sbin/zfs destroy "zones/${ZONE}@${BACKUP_VERSION}"
 
 # Create a file to hold the file name for the restore script:
 echo "${BACKUP_FILE}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"
