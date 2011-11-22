@@ -7,6 +7,7 @@ ROOT_PW=${amon_root_pw}
 ADMIN_PW=${amon_admin_pw}
 TMPFS=512m
 
+UFDS_URL=${ufds_client_url}
 UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 
