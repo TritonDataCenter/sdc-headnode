@@ -126,6 +126,7 @@ cat > /var/tmp/amon_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+mkdir -p /opt/smartdc/amon/cfg
 cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
 {
   "port": 80,
