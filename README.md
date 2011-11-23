@@ -126,8 +126,9 @@ These are all shims for the primary build script:
     ./bin/build-image [TARGET]
 
 
-`make coal` should create a "coal-develop-20110616T203554Z-2gb.vmwarevm" (or
-"coal-develop-20110616T203554Z-2gb.vmwarevm.tgz" if "build-tgz" is true).
+`make coal` should create a file like
+"coal-master-20111123T073603Z-g01b7126-4gb.tgz" (or
+"coal-master-20111123T073603Z-g01b7126-4gb.tgz.tgz" if "build-tgz" is true).
 Open that to startup COAL.
 
 
@@ -145,7 +146,6 @@ Likewise for the others zones using these envvars:
     BOOTER_DIR
     MAPI_DIR
     PORTAL_DIR
-    PUBAPI_DIR
     CLOUDAPI_DIR
     BILLAPI_DIR
 
@@ -189,5 +189,4 @@ Likewise for the others zones using these envvars:
     BOOTER_DIR
     MAPI_DIR
     PORTAL_DIR
-    PUBAPI_DIR
     CLOUDAPI_DIR
