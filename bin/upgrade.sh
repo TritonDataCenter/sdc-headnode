@@ -18,8 +18,9 @@ ROOT=$(pwd)
 export SDC_UPGRADE_ROOT=${ROOT}
 export SDC_UPGRADE_SAVE=/zones
 
-# We use the 6.5 rc11 build date to check the minimum upgradeable version.
-VERS_6_5=20110923
+# We use the 6.5 rc11 USB key image build date to check the minimum
+# upgradeable version.
+VERS_6_5=20110922
 
 RECREATE_ZONES=( \
     assets \
@@ -31,6 +32,7 @@ RECREATE_ZONES=( \
     capi \
     billapi \
     portal \
+    cloudapi \
     riak
 )
 
@@ -316,35 +318,33 @@ function recreate_zones
         # If the zone has a data dataset, copy to the path create-zone.sh
         # expects it for reuse:
         if [[ -f ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ]]; then
-          cp ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ${usbcpy}/backup/
+          cp ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs \
+              ${usbcpy}/backup/
         fi
 
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
 
-        # If we've copied the data dataset, remove it:
-        [[ -f ${usbcpy}/backup/${zone}-data.zfs ]] && \
+	# If we've copied the data dataset, remove it.  Also, we know that
+	# create-zone will have restored the zone using the copied zfs send
+	# stream.  Otherwise, if this zone has some other form of backup,
+	# restore the zone now.
+        if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
             rm ${usbcpy}/backup/${zone}-data.zfs
+	elif [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
+	    zoneadm -z ${zone} halt
+	    # wait until zone is halted
+            echo "Wait for zone to shutdown"
+            while true; do
+                sleep 3
+                state=`zoneadm -z ${zone} list -p | cut -d: -f3`
+                [ "$state" == "installed" ] && break
+            done
 
-	zoneadm -z ${zone} halt
-	# wait until zone is halted
-        echo "Wait for zone to shutdown"
-        while true; do
-            sleep 3
-            state=`zoneadm -z ${zone} list -p | cut -d: -f3`
-            [ "$state" == "installed" ] && break
-        done
+            ${usbcpy}/zones/${zone}/restore ${zone} ${backup_dir}/zones/${zone}/
 
-	# Use the latest restore code from the new upgrade image if possible
-        if [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
-            ${usbcpy}/zones/${zone}/restore ${zone} \
-                ${backup_dir}/zones/${zone}/
-        elif [[ -x /zones/${zone}/root/opt/smartdc/bin/restore ]]; then
-            /zones/${zone}/root/opt/smartdc/bin/restore ${zone} \
-                ${backup_dir}/zones/${zone}/
-        fi
-
-	zoneadm -z ${zone} boot
+	    zoneadm -z ${zone} boot
+	fi
     done
 }
 
