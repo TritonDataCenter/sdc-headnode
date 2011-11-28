@@ -33,9 +33,9 @@ datacenter_location="San Francisco, CA"
 datacenter_headnode_id=0
 
 default_rack_name=RACK1
-default_rack_size=30
+default_rack_size=42
 default_server_role=pro
-default_package_sizes="128,256,512,1024"
+default_package_sizes="128,256,512,1024,2048,4096,8192,16384"
 
 # These settings are used by all services in your cloud for email messages
 mail_to=root@localhost
