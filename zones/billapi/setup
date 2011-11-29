@@ -55,20 +55,22 @@ fi
 curl -k -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2010q4
 curl -k -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 curl -k -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2010q4.tar
+curl -k -o node.tgz -s $CONFIG_assets_ip:/extra/$role/node.tgz
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/billapi
 
 # Unpack fs.tar and copy files into proper locations within the zone
 mkdir /.stage
+mkdir -p /opt/smartdc/billapi/ssl
 echo "unpack fs.tar"
 (cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
 rm -f /var/svc/fs.tar.bz2
-echo "install root"
-(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
-echo "install site"
-(cd /.stage/site; tar cbf 512 - *) | (cd /lib/svc/manifest/site; tar xbf 512 -)
-rm -rf /.stage
+#echo "install root"
+(cd /.stage/; tar cbf 512 - *) | (cd /opt/smartdc/billapi; tar xbf 512 -)
+#echo "install site"
+#(cd /.stage/site; tar cbf 512 - *) | (cd /lib/svc/manifest/site; tar xbf 512 -)
+#rm -rf /.stage
 
 # Install using local pkg repo
 mkdir -p /var/svc/pkgs
@@ -88,10 +90,10 @@ EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
 BILLAPI_EXTERNAL_URL="https://$EXT_IPADDR"
 
 echo "Installing local node.js"
+mkdir -p /opt/smartdc/billapi/config
 cd /opt/smartdc
-/usr/bin/gtar -z -m -xf /opt/tmp/node.tgz
+/usr/bin/gtar -z -m -xf /var/svc/node.tgz
 cd -
-/usr/bin/rm -fr /opt/tmp
 /usr/bin/chown -R root:root /opt/smartdc
 
 echo "Generating SSL Certificate"
@@ -367,7 +369,7 @@ cat > /opt/smartdc/billapi/config/config.json <<HERE
       "burst": 30,
       "rate": 10,
       "overrides": {
-        "${CAPI_ADMIN_LOGIN}": {
+        "${UFDS_ADMIN_LOGIN}": {
           "burst": 0,
           "rate": 0
         }
