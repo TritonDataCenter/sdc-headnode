@@ -27,8 +27,9 @@ ROOT=$(pwd)
 export SDC_UPGRADE_DIR=${ROOT}
 export SDC_UPGRADE_SAVE=/var/tmp/upgrade_save
 
-# We use the 6.5 rc11 build date to check the minimum upgradeable version.
-VERS_6_5=20110923
+# We use the 6.5 rc11 USB key image build date to check the minimum
+# upgradeable version.
+VERS_6_5=20110922
 
 CORE_ZONES="assets dhcpd mapi rabbitmq"
 OLD_EXTRA_ZONES="adminui billapi ca capi cloudapi portal riak"
@@ -586,16 +587,23 @@ function recreate_core_zones
 	for zone in $CORE_ZONES
 	do
 	        # If the zone has a data dataset, copy to the path
-		# create-zone.sh expects it for reuse:
+		# create-zone.sh expects it for reuse.
 		[ -f ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs ] && \
 		    cp ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs \
 			${usbcpy}/backup
 
 	        ${usbcpy}/scripts/create-zone.sh ${zone} -w
 
-	        # If we've copied the data dataset, remove it:
-		[[ -f ${usbcpy}/backup/${zone}-data.zfs ]] && \
-		    rm ${usbcpy}/backup/${zone}-data.zfs
+	        # If we've copied the data dataset, remove it.  Also, we know
+		# that create-zone will have restored the zone using the
+		# copied zfs send stream.  Otherwise, if this zone has some
+		# other form of backup, restore the zone now.
+		if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
+			rm ${usbcpy}/backup/${zone}-data.zfs
+		elif [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
+			${usbcpy}/zones/${zone}/restore ${zone} \
+			    ${SDC_UPGRADE_DIR}/bu.tmp
+		fi
 	done
 }
 
@@ -604,9 +612,35 @@ function recreate_core_zones
 function convert_capi_ufds
 {
 	echo "Transforming CAPI postgres dumps to LDIF."
-	${usbcpy}/bin/capi2ldif.sh ${SDC_UPGRADE_SAVE}/capi_dump > $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
-	echo "Running ldapadd on transformed CAPI data (Blocked on OS-703!)"
-	# LDAPTLS_REQCERT=allow /usr/ldap/bin/ldapadd -H ${CONFIG_ufds_client_url} -D ${CONFIG_ufds_ldap_root_dn} -w ${CONFIG_ufds_ldap_root_pw} -f $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
+	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_SAVE}/capi_dump \
+	    > $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
+
+	# We're on the headnode, so we know the zonepath is in /zones.
+	cp $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif /zones/$1/root
+
+	# Wait up to 2 minutes for ufds zone to be ready
+	echo "Waiting for ufds zone to finish booting"
+	local cnt=0
+	while [ $cnt -lt 12 ]; do
+		sleep 10
+		local scnt=`svcs -z $1 -x 2>/dev/null | wc -l`
+		[ $scnt == 0 ] && break
+		cnt=$(($cnt + 1))
+	done
+	[ $cnt == 12 ] && \
+	    echo "WARNING: some ufds svcs still not ready after 2 minutes"
+
+	# re-load config to pick up settings for newly created ufds zone
+	load_sdc_config
+
+	echo "Running ldapadd on transformed CAPI data"
+	zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
+	    -H ${CONFIG_ufds_client_url} \
+	    -D ${CONFIG_ufds_ldap_root_dn} \
+	    -w ${CONFIG_ufds_ldap_root_pw} \
+	    -f /ufds.ldif
+
+	rm -f /zones/$1/root/ufds.ldif
 }
 
 # Use mapi to reprovision the extra zones.
@@ -688,12 +722,12 @@ function recreate_extra_zones
 
 		# Wait up to 10 minutes for asynchronous role setup to finish
 		echo "Wait for zone to finish seting up"
-		cnt=0
+		local cnt=0
 		while [ $cnt -lt 60 ]; do
 			sleep 10
 			[ -e /zones/$zname/root/var/svc/setup_complete ] && \
 			    break
-			cnt=`expr $cnt + 1`
+			cnt=$(($cnt + 1))
 		done
 		[ $cnt == 60 ] && \
 		    echo "WARNING: setup did not finish after 10 minutes"
@@ -711,7 +745,7 @@ function recreate_extra_zones
 		# We need riak running to setup ufds
 		if [ "$role" == "riak" ]; then
 			zoneadm -z $zname boot
-			skip_boot"$zname $skip_boot"
+			skip_boot="$zname $skip_boot"
 		fi
 
 		# We need ufds running to convert capi data
@@ -720,7 +754,7 @@ function recreate_extra_zones
 			skip_boot="$zname $skip_boot"
 
 			# If moving from capi to ufds, convert capi.
-			[ $CAPI_FOUND == 1 ] && convert_capi_ufds
+			[ $CAPI_FOUND == 1 ] && convert_capi_ufds $zname
 		fi
 	done
 
@@ -816,7 +850,7 @@ function register_platform
 		echo "Retrying in 60 seconds" >/dev/stderr
 
 		sleep 60
-		cnt=`expr $cnt + 1`
+		cnt=$(($cnt + 1))
 	done
 	if [ $cnt -ge 5 ]; then
 		echo "Error: registering platform failed after 5 retries" \
@@ -970,12 +1004,39 @@ mount -F ufs /usbkey/os/${platformversion}/platform/i86pc/amd64/boot_archive \
     /image
 mount -F lofs /image/smartdc /smartdc
 
-# Make sure zones and agents have the latest /usr/node_modules and json
-# Trying to mount all of usr with the following command deadlocks:
+# Make sure zones and agents have the latest /usr/node_modules, json and zones
+# commands.
+# Trying to mount all of usr with the following command will lead to deadlock:
 #     mount -F ufs -o ro -O /image/usr.lgz /usr
+# We also need a few pieces from the latest /usr/vm, but 6.x doesn't have that
+# so we can't just lofs mount.  Intead we setup a writeable node_modules in
+# /tmp, make it look like we want, then lofs mount that.
 mount -F ufs -o ro /image/usr.lgz /image/usr
-mount -F lofs -o ro /image/usr/node_modules /usr/node_modules
+mkdir /tmp/node_modules
+cp -pr /image/usr/node_modules/* /tmp/node_modules
+cp -p /image/usr/vm/node_modules/* /tmp/node_modules
+sed -e 's%/usr/vm/sbin/zoneevent%/image/usr/vm/sbin/zoneevent%' \
+    /image/usr/vm/node_modules/VM.js >/tmp/node_modules/VM.js
+mount -F lofs -o ro /tmp/node_modules /usr/node_modules
 mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
+mount -F lofs -o ro /image/usr/sbin/zlogin /usr/sbin/zlogin
+mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
+mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
+mount -F lofs -o ro /image/usr/lib/zones/zoneadmd /usr/lib/zones/zoneadmd
+
+# All of the following are using libzonecfg so we need to stop them before we
+# can lofs mount the new libzonecfg.
+svcadm disable zones-monitoring
+svcadm disable smartlogin
+svcadm disable cainstsvc
+svcadm disable zonetracker-v2
+svcadm disable metadata
+# XXX wait a few seconds for these svcs to stop using libzonecfg
+sleep 5
+mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 /usr/lib/libzonecfg.so.1
+svcadm enable metadata
+svcadm enable zonetracker-v2
+# leave the other svcs disabled until reboot
 
 # We restore the core zones as a side-effect during creation.
 recreate_core_zones
@@ -987,7 +1048,7 @@ while [ $cnt -lt 18 ]; do
 	bad_svcs=`svcs -Zx 2>/dev/null | wc -l`
 	[ $bad_svcs == 0 ] && break
 	sleep 10
-	cnt=`expr $cnt + 1`
+	cnt=$(($cnt + 1))
 done
 [ $cnt == 18 ] && echo "WARNING: core svcs still not running after 3 minutes"
 
