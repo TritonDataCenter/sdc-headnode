@@ -21,107 +21,75 @@ set -o pipefail
 # write output to log file
 ROOT=$(cd $(dirname $0)/../; pwd)
 
+stagedir=
+
+while [[ $# > 2 ]]; do
+    option=$1
+    shift
+    case $option in
+        -s)
+            stagedir=$1
+            shift
+        ;;
+        *)
+            echo "Unknown option '$option'"
+            exit 1
+        ;;
+    esac
+done
+
 ZONE=$1
+CHECKOUT_TARGET=$2
 ERR=
 
-echo "ROOT: ${ROOT}"
 
-if [[ -z ${ZONE} || ! -d ${ROOT}/zones/${ZONE} ]]; then
+ZONEDIR="${ROOT}/zones/${ZONE}"
+[[ -z $stagedir ]] && stagedir=$ZONEDIR
+
+if [[ -z ${ZONE} || ! -d $stagedir ]]; then
     echo "No such zone '${ZONE}'"
     ERR=1
 fi
-ZONEDIR="${ROOT}/zones/${ZONE}"
-echo "${ZONEDIR}"
-if [[ ! -x ${ZONEDIR}/fs.populate ]]; then
+
+#if [[ -z $CHECKOUT_TARGET ]]; then
+#    echo "No checkout target specified '$CHECKOUT_TARGET'"
+#    ERR=4
+#fi
+
+echo "$ZONE - ${stagedir}"
+if [[ ! -x ${stagedir}/fs.populate ]]; then
     echo "Zone '${ZONE}' has no fs.populate script"
     ERR=2
 fi
-if [[ ! -d ${ZONEDIR}/fs.root ]]; then
+if [[ ! -d ${stagedir}/fs.root ]]; then
     echo "Zone '${ZONE}' has no fs.root dir"
     ERR=3
 fi
 
 if [[ -n ${ERR} ]]; then
-    echo "Usage: $0 <zone>"
+    echo "Usage: $0 [-s <stage_dir>] <zone> <checkout_target>"
     exit 1
 fi
 
-
-case ${ZONE} in
-    adminui)
-        if [[ -z ${ADMINUI_DIR} ]]; then
-            echo "Need ADMINUI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    dhcpd)
-        if [[ -z ${BOOTER_DIR} ]]; then
-            echo "Need BOOTER_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    mapi)
-        if [[ -z ${MAPI_DIR} ]]; then
-            echo "Need MAPI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    portal)
-        if [[ -z ${PORTAL_DIR} ]]; then
-            echo "Need PORTAL_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    cloudauth)
-        if [[ -z ${CLOUDAUTH_DIR} ]]; then
-            echo "Need CLOUDAUTH_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    cloudapi)
-        if [[ -z ${CLOUDAPI_DIR} ]]; then
-            echo "Need CLOUDAPI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    billapi)
-        if [[ -z ${BILLAPI_DIR} ]]; then
-            echo "Need BILLAPI_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    ufds)
-        if [[ -z ${UFDS_DIR} ]]; then
-            echo "Need UFDS_DIR env for ${zone}"
-            exit 1
-        fi
-        ;;
-    *)
-        echo "Unhandled zone: ${zone}"
-        exit 1
-        ;;
-esac
-
-
-# Get CHECKOUT_TARGET.
-CHECKOUT_TARGET=
-if [[ -z "$CHECKOUT_TARGET" && -f ${ROOT}/build.spec.local ]]; then
-    CHECKOUT_TARGET=$(cat ${ROOT}/build.spec.local | ${ROOT}/bin/json "${ZONE}-checkout")
+if [[ ! -d $stagedir ]]; then
+    export ADMINUI_DIR=${stagedir}/mcp_api_admin
+    export BOOTER_DIR=${stagedir}/booter
+    export MAPI_DIR=${stagedir}/mcp_api_gateway
+    export PORTAL_DIR=${stagedir}/public-web-client
+    export CLOUDAPI_DIR=${stagedir}/cloud-api
+    export BILLAPI_DIR=${stagedir}/billing_api
+    export UFDS_DIR=${stagedir}/ufds
 fi
-if [[ -z "$CHECKOUT_TARGET" && -f ${ROOT}/build.spec ]]; then
-    CHECKOUT_TARGET=$(cat ${ROOT}/build.spec | ${ROOT}/bin/json "${ZONE}-checkout")
-fi
-
 
 # do in /tmp because only root can write in mnt
-fstar=${ROOT}/${ZONE}.tar.bz2
+fstar=$stagedir/fs.tar.bz2
 rm -f ${fstar}
 mkdir -p /tmp/fs.${ZONE}.$$
-cp -pPR ${ZONEDIR}/fs.populate ${ZONEDIR}/fs.root /tmp/fs.${ZONE}.$$
+cp -pPR ${stagedir}/fs.populate ${stagedir}/fs.root /tmp/fs.${ZONE}.$$
 (cd /tmp/fs.${ZONE}.$$/fs.root \
     && CHECKOUT_TARGET=$CHECKOUT_TARGET ../fs.populate \
-    && tar -jcvf ${fstar} ./ \
-    && rm -rf /tmp/fs.${ZONE}.$$)
+    && tar -jcvf ${fstar} ./ )
+rm -rf /tmp/fs.${ZONE}.$$
 if [[ $? -ne 0 ]]; then
     fatal "Failed create ${ZONE}.tar.bz2 for ${ZONE}"
 else

@@ -938,34 +938,6 @@ function get_fs_tarball
     fi
 }
 
-function build_fs_tarball
-{
-    zone_dir=$1
-    CHECKOUT_TARGET=$2
-
-    [[ -n ${zone_dir} ]] || fatal "build_fs_tarball(): no zone dir specified."
-    export CHECKOUT_TARGET
-
-    zone=$(basename ${zone_dir})
-
-    if [ -x ${zone_dir}/fs.populate ] && \
-        [ -d ${zone_dir}/fs.root ]; then
-
-        # do in /tmp because only root can write in mnt
-        mkdir -p /tmp/fs.${zone}.$$
-        cp -pPR ${zone_dir}/fs.populate ${zone_dir}/fs.root /tmp/fs.${zone}.$$
-        rm -rf ${zone_dir}/fs.{populate,root}
-        (cd /tmp/fs.${zone}.$$/fs.root \
-            && ../fs.populate \
-            && ${TAR} -jcvf ${zone_dir}/fs.tar.bz2 ./)
-        if [[ $? -ne 0 ]]; then
-            fatal "Failed to populate fs.tar.bz2 for ${zone}"
-        fi
-    else
-        fatal "Can't find fs.populate or fs.root for ${zone}"
-    fi
-}
-
 function copy_zones
 {
     if [[ -n $ZONE_DIR ]]; then
@@ -1003,7 +975,7 @@ function copy_zones
             get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
         elif [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
             [ -d ${STAGE}/zones/${zone}/fs.root ]; then
-            build_fs_tarball ${STAGE}/zones/${zone} ${target_checkout}
+            bin/build-fstar -s ${STAGE}/zones/${zone} ${zone} ${target_checkout}
         fi
 
         if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
