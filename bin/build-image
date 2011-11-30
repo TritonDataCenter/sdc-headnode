@@ -591,16 +591,13 @@ function valid_archive
 # Get a bit (from BIT_URL/BIT_DIR/BIT_BRANCH) to the local "cache/" dir.
 # If the file base name already exists in the cache dir, then it is not
 # re-downloaded.
-#
-# Local path of downloaded bit is set to `get_bit_rv` global.
 function get_bit
 {
     # Presumption: This pattern is of the form
     # "$single-level-dir/$file-regex-pattern".
     pattern=$1
     
-    # Note: intentionally a global.
-    get_bit_rv=
+    local get_bit_rv=
 
     local pattern_dir=$(dirname $pattern)
     local pattern_base="^$(basename $pattern)"
@@ -619,7 +616,7 @@ function get_bit
         local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
         local cache_path=${ROOT}/cache/${latest_name}
         if [[ ! -f $cache_path ]]; then
-            echo "Copying '${latest_path}' bit to cache."
+            echo "Copying '${latest_path}' bit to cache." >&2
             cp ${latest_path} ${cache_path}
         fi
         get_bit_rv=${cache_path}
@@ -641,7 +638,7 @@ function get_bit
         fi
         local cache_path=${ROOT}/cache/${latest_name}
         if [[ ! -f $cache_path ]]; then
-            echo "Downloading '${url_dir}/${latest_name}' bit to cache."
+            echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
             (cd ${ROOT}/cache \
                 && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
                     -O ${url_dir}/${latest_name} \
@@ -657,9 +654,10 @@ function get_bit
             fatal "'${ROOT}/cache/${pattern}' did not match any files (and we have no Internet)."
         fi
         local latest_path=${ROOT}/cache/${latest_name}
-        echo "Use '${latest_path}' bit already in cache (no Internet)."
+        echo "Use '${latest_path}' bit already in cache (no Internet)." >&2
         get_bit_rv=${latest_path}
     fi
+    echo "${get_bit_rv}"
 }
 
 function copy_platform
@@ -679,8 +677,7 @@ function copy_platform
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
 
-        get_bit "platform/platform-${platform_release}-.*"
-        image=$get_bit_rv
+        image=$(get_bit "platform/platform-${platform_release}-.*")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
@@ -735,15 +732,13 @@ function get_agentsshar
 
     local agentsshar_branch=$1
 
-    if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
+		if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
+        local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+        local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+	  else 
         local agentsshar_path=${agentsshar_branch}
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
-    else
-        get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh"
-        local agentsshar_path=$get_bit_rv
-        get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum"
-        local agentsmd5_path=$get_bit_rv
-    fi
+	  fi
 
     # Make sure it's not corrupt.
     local MD5=$(cat ${agentsmd5_path})
@@ -923,8 +918,7 @@ function get_fs_tarball
         fi
     else
         # not a file so assume it's a pattern, find the latest
-        get_bit ${target}
-        local bit_cache_path=$get_bit_rv
+        local bit_cache_path=$(get_bit ${target})
         cp ${bit_cache_path} ${cache_path}
     fi
 
