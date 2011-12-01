@@ -41,5 +41,19 @@ if [[ $? -ne 0 ]]; then
     exit 112
 fi
 
+# The riak uid changed between 6.x and the next major release
+# The zone isn't running during restore, so we can't use zlogin.
+riak_uid=`nawk -F: '{
+	if ($1 == "riak") {
+		print $3
+		exit 0
+	}
+}' /zones/$ZONE/root/etc/passwd`
+
+if [ -n "$riak_uid" ]; then
+	chown -R $riak_uid /zones/$ZONE/root/var/db/riak
+	chown -R $riak_uid /zones/$ZONE/root/opt/riak/etc
+fi
+
 echo "All done!!!"
 exit 0

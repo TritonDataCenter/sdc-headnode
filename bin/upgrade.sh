@@ -638,7 +638,7 @@ function convert_capi_ufds
 	    -H ${CONFIG_ufds_client_url} \
 	    -D ${CONFIG_ufds_ldap_root_dn} \
 	    -w ${CONFIG_ufds_ldap_root_pw} \
-	    -f /ufds.ldif
+	    -f /ufds.ldif 1>&4 2>&1
 
 	rm -f /zones/$1/root/ufds.ldif
 }
@@ -1031,7 +1031,7 @@ svcadm disable smartlogin
 svcadm disable cainstsvc
 svcadm disable zonetracker-v2
 svcadm disable metadata
-# XXX wait a few seconds for these svcs to stop using libzonecfg
+# wait a few seconds for these svcs to stop using libzonecfg
 sleep 5
 mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 /usr/lib/libzonecfg.so.1
 svcadm enable metadata
