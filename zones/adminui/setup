@@ -282,6 +282,16 @@ else
   /usr/sbin/svcadm enable -s nginx
 fi
 
+# Setup and configure redis
+if [[ -z $(/usr/bin/svcs -a|grep redis) ]]; then
+  echo "Importing redis SMF manifest"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/redis.xml
+  /usr/sbin/svcadm enable -s redis
+else
+  echo "Restarting redis service"
+  /usr/sbin/svcadm restart -s redis
+fi
+
 # Note these files should have been created by previous Rake task.
 # If we copy these files post "gsed", everything is reset:
 if [[ ! -e /opt/smartdc/adminui/config/config.ru ]]; then
