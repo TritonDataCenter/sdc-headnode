@@ -172,15 +172,7 @@ exports.config = {
   ],
   machineListFields : [
     { name: "type", heading: "Type", sortable: true, width: 104 },
-    { name: "name", heading: "Machine name", sortable: true,
-      mutate: function abbrevName(n, machine) {
-        var displayName = machine.name || machine.hostname || "Unnamed SmartMachine";
-        if (displayName.length > 30) {
-          displayName = displayName.substr(0, 30) + "…";
-        }
-        return displayName;
-      }
-      , width: 280 },
+    { name: "name", heading: "Machine name", sortable: true, width: 280 },
     { name: "ips", heading: "Public IP Address", sortable: true, width: 140 },
     { name: "memory", heading: "RAM", sortable: true, width: 83 },
     { name: "created", "date": true, heading: "Age", sortable: true, width: 130 },
