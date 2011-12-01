@@ -1,7 +1,5 @@
 {
-    "use-proxy": "false"
-  , "proxy-ip": "10.0.1.138"
-  , "build-tgz": "true"
+    "build-tgz": "true"
   , "bits-url": "https://guest:GrojhykMid@stuff.joyent.us/stuff/builds"
   , "bits-branch": "master"
   , "platform-release": "master"

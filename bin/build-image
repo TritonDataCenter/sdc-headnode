@@ -127,59 +127,6 @@ function build_spec () {
     echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
 };
 
-function check_proxy
-{
-    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
-    USE_PROXY=$(build_spec use-proxy)
-    PROXY_IP=$(build_spec proxy-ip)
-
-    if [[ -n ${USE_PROXY} && ${USE_PROXY} == "false" ]]; then
-        NOPROXY="true"
-    fi
-    if [[ -z ${PROXY_IP} ]]; then
-        NOPROXY="true"
-    fi
-
-    if [ -z "$NOPROXY" -a -z "$NOINTERNET" ]; then
-      if netstat -rn | grep -q 10\.0\.1\.1 ; then
-        echo "Checking for proxy"
-        PROXY=`curl ${CURL_OPTS} -m 1 -s \
-            http://${PROXY_IP}/proxy-usb-headnode/location 2> /dev/null || true`
-        if [ "$PROXY" == "vancouver" ]; then
-          echo "Vancouver proxy found."
-        elif [ -n "$PROXY" ]; then
-          echo "Unknown proxy: $PROXY"
-        else
-          echo "No proxy found."
-        fi
-      fi
-    else
-        echo "Proxy disabled."
-    fi
-}
-
-function proxy
-{
-    # See https://hub.joyent.com/wiki/display/dev/proxy-usb-headnode
-
-    if [ "$PROXY" = "vancouver" ]; then
-
-      # Sorry about the gnarly regexes - we want to generate URLs that look like:
-      #
-      # /https/guest_GrojhykMid@coal.joyent.us/coal/live_147
-      # /http/guest_GrojhykMid@10.0.1.8/platform
-      # /http/pkgsrc.joyent.com/sdc/2010Q4/gcc45/All
-      # /https/guest_GrojhykMid@216.57.203.68/coal/live_147/agents
-
-      PROTO=$(echo $1 | sed -E 's,^(https|http)://([^/]*)(/.*)?$,\1,')
-      HOST=$(echo $1 | sed -E 's,^(https|http)://([^/]*)(/.*)?$,\2,' | tr : _)
-      FILEPATH=$(echo $1 | sed -E 's,^(https|http)://([^/]*)(/.*)?$,\3,')
-      echo "http://${PROXY_IP}/proxy-usb-headnode/${PROTO}/${HOST}${FILEPATH}"
-    else
-      echo $1
-    fi
-}
-
 trap 'errexit $? $LINENO' EXIT
 
 STAGE="${ROOT}/cache/stage"
@@ -193,9 +140,6 @@ NO_INTERNET=$(build_spec no-internet)
 if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
 fi
-
-check_proxy
-
 
 # Determine BITS_URL, BITS_BRANCH and BITS_DIR. These determine where this
 # build will get its dependent pre-built bits.
@@ -259,7 +203,7 @@ fi
 
 # Validate BITS_URL and set BITS_DIR if it is a dir.
 if [[ "${BITS_URL:0:8}" == "https://" || "${BITS_URL:0:7}" == "http://" ]]; then
-    BITS_URL=$(proxy "${BITS_URL}")
+    BITS_URL=$BITS_URL
     BITS_DIR=
 elif [[ -d "${BITS_URL}" ]]; then
     BITS_DIR=$BITS_URL
@@ -282,12 +226,12 @@ fi
 
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
-DSAPI_URL=$(proxy "https://usbheadnode:shnek7bi3op5@datasets.joyent.com")
+DSAPI_URL="https://usbheadnode:shnek7bi3op5@datasets.joyent.com"
 
 # Support N version of pkgsrc
-PKGSRC_2010Q4=$(proxy "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/")
-PKGSRC_2011Q2=$(proxy "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/")
-PKGSRC_2011Q2_64=$(proxy "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/")
+PKGSRC_2010Q4="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
+PKGSRC_2011Q2="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/"
+PKGSRC_2011Q2_64="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
 PKGSRC_LIST=(
     "pkgsrc_2011Q2|$PKGSRC_2011Q2"
     "pkgsrc_2011Q2_64|$PKGSRC_2011Q2_64"
@@ -813,7 +757,6 @@ function copy_datasets
             # use proper credentials when talking to datasets.joyent.com
             uri="${DSAPI_URL}/datasets/${uuid}/${path}"
         fi
-        uri=$(proxy ${uri})
         if [[ -z ${uri} ]]; then
             fatal "Download uri for dataset ${name} not present in manifest"
         fi
