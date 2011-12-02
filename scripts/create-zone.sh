@@ -64,6 +64,9 @@ function install_node_config
                 capi_client_url \
                 capi_http_admin_user \
                 capi_http_admin_pw \
+                mapi_client_url \
+                mapi_http_admin_user \
+                mapi_http_admin_pw \
                 dhcp_lease_time \
                 zonetracker_database_path \
                 ; do
