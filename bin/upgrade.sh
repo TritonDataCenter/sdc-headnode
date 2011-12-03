@@ -797,6 +797,17 @@ function install_platform
 
 	mount_usbkey
 
+	# cleanup old images from the USB key
+	local cnt=$(ls -d ${usbmnt}/os/* | wc -l)
+	if [ $cnt -gt 1 ]; then
+		# delete all but the last image (current will become previous)
+		local del_cnt=$(($cnt - 1))
+		for i in $(ls -d ${usbmnt}/os/* | head -$del_cnt)
+		do
+			rm -rf $i
+		done
+	fi
+
 	echo "Unpacking ${platformversion} to ${usbmnt}/os"
 	curl --progress -k file://${platformupdate} | \
 	    (mkdir -p ${usbmnt}/os/${platformversion} \
