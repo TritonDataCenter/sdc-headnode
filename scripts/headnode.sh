@@ -113,6 +113,30 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
+if [[ ${CONFIG_stop_before_setup} == "true" || \
+    ${CONFIG_stop_before_setup} == "0" ]]; then
+
+    # This option exists for development and testing, it allows the setup to be
+    # stopped after the zpool is created but before any of the agents or
+    # headnode zones are setup.
+    exit 0
+fi
+
+# Install the agents here so initial zones have access to metadata.
+which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
+    | grep -v -- '-hvm-' | tail -n1)
+if [[ -n ${which_agents} ]]; then
+    printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
+    if [ $restore == 0 ]; then
+        (cd /var/tmp ; bash ${which_agents})
+    else
+        (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
+    fi
+    printf "%4s\n" "done" >&${CONSOLE_FD}
+else
+    fatal "No agents-*.sh found!"
+fi
+
 if ( zoneadm list -i | grep -v "^global$" ); then
     ZONES=`zoneadm list -i | grep -v "^global$"`
 else
@@ -151,7 +175,6 @@ if [ $standby == 1 ]; then
     [ -d /usbkey/standby ] && \
         bufile=/usbkey/standby/`ls -t /usbkey/standby 2>/dev/null | head -1`
 fi
-
 
 CREATEDZONES=
 
@@ -214,26 +237,6 @@ if [ -n "${CREATEDZONES}" ]; then
         fi
     done
 
-    # We do this here because agents assume rabbitmq is up and by this point it
-    # should be.
-    if [[ ( $CONFIG_install_agents != "false"   && \
-            $CONFIG_install_agents != "0"     ) ]]; then
-        # We exclude any old hvm platforms that might be sitting around.
-        which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
-            | grep -v -- '-hvm-' | tail -n1)
-        if [[ -n ${which_agents} ]]; then
-            printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
-            if [ $restore == 0 ]; then
-                (cd /var/tmp ; bash ${which_agents})
-            else
-                (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
-            fi
-            printf "%4s\n" "done" >&${CONSOLE_FD}
-        else
-            fatal "No agents-*.sh found!"
-        fi
-    fi
-
     # Check that all of the zone's svcs are up before we end.
     # The svc installing the zones is still running since we haven't exited
     # yet, so the svc count should be 1 for us to end successfully.
@@ -278,7 +281,7 @@ if [ -n "${CREATEDZONES}" ]; then
     if [ $restore == 0 ]; then
 	# clear the screen
 	echo "[H[J" >&${CONSOLE_FD}
-    
+
         if [ $standby == 1 ]; then
             echo "Restoring standby headnode" >&${CONSOLE_FD}
         else
@@ -292,7 +295,7 @@ else
         if [[ $standby == 1 && -z "$bufile" ]]; then
 	    # clear the screen
 	    echo "[H[J" >&${CONSOLE_FD}
-    
+
 	    echo "==> Use sdc-restore to perform setup.  Press [enter] to get login prompt." \
 	        >&${CONSOLE_FD}
 	    echo "" >&${CONSOLE_FD}
@@ -307,7 +310,6 @@ if [[ -f /usbkey/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
 fi
 
 ( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
-
 
 if [[ -f /.dcinfo ]]; then
     eval $(cat /.dcinfo)
