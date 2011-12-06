@@ -2,6 +2,8 @@
 # or directly from head-node global zone, when reconfiguring the zone
 # for whatever the reason using /opt/smartdc/etc/configure
 
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
 # Calculate the bitcounts
 source /lib/sdc/network.sh
 ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})

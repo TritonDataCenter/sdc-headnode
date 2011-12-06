@@ -434,11 +434,11 @@ function copy_base
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
 
-    echo "==> Copying in zoneinit/"
-    cp -r zoneinit ${STAGE}/zoneinit
-
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones
+
+    echo "==> Copying in default/"
+    cp -r default ${STAGE}/default
 
     echo "==> Copying in rc/"
     cp -r rc ${STAGE}/rc
@@ -1042,8 +1042,8 @@ function create_upgrade
         datasets/smartos* \
         rc \
         scripts \
+        default \
         ur-scripts \
-        zoneinit \
         zones \
     )
 

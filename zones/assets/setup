@@ -1,6 +1,11 @@
 #!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc. All rights reserved.
+#
 
-echo "99 finalizing assets zone"
+set -o xtrace
+
+echo "Finishing setup of assets zone"
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
@@ -12,4 +17,8 @@ if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
   #/usr/sbin/svccfg -s svc:/network/nginx:default refresh
   /usr/sbin/svcadm enable -s nginx
 fi
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
 

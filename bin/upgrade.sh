@@ -128,10 +128,10 @@ function backup_usbkey
         boot/grub/menu.lst.tmpl \
         data \
         datasets/smartos.{uuid,filename} \
+        default \
         rc \
         scripts \
         ur-scripts \
-        zoneinit \
         zones \
     ) \
     | (cd ${backup_dir}/usbkey && gtar --no-same-owner -xf -)

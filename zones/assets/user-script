@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+zone_uuid=$(zonename)
+pkgsrc_lst=$(ls -1 /assets/extra/${zone_uuid}/pkgsrc_*)
+pkgsrc_tar=/assets/extra/pkgsrc/$(basename ${pkgsrc_lst}).tar
+
+# Install using local pkg repo
+mkdir -p /var/svc/pkgs
+(cd /var/svc/pkgs && tar -xf ${pkgsrc_tar} \
+      $(cat ${pkgsrc_lst} | sed -e "s/$/.tgz/" | xargs))
+
+for i in $(cat ${pkgsrc_lst})
+do
+        echo "Installing $i"
+        pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
+done
+rm -rf /var/svc/pkgs
+
+mkdir -p /opt/smartdc/bin
+for file in configure configure.sh backup restore setup; do
+    if [[ -f /assets/extra/${zone_uuid}/${file} ]]; then
+        cp /assets/extra/${zone_uuid}/${file} /opt/smartdc/bin/${file}
+    fi
+done
+chmod 755 /opt/smartdc/bin/*
+
+if [[ -f /opt/smartdc/bin/setup ]]; then
+    bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1 &
+fi
+
+exit 0

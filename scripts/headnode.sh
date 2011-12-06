@@ -21,7 +21,7 @@ export PATH
 set -o errexit
 set -o pipefail
 # this is set below
-# set -o xtrace
+set -o xtrace
 
 CONSOLE_FD=4 ; export CONSOLE_FD
 
@@ -45,21 +45,16 @@ function create_latest_link
     (cd ${USB_COPY}/os && ln -s ${latest} latest)
 }
 
-function install_config_file
+#
+# MAPI needs some extra data files, all MAPI specific stuff should be here.
+#
+function copy_special_mapi_files
 {
-    option=$1
-    target=$2
+    uuid=$1
 
-    # pull out those config options we want to keep
-    filename=$(
-        . ${USB_COPY}/config
-	. ${USB_COPY}/config.inc/generic
-        eval echo "\${${option}}"
-    )
-
-    if [[ -n ${filename} ]] && [[ -f "${USB_COPY}/config.inc/${filename}" ]]; then
-        cp "${USB_COPY}/config.inc/${filename}" "${target}"
-    fi
+    sysinfo > /usbkey/extra/${uuid}/headnode-sysinfo.json
+    mkdir -p /usbkey/extra/${uuid}/datasets
+    cp /usbkey/datasets/*.dsmanifest /usbkey/extra/${uuid}/datasets/
 }
 
 trap 'errexit $?' EXIT
@@ -70,12 +65,12 @@ trap 'errexit $?' EXIT
 #
 restore=0
 if [ $# == 0 ]; then
-	DEBUG="true"
-	exec 4>>/dev/console
-	set -o xtrace
+    DEBUG="true"
+    exec 4>>/dev/console
+    set -o xtrace
 else
-	exec 4>>/dev/stdout
-	restore=1
+    exec 4>>/dev/stdout
+    restore=1
 fi
 
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
@@ -113,6 +108,13 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
+if [[ ! -d /usbkey/extra/pkgsrc ]]; then
+    mkdir -p /usbkey/extra/pkgsrc
+    for pkgsrcfile in $(ls -1 /usbkey/data/pkgsrc_*); do
+        ln ${pkgsrcfile} /usbkey/extra/pkgsrc/$(basename ${pkgsrcfile})
+    done
+fi
+
 if [[ ${CONFIG_stop_before_setup} == "true" || \
     ${CONFIG_stop_before_setup} == "0" ]]; then
 
@@ -122,19 +124,25 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
     exit 0
 fi
 
-# Install the agents here so initial zones have access to metadata.
-which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
-    | grep -v -- '-hvm-' | tail -n1)
-if [[ -n ${which_agents} ]]; then
-    printf "%-56s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
-    if [ $restore == 0 ]; then
-        (cd /var/tmp ; bash ${which_agents})
+# This is to move us to the next line past the login: prompt
+[[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
+
+# For dev/debugging, you can set this environment variable.
+if [[ -z ${SKIP_AGENTS} ]]; then
+    # Install the agents here so initial zones have access to metadata.
+    which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
+        | grep -v -- '-hvm-' | tail -n1)
+    if [[ -n ${which_agents} ]]; then
+        printf "%-58s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
+        if [ $restore == 0 ]; then
+            (cd /var/tmp ; bash ${which_agents})
+        else
+            (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
+        fi
+        printf "%4s\n" "done" >&${CONSOLE_FD}
     else
-        (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
+        fatal "No agents-*.sh found!"
     fi
-    printf "%4s\n" "done" >&${CONSOLE_FD}
-else
-    fatal "No agents-*.sh found!"
 fi
 
 if ( zoneadm list -i | grep -v "^global$" ); then
@@ -143,8 +151,15 @@ else
     ZONES=
 fi
 
-USBZONES="assets dhcpd mapi rabbitmq"
-ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | xargs`
+if [[ -f /.dcinfo ]]; then
+    eval $(cat /.dcinfo)
+fi
+
+if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
+    SDC_DATACENTER_HEADNODE_ID=0
+fi
+export SDC_DATACENTER_NAME SDC_DATACENTER_HEADNODE_ID
+
 
 # headnode.sh normally does the initial setup of the headnode when it first
 # boots.  This creates the core zones, installs agents, etc.  However, when
@@ -152,7 +167,7 @@ ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | x
 # USB key, then we want to create plus restore things in this case.
 #
 # If we're setting up a standby headnode, we might have rebooted from the
-# joysetup in the block above.  In that case, joysetup left a cookie named 
+# joysetup in the block above.  In that case, joysetup left a cookie named
 # /zones/.standby.  So we have two conditions to setup a standby headnode,
 # otherwise we setup normally.
 #
@@ -163,11 +178,11 @@ ALLZONES=`for x in ${ZONES} ${USBZONES}; do echo ${x}; done | sort -r | uniq | x
 # even if the system was initially booted as a standby.
 standby=0
 if [ $restore == 0 ]; then
-	if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
-	    standby=1
-	elif [ -e /zones/.standby ]; then
-	    standby=1
-	fi
+    if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
+        standby=1
+    elif [ -e /zones/.standby ]; then
+        standby=1
+    fi
 fi
 
 if [ $standby == 1 ]; then
@@ -175,49 +190,116 @@ if [ $standby == 1 ]; then
     [ -d /usbkey/standby ] && \
         bufile=/usbkey/standby/`ls -t /usbkey/standby 2>/dev/null | head -1`
 fi
+[[ $standby == 1 && -z "$bufile" ]] && skip_zones=true
 
 CREATEDZONES=
 
 # Create link for latest platform
 create_latest_link
 
-for zone in $ALLZONES; do
-    if [[ -z $(echo "${ZONES}" | grep ${zone}) ]]; then
+# HOW THE CORE ZONE PROCESS WORKS:
+#
+# In the /usbkey/zones/<zone> directory you can have any of:
+#
+# configure.sh configure backup restore setup user-script
+#
+# When creating we also hard link these files to /usbkey/extra if they exist.
+#
+# When the assets zone is created /usbkey/extra is mounted in as /assets/extra
+# and is exposed from there over HTTP.  The user-script is passed in as metadata
+# and run through the mdata service in the zone after reboot from zoneinit. The
+# user-script should just download the files above (to /opt/smartdc/bin) and run
+# setup.
+#
+# Most of the time these zones won't need their own user-script and can just use
+# the default one in /usbkey/default/user-script.core which will be applied by
+# build-payload.js if a zone-specific one is not found.
+#
+# The setup script usually does some initial setup and then runs through the
+# configuration.
 
-        # This is to move us to the next line past the login: prompt
-        [[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
-        skip=false
-        if [ "${zone}" == "ufds" ] ; then
-            if ! ${CONFIG_ufds_is_local} ; then
-                skip=true
-            fi
-        fi
+# Install the core headnode zones
 
-	# If booted for standby headnode but no backup on USB, skip creating
-	# the zones at this point.
-	[[ $standby == 1 && -z "$bufile" ]] && skip=true
+function create_zone {
+    zone=$1
+    new_uuid=$(uuid -v4)
+    pkgsrc=$(ls -1 /usbkey/zones/${zone} | grep ^pkgsrc)
 
-        if ! ${skip} ; then
-            ${USB_COPY}/scripts/create-zone.sh ${zone}
-            CREATEDZONES="${CREATEDZONES} ${zone}"
-        fi
-
+    # Do a lookup here to ensure zone with this role doesn't exist
+    existing_uuid=$(vmadm lookup tags.smartdc_role=${zone})
+    if [[ -n ${existing_uuid} ]]; then
+        echo "Skipping creation of ${zone} as ${existing_uuid} already has" \
+            "that role."
+        return 0
     fi
-done
+
+    printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
+    mkdir -p /usbkey/extra/${new_uuid}
+    ln /usbkey/zones/${zone}/${pkgsrc} /usbkey/extra/${new_uuid}/${pkgsrc}
+    if [[ -f /usbkey/zones/${zone}/fs.tar.bz2 ]]; then
+        ln /usbkey/zones/${zone}/fs.tar.bz2 /usbkey/extra/${new_uuid}/fs.tar.bz2
+    fi
+    for file in configure.sh configure backup restore setup; do
+        if [[ -f /usbkey/zones/${zone}/${file} ]]; then
+            ln /usbkey/zones/${zone}/${file} /usbkey/extra/${new_uuid}/${file}
+        fi
+    done
+    if [[ -f /usbkey/rc/zone.root.bashrc ]]; then
+        ln /usbkey/rc/zone.root.bashrc //usbkey/extra/${new_uuid}/bashrc
+    fi
+
+    if [[ -f /usbkey/zones/${zone}/zoneconfig ]]; then
+        # This allows zoneconfig to use variables that exist in the <USB>/config
+        # file, by putting them in the environment then putting the zoneconfig
+        # in the environment, then printing all the variables from the file.  It
+        # is done in a subshell to avoid further namespace polution.
+        (
+            . ${USB_COPY}/config
+            . ${USB_COPY}/config.inc/generic
+            . /usbkey/zones/${zone}/zoneconfig
+            for var in $(cat /usbkey/zones/${zone}/zoneconfig \
+                | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
+
+                echo "${var}='${!var}'"
+            done
+        ) > /usbkey/extra/${new_uuid}/zoneconfig
+    fi
+
+    if [[ ${zone} == "mapi" ]]; then
+        copy_special_mapi_files ${new_uuid}
+    fi
+
+    /usbkey/scripts/build-payload.js ${zone} ${new_uuid} | \
+        /usr/vm/sbin/vmadm create
+    echo "done" >&${CONSOLE_FD}
+
+    return 0
+}
+
+if [[ ! ${skip_zones} ]]; then
+    # Create assets first since others will download stuff from here.
+    export ASSETS_IP=${CONFIG_assets_admin_ip}
+    create_zone assets
+    create_zone dhcpd
+    create_zone rabbitmq
+    create_zone mapi
+
+    CREATEDZONES="assets dhcpd rabbitmq mapi"
+fi
 
 if [ -n "${CREATEDZONES}" ]; then
     # Wait for all the zones here instead of using create-zone -w
     # So that we can spin them all up in parallel and cook our laps
     for zone in ${CREATEDZONES}; do
         if [ -e /zones/${zone}/root/root/zoneinit ]; then
-        	  msg="${zone}: waiting for zoneinit"
+              msg="${zone}: waiting for zoneinit"
             loops=0
             while [ -e /zones/${zone}/root/root/zoneinit ]; do
-                printf "%-56s%s\r" "${msg}" "-"  >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-56s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-56s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-56s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-58s%s\r" "${msg}" "-"  >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-58s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-58s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
+                printf "%-58s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
 
                 # counter goes up every 0.2 seconds
                 # wait 10 minutes
@@ -225,10 +307,10 @@ if [ -n "${CREATEDZONES}" ]; then
                 [ ${loops} -ge 2999 ] && break
             done
             if [ ${loops} -ge 2999 ]; then
-                printf "%-56s%8s\n" "${msg}" "timeout!"  >&${CONSOLE_FD}
+                printf "%-58s%8s\n" "${msg}" "timeout!"  >&${CONSOLE_FD}
                 ls -l /zones/${zone}/root/root >&${CONSOLE_FD}
             else
-                printf "%-56s%4s\n" "${msg}" "done"  >&${CONSOLE_FD}
+                printf "%-58s%4s\n" "${msg}" "done"  >&${CONSOLE_FD}
                 # remove the pkgsrc dir now that zoneinit is done
                 if [[ -d /zones/${zone}/root/pkgsrc ]]; then
                     rm -rf /zones/${zone}/root/pkgsrc
@@ -241,7 +323,7 @@ if [ -n "${CREATEDZONES}" ]; then
     # The svc installing the zones is still running since we haven't exited
     # yet, so the svc count should be 1 for us to end successfully.
     # If they're not up after 4 minutes, report a possible issue.
-    printf "%-56s\n" "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
+    printf "%-58s\n" "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
     i=0
     while [ $i -lt 16 ]; do
         nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
@@ -266,21 +348,21 @@ if [ -n "${CREATEDZONES}" ]; then
              # restore will depend on are blocked waiting for the init svc
              # to complete.
              sdc-restore -S $bufile >&${CONSOLE_FD} 2>&1 &
-	fi
+        fi
 
-	# Cleanup the cookie that joysetup might have left around.
-	rm -f /zones/.standby
+        # Cleanup the cookie that joysetup might have left around.
+        rm -f /zones/.standby
     fi
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
-    	printf "%-56s\n" "Executing post-install script..." >&${CONSOLE_FD}
-    	bash ${USB_COPY}/scripts/post-install.sh
+        printf "%-58s\n" "Executing post-install script..." >&${CONSOLE_FD}
+        bash ${USB_COPY}/scripts/post-install.sh
     fi
 
     if [ $restore == 0 ]; then
-	# clear the screen
-	echo "[H[J" >&${CONSOLE_FD}
+        # clear the screen
+        echo "[H[J" >&${CONSOLE_FD}
 
         if [ $standby == 1 ]; then
             echo "Restoring standby headnode" >&${CONSOLE_FD}
@@ -288,46 +370,28 @@ if [ -n "${CREATEDZONES}" ]; then
             echo "==> Setup complete.  Press [enter] to get login prompt." \
                 >&${CONSOLE_FD}
         fi
-	echo "" >&${CONSOLE_FD}
+        echo "" >&${CONSOLE_FD}
     fi
 else
     if [ $restore == 0 ]; then
         if [[ $standby == 1 && -z "$bufile" ]]; then
-	    # clear the screen
-	    echo "[H[J" >&${CONSOLE_FD}
+            # clear the screen
+            echo "[H[J" >&${CONSOLE_FD}
 
-	    echo "==> Use sdc-restore to perform setup.  Press [enter] to get login prompt." \
-	        >&${CONSOLE_FD}
-	    echo "" >&${CONSOLE_FD}
-	    # Cleanup the cookie that joysetup might have left around.
+            echo "==> Use sdc-restore to perform setup.  Press [enter] to get" \
+                " login prompt." >&${CONSOLE_FD}
+            echo "" >&${CONSOLE_FD}
+            # Cleanup the cookie that joysetup might have left around.
             rm -f /zones/.standby
         fi
     fi
 fi
 
 if [[ -f /usbkey/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
-  ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat /usbkey/webinfo.tar | tar -xf - )
+    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat /usbkey/webinfo.tar \
+        | tar -xf - )
 fi
 
 ( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
-
-if [[ -f /.dcinfo ]]; then
-    eval $(cat /.dcinfo)
-fi
-
-if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
-    SDC_DATACENTER_HEADNODE_ID=0
-fi
-
-for zonename in $USBZONES; do
-    zoneuuid=$(/usr/vm/sbin/vmadm lookup zonename=${zonename})
-    if [ -n "$zoneuuid" ]; then
-        zonealias=$(/usr/vm/sbin/vmadm json ${zoneuuid} | json "alias")
-        if [[ -z ${zonealias} ]]; then
-            /usr/vm/sbin/vmadm update ${zoneuuid} \
-                alias=${zonename}${SDC_DATACENTER_HEADNODE_ID}
-        fi
-    fi
-done
 
 exit 0

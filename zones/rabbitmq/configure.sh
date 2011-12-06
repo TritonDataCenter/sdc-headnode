@@ -38,7 +38,7 @@ esac
 function list_permissions
 {
     su - rabbitmq -c \
-        "/opt/local/sbin/rabbitmqctl -q -n rabbit@rabbitmq list_permissions -p /" \
+        "/opt/local/sbin/rabbitmqctl -q -n rabbit@$(zonename) list_permissions -p /" \
         2>/dev/null \
     || /bin/true
 }
@@ -51,16 +51,16 @@ done
 
 # Delete all the users
 for user in $(su - rabbitmq -c \
-    "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_users" \
+    "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) -q list_users" \
     | cut -d '	' -f1); do
 
     su - rabbitmq -c \
-        "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq delete_user ${user}"
+        "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) delete_user ${user}"
 done
 
 # Double check that we really don't have any users
 num_users=$(su - rabbitmq -c \
-    "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq -q list_users" | \
+    "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) -q list_users" | \
     wc -l | tr -d ' ')
 
 if [[ ${num_users} != "0" ]]; then
@@ -78,7 +78,7 @@ else
 fi
 
 echo "Adding user ${amqp_user} and setting permissions"
-su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq add_user ${amqp_user} ${amqp_pass}"
-su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_admin ${amqp_user}"
-su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_permissions -p / ${amqp_user} \".*\" \".*\" \".*\""
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) add_user ${amqp_user} ${amqp_pass}"
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) set_admin ${amqp_user}"
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) set_permissions -p / ${amqp_user} \".*\" \".*\" \".*\""
 

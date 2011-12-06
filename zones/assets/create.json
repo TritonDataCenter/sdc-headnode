@@ -1,0 +1,30 @@
+{
+  "alias": "assets",
+  "autoboot": true,
+  "brand": "joyent",
+  "filesystems": [
+    {
+      "source": "/usbkey/datasets",
+      "target": "/assets/datasets",
+      "type": "lofs",
+      "options": [
+        "ro",
+        "nodevices"
+      ]
+    },
+    {
+      "source": "/usbkey/extra",
+      "target": "/assets/extra",
+      "type": "lofs",
+      "options": [
+        "ro",
+        "nodevices"
+      ]
+    }
+  ],
+  "quota": 10,
+  "tags": {
+      "smartdc_role": "assets"
+  },
+  "zfs_storage_pool_name": "zones"
+}

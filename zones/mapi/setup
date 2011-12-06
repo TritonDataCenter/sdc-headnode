@@ -1,8 +1,161 @@
 #!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc. All rights reserved.
+#
 
-echo "99 finalizing mapi zone"
+set -o xtrace
+
+echo "Finishing setup of MAPI zone"
 
 app_name='mapi'
+
+#
+# symlink_ruby() just creates missing symlinks to ruby18 and irb18 on zones
+# running ruby applications.
+# It does not expect any argument.
+#
+function symlink_ruby
+{
+  # These happen to do not be created always:
+  if [[ ! -e /opt/local/bin/ruby ]]; then
+    echo "Symlinking ruby"
+    ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
+  fi
+
+  if [[ ! -e /opt/local/bin/irb ]]; then
+    echo "Symlinking irb"
+    ln -s /opt/local/bin/irb18 /opt/local/bin/irb
+  fi
+}
+
+#
+# It's pretty obvious what create_jill_account() does. Intended to run on zones
+# running ruby applications. It does not expect any arguments, for now.
+#
+function create_jill_account
+{
+  echo "Creating jill account"
+  groupadd jill
+  useradd -g jill -d /opt/smartdc jill
+  chown -R jill:jill /opt/smartdc
+
+  # XXX /etc/oshadow breaks changepass, not sure yet what's putting it there.
+  if [[ -f /etc/oshadow ]]; then
+      echo "WARNING: removing /etc/oshadow"
+      rm -f /etc/oshadow
+  fi
+
+  echo "jill:naiWaic8sh" | /opt/local/sbin/changepass -n -m
+  usermod -P 'Service Management' jill
+  usermod -s /usr/bin/bash jill
+  # Properly set PATH and other relevant stuff.
+  cp /home/admin/.bash_profile /opt/smartdc/.bash_profile
+  cp /home/admin/.bashrc /opt/smartdc/.bashrc
+  cp /home/admin/.irbrc /opt/smartdc/.irbrc
+  cp /home/admin/.profile /opt/smartdc/.profile
+}
+
+#
+# Setup datasets this logic comes from the old zone-datasets and
+# 95-zone-dataset.sh files
+#
+
+# ASSETS_IP is set by user-script before calling us.
+zone_uuid=$(zonename)
+curl -o /var/svc/mapi-data.zfs -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/mapi-data.zfs
+if [[ -f /var/svc/mapi-data.zfs ]]; then
+  zfs receive zones/${zone_uuid}/data/mapi-data < /var/svc/mapi-data.zfs
+  zfs set mountpoint=/opt/smartdc/mapi-data zones/${zone_uuid}/data/mapi-data
+  # Remove the snapshot created when received the zfs file:
+  DATA_DS_SNAP=$(zfs list -t snapshot -H -o name|grep "data\/mapi-data@")
+  zfs destroy ${DATA_DS_SNAP}
+else
+  zfs create -o mountpoint=/opt/smartdc/mapi-data zones/${zone_uuid}/data/mapi-data
+fi
+
+STAMP=$(cat /opt/smartdc/mapi-VERSION)
+echo "$STAMP" >/root/mapi-app-timestamp
+zfs create -o mountpoint=/opt/smartdc/mapi zones/${zone_uuid}/data/mapi-app
+
+
+## XXX
+
+# Trying to do not add an extra file to copy agents script to mapi zone
+mkdir -p /opt/smartdc/agent-scripts
+#cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
+mkdir -p /opt/smartdc/joysetup
+#cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/joysetup/
+# copy headnode info into zone if we're MAPI
+#sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json
+
+# Datasets
+mkdir -p /opt/smartdc/datasets
+#cp -R ${USB_COPY}/datasets/*.dsmanifest /zones/mapi/root/opt/smartdc/datasets
+
+## XXX
+
+
+# Get git revision:
+cd /opt/smartdc/mapi-repo
+REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
+
+# Export complete repo into mapi:
+cd /opt/smartdc
+(cd mapi-repo && tar cf - .) | (cd mapi && tar xfp -)
+rm -rf mapi/.git
+
+# Create some directories into mapi-data (export only config into mapi-data).
+mkdir -p /opt/smartdc/mapi-data/log
+mkdir -p /opt/smartdc/mapi-data/tmp/pids
+
+# Remove and symlink directories:
+# NOTE: We don't want to override config dir if we are in the middle of
+# restoring a backup or upgrading:
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  mv /opt/smartdc/mapi/config /opt/smartdc/mapi-data/config
+else
+  rm -Rf /opt/smartdc/mapi/config
+fi
+
+rm -Rf /opt/smartdc/mapi/log
+rm -Rf /opt/smartdc/mapi/tmp
+rm -Rf /opt/smartdc/mapi/config
+ln -s /opt/smartdc/mapi-data/log /opt/smartdc/mapi/log
+ln -s /opt/smartdc/mapi-data/tmp /opt/smartdc/mapi/tmp
+ln -s /opt/smartdc/mapi-data/config /opt/smartdc/mapi/config
+
+# Save REVISION:
+echo "${REVISION}">/opt/smartdc/mapi-data/REVISION
+echo "${REVISION}">/opt/smartdc/mapi/REVISION
+
+# Save VERSION (Updates based on this):
+cd /opt/smartdc/mapi-repo
+APP_VERSION=$(/opt/local/bin/git describe --tags)
+if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
+  echo "${APP_VERSION}">/opt/smartdc/mapi-data/VERSION
+fi
+echo "${APP_VERSION}">/opt/smartdc/mapi/VERSION
+
+# Cleanup build products:
+cd /root/
+rm -Rf /opt/smartdc/mapi-repo
+rm /root/mapi-app-timestamp
+
+#
+# Grab some extra data files from assets
+#
+curl -o /opt/smartdc/headnode-sysinfo.json -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/headnode-sysinfo.json
+
+mkdir -p /opt/smartdc/datasets
+for manifest in $(curl -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/datasets/ \
+    | grep ".dsmanifest" | cut -d '"' -f2); do
+
+    curl -o /opt/smartdc/datasets/${manifest} -s -S -f \
+        http://${ASSETS_IP}/extra/${zone_uuid}/datasets/${manifest}
+done
 
 #
 # Call symlink_ruby (imported from 97-zoneinit-common)
@@ -21,6 +174,30 @@ $(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m fast/" /opt/loca
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
+
+# setup compute node's config file (configure.sh loaded zoneconfig vars for us)
+# The values must exist in the zoneconfig for them to be avaliable here.
+
+mkdir -p /opt/smartdc/node.config
+cat >/opt/smartdc/node.config/node.config <<EOF
+datacenter_name="${DATACENTER_NAME}"
+root_authorized_keys_file="${ROOT_AUTHORIZED_KEYS_FILE}"
+assets_admin_ip="${ASSETS_IP}"
+ntp_hosts="${COMPUTE_NODE_NTP_HOSTS}"
+swap="${COMPUTE_NODE_SWAP}"
+rabbitmq="${RABBITMQ}"
+root_shadow="${ROOT_SHADOW}"
+ufds_admin_ip="${UFDS_ADMIN_IP}"
+ufds_admin_uuid="${UFDS_ADMIN_UUID}"
+dhcp_lease_time="${DHCP_LEASE_TIME}"
+capi_client_url="${CAPI_CLIENT_URL}"
+capi_http_admin_user="${CAPI_HTTP_ADMIN_USER}"
+capi_http_admin_pw="${CAPI_HTTP_ADMIN_PW}"
+mapi_client_url="${MAPI_CLIENT_URL}"
+mapi_http_admin_user="${HTTP_ADMIN_USER}"
+mapi_http_admin_pw="${HTTP_ADMIN_PW}"
+zonetracker_database_path="${ZONETRACKER_DATABASE_PATH}"
+EOF
 
 # Generate the agents setup script:
 
@@ -472,3 +649,8 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/zonetracker_client:default refresh
   fi
 fi
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+

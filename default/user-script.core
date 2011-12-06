@@ -1,0 +1,98 @@
+#!/bin/bash
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+zone_uuid=$(zonename)
+
+assets_ip=$(mdata-get assets-ip)
+if [[ -z ${assets_ip} ]]; then
+    echo "Unable to find IP of assets server from metadata."
+    exit 1
+fi
+
+pkgsrc_lst=$(curl -s -S -f http://${assets_ip}/extra/${zone_uuid}/ \
+    | grep 'href="pkgsrc' | cut -d '"' -f2)
+
+curl -o /var/svc/pkgsrc -s -S -f \
+    http://${assets_ip}/extra/${zone_uuid}/${pkgsrc_lst}
+curl -o /var/svc/pkgsrc.tar -s -S -f \
+    http://${assets_ip}/extra/pkgsrc/${pkgsrc_lst}.tar
+curl -o /var/svc/fs.tar.bz2 -s -S -f \
+    http://${assets_ip}/extra/${zone_uuid}/fs.tar.bz2
+
+mkdir -p /opt/smartdc/bin
+for file in configure configure.sh backup restore setup; do
+curl -o /opt/smartdc/bin/${file} -s -S -f \
+    http://${assets_ip}/extra/${zone_uuid}/${file}
+done
+chmod 755 /opt/smartdc/bin/*
+
+mkdir -p /opt/smartdc/etc
+curl -o /opt/smartdc/etc/zoneconfig -s -S -f \
+    http://${assets_ip}/extra/${zone_uuid}/zoneconfig
+curl -o /root/.bashrc -s -S -f \
+    http://${assets_ip}/extra/${zone_uuid}/bashrc
+
+# The /.dcinfo file contains info about the datacenter in which this zone runs.
+dc_name=$(mdata-get sdc-datacenter-name)
+dc_headnode_id=$(mdata-get sdc-datacenter-headnode-id)
+if [[ -z ${dc_name} ]]; then
+    dc_name="UNKNOWN"
+fi
+if [[ -z ${dc_heanode_id} ]]; then
+    dc_heanode_id=0
+fi
+echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
+echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
+
+# Unpack fs.tar and copy files into proper locations within the zone
+mkdir /.stage
+echo "unpack fs.tar"
+(cd /.stage && bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
+rm -f /var/svc/fs.tar.bz2
+if [[ -d /.stage/root ]]; then
+    echo "install root"
+    (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+fi
+if [[ -d /.stage/site ]]; then
+    echo "install site"
+    (cd /.stage/site && tar cbf 512 - *) | \
+        (cd /lib/svc/manifest/site && tar xbf 512 -)
+fi
+rm -rf /.stage
+
+# Install using local pkg repo
+mkdir -p /var/svc/pkgs
+(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
+      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
+
+for i in $(cat /var/svc/pkgsrc)
+do
+        echo "Installing $i"
+        pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
+done
+rm -rf /var/svc/pkgs
+
+# We can't add any site-specific manifests automatically, since we're running
+# after the manifest import, so import now. (we do this again after setup below)
+for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
+    svccfg import ${manifest}
+done
+
+curl -k -o /var/svc/setup -s -S -f ${assets_ip}:/extra/$(zonename)/setup
+if [[ $? != 0 ]]; then
+    echo "Failed to get setup script."
+fi
+
+export ASSETS_IP="${assets_ip}"
+bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1
+
+# We can't add any site-specific manifests automatically, since we're running
+# after the manifest import, so import any new manifests that were added.
+for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
+    svccfg import ${manifest}
+done
+
+exit 0

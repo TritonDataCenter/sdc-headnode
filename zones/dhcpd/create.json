@@ -1,0 +1,21 @@
+{
+  "alias": "dhcpd",
+  "autoboot": true,
+  "brand": "joyent",
+  "filesystems": [
+    {
+      "source": "/usbkey/os",
+      "target": "/tftpboot/os",
+      "type": "lofs",
+      "options": [
+        "ro",
+        "nodevices"
+      ]
+    }
+  ],
+  "quota": 10,
+  "tags": {
+      "smartdc_role": "dhcpd"
+  },
+  "zfs_storage_pool_name": "zones"
+}

@@ -1,4 +1,11 @@
-echo "99 finalizing rabbitmq pkg"
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc. All rights reserved.
+#
+
+set -o xtrace
+
+echo "Finishing setup of rabbitmq zone"
 
 # Setup .erlang.cookie symlink
 if [[ ! -L /root/.erlang.cookie ]]; then
@@ -8,9 +15,7 @@ fi
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
-#
-# Call mdns_announce (imported from 97-zoneinit-common) to announce our
-# service.
-#
-mdns_announce RabbitMQ 5672 _amqp-broker
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
 
