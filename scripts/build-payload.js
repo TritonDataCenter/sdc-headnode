@@ -85,7 +85,11 @@ async.series([
         }
         if (config.hasOwnProperty(zone + '_memory_cap')) {
             memval = config[zone + '_memory_cap'];
-            memval = Number(memval.split('m')[0]);
+            if (memval.substr(-1) === 'g') {
+                memval = Number(memval.split('g')[0]) * 1024;
+            } else {
+                memval = Number(memval.split('m')[0]);
+            }
             obj.max_physical_memory = memval;
             obj.max_locked_memory = memval;
             obj.max_swap = memval;
