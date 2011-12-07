@@ -29,11 +29,11 @@ adminui_workers=3
 
 amon_cpu_shares=100
 amon_max_lwps=1000
-amon_memory_cap=256m
+amon_memory_cap=96m
 
 assets_cpu_shares=50
 assets_max_lwps=1000
-assets_memory_cap=1536m
+assets_memory_cap=96m
 
 billapi_cpu_shares=50
 billapi_max_lwps=1000
@@ -53,31 +53,31 @@ cloudapi_memory_cap=128m
 
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
-dhcpd_memory_cap=1536m
+dhcpd_memory_cap=96m
 dhcpd_dhcp_server=1
 
 mapi_cpu_shares=50
 mapi_max_lwps=1000
-mapi_memory_cap=1536m
+mapi_memory_cap=384m
 mapi_workers=3
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
 portal_cpu_shares=50
 portal_max_lwps=1000
-portal_memory_cap=128m
+portal_memory_cap=96m
 
 riak_cpu_shares=50
 riak_max_lwps=1000
-riak_memory_cap=256m
+riak_memory_cap=128m
 
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=1536m
+rabbitmq_memory_cap=128m
 
 redis_cpu_shares=50
 redis_max_lwps=1000
-redis_memory_cap=128m
+redis_memory_cap=96m
 
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support

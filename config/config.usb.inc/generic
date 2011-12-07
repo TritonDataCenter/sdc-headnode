@@ -24,16 +24,16 @@ root_authorized_keys_file=root.authorized_keys
 
 adminui_cpu_shares=50
 adminui_max_lwps=1000
-adminui_memory_cap=128m
+adminui_memory_cap=256m
 adminui_workers=8
 
 amon_cpu_shares=50
 amon_max_lwps=1000
-amon_memory_cap=128m
+amon_memory_cap=256m
 
 assets_cpu_shares=50
 assets_max_lwps=1000
-assets_memory_cap=32g
+assets_memory_cap=128m
 
 billapi_cpu_shares=50
 billapi_max_lwps=1000
@@ -45,35 +45,35 @@ ca_memory_cap=1024m
 
 ufds_cpu_shares=100
 ufds_max_lwps=1000
-ufds_memory_cap=128m
+ufds_memory_cap=256m
 
 cloudapi_cpu_shares=50
 cloudapi_max_lwps=1000
-cloudapi_memory_cap=128m
+cloudapi_memory_cap=256m
 
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
-dhcpd_memory_cap=32g
+dhcpd_memory_cap=128m
 dhcpd_dhcp_server=1
 
 mapi_cpu_shares=50
 mapi_max_lwps=1000
-mapi_memory_cap=32g
+mapi_memory_cap=2g
 mapi_workers=8
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
 portal_cpu_shares=50
 portal_max_lwps=1000
-portal_memory_cap=128m
+portal_memory_cap=256m
 
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=32g
+rabbitmq_memory_cap=512m
 
 redis_cpu_shares=50
 redis_max_lwps=1000
-redis_memory_cap=128m
+redis_memory_cap=512m
 
 riak_cpu_shares=50
 riak_max_lwps=1000
