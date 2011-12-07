@@ -127,8 +127,8 @@ fi
 # This is to move us to the next line past the login: prompt
 [[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
-# For dev/debugging, you can set this environment variable.
-if [[ -z ${SKIP_AGENTS} ]]; then
+# For dev/debugging, you can set the SKIP_AGENTS environment variable.
+if [[ -z ${SKIP_AGENTS} || -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
     # Install the agents here so initial zones have access to metadata.
     which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
         | grep -v -- '-hvm-' | tail -n1)
