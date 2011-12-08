@@ -65,6 +65,9 @@ function copy_special_mapi_files
     sysinfo > /usbkey/extra/${uuid}/headnode-sysinfo.json
     mkdir -p /usbkey/extra/${uuid}/datasets
     cp /usbkey/datasets/*.dsmanifest /usbkey/extra/${uuid}/datasets/
+    ln /usbkey/scripts/joysetup.sh /usbkey/extra/${uuid}/joysetup.sh
+    mkdir -p /usbkey/extra/${uuid}/agents
+    ln /usbkey/ur-scripts/agents-*.sh /usbkey/extra/${uuid}/agents/
 }
 
 trap 'errexit $?' EXIT

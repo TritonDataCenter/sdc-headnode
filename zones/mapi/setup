@@ -78,24 +78,6 @@ STAMP=$(cat /opt/smartdc/mapi-VERSION)
 echo "$STAMP" >/root/mapi-app-timestamp
 zfs create -o mountpoint=/opt/smartdc/mapi zones/${zone_uuid}/data/mapi-app
 
-
-## XXX
-
-# Trying to do not add an extra file to copy agents script to mapi zone
-mkdir -p /opt/smartdc/agent-scripts
-#cp ${USB_COPY}/ur-scripts/*.sh /zones/mapi/root/opt/smartdc/agent-scripts/
-mkdir -p /opt/smartdc/joysetup
-#cp ${USB_COPY}/scripts/joysetup.sh /zones/mapi/root/opt/smartdc/joysetup/
-# copy headnode info into zone if we're MAPI
-#sysinfo > /zones/mapi/root/opt/smartdc/headnode-sysinfo.json
-
-# Datasets
-mkdir -p /opt/smartdc/datasets
-#cp -R ${USB_COPY}/datasets/*.dsmanifest /zones/mapi/root/opt/smartdc/datasets
-
-## XXX
-
-
 # Get git revision:
 cd /opt/smartdc/mapi-repo
 REVISION=$(/opt/local/bin/git rev-parse --verify HEAD)
@@ -148,6 +130,10 @@ rm /root/mapi-app-timestamp
 curl -o /opt/smartdc/headnode-sysinfo.json -s -S -f \
     http://${ASSETS_IP}/extra/${zone_uuid}/headnode-sysinfo.json
 
+mkdir -p /opt/smartdc/joysetup
+curl -o /opt/smartdc/joysetup/joysetup.sh -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/joysetup.sh
+
 mkdir -p /opt/smartdc/datasets
 for manifest in $(curl -s -S -f \
     http://${ASSETS_IP}/extra/${zone_uuid}/datasets/ \
@@ -155,6 +141,15 @@ for manifest in $(curl -s -S -f \
 
     curl -o /opt/smartdc/datasets/${manifest} -s -S -f \
         http://${ASSETS_IP}/extra/${zone_uuid}/datasets/${manifest}
+done
+
+mkdir -p /opt/smartdc/agent-scripts
+for agents in $(curl -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/agents/ \
+    | grep "agents.*\.sh" | cut -d '"' -f2); do
+
+    curl -o /opt/smartdc/agent-scripts/${agents} -s -S -f \
+        http://${ASSETS_IP}/extra/${zone_uuid}/agents/${agents}
 done
 
 #
