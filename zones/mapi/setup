@@ -194,6 +194,10 @@ mapi_http_admin_pw='${HTTP_ADMIN_PW}'
 zonetracker_database_path='${ZONETRACKER_DATABASE_PATH}'
 EOF
 
+# Pull down authorized_keys file if it's there
+curl -o /opt/smartdc/node.config/${ROOT_AUTHORIZED_KEYS_FILE} -s -S -f \
+    http://${ASSETS_IP}/extra/${zone_uuid}/config.inc/${ROOT_AUTHORIZED_KEYS_FILE}
+
 # Generate the agents setup script:
 
 AGENTS_FILE_VERSION=$(ls -1t /opt/smartdc/agent-scripts/ | grep '^agents-.*\.sh' | grep -v -- "-hvm-" | head -n1)

@@ -68,6 +68,8 @@ function copy_special_mapi_files
     ln /usbkey/scripts/joysetup.sh /usbkey/extra/${uuid}/joysetup.sh
     mkdir -p /usbkey/extra/${uuid}/agents
     ln /usbkey/ur-scripts/agents-*.sh /usbkey/extra/${uuid}/agents/
+    mkdir -p /usbkey/extra/${uuid}/config.inc
+    ln /usbkey/config.inc/* /usbkey/extra/${uuid}/config.inc/
 }
 
 trap 'errexit $?' EXIT
