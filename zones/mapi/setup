@@ -175,23 +175,23 @@ source /opt/smartdc/bin/configure.sh
 
 mkdir -p /opt/smartdc/node.config
 cat >/opt/smartdc/node.config/node.config <<EOF
-datacenter_name="${DATACENTER_NAME}"
-root_authorized_keys_file="${ROOT_AUTHORIZED_KEYS_FILE}"
-assets_admin_ip="${ASSETS_IP}"
-ntp_hosts="${COMPUTE_NODE_NTP_HOSTS}"
-swap="${COMPUTE_NODE_SWAP}"
-rabbitmq="${RABBITMQ}"
-root_shadow="${ROOT_SHADOW}"
-ufds_admin_ip="${UFDS_ADMIN_IP}"
-ufds_admin_uuid="${UFDS_ADMIN_UUID}"
-dhcp_lease_time="${DHCP_LEASE_TIME}"
-capi_client_url="${CAPI_CLIENT_URL}"
-capi_http_admin_user="${CAPI_HTTP_ADMIN_USER}"
-capi_http_admin_pw="${CAPI_HTTP_ADMIN_PW}"
-mapi_client_url="${MAPI_CLIENT_URL}"
-mapi_http_admin_user="${HTTP_ADMIN_USER}"
-mapi_http_admin_pw="${HTTP_ADMIN_PW}"
-zonetracker_database_path="${ZONETRACKER_DATABASE_PATH}"
+datacenter_name='${DATACENTER_NAME}'
+root_authorized_keys_file='${ROOT_AUTHORIZED_KEYS_FILE}'
+assets_admin_ip='${ASSETS_IP}'
+ntp_hosts='${COMPUTE_NODE_NTP_HOSTS}'
+swap='${COMPUTE_NODE_SWAP}'
+rabbitmq='${RABBITMQ}'
+root_shadow='${ROOT_SHADOW}'
+ufds_admin_ip='${UFDS_ADMIN_IP}'
+ufds_admin_uuid='${UFDS_ADMIN_UUID}'
+dhcp_lease_time='${DHCP_LEASE_TIME}'
+capi_client_url='${CAPI_CLIENT_URL}'
+capi_http_admin_user='${CAPI_HTTP_ADMIN_USER}'
+capi_http_admin_pw='${CAPI_HTTP_ADMIN_PW}'
+mapi_client_url='${MAPI_CLIENT_URL}'
+mapi_http_admin_user='${HTTP_ADMIN_USER}'
+mapi_http_admin_pw='${HTTP_ADMIN_PW}'
+zonetracker_database_path='${ZONETRACKER_DATABASE_PATH}'
 EOF
 
 # Generate the agents setup script:
