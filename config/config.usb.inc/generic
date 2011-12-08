@@ -69,11 +69,11 @@ portal_memory_cap=256m
 
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=512m
+rabbitmq_memory_cap=1g
 
 redis_cpu_shares=50
 redis_max_lwps=1000
-redis_memory_cap=512m
+redis_memory_cap=1g
 
 riak_cpu_shares=50
 riak_max_lwps=1000
