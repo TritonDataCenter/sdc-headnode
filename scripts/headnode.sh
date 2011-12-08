@@ -24,6 +24,7 @@ set -o pipefail
 set -o xtrace
 
 CONSOLE_FD=4 ; export CONSOLE_FD
+CREATEDZONES=""
 
 function fatal
 {
@@ -43,6 +44,15 @@ function create_latest_link
     rm -f ${USB_COPY}/os/latest
     latest=$(cd ${USB_COPY}/os && ls -d * | tail -1)
     (cd ${USB_COPY}/os && ln -s ${latest} latest)
+}
+
+function cr_once
+{
+    if [[ -z ${did_cr_once} ]]; then
+        # This is to move us to the beginning of the line with the login: prompt
+        printf "\r" >&${CONSOLE_FD}
+        did_cr_once=1
+    fi
 }
 
 #
@@ -124,11 +134,10 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
     exit 0
 fi
 
-# This is to move us to the next line past the login: prompt
-[[ -z "${CREATEDZONES}" ]] && echo "" >&${CONSOLE_FD}
 
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
-if [[ -z ${SKIP_AGENTS} || -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
+if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
+    cr_once
     # Install the agents here so initial zones have access to metadata.
     which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
         | grep -v -- '-hvm-' | tail -n1)
@@ -143,12 +152,6 @@ if [[ -z ${SKIP_AGENTS} || -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
     else
         fatal "No agents-*.sh found!"
     fi
-fi
-
-if ( zoneadm list -i | grep -v "^global$" ); then
-    ZONES=`zoneadm list -i | grep -v "^global$"`
-else
-    ZONES=
 fi
 
 if [[ -f /.dcinfo ]]; then
@@ -234,6 +237,8 @@ function create_zone {
         return 0
     fi
 
+    cr_once
+
     printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
     mkdir -p /usbkey/extra/${new_uuid}
     ln /usbkey/zones/${zone}/${pkgsrc} /usbkey/extra/${new_uuid}/${pkgsrc}
@@ -274,6 +279,8 @@ function create_zone {
         /usr/vm/sbin/vmadm create
     echo "done" >&${CONSOLE_FD}
 
+    CREATEDZONES="${CREATEDZONES} ${zone}"
+
     return 0
 }
 
@@ -284,56 +291,28 @@ if [[ ! ${skip_zones} ]]; then
     create_zone dhcpd
     create_zone rabbitmq
     create_zone mapi
-
-    CREATEDZONES="assets dhcpd rabbitmq mapi"
 fi
 
 if [ -n "${CREATEDZONES}" ]; then
-    # Wait for all the zones here instead of using create-zone -w
-    # So that we can spin them all up in parallel and cook our laps
-    for zone in ${CREATEDZONES}; do
-        if [ -e /zones/${zone}/root/root/zoneinit ]; then
-              msg="${zone}: waiting for zoneinit"
-            loops=0
-            while [ -e /zones/${zone}/root/root/zoneinit ]; do
-                printf "%-58s%s\r" "${msg}" "-"  >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-58s%s\r" "${msg}" "\\" >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-58s%s\r" "${msg}" "|"  >&${CONSOLE_FD} ; sleep 0.05
-                printf "%-58s%s\r" "${msg}" "/"  >&${CONSOLE_FD} ; sleep 0.05
-
-                # counter goes up every 0.2 seconds
-                # wait 10 minutes
-                loops=$((${loops} + 1))
-                [ ${loops} -ge 2999 ] && break
-            done
-            if [ ${loops} -ge 2999 ]; then
-                printf "%-58s%8s\n" "${msg}" "timeout!"  >&${CONSOLE_FD}
-                ls -l /zones/${zone}/root/root >&${CONSOLE_FD}
-            else
-                printf "%-58s%4s\n" "${msg}" "done"  >&${CONSOLE_FD}
-                # remove the pkgsrc dir now that zoneinit is done
-                if [[ -d /zones/${zone}/root/pkgsrc ]]; then
-                    rm -rf /zones/${zone}/root/pkgsrc
-                fi
-            fi
-        fi
-    done
-
     # Check that all of the zone's svcs are up before we end.
     # The svc installing the zones is still running since we haven't exited
     # yet, so the svc count should be 1 for us to end successfully.
     # If they're not up after 4 minutes, report a possible issue.
-    printf "%-58s\n" "Waiting for zones to finish starting up..." >&${CONSOLE_FD}
+    msg="Waiting for services to finish starting..."
+    printf "%-58s\r" "${msg}"
     i=0
-    while [ $i -lt 16 ]; do
+    while [ $i -lt 48 ]; do
         nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
         if [ $nstarting -lt 2 ]; then
                 break
         fi
-        sleep 15
+        if [[ -z ${CONFIG_disable_spinning} ]]; then
+            printf "%-58s%s\r" "${msg}" "${nstarting}" >&${CONSOLE_FD}
+        fi
+        sleep 5
         i=`expr $i + 1`
     done
-    echo "" >&${CONSOLE_FD}
+    printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
 
     if [ $nstarting -gt 1 ]; then
         echo "Warning: services in the following zones are still not running:" \
@@ -356,14 +335,16 @@ if [ -n "${CREATEDZONES}" ]; then
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
-        printf "%-58s\n" "Executing post-install script..." >&${CONSOLE_FD}
+        printf "%-58s" "Executing post-install script..." >&${CONSOLE_FD}
         bash ${USB_COPY}/scripts/post-install.sh
+        echo "done" >&${CONSOLE_FD}
     fi
 
     if [ $restore == 0 ]; then
         # clear the screen
-        echo "[H[J" >&${CONSOLE_FD}
+        #echo "[H[J" >&${CONSOLE_FD}
 
+        echo "" >&${CONSOLE_FD}
         if [ $standby == 1 ]; then
             echo "Restoring standby headnode" >&${CONSOLE_FD}
         else
@@ -376,8 +357,9 @@ else
     if [ $restore == 0 ]; then
         if [[ $standby == 1 && -z "$bufile" ]]; then
             # clear the screen
-            echo "[H[J" >&${CONSOLE_FD}
+            #echo "[H[J" >&${CONSOLE_FD}
 
+            echo "" >&${CONSOLE_FD}
             echo "==> Use sdc-restore to perform setup.  Press [enter] to get" \
                 " login prompt." >&${CONSOLE_FD}
             echo "" >&${CONSOLE_FD}
