@@ -24,12 +24,12 @@ set -o pipefail
 set -o xtrace
 
 CONSOLE_FD=4 ; export CONSOLE_FD
-CREATEDZONES=""
 
 function fatal
 {
-    echo "head-node configuration: fatal error: $*" >&${CONSOLE_FD}
-    echo "head-node configuration: fatal error: $*"
+    printf "%-80s\r" " " >&${CONSOLE_FD}
+    echo "headnode configuration: fatal error: $*" >&${CONSOLE_FD}
+    echo "headnode configuration: fatal error: $*"
     exit 1
 }
 
@@ -126,14 +126,6 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
-if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
-    mkdir -p ${USB_COPY}/extra/pkgsrc
-    for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
-        rm -f ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
-        ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
-    done
-fi
-
 if [[ ${CONFIG_stop_before_setup} == "true" || \
     ${CONFIG_stop_before_setup} == "0" ]]; then
 
@@ -143,6 +135,14 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
     exit 0
 fi
 
+# Setup the pkgsrc directory for the core zones to pull files from.
+if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
+    mkdir -p ${USB_COPY}/extra/pkgsrc
+    for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
+        rm -f ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
+        ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
+    done
+fi
 
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
@@ -166,7 +166,6 @@ fi
 if [[ -f /.dcinfo ]]; then
     eval $(cat /.dcinfo)
 fi
-
 if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
     SDC_DATACENTER_HEADNODE_ID=0
 fi
@@ -205,6 +204,7 @@ fi
 [[ $standby == 1 && -z "$bufile" ]] && skip_zones=true
 
 CREATEDZONES=
+CREATEDUUIDS=
 
 # Create link for latest platform
 create_latest_link
@@ -246,6 +246,7 @@ function create_zone {
         return 0
     fi
 
+    # This just moves us to the beginning of the line (once)
     cr_once
 
     printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
@@ -295,8 +296,24 @@ function create_zone {
     echo "done" >&${CONSOLE_FD}
 
     CREATEDZONES="${CREATEDZONES} ${zone}"
+    CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
 
     return 0
+}
+
+# This takes a list of zone uuids and returns a number of those that are missing
+# the /var/svc/setup_complete file which normally indicates the zone is setup.
+function num_not_setup {
+    remain=0
+
+    for uuid in $*; do
+        zonepath=$(/usr/vm/sbin/vmadm get ${uuid} | /usr/bin/json zonepath)
+        if [[ ! -f ${zonepath}/root/var/svc/setup_complete ]]; then
+            remain=$((${remain} + 1))
+        fi
+    done
+
+    echo ${remain}
 }
 
 if [[ ! ${skip_zones} ]]; then
@@ -336,6 +353,29 @@ if [ -n "${CREATEDZONES}" ]; then
             >&${CONSOLE_FD}
     fi
 
+    # The SMF services should now be up, so we wait for the setup scripts
+    # in each of the created zones to be completed (these run in the
+    # background for all but assets so may not have finished with the services)
+    i=0
+    nsettingup=$(num_not_setup ${CREATEDUUIDS})
+    while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do
+        msg="Waiting for zones to finish setting up..."
+        if [[ -z ${CONFIG_disable_spinning} ]]; then
+            printf "%-58s%s\r" "${msg}" "${nsettingup}" >&${CONSOLE_FD}
+        fi
+        i=$((${i} + 1))
+        sleep 5
+        nsettingup=$(num_not_setup ${CREATEDUUIDS})
+    done
+
+    if [[ ${nsettingup} -gt 0 ]]; then
+        printf "%-58s%s\n" "${msg}" "failed"  >&${CONSOLE_FD}
+        fatal "Warning: some zones did not finish setup, installation has " \
+            "failed."
+    else
+        printf "%-58s%s\n" "${msg}" "done"  >&${CONSOLE_FD}
+    fi
+
     if [ $standby == 1 ]; then
         if [ -n "$bufile" ]; then
              # We have to do the restore in the background since svcs the
@@ -349,7 +389,7 @@ if [ -n "${CREATEDZONES}" ]; then
     fi
 
     # Run a post-install script. This feature is not formally supported in SDC
-    if [ -f ${USB_COPY}/scripts/post-install.sh ] ; then
+    if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
         printf "%-58s" "Executing post-install script..." >&${CONSOLE_FD}
         bash ${USB_COPY}/scripts/post-install.sh
         echo "done" >&${CONSOLE_FD}

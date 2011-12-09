@@ -98,12 +98,13 @@ if [[ $? != 0 ]]; then
 fi
 
 export ASSETS_IP="${assets_ip}"
-bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1
 
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import any new manifests that were added.
-for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
-    svccfg import ${manifest}
-done
+(bash /opt/smartdc/bin/setup >/var/svc/setup.log
+    for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
+        svccfg import ${manifest}
+    done
+) 2>&1 &
 
 exit 0
