@@ -1,6 +1,11 @@
-
-# We need rabbitmq running to be able to change any settings
+# We need rabbitmq running to be able to change any settings if it's OFF* that means
+# it's still starting up, so we wait.
 status=$(svcs -Ho STA svc:/application/rabbitmq:default)
+while [[ ${status} == 'OFF*' ]]; do
+    sleep 3
+    status=$(svcs -Ho STA svc:/application/rabbitmq:default)
+done
+
 case ${status} in
     MNT)
         svcadm clear svc:/application/rabbitmq:default
