@@ -167,17 +167,13 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   "port": 443,
   "cert": "./ssl/cert.pem",
   "key": "./ssl/key.pem",
-  "logLevel": 4,
-  "capi": {
-    "uri": "${CAPI_URL}",
-    "username": "${CAPI_HTTP_ADMIN_USER}",
-    "password": "${CAPI_HTTP_ADMIN_PW}",
-    "authCache": {
-      "size": 100,
-      "expiry": 60
-    },
-    "accountCache": {
-      "size": 100,
+  "logLevel": "Info",
+  "ufds": {
+    "url": "${UFDS_URL}",
+    "bindDN": "${UFDS_ROOT_DN}",
+    "bindPassword": "${UFDS_ROOT_PW}",
+    "cache": {
+      "size": 1000,
       "expiry": 300
     }
   },
@@ -188,6 +184,10 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "datasetCache": {
       "size": 100,
       "expiry": 300
+    },
+    "pkgCache": {
+      "size": 100,
+      "expiry": 60
     }
   },
   "ca": {
