@@ -60,16 +60,16 @@ function cr_once
 #
 function copy_special_mapi_files
 {
-    uuid=$1
+    dir=${USB_COPY}/extra/mapi
 
-    sysinfo > /usbkey/extra/${uuid}/headnode-sysinfo.json
-    mkdir -p /usbkey/extra/${uuid}/datasets
-    cp /usbkey/datasets/*.dsmanifest /usbkey/extra/${uuid}/datasets/
-    ln /usbkey/scripts/joysetup.sh /usbkey/extra/${uuid}/joysetup.sh
-    mkdir -p /usbkey/extra/${uuid}/agents
-    ln /usbkey/ur-scripts/agents-*.sh /usbkey/extra/${uuid}/agents/
-    mkdir -p /usbkey/extra/${uuid}/config.inc
-    ln /usbkey/config.inc/* /usbkey/extra/${uuid}/config.inc/
+    sysinfo > ${dir}/headnode-sysinfo.json
+    mkdir -p ${dir}/datasets
+    cp ${USB_COPY}/datasets/*.dsmanifest ${dir}/datasets/
+    ln ${USB_COPY}/scripts/joysetup.sh ${dir}/joysetup.sh
+    mkdir -p ${dir}/agents
+    ln ${USB_COPY}/ur-scripts/agents-*.sh ${dir}/agents/
+    mkdir -p ${dir}/config.inc
+    ln ${USB_COPY}/config.inc/* ${dir}/config.inc/
 }
 
 trap 'errexit $?' EXIT
@@ -123,10 +123,10 @@ if [[ ${POOLS} == "no pools available" ]]; then
     exit 2
 fi
 
-if [[ ! -d /usbkey/extra/pkgsrc ]]; then
-    mkdir -p /usbkey/extra/pkgsrc
-    for pkgsrcfile in $(ls -1 /usbkey/data/pkgsrc_*); do
-        ln ${pkgsrcfile} /usbkey/extra/pkgsrc/$(basename ${pkgsrcfile})
+if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
+    mkdir -p ${USB_COPY}/extra/pkgsrc
+    for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
+        ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
     done
 fi
 
@@ -195,8 +195,8 @@ fi
 
 if [ $standby == 1 ]; then
     # See if there is a backup on the USB key
-    [ -d /usbkey/standby ] && \
-        bufile=/usbkey/standby/`ls -t /usbkey/standby 2>/dev/null | head -1`
+    [ -d ${USB_COPY}/standby ] && \
+        bufile=${USB_COPY}/standby/`ls -t ${USB_COPY}/standby 2>/dev/null | head -1`
 fi
 [[ $standby == 1 && -z "$bufile" ]] && skip_zones=true
 
@@ -232,7 +232,7 @@ create_latest_link
 function create_zone {
     zone=$1
     new_uuid=$(uuid -v4)
-    pkgsrc=$(ls -1 /usbkey/zones/${zone} | grep ^pkgsrc)
+    pkgsrc=$(ls -1 ${USB_COPY}/zones/${zone} | grep ^pkgsrc)
 
     # Do a lookup here to ensure zone with this role doesn't exist
     existing_uuid=$(vmadm lookup tags.smartdc_role=${zone})
@@ -245,21 +245,23 @@ function create_zone {
     cr_once
 
     printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
-    mkdir -p /usbkey/extra/${new_uuid}
-    ln /usbkey/zones/${zone}/${pkgsrc} /usbkey/extra/${new_uuid}/${pkgsrc}
-    if [[ -f /usbkey/zones/${zone}/fs.tar.bz2 ]]; then
-        ln /usbkey/zones/${zone}/fs.tar.bz2 /usbkey/extra/${new_uuid}/fs.tar.bz2
+    dir=${USB_COPY}/extra/${zone}
+    rm -rf ${dir}
+    mkdir -p ${dir}
+    ln ${USB_COPY}/zones/${zone}/${pkgsrc} ${dir}/${pkgsrc}
+    if [[ -f ${USB_COPY}/zones/${zone}/fs.tar.bz2 ]]; then
+        ln ${USB_COPY}/zones/${zone}/fs.tar.bz2 ${dir}/fs.tar.bz2
     fi
     for file in configure.sh configure backup restore setup; do
-        if [[ -f /usbkey/zones/${zone}/${file} ]]; then
-            ln /usbkey/zones/${zone}/${file} /usbkey/extra/${new_uuid}/${file}
+        if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
+            ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
         fi
     done
-    if [[ -f /usbkey/rc/zone.root.bashrc ]]; then
-        ln /usbkey/rc/zone.root.bashrc //usbkey/extra/${new_uuid}/bashrc
+    if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
+        ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
     fi
 
-    if [[ -f /usbkey/zones/${zone}/zoneconfig ]]; then
+    if [[ -f ${USB_COPY}/zones/${zone}/zoneconfig ]]; then
         # This allows zoneconfig to use variables that exist in the <USB>/config
         # file, by putting them in the environment then putting the zoneconfig
         # in the environment, then printing all the variables from the file.  It
@@ -267,20 +269,21 @@ function create_zone {
         (
             . ${USB_COPY}/config
             . ${USB_COPY}/config.inc/generic
-            . /usbkey/zones/${zone}/zoneconfig
-            for var in $(cat /usbkey/zones/${zone}/zoneconfig \
+            . ${USB_COPY}/zones/${zone}/zoneconfig
+            for var in $(cat ${USB_COPY}/zones/${zone}/zoneconfig \
                 | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
 
                 echo "${var}='${!var}'"
             done
-        ) > /usbkey/extra/${new_uuid}/zoneconfig
+        ) > ${dir}/zoneconfig
     fi
 
+    # MAPI needs some files for CNs that we don't need for other zones.
     if [[ ${zone} == "mapi" ]]; then
-        copy_special_mapi_files ${new_uuid}
+        copy_special_mapi_files
     fi
 
-    /usbkey/scripts/build-payload.js ${zone} ${new_uuid} | \
+    ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | \
         /usr/vm/sbin/vmadm create
     echo "done" >&${CONSOLE_FD}
 
@@ -374,8 +377,8 @@ else
     fi
 fi
 
-if [[ -f /usbkey/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
-    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat /usbkey/webinfo.tar \
+if [[ -f ${USB_COPY}/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
+    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat ${USB_COPY}/webinfo.tar \
         | tar -xf - )
 fi
 

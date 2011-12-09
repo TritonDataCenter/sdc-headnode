@@ -62,8 +62,17 @@ function create_jill_account
 
 # ASSETS_IP is set by user-script before calling us.
 zone_uuid=$(zonename)
+zone_role=$(mdata-get sdc:tags.smartdc_role)
+
+if [[ -z ${zone_role} ]]; then
+    echo "Failed to find zone role in metadata."
+    exit 1
+fi
+
+echo "Configuring ${zone_role}..."
+
 curl -o /var/svc/mapi-data.zfs -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/mapi-data.zfs
+    http://${ASSETS_IP}/extra/${zone_role}/mapi-data.zfs
 if [[ -f /var/svc/mapi-data.zfs ]]; then
   zfs receive zones/${zone_uuid}/data/mapi-data < /var/svc/mapi-data.zfs
   zfs set mountpoint=/opt/smartdc/mapi-data zones/${zone_uuid}/data/mapi-data
@@ -128,28 +137,28 @@ rm /root/mapi-app-timestamp
 # Grab some extra data files from assets
 #
 curl -o /opt/smartdc/headnode-sysinfo.json -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/headnode-sysinfo.json
+    http://${ASSETS_IP}/extra/${zone_role}/headnode-sysinfo.json
 
 mkdir -p /opt/smartdc/joysetup
 curl -o /opt/smartdc/joysetup/joysetup.sh -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/joysetup.sh
+    http://${ASSETS_IP}/extra/${zone_role}/joysetup.sh
 
 mkdir -p /opt/smartdc/datasets
 for manifest in $(curl -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/datasets/ \
+    http://${ASSETS_IP}/extra/${zone_role}/datasets/ \
     | grep ".dsmanifest" | cut -d '"' -f2); do
 
     curl -o /opt/smartdc/datasets/${manifest} -s -S -f \
-        http://${ASSETS_IP}/extra/${zone_uuid}/datasets/${manifest}
+        http://${ASSETS_IP}/extra/${zone_role}/datasets/${manifest}
 done
 
 mkdir -p /opt/smartdc/agent-scripts
 for agents in $(curl -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/agents/ \
+    http://${ASSETS_IP}/extra/${zone_role}/agents/ \
     | grep "agents.*\.sh" | cut -d '"' -f2); do
 
     curl -o /opt/smartdc/agent-scripts/${agents} -s -S -f \
-        http://${ASSETS_IP}/extra/${zone_uuid}/agents/${agents}
+        http://${ASSETS_IP}/extra/${zone_role}/agents/${agents}
 done
 
 #
@@ -196,7 +205,7 @@ EOF
 
 # Pull down authorized_keys file if it's there
 curl -o /opt/smartdc/node.config/${ROOT_AUTHORIZED_KEYS_FILE} -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_uuid}/config.inc/${ROOT_AUTHORIZED_KEYS_FILE}
+    http://${ASSETS_IP}/extra/${zone_role}/config.inc/${ROOT_AUTHORIZED_KEYS_FILE}
 
 # Generate the agents setup script:
 

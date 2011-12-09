@@ -4,36 +4,47 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-zone_uuid=$(zonename)
+# Only want to run this initial user-script once
+if [[ -f /var/svc/.ran-user-script ]]; then
+    echo "Initial user-script has already been run."
+    exit 0
+fi
+touch /var/svc/.ran-user-script
 
+zone_uuid=$(zonename)
+zone_role=$(mdata-get sdc:tags.smartdc_role)
+if [[ -z ${zone_role} ]]; then
+    echo "Unable to find zone role in metadata."
+    exit 1
+fi
 assets_ip=$(mdata-get assets-ip)
 if [[ -z ${assets_ip} ]]; then
     echo "Unable to find IP of assets server from metadata."
     exit 1
 fi
 
-pkgsrc_lst=$(curl -s -S -f http://${assets_ip}/extra/${zone_uuid}/ \
+pkgsrc_lst=$(curl -s -S -f http://${assets_ip}/extra/${zone_role}/ \
     | grep 'href="pkgsrc' | cut -d '"' -f2)
 
 curl -o /var/svc/pkgsrc -s -S -f \
-    http://${assets_ip}/extra/${zone_uuid}/${pkgsrc_lst}
+    http://${assets_ip}/extra/${zone_role}/${pkgsrc_lst}
 curl -o /var/svc/pkgsrc.tar -s -S -f \
     http://${assets_ip}/extra/pkgsrc/${pkgsrc_lst}.tar
 curl -o /var/svc/fs.tar.bz2 -s -S -f \
-    http://${assets_ip}/extra/${zone_uuid}/fs.tar.bz2
+    http://${assets_ip}/extra/${zone_role}/fs.tar.bz2
 
 mkdir -p /opt/smartdc/bin
 for file in configure configure.sh backup restore setup; do
 curl -o /opt/smartdc/bin/${file} -s -S -f \
-    http://${assets_ip}/extra/${zone_uuid}/${file}
+    http://${assets_ip}/extra/${zone_role}/${file}
 done
 chmod 755 /opt/smartdc/bin/*
 
 mkdir -p /opt/smartdc/etc
 curl -o /opt/smartdc/etc/zoneconfig -s -S -f \
-    http://${assets_ip}/extra/${zone_uuid}/zoneconfig
+    http://${assets_ip}/extra/${zone_role}/zoneconfig
 curl -o /root/.bashrc -s -S -f \
-    http://${assets_ip}/extra/${zone_uuid}/bashrc
+    http://${assets_ip}/extra/${zone_role}/bashrc
 
 # The /.dcinfo file contains info about the datacenter in which this zone runs.
 dc_name=$(mdata-get sdc-datacenter-name)
@@ -81,7 +92,7 @@ for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
     svccfg import ${manifest}
 done
 
-curl -k -o /var/svc/setup -s -S -f ${assets_ip}:/extra/$(zonename)/setup
+curl -k -o /var/svc/setup -s -S -f http://${assets_ip}/extra/${zone_role}/setup
 if [[ $? != 0 ]]; then
     echo "Failed to get setup script."
 fi

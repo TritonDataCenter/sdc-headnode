@@ -4,8 +4,21 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
+# Only want to run this initial user-script once
+if [[ -f /var/svc/.ran-user-script ]]; then
+    echo "Initial user-script has already been run."
+    exit 0
+fi
+touch /var/svc/.ran-user-script
+
 zone_uuid=$(zonename)
-pkgsrc_lst=$(ls -1 /assets/extra/${zone_uuid}/pkgsrc_*)
+zone_role=$(mdata-get sdc:tags.smartdc_role)
+if [[ -z ${zone_role} ]]; then
+    echo "Unable to find zone role in metadata."
+    exit 1
+fi
+
+pkgsrc_lst=$(ls -1 /assets/extra/${zone_role}/pkgsrc_*)
 pkgsrc_tar=/assets/extra/pkgsrc/$(basename ${pkgsrc_lst}).tar
 
 # Install using local pkg repo
@@ -22,8 +35,8 @@ rm -rf /var/svc/pkgs
 
 mkdir -p /opt/smartdc/bin
 for file in configure configure.sh backup restore setup; do
-    if [[ -f /assets/extra/${zone_uuid}/${file} ]]; then
-        cp /assets/extra/${zone_uuid}/${file} /opt/smartdc/bin/${file}
+    if [[ -f /assets/extra/${zone_role}/${file} ]]; then
+        cp /assets/extra/${zone_role}/${file} /opt/smartdc/bin/${file}
     fi
 done
 chmod 755 /opt/smartdc/bin/*
