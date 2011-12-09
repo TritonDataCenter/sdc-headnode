@@ -65,10 +65,13 @@ function copy_special_mapi_files
     sysinfo > ${dir}/headnode-sysinfo.json
     mkdir -p ${dir}/datasets
     cp ${USB_COPY}/datasets/*.dsmanifest ${dir}/datasets/
+    rm -f ${dir}/joysetup.sh
     ln ${USB_COPY}/scripts/joysetup.sh ${dir}/joysetup.sh
     mkdir -p ${dir}/agents
+    rm -f ${dir}/agents/*.sh
     ln ${USB_COPY}/ur-scripts/agents-*.sh ${dir}/agents/
     mkdir -p ${dir}/config.inc
+    rm -f ${dir}/config.inc/*
     ln ${USB_COPY}/config.inc/* ${dir}/config.inc/
 }
 
@@ -126,6 +129,7 @@ fi
 if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
     mkdir -p ${USB_COPY}/extra/pkgsrc
     for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
+        rm -f ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
         ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
     done
 fi
@@ -246,18 +250,21 @@ function create_zone {
 
     printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
     dir=${USB_COPY}/extra/${zone}
-    rm -rf ${dir}
     mkdir -p ${dir}
+    rm -f ${dir}/${pkgsrc}
     ln ${USB_COPY}/zones/${zone}/${pkgsrc} ${dir}/${pkgsrc}
     if [[ -f ${USB_COPY}/zones/${zone}/fs.tar.bz2 ]]; then
+        rm -f ${dir}/fs.tar.bz2
         ln ${USB_COPY}/zones/${zone}/fs.tar.bz2 ${dir}/fs.tar.bz2
     fi
     for file in configure.sh configure backup restore setup; do
         if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
+            rm -f ${dir}/${file}
             ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
         fi
     done
     if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
+        rm -f ${dir}/bashrc
         ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
     fi
 
