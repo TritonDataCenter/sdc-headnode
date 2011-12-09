@@ -368,6 +368,17 @@ function install_platform
         return
     fi
 
+    # cleanup old images from the USB key
+    local cnt=$(ls -d ${usbmnt}/os/* | wc -l)
+    if [ $cnt -gt 1 ]; then
+        # delete all but the last image (current will become previous)
+        local del_cnt=$(($cnt - 1))
+        for i in $(ls -d ${usbmnt}/os/* | head -$del_cnt)
+        do
+            rm -rf $i
+        done
+    fi
+
     ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
 
     local plat_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
