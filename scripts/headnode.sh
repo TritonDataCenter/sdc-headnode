@@ -244,7 +244,7 @@ create_latest_link
 function create_zone {
     zone=$1
     new_uuid=$(uuid -v4)
-    pkgsrc=$(ls -1 ${USB_COPY}/zones/${zone} | grep ^pkgsrc)
+    pkgsrc=$(ls -t ${USB_COPY}/zones/${zone} | grep ^pkgsrc | head -1)
 
     # Do a lookup here to ensure zone with this role doesn't exist
     existing_uuid=$(vmadm lookup tags.smartdc_role=${zone})
@@ -320,8 +320,7 @@ function create_zone {
         copy_special_mapi_files
     fi
 
-    ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | \
-        /usr/vm/sbin/vmadm create
+    ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
     echo "done" >&${CONSOLE_FD}
 
     CREATEDZONES="${CREATEDZONES} ${zone}"
@@ -336,7 +335,7 @@ function num_not_setup {
     remain=0
 
     for uuid in $*; do
-        zonepath=$(/usr/vm/sbin/vmadm get ${uuid} | /usr/bin/json zonepath)
+        zonepath=$(vmadm get ${uuid} | /usr/bin/json zonepath)
         if [[ ! -f ${zonepath}/root/var/svc/setup_complete ]]; then
             remain=$((${remain} + 1))
         fi

@@ -14,7 +14,8 @@
 #
 
 unset LD_LIBRARY_PATH
-PATH=/usr/bin:/usr/sbin:/smartdc/bin
+# /image/usr/sbin is here so we pickup vmadm on 6.5
+PATH=/usr/bin:/usr/sbin:/smartdc/bin:/image/usr/sbin
 export PATH
 
 BASH_XTRACEFD=4
@@ -120,9 +121,10 @@ function backup_usbkey
 
     printf "Creating USB backup in\n${backup_dir}\n"
 
-    # touch these, just to make sure they exist (in case of ancient build)
+    # touch these, just to make sure they exist (in case of older build)
     touch ${usbmnt}/datasets/smartos.uuid
     touch ${usbmnt}/datasets/smartos.filename
+    mkdir -p ${usbmnt}/default
 
     (cd ${usbmnt} && gtar -cf - \
         boot/grub/menu.lst.tmpl \
@@ -519,52 +521,56 @@ function cleanup_config
 	cp /mnt/usbkey/config /usbkey/config
 	rm -f /tmp/config.$$ /tmp/upg.$$
 
+	# Load the new cap values from the upgrade conf.generic into variables.
+	eval $(cat $${ROOT}/conf.generic | sed -e "s/^ *//" | grep -v "^#" | \
+	    grep "^[a-zA-Z]" | sed -e "s/^/GENERIC_/")
+
 	# Now adjust the memory caps in the generic file
-
-	if [ "$CONFIG_coal" == "true" ]; then
-		ca_cap="256m"
-		riak_cap="256m"
-	else
-		ca_cap="1024m"
-		riak_cap="512m"
-	fi
-
 	cat <<-SED_DONE >/tmp/upg.$$
-	s/adminui_memory_cap=.*/adminui_memory_cap=128m/
-	s/billapi_memory_cap=.*/billapi_memory_cap=128m/
-	s/ca_memory_cap=.*/ca_memory_cap=${ca_cap}/
-	s/cloudapi_memory_cap=.*/cloudapi_memory_cap=128m/
-	s/portal_memory_cap=.*/portal_memory_cap=128m/
-	s/riak_memory_cap=.*/riak_memory_cap=${riak_cap}/
+	s/adminui_memory_cap=.*/adminui_memory_cap=${GENERIC_adminui_memory_cap}/
+	s/amon_memory_cap=.*/adminui_memory_cap=${GENERIC_amon_memory_cap}/
+	s/assets_memory_cap=.*/adminui_memory_cap=${GENERIC_assets_memory_cap}/
+	s/billapi_memory_cap=.*/billapi_memory_cap=${GENERIC_billapi_memory_cap}/
+	s/ca_memory_cap=.*/ca_memory_cap=${GENERIC_ca_memory_cap}/
+	s/cloudapi_memory_cap=.*/cloudapi_memory_cap=${GENERIC_cloudapi_memory_cap}/
+	s/dhcpd_memory_cap=.*/cloudapi_memory_cap=${GENERIC_dhcpd_memory_cap}/
+	s/mapi_memory_cap=.*/cloudapi_memory_cap=${GENERIC_mapi_memory_cap}/
+	s/portal_memory_cap=.*/portal_memory_cap=${GENERIC_portal_memory_cap}/
+	s/rabbitmq_memory_cap=.*/riak_memory_cap=${GENERIC_rabbitmq_memory_cap}/
+	s/redis_memory_cap=.*/riak_memory_cap=${GENERIC_redis_memory_cap}/
+	s/riak_memory_cap=.*/riak_memory_cap=${GENERIC_riak_memory_cap}/
+	s/ufds_memory_cap=.*/riak_memory_cap=${GENERIC_ufds_memory_cap}/
 	/capi_*/d
 	SED_DONE
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic >/tmp/config.$$
 
+	# Add any missing entries for new roles that didn't used to exist.
+
 	egrep -s ufds_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
 		cat <<-DONE >>/tmp/config.$$
-		ufds_cpu_shares=100
-		ufds_max_lwps=1000
-		ufds_memory_cap=256m
+		ufds_cpu_shares=${GENERIC_ufds_cpu_shares}
+		ufds_max_lwps=${GENERIC_ufds_max_lwps}
+		ufds_memory_cap=${GENERIC_ufds_memory_cap}
 		DONE
 	fi
 
 	egrep -s redis_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
 		cat <<-DONE >>/tmp/config.$$
-		redis_cpu_shares=50
-		redis_max_lwps=1000
-		redis_memory_cap=128m
+		redis_cpu_shares=${GENERIC_redis_cpu_shares}
+		redis_max_lwps=${GENERIC_redis_max_lwps}
+		redis_memory_cap=${GENERIC_redis_memory_cap}
 		DONE
 	fi
 
 	egrep -s amon_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
 		cat <<-DONE >>/tmp/config.$$
-		amon_cpu_shares=100
-		amon_max_lwps=1000
-		amon_memory_cap=256m
+		amon_cpu_shares=${GENERIC_amon_cpu_shares}
+		amon_max_lwps=${GENERIC_amon_max_lwps}
+		amon_memory_cap=${GENERIC_amon_memory_cap}
 		DONE
 	fi
 
@@ -575,35 +581,75 @@ function cleanup_config
 	umount_usbkey
 }
 
+# Update the CN config file that mapi uses.
+function cleanup_cn_config
+{
+	# Depends on the mapi zonename we found in recreate_core_zones
+	local conf=/zones/$MAPIZONE/root/opt/smartdc/node.config/node.config
+	local nconf=/tmp/config.new.$$
+
+	echo "Updating compute node configuration"
+	nawk -F= '{
+	    if ($1 == "capi_admin_ip")
+	        printf("ufds_admin_ip=%s\n", $2)
+	    else if ($1 == "capi_admin_uuid")
+	        printf("ufds_admin_uuid=%s\n", $2)
+	    else
+	        print $0
+	}' $conf > $nconf
+
+	egrep -s "^mapi_client_url" $conf || \
+	    echo "mapi_client_url='$CONFIG_mapi_client_url'" >> $nconf
+	egrep -s "^mapi_http_admin_user" $conf || \
+	    echo "mapi_http_admin_user='$CONFIG_mapi_http_admin_user'" >> $nconf
+	egrep -s "^mapi_http_admin_pw" $conf || \
+	    echo "mapi_http_admin_pw='$CONFIG_mapi_http_admin_pw'" >> $nconf
+
+	mv $nconf $conf
+}
+
 # We restore the core zones as a side-effect during creation.
 # The create-zone script sees the presence of the ${zone}-data.zfs file
 # and sets KEEP_DATA_DATASET.
 function recreate_core_zones
 {
-	echo "Recreating core zones"
+	echo "Re-creating core zones"
 	# dhcpd zone expects this to exist, so make sure it does:
 	mkdir -p ${usbcpy}/os
 
-	for zone in $CORE_ZONES
+	/usbkey/scripts/headnode.sh 1>&4 2>&1
+
+	# headnode.sh left the zones running, shut down so we can restore them
+	for zone in `zoneadm list`
 	do
-	        # If the zone has a data dataset, copy to the path
-		# create-zone.sh expects it for reuse.
-		[ -f ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs ] && \
-		    cp ${SDC_UPGRADE_DIR}/bu.tmp/${zone}/${zone}-data.zfs \
-			${usbcpy}/backup
+		[ "$zone" == "global" ] && continue
+		zoneadm -z $zone halt
+	done
 
-	        ${usbcpy}/scripts/create-zone.sh ${zone} -w
+	local admin_uuid=${CONFIG_ufds_admin_uuid}
 
-	        # If we've copied the data dataset, remove it.  Also, we know
-		# that create-zone will have restored the zone using the
-		# copied zfs send stream.  Otherwise, if this zone has some
-		# other form of backup, restore the zone now.
-		if [[ -f ${usbcpy}/backup/${zone}-data.zfs ]]; then
-			rm ${usbcpy}/backup/${zone}-data.zfs
-		elif [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
-			${usbcpy}/zones/${zone}/restore ${zone} \
+	# Restore core zones
+	for zone in \
+	$(vmadm lookup owner_uuid=${admin_uuid} tags.smartdc_role=~^[a-z])
+	do
+		local role=$(vmadm get $zone | json -a tags.smartdc_role)
+
+		# Save the mapi zonename for later
+		[ "$role" == "mapi" ] && MAPIZONE=$zone
+
+		# If this zone has some form of backup, restore the zone now.
+		if [[ -x ${usbcpy}/zones/${role}/restore ]]; then
+			echo "Restore $role zone"
+			${usbcpy}/zones/${role}/restore ${zone} \
 			    ${SDC_UPGRADE_DIR}/bu.tmp
 		fi
+	done
+
+	# Boot core zones
+	for zone in \
+	$(vmadm lookup owner_uuid=${admin_uuid} tags.smartdc_role=~^[a-z])
+	do
+		zoneadm -z $zone boot
 	done
 }
 
@@ -1035,6 +1081,11 @@ mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
 mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
 mount -F lofs -o ro /image/usr/lib/zones/zoneadmd /usr/lib/zones/zoneadmd
 
+# If we're upgrading an image with vmadm, make sure we use the new one
+# by lofs mounting over the old one.
+[ -f /usr/sbin/vmadm ] && \
+    mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
+
 # All of the following are using libzonecfg so we need to stop them before we
 # can lofs mount the new libzonecfg.
 svcadm disable zones-monitoring
@@ -1048,6 +1099,8 @@ mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 /usr/lib/libzonecfg.so.1
 svcadm enable metadata
 svcadm enable zonetracker-v2
 # leave the other svcs disabled until reboot
+
+upgrade_agents
 
 # We restore the core zones as a side-effect during creation.
 recreate_core_zones
@@ -1075,8 +1128,6 @@ register_platform
 
 import_sdc_datasets
 
-upgrade_agents
-
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
@@ -1089,6 +1140,9 @@ delete_new_sdc_zones
 sleep 10
 
 recreate_extra_zones
+
+# Fix up mapi's CN config file
+cleanup_cn_config
 
 /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
 

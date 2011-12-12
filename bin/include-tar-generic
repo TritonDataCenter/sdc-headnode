@@ -6,7 +6,7 @@
 PLATFORM=$(uname -s)
 MNT_DIR="${ROOT}/mnt"
 GZCAT="zcat"
-IMG_TYPE="usb"
+[ -z "$IMG_TYPE" ] && IMG_TYPE="usb"
 case "$PLATFORM" in
   Darwin)
     # sudo is no longer required on OSX builds

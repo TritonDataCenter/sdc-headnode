@@ -1031,6 +1031,13 @@ function create_upgrade
     mkdir -p ${ROOT}/cache/upgrade/usbkey
     cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
     cp ${ROOT}/bin/upgrade_cn ${ROOT}/cache/upgrade/upgrade_cn
+
+    local sconf=${ROOT}/config/config.usb.inc/generic
+    if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
+        sconf=${ROOT}/config/config.coal.inc/generic
+    fi
+    cp ${sconf} ${ROOT}/cache/upgrade/conf.generic
+
     cp ${STAGE}/config ${STAGE}/config.default
     chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \
