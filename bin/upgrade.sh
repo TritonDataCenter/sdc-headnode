@@ -408,7 +408,8 @@ function delete_old_sdc_zones
 function get_sdc_datasets
 {
 	MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
-	    http://${CONFIG_mapi_admin_ip}/datasets | json | nawk '{
+	    http://${CONFIG_mapi_admin_ip}/datasets?include_disabled=true | \
+	    json | nawk '{
 		if ($1 == "\"name\":") {
 			# strip quotes and comma
 			nm = substr($2, 2, length($2) - 3)
@@ -437,16 +438,23 @@ function import_sdc_datasets
 		done
 
 		if [ $match == 0 ]; then
-			mv $i /tmp
-			bzname=${bname%.*}
-			mv /usbkey/datasets/$bzname.zfs.bz2 /tmp
+			bzname=`nawk '{
+			        if ($1 == "\"path\":") {
+			            # strip quotes and colon
+			            print substr($2, 2, length($2) - 3)
+			            exit 0
+			        }
+			    }' $i`
+			cp $i /tmp
+			# We have to mv since dsimport wants to copy it back
+			mv /usbkey/datasets/$bzname /tmp
 
 			sed -i "" -e \
 "s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
 			    /tmp/$bname
 			sdc-dsimport /tmp/$bname
 
-			rm -f /tmp/$bname /tmp/$bzname.zfs.bz2
+			rm -f /tmp/$bname /tmp/$bzname
 		fi
 	done
 }
@@ -522,7 +530,7 @@ function cleanup_config
 	rm -f /tmp/config.$$ /tmp/upg.$$
 
 	# Load the new cap values from the upgrade conf.generic into variables.
-	eval $(cat $${ROOT}/conf.generic | sed -e "s/^ *//" | grep -v "^#" | \
+	eval $(cat ${ROOT}/conf.generic | sed -e "s/^ *//" | grep -v "^#" | \
 	    grep "^[a-zA-Z]" | sed -e "s/^/GENERIC_/")
 
 	# Now adjust the memory caps in the generic file
@@ -641,7 +649,7 @@ function recreate_core_zones
 		if [[ -x ${usbcpy}/zones/${role}/restore ]]; then
 			echo "Restore $role zone"
 			${usbcpy}/zones/${role}/restore ${zone} \
-			    ${SDC_UPGRADE_DIR}/bu.tmp
+			    ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
 		fi
 	done
 
@@ -838,6 +846,7 @@ function install_platform
 	if [[ -d ${usbcpy}/os/${platformversion} ]]; then
 		echo \
 	    "${usbcpy}/os/${platformversion} already exists, skipping update."
+		SKIP_SWITCH=1
 		return
         fi
 
@@ -1052,6 +1061,7 @@ load_sdc_config
 
 # We do the first part of installing the platform now so the new platform
 # is available for the new code to run on via the lofs mounts below.
+SKIP_SWITCH=0
 install_platform
 
 # We need the latest smartdc tools to provision the extra zones.
@@ -1144,7 +1154,8 @@ recreate_extra_zones
 # Fix up mapi's CN config file
 cleanup_cn_config
 
-/usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
+[ $SKIP_SWITCH == 0 ] && \
+    /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
 
 # Leave headnode setup for compute node upgrades of all roles
 for role in $ROLE_ORDER
