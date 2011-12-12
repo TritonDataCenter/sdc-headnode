@@ -200,21 +200,20 @@ cat > /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml <<HERE
 HERE
 
 # Update config file
-gsed -i -e "s/HOSTNAME/$PRIVATE_IP/" /opt/smartdc/ufds/cfg/config.json.in
 gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
 gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAKIP/${RIAK_IP}/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAKSSLPORT/${RIAK_SSL_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/RIAK_IP/${RIAK_IP}/" /opt/smartdc/ufds/cfg/config.json.in
+gsed -i -e "s/RIAK_PORT/${RIAK_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
 mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
 
 echo "Importing ufds_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
 
-echo "Enabling service ufds"
-/usr/sbin/svcadm enable smartdc/site/ufds
-
 echo "Importing ufds_capi_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
+
+echo "Enabling service ufds"
+/usr/sbin/svcadm enable smartdc/site/ufds
 
 echo "Enabling service ufds-capi"
 /usr/sbin/svcadm enable smartdc/site/ufds-capi
@@ -251,9 +250,17 @@ objectclass: groupOfUniqueNames
 
 HERE
 
-(LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://localhost:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif)
-rm -f /tmp/.bootstrap.ldif
 
+LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif
+if [ $? -ne 0 ] ; then
+    echo "Failed to load bootstrap data, exiting"
+    echo "Marking ufds SMF service as in maintenance"
+    svcadm mark maintenance svc:/smartdc/site/ufds:default
+    exit 1
+fi
+
+rm -f /tmp/.bootstrap.ldif
 touch /var/svc/setup_complete
+
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
