@@ -1,14 +1,16 @@
 #!/usr/bin/bash
 
+set -o xtrace
+
 if [[ $# != 2 ]]; then
-  echo "Usage: $0 <zone_name> <target_directory>"
+  echo "Usage: $0 <uuid> <target_directory>"
   exit 1
 fi
 
-ZONE=$1
+UUID=$1
 TARGET_DIR=$2
 # We know the name of our app:
-APP_NAME="${ZONE}"
+APP_NAME="mapi"
 
 # Just in case, create the backup directory:
 if [[ ! -e "${TARGET_DIR}" ]]; then
@@ -18,9 +20,9 @@ fi
 # Use the mapi VERSION file, not the mapi-data VERSION file, since the app
 # dataset version can change after an upgrade but the mapi-data version would
 # be restored.
-VERSION=$(cat /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/VERSION)
-APP_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-app-${VERSION}$")
-DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}\/${APP_NAME}-data$")
+VERSION=$(cat /zones/${UUID}/root/opt/smartdc/${APP_NAME}/VERSION)
+APP_DATASET=$(zfs list -H -o name|grep "${UUID}\/data\/${APP_NAME}-app$")
+DATA_DATASET=$(zfs list -H -o name|grep "${UUID}\/data\/${APP_NAME}-data$")
 STAMP=$(date +'%F-%H-%M-%S-%Z')
 
 # We might want to take more than one backup of the same version:
@@ -39,14 +41,14 @@ if [[ -z $DATA_DATASET ]]; then
 fi
 
 # Check if Rakefile exists first
-if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
-  backup=$(/usr/sbin/zlogin ${ZONE} /opt/local/bin/rake -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
+if [[ -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
+  backup=$(/usr/sbin/zlogin ${UUID} /opt/local/bin/rake -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:backup)
   # Only attempt to backup the DB if there's a pg:backup task
   if [[ -n $backup ]]; then
     echo "==> Creating PostgreSQL Backup with version ${BACKUP_VERSION}"
-    /usr/sbin/zlogin ${ZONE} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
-    if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump ]]; then
-      echo "Successfully created database backup: '/zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump'"
+    /usr/sbin/zlogin ${UUID} VERSION="${BACKUP_VERSION}" /opt/local/bin/rake pg:backup -f /opt/smartdc/${APP_NAME}/Rakefile
+    if [[ -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump ]]; then
+      echo "Successfully created database backup: '/zones/${UUID}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump'"
     else
       echo "FATAL: Cannot create database backup"
       exit 104
@@ -55,9 +57,9 @@ if [[ -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
 fi
 
 # Create application dataset backup
-if [[ -z $(zfs list -t all -H -o name|grep "${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}$") ]]; then
-  echo "==> Creating snapshot of '${APP_NAME}-app-${VERSION}' dataset"
-  /usr/sbin/zfs snapshot zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION} 2>&1
+if [[ -z $(zfs list -t all -H -o name|grep "data/${APP_NAME}-app@${BACKUP_VERSION}$") ]]; then
+  echo "==> Creating snapshot of '${APP_NAME}-app' dataset"
+  /usr/sbin/zfs snapshot zones/${UUID}/data/${APP_NAME}-app@${BACKUP_VERSION} 2>&1
   if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to snapshot application dataset"
     exit 105
@@ -65,9 +67,9 @@ if [[ -z $(zfs list -t all -H -o name|grep "${APP_NAME}-app-${VERSION}@${BACKUP_
 fi
 
 # Create data dataset backup
-if [[ -z $(zfs list -t all -H -o name|grep "${APP_NAME}-data@${BACKUP_VERSION}$") ]]; then
+if [[ -z $(zfs list -t all -H -o name|grep "data/${APP_NAME}-data@${BACKUP_VERSION}$") ]]; then
   echo "==> Creating snapshot of '${APP_NAME}-data' dataset"
-  /usr/sbin/zfs snapshot zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION} 2>&1
+  /usr/sbin/zfs snapshot zones/${UUID}/data/${APP_NAME}-data@${BACKUP_VERSION} 2>&1
   if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to snapshot data dataset"
     exit 106
@@ -80,9 +82,9 @@ mkdir -p "${TARGET_DIR}/${APP_NAME}"
 
 # Send the dataset snapshots:
 
-if [[ ! -f "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-app-${VERSION}" ]]; then
+if [[ ! -f "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-app" ]]; then
   echo "==> Saving application dataset"
-  /usr/sbin/zfs send "zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-app-${VERSION}.zfs" 2>&1
+  /usr/sbin/zfs send "zones/${UUID}/data/${APP_NAME}-app@${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-app-${VERSION}.zfs" 2>&1
   if [[ $? -gt 0 ]]; then
     echo "Unable to zfs send application dataset"
     exit 107
@@ -91,23 +93,23 @@ fi
 
 if [[ ! -f "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-data" ]]; then
   echo "==> Saving data dataset"
-  /usr/sbin/zfs send "zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-data.zfs" 2>&1
+  /usr/sbin/zfs send "zones/${UUID}/data/${APP_NAME}-data@${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/${APP_NAME}-data.zfs" 2>&1
   if [[ $? -gt 0 ]]; then
     echo "Unable to zfs send data dataset"
     exit 108
   fi
 fi
 
-echo "==> Removing temporary snapshots of '${ZONE}'"
-/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-data@${BACKUP_VERSION}"
-/usr/sbin/zfs destroy "zones/${ZONE}/${APP_NAME}-app-${VERSION}@${BACKUP_VERSION}"
-rm -f /zones/${ZONE}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump
+echo "==> Removing temporary snapshots of '${UUID}'"
+/usr/sbin/zfs destroy "zones/${UUID}/data/${APP_NAME}-data@${BACKUP_VERSION}"
+/usr/sbin/zfs destroy "zones/${UUID}/data/${APP_NAME}-app@${BACKUP_VERSION}"
+rm -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${BACKUP_VERSION}.pg_dump
 
 # Copy additional files
-cp /zones/$ZONE/root/opt/smartdc/node.config/node.config \
+cp /zones/$UUID/root/opt/smartdc/node.config/node.config \
     ${TARGET_DIR}/${APP_NAME}
-[ -f /zones/$ZONE/root/etc/inet/static_routes ] && \
-    cp /zones/$ZONE/root/etc/inet/static_routes ${TARGET_DIR}/${APP_NAME}
+[ -f /zones/$UUID/root/etc/inet/static_routes ] && \
+    cp /zones/$UUID/root/etc/inet/static_routes ${TARGET_DIR}/${APP_NAME}
 
 # Create a file to hold the $BACKUP_VERSION for the restore script:
 echo "${BACKUP_VERSION}" > "${TARGET_DIR}/${APP_NAME}/RESTORE"

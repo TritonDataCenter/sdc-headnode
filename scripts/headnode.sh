@@ -21,7 +21,7 @@ export PATH
 set -o errexit
 set -o pipefail
 # this is set below
-set -o xtrace
+#set -o xtrace
 
 CONSOLE_FD=4 ; export CONSOLE_FD
 
@@ -89,6 +89,9 @@ if [ $# == 0 ]; then
 else
     exec 4>>/dev/stdout
     restore=1
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=2
+    set -o xtrace
 fi
 
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
@@ -103,6 +106,8 @@ load_sdc_config
 POOLS=`zpool list`
 
 if [[ ${POOLS} == "no pools available" ]]; then
+
+    cr_once
 
     ${USB_PATH}/scripts/joysetup.sh || exit 1
 
@@ -151,11 +156,14 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
     which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
         | grep -v -- '-hvm-' | tail -n1)
     if [[ -n ${which_agents} ]]; then
-        printf "%-58s" "Installing $(basename ${which_agents})... " >&${CONSOLE_FD}
         if [ $restore == 0 ]; then
+            printf "%-58s" "Installing $(basename ${which_agents})... " \
+                >&${CONSOLE_FD}
             (cd /var/tmp ; bash ${which_agents})
         else
-            (cd /var/tmp ; bash ${which_agents} >/dev/null 2>&1)
+            printf "%-58s" "installing $(basename ${which_agents})... " \
+                >&${CONSOLE_FD}
+            (cd /var/tmp ; bash ${which_agents} >&4 2>&1)
         fi
         printf "%4s\n" "done" >&${CONSOLE_FD}
     else
@@ -246,10 +254,31 @@ function create_zone {
         return 0
     fi
 
+    # If OLD_ZONES was passed in the environment, use the UUID there, this
+    # is for sdc-restore.
+    existing_uuid=
+    if [[ -n ${OLD_ZONES} ]]; then
+        for z in ${OLD_ZONES}; do
+            uuid=${z%%,*}
+            tag=${z##*,}
+            if [[ ${tag} == ${zone} && -n ${uuid} ]]; then
+                new_uuid=${uuid}
+                existing_uuid="(${new_uuid}) "
+            fi
+        done
+    fi
+
     # This just moves us to the beginning of the line (once)
     cr_once
 
-    printf "%-58s" "Creating zone ${zone}... " >&${CONSOLE_FD}
+    if [[ ${restore} == 0 ]]; then
+        printf "%-58s" "Creating zone ${existing_uuid}${zone}... " \
+            >&${CONSOLE_FD}
+    else
+        # alternate format for sdc-restore
+        printf "%s" "creating zone ${existing_uuid}${zone}... " \
+            >&${CONSOLE_FD}
+    fi
     dir=${USB_COPY}/extra/${zone}
     mkdir -p ${dir}
     rm -f ${dir}/${pkgsrc}
@@ -330,21 +359,32 @@ if [ -n "${CREATEDZONES}" ]; then
     # The svc installing the zones is still running since we haven't exited
     # yet, so the svc count should be 1 for us to end successfully.
     # If they're not up after 4 minutes, report a possible issue.
-    msg="Waiting for services to finish starting..."
-    printf "%-58s\r" "${msg}"
+    if [ $restore == 0 ]; then
+        msg="Waiting for services to finish starting..."
+        printf "%-58s\r" "${msg}"
+    else
+        # alternate formatting when restoring (sdc-restore)
+        msg="waiting for services to finish starting... "
+        printf "%s\r" "${msg}"
+    fi
     i=0
     while [ $i -lt 48 ]; do
         nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
         if [ $nstarting -lt 2 ]; then
                 break
         fi
-        if [[ -z ${CONFIG_disable_spinning} ]]; then
+        if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
             printf "%-58s%s\r" "${msg}" "${nstarting}" >&${CONSOLE_FD}
         fi
         sleep 5
         i=`expr $i + 1`
     done
-    printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
+    if [[ ${restore} == 0 ]]; then
+        printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
+    else
+        # alternate formatting when restoring (sdc-restore)
+        printf "%s%-20s\n" "${msg}" "done" >&${CONSOLE_FD}
+    fi
 
     if [ $nstarting -gt 1 ]; then
         echo "Warning: services in the following zones are still not running:" \
@@ -359,8 +399,12 @@ if [ -n "${CREATEDZONES}" ]; then
     i=0
     nsettingup=$(num_not_setup ${CREATEDUUIDS})
     while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do
-        msg="Waiting for zones to finish setting up..."
-        if [[ -z ${CONFIG_disable_spinning} ]]; then
+        if [[ ${restore} == 0 ]]; then
+            msg="Waiting for zones to finish setting up..."
+        else
+            msg="waiting for zones to finish setting up... "
+        fi
+        if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
             printf "%-58s%s\r" "${msg}" "${nsettingup}" >&${CONSOLE_FD}
         fi
         i=$((${i} + 1))
@@ -372,8 +416,11 @@ if [ -n "${CREATEDZONES}" ]; then
         printf "%-58s%s\n" "${msg}" "failed"  >&${CONSOLE_FD}
         fatal "Warning: some zones did not finish setup, installation has " \
             "failed."
-    else
+    elif [[ ${restore} == 0 ]]; then
         printf "%-58s%s\n" "${msg}" "done"  >&${CONSOLE_FD}
+    else
+        # alternate formatting when restoring (sdc-restore)
+        printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
     fi
 
     if [ $standby == 1 ]; then
