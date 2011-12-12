@@ -168,7 +168,7 @@ echo "==> Waiting for the zone's postgres to be running ..."
 cnt=0
 while [ $cnt -lt 30 ]
 do
-    state=`zlogin mapi svcs -H postgresql:pg90 2>&1 | nawk '{print $1}'`
+    state=`zlogin ${UUID} svcs -H postgresql:pg90 2>&1 | nawk '{print $1}'`
     [ "$state" == "online" ] && break
     sleep 2
     let cnt=$cnt+1
@@ -177,7 +177,7 @@ done
 cnt=0
 while [ $cnt -lt 30 ]
 do
-    state=`zlogin mapi svcs -H postfix 2>&1 | nawk '{print $1}'`
+    state=`zlogin ${UUID} svcs -H postfix 2>&1 | nawk '{print $1}'`
     [ "$state" == "online" ] && break
     sleep 2
     let cnt=$cnt+1
