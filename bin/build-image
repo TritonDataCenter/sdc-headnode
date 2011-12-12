@@ -499,7 +499,7 @@ function copy_pkgsrc
 	local name=${pkgsrc%%|*}
 	local url=${pkgsrc##*|}
 
-	local exists=$(find ${ROOT}/zones -type f -name ${name} )
+	local exists=$(find ${ROOT}/zones -type f -iname ${name} )
 	[[ -z ${exists} ]] && continue
 
 	local cache_dir=${ROOT}/cache/${name}
