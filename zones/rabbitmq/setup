@@ -5,6 +5,12 @@
 
 set -o xtrace
 
+if [[ ! -f /var/svc/setup.core ]]; then
+    echo "Fatal: missing /var/svc/setup.core"
+    exit 1
+fi
+source /var/svc/setup.core
+
 echo "Finishing setup of rabbitmq zone"
 
 # Setup .erlang.cookie symlink

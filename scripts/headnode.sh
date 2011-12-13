@@ -293,6 +293,11 @@ function create_zone {
             ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
         fi
     done
+    if [[ -f ${USB_COPY}/default/setup.core ]]; then
+        # extra include file for core zones.
+        rm -f ${dir}/setup.core
+        ln ${USB_COPY}/default/setup.core ${dir}/setup.core
+    fi
     if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
         rm -f ${dir}/bashrc
         ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
