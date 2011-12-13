@@ -1,0 +1,59 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <src_directory>"
+    exit 1
+fi
+
+ROLE=adminui
+UUID=$1
+SRC_DIR=$2
+CFG_PARENT=/zones/${UUID}/root/opt/smartdc
+CFG_DIR=adminui-data
+CFG_PATH=${CFG_PARENT}/${CFG_DIR}
+
+# Older backups may not have had this zone
+if [[ ! -d "${SRC_DIR}/${ROLE}" ]]; then
+	echo "Warning, backup missing $ROLE"
+	echo "==> Done"
+	exit 0
+fi
+
+if [[ ! -f "${SRC_DIR}/${ROLE}/adminui-data.zfs" && \
+      ! -f "${SRC_DIR}/${ROLE}/adminui-data.tgz" ]]; then
+	echo "Warning, backup missing data archive for $ROLE"
+	echo "==> Done"
+	exit 0
+fi
+
+echo "==> Restoring data directory for zone '${ROLE}'"
+
+# Remove pre-existing data dir
+zoneadm -z ${UUID} boot -- -m milestone=none
+sleep 1
+zlogin ${UUID} rm -rf /opt/smartdc/${CFG_DIR}
+zoneadm -z ${UUID} halt
+
+if [[ -f "${SRC_DIR}/${ROLE}/adminui-data.zfs" ]]; then
+	mkdir $CFG_PATH
+
+	# This is a 6.x backup which we want to restore (e.g. during upgrade).
+	echo "==> Restoring data directory for zone '${ROLE}'"
+	zfs receive -v zones/${UUID}/restore_ds \
+	    <${SRC_DIR}/${ROLE}/adminui-data.zfs
+
+	(cd /zones/${UUID}/restore_ds && tar cbfE 512 - *) |
+	    (cd $CFG_PATH && tar xbf 512 -)
+
+	zfs destroy -r zones/${UUID}/restore_ds
+
+else
+	(cd ${CFG_PARENT} && gzcat ${SRC_DIR}/${ROLE}/adminui-data.tgz | \
+	    tar xbf 512 -)
+fi
+
+echo "==> Done"
+exit 0

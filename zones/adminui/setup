@@ -152,11 +152,7 @@ mkdir -p /opt/smartdc/adminui-data/log
 mkdir -p /opt/smartdc/adminui-data/tmp/pids
 
 # Remove and symlink directories:
-if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
-  mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
-else
-  rm -Rf /opt/smartdc/adminui/config
-fi
+mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
 rm -Rf /opt/smartdc/adminui/log
 rm -Rf /opt/smartdc/adminui/tmp
 rm -Rf /opt/smartdc/adminui/config
@@ -576,12 +572,8 @@ chown -R jill:jill /opt/smartdc
 chown root:root /home
 chmod 0555 /home
 
-if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
-
-  ## Call the verify script
-  (cd /opt/smartdc/adminui && ./script/verify_setup.sh)
-
-fi
+## Call the verify script
+(cd /opt/smartdc/adminui && ./script/verify_setup.sh)
 
 touch /var/svc/setup_complete
 echo "setup done"
