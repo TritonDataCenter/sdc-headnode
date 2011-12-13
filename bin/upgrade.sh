@@ -205,7 +205,8 @@ function import_datasets
 function get_sdc_datasets
 {
     MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
-        http://${CONFIG_mapi_admin_ip}/datasets | json | nawk '{
+        http://${CONFIG_mapi_admin_ip}/datasets?include_disabled=true | \
+	| json | nawk '{
             if ($1 == "\"name\":") {
                 # strip quotes and comma
                 nm = substr($2, 2, length($2) - 3)
@@ -238,16 +239,23 @@ function import_sdc_datasets
 		done
 
 		if [ $match == 0 ]; then
-			mv $i /tmp
-			bzname=${bname%.*}
-			mv /usbkey/datasets/$bzname.zfs.bz2 /tmp
+			bzname=`nawk '{
+			        if ($1 == "\"path\":") {
+			            # strip quotes and colon
+			            print substr($2, 2, length($2) - 3)
+			            exit 0
+			        }
+			    }' $i`
+			cp $i /tmp
+			# We have to mv since dsimport wants to copy it back
+			mv /usbkey/datasets/$bzname /tmp
 
 			sed -i "" -e \
 "s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
 			    /tmp/$bname
 			sdc-dsimport /tmp/$bname
 
-			rm -f /tmp/$bname /tmp/$bzname.zfs.bz2
+			rm -f /tmp/$bname /tmp/$bzname
 		fi
 	done
 }
@@ -365,6 +373,7 @@ function install_platform
 
     if [[ -d ${usbcpy}/os/${platformversion} ]]; then
         echo "${usbcpy}/os/${platformversion} already exists, skipping update."
+        SKIP_SWITCH=1
         return
     fi
 
@@ -457,6 +466,7 @@ import_datasets
 
 recreate_zones
 
+SKIP_SWITCH=0
 install_platform
 
 import_sdc_datasets
@@ -468,7 +478,8 @@ upgrade_cn_agents
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
-/usbkey/scripts/switch-platform.sh ${platformversion}
+[ $SKIP_SWITCH == 0 ] && \
+    /usbkey/scripts/switch-platform.sh ${platformversion}
 echo "Activating upgrade complete"
 
 message="
