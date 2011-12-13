@@ -247,7 +247,7 @@ create_dump()
     local dumpsize=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
 
     # Create the dump zvol
-    zfs create -V ${dumpsize}mb ${SYS_ZPOOL}/dump || \
+    zfs create -V ${dumpsize}mb -o checksum=noparity ${SYS_ZPOOL}/dump || \
       fatal "failed to create the dump zvol"
 }
 
