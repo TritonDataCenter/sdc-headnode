@@ -206,7 +206,7 @@ function get_sdc_datasets
 {
     MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
         http://${CONFIG_mapi_admin_ip}/datasets?include_disabled=true | \
-	| json | nawk '{
+	json | nawk '{
             if ($1 == "\"name\":") {
                 # strip quotes and comma
                 nm = substr($2, 2, length($2) - 3)
