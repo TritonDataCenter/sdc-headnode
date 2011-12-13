@@ -71,8 +71,11 @@ function copy_special_mapi_files
     rm -f ${dir}/agents/*.sh
     ln ${USB_COPY}/ur-scripts/agents-*.sh ${dir}/agents/
     mkdir -p ${dir}/config.inc
-    rm -f ${dir}/config.inc/*
-    ln ${USB_COPY}/config.inc/* ${dir}/config.inc/
+    rm -rf ${dir}/config.inc/*
+    for file in \
+        $(find ${USB_COPY}/config.inc/ -maxdepth 1 -type f -not -name ".*"); do
+        ln ${file} ${dir}/config.inc/
+    done
 }
 
 trap 'errexit $?' EXIT
