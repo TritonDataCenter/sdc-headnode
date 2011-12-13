@@ -127,10 +127,10 @@ rm -rf /var/svc/pkgs
 
 echo "finalizing ca zone"
 
-npm install /pkg/cabase.tar.gz
-npm install /pkg/caaggsvc.tar.gz
-npm install /pkg/castashsvc.tar.gz
-npm install /pkg/caconfigsvc.tar.gz
+npm install --user=root --no-rebuild-bundle -g /pkg/cabase.tar.gz
+npm install --user=root --no-rebuild-bundle -g /pkg/caaggsvc.tar.gz
+npm install --user=root --no-rebuild-bundle -g /pkg/castashsvc.tar.gz
+npm install --user=root --no-rebuild-bundle -g /pkg/caconfigsvc.tar.gz
 
 configure
 
