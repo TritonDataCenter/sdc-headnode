@@ -1,29 +1,31 @@
-# We need rabbitmq running to be able to change any settings if it's OFF* that means
-# it's still starting up, so we wait.
-status=$(svcs -Ho STA svc:/application/rabbitmq:default)
-while [[ ${status} == 'OFF*' ]]; do
-    sleep 3
+known_state=0
+while [[ ${known_state} == 0 ]]; do
     status=$(svcs -Ho STA svc:/application/rabbitmq:default)
+    case ${status} in
+        MNT)
+            svcadm clear svc:/application/rabbitmq:default
+            known_state=1
+        ;;
+        OFF)
+            svcadm enable -s svc:/application/rabbitmq:default
+            known_state=1
+        ;;
+        DIS)
+            svcadm enable -s svc:/application/rabbitmq:default
+            known_state=1
+        ;;
+        ON)
+            echo "Already running."
+            known_state=1
+        ;;
+        *)
+            # if rabbimq has a state that we can't handle, just wait until its
+            # one we can, it'll either get there or this service will timeout
+            # and go to maint.
+            sleep 3
+        ;;
+    esac
 done
-
-case ${status} in
-    MNT)
-        svcadm clear svc:/application/rabbitmq:default
-    ;;
-    OFF)
-        svcadm enable -s svc:/application/rabbitmq:default
-    ;;
-    DIS)
-        svcadm enable -s svc:/application/rabbitmq:default
-    ;;
-    ON)
-        echo "Already running."
-    ;;
-    *)
-        echo "Unhandled status: ${status}"
-        exit 1
-    ;;
-esac
 
 #
 # On first boot at least, RabbitMQ pretends like it started up when it's not
