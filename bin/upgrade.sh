@@ -536,18 +536,18 @@ function cleanup_config
 	# Now adjust the memory caps in the generic file
 	cat <<-SED_DONE >/tmp/upg.$$
 	s/adminui_memory_cap=.*/adminui_memory_cap=${GENERIC_adminui_memory_cap}/
-	s/amon_memory_cap=.*/adminui_memory_cap=${GENERIC_amon_memory_cap}/
-	s/assets_memory_cap=.*/adminui_memory_cap=${GENERIC_assets_memory_cap}/
+	s/amon_memory_cap=.*/amon_memory_cap=${GENERIC_amon_memory_cap}/
+	s/assets_memory_cap=.*/assets_memory_cap=${GENERIC_assets_memory_cap}/
 	s/billapi_memory_cap=.*/billapi_memory_cap=${GENERIC_billapi_memory_cap}/
 	s/ca_memory_cap=.*/ca_memory_cap=${GENERIC_ca_memory_cap}/
 	s/cloudapi_memory_cap=.*/cloudapi_memory_cap=${GENERIC_cloudapi_memory_cap}/
-	s/dhcpd_memory_cap=.*/cloudapi_memory_cap=${GENERIC_dhcpd_memory_cap}/
-	s/mapi_memory_cap=.*/cloudapi_memory_cap=${GENERIC_mapi_memory_cap}/
+	s/dhcpd_memory_cap=.*/dhcpd_memory_cap=${GENERIC_dhcpd_memory_cap}/
+	s/mapi_memory_cap=.*/mapi_memory_cap=${GENERIC_mapi_memory_cap}/
 	s/portal_memory_cap=.*/portal_memory_cap=${GENERIC_portal_memory_cap}/
-	s/rabbitmq_memory_cap=.*/riak_memory_cap=${GENERIC_rabbitmq_memory_cap}/
-	s/redis_memory_cap=.*/riak_memory_cap=${GENERIC_redis_memory_cap}/
+	s/rabbitmq_memory_cap=.*/rabbitmq_memory_cap=${GENERIC_rabbitmq_memory_cap}/
+	s/redis_memory_cap=.*/redis_memory_cap=${GENERIC_redis_memory_cap}/
 	s/riak_memory_cap=.*/riak_memory_cap=${GENERIC_riak_memory_cap}/
-	s/ufds_memory_cap=.*/riak_memory_cap=${GENERIC_ufds_memory_cap}/
+	s/ufds_memory_cap=.*/ufds_memory_cap=${GENERIC_ufds_memory_cap}/
 	/capi_*/d
 	SED_DONE
 
