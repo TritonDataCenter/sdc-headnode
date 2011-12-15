@@ -424,6 +424,8 @@ function get_sdc_datasets
 
 function import_sdc_datasets
 {
+	get_sdc_datasets
+
 	for i in /usbkey/datasets/*.dsmanifest
 	do
 		bname=${i##*/}
@@ -438,6 +440,8 @@ function import_sdc_datasets
 		done
 
 		if [ $match == 0 ]; then
+			echo "Import new dataset $bname"
+	
 			bzname=`nawk '{
 			        if ($1 == "\"path\":") {
 			            # strip quotes and colon
@@ -969,7 +973,6 @@ rm -f /tmp/sdc$$.out
 [ -n "$emsg" ] && fatal "MAPI API is not responding"
 
 get_sdc_zonelist
-get_sdc_datasets
 
 if [ $RIAK_FOUND == 1 ]; then
 	message="
@@ -1029,7 +1032,7 @@ shutdown_non_core_zones
 # Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
 # existence of backup file.
 echo "Creating a backup"
-sdc-backup -d $SDC_UPGRADE_SAVE
+sdc-backup -s datasets -d $SDC_UPGRADE_SAVE
 bfile=`ls $SDC_UPGRADE_SAVE/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "unable to make a backup"
 
