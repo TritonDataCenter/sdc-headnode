@@ -91,7 +91,8 @@ fi
 
 STAMP=$(cat /opt/smartdc/mapi-VERSION)
 echo "$STAMP" >/root/mapi-app-timestamp
-zfs create -o mountpoint=/opt/smartdc/mapi zones/${zone_uuid}/data/mapi-app
+
+mkdir -p /opt/smartdc/mapi
 
 # Get git revision:
 cd /opt/smartdc/mapi-repo
