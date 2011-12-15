@@ -9,6 +9,12 @@ export PATH
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
 
+#
+# Servers must have twice as much available disk space as RAM for setup
+# to run successfully.
+#
+MIN_DISK_TO_RAM=2
+
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
 
@@ -49,6 +55,29 @@ function ceil
     result=$(ksh93 -c "${expression}")
 
     echo ${result}
+}
+
+function check_disk_space
+{
+    RAM_MiB=${SYSINFO_MiB_of_Memory}
+
+    space=0
+    for disk in $(/usr/bin/disklist -s); do
+        size=$(echo "$disk" | cut -d= -f2)
+        space=$(( $space + $size ))
+    done
+
+    Disk_MiB=$(( $space / 1024 / 1024 ))
+    Min_Disk_MiB=$(( $RAM_MiB * $MIN_DISK_TO_RAM ))
+
+    if [[ ${Disk_MiB} -lt ${Min_Disk_MiB} ]]; then
+        RAM_GiB=$(( $RAM_MiB / 1024 ))
+        Disk_GiB=$(( $Disk_MiB / 1024 ))
+        Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
+
+        fatal "$( printf 'Cannot setup: system has %dG memory but %dG disk (>= %dG expected)' \
+             $RAM_GiB $Disk_GiB $Min_Disk_GiB )"
+    fi
 }
 
 #
@@ -450,6 +479,7 @@ output_vg_info()
 
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
+    check_disk_space
     create_zpools
     setup_datasets
     install_configs
