@@ -425,58 +425,6 @@ install_configs()
     fi
 }
 
-create_vg()
-{
-    disks=
-    for disk in $(sysinfo -p | grep "^Disk_.*_size" | cut -d'_' -f2); do
-        pvcreate --zero y --metadatasize 1018k /dev/${disk}
-	disks="${disks} /dev/${disk}"
-    done
-
-    vgcreate smartdc ${disks}
-}
-
-create_lvm_datasets()
-{
-    printf "%-56s" "Creating global cores dataset... " >&4
-    lvcreate -L 5G -n cores smartdc
-    mkfs.ext3 /dev/smartdc/cores
-    mkdir -p /cores
-    mount -text3 /dev/smartdc/cores /cores
-    chmod 1777 /cores
-    echo '/cores/core.%t.%u.%g.%s.%s' >/proc/sys/kernel/core_pattern
-    printf "%4s\n" "done" >&4
-
-    printf "%-56s" "Creating opt dataset... " >&4
-    lvcreate -L 5G -n opt smartdc
-    mkfs.ext3 /dev/smartdc/opt
-    mount -text3 /dev/smartdc/opt /opt
-    printf "%4s\n" "done" >&4
-
-    printf "%-56s" "Initializing var dataset... " >&4
-    lvcreate -L 5G -n var smartdc
-    mkfs.ext3 /dev/smartdc/var
-    mount -text3 /dev/smartdc/var /mnt
-    (cd /var && tar -cpf - ./) | (cd /mnt && tar -xf -)
-    umount /mnt
-    mount -text3 /dev/smartdc/var /var
-    printf "%4s\n" "done" >&4
-
-    printf "%-56s" "Initializing vms dataset... " >&4
-    mkdir -p /etc/vms
-    lvcreate -L 1G -n vms smartdc
-    mkfs.ext3 /dev/smartdc/vms
-    mount -text3 /dev/smartdc/vms /etc/vms
-    printf "%4s\n" "done" >&4
-}
-
-output_vg_info()
-{
-    results=$(vgs --separator '	' --units G --noheadings -o vg_name,vg_uuid,vg_size,vg_free | sed -e "s/^[ 	]*//")
-    name=$(echo "${results}" | cut -d'	' -f1)
-    echo "${results}	ONLINE	/${name}"
-}
-
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     check_disk_space
