@@ -11,12 +11,10 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-ROLE=adminui
+ROLE=billapi
 UUID=$1
 TARGET_DIR=$2
-CFG_PARENT=/zones/${UUID}/root/opt/smartdc
-CFG_DIR=adminui-data
-CFG_PATH=${CFG_PARENT}/${CFG_DIR}
+CFG_FILE=/zones/$UUID/root/opt/smartdc/billapi/config/config.json
 
 if [[ ! -d "${TARGET_DIR}" ]]; then
     echo "Invalid directory: '${TARGET_DIR}'"
@@ -26,11 +24,8 @@ fi
 # Create the backup directory:
 mkdir -p ${TARGET_DIR}/${ROLE}
 
-echo "==> Saving data directory for zone '${ROLE}'"
-if [ -d $CFG_PATH ]; then
-    (cd ${CFG_PARENT} && tar cbfE 512 - ${CFG_DIR} | \
-        gzip >${TARGET_DIR}/${ROLE}/adminui-data.tgz)
-fi
+echo "==> Saving config file for zone '${ROLE}'"
+[ -f $CFG_FILE ] && cp $CFG_FILE ${TARGET_DIR}/${ROLE}
 
 echo "==> Done!"
 exit 0

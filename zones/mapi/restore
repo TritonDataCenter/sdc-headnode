@@ -1,48 +1,29 @@
 #!/usr/bin/bash
 
-set -o xtrace
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin
+export PATH
 
-set_mountpoint() {
-  uuid=$1
-  dataset=$2
-  mountpoint=$3
-
-  echo "==> Setting mountpoint for dataset '${dataset}'"
-  /usr/sbin/zlogin ${uuid} /usr/sbin/zfs set mountpoint=${mountpoint} ${dataset}
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to set mountpoint for dataset into '${UUID}' zone"
-    exit 111
-  fi
-}
+# set -o xtrace
 
 if [[ $# != 2 ]]; then
-  echo "Usage: $0 <zone_name> <target_directory>"
-  exit 1
+    echo "Usage: $0 <zone_name> <target_directory>"
+    exit 1
 fi
 
-
-ZONE=mapi
+ROLE=mapi
 UUID=$1
 TARGET_DIR=$2
 
-APP_NAME="${ZONE}"
-BASE="${TARGET_DIR}/${APP_NAME}"
+BASE="${TARGET_DIR}/${ROLE}"
 
-# Note these include the .zfs extension
-APP_DATASET=$(ls ${BASE}|grep app)
-DATA_DATASET=$(ls ${BASE}|grep data)
 PG_DUMP_VERSION=$(cat ${BASE}/RESTORE)
+DUMP_FILE="/opt/smartdc/${ROLE}-data/${ROLE}-${PG_DUMP_VERSION}.pg_dump"
 
-# We cannot restore if cannot find application dataset:
-if [[ -z $APP_DATASET ]]; then
-  echo "FATAL: Cannot find '${APP_NAME}' application dataset"
-  exit 101
-fi
-
-# Same if cannot find data dataset:
-if [[ -z $DATA_DATASET ]]; then
-  echo "FATAL: Cannot find '${APP_NAME}' data dataset"
-  exit 102
+# We cannot restore if no data dataset:
+if [[ ! -f ${BASE}/${ROLE}-data.zfs ]]; then
+    echo "FATAL: Cannot find '${ROLE}' data dataset"
+    exit 101
 fi
 
 # We want to disable any of the old smartdc svcs to prevent the SMF repository
@@ -64,104 +45,55 @@ done
 unset SVCCFG_CHECKHASH
 unset SVCCFG_REPOSITORY
 
-# We're gonna check for existing zone datasets.
-# If they're there, we'll remove them.
-# The ${APP_NAME}-app- dataset has a trailing version, we find this
-# dataset no matter what version it has.
-PREVIOUS_APP_DATASET=$(zfs list -H -o name|grep "${UUID}\/data\/${APP_NAME}-app$")
-PREVIOUS_DATA_DATASET=$(zfs list -H -o name|grep "${UUID}\/data\/${APP_NAME}-data$")
-DELEGATED_DATASET=$(zfs list -H -o name | grep "${UUID}\/data$")
+# Check for existing data dataset.
+PREV_DATA_DATASET=$(zfs list -H -o name | grep "${UUID}\/data\/${ROLE}-data$")
 
-# Un-delegate the data dataset from the zone so we can operate on it in the GZ
-if [[ ! -z ${DELEGATED_DATASET} ]]; then
-  echo "==> Undelegating '${PREVIOUS_APP_DATASET}'"
-  /usr/sbin/zfs set zoned=off ${DELEGATED_DATASET}
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to undelegate '${DELEGATED_DATASET}' dataset"
-    exit 103
-  fi
-else
-  echo "FATAL: Missing delegated dataset for ${UUID}"
-  exit 104
+# Destroy previous dataset.
+if [[ ! -z "${PREV_DATA_DATASET}" ]]; then
+    echo "==> Destroying dataset '${PREV_DATA_DATASET}'"
+    zfs destroy -r "${PREV_DATA_DATASET}"
+    if [[ $? -gt 0 ]]; then
+        echo "FATAL: Unable to zfs destroy '${PREV_DATA_DATASET}' dataset"
+        exit 102
+    fi
 fi
 
-# Destroy previous datasets, (could have same name and we could be trying
-# to restore them from a previous backup)
-if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_APP_DATASET}") ]]; then
-  echo "==> Destroying dataset '${PREVIOUS_APP_DATASET}'"
-  /usr/sbin/zfs destroy -r "${PREVIOUS_APP_DATASET}"
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to zfs destroy '${PREVIOUS_APP_DATASET}' dataset"
-    exit 105
-  fi
-fi
-
-if [[ ! -z $(zfs list -H -o name|grep "${PREVIOUS_DATA_DATASET}") ]]; then
-  echo "==> Destroying dataset '${PREVIOUS_DATA_DATASET}'"
-  /usr/sbin/zfs destroy -r "${PREVIOUS_DATA_DATASET}"
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to zfs destroy '${PREVIOUS_DATA_DATASET}' dataset"
-    exit 106
-  fi
-fi
-
-# ZFS receive the datasets from the backup:
-if [[ -z $(zfs list -H -o name|grep "${UUID}\/data\/${APP_NAME}-app$") ]]; then
-  echo "==> Receiving '${BASE}/${APP_DATASET}'"
-  /usr/sbin/zfs receive -v "zones/${UUID}/data/${APP_NAME}-app" < "${BASE}/${APP_DATASET}"
-  if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to zfs receive application dataset"
-    exit 107
-  fi
-fi
-
-if [[ -z $(zfs list -H -o name|grep "${UUID}\/${DATA_DATASET%.*}$") ]]; then
-  echo "==> Receiving '${BASE}/${DATA_DATASET}'"
-  /usr/sbin/zfs receive -v "zones/${UUID}/data/${DATA_DATASET%.*}" < "${BASE}/${DATA_DATASET}"
-  if [[ $? -gt 0 ]]; then
+# ZFS receive the dataset from the backup:
+echo "==> Receiving '${BASE}/${ROLE}-data.zfs'"
+zfs receive -v "zones/${UUID}/data/${ROLE}-data" <"${BASE}/${ROLE}-data.zfs"
+if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to zfs receive data dataset"
-    exit 108
-  fi
+    exit 103
 fi
 
 # Copy additional files
 # Older backups may not have had this config file
 if [[ -f "${BASE}/node.config" ]]; then
-	echo "==> Restoring config file for zone '${UUID}'"
-	cp ${BASE}/node.config \
-	    /zones/$UUID/root/opt/smartdc/node.config/node.config
+    echo "==> Restoring config file for zone '${UUID}'"
+    cp ${BASE}/node.config /zones/$UUID/root/opt/smartdc/node.config/node.config
 else
-	echo "Warning, older backup; missing config file for $UUID"
+    echo "Warning, older backup; missing config file for $UUID"
 fi
 [[ -f "${BASE}/static_routes" ]] && \
     cp ${BASE}/static_routes /zones/$UUID/root/etc/inet
 
-
-# Re-delegate to the zone since we're going to boot, we know it exists or we'd
-# have failed earlier.
-/usr/sbin/zfs set zoned=on ${DELEGATED_DATASET}
-if [[ $? -gt 0 ]]; then
-  echo "FATAL: Unable to delegate '${DELEGATED_DATASET}' dataset"
-  exit 109
-fi
-
-# Now we need to reboot the zone in order to be able to set mountpoints for the
-# new datasets properly:
+# Now we need to reboot the zone in order to be able to set mountpoint for the
+# new dataset properly and to restore the DB from backup.
 
 echo "==> Booting '${UUID}' zone"
 /usr/sbin/zoneadm -z ${UUID} boot
 
-# Double check mountpoint for backup datasets:
-if [[ "$(zfs get -H -o value mountpoint zones/${UUID}/data/${APP_NAME}-app)" != "/opt/smartdc/${APP_NAME}"  ]]; then
-  echo "==> Setting mountpoint for dataset '${APP_NAME}-app'"
-  set_mountpoint ${UUID} "zones/${UUID}/data/${APP_NAME}-app" \
-    "/opt/smartdc/${APP_NAME}"
-fi
+# Double check mountpoint for dataset:
+if [[ "$(zfs get -H -o value mountpoint zones/${UUID}/data/${ROLE}-data)" != \
+    "/opt/smartdc/${ROLE}-data"  ]]; then
 
-if [[ "$(zfs get -H -o value mountpoint zones/${UUID}/data/${APP_NAME}-data)" != "/opt/smartdc/${APP_NAME}-data"  ]]; then
-  echo "==> Setting mountpoint for dataset '${APP_NAME}-data'"
-  set_mountpoint ${UUID} "zones/${UUID}/data/${APP_NAME}-data" \
-    "/opt/smartdc/${APP_NAME}-data"
+    echo "==> Setting mountpoint for dataset 'zones/${UUID}/data/${ROLE}-data'"
+    zlogin ${UUID} /usr/sbin/zfs set mountpoint="/opt/smartdc/${ROLE}-data" \
+        zones/${UUID}/data/${ROLE}-data
+    if [[ $? -gt 0 ]]; then
+        echo "FATAL: Unable to set mountpoint for dataset into '${UUID}' zone"
+        exit 104
+    fi
 fi
 
 echo "==> Waiting for the zone's postgres to be running ..."
@@ -183,38 +115,52 @@ do
     let cnt=$cnt+1
 done
 
-# Restore the PostgreSQL dump on data dataset if exists:
-if [[ -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}/Rakefile ]]; then
-  restore=$(/usr/sbin/zlogin ${UUID} /opt/local/bin/rake -vT -f /opt/smartdc/${APP_NAME}/Rakefile|grep pg:restore)
-  # Only attempt to restore the DB if there's a pg:restore task
-  if [[ -n $restore ]]; then
-    if [[ -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump ]]; then
-      echo "==> Restoring PostgreSQL DB to previous version"
-      /usr/sbin/zlogin ${UUID} VERSION=${PG_DUMP_VERSION} /opt/local/bin/rake pg:restore -f /opt/smartdc/${APP_NAME}/Rakefile
-      if [[ $? -gt 0 ]]; then
-        echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump'."
-        exit 113
-      fi
-      rm -f /zones/${UUID}/root/opt/smartdc/${APP_NAME}-data/${APP_NAME}-${PG_DUMP_VERSION}.pg_dump
-    else
-      echo "FATAL: Cannot find '${APP_NAME}-${PG_DUMP_VERSION}.pg_dump' on the zone. Unable to restore."
+# Restore the PostgreSQL dump on data dataset if exists - it might not if
+# backup was made while the zone was halted.
+if [[ -f /zones/${UUID}/root/opt/smartdc/${ROLE}/Rakefile ]]; then
+    restore=$(zlogin ${UUID} /opt/local/bin/rake -vT \
+        -f /opt/smartdc/${ROLE}/Rakefile | grep pg:restore)
+    # Only attempt to restore the DB if there's a pg:restore task
+    if [[ -n $restore ]]; then
+        if [[ -f /zones/${UUID}/root/${DUMP_FILE} ]]; then
+            echo "==> Restoring PostgreSQL DB to previous version"
+            zlogin ${UUID} VERSION=${PG_DUMP_VERSION} \
+                /opt/local/bin/rake pg:restore -f /opt/smartdc/${ROLE}/Rakefile
+            if [[ $? -gt 0 ]]; then
+                echo "FATAL: Unable to restore PostgreSQL Backup."
+                echo "Please, verify DB integrity from the zone and,"
+                echo "restore the DB from the file:"
+                echo "    $DUMP_FILE"
+                exit 105
+            fi
+            rm -f /zones/${UUID}/root/$DUMP_FILE
+
+            echo "==> Upgrading MCP API Database, running Migrations."
+            zlogin ${UUID} RACK_ENV=production \
+                /opt/local/bin/rake standalone:db:autoupgrade \
+                -f /opt/smartdc/${ROLE}/Rakefile
+            [[ $? -gt 0 ]] && echo "WARNING: autoupgrade error"
+        else
+            printf "Warning: Cannot find '%s' in the zone. Unable to restore." \
+                "${ROLE}-${PG_DUMP_VERSION}.pg_dump"
+        fi
     fi
-  fi
 fi
 
-echo "==> Enabling 'smartdc' services on zone '${UUID}' and waiting for 5 seconds"
+echo "==> Enabling 'smartdc' svcs in zone '${UUID}' and waiting for 5 seconds"
 
-services=$(/usr/sbin/zlogin ${UUID} /usr/bin/svcs -a -o FMRI|grep smartdc)
+services=$(zlogin ${UUID} svcs -a -o FMRI|grep smartdc)
 for service in $services; do
-  if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
-    $(/usr/sbin/zlogin ${UUID} /usr/sbin/svcadm enable "$service")
-  fi
+    if [[ ( $service != 'svc:/system/filesystem/smartdc:default' ) && \
+        ( $service != "svc:/platform/smartdc/capi_ipf_setup:default" ) ]]; then
+        $(zlogin ${UUID} /usr/sbin/svcadm enable "$service")
+    fi
 done
 
 sleep 5
 
 echo "==> Halting '${UUID}' zone"
-/usr/sbin/zoneadm -z ${UUID} halt
+zoneadm -z ${UUID} halt
 
 echo "==> All done!!!"
 

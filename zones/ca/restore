@@ -1,5 +1,8 @@
 #!/usr/bin/bash
 
+PATH=/usr/bin:/usr/sbin
+export PATH
+
 if [[ $# != 2 ]]; then
   echo "Usage: $0 <zone_name> <target_directory>"
   exit 1

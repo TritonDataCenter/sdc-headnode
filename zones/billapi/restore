@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <src_directory>"
+    exit 1
+fi
+
+ROLE=billapi
+UUID=$1
+SRC_DIR=$2
+CFG_FILE=/zones/$UUID/root/opt/smartdc/billapi/config/config.json
+
+# Older backups may not have had this zone
+if [[ -d "${SRC_DIR}/${ROLE}" && -f "${SRC_DIR}/${ROLE}/config.json" ]]; then
+	echo "==> Restoring config file for zone '${ROLE}'"
+	cp ${SRC_DIR}/${ROLE}/config.json $CFG_FILE
+
+else
+	echo "Warning, older backup; missing config file for $ROLE"
+fi
+
+echo "==> Done"
+exit 0

@@ -3,6 +3,9 @@
 # Copyright (c) 2011 Joyent Inc., All rights reserved.
 #
 
+PATH=/usr/bin:/usr/sbin
+export PATH
+
 if [[ $# != 2 ]]; then
     echo "Usage: $0 <zone_name> <src_directory>"
     exit 1
