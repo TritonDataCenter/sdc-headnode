@@ -30,11 +30,6 @@ function onexit
     echo "==> Done!"
 }
 
-if [[ ${current_version} == ${version} ]]; then
-    echo "==> FATAL already running ${version}"
-    exit 1
-fi
-
 if [[ -z $(mount | grep ^${usbmnt}) ]]; then
     echo "==> Mounting USB key"
     /usbkey/scripts/mount-usb.sh
