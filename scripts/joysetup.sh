@@ -380,17 +380,23 @@ create_swap()
     fi
 }
 
-# We send info about the zpool when we have one, either because we created it or it already existed.
+#
+# Print information about each pool imported on this system, either because
+# setup has just created this pool, or if the pool was just imported.
+#
 output_zpool_info()
 {
-    OLDIFS=$IFS
-    IFS=$'\n'
-    for line in $(zpool list -H -o name,guid,size,free,health); do
-        name=$(echo "${line}" | awk '{ print $1 }')
-        mountpoint=$(zfs get -H mountpoint ${SYS_ZPOOL} | awk '{ print $3 }')
-        printf "${line}\t${mountpoint}\n"
+    for pool in $(zpool list -H -o name); do
+        guid=$(zpool list -H -o guid ${pool})
+        used=$(zfs get -Hp -o value used ${pool})
+        available=$(zfs get -Hp -o value available ${pool})
+        health=$(zpool get health ${pool} | grep -v NAME | awk '{print $3}')
+        mountpoint=$(zfs get -Hp -o value mountpoint ${pool})
+
+        total=$((${used} + ${available}))
+
+        printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
     done
-    IFS=$OLDIFS
 }
 
 # Loads config files for the node. These are the config values from the headnode
