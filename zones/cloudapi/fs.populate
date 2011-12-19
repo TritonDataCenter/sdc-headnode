@@ -28,13 +28,15 @@ else
 
     git clone git@git.joyent.com:cloud-api.git cloudapi
     cd cloudapi
-    mkdir -p ssl
-    mkdir -p node_modules
-    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+
     # CloudAPI checkout
     git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+
+    mkdir -p ssl
+    mkdir -p node_modules
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
 fi
     # Install NPM modules
     npm install --node-version=0.4.9

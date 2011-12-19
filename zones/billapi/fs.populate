@@ -28,15 +28,16 @@ else
 
     git clone git@git.joyent.com:billing_api.git billapi
     cd billapi
-    mkdir -p ssl
-    mkdir -p node_modules
-    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
-    git clone git://github.com/orlandov/node-hydracp.git node_modules/hydracp
 
     # billAPI checkout
     git checkout ${TARGET}
     echo ${TARGET} > VERSION
     git log ${TARGET} | head -1 | sed "s/[^\w]* //" >> VERSION
+
+    mkdir -p ssl
+    mkdir -p node_modules
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients
+    git clone git://github.com/orlandov/node-hydracp.git node_modules/hydracp
 
     # Install NPM modules
     npm install --node-version=0.4.9
