@@ -445,6 +445,11 @@ function copy_base
 }
 
 function copy_config {
+
+    # Clear current configs from stage area
+    rm -f ${STAGE}/config || true
+    rm -rf ${STAGE}/config.inc || true
+
     echo "==> Copying in config"
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
         if [[ ${NO_CONFIG_FILE} == 0 ]]; then
