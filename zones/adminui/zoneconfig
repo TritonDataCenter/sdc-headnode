@@ -1,3 +1,4 @@
+SDC_VERSION=${SDC_VERSION}
 TEMPLATE_VERSION=0.0.1
 HOSTNAME=${ZONENAME}.${dns_domain}
 RESOLVERS=${dns_resolvers/,/ }
@@ -26,4 +27,3 @@ CA_CLIENT_URL=${ca_client_url}
 DSAPI_URL=${dsapi_url}
 DSAPI_USER=${dsapi_http_user}
 DSAPI_PASS=${dsapi_http_pass}
-

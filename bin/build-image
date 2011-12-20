@@ -64,6 +64,13 @@ THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 # version string. Will change after 6.5 is final (TODO).
 THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
 
+# "SDC_VERSION" is the version value that gets exposed to the public
+# for development builds this will read <ts>.<branch>.<sha> of the build
+# this value ends up in /usbkey/sdc_version
+if [[ -z $SDC_VERSION ]]; then
+  SDC_VERSION=${THIS_VERSION}
+fi
+
 echo ">> Starting build at $(date)"
 
 function fatal
