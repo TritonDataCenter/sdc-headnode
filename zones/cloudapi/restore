@@ -8,18 +8,38 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-ZONE=$1
+ZONE=cloudapi
 SRC_DIR=$2
 CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
 
 # Older backups may not have had this zone
-if [[ -d "${SRC_DIR}/${ZONE}" && -f "${SRC_DIR}/${ZONE}/config.json" ]]; then
-	echo "==> Restoring config file for zone '${ZONE}'"
-	cp ${SRC_DIR}/${ZONE}/config.json $CFG_FILE
-
-else
-	echo "Warning, older backup; missing config file for $ZONE"
+if [[ ! -d "${SRC_DIR}/${ZONE}" ]]; then
+	echo "Warning, backup missing $ZONE"
+	echo "==> Done"
+	exit 0
 fi
+
+if [[ ! -f "${SRC_DIR}/${ZONE}/config.json" ]]; then
+	echo "Warning, backup missing config file for $ZONE"
+	echo "==> Done"
+	exit 0
+fi
+
+echo "==> Restoring config file for zone '${ZONE}'"
+cp ${SRC_DIR}/${ZONE}/config.json $CFG_FILE
+
+mkdir -p /zones/cloudapi/root/opt/smartdc/cloudapi/plugins
+if [[ -d "${SRC_DIR}/${ZONE}/plugins" ]]; then
+    for i in `ls ${SRC_DIR}/${ZONE}/plugins`
+    do
+        if [ ! -f /zones/${UUID}/root/opt/smartdc/cloudapi/plugins/$i ]; then
+            echo "==> Restoring plugin $i for zone '${ZONE}'"
+            cp -p ${SRC_DIR}/${ZONE}/plugins/$i \
+                /zones/${UUID}/root/opt/smartdc/cloudapi/plugins
+        fi
+    done
+fi
+
 
 echo "==> Done"
 exit 0
