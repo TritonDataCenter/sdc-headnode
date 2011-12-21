@@ -345,10 +345,11 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
   echo "Removing hardcoded fastercsv and json_pure dependency on dm-types gem"
   $(/opt/smartdc/mapi/script/apply_gem_patches.sh)
 
-  data_version=$(cat /opt/smartdc/${app_name}-data/VERSION)
-  dump_file_path=$(ls -t /opt/smartdc/${app_name}-data/${app_name}-${data_version}*.pg_dump | head -1)
+  dump_file_path=$(ls -t /opt/smartdc/${app_name}-data/${app_name}-*.pg_dump | \
+      head -1)
+  # Get the string betweeen "mapi-*.pg_dump" which restore uses to find the file
   dump_file=$(basename ${dump_file_path%.*})
-  db_backup_version=$(echo ${dump_file} | cut -c '6-')
+  db_backup_version=${dump_file##${app_name}-}
 
   # Postgres starts out with the default pw of 'postgres'.  We need to change
   # it to POSTGRES_PW before we can do anything else.
@@ -365,15 +366,19 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
 
   if [[ -f ${dump_file_path} ]]; then
     echo "Restoring PostgreSQL DB to previous version"
-    VERSION=${db_backup_version} /opt/local/bin/rake pg:restore -f /opt/smartdc/${app_name}/Rakefile
+    VERSION=${db_backup_version} /opt/local/bin/rake pg:restore \
+        -f /opt/smartdc/${app_name}/Rakefile
     if [[ $? -gt 0 ]]; then
-      echo "FATAL: Unable to restore PostgreSQL Backup. \nPlease, verify DB integrity from the zone and, eventually,\n restore the DB from the file \n'/opt/smartdc/${app_name}-data/${app_name}-${db_backup_version}.pg_dump'."
+      echo "FATAL: Unable to restore PostgreSQL Backup."
+      echo "Please, verify DB integrity from the zone and"
+      echo "restore the DB from the file:"
+      echo "    $dump_file_path"
       exit 1
     fi
     rm -f ${dump_file_path}
   else
-    echo "FATAL: Cannot find '${app_name}-${db_backup_version}.pg_dump' on the zone. Unable to restore."
-    exit 1
+    printf "Warning: Cannot find '%s' in the zone. Unable to restore." \
+        "${dump_file_path}"
   fi
 
   echo "Upgrading MCP API Database, running Migrations."
