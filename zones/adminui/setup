@@ -332,6 +332,7 @@ su - jill -c "cd /opt/smartdc/adminui; \
   MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
   MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
   SDC_VERSION="$SDC_VERSION" \
+  SDC_OWNER_UUID="$SDC_OWNER_UUID" \
   /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
