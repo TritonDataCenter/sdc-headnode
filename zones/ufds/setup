@@ -38,7 +38,6 @@ fi
 curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
 curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
 curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
-curl -o nodejs-0.4.12.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/nodejs-0.4.12.tar.bz2
 
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
@@ -47,7 +46,7 @@ echo "unpack fs.tar"
 (cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
 rm -f /var/svc/fs.tar.bz2
 echo "install root"
-(cd /.stage; tar cbf 512 - *) | (cd /opt/smartdc/ufds; tar xbf 512 -)
+(cd /.stage/root; tar cbf 512 - *) | (cd /opt/smartdc/ufds; tar xbf 512 -)
 rm -rf /.stage
 chown -R nobody:nobody /opt/smartdc/ufds
 
@@ -63,13 +62,6 @@ do
 	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
 done
 rm -rf /var/svc/pkgs
-
-# Install node/npm
-echo "Installing node and npm"
-cd /opt
-/usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
-/usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
-rm -f /var/svc/nodejs-0.4.12.tar.bz2
 
 echo "Creating log directory"
 mkdir -p /var/log/ufds
