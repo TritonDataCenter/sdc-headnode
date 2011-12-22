@@ -94,15 +94,29 @@ echo "Generating SSL Certificate"
 
 svccfg import /opt/riak/etc/riak_smf_manifest.xml
 svcadm enable riak
-sleep 5
 
-svcs riak
+# Wait up to 3 minutes for riak svc to be ready
+cnt=0
+while [ $cnt -lt 18 ]; do
+    sleep 10
+    riak_state=`svcs -H riak | cut -f1 -d' '`
+    [ "$riak_state" == "online" ] && break
+    cnt=$(($cnt + 1))
+done
+[ $cnt == 18 ] && \
+    echo "WARNING: riak svc still not online after 3 minutes"
 
-# If not the first riak zone, then join the cluster.
-if [ -n "$riak_admin_ip" ]; then
-	echo "join riak cluster at $riak_admin_ip"
-	riak-admin join riak@$riak_admin_ip
-fi
+# If not the first riak zone, then join the existing cluster.
+join_riak_ips=`set | nawk -F= -v myaddr=$IPADDR \
+    '/^riak_admin_ip/ {if ($2 != myaddr) print $2}'`
+for i in $join_riak_ips
+do
+	# HOME must be set for 'erlexec' (used in riak-admin)
+	export HOME=/root
+	echo "join riak cluster at $i"
+	riak-admin join riak@$i
+	[ $? == 0 ] && break
+done
 
 touch /var/svc/setup_complete
 echo "setup done"

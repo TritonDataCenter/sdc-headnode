@@ -1043,6 +1043,7 @@ function create_upgrade
     mkdir -p ${ROOT}/cache/upgrade/usbkey
     cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
     cp ${ROOT}/bin/upgrade_cn ${ROOT}/cache/upgrade/upgrade_cn
+    cp ${ROOT}/bin/upgrade_common ${ROOT}/cache/upgrade/upgrade_common
 
     local sconf=${ROOT}/config/config.usb.inc/generic
     if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then

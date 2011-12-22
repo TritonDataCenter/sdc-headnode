@@ -1,0 +1,422 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+# SUMMARY
+#
+# This compute node upgrade script is delivered inside the upgrade image, so
+# this script is from the latest build.  During headnode upgrade it is copied
+# to the assets zone so that compute nodes can upgrade themselves using
+# sdc-upgrade after the headnode upgrade has completed.
+#
+
+declare -A ZONE_ADMIN_IP=()
+declare -A ZONE_EXTERNAL_IP=()
+
+# This is the dependency order that extra zones must be installed in.
+ROLE_ORDER="ca riak ufds redis amon adminui billapi cloudapi portal"
+
+ZONES6X="adminui assets billapi ca capi cloudapi dhcpd mapi portal rabbitmq riak"
+
+function fatal
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    exit 1
+}
+
+function upgrade_pools
+{
+    #
+    # All ZFS pools should have atime=off.  If an operator wants to enable atime
+    # on a particular dataset, this setting won't affect that setting, since any
+    # datasets with a modified atime property will no longer inherit that
+    # setting from the pool's setting.
+    #
+    local pool
+    for pool in $(zpool list -H -o name); do
+         zfs set atime=off ${pool} || \
+              fatal "failed to set atime=off on pool ${pool}"
+    done
+
+    #
+    # When this compute node was first setup, it may have had an incorrect dump
+    # device size.  Let's fix that.  The dump device should be half the size of
+    # available physical memory.
+    #
+    local system_pool=$(svcprop -p config/zpool smartdc/init)
+    local dumpsize=$(zfs get -Hp -o value volsize ${system_pool}/dump)
+    if [[ $dumpsize -eq 4294967296 ]]; then
+        local newsize_in_MiB=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
+        zfs set volsize=${newsize_in_MiB}m ${system_pool}/dump
+    fi
+}
+
+# Get the mapi network uri for the given tag (admin or external)
+function get_net_tag_uri
+{
+	NET_URI=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://$CONFIG_mapi_admin_ip/networks | json | nawk -v tag=$1 '{
+		if ($1 == "\"name\":") {
+			# strip quotes and comma
+			if (substr($2, 2, length($2) - 3) == tag)
+				found = 1
+		}
+		if (found && $1 == "\"uri\":") {
+			# strip quotes and comma
+			print substr($2, 2, length($2) - 3)
+			exit 0
+		}
+	    }'`
+}
+
+# $1 zone name
+# $2 role
+# Save the zone's admin and external IP addrs in the associative arrays keyed
+# on the zone's role.
+function get_zone_addrs
+{
+	addr=`zonecfg -z $1 info net | nawk -v nic="admin" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_ADMIN_IP[$2]="$addr"
+
+	addr=`zonecfg -z $1 info net | nawk -v nic="external" '{
+	    if ($1 == "global-nic:" && $2 == nic)
+		found = 1
+	    if (found && $1 == "property:") {
+		if (index($2, "name=ip,") != 0) {
+		    p = index($2, "value=")
+		    s = substr($2, p + 7)
+		    p = index(s, "\"")
+		    s = substr(s, 1, p - 1)
+		    print s
+		    exit 0
+		}
+	    }
+	}'`
+	[ -n "$addr" ] && ZONE_EXTERNAL_IP[$2]="$addr"
+}
+
+# This function works on both the HN and on CNs.  It is general enough to
+# handle 6.x zones as well as the latest zones.
+function get_sdc_zonelist
+{
+	ROLE_LIST=""
+	ZONE_LIST=""
+	OLD_CLEANUP=""
+	NEW_CLEANUP=""
+	ASSETS_ZONE=""
+	MAPI_ZONE=""
+
+	OLD_STYLE_ZONES=0
+	CAPI_FOUND=0
+	RIAK_FOUND=0
+
+	# Check for extra zones - including those that might be halted
+	for zone in `zoneadm list -cp | cut -f2 -d:`
+	do
+		[ "$zone" == "global" ] && continue
+
+		# Check for old-style name-based zone
+		match=0
+		for i in $ZONES6X
+		do
+			if [ $i == $zone ]; then
+				match=1
+				# Remember we saw the capi zone so we can
+				# convert to ufds later.
+				[ $i == "capi" ] && CAPI_FOUND=1
+				[ $i == "riak" ] && RIAK_FOUND=1
+				[ $i == "mapi" ] && MAPI_ZONE="mapi"
+				[ $i == "assets" ] && ASSETS_ZONE="assets"
+				break
+			fi
+		done
+
+		if [ $match == 1 ]; then
+			ZONE_LIST="$ZONE_LIST $zone"
+			ROLE_LIST="$ROLE_LIST $zone"
+			OLD_CLEANUP="$OLD_CLEANUP $zone"
+			OLD_STYLE_ZONES=1
+
+			get_zone_addrs $zone $zone
+			continue
+		fi
+
+		# Check for new-style role-based zone
+		zpath=`zoneadm -z $zone list -p | cut -d: -f4`
+		sdir=`ls -d $zpath/root/var/smartdc/* 2>/dev/null`
+		if [ -z "$sdir" ]; then
+			role=`vmadm list -H -o tags.smartdc_role uuid=$zone`
+			[ -z "$role" ] && continue
+		else
+			role=${sdir##*/}
+		fi
+
+		ZONE_LIST="$ZONE_LIST $zone"
+		ROLE_LIST="$ROLE_LIST $role"
+		NEW_CLEANUP="$NEW_CLEANUP $zone"
+		get_zone_addrs $zone $role
+
+		[ $role == "riak" ] && RIAK_FOUND=1
+		[ $role == "mapi" ] && MAPI_ZONE="$zone"
+		[ $role == "assets" ] && ASSETS_ZONE="$zone"
+	done
+}
+
+function shutdown_zone
+{
+	echo "Shutting down zone: $1"
+	zlogin $1 /usr/sbin/shutdown -y -g 0 -i 5 1>&4 2>&1
+
+	# Check for zone being down and halt it forcefully if needed
+	local cnt=0
+	while [ $cnt -lt 18 ]; do
+		sleep 5
+		local zstate=`zoneadm -z $1 list -p | cut -f3 -d:`
+		[ "$zstate" == "installed" ] && break
+		cnt=$(($cnt + 1))
+	done
+
+	# After 90 seconds, shutdown harder
+	if [ $cnt == 18 ]; then
+		echo "Forced shutdown of zone: $1"
+		zlogin $1 svcs 1>&4 2>&1
+		ps -fz $1 1>&4 2>&1
+		zoneadm -z $1 halt
+	fi
+}
+
+# Shutdown all but the mapi and assets zones.  This puts all of the other zones
+# into a nice stable state for the backup.
+function shutdown_non_core_zones
+{
+	for zone in $ZONE_LIST
+	do
+		[ "$zone" == "$MAPI_ZONE" ] && continue
+		[ "$zone" == "$ASSETS_ZONE" ] && continue
+
+		shutdown_zone $zone
+	done
+}
+
+# We need to unreserve the IP addrs for the extra zones since those are
+# intermixed with the core zones.  We leave the two ranges:
+#     dhcp_range_start - dhcp_range_end
+#     external_provisionable_start - external_provisionable_end
+# as-is in the config file but now the extra zones can keep their previously
+# statically allocated IP addresses even though they are outside these ranges.
+# It doesn't hurt to unreserve addrs that are not reserved, so for simplicity
+# we always just do this.  We unreserve the addrs as we go along recreating
+# the extra zones to ensure that new zones without previously allocated addrs
+# won't steal one of the addrs needed by an old extra zone.
+function unreserve_ip_addrs
+{
+	get_net_tag_uri "admin"
+	ip="${ZONE_ADMIN_IP[$1]}"
+	[ -n "$ip" ] && \
+	    curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://${CONFIG_mapi_admin_ip}${NET_URI}/ips/unreserve \
+	    -X PUT -d start_ip=$ip -d end_ip=$ip | json 1>&4 2>&1
+
+	get_net_tag_uri "external"
+	ip="${ZONE_EXTERNAL_IP[$1]}"
+	[ -n "$ip" ] && \
+	    curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+	    http://${CONFIG_mapi_admin_ip}${NET_URI}/ips/unreserve \
+	    -X PUT -d start_ip=$ip -d end_ip=$ip | json 1>&4 2>&1
+}
+
+# $1 zone
+# $2 role
+function restore_sdc_zone
+{
+	BUDIR=$SDC_UPGRADE_DIR/bu.tmp
+
+	if [ ! -d $BUDIR/$2 ]; then
+		echo "Skipping zone $2 ($1), stateless"
+		return
+	fi
+
+	# Pull over the role's restore script
+	mkdir /tmp/restore.$$
+	curl -k -o /tmp/restore.$$/restore \
+	    -s $CONFIG_assets_admin_ip:/extra/$2/restore
+
+	# Check if we got an <html> file not found.
+	# That means that this role has no restore script.
+	hd=$(dd if=/tmp/restore.$$/restore bs=1 count=6 2>/dev/null)
+	if [ "$hd" == "<html>" ]; then
+		echo "Skipping zone $2 ($1), no restore script"
+		rm -rf /tmp/restore.$$
+		return
+	fi
+
+	echo "Restoring zone $2 ($1)"
+
+	chmod +x /tmp/restore.$$/restore
+	/tmp/restore.$$/restore $1 $BUDIR >/dev/null 2>&1
+	res=$?
+	[ $res != 0 ] && warn "$res restoring $1"
+
+	rm -rf /tmp/restore.$$
+}
+
+# Use mapi to reprovision the extra zones.
+function recreate_extra_zones
+{
+	NEW_EXTRA_ZONES=""
+
+	local hname=`uname -n`
+	local skip_boot=""
+	for role in $ROLE_ORDER
+	do
+		# Check to see if we should install a zone with a given role
+		match=0
+		capi_convert=0
+		for i in $ROLE_LIST
+		do
+			if [ $role == $i ]; then
+				match=1
+				break
+			fi
+		done
+
+		# Checks for new roles that didn't exist in 6.5.
+		# These checks need to work on post-6.5 too.
+
+		# If we had capi, replace it with ufds.
+		if [ $role == "ufds" -a $CAPI_FOUND == 1 ]; then
+			match=1
+			capi_convert=1
+			# Change role for IP addr. lookup
+			role="capi"
+		fi
+
+		# The OLD_STYLE_ZONES flag will be set if we're upgrading from
+		# 6.5.x so we should install any brand new zones as well.
+		if [ $match == 0 -a $OLD_STYLE_ZONES == 1 ]; then
+			# We need to create all new zones that didn't
+			# exist on 6.5.
+			for i in $BRAND_NEW_ZONES
+			do
+				if [ $role == $i ]; then
+					match=1
+					break
+				fi
+			done
+		fi
+
+		[ $match == 0 ] && continue
+
+		# Specify original IP address(es) (if we had that zone)
+		ip_addrs=""
+		[ -n "${ZONE_ADMIN_IP[$role]}" ] && \
+		    ip_addrs="${ZONE_ADMIN_IP[$role]}"
+		if [ -n "${ZONE_EXTERNAL_IP[$role]}" ]; then
+			if [ -n "$ip_addrs" ]; then
+		    		ip_addrs="$ip_addrs,${ZONE_EXTERNAL_IP[$role]}"
+			else
+		    		ip_addrs="${ZONE_EXTERNAL_IP[$role]}"
+			fi
+		fi
+
+		if [ $HEADNODE == 1 ]; then
+			unreserve_ip_addrs $role
+		else
+			# set CN reprovisioning flag so sdc-setup will run
+			local cn_repro="-R"
+		fi
+
+		# Change role back to ufds
+		[ $capi_convert == 1 ] && role="ufds"
+
+		echo "Setup $role zone"
+		reuse_ip_cmd=""
+		[ -n "$ip_addrs" ] && reuse_ip_cmd="-I $ip_addrs"
+		zname=`sdc-setup -c $hname $cn_repro $reuse_ip_cmd \
+		    -r $role 2>&4 | nawk '{if ($1 == "New") print $3}'`
+
+		if [ -z "$zname" ]; then
+			echo "WARNING: failure setting up $role zone" \
+			    >/dev/stderr
+			continue
+		fi
+
+		NEW_EXTRA_ZONES="$zname $NEW_EXTRA_ZONES"
+
+		# Wait up to 10 minutes for asynchronous role setup to finish
+		echo "Wait for zone to finish seting up"
+		local cnt=0
+		while [ $cnt -lt 60 ]; do
+			sleep 10
+			[ -e /zones/$zname/root/var/svc/setup_complete ] && \
+			    break
+			cnt=$(($cnt + 1))
+		done
+		[ $cnt == 60 ] && \
+		    echo "WARNING: setup did not finish after 10 minutes"
+
+		# restore this zone from backup
+		shutdown_zone $zname
+
+		if [ $HEADNODE == 1 ]; then
+			if [ -e  /usbkey/zones/$role/restore ]; then
+				echo "Upgrading zone"
+				/usbkey/zones/$role/restore $zname \
+				    $SDC_UPGRADE_DIR/bu.tmp 1>&4 2>&1
+			fi
+		else
+			restore_sdc_zone $zname $role
+		fi
+
+		echo "$role zone done"
+
+		# We need riak running to setup ufds
+		if [ "$role" == "riak" ]; then
+			zoneadm -z $zname boot
+			skip_boot="$zname $skip_boot"
+		fi
+
+		# We need ufds running to convert capi data
+		if [ "$role" == "ufds" ]; then
+			zoneadm -z $zname boot
+			skip_boot="$zname $skip_boot"
+
+			# If moving from capi to ufds, convert capi.
+			# This can only ever happen on the HN
+			[ $CAPI_FOUND == 1 ] && convert_capi_ufds $zname
+		fi
+	done
+
+	echo "Booting extra zones"
+	for zone in $NEW_EXTRA_ZONES
+	do
+		# some zones already booted
+		skip=0
+		for i in $skip_boot
+		do
+			if [ "$zone" == "$i" ]; then
+				skip=1
+				break
+			fi
+		done
+		[ $skip == 1 ] && continue
+		zoneadm -z $zone boot
+	done
+
+	rm -rf $SDC_UPGRADE_DIR/bu.tmp
+}
