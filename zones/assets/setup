@@ -7,8 +7,11 @@ set -o xtrace
 
 echo "Finishing setup of assets zone"
 
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
-source /opt/smartdc/bin/configure.sh
+/opt/smartdc/bin/configure
 
 # Import nginx (config is already setup)
 if [[ -z $(/usr/bin/svcs -a|grep nginx) ]]; then
@@ -22,3 +25,4 @@ touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
 
+exit 0

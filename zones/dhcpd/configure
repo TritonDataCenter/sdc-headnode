@@ -1,11 +1,11 @@
-#!/usr/bin/bash
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
 
-# Source configuration file first:
-source /opt/smartdc/etc/zoneconfig
+set -o xtrace
 
-# Then, source the configure.sh script:
-source /opt/smartdc/bin/configure.sh
-
-# Nothing to do here yet
+eval $(cat /opt/smartdc/etc/zoneconfig)
+/opt/smartdc/bin/booter-service-setup
 
 exit 0

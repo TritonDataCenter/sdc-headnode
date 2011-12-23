@@ -1,98 +1,37 @@
 #!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
 
-# This script runs with the $CONFIG_assets_ip variable set to the assets zone
-# IP address.  Its up to this script to pull down the rest of the files it
-# needs from the assets zone and setup the zone for the given role.  This
-# script is run in the background by the mdata svc so its ok if it takes
-# a little while to install all of the pkgs.
+set -o xtrace
 
 PATH=/opt/riak/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-# Just update this whenever you update the riak tarball in the directory, the
-# rest of the script can remain untouched
-RIAK_VERSION=1.0.2
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
 
-role=riak
-
-cd /var/svc
-
-curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
-curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
-curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
-
-# We need some of the headnode IP addrs, but don't leave the file around
-. /var/svc/hn_config
-. /var/svc/hn_generic
-rm -f /var/svc/hn_config
-# Load up the config values
-. /var/svc/zoneconfig
-
-# The user-script is downloaded and executed on every zone boot. We take
-# advantage of this to maintain the cached config values post-setup.
-if [ -e /var/svc/setup_complete ]; then
-	echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
-	exit 0
-fi
-
-# Setup the zone
-curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
-curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
-curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
-    $CONFIG_assets_ip:/extra/$role/riak-$RIAK_VERSION.tar.bz2
+# Load this for RIAK_VERSION AND RIAK_ADMIN_IP*
+eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/riak
-
-# Unpack fs.tar and copy files into proper locations within the zone
-mkdir /.stage
-echo "unpack fs.tar"
-(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
-rm -f /var/svc/fs.tar.bz2
-echo "install root"
-(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
-rm -rf /.stage
-
-# Install using local pkg repo
-mkdir -p /var/svc/pkgs
-(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
-      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
-rm -f /var/svc/pkgsrc.tar
-
-for i in `cat /var/svc/pkgsrc`
-do
-	echo "Installing $i"
-	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
-done
-rm -rf /var/svc/pkgs
-
 mkdir -p /opt/smartdc/etc
-echo RIAK_COOKIE=$RIAK_COOKIE >/opt/smartdc/etc/zoneconfig
 
 # Install Riak
 cd /opt
 /usr/bin/gtar -jxf /var/svc/riak.tar.bz2
 mkdir -p /var/db/riak /var/log/riak
-
 /usr/sbin/groupadd riak
 /usr/sbin/useradd -d /opt/riak -s /usr/bin/bash -g riak riak
 /usr/bin/passwd -l riak
 /usr/sbin/projadd -c "Riak 1.0 Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U riak -G riak riak
 /usr/bin/chown -R riak:riak /opt/riak /var/db/riak /var/log/riak
-
 rm -f /var/svc/riak.tar.bz2
-
-# Update RIAK node name and cluster cookie
-IPADDR=`/usr/sbin/ifconfig net0 | /usr/bin/nawk '/inet/ {print $2}'`
-gsed -i -e s/127.0.0.1/$IPADDR/ /opt/riak/etc/app.config
-
-gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/riak/etc/vm.args
-gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" /opt/riak/etc/vm.args
 
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/riak/etc/key.pem -out /opt/riak/etc/cert.pem -days 3650
 
-svccfg import /opt/riak/etc/riak_smf_manifest.xml
-svcadm enable riak
+/opt/smartdc/bin/configure || fatal "Unable to complete configuration of riak zone."
 
 # Wait up to 3 minutes for riak svc to be ready
 cnt=0
@@ -107,7 +46,7 @@ done
 
 # If not the first riak zone, then join the existing cluster.
 join_riak_ips=`set | nawk -F= -v myaddr=$IPADDR \
-    '/^riak_admin_ip/ {if ($2 != myaddr) print $2}'`
+    '/^RIAK_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
 for i in $join_riak_ips
 do
 	# HOME must be set for 'erlexec' (used in riak-admin)
@@ -120,3 +59,5 @@ done
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0

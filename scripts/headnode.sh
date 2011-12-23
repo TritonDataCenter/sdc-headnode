@@ -224,7 +224,7 @@ create_latest_link
 #
 # In the /usbkey/zones/<zone> directory you can have any of:
 #
-# configure.sh configure backup restore setup user-script
+# configure.sh backup restore setup user-script
 #
 # When creating we also hard link these files to /usbkey/extra if they exist.
 #
@@ -235,7 +235,7 @@ create_latest_link
 # setup.
 #
 # Most of the time these zones won't need their own user-script and can just use
-# the default one in /usbkey/default/user-script.core which will be applied by
+# the default one in /usbkey/default/user-script.common which will be applied by
 # build-payload.js if a zone-specific one is not found.
 #
 # The setup script usually does some initial setup and then runs through the
@@ -290,16 +290,16 @@ function create_zone {
         rm -f ${dir}/fs.tar.bz2
         ln ${USB_COPY}/zones/${zone}/fs.tar.bz2 ${dir}/fs.tar.bz2
     fi
-    for file in configure.sh configure backup restore setup; do
+    for file in configure backup restore setup; do
         if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
             rm -f ${dir}/${file}
             ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
         fi
     done
-    if [[ -f ${USB_COPY}/default/setup.core ]]; then
+    if [[ -f ${USB_COPY}/default/setup.common ]]; then
         # extra include file for core zones.
-        rm -f ${dir}/setup.core
-        ln ${USB_COPY}/default/setup.core ${dir}/setup.core
+        rm -f ${dir}/setup.common
+        ln ${USB_COPY}/default/setup.common ${dir}/setup.common
     fi
     if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
         rm -f ${dir}/bashrc

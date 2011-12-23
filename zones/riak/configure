@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/riak/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# Update RIAK node name and cluster cookie
+IPADDR=`/usr/sbin/ifconfig net0 | /usr/bin/nawk '/inet/ {print $2}'`
+gsed -i -e s/127.0.0.1/$IPADDR/ /opt/riak/etc/app.config
+gsed -i -e "s/riak@127.0.0.1/riak@$IPADDR/" /opt/riak/etc/vm.args
+gsed -i -e "s/setcookie riak/setcookie $RIAK_COOKIE/" /opt/riak/etc/vm.args
+
+svccfg import /opt/riak/etc/riak_smf_manifest.xml
+svcadm disable riak
+svcadm enable riak
+
+exit 0

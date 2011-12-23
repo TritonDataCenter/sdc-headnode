@@ -1,0 +1,103 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+# This script is run to configure and reconfigure the amon zone.
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/amon
+
+echo "Creating SMF manifest"
+cat > /var/tmp/amon_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="amon">
+  <service name="smartdc/site/amon" type="service" version="1.0.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method type="method" name="start"
+      exec="/opt/smartdc/amon/master/bin/amon-master -v -f %{config_file} &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/amon" />
+    </exec_method>
+
+    <property_group name='application' type='application'>
+      <propval name='config_file' type='astring' value='/opt/smartdc/amon/cfg/amon-master.json'/>
+    </property_group>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <stability value="Stable"/>
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Amon Master daemon (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+mkdir -p /opt/smartdc/amon/cfg
+cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
+{
+  "port": 80,
+  "ufds": {
+    "url": "${UFDS_URL}",
+    "rootDn": "${UFDS_LDAP_ROOT_DN}",
+    "password": "${UFDS_LDAP_ROOT_PW}"
+  },
+  "notificationPlugins": {
+    "email": {
+      "path": "./notifications/email",
+      "config": {
+        "sendmail": "/opt/local/sbin/sendmail -i",
+        "from": "\"Monitoring (no reply)\" <no-reply@joyent.com>"
+      }
+    }
+  }
+}
+HERE
+
+echo "Importing Amon SMF manifest."
+/usr/sbin/svccfg import /var/tmp/amon_manifest.xml
+rm /var/tmp/amon_manifest.xml
+
+echo "Enabling 'amon' service."
+#TODO: re-enable once amon is back in working order (MON-9)
+/usr/sbin/svcadm disable smartdc/site/amon
+
+exit 0

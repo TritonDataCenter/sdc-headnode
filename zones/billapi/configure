@@ -1,0 +1,347 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	oldpw=`nawk '{
+	    if (! done && $1 == "\"password\":") {
+		print substr($2, 2, length($2) - 3)
+		done = 1
+	    }
+	}' /opt/smartdc/billapi/config/config.json`
+	[ "$billapi_http_admin_pw" == "$oldpw" ] && exit 0
+
+	echo "Updating billapi configuration"
+	nawk -v p=$billapi_http_admin_pw '{
+	    if (! done && $1 == "\"password\":") {
+		printf("  \"password\": \"%s\",\n", p)
+		done = 1
+	    } else {
+		print $0
+	    }
+	}' /opt/smartdc/billapi/config/config.json \
+	 > /opt/smartdc/billapi/config/config.json.new
+	mv /opt/smartdc/billapi/config/config.json.new \
+	   /opt/smartdc/billapi/config/config.json
+	svcadm restart billapi
+fi
+
+# XXX is net1 external nic?
+EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
+BILLAPI_EXTERNAL_URL="https://$EXT_IPADDR"
+
+echo "Creating HTTP Server SMF manifest"
+cat > /opt/smartdc/billapi/billapi_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="billapi">
+  <service name="smartdc/site/billapi" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/server.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Billing API HTTP Server (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Creating AMQP Consumer SMF manifest"
+cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="billapi-consumer">
+  <service name="smartdc/site/billapi-consumer" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/consumer.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Billing API AMQP Consumer (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Creating Report Queue manifest"
+cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="billapi-queue">
+  <service name="smartdc/site/billapi-queue" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/queue.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Billing API Report Queue (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+echo "Creating Report Queue manifest"
+cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="billapi-sync">
+  <service name="smartdc/site/billapi-sync" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/sync.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Billing API AMQP Sync Consumer (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+cat > /opt/smartdc/billapi/config/config.json <<HERE
+{
+  "siteName": "${BILLAPI_EXTERNAL_URL}",
+  "port": 443,
+  "cert": "/opt/smartdc/billapi/ssl/cert.pem",
+  "key": "/opt/smartdc/billapi/ssl/key.pem",
+  "logLevel": 4,
+  "user": "${HTTP_ADMIN_USER}",
+  "password": "${HTTP_ADMIN_PW}",
+  "amqp": {
+    "host": "${RABBIT_IP}",
+    "login": "guest",
+    "password": "guest",
+    "vhost": "/",
+    "port": 5672
+  },
+  "riak": {
+    "host": "${RIAK_IP}",
+    "port": "${RIAK_PORT}"
+  },
+  "userThrottles": {
+    "all": {
+      "username": true,
+      "burst": 30,
+      "rate": 10,
+      "overrides": {
+        "${UFDS_ADMIN_LOGIN}": {
+          "burst": 0,
+          "rate": 0
+        }
+      }
+    }
+  }
+}
+HERE
+
+echo "Importing billapi_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_manifest.xml
+
+echo "Importing billapi_consumer_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_consumer_manifest.xml
+
+echo "Importing billapi_queue_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_queue_manifest.xml
+
+echo "Importing billapi_sync_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_sync_manifest.xml
+
+echo "Enabling service billapi"
+/usr/sbin/svcadm disable smartdc/site/billapi
+/usr/sbin/svcadm enable smartdc/site/billapi
+echo "Enabling service billapi-consumer"
+/usr/sbin/svcadm disable smartdc/site/billapi-consumer
+/usr/sbin/svcadm enable smartdc/site/billapi-consumer
+echo "Enabling service billapi-queue"
+/usr/sbin/svcadm disable smartdc/site/billapi-queue
+/usr/sbin/svcadm enable smartdc/site/billapi-queue
+echo "Enabling service billapi-sync"
+/usr/sbin/svcadm disable smartdc/site/billapi-sync
+/usr/sbin/svcadm enable smartdc/site/billapi-sync
+
+exit 0

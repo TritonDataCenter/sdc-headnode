@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# Write redis config.
+cat >/opt/redis/etc/redis.conf <<CONFIG
+daemonize yes
+pidfile /var/run/redis.pid
+# "port 6379" is the default
+loglevel notice
+logfile /var/log/redis/redis.log
+# Snapshotting:
+#   after 60 sec if at least 1 key changed
+# Default of only every 15 *minutes* for 1 key change is too long for us here.
+save 60 1
+dir /var/db/redis
+CONFIG
+
+svccfg import /var/tmp/redis.smf
+svcadm disable redis
+svcadm enable redis
+
+exit 0

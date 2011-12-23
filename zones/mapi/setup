@@ -5,15 +5,14 @@
 
 set -o xtrace
 
-if [[ ! -f /var/svc/setup.core ]]; then
-    echo "Fatal: missing /var/svc/setup.core"
-    exit 1
-fi
-source /var/svc/setup.core
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
 
 echo "Finishing setup of MAPI zone"
 
-app_name='mapi'
+zone_uuid=$(zonename)
+zone_role="mapi"
+app_name=${zone_role}
 
 #
 # symlink_ruby() just creates missing symlinks to ruby18 and irb18 on zones
@@ -65,15 +64,6 @@ function create_jill_account
 # Setup datasets this logic comes from the old zone-datasets and
 # 95-zone-dataset.sh files
 #
-
-# ASSETS_IP is set by user-script before calling us.
-zone_uuid=$(zonename)
-zone_role=$(mdata-get sdc:tags.smartdc_role)
-
-if [[ -z ${zone_role} ]]; then
-    echo "Failed to find zone role in metadata."
-    exit 1
-fi
 
 echo "Configuring ${zone_role}..."
 
@@ -176,216 +166,18 @@ echo "Updating postgresql stop method"
 $(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m fast/" /opt/local/share/smf/method/svc-pgsql90)
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
-source /opt/smartdc/bin/configure.sh
+/opt/smartdc/bin/configure || fatal "Unable to configure zone"
 
-# setup compute node's config file (configure.sh loaded zoneconfig vars for us)
-# The values must exist in the zoneconfig for them to be avaliable here.
+eval $(cat /opt/smartdc/etc/zoneconfig)
 
-mkdir -p /opt/smartdc/node.config
-cat >/opt/smartdc/node.config/node.config <<EOF
-datacenter_name='${DATACENTER_NAME}'
-root_authorized_keys_file='${ROOT_AUTHORIZED_KEYS_FILE}'
-assets_admin_ip='${ASSETS_IP}'
-ntp_hosts='${COMPUTE_NODE_NTP_HOSTS}'
-swap='${COMPUTE_NODE_SWAP}'
-rabbitmq='${RABBITMQ}'
-root_shadow='${ROOT_SHADOW}'
-ufds_admin_ip='${UFDS_ADMIN_IP}'
-ufds_admin_uuid='${UFDS_ADMIN_UUID}'
-dhcp_lease_time='${DHCP_LEASE_TIME}'
-capi_client_url='${CAPI_CLIENT_URL}'
-capi_http_admin_user='${CAPI_HTTP_ADMIN_USER}'
-capi_http_admin_pw='${CAPI_HTTP_ADMIN_PW}'
-mapi_client_url='${MAPI_CLIENT_URL}'
-mapi_http_admin_user='${HTTP_ADMIN_USER}'
-mapi_http_admin_pw='${HTTP_ADMIN_PW}'
-zonetracker_database_path='${ZONETRACKER_DATABASE_PATH}'
-EOF
+# Calculate the bitcounts
+source /lib/sdc/network.sh
+ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
+ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
+EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
+EXTERNAL_BITCOUNT=${EXTERNAL_CIDR##*/}
 
-# Pull down authorized_keys file if it's there
-curl -o /opt/smartdc/node.config/${ROOT_AUTHORIZED_KEYS_FILE} -s -S -f \
-    http://${ASSETS_IP}/extra/${zone_role}/config.inc/${ROOT_AUTHORIZED_KEYS_FILE}
-
-# Generate the agents setup script:
-
-AGENTS_FILE_VERSION=$(ls -1t /opt/smartdc/agent-scripts/ | grep '^agents-.*\.sh' | grep -v -- "-hvm-" | head -n1)
-
-echo "Generating agents setup file at '/opt/smartdc/mapi-data/setup_agents.sh'"
-
-cat > /opt/smartdc/mapi-data/setup_agents.sh <<AGENTS
-#!/usr/bin/bash
-#
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
-#
-
-PATH=/usr/bin:/usr/sbin:/bin:/sbin
-export PATH
-
-fatal()
-{
-    # Any error message should be redirected to stderr:
-    echo "Error: \$1" 1>&2
-    exit 1
-}
-
-
-setup_agents()
-{
-  cd /var/tmp
-
-  AGENTS_SHAR=\$1
-
-  if [[ -z \${AGENTS_SHAR} ]]; then
-    AGENTS_SHAR="${AGENTS_FILE_VERSION}"
-  fi
-
-  /usr/bin/curl --silent --show-error -O http://${PRIVATE_IP}/ur-scripts/\${AGENTS_SHAR}
-
-  if [[ ! -f /var/tmp/\${AGENTS_SHAR} ]]; then
-    fatal "failed to download agents setup script"
-  fi
-
-  mkdir -p /opt/smartdc/agents/log
-  /usr/bin/bash /var/tmp/\${AGENTS_SHAR} &>/opt/smartdc/agents/log/install.log
-  result=\$(tail -n 1 /opt/smartdc/agents/log/install.log)
-
-  if [[ "\$result" == "npm not ok" ]]; then
-    tail -n 10 /opt/smartdc/agents/log/install.log >&2
-    exit 1
-  else
-    tail -n 10 /opt/smartdc/agents/log/install.log >&2
-  fi
-}
-
-
-if [[ ! -d /opt/smartdc/agents/bin ]]; then
-  setup_agents \$1
-fi
-
-# Return SmartDC services statuses on STDOUT:
-echo \$(svcs -a -o STATE,FMRI|grep smartdc)
-
-# Scripts to be executed by Ur need to explicitly return an exit status code:
-exit 0
-
-AGENTS
-
-
-
-# Generate the reboot server script:
-
-echo "Generating reboot server file at '/opt/smartdc/mapi-data/reboot_server.sh'"
-
-cat > /opt/smartdc/mapi-data/reboot_server.sh <<REBOOT
-#!/usr/bin/bash
-#
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
-#
-
-PATH=/usr/bin:/usr/sbin
-export PATH
-
-# Scripts to be executed by Ur need to explicitly return an exit status code.
-exit 113
-
-REBOOT
-
-echo "Creating $app_name-setup service"
-
-cat >"/lib/svc/manifest/site/$app_name-setup.xml" <<SETUP_SMF
-<?xml version='1.0'?>
-<!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'>
-<service_bundle type='manifest' name='export'>
-  <service name='platform/smartdc/${app_name}-setup' type='service' version='0'>
-    <create_default_instance enabled='true'/>
-    <single_instance/>
-    <dependency name='filesystem' grouping='require_all' restart_on='error' type='service'>
-      <service_fmri value='svc:/system/filesystem/local'/>
-    </dependency>
-    <exec_method name='start' type='method' exec='/opt/smartdc/$app_name-data/$app_name-setup-service.sh' timeout_seconds='180'>
-      <method_context>
-        <method_credential user='root' group='root'/>
-      </method_context>
-    </exec_method>
-    <exec_method name='stop' type='method' exec=':true' timeout_seconds='0'/>
-    <property_group name='application' type='application'/>
-    <property_group name='startd' type='framework'>
-      <propval name='duration' type='astring' value='transient'/>
-    </property_group>
-    <stability value='Evolving'/>
-    <template>
-      <common_name>
-        <loctext xml:lang='C'>SmartDC Setup service ($app_name)</loctext>
-      </common_name>
-    </template>
-  </service>
-</service_bundle>
-SETUP_SMF
-
-echo "Creating SMF manifest for ssagent"
-
-cat > /opt/smartdc/mapi/ssagent/ssagent.smf <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="ssagent">
-  <service name="smartdc/app/ssagent" type="service" version="6.1.0">
-
-    <create_default_instance enabled="true"/>
-    <single_instance/>
-
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/usr/bin/node /opt/smartdc/mapi/ssagent/ssagent.js &amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/mapi/ssagent">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="AMQP_HOST" value="${RABBITMQ_PRIVATE_IP}"/>
-          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/mapi/ssagent" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/mapi/ssagent" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">Screenshot Agent Daemon (node)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
-
+echo "Creating service setup script."
 cat > "/opt/smartdc/$app_name-data/$app_name-setup-service.sh" <<SETUP_SERVICE
 #!/usr/bin/bash
 
@@ -528,7 +320,9 @@ echo "$POSTGRES_PW" > /tmp/pgpasswd
     ADMIN_BITCOUNT="$ADMIN_BITCOUNT" \
     ADMIN_GATEWAY="$ADMIN_GATEWAY" \
     ADMIN_IP="$ADMIN_IP" \
+    ADMIN_UUID="$UFDS_ADMIN_UUID" \
     ADMIN_VLAN_ID="$ADMIN_VLAN_ID" \
+    DATASETS="$DATASETS" \
     EXTERNAL_NETWORK="$EXTERNAL_NETWORK" \
     EXTERNAL_BITCOUNT="$EXTERNAL_BITCOUNT" \
     EXTERNAL_GATEWAY="$EXTERNAL_GATEWAY" \
@@ -565,8 +359,6 @@ SETUP_SERVICE
 
 chmod +x "/opt/smartdc/$app_name-data/$app_name-setup-service.sh"
 
-
-
 # Ensure everything in /opt/smartdc is owned by jill
 chown -R jill:jill /opt/smartdc
 
@@ -578,3 +370,4 @@ touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
 
+exit 0

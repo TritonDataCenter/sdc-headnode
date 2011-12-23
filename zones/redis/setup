@@ -1,100 +1,33 @@
 #!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
 
-# This script runs with the $CONFIG_assets_ip variable set to the assets zone
-# IP address.  Its up to this script to pull down the rest of the files it
-# needs from the assets zone and setup the zone for the given role.  This
-# script is run in the background by the mdata svc so its ok if it takes
-# a little while to install all of the pkgs.
+set -o xtrace
 
 PATH=/opt/redis/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-role=redis
-
-cd /var/svc
-
-curl -k -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
-curl -k -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
-curl -k -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
-
-# We need some of the headnode IP addrs, but don't leave the file around
-. /var/svc/hn_config
-. /var/svc/hn_generic
-rm -f /var/svc/hn_config
-# Load up the config values
-. /var/svc/zoneconfig
-
-# The user-script is downloaded and executed on every zone boot. We take
-# advantage of this to maintain the cached config values post-setup.
-if [ -e /var/svc/setup_complete ]; then
-	exit 0
-fi
-
-# Setup the zone
-curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
-curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
-curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
-curl -o redis-2.4.1.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/redis-2.4.1.tar.bz2
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/redis
-
-# Unpack fs.tar and copy files into proper locations within the zone
-mkdir /.stage
-echo "unpack fs.tar"
-(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
-rm -f /var/svc/fs.tar.bz2
-echo "install root"
-(cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
-rm -rf /.stage
-
-# Install using local pkg repo
-mkdir -p /var/svc/pkgs
-(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
-      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
-rm -f /var/svc/pkgsrc.tar
-
-for i in `cat /var/svc/pkgsrc`
-do
-	echo "Installing $i"
-	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
-done
-rm -rf /var/svc/pkgs
 
 # Install Redis
 cd /opt
 /usr/bin/gtar -jxf /var/svc/redis-2.4.1.tar.bz2
 mkdir -p /var/db/redis /var/log/redis
-
 /usr/sbin/groupadd redis
 /usr/sbin/useradd -d /opt/redis -s /usr/bin/bash -g redis redis
 /usr/bin/passwd -l redis
 /usr/sbin/projadd -c "Redis Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U redis -G redis redis
 /usr/bin/chown -R redis:redis /opt/redis /var/db/redis /var/log/redis
-
-
-# Write redis config.
-cat >/opt/redis/etc/redis.conf <<CONFIG
-daemonize yes
-pidfile /var/run/redis.pid
-# "port 6379" is the default
-loglevel notice
-logfile /var/log/redis/redis.log
-# Snapshotting:
-#   after 60 sec if at least 1 key changed
-# Default of only every 15 *minutes* for 1 key change is too long for us here.
-save 60 1
-dir /var/db/redis
-CONFIG
-
-
 rm -f /var/svc/redis-2.4.1.tar.bz2
 
-svccfg import /var/tmp/redis.smf
-svcadm enable redis
-sleep 5
-
-svcs redis
+/opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0

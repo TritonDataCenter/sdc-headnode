@@ -4,12 +4,10 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-# Only want to run this initial user-script once
-if [[ -f /var/svc/.ran-user-script ]]; then
-    echo "Initial user-script has already been run."
-    exit 0
-fi
-touch /var/svc/.ran-user-script
+fatal() {
+    echo $* >&2
+    exit 1
+}
 
 zone_uuid=$(zonename)
 zone_role=$(mdata-get sdc:tags.smartdc_role)
@@ -17,6 +15,36 @@ if [[ -z ${zone_role} ]]; then
     echo "Unable to find zone role in metadata."
     exit 1
 fi
+
+if [[ ! -d /opt/smartdc/etc ]]; then
+    mkdir -p /opt/smartdc/etc
+fi
+if [[ -f /assets/extra/${zone_role}/zoneconfig ]]; then
+    cp /assets/extra/${zone_role}/zoneconfig /opt/smartdc/etc/zoneconfig || \
+        fatal "unable to copy zoneconfig file"
+fi
+touch /opt/smartdc/etc/zoneconfig
+
+mkdir -p /opt/smartdc/bin
+for file in configure backup restore setup; do
+    if [[ -f /assets/extra/${zone_role}/${file} ]]; then
+        cp /assets/extra/${zone_role}/${file} /opt/smartdc/bin/${file}
+    fi
+done
+chmod 755 /opt/smartdc/bin/*
+
+# Run the configure whenever we didn't do setup already
+if [[ -f /var/svc/setup_complete ]]; then
+    # We already did setup (which ran configure last time), so just reconfigure
+    /opt/smartdc/bin/configure
+fi
+
+# Only want to run this initial user-script once
+if [[ -f /var/svc/.ran-user-script ]]; then
+    echo "Initial user-script has already been run."
+    exit 0
+fi
+touch /var/svc/.ran-user-script
 
 pkgsrc_lst=$(ls -1 /assets/extra/${zone_role}/pkgsrc_*)
 pkgsrc_tar=/assets/extra/pkgsrc/$(basename ${pkgsrc_lst}).tar
@@ -33,16 +61,10 @@ do
 done
 rm -rf /var/svc/pkgs
 
-mkdir -p /opt/smartdc/bin
-for file in configure configure.sh backup restore setup; do
-    if [[ -f /assets/extra/${zone_role}/${file} ]]; then
-        cp /assets/extra/${zone_role}/${file} /opt/smartdc/bin/${file}
-    fi
-done
-chmod 755 /opt/smartdc/bin/*
-
-if [[ -f /opt/smartdc/bin/setup ]]; then
-    bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1 &
+bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1 &
+if [[ $? != 0 ]]; then
+    echo "Failed to setup zone"
+    exit 1
 fi
 
 exit 0

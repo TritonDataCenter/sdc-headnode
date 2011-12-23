@@ -160,7 +160,7 @@ async.series([
     }, function (cb) {
         // load the user-script into metadata (if we didn't find already)
     if (!obj.customer_metadata.hasOwnProperty('user-script')) {
-            fs.readFile('/usbkey/default/user-script.core',
+            fs.readFile('/usbkey/default/user-script.common',
                 function (error, data)
                 {
                     if (error) {

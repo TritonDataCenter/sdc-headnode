@@ -1,67 +1,27 @@
 #!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
 
-# This script runs with the $CONFIG_assets_ip variable set to the assets zone
-# IP address.  Its up to this script to pull down the rest of the files it
-# needs from the assets zone and setup the zone for the given role.  This
-# script is run in the background by the mdata svc so its ok if it takes
-# a little while to install all of the pkgs.
+set -o xtrace
 
 PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-role=ufds
-app_name=$role
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
 
-cd /var/svc
-
-curl -o zoneconfig -s $CONFIG_assets_ip:/extra/$role/zoneconfig
-curl -o hn_config -s $CONFIG_assets_ip:/extra/$role/hn_config
-curl -o hn_generic -s $CONFIG_assets_ip:/extra/$role/hn_generic
-
-# Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/ufds
-
-# We need some of the headnode config, but don't leave the files around
-. /var/svc/hn_config
-. /var/svc/hn_generic
-rm -f /var/svc/hn_config /var/svc/hn_generic
-# Load up the config values
-. /var/svc/zoneconfig
-
-# The user-script is downloaded and executed on every zone boot. We take
-# advantage of this to maintain the cached config values post-setup.
-# However, this zone currently has no local configuration to sync up.
-if [ -e /var/svc/setup_complete ]; then
-	exit 0
-fi
-
-# Setup the zone
-curl -o pkgsrc -s $CONFIG_assets_ip:/extra/$role/pkgsrc_2011q2_64
-curl -o fs.tar.bz2 -s $CONFIG_assets_ip:/extra/$role/fs.tar.bz2
-curl -o pkgsrc.tar -s $CONFIG_assets_ip:/extra/pkgsrc/pkgsrc_2011q2_64.tar
+eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
-mkdir /.stage
-echo "unpack fs.tar"
-(cd /.stage; bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
-rm -f /var/svc/fs.tar.bz2
-echo "install root"
-(cd /.stage/root; tar cbf 512 - *) | (cd /opt/smartdc/ufds; tar xbf 512 -)
-rm -rf /.stage
 chown -R nobody:nobody /opt/smartdc/ufds
 
-# Install from local pkgsrc
-mkdir -p /var/svc/pkgs
-(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
-      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
-rm -f /var/svc/pkgsrc.tar
-
-for i in `cat /var/svc/pkgsrc`
-do
-	echo "Installing $i"
-	pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
-done
-rm -rf /var/svc/pkgs
+# Install node/npm
+echo "Installing node and npm"
+cd /opt
+/usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
+/usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
+rm -f /var/svc/nodejs-0.4.12.tar.bz2
 
 echo "Creating log directory"
 mkdir -p /var/log/ufds
@@ -70,145 +30,7 @@ chown -R nobody:nobody /var/log/ufds
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem -days 365
 
-echo "Creating SMF manifests"
-cat > /opt/smartdc/ufds/cfg/ufds_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="ufds">
-  <service name="smartdc/site/ufds" type="service" version="7.0.0">
-
-    <create_default_instance enabled="true"/>
-    <single_instance/>
-
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/nodejs/bin/node /opt/smartdc/ufds/main.js -f /opt/smartdc/ufds/cfg/config.json&amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">UFDS daemon (ldapjs)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
-cat > /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="ufds-capi">
-  <service name="smartdc/site/ufds-capi" type="service" version="7.0.0">
-
-    <create_default_instance enabled="true"/>
-    <single_instance/>
-
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/nodejs/bin/node /opt/smartdc/ufds/capi.js -f /opt/smartdc/ufds/cfg/config.json&amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">UFDS CAPI Interface daemon (node)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
-# Update config file
-gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_IP/${RIAK_IP}/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_PORT/${RIAK_PORT}/" /opt/smartdc/ufds/cfg/config.json.in
-mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
-
-echo "Importing ufds_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
-
-echo "Importing ufds_capi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
-
-echo "Enabling service ufds"
-/usr/sbin/svcadm enable smartdc/site/ufds
-
-echo "Enabling service ufds-capi"
-/usr/sbin/svcadm enable smartdc/site/ufds-capi
+/opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 sleep 5
 echo "Loading bootstrap data"
@@ -242,7 +64,6 @@ objectclass: groupOfUniqueNames
 
 HERE
 
-
 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif
 if [ $? -ne 0 ] ; then
     echo "Failed to load bootstrap data, exiting"
@@ -252,7 +73,9 @@ if [ $? -ne 0 ] ; then
 fi
 
 rm -f /tmp/.bootstrap.ldif
-touch /var/svc/setup_complete
 
+touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0
