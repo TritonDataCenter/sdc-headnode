@@ -203,6 +203,8 @@ function delete_old_sdc_zones
 	for zone in $OLD_CLEANUP
 	do
 		echo "Deleting zone: $zone"
+		zoneadm -z $zone halt
+		sleep 3
 		zoneadm -z $zone uninstall -F
 		zonecfg -z $zone delete -F
 	done
@@ -671,23 +673,6 @@ rm -f /tmp/sdc$$.out
 get_sdc_zonelist
 
 if [ $CAPI_FOUND == 1 ]; then
-	# If we had a capi zone but no riak zone on the headnode, then we
-	# won't be able to convert since the old 6.5 capi data is now stored
-	# in riak.
-	if [ $RIAK_FOUND == 0 ]; then
-		message="
-WARNING: A capi zone exists on this headnode but there is no riak zone.
-         A local riak zone is required to automatically migrate the CAPI data
-         forward into RIAK for UFDS.  The CAPI data will be dumped into
-         $SDC_UPGRADE_SAVE/capi_dump.
-         You will have to manually load this data into RIAK to complete the
-         upgrade.
-
-Press [enter] to continue "
-		printf "$message"
-		read continue;
-	fi
-
 	# dump capi
 	echo "Dump CAPI for RIAK conversion"
 	mkdir -p $SDC_UPGRADE_SAVE/capi_dump
@@ -705,11 +690,13 @@ trap cleanup EXIT
 
 # There is a fairly complex sequence we have to go through here to shutdown
 # most of the zones so we are in a more stable state for backup, then to
-# delete the zones.
+# delete the zones.  In addtion, if we're upgrading from 6.x, then we cannot
+# shutdown the zones before backing up, since 6.x backup depends on the zones
+# running.
 #
 # We need assets up to be able to backup.
 # We need mapi up so that we can delete the zones using sdc-setup -D.
-shutdown_non_core_zones
+[ $OLD_STYLE_ZONES == 0 ] && shutdown_non_core_zones
 
 # Run full backup with the old sdc-backup code, then unpack the backup archive.
 # Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
@@ -720,7 +707,7 @@ bfile=`ls $SDC_UPGRADE_SAVE/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "unable to make a backup"
 
 # We no longer need the assets zone up now that backup is complete
-shutdown_zone $ASSETS_ZONE
+[ $OLD_STYLE_ZONES == 0 ] && shutdown_zone $ASSETS_ZONE
 
 mkdir $SDC_UPGRADE_DIR/bu.tmp
 (cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
@@ -742,7 +729,7 @@ echo "Cleaning up existing zones"
 delete_new_sdc_zones
 # Wait a bit for zone deletion to finish
 sleep 10
-shutdown_zone $MAPI_ZONE
+[ $OLD_STYLE_ZONES == 0 ] && shutdown_zone $MAPI_ZONE
 delete_old_sdc_zones
 if [ "$MAPI_ZONE" != "mapi" ]; then
 	# Now we can delete new-style mapi zone using vmadm
@@ -783,7 +770,6 @@ mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
 mount -F lofs -o ro /image/usr/sbin/zlogin /usr/sbin/zlogin
 mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
 mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
-mount -F lofs -o ro /image/usr/lib/zones/zoneadmd /usr/lib/zones/zoneadmd
 
 # If we're upgrading an image with vmadm, make sure we use the new one
 # by lofs mounting over the old one.
@@ -798,8 +784,17 @@ svcadm disable cainstsvc
 svcadm disable zonetracker-v2
 svcadm disable metadata
 # wait a few seconds for these svcs to stop using libzonecfg
-sleep 5
-mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 /usr/lib/libzonecfg.so.1
+cnt=0
+while [ $cnt -lt 3 ]; do
+	sleep 5
+	mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 \
+	    /usr/lib/libzonecfg.so.1
+	[ $? == 0 ] && break
+	cnt=$(($cnt + 1))
+	fuser -f /usr/lib/libzonecfg.so.1 1>&4 2>&1
+	ps -ef 1>&4 2>&1
+done
+mount -F lofs -o ro /image/usr/lib/zones /usr/lib/zones
 svcadm enable metadata
 svcadm enable zonetracker-v2
 # leave the other svcs disabled until reboot
