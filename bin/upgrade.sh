@@ -793,6 +793,8 @@ while [ $cnt -lt 3 ]; do
 	cnt=$(($cnt + 1))
 	fuser -f /usr/lib/libzonecfg.so.1 1>&4 2>&1
 	ps -ef 1>&4 2>&1
+	svcs -a | grep smartdc 1>&4 2>&1
+	svcs -xv 1>&4 2>&1
 done
 mount -F lofs -o ro /image/usr/lib/zones /usr/lib/zones
 svcadm enable metadata
@@ -862,7 +864,7 @@ rm -rf $assetdir
 mkdir -p $assetdir
 cp upgrade_common $assetdir
 cp upgrade_cn $assetdir
-cat /usbkey/config /usbkey/config.inc/generic >$assetdir/config
+cp /zones/$MAPIZONE/root/opt/smartdc/node.config/node.config $assetdir/config
 
 message="
 The new image has been activated. You must reboot the system for the upgrade
