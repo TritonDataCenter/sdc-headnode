@@ -22,6 +22,8 @@ export SDC_UPGRADE_SAVE=/zones
 # upgradeable version.
 VERS_6_5=20110922
 
+date 1>&4 2>&1
+
 RECREATE_ZONES=( \
     assets \
     ca \
@@ -487,5 +489,9 @@ The new image has been activated. You must reboot the headnode for the upgrade
 to fully take effect.  Once you have verified the upgrade is ok, you can remove
 the backup in /zones and create a new backup for the latest image.\n\n"
 printf "$message"
+
+date 1>&4 2>&1
+
+cp /tmp/perform_upgrade* /var/tmp
 
 exit 0
