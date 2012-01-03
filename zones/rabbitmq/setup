@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc. All rights reserved.
+# Copyright (c) 2011, 2012 Joyent Inc. All rights reserved.
 #
 
 set -o xtrace
@@ -17,6 +17,22 @@ fi
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
+
+# Fix the rabbit SMF svc method to increase max file descriptors
+egrep -s ulimit /opt/local/sbin/rabbitmq-server
+if [ $? != 0 ]; then
+	nawk -F= '{
+	    if ($1 == "SERVER_START_ARGS") {
+		print $0
+		printf("ulimit -n 65535\n");
+	    } else {
+		print $0
+	    }
+	}' /opt/local/sbin/rabbitmq-server >/tmp/svc.$$
+	cp /tmp/svc.$$ /opt/local/sbin/rabbitmq-server
+
+	svcadm restart rabbitmq
+fi
 
 touch /var/svc/setup_complete
 echo "setup done"
