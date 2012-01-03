@@ -8,9 +8,24 @@ fi
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
+# Fix the rabbit SMF svc method to increase max file descriptors
+egrep -s ulimit /opt/local/sbin/rabbitmq-server
+if [ $? != 0 ]; then
+        nawk -F= '{
+            if ($1 == "SERVER_START_ARGS") {
+                print $0
+                printf("ulimit -n 65535\n");
+            } else {
+                print $0
+            }
+        }' /opt/local/sbin/rabbitmq-server >/tmp/svc.$$
+        cp /tmp/svc.$$ /opt/local/sbin/rabbitmq-server
+
+        svcadm restart rabbitmq
+fi
+
 #
 # Call mdns_announce (imported from 97-zoneinit-common) to announce our
 # service.
 #
 mdns_announce RabbitMQ 5672 _amqp-broker
-
