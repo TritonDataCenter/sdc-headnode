@@ -28,6 +28,9 @@ mkdir -p /var/db/riak /var/log/riak
 /usr/bin/chown -R riak:riak /opt/riak /var/db/riak /var/log/riak
 rm -f /var/svc/riak.tar.bz2
 
+# Start epmd (prereq for riak)
+svcadm enable epmd
+
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/riak/etc/key.pem -out /opt/riak/etc/cert.pem -days 3650
 
