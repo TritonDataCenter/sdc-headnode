@@ -1,0 +1,64 @@
+There are important rules to follow for all special zones with the smartdc role.
+
+The rules are:
+
+  * The following files/directories will work under your
+    usb-headnode/zones/:zonename directory (other files will be ignored!):
+
+    * 'backup' - this script will be run to do the backup of your zone, all
+        state that needs to be kept should get packed up by this (if your zone
+        doesn't need state other than config, optional)
+    * 'configure' - this should be run by setup and will be run on every boot
+        of the zone after freshly populated zoneconfig is put in place to apply
+        all configuration values
+    * 'create.json' - for core zones only: this is the json template used to
+        create the zone (used by scripts/build-payload.js)
+    * 'fs.root' + 'fs.populate' - directory and script respectively used to
+        build fs.tar.bz2 for this zone (optional if this passed elsewise)
+    * 'pkgsrc_2010Q4' or 'pkgsrc_2011Q2_64' - list of packages to install for
+        this zone
+    * 'restore' - this script takes a backup and restores the data to a freshly
+        created zone, must handle backups back to 6.5.0 (if your zone doesn't
+        need state other than config, optional)
+    * 'setup' - this gets run when the zone is initially setup, it must call
+        configure and when it's successful, create the /var/svc/setup_complete
+        file
+    * 'user-script' - if for some reason your zone needs a different script than
+        the one in default/user-script.common, currently only assets (because
+        files are local)
+
+  * Most (all do currently) zones should use setup.common to do the common setup
+    stuff that all zones need to do, this will be available at
+    /var/svc/setup.common
+
+  * All configuration variables for your zone *must* come only from the
+    zoneconfig, assume that's populated in your zone at
+    /opt/smartdc/etc/zoneconfig and up-to-date
+
+  * The configure script will be run on every boot of the zone to update the
+    configuration, the values should all come from the zoneconfig file
+
+  * The fs.tar.bz2 file for the zone is only allowed to have a root/ and site/
+    subdirectory, the root/ subdir will be unpacked in / and site will be
+    unpacked to /lib/svc/manifest/site (deprecated though, use root/ instead)
+
+  * The logs to figure out problems are (in order of execution):
+
+    GZ: `svcs -L system/smartdc/init` -- debug log for initial setup (core zones
+        only: assets, dhcpd, rabbitmq, mapi)
+    GZ: /tmp/sdc-setup.log.* -- debug log from sdc-setup (for non-core zones)
+    ZONE: `svcs -L mdata:fetch` -- fetches the user-script
+    ZONE: `svcs -L mdata:execute` -- executes the user-script (downloads setup,
+        and other required files, on reboot runs configure)
+    ZONE: /var/svc/setup.log -- the output from the setup script
+    ZONE: /var/svc/setup_complete -- if this file exists (should be empty) setup
+        thinks it succeeded
+
+  * When editing a zone, keep in mind:
+
+    * setup should handle only things which should be done once
+    * configure should handle anything that any customer might ever want to
+      change
+    * configure should be able to update all those changeable settings when
+      given a new zoneconfig
+
