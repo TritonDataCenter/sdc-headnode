@@ -274,6 +274,32 @@ function create_zone {
     # This just moves us to the beginning of the line (once)
     cr_once
 
+    # If zone has specified dataset_uuid, we need to ensure that's imported.
+    if [[ -f ${USB_COPY}/zones/${zone}/create.json ]]; then
+        extra_dataset=$(cat ${USB_COPY}/zones/${zone}/create.json 2>/dev/null \
+            | json dataset_uuid)
+        if [[ -n ${extra_dataset} && ! -d /zones/${extra_dataset} ]]; then
+            found=0
+            for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
+                res=$(cat ${file} | json -a uuid files.0.path | tr ' ' ',')
+                ds_uuid=$(echo ${res} | cut -d',' -f1)
+                ds_file=$(echo ${res} | cut -d',' -f2)
+                if [[ ${ds_uuid} == ${extra_dataset} ]]; then
+                    printf "%-58s" "Importing ${zone} template dataset... " \
+                        >&${CONSOLE_FD}
+                    bzcat ${USB_PATH}/datasets/${ds_file} \
+                        | zfs recv zones/${ds_uuid} \
+                        || fatal "unable to import ${template}"
+                    found=1
+                    echo "done" >&${CONSOLE_FD}
+                fi
+            done
+            if [[ ${found} == 0 ]]; then
+                fatal "unable to find dataset ${extra_dataset} for ${zone}"
+            fi
+        fi
+    fi
+
     if [[ ${restore} == 0 ]]; then
         printf "%-58s" "Creating zone ${existing_uuid}${zone}... " \
             >&${CONSOLE_FD}

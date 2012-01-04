@@ -58,14 +58,19 @@ async.series([
             }
         );
     }, function (cb) {
-        // find out which dataset we should use for these zones
-        fs.readFile('/usbkey/datasets/smartos.uuid', function(error, data) {
-            if (error) {
-                return cb(new Error('Unable to find dataset UUID'));
-            }
-            obj.dataset_uuid = data.toString().split('\n')[0];
+        if (!obj.hasOwnProperty('dataset_uuid')) {
+            // find out which dataset we should use for these zones
+            fs.readFile('/usbkey/datasets/smartos.uuid', function(error, data) {
+                if (error) {
+                    return cb(new Error('Unable to find dataset UUID'));
+                }
+                obj.dataset_uuid = data.toString().split('\n')[0];
+                cb();
+            });
+        } else {
+            // obj already has dataset_uuid so we'll use that.
             cb();
-        });
+        }
     }, function (cb) {
         var memval;
         var newobj;
