@@ -10,7 +10,12 @@ PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
+### TEMPORARY until DATASET-301 exists
+pkg_add -f http://pkgsrc.joyent.com/sdc6/2011Q3/gcc46/All/haproxy-1.4.18.tgz
+
 eval $(cat /opt/smartdc/etc/zoneconfig)
+
+svcadm enable haproxy
 
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
