@@ -5,6 +5,8 @@
 
 set -o xtrace
 
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
@@ -18,21 +20,17 @@ fi
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
-# Fix the rabbit SMF svc method to increase max file descriptors
-egrep -s ulimit /opt/local/sbin/rabbitmq-server
-if [ $? != 0 ]; then
-	nawk -F= '{
-	    if ($1 == "SERVER_START_ARGS") {
-		print $0
-		printf("ulimit -n 65535\n");
-	    } else {
-		print $0
-	    }
-	}' /opt/local/sbin/rabbitmq-server >/tmp/svc.$$
-	cp /tmp/svc.$$ /opt/local/sbin/rabbitmq-server
+projadd -c "Rabbitmq settings" -U rabbitmq -G rabbitmq \
+    -K "process.max-file-descriptor=(basic,65535,deny)" \
+    rabbitmq
+svccfg -s rabbitmq setprop method_context/project=rabbitmq
+svcadm refresh rabbitmq
 
-	svcadm restart rabbitmq
-fi
+svcadm disable rabbitmq
+# HOME must be set for 'erlexec' (used in rabbitmq-plugins)
+export HOME=/root
+rabbitmq-plugins enable rabbitmq_management 
+svcadm enable rabbitmq
 
 touch /var/svc/setup_complete
 echo "setup done"

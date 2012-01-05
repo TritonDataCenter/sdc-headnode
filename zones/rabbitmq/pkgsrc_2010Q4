@@ -5,8 +5,4 @@ python26-2.6.6nb6
 py26-setuptools-0.6c11nb1
 py26-simplejson-2.1.1
 erlang-14.1.1
-rabbitmq-2.3.1
-rabbitmq-erlang-client-2.3.1
-rabbitmq-mochiweb-2.3.1
-rabbitmq-management-2.3.1
-rabbitmq-management-agent-2.3.1
+rabbitmq-2.7.1
