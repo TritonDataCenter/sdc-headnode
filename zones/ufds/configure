@@ -132,10 +132,6 @@ HERE
 
 echo "Creating HAProxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        user nobody
-        group nobody
-
 defaults
         timeout connect 400ms
         timeout client 1m
@@ -169,6 +165,12 @@ echo "Importing ufds_manifest.xml"
 
 echo "Importing ufds_capi_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
+
+echo "Enabling service haproxy"
+/usr/sbin/svcadm disable haproxy
+/usr/sbin/svcadm enable haproxy
+
+sleep 1
 
 echo "Enabling service ufds"
 /usr/sbin/svcadm disable smartdc/site/ufds
