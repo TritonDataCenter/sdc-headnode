@@ -1,0 +1,43 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# Install LFDS
+mkdir -p /opt/smartdc/lfds/ssl
+chown -R nobody:nobody /opt/smartdc/lfds
+
+# Install node/npm
+echo "Installing node and npm"
+cd /opt
+/usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
+/usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
+rm -f /var/svc/nodejs-0.4.12.tar.bz2
+
+echo "Creating log directory"
+mkdir -p /var/log/lfds
+chown -R nobody:nobody /var/log/lfds
+
+echo "Generating SSL Certificate"
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/lfds/ssl/key.pem -out /opt/smartdc/lfds/ssl/cert.pem -days 365
+
+/opt/smartdc/bin/configure || fatal "Unable to configure zone."
+
+sleep 5
+
+# No setup since we're not actually the master, just do a search
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0

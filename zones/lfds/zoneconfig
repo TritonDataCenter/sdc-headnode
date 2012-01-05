@@ -1,0 +1,23 @@
+TEMPLATE_VERSION=0.0.1
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}
+ROOT_PW=${ufds_root_pw}
+ADMIN_PW=${ufds_admin_pw}
+
+TMPFS=512m
+
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+
+UFDS_ADMIN_LOGIN=${ufds_admin_login}
+UFDS_ADMIN_PW=${ufds_admin_pw}
+UFDS_ADMIN_EMAIL=${ufds_admin_email}
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
+DATACENTER_COMPANY_NAME=${datacenter_company_name}
+REMOTE_URL=${ufds_url}
+
+RIAK_IP=${riak_admin_ip}
+RIAK_PORT=8098
+RIAK_SSL_PORT=9098

@@ -9,6 +9,7 @@
   , "amon-tarball": "amon/amon-master-master-.*.tar.bz2"
   , "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2"
   , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
+  , "lfds-tarball": "ufds/lfds-pkg-master-.*.tar.bz2"
   , "billapi-tarball": "billapi/billapi-pkg-master-.*.tar.bz2"
   , "cloudapi-tarball": "cloudapi/cloudapi-pkg-master-.*.tar.bz2"
   , "datasets": [

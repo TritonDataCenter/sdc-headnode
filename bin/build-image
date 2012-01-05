@@ -405,7 +405,7 @@ function load_buildspec
 {
     PLATFORM_RELEASE=$(build_spec platform-release)
     BUILD_TGZ=$(build_spec build-tgz)
-    
+
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -598,7 +598,7 @@ function get_bit
     # Presumption: This pattern is of the form
     # "$single-level-dir/$file-regex-pattern".
     pattern=$1
-    
+
     # Note: intentionally a global.
     get_bit_rv=
 
@@ -923,7 +923,7 @@ function get_fs_tarball
         cp ${bit_cache_path} ${cache_path}
     fi
 
-    # Validate and copy 
+    # Validate and copy
     if [[ ! -f ${cache_path} ]]; then
         fatal "Unable to get file '${cache_path}'."
     elif ! bzip2 -t ${cache_path}; then
@@ -971,6 +971,7 @@ function copy_zones
         export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
         export BILLAPI_DIR=${ZONE_DIR}/billing_api
         export UFDS_DIR=${ZONE_DIR}/ufds
+        export LFDS_DIR=${ZONE_DIR}/lfds
     fi
 
     for zone in $(ls ${STAGE}/zones); do
@@ -1124,7 +1125,7 @@ if [[ -z "$STAGE_DIR" ]]; then
     copy_devtools
     copy_webinfo
 fi
-    
+
 copy_config
 
 if [[ -z ${ONLY_UPGRADE} ]]; then

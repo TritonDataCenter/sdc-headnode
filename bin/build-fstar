@@ -96,6 +96,12 @@ case ${ZONE} in
             exit 1
         fi
         ;;
+    lfds)
+        if [[ -z ${LFDS_DIR} ]]; then
+            echo "Need LFDS_DIR env for ${zone}"
+            exit 1
+        fi
+        ;;
     *)
         echo "Unhandled zone: ${zone}"
         exit 1
