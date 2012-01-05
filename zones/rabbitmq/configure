@@ -54,7 +54,7 @@ done
 function list_permissions
 {
     su - rabbitmq -c \
-        "/opt/local/sbin/rabbitmqctl -q -n rabbit@$(zonename) list_permissions -p /" \
+        "/opt/local/sbin/rabbitmqctl -q -n rabbit@$(zonename) list_user_permissions guest" \
         2>/dev/null \
     || /bin/true
 }

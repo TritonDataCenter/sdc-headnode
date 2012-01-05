@@ -26,6 +26,8 @@ projadd -c "Rabbitmq settings" -U rabbitmq -G rabbitmq \
 svccfg -s rabbitmq setprop method_context/project=rabbitmq
 svcadm refresh rabbitmq
 
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) stop"
+
 svcadm disable rabbitmq
 # HOME must be set for 'erlexec' (used in rabbitmq-plugins)
 export HOME=/root
