@@ -13,7 +13,7 @@ USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 if [[ -z $IMG_TMP_DIR ]]; then
-	IMG_TMP_DIR=/tmp
+  IMG_TMP_DIR=/tmp
 fi
 function can_has_internets
 {
@@ -35,10 +35,13 @@ function cleanup
     if [ ${CLEANED} -eq 0 ]; then
         echo '==> Cleaning up'
         CLEANED=1
-        if [[ -n ${IMG_DEV} ]]; then
-            hdiutil detach ${IMG_DEV}
-            IMG_DEV=
+        if [[ -n ${LOOPBACK} ]]; then
+            ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+            ${SUCMD} lofiadm -d ${LOOPBACK}
+            sync; sync
+            LOOPBACK=
         fi
+
     fi
     rm -rf $IMG_TMP_DIR/fs.*.$$
     rm -rf $IMG_TMP_DIR/output.*.$$
@@ -71,12 +74,6 @@ function create_output
     branch_name="$(git symbolic-ref HEAD 2>/dev/null)" \
         || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
-
-    if [[ -n ${MNT_DIR} ]]; then
-        ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
-        ${SUCMD} lofiadm -d ${LOOPBACK}
-        sync; sync
-    fi
 
     if [[ -f ${STAGE}/private/root.password.${LIVEIMG_VERSION} ]]; then
         echo "==> Copying root.password.${LIVEIMG_VERSION}"
