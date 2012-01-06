@@ -445,7 +445,7 @@ mounted_usb="false"
 # Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
 # existence of backup file.
 echo "Creating a backup"
-sdc-backup
+sdc-backup -s datasets
 bfile=`ls /zones/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "unable to make a backup"
 
