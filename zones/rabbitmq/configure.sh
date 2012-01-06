@@ -23,7 +23,7 @@ esac
 #
 # On first boot at least, RabbitMQ pretends like it started up when it's not
 # actually ready for us to use it yet.  In order to handle that case, we wait
-# here for it to become ready before proceeding.  The last thing rabbitmq 2.3.1
+# here for it to become ready before proceeding.  The last thing rabbitmq 2.7.1
 # does in the insert_default_data() function is:
 #
 #     rabbit_auth_backend_internal:set_permissions(...)
@@ -38,7 +38,7 @@ esac
 function list_permissions
 {
     su - rabbitmq -c \
-        "/opt/local/sbin/rabbitmqctl -q -n rabbit@rabbitmq list_permissions -p /" \
+        "/opt/local/sbin/rabbitmqctl -q -n rabbit@rabbitmq list_user_permissions guest" \
         2>/dev/null \
     || /bin/true
 }
@@ -79,6 +79,6 @@ fi
 
 echo "Adding user ${amqp_user} and setting permissions"
 su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq add_user ${amqp_user} ${amqp_pass}"
-su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_admin ${amqp_user}"
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_user_tags ${amqp_user} administrator"
 su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@rabbitmq set_permissions -p / ${amqp_user} \".*\" \".*\" \".*\""
 

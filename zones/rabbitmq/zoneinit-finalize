@@ -8,21 +8,19 @@ fi
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 source /opt/smartdc/bin/configure.sh
 
-# Fix the rabbit SMF svc method to increase max file descriptors
-egrep -s ulimit /opt/local/sbin/rabbitmq-server
-if [ $? != 0 ]; then
-        nawk -F= '{
-            if ($1 == "SERVER_START_ARGS") {
-                print $0
-                printf("ulimit -n 65535\n");
-            } else {
-                print $0
-            }
-        }' /opt/local/sbin/rabbitmq-server >/tmp/svc.$$
-        cp /tmp/svc.$$ /opt/local/sbin/rabbitmq-server
+/usr/sbin/projadd -c "Rabbitmq settings" -U rabbitmq -G rabbitmq \
+    -K "process.max-file-descriptor=(basic,65535,deny)" \
+    rabbitmq
+/usr/sbin/svccfg -s rabbitmq setprop method_context/project=rabbitmq
+/usr/sbin/svcadm refresh rabbitmq
 
-        svcadm restart rabbitmq
-fi
+su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) stop"
+
+/usr/sbin/svcadm disable rabbitmq
+# HOME must be set for 'erlexec' (used in rabbitmq-plugins)
+export HOME=/root
+rabbitmq-plugins enable rabbitmq_management
+/usr/sbin/svcadm enable rabbitmq
 
 #
 # Call mdns_announce (imported from 97-zoneinit-common) to announce our
