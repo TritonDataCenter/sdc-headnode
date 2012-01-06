@@ -735,10 +735,15 @@ function get_agentsshar
 
     local agentsshar_branch=$1
 
-    get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh"
-    local agentsshar_path=$get_bit_rv
-    get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum"
-    local agentsmd5_path=$get_bit_rv
+    if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
+        local agentsshar_path=${agentsshar_branch}
+        local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
+    else
+        get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh"
+        local agentsshar_path=$get_bit_rv
+        get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum"
+        local agentsmd5_path=$get_bit_rv
+    fi
 
     # Make sure it's not corrupt.
     local MD5=$(cat ${agentsmd5_path})
