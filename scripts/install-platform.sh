@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
 #
 
 set -o errexit
@@ -55,13 +55,20 @@ if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]
 fi
 
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
-    echo "==> Unpacking ${version} to ${usbmnt}/os"
-    curl --progress -k ${input} \
-        | (mkdir -p ${usbmnt}/os/${version} \
-        && cd ${usbmnt}/os/${version} \
-        && gunzip | tar -xf - 2>/tmp/install_platform.log \
-        && mv platform-* platform
+    echo "==> Unpacking ${version} to ${usbcpy}/os"
+    curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
+
+    if [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]]; then
+       echo "File: '${input}' not found."
+       usage
+    fi
+    
+    mkdir -p ${usbmnt}/os/${version}
+    (cd ${usbmnt}/os/${version} \
+      && gzcat ${usbcpy}/os/tmp.$$.tgz | tar -xf - 2>/tmp/install_platform.log \
+      && mv platform-* platform
     )
+    rm -f ${usbcpy}/os/tmp.$$.tgz
 
     if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
          mv -f ${usbmnt}/os/${version}/platform/root.password \
