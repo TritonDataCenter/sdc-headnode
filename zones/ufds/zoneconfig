@@ -17,3 +17,7 @@ UFDS_ADMIN_EMAIL=${ufds_admin_email}
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
 DATACENTER_COMPANY_NAME=${datacenter_company_name}
 
+IS_UFDS=${ufds_is_local}
+REMOTE_IP=${ufds_remote_ip}
+REMOTE_PORT=${ufds_remote_port}
+REMOTE_PROTOCOL=${ufds_remote_protocol}

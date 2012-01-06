@@ -152,19 +152,36 @@ done
 
 
 # Update config file
-cp /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json.in.orig
-gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_IP/127.0.0.1/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_PORT/8098/" /opt/smartdc/ufds/cfg/config.json.in
-mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
-mv /opt/smartdc/ufds/cfg/config.json.in.orig /opt/smartdc/ufds/cfg/config.json.in
+if [ $IS_UFDS == "false" ]; then
+  UFDS_CONFIG_FILE=/opt/smartdc/ufds/cfg/config-lfds.json.in
+else
+  UFDS_CONFIG_FILE=/opt/smartdc/ufds/cfg/config.json.in
+fi
+
+cp $UFDS_CONFIG_FILE ${UFDS_CONFIG_FILE}.orig
+
+# Add the UFDS info from config if we're running a LFDS instance
+if [ $IS_UFDS == "false" ]; then
+  gsed -i -e "s/REMOTEPROTOCOL/${REMOTE_PROTOCOL}/" $UFDS_CONFIG_FILE
+  gsed -i -e "s/REMOTEIP/${REMOTE_IP}/" $UFDS_CONFIG_FILE
+  gsed -i -e "s/REMOTEPORT/${REMOTE_PORT}/" $UFDS_CONFIG_FILE
+fi
+
+gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" $UFDS_CONFIG_FILE
+gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" $UFDS_CONFIG_FILE
+gsed -i -e "s/RIAK_IP/127.0.0.1/" $UFDS_CONFIG_FILE
+gsed -i -e "s/RIAK_PORT/8098/" $UFDS_CONFIG_FILE
+mv $UFDS_CONFIG_FILE /opt/smartdc/ufds/cfg/config.json
+mv ${UFDS_CONFIG_FILE}.orig $UFDS_CONFIG_FILE
 
 echo "Importing ufds_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
 
-echo "Importing ufds_capi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
+# Only start capi if we're not LFDS
+if [ $IS_UFDS == "true" ]; then
+  echo "Importing ufds_capi_manifest.xml"
+  /usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
+fi
 
 echo "Enabling service haproxy"
 /usr/sbin/svcadm disable haproxy
@@ -176,8 +193,11 @@ echo "Enabling service ufds"
 /usr/sbin/svcadm disable smartdc/site/ufds
 /usr/sbin/svcadm enable smartdc/site/ufds
 
-echo "Enabling service ufds-capi"
-/usr/sbin/svcadm disable smartdc/site/ufds-capi
-/usr/sbin/svcadm enable smartdc/site/ufds-capi
+# Only start capi if we're not LFDS
+if [ $IS_UFDS == "true" ]; then
+  echo "Enabling service ufds-capi"
+  /usr/sbin/svcadm disable smartdc/site/ufds-capi
+  /usr/sbin/svcadm enable smartdc/site/ufds-capi
+fi
 
 exit 0

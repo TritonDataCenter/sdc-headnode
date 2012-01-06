@@ -187,7 +187,10 @@ rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
 
-ufds_is_local=true
+ufds_is_local=false
+ufds_remote_ip=foo.bar.baz.car
+ufds_remote_port=600
+ufds_remote_protocol=ldaps
 ufds_external_vlan=0
 ufds_root_pw=joypass123
 ufds_ldap_root_dn=cn=root
@@ -199,5 +202,6 @@ ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 # Legacy CAPI parameters
 capi_http_admin_user=admin
 capi_http_admin_pw=tot@ls3crit
+capi_remote_ip=capi.foo.bar.baz
 
 phonehome_automatic=false
