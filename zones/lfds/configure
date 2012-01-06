@@ -77,7 +77,9 @@ gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/lfds/cfg/config-lfds.json
 gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/lfds/cfg/config-lfds.json.in
 gsed -i -e "s/RIAK_IP/${RIAK_IP}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
 gsed -i -e "s/RIAK_PORT/${RIAK_PORT}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
-gsed -i -e "s/REMOTEURL/${REMOTE_URL}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
+gsed -i -e "s/REMOTEPROTOCOL/${REMOTE_PROTOCOL}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
+gsed -i -e "s/REMOTEIP/${REMOTE_IP}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
+gsed -i -e "s/REMOTEPORT/${REMOTE_PORT}/" /opt/smartdc/lfds/cfg/config-lfds.json.in
 mv /opt/smartdc/lfds/cfg/config-lfds.json.in /opt/smartdc/lfds/cfg/config.json
 mv /opt/smartdc/lfds/cfg/config-lfds.json.in.orig /opt/smartdc/lfds/cfg/config-lfds.json.in
 

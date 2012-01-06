@@ -188,7 +188,9 @@ rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
 
 ufds_is_local=false
-ufds_remote_url=ldaps://10.88.88.50:636
+ufds_remote_ip=10.88.88.50
+ufds_remote_protocol=ldaps
+ufds_remote_port=636
 ufds_external_vlan=0
 ufds_root_pw=joypass123
 ufds_ldap_root_dn=cn=root

@@ -16,7 +16,9 @@ UFDS_ADMIN_PW=${ufds_admin_pw}
 UFDS_ADMIN_EMAIL=${ufds_admin_email}
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
 DATACENTER_COMPANY_NAME=${datacenter_company_name}
-REMOTE_URL=${ufds_url}
+REMOTE_IP=${ufds_remote_ip}
+REMOTE_PORT=${ufds_remote_port}
+REMOTE_PROTOCOL=${ufds_remote_protocol}
 
 RIAK_IP=${riak_admin_ip}
 RIAK_PORT=8098
