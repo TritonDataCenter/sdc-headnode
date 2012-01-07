@@ -70,6 +70,11 @@ dn: cn=operators, ou=groups, o=smartdc
 uniquemember: uuid=${UFDS_ADMIN_UUID}, ou=users, o=smartdc
 objectclass: groupOfUniqueNames
 
+dn: datacenter=${DATACENTER_NAME}, o=smartdc
+datacenter: ${DATACENTER_NAME}
+company: ${DATACENTER_COMPANY_NAME}
+address: ${DATACENTER_LOCATION}
+objectclass: datacenter
 HERE
 
 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif

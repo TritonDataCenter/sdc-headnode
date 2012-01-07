@@ -15,5 +15,7 @@ UFDS_ADMIN_LOGIN=${ufds_admin_login}
 UFDS_ADMIN_PW=${ufds_admin_pw}
 UFDS_ADMIN_EMAIL=${ufds_admin_email}
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
-DATACENTER_COMPANY_NAME=${datacenter_company_name}
 
+DATACENTER_NAME=${datacenter_name}
+DATACENTER_COMPANY_NAME=${datacenter_company_name}
+DATACENTER_LOCATION=${datacenter_location}
