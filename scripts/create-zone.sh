@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2012 Joyent Inc., All rights reserved.
 #
 # Exit codes:
 #
@@ -201,6 +201,9 @@ zonecfg -z ${zone} -f ${src}/config
 eval zone_cpu_shares=\${CONFIG_${zone}_cpu_shares}
 eval zone_max_lwps=\${CONFIG_${zone}_max_lwps}
 eval zone_memory_cap=\${CONFIG_${zone}_memory_cap}
+eval zone_disk_sz=\${CONFIG_${zone}_disk_size}
+[ -z "$zone_disk_sz" ] && zone_disk_sz=10g
+disk_size=${zone_disk_sz%g}
 
 if [[ -n "${zone_cpu_shares}" ]]; then
     zonecfg -z ${zone} "set cpu-shares=${zone_cpu_shares};"
@@ -219,7 +222,7 @@ if [[ -n "${zone_external_ip}" ]] && [[ "${zone_external_ip}" != "${zone_admin_i
    zonecfg -z ${zone} "add net; set physical=${zone}1; set vlan-id=${zone_external_vlan}; set global-nic=external; ${zone_dhcp_server_enable}; end; exit"
 fi
 
-zoneadm -z ${zone} install -x nodataset -t ${ds_uuid} >&5 2>&1
+zoneadm -z ${zone} install -x nodataset -t ${ds_uuid} -q ${disk_size} >&5 2>&1
 
 (cd /zones/${zone}; bzcat ${src}/fs.tar.bz2 | tar -xf - )
 chown root:sys /zones/${zone}
