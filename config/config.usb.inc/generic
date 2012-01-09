@@ -78,6 +78,7 @@ redis_memory_cap=1g
 riak_cpu_shares=50
 riak_max_lwps=1000
 riak_memory_cap=2048m
+riak_disk_size=50g
 
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
