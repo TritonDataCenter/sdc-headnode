@@ -11,6 +11,7 @@ fi
 ZONE=cloudapi
 SRC_DIR=$2
 CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
+PLUG_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/plugins
 
 # Older backups may not have had this zone
 if [[ ! -d "${SRC_DIR}/${ZONE}" ]]; then
@@ -28,14 +29,13 @@ fi
 echo "==> Restoring config file for zone '${ZONE}'"
 cp ${SRC_DIR}/${ZONE}/config.json $CFG_FILE
 
-mkdir -p /zones/cloudapi/root/opt/smartdc/cloudapi/plugins
+mkdir -p $PLUG_DIR
 if [[ -d "${SRC_DIR}/${ZONE}/plugins" ]]; then
     for i in `ls ${SRC_DIR}/${ZONE}/plugins`
     do
-        if [ ! -f /zones/${UUID}/root/opt/smartdc/cloudapi/plugins/$i ]; then
+        if [ ! -f $PLUG_DIR/$i ]; then
             echo "==> Restoring plugin $i for zone '${ZONE}'"
-            cp -p ${SRC_DIR}/${ZONE}/plugins/$i \
-                /zones/${UUID}/root/opt/smartdc/cloudapi/plugins
+            cp -p ${SRC_DIR}/${ZONE}/plugins/$i $PLUG_DIR
         fi
     done
 fi
