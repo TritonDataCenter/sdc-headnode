@@ -3,87 +3,51 @@
 # for whatever the reason using /opt/smartdc/bin/configure
 
 # Update the config with the correct values.
-mkdir -p /opt/smartdc/portal/cfg
 cat > /opt/smartdc/portal/cfg/config.js <<HERE
 exports.config = {
-  externalUrl : "${EXTERNAL_URL}",
-  capiConfig : "./cfg/capi.json",
-  cloudApiConfig : "./cfg/cloudApi.json",
+  listenIp : "${PUBLIC_IP}",
+  siteCopyFile : './local.joyent.en.js',
+  siteThemeName : 'node',
+  extensionLocation : './extensions/',
+  viewExtensionLocation : './extensions/views/',
+  googleAnalyticsCode : false,
+  cloudApi : { url: "${CLOUD_API_EXTERNAL_URL}", "version": ">=6.5.0" },
   machineQueryLimit : 500,
+  capi : { uri : "${CAPI_API_EXTERNAL_URL}", username : "${CAPI_HTTP_ADMIN_USER}", passwordFile : "./cfg/capiPassword" },
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-reply@no.de>",
   },
+  externalUrl : "${EXTERNAL_URL}",
   defaultCAParams : { module : "tcp", stat : "accepts", decomposition : "raddr" },
   defaultCAChoices : [
     { label : "TCP accept operations", params : { module : "tcp", stat : "accepts", decomposition : "raddr", "idle-max" : 30 }},
     { label : "HTTP client operations", params : { module : "node", stat : "httpc_ops", decomposition : "raddr", "idle-max" : 30 }},
     { label : "Socket read/write operations", params : { module : "node", stat : "socket_ops", decomposition : "raddr", "idle-max" : 30 }},
   ],
-  listenIp : "${PRIVATE_IP}",
-  machineListConfig : "./cfg/machineListFields.json",
-  provisionOptionsConfig : "./cfg/provisionOptions.json",
-  signupOptionsConfig : './cfg/signupOptions.json',
-	siteCopyFile : './local.joyent.en.js',
-  siteThemeName : 'node',
-  extensionLocation : './extensions/',
-  viewExtensionLocation : './extensions/views/',
-  googleAnalyticsCode : false
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/capi.json <<HERE
-{
-  "uri": "${CAPI_API_EXTERNAL_URL}",
-  "username": "${CAPI_HTTP_ADMIN_USER}",
-  "password": "${CAPI_HTTP_ADMIN_PW}"
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/cloudApi.json <<HERE
-{
-  "url": "${CLOUD_API_EXTERNAL_URL}",
-  "version": ">=6.5.0"
-}
-HERE
-
-cat > /opt/smartdc/portal/cfg/machineListFields.json <<HERE
-{
-  "machineListFields": [
-    { "name": "type", "heading": "Type", "sortable": true, "width": 104 },
-    { "name": "name", "heading": "Machine name", "sortable": true, "mutate": "abbrevName", "width": 280 },
-    { "name": "ips", "heading": "Public IP Address", "sortable": true, "width": 140 },
-    { "name": "memory", "heading": "RAM", "sortable": true, "width": 83 },
-    { "name": "created", "date": true, "heading": "Age", "sortable": true, "width": 130 },
-    { "name": "state", "heading": "Status", "sortable": true, "width": 125 }
+  machineListFields : [
+    { name: "type", heading: "Type", sortable: true, width: 104 },
+    { name: "name", heading: "Machine name", sortable: true, width: 280 },
+    { name: "ips", heading: "Public IP Address", sortable: true, width: 140 },
+    { name: "memory", heading: "RAM", sortable: true, width: 83 },
+    { name: "created", "date": true, heading: "Age", sortable: true, width: 130 },
+    { name: "state", heading: "Status", sortable: true, width: 125 }
+  ],
+  signupOptions : [
+    { name: "email_address", label: "form.label.email", required : "true" },
+    { name: "login", label: "form.label.username", required : "true" },
+    { name: "password", label: "form.label.password", required : "true", "type" : "password" },
+    { name: "password_confirmation", label: "form.label.password_confirm", required : "true", "type" : "password" },
+    { name: "last_name", label: "form.label.last_name", required : "false" },
+    { name: "first_name", label: "form.label.first_name", required : "false" },
+    { name: "phone_number", label: "form.label.phone_number", required : "false"}
   ]
 }
 HERE
 
-cat > /opt/smartdc/portal/cfg/provisionOptions.json <<HERE
-{
-  "provisionOptions": [
-    { "name": "package", "alwaysShow": true, "label": "form.label.package" },
-    { "name": "dataset", "alwaysShow": true, "label": "form.label.machine_type" },
-    { "name": "name", "label": "form.label.machine_name" },
-    { "name": "password", "label": "form.label.machine_password" }
-  ]
-}
-HERE
-
-
-cat > /opt/smartdc/portal/cfg/signupOptions.json <<HERE
-{
-  "signupOptions": [
-    { "name": "email_address", "label": "form.label.email", "required" : "true" },
-    { "name": "login", "label": "form.label.username", "required" : "true" },
-    { "name": "password", "label": "form.label.password", "required" : "true", "type" : "password" },
-    { "name": "password_confirmation", "label": "form.label.password_confirm", "required" : "true", "type" : "password" },
-    { "name": "last_name", "label": "form.label.last_name", "required" : "false" },
-    { "name": "first_name", "label": "form.label.first_name", "required" : "false" },
-    { "name": "phone", "label": "form.label.phone_number", "required" : "false"}
-  ]
-}
+echo "Creating CAPI password file"
+cat >/opt/smartdc/portal/cfg/capiPassword <<HERE
+${CAPI_HTTP_ADMIN_PW}
 HERE
 
 
