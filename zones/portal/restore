@@ -23,39 +23,16 @@ if [[ -d "${SRC_DIR}/${ROLE}" && -f "${SRC_DIR}/${ROLE}/config.tar" ]]; then
     cd $BASE_DIR
     tar xbf 512 ${SRC_DIR}/${ROLE}/config.tar
 
-    # If we're restoring for an upgrade, then we may need to add some
-    # missing config entries.
-    CFG_FILE=$BASE_DIR/cfg/config.js
+    # run our 6.5.* upgrader!
+    echo "==> Upgrading configuration for $ROLE"
 
-    egrep -s "extensionLocation" $CFG_FILE
-    if [ $? != 0 ]; then
-        nawk '{
-            if ($1 != "siteThemeName") {
-                print $0
-                continue
-            }
+    cd $BASE_DIR/tools
+    /opt/local/bin/node upgrade_config.js
 
-            # If siteThemeName is not the last entry, fatal
-            if (substr($0, length($0), 1) == ",")
-                exit 1
-
-            # Append the new entries at the end of the config
-            printf("%s,\n", $0)
-            printf("  extensionLocation : \047./extensions/\047,\n")
-            printf("  viewExtensionLocation : \047./extensions/views/\047,\n")
-            printf("  googleAnalyticsCode : false\n")
-        }' $CFG_FILE >/tmp/portal.$$
-
-        if [ $? != 0 ]; then
-            echo "Warning, unable to add new configuration entries for $ROLE"
-        else
-            cp /tmp/portal.$$ $CFG_FILE 
-            rm -f /tmp/portal.$$
-        fi
-    fi
 else
     echo "Warning, older backup; missing config files for $ROLE"
 fi
+
 
 echo "==> Done"
 exit 0
