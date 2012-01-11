@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -231,7 +231,10 @@ function import_sdc_datasets
 {
 	get_sdc_datasets
 
-	for i in /usbkey/datasets/*.dsmanifest
+	mount_usbkey
+
+	# Look on the key to avoid seeing extra, customer-installed datasets.
+	for i in /mnt/usbkey/datasets/*.dsmanifest
 	do
 		bname=${i##*/}
 
@@ -266,6 +269,8 @@ function import_sdc_datasets
 			rm -f /tmp/$bname /tmp/$bzname
 		fi
 	done
+
+	umount_usbkey
 }
 
 # Fix up the USB key config file
