@@ -204,64 +204,6 @@ function import_datasets
     fi
 }
 
-function get_sdc_datasets
-{
-    MAPI_DS=`curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
-        http://${CONFIG_mapi_admin_ip}/datasets?include_disabled=true | \
-	json | nawk '{
-            if ($1 == "\"name\":") {
-                # strip quotes and comma
-                nm = substr($2, 2, length($2) - 3)
-            }
-            if ($1 == "\"version\":") {
-                # strip quotes and comma
-                v = substr($2, 2, length($2) - 3)
-                printf("%s-%s.dsmanifest\n", nm, v)
-            }
-        }'`
-}
-
-function import_sdc_datasets
-{
-	echo "Import new SDC datasets"
-
-        get_sdc_datasets
-
-	for i in /usbkey/datasets/*.dsmanifest
-	do
-		bname=${i##*/}
-
-		match=0
-		for j in $MAPI_DS
-		do
-			if [ $bname == $j ]; then
-				match=1
-				break
-			fi
-		done
-
-		if [ $match == 0 ]; then
-			bzname=`nawk '{
-			        if ($1 == "\"path\":") {
-			            # strip quotes and colon
-			            print substr($2, 2, length($2) - 3)
-			            exit 0
-			        }
-			    }' $i`
-			cp $i /tmp
-			# We have to mv since dsimport wants to copy it back
-			mv /usbkey/datasets/$bzname /tmp
-
-			sed -i "" -e \
-"s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
-			    /tmp/$bname
-			sdc-dsimport /tmp/$bname
-
-			rm -f /tmp/$bname /tmp/$bzname
-		fi
-	done
-}
-
 function upgrade_agents
 {
 	echo "Upgrade headnode agents"
@@ -470,8 +412,6 @@ recreate_zones
 
 SKIP_SWITCH=0
 install_platform
-
-import_sdc_datasets
 
 upgrade_agents
 
