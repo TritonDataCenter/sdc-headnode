@@ -1,0 +1,214 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+
+set -o errexit
+set -o pipefail
+
+TAR_BUILD_FILENAME=$1
+shift
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+ # boot-tidyups-20120107T000008Z-g18e20f5.tgz
+BUILDSTAMP=${TAR_BUILD_FILENAME#boot-}
+BUILDSTAMP=${BUILDSTAMP%.tgz}
+BRANCH=${BUILDSTAMP%%-*}
+TIMESTAMP=${BUILDSTAMP#$BRANCH-}
+TIMESTAMP=${TIMESTAMP%%-*}
+DESCRIBE=${BUILDSTAMP##*-}
+
+echo "BUILDSTAMP --> $BUILDSTAMP"
+echo "BRANCH     --> $BRANCH"
+echo "TIMESTAMP  --> $TIMESTAMP"
+echo "DESCRIBE   --> $DESCRIBE"
+
+# Write output to log file.
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
+LOGDIR="${ROOT}/log"
+LOGFILE="${LOGDIR}/build.log.usb.${THIS_TIMESTAMP}"
+
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
+    BASH_IS_NOT_ANCIENT='true'
+fi
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=4
+    set -o xtrace
+fi
+
+
+# Tools.
+AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
+TAR=tar
+GREP=grep
+if [[ `uname -s` == 'SunOS' ]]; then
+  SUM='/usr/bin/sum -x sha1'
+else
+  SUM='shasum'
+fi
+
+# See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
+THIS_BRANCH=$BRANCH
+THIS_GITDESCRIBE=$DESCRIBE
+THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
+
+MNT_DIR=/mnt/tmp
+USB_SIZE="4gb"
+OUTPUT_IMG="${USB_SIZE}.img"
+TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
+if [[ -z $IMG_TMP_DIR ]]; then
+  IMG_TMP_DIR=/tmp
+fi
+MD5CMD="md5sum"
+PLATFORM=$(uname -s)
+
+NO_CONFIG_FILE=0
+if [[ $1 == "-c" ]]; then
+    shift
+    NO_CONFIG_FILE=1
+    echo "Building with no config file in the image. "
+fi
+
+STAGE=${ROOT}/cache/stage_usb
+mkdir -p $STAGE
+rm -rf $STAGE/*
+
+echo ">> Starting build at $(date)"
+
+function fatal
+{
+    echo "$(basename $0): fatal error: $*"
+    exit 1
+}
+
+function errexit
+{
+    [[ $1 -ne 0 ]] || exit 0
+    fatal "error exit status $1 at line $2"
+}
+
+trap 'errexit $? $LINENO' EXIT
+
+
+function unpack_image
+{
+    echo -n "==> Unpacking USB image... "
+    [[ -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$ ]] \
+        && rm -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$
+    (cd $IMG_TMP_DIR && ${TAR} -zxf ${ROOT}/usb/${TEMPLATE_IMG} \
+        && mv ${OUTPUT_IMG} ${OUTPUT_IMG}.$$) \
+        || fatal "Unable to unpack USB image"
+    echo "done."
+}
+
+function mount_image
+{
+    echo -n "==> Mounting new USB image... "
+    ${SUCMD} mkdir -p ${MNT_DIR}
+    LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/${OUTPUT_IMG}.$$)
+    ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
+    echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
+}
+
+function copy_config {
+
+    # Clear current configs from stage area
+    rm -f ${MNT_DIR}/config || true
+    rm -rf ${MNT_DIR}/config.inc || true
+
+    echo "==> Copying in config"
+    if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+        if [[ -f config/config.usb.local ]]; then
+          cp config/config.usb.local ${MNT_DIR}/config
+        else
+          cp config/config.usb ${MNT_DIR}/config
+        fi
+    fi
+
+    if [[ -d config/config.usb.inc.local ]]; then
+        cp -r config/config.usb.inc.local ${MNT_DIR}/config.inc
+    else
+        cp -r config/config.usb.inc ${MNT_DIR}/config.inc
+    fi
+}
+
+# Copy to mount is basically just extracting everything to the image mount
+function copy_to_mount
+{
+    (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $ROOT/$TAR_BUILD_FILENAME) \
+        || fatal "Unable to copy files to mount"
+    THIS_VERSION=$(cat ${MNT_DIR}/version)
+    LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
+    cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
+    cp ${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest $STAGE
+
+    rm -f $STAGE/usb_key.manifest || true
+    cp $MNT_DIR/usb_key.manifest $STAGE
+    rm -f $STAGE/boot_archive.manifest || true
+    cp ${MNT_DIR}/boot_archive.manifest $STAGE
+    chmod 444 $STAGE/*.manifest
+}
+
+CLEANED=0
+function cleanup
+{
+    if [ ${CLEANED} -eq 0 ]; then
+        echo '==> Cleaning up'
+        CLEANED=1
+        if [[ -n ${LOOPBACK} ]]; then
+            ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+            ${SUCMD} lofiadm -d ${LOOPBACK}
+            sync; sync
+            LOOPBACK=
+        fi
+
+    fi
+    rm -rf $IMG_TMP_DIR/fs.*.$$
+    rm -rf $IMG_TMP_DIR/output.*.$$
+}
+
+function create_output
+{
+    echo "==> Checking current GIT branch"
+    branch_name="$(git symbolic-ref HEAD 2>/dev/null)" \
+        || branch_name="(unnamed branch)"     # detached HEAD
+    branch_name=${branch_name##refs/heads/}
+
+    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
+        echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
+        (cd $STAGE \
+            && mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+            && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
+            root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    else
+        mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
+    fi
+}
+
+unpack_image
+mount_image
+trap 'cleanup' EXIT
+copy_to_mount
+copy_config
+cleanup
+create_output
+

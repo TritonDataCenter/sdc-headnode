@@ -43,6 +43,7 @@ function version
 function cleanup
 {
     rm -rf /tmp/fs.*.$$
+    rm -rf $STAGE
 }
 
 function unpack_image
@@ -73,5 +74,6 @@ function create_output
     echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
     ${SUCMD} chown -R ${USER} ${MNT_DIR}
     ${TAR} -zcf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
+    rm -rf $MNT_DIR
 }
 

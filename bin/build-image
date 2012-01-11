@@ -644,7 +644,7 @@ function copy_platform
         | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     echo "==> Unpacking `basename ${image}`"
-    (cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+    (set -e; cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
         mv platform-* os/${LIVEIMG_VERSION}/platform) \
         || fatal "Unable to unpack platform"
     if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
@@ -676,13 +676,13 @@ function get_agentsshar
 
     local agentsshar_branch=$1
 
-		if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
-        local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
-        local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
-	  else 
+    if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
         local agentsshar_path=${agentsshar_branch}
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
-	  fi
+    else 
+        local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+        local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+    fi
 
     # Make sure it's not corrupt.
     local MD5=$(cat ${agentsmd5_path})
@@ -1009,15 +1009,16 @@ function pack_upgrade
 function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
-    rm -f ${ROOT}/cache/usb_key.manifest
+    rm -f $STAGE/usb_key.manifest || true
     (cd ${STAGE}/ \
         && find . -type f -exec ${MD5CMD} {} \;) \
-        > ${ROOT}/cache/usb_key.manifest
+        > $STAGE/usb_key.manifest
     [[ $? -eq 0 ]] || fatal "Unable to add manifests"
-    rm -f ${ROOT}/cache/boot_archive.manifest || true
+    rm -f $STAGE/boot_archive.manifest || true
+
     cp ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
-        ${ROOT}/cache/boot_archive.manifest
-    chmod 444 ${ROOT}/cache/*.manifest
+        $STAGE/boot_archive.manifest
+    chmod 444 $STAGE/*.manifest
 }
 
 # Main()
