@@ -211,9 +211,6 @@ function upgrade_agents
 	# Get the latest agents shar
 	AGENTS=`ls -t /usbkey/ur-scripts | head -1`
 	echo "Installing agents $AGENTS"
-        # There is a bug in the agent installer and we have to run it twice
-        # since it fails on the first run.
-	bash /usbkey/ur-scripts/$AGENTS 1>&4 2>&1
 	bash /usbkey/ur-scripts/$AGENTS 1>&4 2>&1
 }
 
