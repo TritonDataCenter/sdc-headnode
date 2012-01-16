@@ -108,8 +108,8 @@ function check_npm
 {
 
     if [[ ! `which npm` ]] || [[ `npm -v` != 1\.* ]]; then
-	echo "build-image requires npm 1.0.x to be in your path"
-	exit 1
+        echo "build-image requires npm 1.0.x to be in your path"
+        exit 1
     fi
 }
 
@@ -452,62 +452,59 @@ function copy_pkgsrc
     echo "==> Copying in pkgsrc"
 
     for pkgsrc in ${PKGSRC_LIST[@]} ; do
-	local name=${pkgsrc%%|*}
-	local url=${pkgsrc##*|}
+        local name=${pkgsrc%%|*}
+        local url=${pkgsrc##*|}
 
-	local exists=$(find ${ROOT}/zones -type f -iname ${name} )
-	[[ -z ${exists} ]] && continue
+        local exists=$(find ${ROOT}/zones -type f -iname ${name} )
+        [[ -z ${exists} ]] && continue
 
-	local cache_dir=${ROOT}/cache/${name}
-	mkdir -p ${cache_dir}
+        local cache_dir=${ROOT}/cache/${name}
+        mkdir -p ${cache_dir}
 
-	if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
-	    (cd ${cache_dir} \
-		&& rm -f md5sums.txt \
-		&& pkgin_get ${url} md5sums.txt ./ ) \
-		|| fatal "Failed to download md5sums.txt"
-	elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
-	    fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
-		"can't build. You need to find some Internet."
-	fi
+        if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
+            (cd ${cache_dir} \
+                && rm -f md5sums.txt \
+                && pkgin_get ${url} md5sums.txt ./ ) \
+                || fatal "Failed to download md5sums.txt"
+        elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
+            fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
+                "can't build. You need to find some Internet."
+        fi
 
-	pkgs=$(cat ${ROOT}/zones/*/${name} \
-	    | xargs -n1 \
-	    | sort \
-	    | uniq \
-	    | sed -e "s/$/.tgz/")
-	for pkgfile in $pkgs; do
-	    MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
-	    if [[ -z ${MD5} ]]; then
-		fatal "Unable to find md5sum for ${pkgfile}, " \
-		    "must be fixed before we can continue."
-	    fi
+        pkgs=$(cat ${ROOT}/zones/*/${name} \
+            | xargs -n1 \
+            | sort \
+            | uniq \
+            | sed -e "s/$/.tgz/")
+        for pkgfile in $pkgs; do
+            MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
+            if [[ -z ${MD5} ]]; then
+                fatal "Unable to find md5sum for ${pkgfile}, " \
+                    "must be fixed before we can continue."
+            fi
 
-	    [[ -f ${cache_dir}/${pkgfile} ]] \
-		&& ACTUAL_MD5=$(${MD5CMD} ${cache_dir}/${pkgfile} | cut -d' ' -f1)
+            [[ -f ${cache_dir}/${pkgfile} ]] \
+                && ACTUAL_MD5=$(${MD5CMD} ${cache_dir}/${pkgfile} | cut -d' ' -f1)
 
-	    if [[ ! -f ${cache_dir}/${pkgfile} ]] \
-		|| [[ -z ${ACTUAL_MD5} ]] \
-		|| [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+            if [[ ! -f ${cache_dir}/${pkgfile} ]] \
+                || [[ -z ${ACTUAL_MD5} ]] \
+                || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
 
-		echo "==> Downloading ${pkgfile}"
+                echo "==> Downloading ${pkgfile}"
                     # if this exists, it's corrupt
-		rm -f ${cache_dir}/${pkgfile}
-		if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
-		    (cd ${cache_dir} \
-			&& pkgin_get ${url} ${pkgfile} ./) \
-			|| fatal "could not download ${url}/${pkgfile}"
-		else
-		    fatal "Need Internet to download ${pkgfile}"
-		fi
-	    else
-		echo "==> Not downloading ${pkgfile} as existing file " \
-		    "matches MD5"
-	    fi
-	done
+                rm -f ${cache_dir}/${pkgfile}
+                if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
+                    (cd ${cache_dir} \
+                        && pkgin_get ${url} ${pkgfile} ./) \
+                        || fatal "could not download ${url}/${pkgfile}"
+                else
+                    fatal "Need Internet to download ${pkgfile}"
+                fi
+            fi
+        done
 
-	echo "==> Creating ${name}.tar"
-	(cd ${cache_dir} && ${TAR} -cvf ${STAGE}/data/${name}.tar ${pkgs})
+        echo "==> Creating ${name}.tar"
+        (cd ${cache_dir} && ${TAR} -cvf ${STAGE}/data/${name}.tar ${pkgs})
     done
 }
 

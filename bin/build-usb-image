@@ -80,6 +80,11 @@ fi
 MD5CMD="md5sum"
 PLATFORM=$(uname -s)
 
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    SUCMD='pfexec'
+    MD5CMD='md5 -r'
+fi
+
 NO_CONFIG_FILE=0
 if [[ $1 == "-c" ]]; then
     shift
@@ -122,9 +127,20 @@ function unpack_image
 function mount_image
 {
     echo -n "==> Mounting new USB image... "
-    ${SUCMD} mkdir -p ${MNT_DIR}
-    LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/${OUTPUT_IMG}.$$)
-    ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+        [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
+        hdiutil attach ${ROOT}/cache/${OUTPUT_IMG} \
+            >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
+        LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
+            | awk '{ print $1 }'`
+        MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
+            | awk '{ print $3 }'`
+
+    else
+        ${SUCMD} mkdir -p ${MNT_DIR}
+        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/${OUTPUT_IMG}.$$)
+        ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
+    fi
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
 }
 
@@ -174,8 +190,12 @@ function cleanup
         echo '==> Cleaning up'
         CLEANED=1
         if [[ -n ${LOOPBACK} ]]; then
-            ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
-            ${SUCMD} lofiadm -d ${LOOPBACK}
+            if [[ "$PLATFORM" == "Darwin" ]]; then
+                hdiutil detach ${MNT_DIR} || true
+            else
+                ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
+                ${SUCMD} lofiadm -d ${LOOPBACK}
+            fi
             sync; sync
             LOOPBACK=
         fi
@@ -202,6 +222,8 @@ function create_output
     else
         mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
     fi
+
+    rm -rf $STAGE
 }
 
 unpack_image
