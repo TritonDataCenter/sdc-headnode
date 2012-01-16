@@ -15,6 +15,13 @@
 set -o errexit
 set -o pipefail
 
+NO_CONFIG_FILE=0
+if [[ $1 == "-c" ]]; then
+    shift
+    NO_CONFIG_FILE=1
+    echo "Building with no config file in the image. "
+fi
+
 TAR_BUILD_FILENAME=$1
 shift
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -56,14 +63,7 @@ fi
 
 
 # Tools.
-AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
 TAR=tar
-GREP=grep
-if [[ `uname -s` == 'SunOS' ]]; then
-  SUM='/usr/bin/sum -x sha1'
-else
-  SUM='shasum'
-fi
 
 # See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$BRANCH
@@ -77,19 +77,10 @@ TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
-MD5CMD="md5sum"
 PLATFORM=$(uname -s)
 
 if [[ "$PLATFORM" != "Darwin" ]]; then
     SUCMD='pfexec'
-    MD5CMD='md5 -r'
-fi
-
-NO_CONFIG_FILE=0
-if [[ $1 == "-c" ]]; then
-    shift
-    NO_CONFIG_FILE=1
-    echo "Building with no config file in the image. "
 fi
 
 STAGE=${ROOT}/cache/stage_usb
@@ -212,17 +203,14 @@ function create_output
         || branch_name="(unnamed branch)"     # detached HEAD
     branch_name=${branch_name##refs/heads/}
 
-    if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
-        echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
-        (cd $STAGE \
-            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
-            && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
-            root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
-        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
-    else
-        mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
-    fi
+    echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
+    (cd $STAGE \
+        && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+        && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
+        root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
+    [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
 
+    rm -rf $IMG_TMP_DIR/*.${OUTPUT_IMG}
     rm -rf $STAGE
 }
 

@@ -278,10 +278,6 @@ if [[ ${PLATFORM} == 'Darwin' ]]; then
             source ${ROOT}/bin/include-coal-osx
             version
             ;;
-        usb)
-            source ${ROOT}/bin/include-usb-osx
-            version
-            ;;
         upgrade)
             ONLY_UPGRADE=true
             source ${ROOT}/bin/include-tar-generic
@@ -300,10 +296,6 @@ elif [[ ${PLATFORM} == 'Linux' ]]; then
     fatal "FATAL: Linux no longer supported"
 elif [[ ${PLATFORM} == 'SunOS' ]]; then
     case ${BUILD_TYPE} in
-        usb)
-            source ${ROOT}/bin/include-usb-smartos
-            version
-            ;;
         coal)
             source ${ROOT}/bin/include-coal-smartos
             version
