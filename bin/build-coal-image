@@ -26,8 +26,8 @@ TAR_BUILD_FILENAME=$1
 shift
 ROOT=$(cd $(dirname $0)/../; pwd)
 
- # boot-tidyups-20120107T000008Z-g18e20f5.tgz
-BUILDSTAMP=${TAR_BUILD_FILENAME#boot-}
+ # usb-tidyups-20120111T023613Z-g18e20f5.tgz
+BUILDSTAMP=${TAR_BUILD_FILENAME#usb-}
 BUILDSTAMP=${BUILDSTAMP%.tgz}
 BRANCH=${BUILDSTAMP%%-*}
 TIMESTAMP=${BUILDSTAMP#$BRANCH-}
@@ -45,7 +45,7 @@ if [[ -z "$THIS_TIMESTAMP" ]]; then
     THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
 fi
 LOGDIR="${ROOT}/log"
-LOGFILE="${LOGDIR}/build.log.usb.${THIS_TIMESTAMP}"
+LOGFILE="${LOGDIR}/build.log.coal.${THIS_TIMESTAMP}"
 
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
@@ -74,6 +74,7 @@ MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
+COAL_VMDK="${USB_SIZE}.coal.vmdk"
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
@@ -83,7 +84,7 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     SUCMD='pfexec'
 fi
 
-STAGE=${ROOT}/cache/stage_usb
+STAGE=${ROOT}/cache/stage_coal
 mkdir -p $STAGE
 rm -rf $STAGE/*
 
@@ -107,10 +108,9 @@ trap 'errexit $? $LINENO' EXIT
 function unpack_image
 {
     echo -n "==> Unpacking USB image... "
-    [[ -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$ ]] \
-        && rm -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$
-    (cd $IMG_TMP_DIR && ${TAR} -xzf ${ROOT}/usb/${TEMPLATE_IMG} \
-        && mv ${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
+    mkdir -p $IMG_TMP_DIR/coal.$$
+    (cd $IMG_TMP_DIR/coal.$$ && ${TAR} -xzf $ROOT/$TAR_BUILD_FILENAME \
+        && mv usb-${BUILDSTAMP}-${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
         || fatal "Unable to unpack USB image"
     echo "done."
 }
@@ -120,7 +120,7 @@ function mount_image
     echo -n "==> Mounting new USB image... "
     if [[ "$PLATFORM" == "Darwin" ]]; then
         [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
-        hdiutil attach $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
+        hdiutil attach $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
             >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
         LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
             | awk '{ print $1 }'`
@@ -129,7 +129,7 @@ function mount_image
 
     else
         ${SUCMD} mkdir -p ${MNT_DIR}
-        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/$$.${OUTPUT_IMG})
+        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG})
         ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
     fi
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
@@ -143,25 +143,23 @@ function copy_config {
 
     echo "==> Copying in config"
     if [[ ${NO_CONFIG_FILE} == 0 ]]; then
-        if [[ -f config/config.usb.local ]]; then
-          cp config/config.usb.local ${MNT_DIR}/config
+        if [[ -f config/config.coal.local ]]; then
+          cp config/config.coal.local ${MNT_DIR}/config
         else
-          cp config/config.usb ${MNT_DIR}/config
+          cp config/config.coal ${MNT_DIR}/config
         fi
     fi
 
-    if [[ -d config/config.usb.inc.local ]]; then
-        cp -r config/config.usb.inc.local ${MNT_DIR}/config.inc
+    if [[ -d config/config.coal.inc.local ]]; then
+        cp -r config/config.coal.inc.local ${MNT_DIR}/config.inc
     else
-        cp -r config/config.usb.inc ${MNT_DIR}/config.inc
+        cp -r config/config.coal.inc ${MNT_DIR}/config.inc
     fi
 }
 
 # Copy to mount is basically just extracting everything to the image mount
 function copy_to_mount
 {
-    (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $ROOT/$TAR_BUILD_FILENAME) \
-        || fatal "Unable to copy files to mount"
     THIS_VERSION=$(cat ${MNT_DIR}/version)
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
@@ -172,6 +170,13 @@ function copy_to_mount
     rm -f $STAGE/boot_archive.manifest || true
     cp ${MNT_DIR}/boot_archive.manifest $STAGE
     chmod 444 $STAGE/*.manifest
+
+    # Since images can be built without configs we need to explicitly let
+    # headnode zones know they are of type COAL
+    LIST_OF_ZONE_CFGS=$(find $MNT_DIR -name 'zoneconfig')
+    for ZONE_CFG in $LIST_OF_ZONE_CFGS; do
+        echo "IMG_TYPE=coal" >> ${ZONE_CFG}
+    done
 }
 
 CLEANED=0
@@ -198,14 +203,28 @@ function cleanup
 
 function create_output
 {
-    echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
+    echo -n "==> Unpacking VMWare image... "
+    rm -rf $STAGE/USB-headnode.vmwarevm || true
+    (cd $STAGE && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
+        || fatal "Unable to unpack image"
+    (cd $STAGE/USB-headnode.vmwarevm \
+        && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
+        > USB-headnode.vmdk)
+    echo "done."
+
+    echo -n "==> Copying in ${OUTPUT_IMG}... "
+    mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
+        $STAGE/USB-headnode.vmwarevm/${OUTPUT_IMG}
+    echo "done."
+
+    echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
     (cd $STAGE \
-        && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
-        && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
-        root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
+        && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+        && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
+        root.password.${LIVEIMG_VERSION} coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
     [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
 
-    rm -rf $IMG_TMP_DIR/*.${OUTPUT_IMG}
+    rm -rf $IMG_TMP_DIR/coal.$$
     rm -rf $STAGE
 }
 
