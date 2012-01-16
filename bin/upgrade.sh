@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -148,6 +148,17 @@ function upgrade_usbkey
                 capi_external_ip=`echo $capi_external_ip | cut -d= -f2`
                 echo "capi_external_url=http://$capi_external_ip:8080" \
                     >> /mnt/usbkey/config
+            fi
+        fi
+
+        # If necessary, add a new riak disk size to the generic config file
+        grep "^coal=true" /mnt/usbkey/config >/dev/null 2>&1
+        if [[ $? != 0 ]]; then
+            grep "^riak_disk_size=" /mnt/usbkey/config.inc/generic \
+                >/dev/null 2>&1
+            if [[ $? != 0 ]]; then
+                echo "riak_disk_size=50g" \
+                    >> /mnt/usbkey/config.inc/generic
             fi
         fi
 
