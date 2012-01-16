@@ -118,8 +118,8 @@ function unpack_image
     echo -n "==> Unpacking USB image... "
     [[ -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$ ]] \
         && rm -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$
-    (cd $IMG_TMP_DIR && ${TAR} -zxf ${ROOT}/usb/${TEMPLATE_IMG} \
-        && mv ${OUTPUT_IMG} ${OUTPUT_IMG}.$$) \
+    (cd $IMG_TMP_DIR && ${TAR} -xzf ${ROOT}/usb/${TEMPLATE_IMG} \
+        && mv ${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
         || fatal "Unable to unpack USB image"
     echo "done."
 }
@@ -129,7 +129,7 @@ function mount_image
     echo -n "==> Mounting new USB image... "
     if [[ "$PLATFORM" == "Darwin" ]]; then
         [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
-        hdiutil attach ${ROOT}/cache/${OUTPUT_IMG} \
+        hdiutil attach $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
             >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
         LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
             | awk '{ print $1 }'`
@@ -138,7 +138,7 @@ function mount_image
 
     else
         ${SUCMD} mkdir -p ${MNT_DIR}
-        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/${OUTPUT_IMG}.$$)
+        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/$$.${OUTPUT_IMG})
         ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
     fi
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
@@ -215,12 +215,12 @@ function create_output
     if [[ -z ${BUILD_TGZ} ]] || [[ ${BUILD_TGZ} != "false" ]]; then
         echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
         (cd $STAGE \
-            && mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
             && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
             root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     else
-        mv $IMG_TMP_DIR/${OUTPUT_IMG}.$$ usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
+        mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG}
     fi
 
     rm -rf $STAGE
