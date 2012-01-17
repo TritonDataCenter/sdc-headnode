@@ -43,7 +43,7 @@ cat > ${tmp} <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/node dhcpd.js"
+      exec="/opt/smartdc/bin/node dhcpd.js"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/booter">
         <!-- <method_credential user="root" group="staff"/> -->
