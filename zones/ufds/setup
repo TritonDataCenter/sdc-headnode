@@ -10,19 +10,16 @@ PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-# Touch up the haproxy manifest
-/usr/sbin/svccfg export haproxy > /tmp/haproxy.xml.orig
-/opt/local/bin/sed \
-    's/%{config_file}/\/opt\/local\/etc\/haproxy.cfg/' < /tmp/haproxy.xml.orig \
-    | /opt/local/bin/sed 's/haproxy -f/haproxy -D -f/' > /tmp/haproxy.xml
-/usr/sbin/svccfg import /tmp/haproxy.xml
-rm -f /tmp/haproxy.xml /tmp/haproxy.xml.orig
-
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
 chown -R nobody:nobody /opt/smartdc/ufds
+
+# Setup HAProxy user/group
+/usr/sbin/groupadd haproxy
+/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
+/usr/bin/passwd -N haproxy
 
 # Install node/npm
 echo "Installing node and npm"
@@ -36,7 +33,9 @@ mkdir -p /var/log/ufds
 chown -R nobody:nobody /var/log/ufds
 
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem -days 365
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
+    -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem \
+    -days 365
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
@@ -77,8 +76,15 @@ address: ${DATACENTER_LOCATION}
 objectclass: datacenter
 HERE
 
-LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif
-if [ $? -ne 0 ] ; then
+LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x \
+    -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif
+
+# 68 is entry already exists; if we're setting up a redundant UFDS, the entries
+# will already exist. This is a little bit hacky, and a better way would be to
+# pass in metadata to this script such that we can skip this altogether if
+# provision > 1, but this works for now.
+local rc=$?
+if [ $rc -ne 0 ] && [ $rc -ne 68 ]; then
     echo "Failed to load bootstrap data, exiting"
     echo "Marking ufds SMF service as in maintenance"
     svcadm mark maintenance svc:/smartdc/site/ufds:default

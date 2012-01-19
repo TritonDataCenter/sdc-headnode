@@ -132,7 +132,15 @@ HERE
 
 echo "Creating HAProxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
+global
+        log 127.0.0.1 local0
+        ulimit-n 65535
+        user haproxy
+        group haproxy
+        daemon
+
 defaults
+        balance roundrobin
         timeout connect 400ms
         timeout client 1m
         timeout server 5m
@@ -145,7 +153,7 @@ riak_ips=`set | nawk -F= '/^RIAK_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
 R=0
 for i in $riak_ips
 do
-    echo "        server riak$R $i:8098 weight 1 minconn 5 maxconn 25 check inter 5s" \
+    echo "        server riak$R $i:8098 weight 1 minconn 5 maxconn 25 check" \
         >> /opt/local/etc/haproxy.cfg
     let R+=1
 done

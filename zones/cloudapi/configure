@@ -108,7 +108,7 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
   "key": "./ssl/key.pem",
   "logLevel": "Info",
   "ufds": {
-    "url": "${UFDS_URL}",
+    "url": "ldaps://127.0.0.1",
     "bindDN": "${UFDS_ROOT_DN}",
     "bindPassword": "${UFDS_ROOT_PW}",
     "cache": {
@@ -193,7 +193,49 @@ HERE
 echo Importing cloudapi_manifest.xml
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/cloudapi_manifest.xml
 
-echo Enabling service cloudapi
+echo "Creating HAPrgooxy config file"
+cat > /opt/local/etc/haproxy.cfg <<HERE
+global
+        log 127.0.0.1 local0
+        ulimit-n 4096
+        user haproxy
+        group haproxy
+        daemon
+
+defaults
+        option ssl-hello-chk
+        timeout connect 400ms
+        timeout client 1m
+        timeout server 5m
+
+listen ufds_proxy 127.0.0.1:636
+        mode tcp
+        option tcplog
+        log global
+HERE
+
+# Add all UFDS IPs to haproxy
+# Mark the first one as not backup and all the others as backup
+ufds_ips=`set | nawk -F= '/^UFDS_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
+U=0
+for ip in $ufds_ips
+do
+    if [ $U == 0 ] ; then
+        echo "        server ufds$U $ip:636 check" \
+            >> /opt/local/etc/haproxy.cfg
+    else
+        echo "        server ufds$U $ip:636 check backup" \
+            >> /opt/local/etc/haproxy.cfg
+    fi
+
+    let U+=1
+done
+
+echo "Enabling service haproxy"
+/usr/sbin/svcadm disable haproxy
+/usr/sbin/svcadm enable haproxy
+
+echo "Enabling service cloudapi"
 /usr/sbin/svcadm disable smartdc/site/cloudapi
 /usr/sbin/svcadm enable smartdc/site/cloudapi
 

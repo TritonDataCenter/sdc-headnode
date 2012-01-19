@@ -20,7 +20,14 @@ cd -
 /usr/bin/chown -R root:root /opt/smartdc
 
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/cloudapi/ssl/key.pem -out /opt/smartdc/cloudapi/ssl/cert.pem -days 365
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
+    -keyout /opt/smartdc/cloudapi/ssl/key.pem \
+    -out /opt/smartdc/cloudapi/ssl/cert.pem -days 365
+
+# Setup HAProxy user/group
+/usr/sbin/groupadd haproxy
+/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
+/usr/bin/passwd -N haproxy
 
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure cloudapi zone"

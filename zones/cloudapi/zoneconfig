@@ -13,7 +13,6 @@ EXTERNAL_URL=${cloudapi_external_url}
 
 CA_URL=${ca_client_url}
 
-UFDS_URL=${ufds_client_url}
 UFDS_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_ROOT_PW=${ufds_ldap_root_pw}
 
