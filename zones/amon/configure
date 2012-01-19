@@ -80,6 +80,11 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
     "rootDn": "${UFDS_LDAP_ROOT_DN}",
     "password": "${UFDS_LDAP_ROOT_PW}"
   },
+  "mapi": {
+    "url": "${MAPI_URL}",
+    "username": "${MAPI_HTTP_ADMIN_USER}",
+    "password": "${MAPI_HTTP_ADMIN_PW}"
+  },
   "notificationPlugins": {
     "email": {
       "path": "./notifications/email",

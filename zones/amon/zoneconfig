@@ -9,6 +9,9 @@ TMPFS=512m
 
 UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+MAPI_URL=${mapi_client_url}
+MAPI_HTTP_ADMIN_USER=${mapi_http_admin_user}
+MAPI_HTTP_ADMIN_PW=${mapi_http_admin_pw}
 
 REDIS_IP=${redis_admin_ip}
 REDIS_PORT=6379
