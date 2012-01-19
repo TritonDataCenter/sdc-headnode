@@ -76,7 +76,7 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
 {
   "port": 80,
   "ufds": {
-    "url": "ldaps://${UFDS_ADMIN_IP}:636",
+    "url": "ldaps://${UFDS_ADMIN_IP}",
     "rootDn": "${UFDS_LDAP_ROOT_DN}",
     "password": "${UFDS_LDAP_ROOT_PW}"
   },
