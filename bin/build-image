@@ -854,6 +854,8 @@ function copy_webinfo
         git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
         cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \
         $TAR -cf ${STAGE}/webinfo.tar --exclude .git webinfo )
+
+    rm -rf /tmp/$$.webinfo
 }
 
 function copy_to_mount
