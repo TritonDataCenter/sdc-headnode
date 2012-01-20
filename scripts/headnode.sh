@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2010,2012 Joyent Inc., All rights reserved.
 #
 # Exit codes:
 #
@@ -75,6 +75,57 @@ function copy_special_mapi_files
     for file in \
         $(find ${USB_COPY}/config.inc/ -maxdepth 1 -type f -not -name ".*"); do
         ln ${file} ${dir}/config.inc/
+    done
+}
+
+# Create packages for internal-use
+function setup_sdc_pkgs
+{
+    # Wait for mapi to be ready
+    set +o errexit
+    cnt=0
+    while [ $cnt -lt 10 ]
+    do
+	sleep 10
+	curl -f -s \
+            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+	    http://$CONFIG_mapi_admin_ip/packages >/dev/null 2>&1
+	[ $? == 0 ] && break
+	let cnt=$cnt+1
+    done
+    set -o errexit
+
+    local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
+    for p in $pkgs
+    do
+        # Pkg entry format:
+        # name:ram:swap:disk:cap:nlwp:iopri
+        local nm=${p%%:*}
+        p=${p#*:}
+        local ram=${p%%:*}
+        p=${p#*:}
+        local swap=${p%%:*}
+        p=${p#*:}
+        local disk=${p%%:*}
+        p=${p#*:}
+        local cap=${p%%:*}
+        p=${p#*:}
+        local nlwp=${p%%:*}
+        p=${p#*:}
+        local iopri=${p%%:*}
+
+        curl -i -s \
+            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+            http://$CONFIG_mapi_admin_ip/packages \
+            -X POST \
+            -d name=$nm \
+            -d ram=$ram \
+            -d swap=$swap \
+            -d disk=$disk \
+            -d cpu_cap=$cap \
+            -d lightweight_processes=$nlwp \
+            -d zfs_io_priority=$iopri \
+            -d owner_uuid=$CONFIG_ufds_admin_uuid
     done
 }
 
@@ -454,6 +505,13 @@ if [ -n "${CREATEDZONES}" ]; then
     else
         # alternate formatting when restoring (sdc-restore)
         printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
+    fi
+
+    if [[ ${restore} == 0 && ${standby} == 0 ]]; then
+        for i in $CREATEDZONES
+        do
+            [ $i == "mapi" ] && setup_sdc_pkgs
+        done
     fi
 
     if [ $standby == 1 ]; then
