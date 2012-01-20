@@ -43,8 +43,7 @@ HERE
 echo "Importing Amon SMF manifest."
 /usr/sbin/svccfg import /opt/smartdc/amon/master/smf/amon-master.smf.in
 
-echo "Enabling 'amon' service."
-#TODO: re-enable once amon is back in working order (MON-9)
-/usr/sbin/svcadm disable smartdc/site/amon
+echo "Enabling 'amon-master' service."
+/usr/sbin/svcadm enable smartdc/site/amon-master
 
 exit 0
