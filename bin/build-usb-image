@@ -22,22 +22,17 @@ if [[ $1 == "-c" ]]; then
     echo "Building with no config file in the image. "
 fi
 
-TAR_BUILD_FILENAME=$1
+function rel2abs () {
+  local abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
+  [[ -z "$abs_path" ]] && return 1
+  local end=$(basename $1)
+  echo "${abs_path%*/}/$end"
+}
+
+TAR_BUILD_FILENAME=$(rel2abs $1)
 shift
+
 ROOT=$(cd $(dirname $0)/../; pwd)
-
- # boot-tidyups-20120107T000008Z-g18e20f5.tgz
-BUILDSTAMP=${TAR_BUILD_FILENAME#boot-}
-BUILDSTAMP=${BUILDSTAMP%.tgz}
-BRANCH=${BUILDSTAMP%%-*}
-TIMESTAMP=${BUILDSTAMP#$BRANCH-}
-TIMESTAMP=${TIMESTAMP%%-*}
-DESCRIBE=${BUILDSTAMP##*-}
-
-echo "BUILDSTAMP --> $BUILDSTAMP"
-echo "BRANCH     --> $BRANCH"
-echo "TIMESTAMP  --> $TIMESTAMP"
-echo "DESCRIBE   --> $DESCRIBE"
 
 # Write output to log file.
 THIS_TIMESTAMP=${TIMESTAMP}
@@ -46,7 +41,6 @@ if [[ -z "$THIS_TIMESTAMP" ]]; then
 fi
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.usb.${THIS_TIMESTAMP}"
-
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
@@ -64,11 +58,6 @@ fi
 
 # Tools.
 TAR=tar
-
-# See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
-THIS_BRANCH=$BRANCH
-THIS_GITDESCRIBE=$DESCRIBE
-THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
@@ -160,8 +149,15 @@ function copy_config {
 # Copy to mount is basically just extracting everything to the image mount
 function copy_to_mount
 {
-    (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $ROOT/$TAR_BUILD_FILENAME) \
+    (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $TAR_BUILD_FILENAME) \
         || fatal "Unable to copy files to mount"
+
+    # Get build details
+    BUILD_BRANCH=$(cat $MNT_DIR/release.json | $ROOT/bin/json branch)
+    BUILD_TIMESTAMP=$(cat $MNT_DIR/release.json | $ROOT/bin/json timestamp)
+    BUILD_DESCRIBE=$(cat $MNT_DIR/release.json | $ROOT/bin/json describe)
+    THIS_BUILDSTAMP=${BUILD_BRANCH}-${BUILD_TIMESTAMP}-${BUILD_DESCRIBE}
+    
     THIS_VERSION=$(cat ${MNT_DIR}/version)
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE

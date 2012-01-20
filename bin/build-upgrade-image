@@ -1,0 +1,151 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+
+set -o errexit
+set -o pipefail
+
+function rel2abs () {
+  local abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
+  [[ -z "$abs_path" ]] && return 1
+  local end=$(basename $1)
+  echo "${abs_path%*/}/$end"
+}
+
+TAR_BUILD_FILENAME=$(rel2abs $1)
+shift
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+# Write output to log file.
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
+LOGDIR="${ROOT}/log"
+LOGFILE="${LOGDIR}/build.log.upgrade.${THIS_TIMESTAMP}"
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
+    BASH_IS_NOT_ANCIENT='true'
+fi
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=4
+    set -o xtrace
+fi
+
+
+# Tools.
+TAR=tar
+
+if [[ -z $IMG_TMP_DIR ]]; then
+  IMG_TMP_DIR=/tmp
+fi
+
+STAGE=${ROOT}/cache/stage_usb
+mkdir -p $STAGE
+rm -rf $STAGE
+
+echo ">> Starting build at $(date)"
+
+function fatal
+{
+    echo "$(basename $0): fatal error: $*"
+    exit 1
+}
+
+function errexit
+{
+    [[ $1 -ne 0 ]] || exit 0
+    fatal "error exit status $1 at line $2"
+}
+
+trap 'errexit $? $LINENO' EXIT
+    
+IMG_TMP_STAGE="$IMG_TMP_DIR/upgrade.$$"
+
+function create_upgrade
+{
+    mkdir -p $IMG_TMP_STAGE
+
+    (cd $IMG_TMP_STAGE && \
+        ${TAR} -xzf $TAR_BUILD_FILENAME) \
+        || fatal "Could not extract tarball image"
+
+    # Get build details
+    BUILD_BRANCH=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json branch)
+    BUILD_TIMESTAMP=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json timestamp)
+    BUILD_DESCRIBE=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json describe)
+    THIS_BUILDSTAMP=${BUILD_BRANCH}-${BUILD_TIMESTAMP}-${BUILD_DESCRIBE}
+
+    mkdir -p ${STAGE}/upgrade/usbkey
+    cp ${ROOT}/bin/upgrade.sh ${STAGE}/upgrade/upgrade.sh
+    cp ${ROOT}/bin/upgrade_cn ${STAGE}/upgrade/upgrade_cn
+    cp ${ROOT}/bin/upgrade_common ${STAGE}/upgrade/upgrade_common
+
+    local sconf=${ROOT}/config/config.usb.inc/generic
+
+    # XXX - NB: because our builds are all done as "usb" types it makes testing
+    # upgrades on COAL impossible. This is here only to allow for testing
+    # of upgrades within a COAL environment.
+    # (Do not remove without talking to Jerry)
+    if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
+        sconf=${ROOT}/config/config.coal.inc/generic
+    fi
+    cp ${sconf} ${STAGE}/upgrade/conf.generic
+
+    cp $IMG_TMP_STAGE/config $IMG_TMP_STAGE/config.default
+    chmod 755 ${STAGE}/upgrade/upgrade.sh
+    (cd ${IMG_TMP_STAGE} \
+        && env GZIP=-9 \
+        ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
+        boot/grub/menu.lst.tmpl \
+        config.default \
+        data \
+        datasets/smartos* \
+        rc \
+        scripts \
+        default \
+        ur-scripts \
+        zones \
+    )
+
+    PLATFORM_STAMP=$(ls -t $IMG_TMP_DIR/upgrade.$$/os/ | head -1)
+    cp -Rp $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP
+    (cd $IMG_TMP_DIR && \
+        ${TAR} -cvzf $IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz platform-$PLATFORM_STAMP)
+    USING_PLATFORM="$IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz"
+    
+    mkdir -p ${STAGE}/upgrade/platform
+    cp ${USING_PLATFORM} ${STAGE}/upgrade/platform
+}
+
+function pack_upgrade {
+    cat $IMG_TMP_STAGE/version > $STAGE/upgrade/VERSION
+
+    (cd $STAGE \
+        && GZIP=-9 ${TAR} -cvzf ${ROOT}/upgrade-${THIS_BUILDSTAMP}.tgz upgrade)
+
+    rm -rf $IMG_TMP_STAGE
+    rm -rf $IMG_TMP_DIR/platform*
+    rm -rf $STAGE
+}
+
+create_upgrade
+pack_upgrade
+
+
