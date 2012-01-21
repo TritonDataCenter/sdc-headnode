@@ -8,6 +8,7 @@ export PATH
 
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
+TEMP_CONFIGS=/var/tmp/node.config/
 
 #
 # Servers must have twice as much available disk space as RAM for setup
@@ -41,7 +42,7 @@ load_sdc_config
 
 fatal()
 {
-    echo "Error: $1" >&4
+    echo "Error: $*" >&4
     exit 1
 }
 
@@ -55,6 +56,61 @@ function ceil
     result=$(ksh93 -c "${expression}")
 
     echo ${result}
+}
+
+function check_ntp
+{
+    # disable pipefail so we can catch our own errors
+    set +o pipefail
+
+    if [[ -z ${TEMP_CONFIGS} && -f /mnt/usbkey/config ]]; then
+        # headnode
+        TEMP_CONFIGS=/mnt/usbkey
+    fi
+
+    if [[ -f ${TEMP_CONFIGS}/config ]]; then
+        servers=$(cat ${TEMP_CONFIGS}/config | grep "^ntp_hosts=" \
+            | cut -d'=' -f2- | tr ',' ' ')
+    fi
+
+    if [[ -z ${servers} ]]; then
+        force_dns=
+        if [[ $(wc -l /etc/resolv.conf | awk '{ print $1 }') -eq 0 ]]; then
+            force_dns="@8.8.8.8"
+        fi
+        # No NTP hosts set, use some from pool.ntp.org
+        servers=$(dig ${force_dns} pool.ntp.org +short | grep "^[0-9]" | xargs)
+    fi
+
+    # If we still don't have servers, we're stuck
+    if [[ -z ${servers} ]]; then
+        fatal "Cannot find any servers to sync with using NTP."
+    fi
+
+    # NTP needs to be off and we don't bother turning it back on because we're
+    # going to reboot when everything is ok.
+    /usr/sbin/svcadm disable svc:/network/ntp:default
+
+    output=$(ntpdate -b ${servers} 2>&1)
+    if [[ $? -ne 0 || -z ${output} ]]; then
+        fatal "Unable to set system clock: '${output}'"
+    fi
+
+    # check absolute value of integer portion of offset is reasonable.
+    offset=$(ntpdate -q ${servers} | grep "offset .* sec" | \
+        sed -e "s/^.*offset //" | cut -d' ' -f1 | tr -d '-' | cut -d'.' -f1)
+
+    if [[ -z ${offset} ]]; then
+        fatal "Unable to set system clock, fix NTP settings and try again."
+    elif [[ ${offset} -gt 10 ]]; then
+        fatal "System clock is off by ${offset} seconds, fix NTP settings" \
+            "and try again."
+    fi
+
+    echo "Clock OK"
+
+    # reenable pipefail since it was enabled to start with
+    set -o pipefail
 }
 
 function check_disk_space
@@ -404,7 +460,6 @@ output_zpool_info()
 install_configs()
 {
     SMARTDC=/opt/smartdc/config/
-    TEMP_CONFIGS=/var/tmp/node.config/
 
     # On standalone machines we don't get config in /var/tmp
     if [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
@@ -433,6 +488,7 @@ install_configs()
 
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
+    check_ntp
     check_disk_space
     create_zpools
     setup_datasets
