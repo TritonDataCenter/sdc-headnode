@@ -29,6 +29,16 @@ function rel2abs () {
   echo "${abs_path%*/}/$end"
 }
 
+if [[ -z "$1" ]]; then
+    echo "ERROR: no usb tarball supplied"
+    echo ""
+    echo "Usage:"
+    echo "    $0 [-c] <usb_tarball>"
+    echo "    -c     Do not copy config into image"
+    echo ""
+    exit 1
+fi
+
 TAR_BUILD_FILENAME=$(rel2abs $1)
 shift
 

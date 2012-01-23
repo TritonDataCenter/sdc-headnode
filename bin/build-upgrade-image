@@ -22,6 +22,15 @@ function rel2abs () {
   echo "${abs_path%*/}/$end"
 }
 
+if [[ -z "$1" ]]; then
+    echo "ERROR: no boot tarball supplied"
+    echo ""
+    echo "Usage:"
+    echo "    $0 <boot_tarball>"
+    echo ""
+    exit 1
+fi
+
 TAR_BUILD_FILENAME=$(rel2abs $1)
 shift
 
@@ -108,13 +117,11 @@ function create_upgrade
     fi
     cp ${sconf} ${STAGE}/upgrade/conf.generic
 
-    cp $IMG_TMP_STAGE/config $IMG_TMP_STAGE/config.default
     chmod 755 ${STAGE}/upgrade/upgrade.sh
     (cd ${IMG_TMP_STAGE} \
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
         boot/grub/menu.lst.tmpl \
-        config.default \
         data \
         datasets/smartos* \
         rc \

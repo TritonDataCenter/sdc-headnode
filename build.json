@@ -1,4 +1,0 @@
-{
-    "build_cmd" :"./bin/build-image",
-    "artifact" : "coal-(develop|release)-\\d{8}-\\d{8}T\\d{6}Z-2gb\\.tgz"
-}
