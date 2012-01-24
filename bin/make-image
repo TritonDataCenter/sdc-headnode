@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+export GZIP=-1
+
+CONFIG_OPTS=
+if [[ $1 == "-c" ]]; then
+    shift
+    CONFIG_OPTS="-c"
+    echo "Building with no config file in the image. "
+fi
+
+TYPE=$1
+shift || true
+
+if [[ -z "$TYPE" ]]; then
+    echo "ERROR: no image type supplied"
+    echo ""
+    echo "Usage:    $0 [-c] <tar|usb|coal>"
+    echo "    -c    Do not copy config files to generated images"
+    echo ""
+    exit 1;
+fi
+
+case $TYPE in
+tar|usb|coal)
+    ;;
+*)
+    echo "Unknown image type '$TYPE'"
+    exit 1;
+    ;;
+esac
+
+$ROOT/bin/build-image $CONFIG_OPTS
+[[ "$TYPE" == "tar" ]] && exit 0
+
+BOOT_TARBALL=$(ls -1t boot-*.tgz | head -1)
+
+$ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
+[[ "$TYPE" == "usb" ]] && exit 0
+
+USB_TARBALL=$(ls -1t usb-*.tgz | head -1)
+
+$ROOT/bin/build-coal-image $CONFIG_OPTS $USB_TARBALL
+[[ "$TYPE" == "coal" ]] && exit 0
+
