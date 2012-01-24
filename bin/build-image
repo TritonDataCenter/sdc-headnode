@@ -18,19 +18,18 @@ TYPE=$1
 shift || true
 
 if [[ -z "$TYPE" ]]; then
-    echo "ERROR: no image type supplied"
-    echo ""
-    echo "Usage:    $0 [-c] <tar|usb|coal>"
-    echo "    -c    Do not copy config files to generated images"
-    echo ""
-    exit 1;
+    TYPE=coal
 fi
 
 case $TYPE in
 tar|usb|coal)
     ;;
 *)
-    echo "Unknown image type '$TYPE'"
+    echo "ERROR: unknown image type '$TYPE' supplied"
+    echo ""
+    echo "Usage:    $0 [-c] <tar|usb|coal>"
+    echo "    -c    Do not copy config files to generated images"
+    echo ""
     exit 1;
     ;;
 esac
