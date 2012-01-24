@@ -405,7 +405,8 @@ function create_zone {
         copy_special_mapi_files
     fi
 
-    ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
+    NODE_PATH="/usr/vm/test/node-tap/node_modules:${NODE_PATH}" \
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
     echo "done" >&${CONSOLE_FD}
 
     CREATEDZONES="${CREATEDZONES} ${zone}"

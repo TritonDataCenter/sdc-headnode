@@ -1,7 +1,5 @@
 #!/usr/bin/node
 
-require.paths.push('/usr/node_modules');
-
 var async = require('async');
 var cp = require('child_process');
 var execFile = cp.execFile;
