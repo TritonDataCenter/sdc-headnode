@@ -1,0 +1,935 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+
+set -o errexit
+set -o pipefail
+
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+
+# Write output to log file.
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
+LOGDIR="${ROOT}/log"
+LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
+
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
+    BASH_IS_NOT_ANCIENT='true'
+fi
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -x
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=4
+    set -o xtrace
+fi
+
+
+# Tools.
+AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
+TAR=tar
+GREP=grep
+if [[ `uname -s` == 'SunOS' ]]; then
+  SUM='/usr/bin/sum -x sha1'
+else
+  SUM='shasum'
+fi
+
+
+# See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
+THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
+THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
+THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
+
+# "THIS_BUILDSTAMP" is the new sane replacement for "THIS_VERSION". However,
+# "THIS_VERSION" ends up in /usbkey/version. *Currently* I'm too much of a
+# panzy to change this format because I don't know what might be using that
+# version string. Will change after 6.5 is final (TODO).
+THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
+
+# "SDC_VERSION" is the version value that gets exposed to the public
+# for development builds this will read <ts>.<branch>.<sha> of the build
+# this value ends up in /usbkey/sdc_version
+if [[ -z $SDC_VERSION ]]; then
+  SDC_VERSION=${THIS_VERSION}
+fi
+
+echo ">> Starting build at $(date)"
+
+function fatal
+{
+    echo "$(basename $0): fatal error: $*"
+    exit 1
+}
+
+function errexit
+{
+    [[ $1 -ne 0 ]] || exit 0
+    fatal "error exit status $1 at line $2"
+}
+
+function check_nodejs
+{
+    [[ ! `which node` ]] && fatal "build-image requires node to be in your path"
+
+    ver=`node --version`
+    micro=${ver##*.}
+    front=${ver%.*}
+    minor=${front##*.}
+
+    [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
+    [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
+
+    if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
+        echo "Your version of node.js is ok!"
+    else
+        fatal "You need to have a working node.js installed for this to work!"
+    fi
+}
+
+function check_npm
+{
+
+    if [[ ! `which npm` ]] || [[ `npm -v` != 1\.* ]]; then
+        echo "build-image requires npm 1.0.x to be in your path"
+        exit 1
+    fi
+}
+
+MERGED_SPEC=
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec);
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+fi
+
+function build_spec () {
+    local thing=$1;
+    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
+};
+
+trap 'errexit $? $LINENO' EXIT
+
+STAGE="${ROOT}/cache/stage"
+ERROR=0
+CLEANED=0
+
+CURL_OPTS=$(build_spec curl-opts)
+SPEED_LIMIT=$(build_spec speed-limit)
+NO_INTERNET=$(build_spec no-internet)
+
+if [[ -n ${SPEED_LIMIT} ]]; then
+    CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
+fi
+
+# Determine BITS_URL, BITS_BRANCH and BITS_DIR. These determine where this
+# build will get its dependent pre-built bits.
+#
+# "BITS_URL" can either be a URL directory, e.g.
+# "https://guest:GrojhykMid@216.57.203.68/stuff/builds", or a local
+# directory. If an existing local dir, then "BITS_DIR" will be set to that
+# for the build code below.
+#
+# If BITS_URL is a URL, it is expected to be of the following structure:
+#       $BITS_URL/
+#           agentsshar/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   AGENTS SHAR PACKAGE
+#           ca/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   CA ZONE FS TARBALL PACKAGE
+#           amon/
+#               $branch-$date1/
+#               ...
+#               $branch-latest/
+#                   AMON ZONE FS TARBALL PACKAGE
+#           ... likewise for ufds and platform.
+#
+# This is the build structure created by the SDC "mountain-gorilla" build
+# system that is being run by Jenkins CI
+# (https://hub.joyent.com/wiki/display/dev/Jenkins) and uploaded
+# to <https://stuff.joyent.us/stuff/builds>.
+#
+# As well, if BITS_URL is a URL, then BITS_BRANCH must also be specified.
+#
+# Ways to specify BITS_URL:
+# - BITS_URL envvar
+# - MASTER_PLATFORM_URL envvar (deprecated, backward-compat)
+# - "bits-url" entry in build.spec.local
+# - "master-url" entry in build.spec.local (deprecated, backward-compat)
+# - "bits-url" entry in build.spec
+#
+# Ways to specify BITS_BRANCH:
+# - BITS_BRANCH envvar
+# - "bits-branch" in build.spec.local
+# - "bits-branch" in build.spec
+
+# Get BITS_URL.
+if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
+    echo "WARNING: using 'MASTER_PLATFORM_URL' envvar is deprecated, use 'BITS_URL' instead"
+    BITS_URL=$MASTER_PLATFORM_URL
+fi
+if [[ -z "$BITS_URL" ]]; then
+    BITS_URL=$(build_spec bits-url)
+fi
+if [[ -z "$BITS_URL" && ! -z "$(build_spec master-url)" ]]; then
+    echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
+    BITS_URL=$(build_spec master-url)
+fi
+[[ -z "$BITS_URL" ]] && fatal "Could not determine a BITS_URL."
+
+# Validate BITS_URL and set BITS_DIR if it is a dir.
+if [[ "${BITS_URL:0:8}" == "https://" || "${BITS_URL:0:7}" == "http://" ]]; then
+    BITS_URL=$BITS_URL
+    BITS_DIR=
+elif [[ -d "${BITS_URL}" ]]; then
+    BITS_DIR=$BITS_URL
+    echo "BITS_DIR (BITS_URL is a local dir): $BITS_DIR"
+else
+    fatal "BITS_URL ($BITS_URL) is not a known protocol or an existing dir"
+fi
+
+# Get BITS_BRANCH if necessary.
+if [[ -z "$BITS_DIR" ]]; then
+    if [[ -z "$BITS_BRANCH" ]]; then
+        BITS_BRANCH=$(build_spec bits-branch)
+    fi
+
+    [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
+    echo "BITS_BRANCH: $BITS_BRANCH"
+fi
+
+
+
+# See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
+# details on user used with DSAPI.
+DSAPI_URL="https://usbheadnode:shnek7bi3op5@datasets.joyent.com"
+
+# Support N version of pkgsrc
+PKGSRC_2010Q4="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
+PKGSRC_2011Q2="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/"
+PKGSRC_2011Q2_64="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
+PKGSRC_LIST=(
+    "pkgsrc_2011Q2|$PKGSRC_2011Q2"
+    "pkgsrc_2011Q2_64|$PKGSRC_2011Q2_64"
+    "pkgsrc_2010Q4|$PKGSRC_2010Q4" )
+
+
+
+if [[ $1 == "-r" ]]; then
+    # XXX - Temporary warning about recipes
+    echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
+    sleep 30
+    shift
+    shift
+fi
+
+NO_CONFIG_FILE=0
+if [[ $1 == "-c" ]]; then
+    shift
+    NO_CONFIG_FILE=1
+    echo "Building with no config file in the image. "
+fi
+
+PLATFORM=$(uname -s)
+if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' ]]; then
+    source ${ROOT}/bin/include-tar-generic
+    version
+else
+    echo "FATAL: Unsupported platform '${PLATFORM}'"
+fi
+
+echo -n "==> Checking for Internets... "
+if [[ ${NO_INTERNET} == "true" ]] || ! can_has_internets; then
+    echo "No Internets! Activating countermeasures!"
+    HAVE_INTERNET="false"
+else
+    echo "Yep!"
+    HAVE_INTERNET="true"
+fi
+
+function test_rootperms
+{
+    # root access is no longer required on OSX
+    [[ ${PLATFORM} == 'Darwin' ]] && return
+    su_uid=$(${SUCMD} id -u)
+    if [[ ${su_uid} -ne 0 ]]; then
+        fatal "Can't get root priviledges."
+    fi
+}
+
+function load_buildspec
+{
+    PLATFORM_RELEASE=$(build_spec platform-release)
+    BUILD_TGZ=$(build_spec build-tgz)
+    
+    [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
+}
+
+function create_directories
+{
+    if [ ! -d "${ROOT}/cache" ]; then
+        echo "==> Creating cache/"
+        mkdir -p ${ROOT}/cache
+    fi
+
+    if [ ! -d "${ROOT}/mnt" ]; then
+        echo "==> Creating mnt/"
+        mkdir -p ${ROOT}/mnt
+    fi
+
+    echo "==> Creating stage/"
+    rm -rf ${STAGE}
+    mkdir -p ${STAGE}
+    mkdir -p ${STAGE}/data
+}
+
+function copy_base
+{
+    echo "==> Creating .joyliveusb file"
+    touch ${STAGE}/.joyliveusb
+
+    echo "==> Copying in grub menu"
+    mkdir -p ${STAGE}/boot/grub
+    cp boot/grub/menu.lst.tmpl ${STAGE}/boot/grub/menu.lst.tmpl
+    cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
+    cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
+
+    echo "==> Copying in scripts/"
+    cp -r scripts ${STAGE}/scripts
+
+    echo "==> Copying in zones/"
+    cp -r zones ${STAGE}/zones
+
+    echo "==> Copying in default/"
+    cp -r default ${STAGE}/default
+
+    echo "==> Copying in rc/"
+    cp -r rc ${STAGE}/rc
+}
+
+function copy_config {
+
+    # Clear current configs from stage area
+    rm -f ${STAGE}/config || true
+    rm -rf ${STAGE}/config.inc || true
+
+    echo "==> Copying in config"
+    if [[ ${NO_CONFIG_FILE} == 0 ]]; then
+        if [[ -f config/config.usb.local ]]; then
+          cp config/config.usb.local ${STAGE}/config
+        else
+          cp config/config.usb ${STAGE}/config
+        fi
+    fi
+
+    if [[ -d config/config.usb.inc.local ]]; then
+        cp -r config/config.usb.inc.local ${STAGE}/config.inc
+    else
+        cp -r config/config.usb.inc ${STAGE}/config.inc
+    fi
+}
+
+function pkgin_get
+{
+    local url=$1
+    local file=$2
+    local dest=$3
+    local ver=$(echo ${url} | cut -d '/' -f5-7)
+
+    if [[ -n $PKGSRC_DIR ]]; then
+        cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
+    else
+        (cd ${dest} && curl -k -f0 ${CURL_OPTS} -O ${url}/${file})
+    fi
+}
+
+function copy_pkgsrc
+{
+    echo "==> Copying in pkgsrc"
+
+    for pkgsrc in ${PKGSRC_LIST[@]} ; do
+        local name=${pkgsrc%%|*}
+        local url=${pkgsrc##*|}
+
+        local exists=$(find ${ROOT}/zones -type f -iname ${name} )
+        [[ -z ${exists} ]] && continue
+
+        local cache_dir=${ROOT}/cache/${name}
+        mkdir -p ${cache_dir}
+
+        if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
+            (cd ${cache_dir} \
+                && rm -f md5sums.txt \
+                && pkgin_get ${url} md5sums.txt ./ ) \
+                || fatal "Failed to download md5sums.txt"
+        elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
+            fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
+                "can't build. You need to find some Internet."
+        fi
+
+        pkgs=$(cat ${ROOT}/zones/*/${name} \
+            | xargs -n1 \
+            | sort \
+            | uniq \
+            | sed -e "s/$/.tgz/")
+        for pkgfile in $pkgs; do
+            MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
+            if [[ -z ${MD5} ]]; then
+                fatal "Unable to find md5sum for ${pkgfile}, " \
+                    "must be fixed before we can continue."
+            fi
+
+            [[ -f ${cache_dir}/${pkgfile} ]] \
+                && ACTUAL_MD5=$(${MD5CMD} ${cache_dir}/${pkgfile} | cut -d' ' -f1)
+
+            if [[ ! -f ${cache_dir}/${pkgfile} ]] \
+                || [[ -z ${ACTUAL_MD5} ]] \
+                || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+
+                echo "==> Downloading ${pkgfile}"
+                    # if this exists, it's corrupt
+                rm -f ${cache_dir}/${pkgfile}
+                if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
+                    (cd ${cache_dir} \
+                        && pkgin_get ${url} ${pkgfile} ./) \
+                        || fatal "could not download ${url}/${pkgfile}"
+                else
+                    fatal "Need Internet to download ${pkgfile}"
+                fi
+            fi
+        done
+
+        echo "==> Creating ${name}.tar"
+        (cd ${cache_dir} && ${TAR} -cvf ${STAGE}/data/${name}.tar ${pkgs})
+    done
+}
+
+function valid_tgz_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && ${TAR} -ztf ${filename} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function valid_archive
+{
+    filename=$1
+    if [[ -f ${filename} ]] && ${TAR} -tf ${filename} > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+# Get a bit (from BIT_URL/BIT_DIR/BIT_BRANCH) to the local "cache/" dir.
+# If the file base name already exists in the cache dir, then it is not
+# re-downloaded.
+function get_bit
+{
+    # Presumption: This pattern is of the form
+    # "$single-level-dir/$file-regex-pattern".
+    pattern=$1
+    
+    local get_bit_rv=
+
+    local pattern_dir=$(dirname $pattern)
+    local pattern_base="^$(basename $pattern)"
+    if [[ ! -z "$BITS_DIR" ]]; then
+        # Local BITS_DIR example:
+        #   /home/jill/joy/mountain-gorilla/bits
+        # where pattern='agentsshar/agents-master-*' is at:
+        #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
+        local latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "'${BITS_DIR}/${pattern}' did not match any files."
+        fi
+        local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
+        local cache_path=${ROOT}/cache/${latest_name}
+        if [[ ! -f $cache_path ]]; then
+            echo "Copying '${latest_path}' bit to cache." >&2
+            cp ${latest_path} ${cache_path}
+        fi
+        get_bit_rv=${cache_path}
+    elif [[ ${HAVE_INTERNET} == "true" ]]; then
+        # BITS_URL URL example:
+        #   https://user:pass@stuff.joyent.us/stuff/builds
+        # where pattern='agentsshar/agents-master-*' is at:
+        #   https://user:pass@stuff.joyent.us/stuff/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
+        # where the "master" in "master-latest" is "BITS_BRANCH".
+        local url_dir="${BITS_URL}/${pattern_dir}/${BITS_BRANCH}-latest/${pattern_dir}"
+        local latest_name=$(curl ${CURL_OPTS} --fail -k -sS ${url_dir}/ \
+            | grep "href=\"" \
+            | cut -d'"' -f2 \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "Could not find '${pattern_base}' in '${url_dir}'."
+        fi
+        local cache_path=${ROOT}/cache/${latest_name}
+        if [[ ! -f $cache_path ]]; then
+            echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
+            (cd ${ROOT}/cache \
+                && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
+                    -O ${url_dir}/${latest_name} \
+                || fatal "Unable to download '${url_dir}/${latest_name}'.")
+        fi
+        get_bit_rv=${cache_path}
+    else
+        local latest_name=$(ls -1 ${ROOT}/cache/ \
+            | grep "${pattern_base}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "'${ROOT}/cache/${pattern}' did not match any files (and we have no Internet)."
+        fi
+        local latest_path=${ROOT}/cache/${latest_name}
+        echo "Use '${latest_path}' bit already in cache (no Internet)." >&2
+        get_bit_rv=${latest_path}
+    fi
+    echo "${get_bit_rv}"
+}
+
+function copy_platform
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
+
+    # platform_file is optional, if specified, that platform will be used
+    # instead of looking for the newest that matches platform-<release>
+    local platform_file=$1
+    local platform_release=$2
+
+    local image
+    if [[ -z ${platform_file} ]]; then
+        [[ -z "${platform_release}" ]] \
+            && fatal "Must define 'platform_file' or 'platform_release' " \
+                     "for call to 'copy_platform()'."
+
+        image=$(get_bit "platform/platform-${platform_release}-.*")
+
+        if [[ -f ${image} ]] && ! valid_archive ${image}; then
+            echo "Removing corrupt ${image}"
+            rm -f ${image}
+            image=
+            # unset image and try again
+            copy_platform "${platform_file}" "${platform_release}"
+        fi
+    else
+        image=${platform_file}
+        echo "==> Using ${image} as platform image"
+        if ! valid_archive "${image}"; then
+            fatal "Refusing to use corrupt platform ${image}"
+        fi
+    fi
+
+    export USING_PLATFORM=${image}
+
+    LIVEIMG_VERSION=`basename ${image} \
+        | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
+
+    echo "==> Unpacking `basename ${image}`"
+    (set -e; cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+        mv platform-* os/${LIVEIMG_VERSION}/platform) \
+        || fatal "Unable to unpack platform"
+    if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
+        (cd ${STAGE}/ \
+            && mkdir -p private \
+            && mv -f os/${LIVEIMG_VERSION}/platform/root.password \
+                private/root.password.${LIVEIMG_VERSION}) \
+            || fatal "Unable to move root.password"
+    fi
+    root_pw=$(cat ${STAGE}/private/root.password.${LIVEIMG_VERSION})
+    echo "Root password is: '${root_pw}'"
+
+    # Create the menu.lst file
+    cat ${STAGE}/boot/grub/menu.lst.tmpl | sed \
+        -e "s|/PLATFORM/|/os/${LIVEIMG_VERSION}/platform/|" \
+        > ${STAGE}/boot/grub/menu.lst
+
+    rm -f ${LOGDIR}/latest
+    ln -s ${LOGFILE} ${LOGDIR}/latest
+
+    loops=
+}
+
+function get_agentsshar
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
+
+    local agentsshar_branch=$1
+
+    if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
+        local agentsshar_path=${agentsshar_branch}
+        local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
+    else 
+        local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+        local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+    fi
+
+    # Make sure it's not corrupt.
+    local MD5=$(cat ${agentsmd5_path})
+    local ACTUAL_MD5=$(${MD5CMD} ${agentsshar_path} | cut -d' ' -f1)
+    if [[ -z ${MD5} ]] \
+        || [[ -z ${ACTUAL_MD5} ]] \
+        || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+        echo "Removing corrupt ${agentsshar_path}"
+        rm -f ${agentsshar_path} ${agentsmd5_path}
+        get_agentsshar ${agentsshar_branch}
+    fi
+
+    echo "Copying $(basename agentsshar_path) to stage."
+    mkdir -p ${STAGE}/ur-scripts
+    cp ${agentsshar_path} ${STAGE}/ur-scripts/
+
+    loops=
+}
+
+function copy_agentsshar
+{
+    # See if there's a specific agents shar we're supposed to use
+    if [[ -z ${agentsshar_branch} ]]; then
+        agentsshar_branch=$(build_spec agents-shar)
+    fi
+
+    if [[ -z ${agentsshar_branch} ]]; then
+        agentsshar_branch="master"
+    fi
+
+    get_agentsshar ${agentsshar_branch}
+}
+
+function copy_datasets
+{
+    mkdir -p ${STAGE}/datasets
+    mkdir -p ${ROOT}/datasets
+
+    datasets_json=$(build_spec datasets)
+
+    [[ -n ${datasets_json} ]] \
+        || fatal "Unable to find datasets information in build.spec"
+
+    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
+    index=0
+    while [[ ${index} -lt ${num_datasets} ]]; do
+        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
+        uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
+        headnode_zones=$(echo "${datasets_json}" \
+            | ${ROOT}/bin/json ${index}.headnode_zones)
+        manifest="${ROOT}/cache/${name}.dsmanifest"
+
+        if [[ ! -f $manifest ]] ; then
+            if [[ -f ${ROOT}/datasets/${name}.dsmanifest ]]; then
+                cp ${ROOT}/datasets/${name}.dsmanifest ${manifest}
+            elif [[ ${HAVE_INTERNET} == "true" ]]; then
+                echo "==> Downloading ${name} manifest"
+
+                DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
+                (curl ${CURL_OPTS} \
+                    -k -o ${manifest} ${DATASET_URL}) \
+                    || fatal "Unable to download ${name} manifest"
+            else
+                fatal "Don't have required '${name}' manifest" \
+                    "and can't download (no Internet)"
+            fi
+        fi
+
+        local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
+        local uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+        if [[ -n $(echo "${uri}" | grep "datasets.joyent.com" 2>/dev/null) ]]; then
+            # use proper credentials when talking to datasets.joyent.com
+            uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+        fi
+        if [[ -z ${uri} ]]; then
+            fatal "Download uri for dataset ${name} not present in manifest"
+        fi
+
+        local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
+        copy_dataset ${name} ${uri} ${sha1}
+        echo "==> Copying ${name} manifest"
+        cp ${manifest} ${STAGE}/datasets/
+
+        # Since create-zone.sh needs to know which dataset it should use to
+        # base the headnode zones on, we create these files here, one which
+        # contains the filename of the 'smartos' dataset and one that contains
+        # its UUID.
+        #
+        # Note: ${dataset_file} is set by copy_dataset
+        if [[ -n ${headnode_zones} && ${headnode_zones} == "true" ]]; then
+            echo "${uuid}" > ${STAGE}/datasets/smartos.uuid
+            echo "${dataset_file}" > ${STAGE}/datasets/smartos.filename
+        fi
+
+        index=$((${index} + 1))
+    done
+}
+
+# This is temporary, until we have all the SDC datasets at the same place.
+# It might be good anyway to add a little check to verify arguments are given.
+function copy_dataset
+{
+  local dataset=$1
+  local dataset_uri=$2
+  local dataset_sha1=$3
+
+  dataset_file=$(basename ${dataset_uri})
+  if [ -e ${ROOT}/cache/${dataset_file} ]; then
+    if [[ ${dataset_file} =~ gz$ ]]; then
+        if ! gzip -t ${ROOT}/cache/${dataset_file}; then
+            echo "==> Corrupt ${dataset_file}, deleting..."
+            rm -f ${ROOT}/cache/${dataset_file}
+        fi
+    elif ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
+        echo "==> Corrupt ${dataset_file}, deleting..."
+        rm -f ${ROOT}/cache/${dataset_file}
+    fi
+  fi
+
+  if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
+      if [[ ${HAVE_INTERNET} == "true" ]]; then
+          echo "==> Downloading ${dataset_file}"
+          (cd ${ROOT}/cache && curl ${CURL_OPTS} -k \
+              -O ${dataset_uri}) \
+              || fatal "Unable to download ${dataset_file}"
+      else
+          fatal "Don't have Internet, and don't have valid " \
+              "${dataset_file}. Can't build."
+      fi
+  fi
+
+  local cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
+    rm -f ${ROOT}/cache/${dataset_file}
+    fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
+  fi
+
+  echo "==> Copying ${dataset_file}"
+  ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
+}
+
+
+# Get a smartdc zone's FS tarball.
+#
+# Usage:
+#   get_fs_tarball TARGET DST-DIR
+#
+# Example:
+#   get_fs_tarball 'ca/ca-pkg-master-.*.tar.bz2' cache/stage/zones/ca
+#       Here we want to find/download the latest ca-pkg-... tarball and copy
+#       it to cache/ca.tar.bz2 (where that "ca" is the basename of
+#       "zones/ca").
+#
+#   get_fs_tarball /var/tmp/ca-pkg-master-1234.tar.bz2 cache/stage/zones/ca
+#       The "TARGET" can be a path to an existing file to use.
+#
+function get_fs_tarball
+{
+    local target=$1
+    local dst_dir=$2
+
+    if [[ -z ${dst_dir} ]] || [[ ! -d ${dst_dir} ]]; then
+        fatal "get_fs_tarball(): No destination dir specified or not a directory."
+    fi
+
+    [[ -z ${target} ]] && fatal "get_fs_tarball(): No target specified."
+
+    # First get its and cache to cache/$zone.tar.bz2. Then we'll copy
+    # it to $dst_dir.
+    zone=$(basename ${dst_dir})
+    cache_path=${ROOT}/cache/${zone}.tar.bz2
+    if [[ -f ${target} ]]; then
+        # if this is the filename of an existing file, we'll use that
+        if [[ ${target} != "${cache_path}" ]]; then
+            cp ${target} ${cache_path}
+        fi
+    else
+        # not a file so assume it's a pattern, find the latest
+        local bit_cache_path=$(get_bit ${target})
+        cp ${bit_cache_path} ${cache_path}
+    fi
+
+    # Validate and copy 
+    if [[ ! -f ${cache_path} ]]; then
+        fatal "Unable to get file '${cache_path}'."
+    elif ! bzip2 -t ${cache_path}; then
+        fatal "Corrupt file ${cache_path}, please delete or fix and try again."
+    else
+        cp ${cache_path} ${dst_dir}/fs.tar.bz2
+    fi
+}
+
+function copy_zones
+{
+    if [[ -n $ZONE_DIR ]]; then
+        export ADMINUI_DIR=${ZONE_DIR}/mcp_api_admin
+        export BOOTER_DIR=${ZONE_DIR}/booter
+        export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
+        export PORTAL_DIR=${ZONE_DIR}/public-web-client
+        export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
+        export BILLAPI_DIR=${ZONE_DIR}/billing_api
+        export UFDS_DIR=${ZONE_DIR}/ufds
+    fi
+
+    for zone in $(ls ${STAGE}/zones); do
+        mkdir -p ${STAGE}/zones/${zone}
+
+        tarball_pattern=$(build_spec ${zone}-tarball)
+        target_checkout=$(build_spec ${zone}-checkout)
+
+        if [[ -z ${target_checkout} ]]; then
+            target_checkout=$GIT_BRANCH
+        fi
+
+        # Symlinks aren't supported on pcfs, so we copy the files
+        if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
+            rm ${STAGE}/zones/${zone}/backup
+            cp ${ROOT}/zones/${zone}/backup ${STAGE}/zones/${zone}/backup
+        fi
+        if [[ -L ${ROOT}/zones/${zone}/restore ]]; then
+            rm ${STAGE}/zones/${zone}/restore
+            cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
+        fi
+
+        if [[ -n ${tarball_pattern} ]]; then
+            # Find latest that matches tarball_pattern.
+            get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
+        elif [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
+            [ -d ${STAGE}/zones/${zone}/fs.root ]; then
+            bin/build-fstar -s ${STAGE}/zones/${zone} ${zone} ${target_checkout}
+        fi
+
+        if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
+            fatal "Unable to find or build fs.tar.bz2 for ${zone}"
+        else
+            # Keep a copy in cache so we can build next time with no Internet
+            cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
+                ${ROOT}/cache/${zone}.tar.bz2
+        fi
+    done
+
+}
+
+function copy_webinfo
+{
+    WEBINFO_CHECKOUT=$(build_spec sdc-webinfo-checkout)
+    if [[ -z $WEBINFO_CHECKOUT ]]; then
+        fatal "Could not determine sdc-webinfo check target."
+    fi
+
+    ( mkdir -p /tmp/$$.webinfo && cd /tmp/$$.webinfo && \
+        git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
+        cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \
+        $TAR -cf ${STAGE}/webinfo.tar --exclude .git webinfo )
+
+    rm -rf /tmp/$$.webinfo
+}
+
+function copy_to_mount
+{
+    echo "${THIS_VERSION}" > ${STAGE}/version
+
+    # We now want to ensure that we have some build information contained within the build
+    # artifact so that we can reuse the information for downstream artifacts.
+cat > $STAGE/release.json <<EORELINFO
+{
+    "version": "${SDC_VERSION}",
+    "branch": "${THIS_BRANCH}",
+    "describe": "${THIS_GITDESCRIBE}",
+    "timestamp": "${THIS_TIMESTAMP}"
+}
+EORELINFO
+
+    (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
+        | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
+        || fatal "Unable to copy files to mount"
+}
+
+function add_manifests
+{
+    # build manifest of USB files + move in boot_archive manifest
+    rm -f $STAGE/usb_key.manifest || true
+    (cd ${STAGE}/ \
+        && find . -type f -exec ${MD5CMD} {} \;) \
+        > $STAGE/usb_key.manifest
+    [[ $? -eq 0 ]] || fatal "Unable to add manifests"
+    rm -f $STAGE/boot_archive.manifest || true
+
+    cp ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
+        $STAGE/boot_archive.manifest
+    chmod 444 $STAGE/*.manifest
+}
+
+# Main()
+
+check_nodejs
+check_npm
+test_rootperms
+
+create_directories
+load_buildspec
+copy_base
+copy_pkgsrc
+copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
+copy_agentsshar
+copy_datasets
+copy_zones
+copy_webinfo
+copy_config
+
+unpack_image
+add_manifests
+mount_image
+trap 'cleanup' EXIT
+copy_to_mount
+cleanup
+create_output
+
+# Unfortunately the log contains a whole bunch of progress updates,
+# clean that up.
+if [[ -f ${LOGFILE} ]]; then
+    cat ${LOGFILE} | ${GREP} -v "
+" > ${LOGFILE}.tmp \
+    && mv ${LOGFILE}.tmp ${LOGFILE}
+fi
+
+if [ ${ERROR} -ne 0 ]; then
+    fatal "==> SOMETHING WENT WRONG! ERROR: ${ERROR}"
+fi
+
+echo "==> DONE"
+
+exit 0

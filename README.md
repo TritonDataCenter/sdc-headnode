@@ -5,7 +5,8 @@ This is the main repo for building USB headnode images for SmartDataCenter.
 
 There are four main build outputs from this repo:
 
-- `./bin/build-image`: outputs a tarball boot-<branch/buildstamp>.tgz
+- `./bin/build-image <tar|usb|coal>`: wrapper around other tools 
+- `./bin/build-tar-image`: outputs a tarball boot-<branch/buildstamp>.tgz
 - `./bin/build-usb-image boot-*.tgz`: outputs a usb tarball 
   usb-<branch/buildstamp>-4gb.tgz
 - `./bin/build-upgrade-image boot-*.tgz`: outputs an upgrade tarball 
@@ -108,6 +109,7 @@ primary three things are:
 As noted above the main targets are:
 
     build-image
+    build-tar-image
     build-usb-image
     build-upgrade-image
     build-coal-image
@@ -117,7 +119,7 @@ As noted above the main targets are:
 Sometimes you want to build COAL using changes in a local clone. Here is how
 for the "mapi" zone:
 
-    MAPI_DIR=`pwd`/../mcp_api_gateway ./bin/build-image
+    MAPI_DIR=`pwd`/../mcp_api_gateway ./bin/build-coal-image 
 
 Likewise for the others zones using these envvars:
 
