@@ -42,6 +42,11 @@ fi
 TAR_BUILD_FILENAME=$(rel2abs $1)
 shift
 
+TAR_BUILD_IS_DIRECTORY=0
+if [[ -d $TAR_BUILD_FILENAME ]]; then
+    TAR_BUILD_IS_DIRECTORY=1
+fi
+
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 # Write output to log file.
@@ -65,6 +70,21 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     set -o xtrace
 fi
 
+MERGED_SPEC=
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec);
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+fi
+
+function build_spec () {
+    local thing=$1;
+    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
+};
+
+BUILD_TGZ=$(build_spec build-tgz)
 
 # Tools.
 TAR=tar
@@ -159,8 +179,14 @@ function copy_config {
 # Copy to mount is basically just extracting everything to the image mount
 function copy_to_mount
 {
-    (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $TAR_BUILD_FILENAME) \
-        || fatal "Unable to copy files to mount"
+    if [[ $TAR_BUILD_IS_DIRECTORY == 1 ]]; then
+        (cd $TAR_BUILD_FILENAME \
+            && tar -c . | tar -C $MNT_DIR -xovf -) \
+            || fatal "Unable to copy files to mount"
+    else
+        (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $TAR_BUILD_FILENAME) \
+            || fatal "Unable to copy files to mount"
+    fi
 
     # Get build details
     BUILD_BRANCH=$(cat $MNT_DIR/release.json | $ROOT/bin/json branch)
@@ -204,15 +230,23 @@ function cleanup
 
 function create_output
 {
-    echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
-    (cd $STAGE \
-        && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
-        && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
-        root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
-    [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    if [[ "$BUILD_TGZ" == "false" ]]; then
+        echo "==> Creating usb-${THIS_BUILDSTAMP}/"
+        [[ -d $ROOT/usb-${THIS_BUILDSTAMP} ]] && rm -rf $ROOT/usb-${THIS_BUILDSTAMP}
+        (cd $STAGE \
+            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG})
+        mv $STAGE $ROOT/usb-${THIS_BUILDSTAMP}
+    else
+        echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
+        (cd $STAGE \
+            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+            && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
+            root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
 
-    rm -rf $IMG_TMP_DIR/*.${OUTPUT_IMG}
-    rm -rf $STAGE
+    fi
+    rm -rf $IMG_TMP_DIR/*.${OUTPUT_IMG} || true
+    rm -rf $STAGE || true
 }
 
 unpack_image

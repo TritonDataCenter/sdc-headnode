@@ -42,6 +42,11 @@ fi
 TAR_BUILD_FILENAME=$(rel2abs $1)
 shift
 
+TAR_BUILD_IS_DIRECTORY=0
+if [[ -d $TAR_BUILD_FILENAME ]]; then
+    TAR_BUILD_IS_DIRECTORY=1
+fi
+
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 # Write output to log file.
@@ -65,6 +70,21 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     set -o xtrace
 fi
 
+MERGED_SPEC=
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec);
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+fi
+
+function build_spec () {
+    local thing=$1;
+    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
+};
+
+BUILD_TGZ=$(build_spec build-tgz)
 
 # Tools.
 TAR=tar
@@ -108,9 +128,17 @@ function unpack_image
 {
     echo -n "==> Unpacking USB image... "
     mkdir -p $IMG_TMP_DIR/coal.$$
-    (cd $IMG_TMP_DIR/coal.$$ && ${TAR} -xzf $TAR_BUILD_FILENAME \
-        && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
-        || fatal "Unable to unpack USB image"
+    if [[ $TAR_BUILD_IS_DIRECTORY == 1 ]]; then
+       (cd $TAR_BUILD_FILENAME \
+            && tar -c . | tar -C $IMG_TMP_DIR/coal.$$ -xovf - \
+            && cd $IMG_TMP_DIR/coal.$$ \
+            && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
+            || fatal "Unable to unpack USB image"
+    else
+        (cd $IMG_TMP_DIR/coal.$$ && ${TAR} -xzf $TAR_BUILD_FILENAME \
+            && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
+            || fatal "Unable to unpack USB image"
+    fi
     echo "done."
 }
 
@@ -185,7 +213,7 @@ function copy_to_mount
 
     # Also copy in devtools
     echo "==> Copying in devtools"
-    cp -r $ROOT/devtools $STAGE/devtools
+    cp -r $ROOT/devtools $MNT_DIR/devtools
 }
 
 CLEANED=0
@@ -226,15 +254,24 @@ function create_output
         $STAGE/USB-headnode.vmwarevm/${OUTPUT_IMG}
     echo "done."
 
-    echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
-    (cd $STAGE \
-        && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
-        && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
-        root.password.${LIVEIMG_VERSION} coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
-    [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    if [[ "$BUILD_TGZ" == "false" ]]; then
+        echo "==> Creating coal-${THIS_BUILDSTAMP}/"
+        [[ -d $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE} ]] \
+            && rm -rf $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
+        (cd $STAGE \
+            && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm)
+        mv $STAGE $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
+    else
+        echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
+        (cd $STAGE \
+            && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+            && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
+            root.password.${LIVEIMG_VERSION} coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
+        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+    fi
 
     rm -rf $IMG_TMP_DIR/coal.$$
-    rm -rf $STAGE
+    rm -rf $STAGE || true
 }
 
 unpack_image

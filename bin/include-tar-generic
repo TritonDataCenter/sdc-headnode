@@ -71,9 +71,15 @@ function create_output
         ${SUCMD} chmod 400 ${ROOT}/cache/root.password.${LIVEIMG_VERSION}
     fi
 
-    echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
-    ${SUCMD} chown -R ${USER} ${MNT_DIR}
-    ${TAR} -zcf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
-    rm -rf $MNT_DIR
+    if [[ "$BUILD_TGZ" == "false" ]]; then
+        echo "==> Creating boot-${THIS_BUILDSTAMP}/"
+        ${SUCMD} chown -R ${USER} ${MNT_DIR}
+        mv $MNT_DIR $ROOT/boot-${THIS_BUILDSTAMP}
+    else
+        echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
+        ${SUCMD} chown -R ${USER} ${MNT_DIR}
+        ${TAR} -zcf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
+    fi
+    rm -rf $MNT_DIR || true
 }
 

@@ -37,12 +37,12 @@ esac
 $ROOT/bin/build-tar-image $CONFIG_OPTS
 [[ "$TYPE" == "tar" ]] && exit 0
 
-BOOT_TARBALL=$(ls -1t boot-*.tgz | head -1)
+BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
 
 $ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
 [[ "$TYPE" == "usb" ]] && exit 0
 
-USB_TARBALL=$(ls -1t usb-*.tgz | head -1)
+USB_TARBALL=$(ls -1dt $ROOT/usb-* | head -1)
 
 $ROOT/bin/build-coal-image $CONFIG_OPTS $USB_TARBALL
 [[ "$TYPE" == "coal" ]] && exit 0
