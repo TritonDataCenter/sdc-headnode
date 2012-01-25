@@ -29,62 +29,48 @@ root_authorized_keys_file=root.authorized_keys
 
 # Zone-specific configs
 
-adminui_cpu_shares=50
-adminui_max_lwps=1000
-adminui_memory_cap=128m
+adminui_pkg=sdc_128
 adminui_workers=3
 
-amon_cpu_shares=100
-amon_max_lwps=1000
-amon_memory_cap=64m
+amon_pkg=sdc_128
 
 assets_cpu_shares=50
 assets_max_lwps=1000
 assets_memory_cap=64m
+assets_pkg=sdc_128
 
-billapi_cpu_shares=50
-billapi_max_lwps=1000
-billapi_memory_cap=128m
+billapi_pkg=sdc_128
 
-ca_cpu_shares=100
-ca_max_lwps=1000
-ca_memory_cap=256m
+ca_pkg=sdc_256
 
-ufds_cpu_shares=100
-ufds_max_lwps=1000
-ufds_memory_cap=128m
+ufds_pkg=sdc_128
 
-cloudapi_cpu_shares=50
-cloudapi_max_lwps=1000
-cloudapi_memory_cap=64m
+cloudapi_pkg=sdc_128
 
 dhcpd_cpu_shares=50
 dhcpd_max_lwps=1000
 dhcpd_memory_cap=64m
+dhcpd_pkg=sdc_128
 dhcpd_dhcp_server=1
 
 mapi_cpu_shares=50
 mapi_max_lwps=1000
 mapi_memory_cap=512m
+mapi_pkg=sdc_512
 mapi_workers=3
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
-portal_cpu_shares=50
-portal_max_lwps=1000
-portal_memory_cap=64m
+portal_pkg=sdc_128
 
-riak_cpu_shares=50
-riak_max_lwps=1000
-riak_memory_cap=384m
+riak_pkg=sdc_db
 
 rabbitmq_cpu_shares=50
 rabbitmq_max_lwps=1000
 rabbitmq_memory_cap=128m
+rabbitmq_pkg=sdc_128
 
-redis_cpu_shares=50
-redis_max_lwps=1000
-redis_memory_cap=64m
+redis_pkg=sdc_128
 
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
