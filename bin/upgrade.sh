@@ -234,12 +234,9 @@ function upgrade_cn_agents
 	mkdir -p $assetdir
 	cp /usbkey/ur-scripts/$AGENTS $assetdir
 
-        # There is a bug in the agent installer and we have to run it twice
-        # since it fails on the first run.
 	sdc-oneachnode -c "cd /var/tmp;
 	  curl -kOs $CONFIG_assets_admin_ip:/extra/agents/$AGENTS;
-	  (bash /var/tmp/$AGENTS </dev/null >/var/tmp/agent_install.log 2>&1;
-	   bash /var/tmp/$AGENTS </dev/null >>/var/tmp/agent_install.log 2>&1)&"
+	  bash /var/tmp/$AGENTS </dev/null >/var/tmp/agent_install.log 2>&1 &"
 
 	rm -f $assetdir/$AGENTS
 }
