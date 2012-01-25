@@ -3,6 +3,15 @@
 set -o errexit
 set -o pipefail
 
+if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
+    BASH_IS_NOT_ANCIENT='true'
+fi
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export BASH_XTRACEFD=4
+    set -o xtrace
+fi
+
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 export GZIP=-1
@@ -45,5 +54,15 @@ $ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
 USB_TARBALL=$(ls -1dt $ROOT/usb-* | head -1)
 
 $ROOT/bin/build-coal-image $CONFIG_OPTS -r $USB_TARBALL
-[[ "$TYPE" == "coal" ]] && exit 0
+
+COAL_FOLDER=$(ls -1dt $ROOT/coal-* | head -1)
+
+[[ -d $BOOT_TARBALL ]] && rm -rf $BOOT_TARBALL
+
+if [[ -d $COAL_FOLDER ]]; then
+    mv $COAL_FOLDER/*.vmwarevm $ROOT/
+    VMWAREVM_FOLDER=$(ls -1dt $ROOT/*.vmwarevm | head -1)
+    mv $COAL_FOLDER/* $VMWAREVM_FOLDER/
+    rm -r $COAL_FOLDER
+fi
 
