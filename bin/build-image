@@ -44,6 +44,6 @@ $ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
 
 USB_TARBALL=$(ls -1dt $ROOT/usb-* | head -1)
 
-$ROOT/bin/build-coal-image $CONFIG_OPTS $USB_TARBALL
+$ROOT/bin/build-coal-image $CONFIG_OPTS -r $USB_TARBALL
 [[ "$TYPE" == "coal" ]] && exit 0
 
