@@ -354,7 +354,8 @@ function cleanup_config
 	# If upgrading from a system without sdc pkgs, convert generic config
 	egrep -s "^pkg_" /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
-		# Remove obsolete entries
+		# Remove obsolete entries and adjust the core-zone memory caps
+		# in the generic file
 		cat <<-SED_DONE >/tmp/upg.$$
 			/^adminui_cpu_shares/d
 			/^adminui_max_lwps/d
@@ -365,6 +366,10 @@ function cleanup_config
 			/^cloudapi_/d
 			/^portal_/d
 			/^riak_/d
+			s/assets_memory_cap=.*/assets_memory_cap=${GENERIC_assets_memory_cap}/
+			s/dhcpd_memory_cap=.*/dhcpd_memory_cap=${GENERIC_dhcpd_memory_cap}/
+			s/mapi_memory_cap=.*/mapi_memory_cap=${GENERIC_mapi_memory_cap}/
+			s/rabbitmq_memory_cap=.*/rabbitmq_memory_cap=${GENERIC_rabbitmq_memory_cap}/
 		SED_DONE
 
 		sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
@@ -396,7 +401,15 @@ function cleanup_config
 		riak_pkg=${GENERIC_riak_pkg}
 		DONE
 	else
-		cp /mnt/usbkey/config.inc/generic /tmp/config.$$
+		# Just adjust the core-zone memory caps in the generic file
+		cat <<-SED_DONE >/tmp/upg.$$
+			s/assets_memory_cap=.*/assets_memory_cap=${GENERIC_assets_memory_cap}/
+			s/dhcpd_memory_cap=.*/dhcpd_memory_cap=${GENERIC_dhcpd_memory_cap}/
+			s/mapi_memory_cap=.*/mapi_memory_cap=${GENERIC_mapi_memory_cap}/
+			s/rabbitmq_memory_cap=.*/rabbitmq_memory_cap=${GENERIC_rabbitmq_memory_cap}/
+		SED_DONE
+		sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
+		    >/tmp/config.$$
 	fi
 
 	# Add any missing entries for new roles that didn't used to exist.
