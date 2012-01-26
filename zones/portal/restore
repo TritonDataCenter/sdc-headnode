@@ -27,7 +27,7 @@ if [[ -d "${SRC_DIR}/${ROLE}" && -f "${SRC_DIR}/${ROLE}/config.tar" ]]; then
     echo "==> Upgrading configuration for $ROLE"
 
     cd $BASE_DIR/tools
-    /opt/local/bin/node upgrade_config.js
+    node upgrade_config.js
 
 else
     echo "Warning, older backup; missing config files for $ROLE"
