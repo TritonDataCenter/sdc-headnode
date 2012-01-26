@@ -459,6 +459,7 @@ function recreate_core_zones
 	# dhcpd zone expects this to exist, so make sure it does:
 	mkdir -p ${usbcpy}/os
 
+	export SKIP_AGENTS=1
 	/usbkey/scripts/headnode.sh 1>&4 2>&1
 
 	# headnode.sh left the zones running, shut down so we can restore them
