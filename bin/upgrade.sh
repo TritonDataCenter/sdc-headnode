@@ -347,57 +347,73 @@ function cleanup_config
 	cp /mnt/usbkey/config /usbkey/config
 	rm -f /tmp/config.$$ /tmp/upg.$$
 
-	# Load the new cap values from the upgrade conf.generic into variables.
+	# Load the new pkg values from the upgrade conf.generic into variables.
 	eval $(cat ${ROOT}/conf.generic | sed -e "s/^ *//" | grep -v "^#" | \
 	    grep "^[a-zA-Z]" | sed -e "s/^/GENERIC_/")
 
-	# Now adjust the memory caps in the generic file
-	cat <<-SED_DONE >/tmp/upg.$$
-	s/adminui_memory_cap=.*/adminui_memory_cap=${GENERIC_adminui_memory_cap}/
-	s/amon_memory_cap=.*/amon_memory_cap=${GENERIC_amon_memory_cap}/
-	s/assets_memory_cap=.*/assets_memory_cap=${GENERIC_assets_memory_cap}/
-	s/billapi_memory_cap=.*/billapi_memory_cap=${GENERIC_billapi_memory_cap}/
-	s/ca_memory_cap=.*/ca_memory_cap=${GENERIC_ca_memory_cap}/
-	s/cloudapi_memory_cap=.*/cloudapi_memory_cap=${GENERIC_cloudapi_memory_cap}/
-	s/dhcpd_memory_cap=.*/dhcpd_memory_cap=${GENERIC_dhcpd_memory_cap}/
-	s/mapi_memory_cap=.*/mapi_memory_cap=${GENERIC_mapi_memory_cap}/
-	s/portal_memory_cap=.*/portal_memory_cap=${GENERIC_portal_memory_cap}/
-	s/rabbitmq_memory_cap=.*/rabbitmq_memory_cap=${GENERIC_rabbitmq_memory_cap}/
-	s/redis_memory_cap=.*/redis_memory_cap=${GENERIC_redis_memory_cap}/
-	s/riak_memory_cap=.*/riak_memory_cap=${GENERIC_riak_memory_cap}/
-	s/ufds_memory_cap=.*/ufds_memory_cap=${GENERIC_ufds_memory_cap}/
-	/capi_*/d
-	SED_DONE
+	# If upgrading from a system without sdc pkgs, convert generic config
+	egrep -s "^pkg_" /mnt/usbkey/config.inc/generic
+	if [ $? != 0 ]; then
+		# Remove obsolete entries
+		cat <<-SED_DONE >/tmp/upg.$$
+			/^adminui_cpu_shares/d
+			/^adminui_max_lwps/d
+			/^adminui_memory_cap/d
+			/^billapi_/d
+			/^ca_/d
+			/^capi_/d
+			/^cloudapi_/d
+			/^portal_/d
+			/^riak_/d
+		SED_DONE
 
-	sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic >/tmp/config.$$
+		sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
+		    >/tmp/config.$$
+
+		pkgs=`set | nawk -F=  '/^GENERIC_pkg_/ {print $2}'`
+
+		# add all pkg_ entries from upgrade generic file
+		echo "" >>/tmp/config.$$
+		cnt=1
+		for i in $pkgs
+		do
+			echo "pkg_$cnt=$i" >>/tmp/config.$$
+			cnt=$((cnt + 1))
+		done
+
+		# add new zone entries
+		cat <<-DONE >>/tmp/config.$$
+
+		adminui_pkg=${GENERIC_adminui_pkg}
+		assets_pkg=${GENERIC_assets_pkg}
+		billapi_pkg=${GENERIC_billapi_pkg}
+		ca_pkg=${GENERIC_ca_pkg}
+		cloudapi_pkg=${GENERIC_cloudapi_pkg}
+		dhcpd_pkg=${GENERIC_dhcpd_pkg}
+		mapi_pkg=${GENERIC_mapi_pkg}
+		portal_pkg=${GENERIC_portal_pkg}
+		rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
+		riak_pkg=${GENERIC_riak_pkg}
+		DONE
+	else
+		cp /mnt/usbkey/config.inc/generic /tmp/config.$$
+	fi
 
 	# Add any missing entries for new roles that didn't used to exist.
 
 	egrep -s ufds_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		ufds_cpu_shares=${GENERIC_ufds_cpu_shares}
-		ufds_max_lwps=${GENERIC_ufds_max_lwps}
-		ufds_memory_cap=${GENERIC_ufds_memory_cap}
-		DONE
+		echo "ufds_pkg=${GENERIC_ufds_pkg}" >>/tmp/config.$$
 	fi
 
 	egrep -s redis_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		redis_cpu_shares=${GENERIC_redis_cpu_shares}
-		redis_max_lwps=${GENERIC_redis_max_lwps}
-		redis_memory_cap=${GENERIC_redis_memory_cap}
-		DONE
+		echo "redis_pkg=${GENERIC_redis_pkg}" >>/tmp/config.$$
 	fi
 
 	egrep -s amon_ /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		amon_cpu_shares=${GENERIC_amon_cpu_shares}
-		amon_max_lwps=${GENERIC_amon_max_lwps}
-		amon_memory_cap=${GENERIC_amon_memory_cap}
-		DONE
+		echo "amon_pkg=${GENERIC_amon_pkg}" >>/tmp/config.$$
 	fi
 
 	cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
@@ -781,13 +797,16 @@ mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
 [ -f /usr/sbin/vmadm ] && \
     mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
 
-# All of the following are using libzonecfg so we need to stop them before we
-# can lofs mount the new libzonecfg.
+# All of the following are using node and/or libzonecfg so we need to stop them
+# before we can lofs mount the new files.
 svcadm disable zones-monitoring
 svcadm disable smartlogin
 svcadm disable cainstsvc
 svcadm disable zonetracker-v2
 svcadm disable metadata
+svcadm disable webinfo
+svcadm disable vmadmd
+svcadm disable ur
 # wait a few seconds for these svcs to stop using libzonecfg
 cnt=0
 while [ $cnt -lt 3 ]; do
@@ -801,7 +820,10 @@ while [ $cnt -lt 3 ]; do
 	svcs -a | grep smartdc 1>&4 2>&1
 	svcs -xv 1>&4 2>&1
 done
+mount -F lofs -o ro /image/usr/bin/node /usr/bin/node
 mount -F lofs -o ro /image/usr/lib/zones /usr/lib/zones
+svcadm enable ur
+svcadm enable vmadmd
 svcadm enable metadata
 svcadm enable zonetracker-v2
 # leave the other svcs disabled until reboot
