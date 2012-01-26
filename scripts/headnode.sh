@@ -81,12 +81,12 @@ function copy_special_mapi_files
 # Create packages for internal-use
 function setup_sdc_pkgs
 {
-    # Wait for mapi to be ready
+    # Wait for mapi to be ready to load packages
     set +o errexit
     cnt=0
     while [ $cnt -lt 10 ]
     do
-	sleep 10
+	sleep 30
 	curl -f -s \
             -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
 	    http://$CONFIG_mapi_admin_ip/packages >/dev/null 2>&1
@@ -94,6 +94,8 @@ function setup_sdc_pkgs
 	let cnt=$cnt+1
     done
     set -o errexit
+    [ $cnt -eq 10 ] && \
+        echo "Warning: MAPI still not ready to load packages" >&${CONSOLE_FD}
 
     local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
     for p in $pkgs
@@ -511,7 +513,7 @@ if [ -n "${CREATEDZONES}" ]; then
     if [[ ${restore} == 0 && ${standby} == 0 ]]; then
         for i in $CREATEDZONES
         do
-            [ $i == "mapi" ] && setup_sdc_pkgs
+            [[ $i == "mapi" && -z ${SKIP_SDC_PKGS} ]] && setup_sdc_pkgs
         done
     fi
 

@@ -451,8 +451,6 @@ function cleanup_cn_config
 }
 
 # We restore the core zones as a side-effect during creation.
-# The create-zone script sees the presence of the ${zone}-data.zfs file
-# and sets KEEP_DATA_DATASET.
 function recreate_core_zones
 {
 	echo "Re-creating core zones"
@@ -460,7 +458,22 @@ function recreate_core_zones
 	mkdir -p ${usbcpy}/os
 
 	export SKIP_AGENTS=1
+	export SKIP_SDC_PKGS=1
 	/usbkey/scripts/headnode.sh 1>&4 2>&1
+
+	# Wait for mapi to be ready before we move on
+	cnt=0
+	while [ $cnt -lt 11 ]
+	do
+		curl -f -s \
+		-u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+		    http://$CONFIG_mapi_admin_ip/servers >/dev/null 2>&1
+		[ $? == 0 ] && break
+		let cnt=$cnt+1
+		sleep 30
+	done
+	[ $cnt -eq 11 ] && \
+	    echo "Warning: MAPI still not ready after 5 minutes"
 
 	# headnode.sh left the zones running, shut down so we can restore them
 	for zone in `zoneadm list`
@@ -494,6 +507,43 @@ function recreate_core_zones
 	do
 		zoneadm -z $zone boot
 	done
+}
+
+# Upgrade internal-use packages
+function upgrade_sdc_pkgs
+{
+    local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
+    for p in $pkgs
+    do
+        # Pkg entry format:
+        # name:ram:swap:disk:cap:nlwp:iopri
+        local nm=${p%%:*}
+        p=${p#*:}
+        local ram=${p%%:*}
+        p=${p#*:}
+        local swap=${p%%:*}
+        p=${p#*:}
+        local disk=${p%%:*}
+        p=${p#*:}
+        local cap=${p%%:*}
+        p=${p#*:}
+        local nlwp=${p%%:*}
+        p=${p#*:}
+        local iopri=${p%%:*}
+
+        curl -i -s \
+            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+            http://$CONFIG_mapi_admin_ip/packages \
+            -X POST \
+            -d name=$nm \
+            -d ram=$ram \
+            -d swap=$swap \
+            -d disk=$disk \
+            -d cpu_cap=$cap \
+            -d lightweight_processes=$nlwp \
+            -d zfs_io_priority=$iopri \
+            -d owner_uuid=$CONFIG_ufds_admin_uuid 1>&4 2>&1
+    done
 }
 
 # Transform CAPI pg_dumps into LDIF, then load into UFDS
@@ -833,10 +883,10 @@ upgrade_agents
 
 upgrade_cn_agents
 
-# We restore the core zones as a side-effect during creation.
+# We restore the core zones here as well.
 recreate_core_zones
 
-# Wait till core zones are up before we try to import datasets.
+# Wait till core zones are back up before we try to talk to mapi.
 echo "Waiting for core zones to be ready"
 cnt=0
 while [ $cnt -lt 18 ]; do
@@ -854,7 +904,9 @@ check_mapi_err
 rm -f /tmp/sdc$$.out
 [ -n "$emsg" ] && fatal "MAPI API is not responding, the upgrade is incomplete"
 
-# Now that MAPI is back up, register the new platform with mapi
+# Now that mapi is restored and back up, load new sdc packages and register
+# the new platform with mapi
+upgrade_sdc_pkgs
 register_platform
 
 import_sdc_datasets
@@ -883,9 +935,9 @@ for role in $ROLE_ORDER
 do
 	assetdir=/usbkey/extra/$role
         mkdir -p $assetdir
-        cp /usbkey/zones/$role/* $assetdir
-        cp /usbkey/config $assetdir/hn_config
-        cp /usbkey/config.inc/generic $assetdir/hn_generic
+        cp -pr /usbkey/zones/$role/* $assetdir
+        cp -p /usbkey/config $assetdir/hn_config
+        cp -p /usbkey/config.inc/generic $assetdir/hn_generic
 done
 assetdir=/usbkey/extra/upgrade
 rm -rf $assetdir
