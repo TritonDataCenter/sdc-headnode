@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent, Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -32,6 +32,8 @@ VERS_6_5=20110922
 # This is the list of zones that did not exist in 6.5 and which have
 # no 6.5 equivalent (e.g. ufds replaces capi, so its not in this list).
 BRAND_NEW_ZONES="redis amon"
+
+declare -A SDC_PKGS=()
 
 mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
@@ -273,6 +275,50 @@ function import_sdc_datasets
 	umount_usbkey
 }
 
+# Get the list of existing sdc packages into an array to speed up existence
+# checking
+load_config_pkgs()
+{
+	local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
+	for p in $pkgs
+	do
+		nm=${p%%:*}
+		SDC_PKGS[$nm]=1
+	done
+}
+
+# Update the pkg_ entries in the generic config file so that we add new
+# entries that didn't previously exist and so that we modify existing
+# ones that may have had their settings changed in the latest release.
+update_sdc_zone_pkgs()
+{
+	for p in $pkgs
+	do
+		local nm=${p%%:*}
+
+		# If this pkg is not in the config file, add it.
+		if [[ ${SDC_PKGS[$nm]} != 1 ]]; then
+			echo "pkg_${npkg}=$p" >>/tmp/config.$$
+			npkg=$((npkg + 1))
+		else
+			nawk -F= -v nm=$nm -v val="$p" '{
+			    if (substr($1, 1, 4) == "pkg_") {
+			        split($2, f, ":")
+
+			        if (f[1] != nm) {
+			            print $0
+			        } else {
+			            printf("%s=%s\n", $1, val)
+			        }
+			    } else {
+			        print $0
+			    }
+			}' /tmp/config.$$ >/tmp/config2.$$
+			mv /tmp/config2.$$ /tmp/config.$$
+		fi
+	done
+}
+
 # Fix up the USB key config file
 function cleanup_config
 {
@@ -351,6 +397,8 @@ function cleanup_config
 	eval $(cat ${ROOT}/conf.generic | sed -e "s/^ *//" | grep -v "^#" | \
 	    grep "^[a-zA-Z]" | sed -e "s/^/GENERIC_/")
 
+	pkgs=`set | nawk -F=  '/^GENERIC_pkg_/ {print $2}'`
+
 	# If upgrading from a system without sdc pkgs, convert generic config
 	egrep -s "^pkg_" /mnt/usbkey/config.inc/generic
 	if [ $? != 0 ]; then
@@ -375,10 +423,9 @@ function cleanup_config
 		sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
 		    >/tmp/config.$$
 
-		pkgs=`set | nawk -F=  '/^GENERIC_pkg_/ {print $2}'`
-
 		# add all pkg_ entries from upgrade generic file
 		echo "" >>/tmp/config.$$
+		
 		cnt=1
 		for i in $pkgs
 		do
@@ -410,6 +457,14 @@ function cleanup_config
 		SED_DONE
 		sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
 		    >/tmp/config.$$
+
+		# upgrade existing pkg_ entries from upgrade generic file,
+		# add any new entries
+
+		npkg=`grep "^pkg_" /usbkey/config.inc/generic | wc -l`
+		npkg=$((npkg + 1))
+		load_config_pkgs
+		update_sdc_zone_pkgs
 	fi
 
 	# Add any missing entries for new roles that didn't used to exist.
@@ -525,6 +580,30 @@ function recreate_core_zones
 # Upgrade internal-use packages
 function upgrade_sdc_pkgs
 {
+    declare -A SDC_DB_PKGS=()
+
+    # Load up the set of current sdc package names and package IDs from the
+    # mapid DB into an array for fast access in the 2nd loop.
+    for p in `curl -i -s \
+        -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+   http://$CONFIG_mapi_admin_ip/customers/${CONFIG_ufds_admin_uuid}/packages | \
+	json | nawk -v pnm=$1 -v cnt=$PKG_CNT '{
+	    if ($1 == "\"id\":") {
+		# strip comma
+		id = substr($2, 1, length($2) - 1)
+	    } else if ($1 == "\"name\":") {
+		# strip quotes and comma
+		printf("%s:%d ", substr($2, 2, length($2) - 3), id)
+	    }
+	}'`
+    do
+	local nm=${p%%:*}
+	p=${p#*:}
+	local id=${p%%:*}
+	SDC_DB_PKGS[$nm]=$id
+    done
+
+    # Now update the mapi DB with the pkg data from the new config file
     local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
     for p in $pkgs
     do
@@ -544,18 +623,35 @@ function upgrade_sdc_pkgs
         p=${p#*:}
         local iopri=${p%%:*}
 
-        curl -i -s \
-            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
-            http://$CONFIG_mapi_admin_ip/packages \
-            -X POST \
-            -d name=$nm \
-            -d ram=$ram \
-            -d swap=$swap \
-            -d disk=$disk \
-            -d cpu_cap=$cap \
-            -d lightweight_processes=$nlwp \
-            -d zfs_io_priority=$iopri \
-            -d owner_uuid=$CONFIG_ufds_admin_uuid 1>&4 2>&1
+	PKGID=${SDC_DB_PKGS[$nm]}
+	if [[ -n "$PKGID" ]]; then
+		# Existing pkg, update it using PUT to ensure the DB has
+		# the settings from the latest release.
+	        curl -i -s \
+		-u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+		    http://$CONFIG_mapi_admin_ip/packages/$PKGID \
+		    -X PUT \
+		    -d ram=$ram \
+		    -d swap=$swap \
+		    -d disk=$disk \
+		    -d cpu_cap=$cap \
+		    -d lightweight_processes=$nlwp \
+		    -d zfs_io_priority=$iopri 1>&4 2>&1
+	else
+		# New pkg, add it using POST
+	        curl -i -s \
+		-u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
+		    http://$CONFIG_mapi_admin_ip/packages \
+		    -X POST \
+		    -d name=$nm \
+		    -d ram=$ram \
+		    -d swap=$swap \
+		    -d disk=$disk \
+		    -d cpu_cap=$cap \
+		    -d lightweight_processes=$nlwp \
+		    -d zfs_io_priority=$iopri \
+		    -d owner_uuid=$CONFIG_ufds_admin_uuid 1>&4 2>&1
+	fi
     done
 }
 
