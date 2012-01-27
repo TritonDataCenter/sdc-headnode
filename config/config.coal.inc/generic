@@ -3,11 +3,11 @@
 #
 
 # Pkg entry format:
-# name:ram:swap:disk:cap:nlwp:iopri
+#        name:ram:swap:disk:cap:nlwp:iopri
 pkg_1=sdc_128:128:256:10000:100:1000:10
 pkg_2=sdc_256:256:512:10000:100:1000:10
-pkg_3=sdc_db:384:768:15000:100:1000:10
-pkg_4=sdc_512:512:1024:10000:100:1000:10
+pkg_3=sdc_db:384:768:15000:150:1000:20
+pkg_4=sdc_512:512:1024:10000:150:1000:20
 
 # You can configure other headnode nics here (to bring up but not be used for
 # provisioning), eg:
