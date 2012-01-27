@@ -4,10 +4,10 @@
 
 # Pkg entry format:
 # name:ram:swap:disk:cap:nlwp:iopri
-pkg_1=sdc_128:128:128:10000:100:1000:10
-pkg_2=sdc_256:256:256:10000:100:1000:10
-pkg_3=sdc_db:384:384:15000:100:1000:10
-pkg_4=sdc_512:512:512:10000:100:1000:10
+pkg_1=sdc_128:128:256:10000:100:1000:10
+pkg_2=sdc_256:256:512:10000:100:1000:10
+pkg_3=sdc_db:384:768:15000:100:1000:10
+pkg_4=sdc_512:512:1024:10000:100:1000:10
 
 # You can configure other headnode nics here (to bring up but not be used for
 # provisioning), eg:
@@ -29,7 +29,7 @@ root_authorized_keys_file=root.authorized_keys
 
 # Zone-specific configs
 
-adminui_pkg=sdc_128
+adminui_pkg=sdc_256
 adminui_workers=3
 
 amon_pkg=sdc_128
