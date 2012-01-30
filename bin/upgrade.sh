@@ -345,6 +345,8 @@ function cleanup_config
 		SED_DONE
 	fi
 
+	echo "/^mapi_datasets=/d" >>/tmp/upg.$$
+
 	if [ "$CONFIG_capi_is_local" == "true" -o \
 	     "$CONFIG_ufds_is_local" == "true" ]; then
 		echo "/^capi_/d" >>/tmp/upg.$$

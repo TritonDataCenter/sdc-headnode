@@ -163,7 +163,6 @@ mapi_mac_prefix=90b8d0
 mapi_http_port=8080
 mapi_http_admin_user=admin
 mapi_http_admin_pw=tot@ls3crit
-mapi_datasets="smartos,nodejs"
 
 portal_external_vlan=0
 portal_root_pw=joypass123

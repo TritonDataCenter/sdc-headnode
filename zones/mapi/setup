@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc. All rights reserved.
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
 #
 
 set -o xtrace
@@ -322,7 +322,6 @@ echo "$POSTGRES_PW" > /tmp/pgpasswd
     ADMIN_IP="$ADMIN_IP" \
     ADMIN_UUID="$UFDS_ADMIN_UUID" \
     ADMIN_VLAN_ID="$ADMIN_VLAN_ID" \
-    DATASETS="$DATASETS" \
     EXTERNAL_NETWORK="$EXTERNAL_NETWORK" \
     EXTERNAL_BITCOUNT="$EXTERNAL_BITCOUNT" \
     EXTERNAL_GATEWAY="$EXTERNAL_GATEWAY" \
