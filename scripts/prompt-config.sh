@@ -205,6 +205,18 @@ promptval()
 		fi
 		read val
 		[ -z "$val" ] && val="$def"
+		# Forward and back quotes not allowed
+		echo $val | nawk '{
+		    if (index($0, "\047") != 0)
+		        exit 1
+		    if (index($0, "`") != 0)
+		        exit 1
+		}'
+		if [ $? != 0 ]; then
+			echo "Single quotes are not allowed."
+			val=""
+			continue
+		fi
 		[ -n "$val" ] && break
 		echo "A value must be provided."
 	done
