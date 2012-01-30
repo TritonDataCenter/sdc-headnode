@@ -901,6 +901,7 @@ backup_usbkey
 upgrade_usbkey
 
 upgrade_pools
+upgrade_zfs_datasets
 
 # import new headnode datasets (used for new headnode zones)
 import_datasets

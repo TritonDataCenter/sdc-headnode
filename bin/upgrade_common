@@ -53,6 +53,15 @@ function upgrade_pools
     fi
 }
 
+function upgrade_zfs_datasets
+{
+    #
+    # Certain template datasets were created with ZFS on-disk version 1.  Find
+    # those datasets and upgrade them to the latest version.
+    #
+    zfs upgrade -a
+}
+
 # Get the mapi network uri for the given tag (admin or external)
 function get_net_tag_uri
 {

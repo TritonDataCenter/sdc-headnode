@@ -85,6 +85,7 @@ hd=$(dd if=$SDC_UPGRADE_DIR/upgrade_common bs=1 count=6 2>/dev/null)
 . $SDC_UPGRADE_DIR/upgrade_common
 
 upgrade_pools
+upgrade_zfs_datasets
 
 get_sdc_zonelist
 if [ -z "$ROLE_LIST" ]; then
