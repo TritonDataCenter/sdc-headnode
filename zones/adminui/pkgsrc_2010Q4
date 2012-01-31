@@ -42,3 +42,4 @@ nginx-0.8.53
 nodejs-0.4.2
 npm-0.2.18
 redis-2.2.2
+haproxy-1.4.18
