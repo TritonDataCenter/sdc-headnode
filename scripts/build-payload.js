@@ -70,7 +70,51 @@ async.series([
             cb();
         }
     }, function (cb) {
-        var memval;
+        // load and apply the package values
+        var k, v;
+        var pkg, pkgdata;
+
+        if (!config.hasOwnProperty(zone + '_pkg')) {
+            return cb(new Error('No package in config for zone: ' + zone));
+        }
+
+        for (k in config) {
+            v = config[k];
+
+            // fields: # name:ram:swap:disk:cap:nlwp:iopri
+            if (k.match('^pkg_')) {
+                pkgdata = v.split(':');
+                if (pkgdata[0] === config[zone + '_pkg']) {
+                    pkg = {};
+                    pkg.name = pkgdata[0];
+                    pkg.ram = pkgdata[1];
+                    pkg.swap = pkgdata[2];
+                    pkg.disk = pkgdata[3];
+                    pkg.cap = pkgdata[4];
+                    pkg.nlwp = pkgdata[5];
+                    pkg.iopri = pkgdata[6];
+                    //console.log('pkg: ' + JSON.stringify(pkg, null, 2));
+                    obj.cpu_shares = Number(pkg.ram); // what MAPI would do.
+                    obj.cpu_cap = Number(pkg.cap);
+                    obj.zfs_io_priority = Number(pkg.iopri);
+                    obj.max_lwps = Number(pkg.nlwp);
+                    obj.max_physical_memory = Number(pkg.ram);
+                    obj.max_locked_memory = Number(pkg.ram);
+                    obj.max_swap = Number(pkg.swap);
+                    obj.quota = Number(pkg.disk) / 1024; // we want GiB
+                    obj.quota = obj.quota.toFixed(0); // force Integer
+                    obj.internal_metadata = {};
+                    obj.internal_metadata['package_version'] = '1.0.0';
+                    obj.internal_metadata['package_name'] = pkg.name;
+
+                    return cb();
+                }
+            }
+        }
+
+        cb(new Error('Cannot find package "'  + config[zone + '_pkg'] + '" ' +
+            'for zone: ' + zone));
+    }, function (cb) {
         var newobj;
 
         // load and apply the parameters for this zone in the config
@@ -79,23 +123,6 @@ async.series([
         }
         if (config.hasOwnProperty('ufds_admin_uuid')) {
             obj.owner_uuid = config['ufds_admin_uuid'];
-        }
-        if (config.hasOwnProperty(zone + '_cpu_shares')) {
-            obj.cpu_shares = Number(config[zone + '_cpu_shares']);
-        }
-        if (config.hasOwnProperty(zone + '_max_lwps')) {
-            obj.max_lwps = Number(config[zone + '_max_lwps']);
-        }
-        if (config.hasOwnProperty(zone + '_memory_cap')) {
-            memval = config[zone + '_memory_cap'];
-            if (memval.substr(-1) === 'g') {
-                memval = Number(memval.split('g')[0]) * 1024;
-            } else {
-                memval = Number(memval.split('m')[0]);
-            }
-            obj.max_physical_memory = memval;
-            obj.max_locked_memory = memval;
-            obj.max_swap = memval;
         }
         if (config.hasOwnProperty(zone + '_admin_ip')) {
             if (!obj.hasOwnProperty('nics')) {

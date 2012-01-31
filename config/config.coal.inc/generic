@@ -4,6 +4,7 @@
 
 # Pkg entry format:
 #        name:ram:swap:disk:cap:nlwp:iopri
+pkg_0=sdc_64:64:256:10240:100:1000:10
 pkg_1=sdc_128:128:256:10240:100:1000:10
 pkg_2=sdc_256:256:512:10240:100:1000:10
 pkg_3=sdc_db:384:768:15360:150:1000:20
@@ -34,10 +35,7 @@ adminui_workers=3
 
 amon_pkg=sdc_128
 
-assets_cpu_shares=50
-assets_max_lwps=1000
-assets_memory_cap=64m
-assets_pkg=sdc_128
+assets_pkg=sdc_64
 
 billapi_pkg=sdc_128
 
@@ -47,15 +45,9 @@ ufds_pkg=sdc_128
 
 cloudapi_pkg=sdc_128
 
-dhcpd_cpu_shares=50
-dhcpd_max_lwps=1000
-dhcpd_memory_cap=64m
-dhcpd_pkg=sdc_128
+dhcpd_pkg=sdc_64
 dhcpd_dhcp_server=1
 
-mapi_cpu_shares=50
-mapi_max_lwps=1000
-mapi_memory_cap=512m
 mapi_pkg=sdc_512
 mapi_workers=3
 dbconn_retry_after=10
@@ -65,9 +57,6 @@ portal_pkg=sdc_128
 
 riak_pkg=sdc_db
 
-rabbitmq_cpu_shares=50
-rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=128m
 rabbitmq_pkg=sdc_128
 
 redis_pkg=sdc_128

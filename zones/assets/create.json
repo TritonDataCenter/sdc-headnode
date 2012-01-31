@@ -22,7 +22,6 @@
       ]
     }
   ],
-  "quota": 10,
   "tags": {
       "smartdc_role": "assets"
   },

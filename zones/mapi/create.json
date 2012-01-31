@@ -3,7 +3,6 @@
   "autoboot": true,
   "brand": "joyent",
   "delegate_dataset": true,
-  "quota": 10,
   "tags": {
       "smartdc_role": "mapi"
   },

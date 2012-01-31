@@ -36,9 +36,6 @@ adminui_workers=8
 
 amon_pkg=sdc_256
 
-assets_cpu_shares=50
-assets_max_lwps=1000
-assets_memory_cap=128m
 assets_pkg=sdc_128
 
 billapi_pkg=sdc_128
@@ -49,15 +46,9 @@ ufds_pkg=sdc_256
 
 cloudapi_pkg=sdc_256
 
-dhcpd_cpu_shares=50
-dhcpd_max_lwps=1000
-dhcpd_memory_cap=128m
 dhcpd_pkg=sdc_128
 dhcpd_dhcp_server=1
 
-mapi_cpu_shares=50
-mapi_max_lwps=1000
-mapi_memory_cap=2g
 mapi_pkg=sdc_2048
 mapi_workers=8
 dbconn_retry_after=10
@@ -65,9 +56,6 @@ dbconn_num_attempts=10
 
 portal_pkg=sdc_256
 
-rabbitmq_cpu_shares=50
-rabbitmq_max_lwps=1000
-rabbitmq_memory_cap=1g
 rabbitmq_pkg=sdc_1024
 
 redis_pkg=sdc_1024
