@@ -493,7 +493,11 @@ if [[ $nic_cnt -lt 1 ]]; then
 	exit 0
 fi
 
-ifconfig -a plumb
+# Don't do an 'ifconfig -a' - this causes some nics (bnx) to not
+# work when combined with the later dladm commands
+for iface in $(dladm show-phys -pmo link); do
+  ifconfig $iface plumb
+done
 updatenicstates
 
 export TERM=sun-color
