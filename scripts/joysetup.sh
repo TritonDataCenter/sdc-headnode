@@ -488,7 +488,12 @@ install_configs()
 
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
-    check_ntp
+    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+        # On headnodes we assume prompt-config already worked out a valid ntp
+        # config, on compute nodes we make sure that it is set before setup
+        # starts.
+        check_ntp
+    fi
     check_disk_space
     create_zpools
     setup_datasets
