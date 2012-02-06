@@ -310,6 +310,7 @@ promptnic()
 {
 	if [[ $nic_cnt -eq 1 ]]; then
 		val="${macs[1]}"
+		nic_val=${nics[1]}
 		return
 	fi
 
@@ -324,6 +325,7 @@ promptnic()
 		elif [ $num -ge 1 -a $num -le $nic_cnt ]; then
 			mac_addr="${macs[$num]}"
 			assigned[$num]=$1
+			nic_val=${nics[$num]}
 			break
 		fi
 		# echo "You must choose between 1 and $nic_cnt."
@@ -461,6 +463,26 @@ you must select the new NICs for the admin and external networks.\n\n"
 	mv /tmp/config.$$ $USBMNT/config
 }
 
+nicsup() {
+	local vlan_opts=""
+	ifconfig $admin_iface inet $admin_ip netmask $admin_netmask up
+
+	if [ -n "$external_vlan_id" ]; then
+		vlan_opts="-v $external_vlan_id"
+	fi
+
+	dladm create-vnic -l $external_iface $vlan_opts external0
+	ifconfig external0 plumb
+	ifconfig external0 inet $external_ip netmask $external_netmask up
+	route add default $headnode_default_gateway >/dev/null
+}
+
+nicsdown() {
+	ifconfig ${admin_iface} inet down unplumb
+	ifconfig external0 inet down unplumb
+	dladm delete-vnic external0
+}
+
 trap sigexit SIGINT
 
 standby=0
@@ -496,7 +518,7 @@ fi
 # Don't do an 'ifconfig -a' - this causes some nics (bnx) to not
 # work when combined with the later dladm commands
 for iface in $(dladm show-phys -pmo link); do
-  ifconfig $iface plumb
+  ifconfig $iface plumb 2>/dev/null
 done
 updatenicstates
 
@@ -598,6 +620,7 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 	
 	promptnic "'admin'"
 	admin_nic="$val"
+	admin_iface="$nic_val"
 
 	promptnet "(admin) headnode IP address" "$admin_ip"
 	admin_ip="$val"
@@ -629,6 +652,7 @@ Internet, an intranet, or any other WAN.\n\n"
 
 	promptnic "'external'"
 	external_nic="$val"
+	external_iface="$nic_val"
 
 	promptnet "(external) headnode IP address" "$external_ip"
 	external_ip="$val"
@@ -690,6 +714,10 @@ other networks. This will almost certainly be the router connected to your
 
 	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
 	headnode_default_gateway="$val"
+
+	# Bring the admin and external nics up now: they need to be for the
+	# connectivity checks in the next section
+	nicsup
 
 	message="
 The DNS servers set here will be used to provide name resolution abilities to
@@ -1055,3 +1083,4 @@ promptval "Would you like to edit the final configuration file?" "n"
 clear
 echo "The headnode will now finish configuration and reboot. Please wait..."
 mv $tmp_config $USBMNT/config
+nicsdown
