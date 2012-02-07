@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010,2012 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
 #
 # Exit codes:
 #
@@ -206,7 +206,7 @@ if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
 fi
 
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
-if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/agents-npm" ]]; then
+if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
     # Install the agents here so initial zones have access to metadata.
     which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
