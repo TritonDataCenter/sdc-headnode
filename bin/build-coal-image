@@ -254,7 +254,7 @@ function cleanup
 
 function create_output
 {
-    echo -n "==> Unpacking VMWare image... "
+    echo "==> Unpacking VMWare image... "
     rm -rf $STAGE/USB-headnode.vmwarevm || true
     (cd $STAGE && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
         || fatal "Unable to unpack image"
@@ -262,6 +262,14 @@ function create_output
         && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
         > USB-headnode.vmdk)
     echo "done."
+
+    coal_memsize=$(build_spec coal-memsize)
+    if [[ -n ${coal_memsize} ]]; then
+        echo -n "==> Setting COAL HN memory to: ${coal_memsize} MiB... "
+        sed -i "" -e "s/^memsize.*$/memsize = \"${coal_memsize}\"/" \
+            ${STAGE}/USB-headnode.vmwarevm/*.vmx
+        echo "done."
+    fi
 
     echo -n "==> Copying in ${OUTPUT_IMG}... "
     mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
