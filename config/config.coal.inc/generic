@@ -33,7 +33,7 @@ root_authorized_keys_file=root.authorized_keys
 adminui_pkg=sdc_256
 adminui_workers=3
 
-amon_pkg=sdc_128
+amon_pkg=sdc_64
 
 assets_pkg=sdc_64
 
@@ -43,7 +43,7 @@ ca_pkg=sdc_256
 
 ufds_pkg=sdc_128
 
-cloudapi_pkg=sdc_128
+cloudapi_pkg=sdc_64
 
 dhcpd_pkg=sdc_64
 dhcpd_dhcp_server=1
@@ -53,13 +53,13 @@ mapi_workers=3
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
-portal_pkg=sdc_128
+portal_pkg=sdc_64
 
 riak_pkg=sdc_db
 
 rabbitmq_pkg=sdc_128
 
-redis_pkg=sdc_128
+redis_pkg=sdc_64
 
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
