@@ -1,7 +1,14 @@
+# USB headnode
+
 This is the main repo for building USB headnode images for SmartDataCenter.
 
-- repo: git@git.joyent.com:usb-headnode.git
-- bugs/issues: https://devhub.joyent.com/jira/browse/HEAD
+- repo: <git@git.joyent.com:usb-headnode.git>
+- browsing: <https://mo.joyent.com/usb-headnode>
+- bugs/issues: <https://devhub.joyent.com/jira/browse/HEAD>
+
+
+
+# Building
 
 There are four main build outputs from this repo:
 
@@ -13,6 +20,15 @@ There are four main build outputs from this repo:
   upgrade-<branch/buildstamp>.tgz
 - `./bin/build-coal-image usb-*.tgz`: outputs a coal tarball
   coal-<branch/buildstamp>.tgz
+
+If you are just developing on your Mac, you probably want:
+
+    make coal
+
+and occasionally:
+
+    make sandwich
+
 
 # Build Prerequisites
 
@@ -26,21 +42,21 @@ Mac setup:
   first time config files). Then shut it down and run the following to setup
   VMWare networking required for COAL:
 
-    ./coal/coal-vmware-setup
+        ./coal/coal-vmware-setup
 
 - You need nodejs >=0.4.9 and npm 1.x installed and on your path. I typically
   build my own something like this:
 
-    # Nodejs build.
-    mkdir ~/opt ~/src
-    cd ~/src
-    git clone -b v0.4.11 git@github.com:joyent/node.git
-    cd node
-    ./configure --prefix=$HOME/opt/node-0.4.11 && make && make install
-    export PATH=$HOME/opt/node-0.4.11:$PATH  # <--- put this in ~/.bashrc
-
-    # npm install
-    curl http://npmjs.org/install.sh | sh
+        # Nodejs build.
+        mkdir ~/opt ~/src
+        cd ~/src
+        git clone -b v0.4.11 git@github.com:joyent/node.git
+        cd node
+        ./configure --prefix=$HOME/opt/node-0.4.11 && make && make install
+        export PATH=$HOME/opt/node-0.4.11:$PATH  # <--- put this in ~/.bashrc
+    
+        # npm install
+        curl http://npmjs.org/install.sh | sh
 
 SmartOS setup:
 
@@ -82,37 +98,35 @@ SmartOS setup:
         ADDNPM
 
 
+
 # Configuration
 
 This is optional. Without any configuration of your usb-headnode build you'll
 get a reasonable build, but there are a number of knobs you can turn. The
-primary three things are:
+most interesting/helpful ones are:
 
-1. Add your public ssh key to "config/config.coal.inc/root.authorized_keys".
-   This file will get used for the root user so you can ssh into your running
-   VM.
+- Add your public ssh key to "config/config.coal.inc/root.authorized_keys".
+  This file will get used for the root user so you can ssh into your running
+  VM.
 
-2. You can override keys in "build.spec" with a "build.spec.local" file. A
-   popular "build.spec.local" is:
+- You can override keys in "build.spec" with a "build.spec.local" file.
+  Popular "build.spec.local" keys are (obviously you have to remove
+  the comments):
 
         {
+          // Don't bother tar'ing up the vmware image.
           "build-tgz": "false",
+          
+          // Give your VMWare VM 3400 MiB (or whatever you want) instead of
+          // the default 2816 MiB.
+          "coal-memsize": 3400
         }
 
-3. You can have a "config/config.coal.local" file which is a complete
-   override of "config/config.coal" if you want to tweak any of those
-   variables.
+- You can have a "config/config.coal.local" file which is a complete
+  override of "config/config.coal" if you want to tweak any of those
+  variables.
 
 
-# Build
-
-As noted above the main targets are:
-
-    build-image
-    build-tar-image
-    build-usb-image
-    build-upgrade-image
-    build-coal-image
 
 # Building a zone using a local clone
 
