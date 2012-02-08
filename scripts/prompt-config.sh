@@ -577,12 +577,11 @@ handy.\n\n"
 
 	while [ true ]; do
 		promptval "Enter a name for this datacenter" "$datacenter_name"
-		pre=${val##ca}
-		if [ "$pre" == "$val" ]; then
+		if [ "$val" != "ca" ]; then
 			datacenter_name="$val"
 			break
 		fi
-		echo "The datacenter name cannot begin with 'ca'"
+		echo "The datacenter name cannot be 'ca'"
 	done
 
 	promptval "Enter the City and State for this datacenter" \
