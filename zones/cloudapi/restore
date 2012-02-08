@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
 #
 
 PATH=/usr/bin:/usr/sbin
@@ -15,6 +15,7 @@ ROLE=cloudapi
 UUID=$1
 SRC_DIR=$2
 CFG_FILE=/zones/${UUID}/root/opt/smartdc/cloudapi/cfg/config.json
+SSL_DIR=/zones/${UUID}/root/opt/smartdc/cloudapi/ssl
 
 # Older backups may not have had this zone
 if [[ ! -d "${SRC_DIR}/${ROLE}" ]]; then
@@ -42,6 +43,12 @@ if [[ -d "${SRC_DIR}/${ROLE}/plugins" ]]; then
                 /zones/${UUID}/root/opt/smartdc/cloudapi/plugins
         fi
     done
+fi
+
+if [[ -d "${SRC_DIR}/${ROLE}/ssl" ]]; then
+    echo "==> Restoring SSL certs for zone '${ROLE}'"
+    mkdir -p $SSL_DIR
+    cp -p ${SRC_DIR}/${ROLE}/ssl/* $SSL_DIR
 fi
 
 echo "==> Done"
