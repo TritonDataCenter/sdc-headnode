@@ -581,7 +581,7 @@ handy.\n\n"
 			datacenter_name="$val"
 			break
 		fi
-		echo "The datacenter name cannot be 'ca'"
+		echo "The datacenter name 'ca' is reserved for system use"
 	done
 
 	promptval "Enter the City and State for this datacenter" \
