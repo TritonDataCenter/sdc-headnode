@@ -94,8 +94,8 @@ function check_nodejs
     front=${ver%.*}
     minor=${front##*.}
 
-    [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
-    [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
+    # [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
+    # [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
 
     if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
         echo "Your version of node.js is ok!"
