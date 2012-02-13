@@ -50,12 +50,12 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/local/bin/node server.js &amp;"
+      exec="/usr/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
-          <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="PATH" value="/usr/bin:/usr/local/bin:/bin"/>
           <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
           <envvar name="PORT" value="4000" />
           <envvar name="NODE_ENV" value="production" />
