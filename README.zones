@@ -13,8 +13,6 @@ The rules are:
         all configuration values
     * 'create.json' - for core zones only: this is the json template used to
         create the zone (used by scripts/build-payload.js)
-    * 'fs.root' + 'fs.populate' - directory and script respectively used to
-        build fs.tar.bz2 for this zone (optional if this passed elsewise)
     * 'pkgsrc_2010Q4' or 'pkgsrc_2011Q2_64' - list of packages to install for
         this zone
     * 'restore' - this script takes a backup and restores the data to a freshly

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
 #
 
 #
@@ -11,6 +11,8 @@
 # "pipefail" (a very useful option introduced to bash as of version 3 that
 # propagates any non-zero exit values in a pipeline).
 #
+
+set -o xtrace
 
 set -o errexit
 set -o pipefail
@@ -101,15 +103,6 @@ function check_nodejs
         echo "Your version of node.js is ok!"
     else
         fatal "You need to have a working node.js installed for this to work!"
-    fi
-}
-
-function check_npm
-{
-
-    if [[ ! `which npm` ]] || [[ `npm -v` != 1\.* ]]; then
-        echo "build-image requires npm 1.0.x to be in your path"
-        exit 1
     fi
 }
 
@@ -285,7 +278,7 @@ function load_buildspec
 {
     PLATFORM_RELEASE=$(build_spec platform-release)
     BUILD_TGZ=$(build_spec build-tgz)
-    
+
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -457,7 +450,7 @@ function get_bit
     # Presumption: This pattern is of the form
     # "$single-level-dir/$file-regex-pattern".
     pattern=$1
-    
+
     local get_bit_rv=
 
     local pattern_dir=$(dirname $pattern)
@@ -596,7 +589,7 @@ function get_agentsshar
     if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
         local agentsshar_path=${agentsshar_branch}
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
-    else 
+    else
         local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
         local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
     fi
@@ -779,10 +772,11 @@ function get_fs_tarball
     else
         # not a file so assume it's a pattern, find the latest
         local bit_cache_path=$(get_bit ${target})
-        cp ${bit_cache_path} ${cache_path}
+        rm -f ${cache_path}
+        ln ${bit_cache_path} ${cache_path}
     fi
 
-    # Validate and copy 
+    # Validate and copy
     if [[ ! -f ${cache_path} ]]; then
         fatal "Unable to get file '${cache_path}'."
     elif ! bzip2 -t ${cache_path}; then
@@ -808,11 +802,6 @@ function copy_zones
         mkdir -p ${STAGE}/zones/${zone}
 
         tarball_pattern=$(build_spec ${zone}-tarball)
-        target_checkout=$(build_spec ${zone}-checkout)
-
-        if [[ -z ${target_checkout} ]]; then
-            target_checkout=$GIT_BRANCH
-        fi
 
         # Symlinks aren't supported on pcfs, so we copy the files
         if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
@@ -827,9 +816,6 @@ function copy_zones
         if [[ -n ${tarball_pattern} ]]; then
             # Find latest that matches tarball_pattern.
             get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
-        elif [ -x ${STAGE}/zones/${zone}/fs.populate ] && \
-            [ -d ${STAGE}/zones/${zone}/fs.root ]; then
-            bin/build-fstar -s ${STAGE}/zones/${zone} ${zone} ${target_checkout}
         fi
 
         if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
@@ -845,17 +831,10 @@ function copy_zones
 
 function copy_webinfo
 {
-    WEBINFO_CHECKOUT=$(build_spec sdc-webinfo-checkout)
-    if [[ -z $WEBINFO_CHECKOUT ]]; then
-        fatal "Could not determine sdc-webinfo check target."
-    fi
-
-    ( mkdir -p /tmp/$$.webinfo && cd /tmp/$$.webinfo && \
-        git clone git@git.joyent.com:sdc-webinfo.git webinfo && \
-        cd webinfo && git checkout $WEBINFO_CHECKOUT && cd .. && \
-        $TAR -cf ${STAGE}/webinfo.tar --exclude .git webinfo )
-
-    rm -rf /tmp/$$.webinfo
+    target=$(build_spec webinfo-tarball)
+    local bit_cache_path=$(get_bit ${target})
+    cp ${bit_cache_path} ${ROOT}/cache/webinfo.tar.bz2
+    bzcat ${ROOT}/cache/webinfo.tar.bz2 > ${STAGE}/webinfo.tar
 }
 
 function copy_to_mount
@@ -896,7 +875,6 @@ function add_manifests
 # Main()
 
 check_nodejs
-check_npm
 test_rootperms
 
 create_directories

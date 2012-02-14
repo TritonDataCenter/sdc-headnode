@@ -116,7 +116,7 @@ most interesting/helpful ones are:
         {
           // Don't bother tar'ing up the vmware image.
           "build-tgz": "false",
-          
+
           // Give your VMWare VM 3400 MiB (or whatever you want) instead of
           // the default 2816 MiB.
           "coal-memsize": 3400
@@ -127,35 +127,13 @@ most interesting/helpful ones are:
   variables.
 
 
-
-# Building a zone using a local clone
-
-Sometimes you want to build COAL using changes in a local clone. Here is how
-for the "mapi" zone:
-
-    MAPI_DIR=`pwd`/../mcp_api_gateway ./bin/build-coal-image 
-
-Likewise for the others zones using these envvars:
-
-    ADMINUI_DIR
-    UFDS_DIR
-    BOOTER_DIR
-    MAPI_DIR
-    PORTAL_DIR
-    CLOUDAPI_DIR
-    BILLAPI_DIR
-
 # Re-building a single zone
 
-A full rebuild and restart of COAL takes a while... and may destroy state
-that you have in your COAL. You can rebuild and update a particular zone
-from a local working copy as follows (using the "mapi" zone as an example):
 
 1.  Build the filesystem tarball for the zone:
 
-        MAPI_DIR=`pwd`/../mcp_api_gateway ./bin/build-fstar mapi
-
-    This will just build a "zones/mapi/fs.tar.bz2".
+    This process has changed and will be updated soon with new instructions. The
+    short answer is that you should use MG to build the fs.tar.bz2 now.
 
 2.  Copy in the fs tarball:
 
