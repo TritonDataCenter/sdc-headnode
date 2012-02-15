@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 
 if [[ $# != 2 ]]; then
@@ -12,6 +12,7 @@ ZONE=cloudapi
 SRC_DIR=$2
 CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
 PLUG_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/plugins
+SSL_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/ssl
 
 # Older backups may not have had this zone
 if [[ ! -d "${SRC_DIR}/${ZONE}" ]]; then
@@ -40,6 +41,11 @@ if [[ -d "${SRC_DIR}/${ZONE}/plugins" ]]; then
     done
 fi
 
+if [[ -d "${SRC_DIR}/${ZONE}/ssl" ]]; then
+    echo "==> Restoring SSL certs for zone '${ZONE}'"
+    mkdir -p $SSL_DIR
+    cp -p ${SRC_DIR}/${ZONE}/ssl/* $SSL_DIR
+fi
 
 echo "==> Done"
 exit 0

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 
 if [[ $# != 2 ]]; then
@@ -12,6 +12,7 @@ ZONE=$1
 TARGET_DIR=$2
 CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
 PLUG_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/plugins
+SSL_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/ssl
 
 if [[ ! -d "${TARGET_DIR}" ]]; then
     echo "Invalid directory: '${TARGET_DIR}'"
@@ -28,6 +29,12 @@ if [ -d $PLUG_DIR ]; then
     echo "==> Saving plugins for zone '${ZONE}'"
     mkdir -p ${TARGET_DIR}/${ZONE}/plugins
     (cd ${PLUG_DIR} && cp -p * ${TARGET_DIR}/${ZONE}/plugins)
+fi
+
+if [ -d $SSL_DIR ]; then
+    echo "==> Saving SSL certs for zone '${ZONE}'"
+    mkdir -p ${TARGET_DIR}/${ZONE}/ssl
+    (cd ${SSL_DIR} && cp -p * ${TARGET_DIR}/${ZONE}/ssl)
 fi
 
 echo "==> Done!"
