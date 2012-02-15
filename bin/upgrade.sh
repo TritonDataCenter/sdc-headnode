@@ -124,6 +124,7 @@ function backup_usbkey
         zones \
     ) \
     | (cd ${backup_dir}/usbkey && gtar --no-same-owner -xf -)
+    [[ $? != 0 ]] && fatal "USB key backup failed"
 }
 
 function upgrade_usbkey
@@ -886,8 +887,9 @@ trap cleanup EXIT
 # existence of backup file.
 echo "Creating a backup"
 sdc-backup -s datasets -d $SDC_UPGRADE_SAVE
+[[ $? != 0 ]] && fatal "unable to make a backup"
 bfile=`ls $SDC_UPGRADE_SAVE/backup-* 2>/dev/null`
-[ -z "$bfile" ] && fatal "unable to make a backup"
+[ -z "$bfile" ] && fatal "missing backup file"
 
 # We no longer need the assets zone up now that backup is complete
 [ $OLD_STYLE_ZONES == 0 ] && shutdown_zone $ASSETS_ZONE
@@ -929,6 +931,19 @@ load_sdc_config
 SKIP_SWITCH=0
 install_platform
 
+# All of the following are using node and/or libzonecfg so we need to stop them
+# before we can lofs mount the new files.
+svcadm disable zones-monitoring
+svcadm disable smartlogin
+svcadm disable cainstsvc
+svcadm disable zonetracker-v2
+svcadm disable metadata
+svcadm disable amon-relay >/dev/null 2>&1 # may not exist
+svcadm disable amon-agent >/dev/null 2>&1 # may not exist
+svcadm disable webinfo
+svcadm disable vmadmd
+svcadm disable ur
+
 # We need the latest smartdc tools to provision the extra zones.
 echo "Mount the new image"
 mkdir -p /image
@@ -943,34 +958,16 @@ mount -F lofs /image/smartdc /smartdc
 # We also need a few pieces from the latest /usr/vm, but 6.x doesn't have that
 # so we can't just lofs mount.  Intead we setup a writeable node_modules in
 # /tmp, make it look like we want, then lofs mount that.
+
 mount -F ufs -o ro /image/usr.lgz /image/usr
 mkdir /tmp/node_modules
+
 cp -pr /image/usr/node_modules/* /tmp/node_modules
-cp -p /image/usr/vm/node_modules/* /tmp/node_modules
+cp -pr /image/usr/vm/node_modules/* /tmp/node_modules
 sed -e 's%/usr/vm/sbin/zoneevent%/image/usr/vm/sbin/zoneevent%' \
     /image/usr/vm/node_modules/VM.js >/tmp/node_modules/VM.js
-mount -F lofs -o ro /tmp/node_modules /usr/node_modules
-mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
-mount -F lofs -o ro /image/usr/sbin/zlogin /usr/sbin/zlogin
-mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
-mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
 
-# If we're upgrading an image with vmadm, make sure we use the new one
-# by lofs mounting over the old one.
-[ -f /usr/sbin/vmadm ] && \
-    mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
-
-# All of the following are using node and/or libzonecfg so we need to stop them
-# before we can lofs mount the new files.
-svcadm disable zones-monitoring
-svcadm disable smartlogin
-svcadm disable cainstsvc
-svcadm disable zonetracker-v2
-svcadm disable metadata
-svcadm disable webinfo
-svcadm disable vmadmd
-svcadm disable ur
-# wait a few seconds for these svcs to stop using libzonecfg
+# wait a few seconds for the svcs to stop using libzonecfg
 cnt=0
 while [ $cnt -lt 3 ]; do
 	sleep 5
@@ -983,6 +980,18 @@ while [ $cnt -lt 3 ]; do
 	svcs -a | grep smartdc 1>&4 2>&1
 	svcs -xv 1>&4 2>&1
 done
+
+mount -F lofs -o ro /tmp/node_modules /usr/node_modules
+mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
+mount -F lofs -o ro /image/usr/sbin/zlogin /usr/sbin/zlogin
+mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
+mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
+
+# If we're upgrading an image with vmadm, make sure we use the new one
+# by lofs mounting over the old one.
+[ -f /usr/sbin/vmadm ] && \
+    mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
+
 mount -F lofs -o ro /image/usr/bin/node /usr/bin/node
 mount -F lofs -o ro /image/usr/lib/zones /usr/lib/zones
 svcadm enable ur
@@ -1061,8 +1070,10 @@ cp /zones/$MAPIZONE/root/opt/smartdc/node.config/node.config $assetdir/config
 message="
 The new image has been activated. You must reboot the system for the upgrade
 to take effect.  Once you have verified the upgrade is ok, you can remove the
-$SDC_UPGRADE_SAVE directory and its contents.\n\n"
+backup file in $SDC_UPGRADE_SAVE.\n\n"
 printf "$message"
 
-cp /tmp/perform_upgrade.* $SDC_UPGRADE_SAVE
+cd /
+tar cbf 512 - tmp/*log*  | \
+    gzip >$SDC_UPGRADE_SAVE/logs.$(date -u +%Y%m%dT%H%M%S).tgz
 exit 0

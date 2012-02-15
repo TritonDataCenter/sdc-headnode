@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -131,6 +131,12 @@ delete_sdc_zones
 sleep 10
 
 recreate_extra_zones
+
+cd /
+mkdir -p /var/tmp/upgrade_save
+cp $SDC_UPGRADE_DIR/upgrade_log.$$ /tmp
+tar cbf 512 - tmp/*log*  | \
+    gzip >/var/tmp/upgrade_save/logs.$(date -u +%Y%m%dT%H%M%S).tgz
 
 message="
 The compute node has been upgraded. You should reboot the system for the
