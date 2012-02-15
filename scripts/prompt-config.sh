@@ -1,1085 +1,1116 @@
 #!/usr/bin/bash
 
-# XXX - TODO
-# - if $ntp_hosts == "local", configure ntp for no external time source
-# - try to figure out why ^C doesn't intr when running under SMF
-
-PATH=/usr/sbin:/usr/bin
-export PATH
-
-# Defaults
-datacenter_headnode_id=0
-mail_to="root@localhost"
-ntp_hosts="68.0.14.76"
-dns_resolver1="8.8.8.8"
-dns_resolver2="8.8.4.4"
+# Todo
+# * detect IP address in use
+# * add built-in help
 
 # Globals
-declare -a states
-declare -a nics
-declare -a assigned
+PREFIX=/tmp
 
-sigexit()
-{
-	echo
-	echo "Headnode system configuration has not been completed."
-	echo "You must reboot to re-run system configuration."
-	exit 0
+export PATH=/usr/sbin:/usr/bin:/opt/local/bin
+export TERM=sun-color
+export DIALOGRC=$PREFIX/dialogrc
+
+if [ $# -ne 1 ] ; then
+	echo "usage: $0 <usbmountpoint>"
+	exit 1
+fi
+
+USBMNT=$1
+EULA_FILE=$PREFIX/EULA
+CONFIG=$PREFIX/setup.out
+OLDCONFIG=$USBMNT/config
+LOG=$PREFIX/setup.log
+
+if [ -f $CONFIG ] ; then
+  mv $CONFIG $CONFIG-old
+  touch $CONFIG
+fi
+
+if [ -f $OLDCONFIG ] ; then
+  mv $OLDCONFIG $OLDCONFIG-old
+  touch $OLDCONFIG
+fi
+
+: ${DIALOG_OK=0}
+: ${DIALOG_CANCEL=1}
+: ${DIALOG_HELP=2}
+: ${DIALOG_EXTRA=3}
+: ${DIALOG_ITEM_HELP=4}
+: ${DIALOG_ESC=255}
+
+: ${DIALOG_INPUT=0}
+: ${DIALOG_PASSWD=1}
+: ${DIALOG_LABEL=2}
+
+# Extra FDs
+exec 3>&1 4>&2 
+
+CONFIG_COMPANY=''
+CONFIG_DCID=''
+CONFIG_CITY=''
+CONFIG_STATE=''
+CONFIG_FQDN=''
+CONFIG_DOMAIN=''
+CONFIG_HOSTNAME=''
+CONFIG_NET_IPADDR=''
+CONFIG_NET_IPMASK=''
+CONFIG_NET_IPNET='' 
+CONFIG_NET_IPGW=''
+CONFIG_NET_IFNAME=''
+CONFIG_NET_MACADDR=''
+CONFIG_DNS1='' 
+CONFIG_DNS2='' 
+CONFIG_DNS_SEARCH=''
+CONFIG_NTP_HOST='pool.ntp.org'
+CONFIG_NTP_IPADDR=''
+CONFIG_PHONEHOME=false
+CONFIG_PASS_ROOT=''
+CONFIG_PASS_ADMIN=''
+CONFIG_PASS_API=''
+CONFIG_KEYBOARD='US-English'
+CONFIG_MAPI_NET_IPADDR='10.0.1.1'
+CONFIG_ASSETS_NET_IPADDR=''
+CONFIG_AMQP_NET_IPADDR=''
+CONFIG_DHCP_NET_IPADDR=''
+CONFIG_DHCP_START=''
+CONFIG_DHCP_STOP=''
+
+STATUS_NET_IS_SETUP=1
+STATUS_NTP_IS_SETUP=1
+STATUS_DNS_IS_SETUP=1
+STATUS_FQDN_IS_SETUP=1
+STATUS_DC_IS_SETUP=1
+STATUS_PASS_ROOT_IS_SETUP=1
+STATUS_PASS_ADMIN_IS_SETUP=1
+STATUS_PASS_API_IS_SETUP=1
+
+# all the different config, status, and IP address values
+config_vars=$( set -o posix ; set | awk -F= '/^CONFIG_/ {print $1}')
+status_vars=$( set -o posix ; set | awk -F= '/^STATUS_/ {print $1}')
+ipaddr_vars=$( set -o posix ; set | awk -F= '/_NET_IPADDR$/ {print $1}')
+
+trap sigexit EXIT SIGINT
+
+next_function=''   # if you exit dialog youre on previous selection
+last_menu_item=''  # ^ 
+title='SDC Setup - Welcome'
+
+##############################################
+# Helper functions
+##############################################
+
+setup_complete() {
+  local retval=0
+  for c in ${status_vars[@]}; do
+    loginfo "Checking value: $c"
+    if [[ ${!c} -eq 1 ]] ; then
+      retval=1
+      break
+    fi
+  done
+  return $retval
 }
 
-#
-# Get the max. IP addr for the given field, based in the netmask.
-# That is, if netmask is 255, then its just the input field, otherwise its
-# the host portion of the netmask (e.g. netmask 224 -> 31).
-# Param 1 is the field and param 2 the mask for that field.
-#
-max_fld()
-{
+sigexit() {
+  clear
+  echo "Exiting SDC Setup..."
+  exit 0
+}
+
+loginfo() {
+  local stamp=$(date +%Y-%m-%dT%H:%MZ)
+  printf "%-17s (info) %s\n" $stamp "$@" >> $LOG
+}
+
+set_callback() {
+  loginfo "setting callback to $1" 
+  next_function=$1
+}
+
+set_last_item() {
+  loginfo "setting last menu item to $1"
+  last_menu_item=$1
+}
+
+set_title() {
+  title=$(printf "SDC Setup - %s\n" "$@")
+}
+
+callback() {
+  loginfo "running callback $1" 
+  ${next_function} $@
+}
+
+warn() {
+  dialog --backtitle "$title" --msgbox "$1" 0 0
+  eval $2
+}
+
+write_config() {
+  echo "Applying configuration..."
+  for c in ${config_vars[@]}; do
+    echo "$c=${!c}" >> $CONFIG
+  done
+  exit 0
+}
+
+__wr() {
+  echo "$@" >> $OLDCONFIG
+}
+
+__is_vmware() {
+  platform=$(smbios -t1 | awk '/Product:/ {print $2}')
+  [[ "$platform" == "VMware" ]] && return 0
+  return 1
+}
+
+__max_fld() {
 	comp=$((255 & ~$2))
 	fmax=$(($comp | $1))
 }
 
-#
-# Converts an IP and netmask to a network
-# For example: 10.99.99.7 + 255.255.255.0 -> 10.99.99.0
-# Each field is in the net_a, net_b, net_c and net_d variables.
-# Also, host_addr stores the address of the host w/o the network number (e.g.
-# 7 in the 10.99.99.7 example above).  Also, max_host stores the max. host
-# number (e.g. 10.99.99.254 in the example above).
-#
-ip_netmask_to_network()
-{
-	IP=$1
-	NETMASK=$2
+__isdigit() {
+  [[ $# -eq 1 ]] || return 1
 
-	OLDIFS=$IFS
-	IFS=.
-	set -- $IP
-	net_a=$1
-	net_b=$2
-	net_c=$3
-	net_d=$4
-	addr_d=$net_d
-
-	set -- $NETMASK
-
-	# Calculate the maximum host address
-	max_fld "$net_a" "$1"
-	max_a=$fmax
-	max_fld "$net_b" "$2"
-	max_b=$fmax
-	max_fld "$net_c" "$3"
-	max_c=$fmax
-	max_fld "$net_d" "$4"
-	max_d=$(expr $fmax - 1)
-	max_host="$max_a.$max_b.$max_c.$max_d"
-
-	net_a=$(($net_a & $1))
-	net_b=$(($net_b & $2))
-	net_c=$(($net_c & $3))
-	net_d=$(($net_d & $4))
-
-	host_addr=$(($addr_d & ~$4))
-	IFS=$OLDIFS
+  case $1 in
+    *[!0-9]*|"") 
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
-# Sets two variables, use_lo and use_hi, which are the usable IP addrs for the
-# largest block of available host addresses on the subnet, based on the two
-# addrs the user has chosen for the GW and External Host IP.
-# We look at the three ranges (upper, middle, lower) defined by the two addrs.
-calc_ext_default_range()
-{
-	a1=$1
-	a2=$2
-
-	if [ $a1 -lt $a2 ]; then
-		lo=$a1
-		hi=$a2
-	else
-		lo=$a2
-		hi=$a1
-	fi
-
-	u_start=`expr $hi + 1`
-	m_start=`expr $lo + 1`
-	l_start=1
-
-	u_max=$max_d
-	m_max=`expr $hi - 1`
-	l_max=`expr $lo - 1`
-
-	up_range=`expr $max_d - $hi`
-	mid_range=`expr $hi - $lo`
-	lo_range=`expr $lo - 2`
-	[ $lo_range -lt 1 ] && lo_range=0
-
-	if [ $up_range -gt $mid_range ]; then
-		use_lo=$u_start
-		use_hi=$u_max
-		range=$up_range
-	else
-		use_lo=$m_start
-		use_hi=$m_max
-		range=$mid_range
-	fi
-
-	if [ $range -lt $lo_range ]; then
-		use_lo=$l_start
-		use_hi=$l_max
-	fi
+__hex_to_dotted() {
+  printf "%d.%d.%d.%d\n" $(echo $1 | sed 's/../ 0x&/g')
 }
 
-# Tests whether entire string is a number.
-isdigit ()
-{
-	[ $# -eq 1 ] || return 1
-
-	case $1 in
-  	*[!0-9]*|"") return 1;;
-	*) return 0;;
-	esac
+__ip_to_dec() {
+  ip=( $(printf "%d\n%d\n%d\n%d\n" $(echo $1 | sed 's/\./ /g')) )
+  out=$(( (${ip[0]} << 24) | (${ip[1]} << 16) | (${ip[2]} << 8) | ${ip[3]} ))
+  echo $out
 }
 
-# Tests network numner (num.num.num.num)
-is_net()
-{
-	NET=$1
+__ip_mask_to_net() {
+  # ip = $1, netmask = $2
+  ip=$(__ip_to_dec $1)
+  mask=$(__ip_to_dec $2)
+  net=$(($ip & $mask)) # in decimal
+  out=( $(($net >> 24)) $(($net >> 16 & 255)) $(($net >> 8 & 255)) $(($net & 255)) )
+  printf "%d.%d.%d.%d\n" "${out[@]}"
 
-	OLDIFS=$IFS
-	IFS=.
-	set -- $NET
-	a=$1
-	b=$2
-	c=$3
-	d=$4
-	IFS=$OLDIFS
-
-	isdigit "$a" || return 1
-	isdigit "$b" || return 1
-	isdigit "$c" || return 1
-	isdigit "$d" || return 1
-
-	[ -z $a ] && return 1
-	[ -z $b ] && return 1
-	[ -z $c ] && return 1
-	[ -z $d ] && return 1
-
-	[ $a -lt 0 ] && return 1
-	[ $a -gt 255 ] && return 1
-	[ $b -lt 0 ] && return 1
-	[ $b -gt 255 ] && return 1
-	[ $c -lt 0 ] && return 1
-	[ $c -gt 255 ] && return 1
-	[ $d -lt 0 ] && return 1
-	# Make sure the last field isn't the broadcast addr.
-	[ $d -ge 255 ] && return 1
-	return 0
 }
 
-# Tests if input is an email address
-is_email() {
-  regex="^[a-z0-9!#\$%&'*+/=?^_\`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_\`{|}~-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.?)+[a-z0-9]([a-z0-9-]*[a-z0-9])?\$"
-  ADDRESS=$1
+__dec_to_ip() {
+  net=$1
+  out=( $(($net >> 24)) $(($net >> 16 & 255)) $(($net >> 8 & 255)) $(($net & 255)) )
+  printf "%d.%d.%d.%d\n" "${out[@]}"
+}
+
+__is_ip() {
+  regex="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
+ 
+  [[ $1 =~ $regex ]] && return 0
+  return 1
+}
+
+__is_hostname() {
+  regex="^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$";
+
+  [[ $1 =~ $regex ]] && return 0
+  return 1
+}
+
+__is_cidr() {
+  regex="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(\d[1-2]\d|3[0-2]))$";
+ 
+  [[ $1 =~ $regex ]] && return 0
+  return 1
+}
+
+__is_in_net() {
+  # network = $1, mask =$2, to_check = $3
+  checknet=$(__ip_mask_to_net $3 $2)
+  [[ "$checknet" == "$1" ]] && return 0
+  return 1
+}  
+
+__net_size() {
+ dec=$(__ip_to_dec $1)  
+ ipv4_size=4294967296
+ printf "%d\n" $(( $ipv4_size - $dec -1 ))
+}
+
+##############################################
+# Dialogs - These are ran by menus or by flow
+##############################################
+
+print_welcome() {
+  set_title "Welcome"
+
+  dialog --backtitle "$title" \
+    --msgbox "This setup wizard will guide you through \
+installing SDC to your server. \
+You will have the option of editing your changes prior \
+to applying the installation." 10 44
   
-  [[ $ADDRESS =~ $regex ]] && return 0
-	return 1
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    exit 1
+  fi  
+
 }
 
-# Optional input
-promptopt()
-{
-	val=""
-	def="$2"
-	if [ -z "$def" ]; then
-		printf "%s [press enter for none]: " "$1"
-	else
-		printf "%s [%s]: " "$1" "$def"
-	fi
-	read val
-	# If def was null and they hit return, we just assign null to val
-	[ -z "$val" ] && val="$def"
-}
+print_eula() {
+  if [ ! -f $EULA_FILE ] ; then
+    return 0 
+  fi
 
-promptval()
-{
-	val=""
-	def="$2"
-	while [ -z "$val" ]; do
-		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
-		else
-			printf "%s: " "$1"
-		fi
-		read val
-		[ -z "$val" ] && val="$def"
-		# Forward and back quotes not allowed
-		echo $val | nawk '{
-		    if (index($0, "\047") != 0)
-		        exit 1
-		    if (index($0, "`") != 0)
-		        exit 1
-		}'
-		if [ $? != 0 ]; then
-			echo "Single quotes are not allowed."
-			val=""
-			continue
-		fi
-		[ -n "$val" ] && break
-		echo "A value must be provided."
-	done
-}
-
-prompt_host_ok_val()
-{
-	val=""
-	def="$2"
-	while [ -z "$val" ]; do
-		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
-		else
-			printf "%s: " "$1"
-		fi
-		read val
-		[ -z "$val" ] && val="$def"
-		if [ -n "$val" ]; then
-			printf "Checking connectivity..."
-			ping $val >/dev/null 2>&1
-			if [ $? != 0 ]; then
-				printf "UNREACHABLE\n"
-			else
-				printf "OK\n"
-			fi
-			break
-		else
-			echo "A value must be provided."
-		fi
-	done
-}
-
-promptemail()
-{
-	val=""
-	def="$2"
-	while [ -z "$val" ]; do
-		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
-		else
-			printf "%s: " "$1"
-		fi
-		read val
-		[ -z "$val" ] && val="$def"
-		is_email "$val" || val=""
-		[ -n "$val" ] && break
-		echo "A valid email address must be provided."
-	done
-}
-
-# Input must be a valid network number (see is_net())
-promptnet()
-{
-	val=""
-	def="$2"
-	while [ -z "$val" ]; do
-		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
-		else
-			printf "%s: " "$1"
-		fi
-		read val
-		[ -z "$val" ] && val="$def"
-		is_net "$val" || val=""
-		[ -n "$val" ] && break
-		echo "A valid network number (n.n.n.n) must be provided."
-	done
-}
-
-printnics()
-{
-	i=1
-	printf "%-6s %-9s %-18s %-7s %-10s\n" "Number" "Link" "MAC Address" \
-	    "State" "Network"
-	while [ $i -le $nic_cnt ]; do
-		printf "%-6d %-9s %-18s %-7s %-10s\n" $i ${nics[$i]} \
-		    ${macs[$i]} ${states[$i]} ${assigned[i]}
-		((i++))
-	done
-}
-
-# Must choose a valid NIC on this system
-promptnic()
-{
-	if [[ $nic_cnt -eq 1 ]]; then
-		val="${macs[1]}"
-		nic_val=${nics[1]}
-		return
-	fi
-
-	printnics
-	num=0
-	while [ /usr/bin/true ]; do
-		printf "Enter the number of the NIC for the %s interface: " \
-		   "$1"
-		read num
-		if ! [[ "$num" =~ ^[0-9]+$ ]] ; then
-			echo ""
-		elif [ $num -ge 1 -a $num -le $nic_cnt ]; then
-			mac_addr="${macs[$num]}"
-			assigned[$num]=$1
-			nic_val=${nics[$num]}
-			break
-		fi
-		# echo "You must choose between 1 and $nic_cnt."
-		updatenicstates
-		printnics
-	done
-
-	val=$mac_addr
-}
-
-promptpw()
-{
-	def="$3"
-
-	while [ /usr/bin/true ]; do
-		val=""
-		while [ -z "$val" ]; do
-			if [ -z "$def" ]; then
-				printf "%s: " "$1"
-			else
-				printf "%s [enter to keep existing]: " "$1"
-			fi
-
-			stty -echo
-			read val
-			stty echo
-			echo
-			if [ -n "$val" ]; then
-				if [ "$2" == "chklen" -a ${#val} -lt 6 ]; then
-					echo "The password must be at least" \
-					    "6 characters long."
-					val=""
-				else
-	 				break
-				fi
-			else 
-				if [ -n "$def" ]; then
-					val=$def
-	 				return
-				else
-					echo "A value must be provided."
-				fi
-			fi
-		done
-
-		cval=""
-		while [ -z "$cval" ]; do
-			printf "%s: " "Confirm password"
-			stty -echo
-			read cval
-			stty echo
-			echo
-			[ -n "$cval" ] && break
-			echo "A value must be provided."
-		done
-
-		[ "$val" == "$cval" ] && break
-
-		echo "The entries do not match, please re-enter."
-	done
-}
-
-updatenicstates()
-{
-	states=(1)
-	#states[0]=1
-	while IFS=: read -r link state ; do
-		states=( ${states[@]-} $(echo "$state") )
-	done < <(dladm show-phys -po link,state 2>/dev/null)
-}
-
-printheader() 
-{
-  local newline=
-  local cols=`tput cols`
-  local subheader=$1
+  set_title "License Agreement"
   
-  if [ $cols -gt 80 ] ;then
-    newline='\n'
+  dialog --backtitle "$title" --begin 2 4 \
+    --title "License Agreement" \
+    --exit-label "I AGREE" \
+    --textbox $EULA_FILE 20 72
+  
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    exit 1
+  fi  
+
+}
+
+
+list_kbd_layouts() {
+  local kbd_layouts=/usr/share/lib/keytables/type_6/kbd_layouts
+  local kbds=$(cat $kbd_layouts | sed -e '/^$/d;/^#/d')
+  local count=0
+  for i in ${kbds[@]} ; do
+    OLDIFS=$IFS
+    IFS=$'='
+    a=( $i )
+    ((count++))
+    printf "%s %s\n" $count ${a[0]}
+    IFS=$OLDIFS
+  done
+
+  loginfo "got keyboard information: $count"
+
+}
+
+setup_kbd() {
+  local out
+  set_title "Keyboard Layout"
+
+  keyboards=$(list_kbd_layouts)
+  out=$(echo $keyboards | xargs dialog --backtitle "$title" \
+    --default-item 47 \
+    --menu "Please select a keyboard layout" 15 40 10\
+    2>&1 1>&3 )
+  
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+
+  kbd=$(echo $keyboards | grep $out | cut -d ' ' -f2)
+  loginfo "setting keyboard to: $kbd"
+  CONFIG_KEYBOARD=$kbd
+  kbd -s $kbd 2>&1 > /dev/null
+  
+  callback
+}
+
+ 
+# asks about datacenter information, company
+# city and state. All required fields
+setup_datacenter() {
+  local out
+
+  set_title "Datacenter"
+  
+  OLDIFS=$IFS
+  IFS=$'\n'
+  
+  out=( $(dialog --backtitle "$title" \
+   --visit-items \
+   --mixedform "Datacenter" 0 0 0 \
+  "Company Name"  1 2 "$CONFIG_COMPANY" 1 16 24 20 0 \
+  "Datacenter ID" 2 2 "$CONFIG_DCID"    2 16 24 20 0 \
+  "City"          3 2 "$CONFIG_CITY"    3 16 24 30 0 \
+  "State"         4 2 "$CONFIG_STATE"   4 16 24 30 0 \
+   2>&1 1>&3 ) ) 
+
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+
+  CONFIG_COMPANY="${out[0]}"
+  CONFIG_DCID="${out[1]}"
+  CONFIG_CITY="${out[2]}"
+  CONFIG_STATE="${out[3]}" 
+
+  IFS=$OLDIFS
+
+  loginfo "company: $CONFIG_COMPANY"
+  loginfo "dcid: $CONFIG_DCID"
+  loginfo "city: $CONFIG_CITY"
+  loginfo "state: $CONFIG_STATE"
+
+  if [ -z $CONFIG_COMPANY ] ; then
+    warn "Company is required" setup_datacenter
+  fi
+ 
+  if [ -z $CONFIG_DCID ] ; then
+    warn "Datacenter ID is required" setup_datacenter
   fi
   
-  clear
-  printf " %-40s\n" "Smart Data Center (SDC) Setup"
-  printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
-  for i in {1..80} ; do printf "-" ; done && printf "$newline"
+  if [ -z $CONFIG_CITY ] ; then
+    warn "City is required" setup_datacenter
+  fi
 
+  if [ -z $CONFIG_STATE ] ; then
+    warn "State is required" setup_datacenter
+  fi
+
+  STATUS_DC_IS_SETUP=0
+
+  callback
 }
 
-print_warning() 
-{
-	clear
-	printf "WARNING\n"
-	for i in {1..80} ; do printf "-" ; done && printf "\n"
-	printf "\n$1\n"
+set_password() {
+  local out
 
-	printf "\nPress [enter] to continue "
-	read continue
-}
+  # we use the username arg to set these key variables
+  # ie 
+  # STATUS_PASS_API_IS_SETUP=1
+  # CONFIG_PASS_API=''
 
-configure_standby()
-{
-	printheader "Configuring Standby Headnode"
-	message="
-This standby headnode will be setup using the backup configuration, however
-you must select the new NICs for the admin and external networks.\n\n"
+  status_key="STATUS_PASS_$1_IS_SETUP"
+  config_key="CONFIG_PASS_$1"
 
-	printf "$message"
+  set_title "User Setup"
 
-	while [ /usr/bin/true ]; do
-		promptnic "'admin'"
-		admin_nic="$val"
-
-		echo
-
-		promptnic "'external'"
-		external_nic="$val"
-
-		clear
-		printnics
-		promptval "Is this correct?" "y"
-		[ "$val" == "y" ] && break
-		clear
-	done
-
-	# update config
-	sed -e "s/admin_nic=.*/admin_nic=$admin_nic/" \
-            -e "s/external_nic=.*/external_nic=$external_nic/" \
-            $USBMNT/config >/tmp/config.$$
-
-	echo
-	echo "Your configuration is about to be applied."
-	promptval "Would you like to edit the final configuration file?" "n"
-	[ "$val" == "y" ] && vi /tmp/config.$$
-
-	mv /tmp/config.$$ $USBMNT/config
-}
-
-nicsup() {
-	local vlan_opts=""
-	ifconfig $admin_iface inet $admin_ip netmask $admin_netmask up
-
-	if [ -n "$external_vlan_id" ]; then
-		vlan_opts="-v $external_vlan_id"
-	fi
-
-	dladm create-vnic -l $external_iface $vlan_opts external0
-	ifconfig external0 plumb
-	ifconfig external0 inet $external_ip netmask $external_netmask up
-	route add default $headnode_default_gateway >/dev/null
-}
-
-nicsdown() {
-	ifconfig ${admin_iface} inet down unplumb
-	ifconfig external0 inet down unplumb
-	dladm delete-vnic external0
-}
-
-trap sigexit SIGINT
-
-standby=0
-
-while getopts "S" opt
-do
-	case "$opt" in
-		S)	standby=1;;
-	esac
-done
-
-shift $(($OPTIND - 1))
-
-USBMNT=$1
-
-#
-# Get local NIC info
-#
-nic_cnt=0
-
-while IFS=: read -r link addr ; do
-    ((nic_cnt++))
-    nics[$nic_cnt]=$link
-    macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
-    assigned[$nic_cnt]="-"
-done < <(dladm show-phys -pmo link,address 2>/dev/null)
-
-if [[ $nic_cnt -lt 1 ]]; then
-	echo "ERROR: cannot configure the system, no NICs were found."
-	exit 0
-fi
-
-# Don't do an 'ifconfig -a' - this causes some nics (bnx) to not
-# work when combined with the later dladm commands
-for iface in $(dladm show-phys -pmo link); do
-  ifconfig $iface plumb 2>/dev/null
-done
-updatenicstates
-
-export TERM=sun-color
-export TERM=xterm-color
-stty erase ^H
-
-printheader "Copyright 2011, Joyent, Inc."
-
-message="
-You must answer the following questions to configure the headnode.
-You will have a chance to review and correct your answers, as well as a
-chance to edit the final configuration, before it is applied.
-
-Press [enter] to continue"
-
-printf "$message"
-read continue;
-
-if [ -f /tmp/config_in_progress ]; then
-	message="
-Configuration is already in progress on another terminal.
-This session can no longer perform system configuration.\n"
-	while [ /usr/bin/true ]; do
-		printf "$message"
-		read continue;
-	done
-
-fi
-touch /tmp/config_in_progress
-
-# Branch down a different path when configuring a standby headnode which will
-# already have a config file.
-if [ $standby == 1 ]; then
-	configure_standby
-	exit 0
-fi
-
-#
-# Main loop to prompt for user input
-#
-while [ /usr/bin/true ]; do
-
-	printheader "Datacenter Information"
-	message="
-The following questions will be used to configure your headnode identity. 
-This identity information is used to uniquely identify your headnode as well
-as help with management of distributed systems. If you are setting up a second 
-headnode at a datacenter, then please have the ID of the previous headnode 
-handy.\n\n"
-
-	printf "$message"
-
-	promptval "Enter the company name" "$datacenter_company_name"
-	datacenter_company_name="$val"
-
-	while [ true ]; do
-		promptval "Enter a name for this datacenter" "$datacenter_name"
-		if [ "$val" != "ca" ]; then
-			datacenter_name="$val"
-			break
-		fi
-		echo "The datacenter name 'ca' is reserved for system use"
-	done
-
-	promptval "Enter the City and State for this datacenter" \
-	    "$datacenter_location"
-	datacenter_location="$val"
-
-	promptval "Enter your headnode ID or press enter to accept the default"\
-	    "$datacenter_headnode_id"
-	datacenter_headnode_id="$val"
-
-	printheader "Networking" 
-	message="
-Several applications will be made available on these networks using IP 
-addresses which are automatically incremented based on the headnode IP. 
-In order to determine what IP addresses have been assigned to SDC, you can
-either review the configuration prior to its application, or you can run 
-'sdc-netinfo' after the install.
-
-Press [enter] to continue"
-
-	printf "$message"
-	read continue
-
-	printheader "Networking - Admin"
-	message="
-The admin network is used for management traffic and other information that
-flows between the Compute Nodes and the Headnode in an SDC cluster. This
-network will be used to automatically provision new compute nodes and there are
-several application zones which are assigned sequential IP addresses on this
-network. It is important that this network be used exclusively for SDC
-management. Note that DHCP traffic will be present on this network following
-the installation and that this network is connected in VLAN ACCESS mode only.\n\n"
+  OLDIFS=$IFS
+  IFS=$'\n'
   
-	printf "$message"
-	
-	promptnic "'admin'"
-	admin_nic="$val"
-	admin_iface="$nic_val"
+  out=( $(dialog --backtitle "$title" \
+    --visit-items \
+    --insecure \
+    --passwordform "Set Password ($1)" 14 40 6 \
+    "password" 2 2 "" 3 2 32 32 \
+    "confirmation" 4 2 "" 5 2 32 32 \
+    2>&1 1>&3 ) )
 
-	promptnet "(admin) headnode IP address" "$admin_ip"
-	admin_ip="$val"
+  one="${out[0]}"
+  two="${out[1]}"
+  IFS=$OLDIFS
 
-	[[ -z "$admin_netmask" ]] && admin_netmask="255.255.255.0"
-
-	promptnet "(admin) headnode netmask" "$admin_netmask"
-	admin_netmask="$val"
-
-	promptnet "(admin) gateway IP address" "$admin_gateway"
-	admin_gateway="$val"
-
-	if [[ -z "$admin_zone_ip" ]]; then
-		ip_netmask_to_network "$admin_ip" "$admin_netmask"
-		next_addr=$(expr $host_addr + 1)
-		admin_zone_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-	fi
-
-	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip"
-	admin_zone_ip="$val"
-
-	printheader "Networking - External"
-	message="
-The external network is used by the headnode and its applications to connect to
-external networks. That is, it can be used to communicate with either the
-Internet, an intranet, or any other WAN.\n\n"
-
-	printf "$message"
-
-	promptnic "'external'"
-	external_nic="$val"
-	external_iface="$nic_val"
-
-	promptnet "(external) headnode IP address" "$external_ip"
-	external_ip="$val"
-
-	[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
-
-	promptnet "(external) headnode netmask" "$external_netmask"
-	external_netmask="$val"
-
-	promptnet "(external) gateway IP address" "$external_gateway"
-	external_gateway="$val"
-
-	promptopt "(external) VLAN ID" "$external_vlan_id"
-	external_vlan_id="$val"
-
-	if [[ -z "$external_provisionable_start" ]]; then
-		ip_netmask_to_network "$external_gateway" "$external_netmask"
-		gw_host_addr=$host_addr
-
-		ip_netmask_to_network "$external_ip" "$external_netmask"
-
-		# Get use_lo and use_hi values for defaults
-		calc_ext_default_range $gw_host_addr $host_addr
-
-		gw_host_addr=$(expr $net_d + $gw_host_addr)
-
-		next_addr=$(expr $net_d + $use_lo)
-
-		# By default, start the provisionable range 5 addrs after the
-		# previous IP.
-		next_addr=$(expr $next_addr + 5)
-		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
-
-		external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
-	fi
-
-	promptnet "Starting provisionable IP address" \
-	   "$external_provisionable_start"
-	external_provisionable_start="$val"
-
-	promptnet "  Ending provisionable IP address" \
-	   "$external_provisionable_end"
-	external_provisionable_end="$val"
-
-	printheader "Networking - Continued"
-	message=""
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    callback 
+  fi
   
-	printf "$message"
+  if [ "${one}" == "${two}" ] ; then
+    if [ "${#one}" -lt 6 ] ; then
+      warn "Password must be at least 6 characters long" "set_password $1"
+    else
+      loginfo "password set to ${one}"
+      eval $config_key="${one}"
+    fi
+  else
+		warn "Passwords do not match" "set_password $1"
+  fi 
+  
+  loginfo "status key is $status_key"
+  eval $status_key=0
+  callback 
+  
+}
 
-	message="
-The default gateway will determine which router will be used to connect to
-other networks. This will almost certainly be the router connected to your
-'External' network.\n\n"
 
-	printf "$message"
+# queries hostname and domain name from the user
+# both required fields, validation performed
+set_fqdn() {
+  local out
+  
+  set_title "Hostname"
+  
+  out=$(dialog --backtitle "$title" \
+    --title "Set Hostname" --nocancel \
+    --inputbox "Please enter the fully qualified domain name (FQDN) \
+for this machine" 0 0 $(hostname) \
+    2>&1 1>&3 )
 
-	[[ -z "$headnode_default_gateway" ]] && \
-	    headnode_default_gateway="$external_gateway"
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+  
+  [[ -z $out ]] && warn "FQDN cannot be empty" set_fqdn
 
-	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
-	headnode_default_gateway="$val"
+  # bash missing an array join
+  CONFIG_FQDN=$out
+  
+  split=( $(echo $out | sed 's/\./ /g') )
+  CONFIG_HOSTNAME="${split[0]}"
+  unset split[0]
+  CONFIG_DOMAIN=$(echo "${split[@]}" | sed 's/ /\./g')
+  
+  if [ -z $CONFIG_FQDN ] ; then
+    warn "Does not appear to be a FQDN\nMust be in form \"hostname.domainname\"" set_fqdn
+  fi
+  
+  if [ -z $CONFIG_DNS_SEARCH ] ; then
+    CONFIG_DNS_SEARCH=$CONFIG_DOMAIN
+  fi
 
-	# Bring the admin and external nics up now: they need to be for the
-	# connectivity checks in the next section
-	nicsup
+  loginfo "$(hostname $CONFIG_FQDN)"
+  STATUS_FQDN_IS_SETUP=0
+  
+  callback 
+}
 
-	message="
-The DNS servers set here will be used to provide name resolution abilities to
-the SDC cluster itself. These will also be default DNS servers for zones
-provisioned on the 'external' network.\n\n"
 
-	printf "$message"
+# presents a list of all physical devices on the system
+# and prompts the user to select one for use as the 
+# 'management' / 'admin' network. Only one network needs
+# to be setup at install time
+select_networks() {
+  local out
+  local interfaces
+  
+  set_title "Networking"
+  
+  interfaces=$(dladm show-phys -mo link,address | grep -v ^LINK | sort)
 
-	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1"
-	dns_resolver1="$val"
-	prompt_host_ok_val "Enter the Secondary DNS server IP" "$dns_resolver2"
-	dns_resolver2="$val"
-	promptval "Enter the headnode domain name" "$domainname"
-	domainname="$val"
-	promptval "Default DNS search domain" "$dns_domain"
-	dns_domain="$val"
-	
-	message="
-By default the headnode acts as an NTP server for the admin network. You can
-set the headnode to be an NTP client to synchronize to another NTP server.\n"
+  if [ -z "$interfaces" ] ; then
+    dialog --backtitle "$title" \
+      --title "Network Configuration Error" \
+      --msgbox "No network interfaces present to configure." 0 0
+    exit 1
+  fi
 
-	printf "$message"
+  # iterate through interfaces and mark the currently used
+  # admin interface with an asterisk
+  if [ ! -z $CONFIG_NET_IFNAME ] ; then
+    ints=$(echo $interfaces | sed "s/$CONFIG_NET_IFNAME/$CONFIG_NET_IFNAME*/")
+  else
+    ints=$interfaces
+  fi
 
-	prompt_host_ok_val \
-	    "Enter an NTP server IP address or hostname" "$ntp_hosts"
-	ntp_hosts="$val"
+  out=$(echo $ints | xargs dialog --backtitle "$title" \
+    --title "Network Configuration" \
+    --menu "Please select a management network interface to configure: " 16 50 8 \
+    2>&1 1>&3 )
 
-	ntpdate -b $ntp_hosts >/dev/null 2>&1
-	[ $? != 0 ] && print_warning "NTP failure setting date and time"
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+
+  # remove our identifying asterisk   
+  netconfig_ipv4 $(echo $out | sed 's/*//')
+
+}
+
+
+# prompts for the ipv4 configuration of a particular interface
+# This probably wont work until we're plumbing devices by default
+netconfig_ipv4() {
+  local interface
+  local title
+  local out
+  local ipaddr
+  local ip_mask
+  local gateway 
+
+  interface=$1
+  set_title "Network Configuration ($interface)"
+  if [ -z "$interface" ] ; then
+    dialog --backtitle "$title" \
+      --title "Network Configuration Error" \
+      --msgbox "No interface specified for IPv4 configuration." 0 0
+    exit 1
+  fi 
+  
+  loginfo "$(ifconfig $interface plumb 2>&1)"
+
+  gateway=$(netstat -rn -f inet | awk '/default/ {printf("%s\n", $2); }')
+  ip_addr=$(ifconfig $interface | awk '/inet/ {printf("%s\n", $2); }')
+  hex_mask=$(ifconfig $interface | awk '/inet/ {printf("%s\n", $4); }')
+  mac_addr=$(dladm show-phys -mo address $interface | grep -v ^ADDRESS)
+  ip_mask=$(__hex_to_dotted "$hex_mask")
+  
+  out=( $(dialog --backtitle "$title" \
+    --title "Network Configuration" \
+    --form "Static Network Configuration (IPv4)" 0 0 0 \
+    "MAC Address"     1 0 "$mac_addr"  1 20  0 0 \
+    "VLAN"            2 0 "0 (native)" 2 20  0 0 \
+    "IP Address"      3 0 "$ip_addr"   3 20 16 0 \
+    "Subnet Mask"     4 0 "$ip_mask"   4 20 16 0 \
+    "Default Gateway" 6 0 "$gateway"   6 20 16 0 \
+    2>&1 1>&3 ) )
+
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu 
+  fi  
+
+  CONFIG_NET_MACADDR="$mac_addr"
+  CONFIG_NET_IFNAME="$interface"
+  CONFIG_NET_IPADDR="${out[0]}"
+  CONFIG_NET_IPMASK="${out[1]}"
+  CONFIG_NET_IPGW="${out[2]}"
  
-	printheader "Account Information"
-	message="
-There are two primary accounts for managing a Smart Data Center.  These are
-'admin', and 'root'. Each user can have a unique password. Most of the
-interaction you will have with SDC will be using the 'admin' user, unless
-otherwise specified.  There is also an internal HTTP API password used by
-various services to communicate with each other.  In addition, SDC has the
-ability to send notification emails to a specific address. Each of these
-values will be configured below.\n\n"
-
-	printf "$message"
-	
-	promptpw "Enter root password" "nolen" "$root_shadow"
-	root_shadow="$val"
-	
-	promptpw "Enter admin password" "chklen" "$zone_admin_pw"
-	zone_admin_pw="$val"
-	
-	promptpw "Enter HTTP API svc password" "chklen" "$http_admin_pw"
-	http_admin_pw="$val"
-	
-	promptemail "Administrator email goes to" "$mail_to"
-	mail_to="$val"
-
-	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
-	promptemail "Support email should appear from" "$mail_from"
-	mail_from="$val"
-
-	printheader "Verify Configuration"
-	message=""
+  __is_ip "$CONFIG_NET_IPADDR" || warn \
+    "$CONFIG_NET_IPADDR is not a valid IP" "netconfig_ipv4 $interface"
   
-	printf "$message"
+  __is_ip "$CONFIG_NET_IPMASK" || warn \
+    "$CONFIG_NET_IPMASK is not a valid Netmask" "netconfig_ipv4 $interface"
+  
+  __is_ip "$CONFIG_NET_IPGW" || warn \
+    "$CONFIG_NET_IPGW is not a valid Gateway" "netconfig_ipv4 $interface"
+    
+  [[ $(__net_size $CONFIG_NET_IPMASK) -lt 32 ]] && warn \
+    "Network too small\nMust have at least 32 hosts" 
+  
+  CONFIG_NET_IPNET=$(__ip_mask_to_net $CONFIG_NET_IPADDR $CONFIG_NET_IPMASK)
 
-	printf "Company name: $datacenter_company_name\n"
-	printf "Datacenter Name: %s, Location: %s\n" \
-	    "$datacenter_name" "$datacenter_location"
-	printf "Headnode ID: $datacenter_headnode_id\n"
-	printf "Email Admin Address: %s, From: %s\n" \
-	    "$mail_to" "$mail_from"
-	printf "Domain name: %s, Gateway IP address: %s\n" \
-	    $domainname $headnode_default_gateway
-	if [ -z "$external_vlan_id" ]; then
-		ext_vlanid="none"
-	else
-		ext_vlanid="$external_vlan_id"
-	fi
-	printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
-	    "IP addr." "Netmask" "Gateway" "VLAN"
-	printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
-	    $admin_ip $admin_netmask $admin_gateway "none"
-	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
-	    $external_ip $external_netmask $external_gateway $ext_vlanid
-	echo
-	printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
-	printf "Provisionable IP range: %s - %s\n" \
-	    $external_provisionable_start $external_provisionable_end
-	printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
-	    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
-	printf "NTP server: $ntp_hosts\n"
-	echo
+  # we plumb the device immediately so the rest of the setup can conclude
+  # with networking enabled
+  loginfo "$(ifconfig $CONFIG_NET_IFNAME $CONFIG_NET_IPADDR netmask $CONFIG_NET_IPMASK up)"
+  loginfo "$(route flush && route add -net 0/0 $CONFIG_NET_IPGW)"
+  loginfo "$(route add -net 0/0 $CONFIG_NET_IPGW)"
 
-	promptval "Is this correct?" "y"
-	[ "$val" == "y" ] && break
-	clear
-done
+  # set the rest of the service IP address values
+  service_ip_start=$(( $(__ip_to_dec $CONFIG_NET_IPADDR) + 3 ))
+  service_net_start=$(__ip_to_dec $CONFIG_NET_IPNET)
+  service_net_size=$(__net_size $CONFIG_NET_IPMASK) 
+  
+  CONFIG_ASSETS_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 1 )) )
+  CONFIG_DHCP_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 2 )) )
+  CONFIG_AMQP_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 3 )) )
+  CONFIG_MAPI_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 4 )) )
+  CONFIG_DHCP_START=$(__dec_to_ip $(( $service_ip_start + 5 )) )
+  CONFIG_DHCP_STOP=$(__dec_to_ip $(( $service_net_start + $service_net_size - 1 )) )
 
-#
-# Calculate admin and external network
-#
-ip_netmask_to_network "$admin_ip" "$admin_netmask"
-admin_network="$net_a.$net_b.$net_c.$net_d"
+  STATUS_NET_IS_SETUP=0
+  callback
+}
 
-#
-# Calculate admin network IP address for each core zone
-#
-next_addr=$(expr $next_addr + 1)
-assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
-next_addr=$(expr $next_addr + 1)
-dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+# prompts the user as to whether or not they want to be able to 
+# automatically phone home for reporting issues / usage / etc
+set_phonehome() {
+  local title
+  local out
 
-next_addr=$(expr $next_addr + 1)
-mapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-mapi_client_url="http://${mapi_admin_ip}:80"
+  set_title "Help & Troubleshooting"
 
-next_addr=$(expr $next_addr + 1)
-rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
+  out=$(dialog --backtitle "$title" \
+    --title "Help & Troubleshooting" \
+    --yesno "SDC can automatically report usage and issues to Joyent on
+a periodic basis. This information is kept strictly confidential and is
+only used to improve future versions of SDC.\n\n 
+Would you like to automatically report issues to Joyent?" 0 0 \
+    2>&1 1>&3 )
 
-next_addr=$(expr $next_addr + 1)
-dhcp_next_server="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+  if [ $? -eq $DIALOG_OK ] ; then
+    CONFIG_PHONEHOME=true
+  else
+    CONFIG_PHONEHOME=false
+  fi
 
-# Add 5 to leave some room
-next_addr=$(expr $next_addr + 5)
-dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-dhcp_range_end="$max_host"
+  callback 
+}
 
-#
-# Calculate external network
-#
-ip_netmask_to_network "$external_ip" "$external_netmask"
-external_network="$net_a.$net_b.$net_c.$net_d"
 
-#
-# Generate config file
-#
-tmp_config=$USBMNT/tmp_config
+# dns nameservers and local search domain
+# validated and required
+set_resolvers() {
+  local out
+  local resolvers
+  local search_domain
 
-echo "#" >$tmp_config
-echo "# This file was auto-generated and must be source-able by bash." \
-    >>$tmp_config
-echo "#" >>$tmp_config
-echo >>$tmp_config
+  set_title "Network Configuration"
+  resolvers=( $(awk '/nameserver/ {printf("%s\n", $2); }' /etc/resolv.conf) )
+  search_domain=$(awk '/search/ {printf("%s\n", $2); }' /etc/resolv.conf)
 
-# If in a VM, setup coal so networking will work.
-platform=$(smbios -t1 | nawk '{if ($1 == "Product:") print $2}')
-[ "$platform" == "VMware" ] && echo "coal=true" >>$tmp_config
+  if [ -z $search_domain ] ; then
+    search_domain=$CONFIG_DOMAIN
+  fi 
 
-echo "swap=0.25x" >>$tmp_config
-echo "compute_node_swap=0.25x" >>$tmp_config
-echo >>$tmp_config
+  out=( $(dialog --backtitle "$title" \
+    --title "Network Configuration" \
+    --form "DNS Client Configuration" 0 0 0 \
+    "DNS Server 1 IP" 1 0 "${resolvers[0]}" 1 20 16 0 \
+    "DNS Server 2 IP" 2 0 "${resolvers[1]}" 2 20 16 0 \
+    "Search Domain" 4 0 "$search_domain" 4 20 24 0 \
+    2>&1 1>&3 ) )
 
-echo "# datacenter_name should be unique among your cloud," >>$tmp_config
-echo "# datacenter_headnode_id should be a positive integer that is unique" \
-     >>$tmp_config
-echo "# for this headnode within that datacenter" >>$tmp_config
-echo "datacenter_name=\"$datacenter_name\"" >>$tmp_config
-echo "datacenter_company_name=\"$datacenter_company_name\"" >>$tmp_config
-echo "datacenter_location=\"$datacenter_location\"" >>$tmp_config
-echo "datacenter_headnode_id=$datacenter_headnode_id" >>$tmp_config
-echo >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
 
-echo "default_rack_name=RACK1" >>$tmp_config
-echo "default_rack_size=30" >>$tmp_config
-echo "default_server_role=pro" >>$tmp_config
-echo "default_package_sizes=\"128,256,512,1024\"" >>$tmp_config
-echo >>$tmp_config
+  if [ ${#out[@]} -lt 3 ] ; then
+    dialog --backtitle "$title" \
+      --msgbox "All fields are required" 5 40
+    set_resolvers
+  fi 
 
-echo "# These settings are used by all services in your cloud for email messages" \
-    >>$tmp_config
-echo "mail_to=$mail_to" >>$tmp_config
-echo "mail_from=$mail_from" >>$tmp_config
-echo >>$tmp_config
+  CONFIG_DNS1="${out[0]}"
+  CONFIG_DNS2="${out[1]}"
+  CONFIG_DNS_SEARCH="${out[2]}"
+  
+  __is_ip "$CONFIG_DNS1" || warn \
+    "$CONFIG_DNS1 is not a valid IP" "set_resolvers"
+  
+  __is_ip "$CONFIG_DNS2" || warn \
+    "$CONFIG_DNS2 is not a valid IP" "set_resolvers"
+  
+  # TODO validate dns search domain
 
-echo "# admin_nic is the nic admin_ip will be connected to for headnode zones."\
-    >>$tmp_config
-echo "admin_nic=$admin_nic" >>$tmp_config
-echo "admin_ip=$admin_ip" >>$tmp_config
-echo "admin_netmask=$admin_netmask" >>$tmp_config
-echo "admin_network=$admin_network" >>$tmp_config
-echo "admin_gateway=$admin_gateway" >>$tmp_config
-echo >>$tmp_config
+  # we also set the resolver so that dig can work against
+  # whatever nameserver is put into this list
+  if [ -f /etc/resolv.conf ] ; then
+    mv /etc/resolv.conf /etc/resolv.conf-sdcsetup
+  fi
+ 
+  echo "nameserver $CONFIG_DNS1" > /etc/resolv.conf
+  echo "nameserver $CONFIG_DNS2" >> /etc/resolv.conf
+  echo "domain $CONFIG_DNS_SEARCH" >> /etc/resolv.conf
 
-echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
-    >>$tmp_config
-echo "external_nic=$external_nic" >>$tmp_config
-echo "external_ip=$external_ip" >>$tmp_config
-echo "external_gateway=$external_gateway" >>$tmp_config
-echo "external_netmask=$external_netmask" >>$tmp_config
-if [ -z "$external_vlan_id" ]; then
-	echo "# external_vlan_id=999" >>$tmp_config
-else
-	echo "external_vlan_id=$external_vlan_id" >>$tmp_config
-fi
-echo "external_network=$external_network" >>$tmp_config
-echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
-echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
-echo >>$tmp_config
+  STATUS_DNS_IS_SETUP=0
+  callback
+}
 
-echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
-echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
-echo >>$tmp_config
 
-echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config
-echo "dns_domain=$dns_domain" >>$tmp_config
-echo >>$tmp_config
+# NTP client configuration. NTP server is queried using dig and
+# if validated / reachable is stored in the config
+set_ntp() {
+  local out
+  local hosts
 
-echo "# These are the dhcp settings for compute nodes on the admin network"\
-    >>$tmp_config
-echo "dhcp_range_start=$dhcp_range_start" >>$tmp_config
-echo "dhcp_range_end=$dhcp_range_end" >>$tmp_config
-echo "dhcp_lease_time=86400" >>$tmp_config
-echo "dhcp_next_server=$dhcp_next_server" >>$tmp_config
-echo >>$tmp_config
+  set_title "NTP Configuration"
+  
+  out=$(dialog --backtitle "$title" \
+    --title "NTP Client Configuration" \
+    --inputbox "Please specify an NTP Server" 0 0 "$CONFIG_NTP_HOST" \
+    2>&1 1>&3 )
 
-echo "# This should not be changed." >>$tmp_config
-echo "initial_script=scripts/headnode.sh" >>$tmp_config
-echo >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
 
-echo "# This is the entry from /etc/shadow for root" >>$tmp_config
-root_shadow=$(/usr/lib/cryptpass "$root_shadow")
-echo "root_shadow='${root_shadow}'" >>$tmp_config
-echo >>$tmp_config
+  [[ -z $out ]] && out=localhost
 
-#
-# Currently we're using the same pw as we use for zones, but we may want
-# to add another prompt for this as a 3rd pw.
-#
-echo "# This is the entry from /etc/shadow for the admin user" >>$tmp_config
-admin_shadow=$(/usr/lib/cryptpass "$zone_admin_pw")
-echo "admin_shadow='${admin_shadow}'" >>$tmp_config
-echo >>$tmp_config
+  if [ $out == 'localhost' ] ; then
+    CONFIG_NTP_HOST="localhost"
+    CONFIG_NTP_IPADDR="127.0.0.1"
+  else
+    hosts=( $(dig +short $out) )
 
-echo "ntp_hosts=$ntp_hosts" >>$tmp_config
+    if [ $? -eq 0 ] ; then
+      dialog --backtitle "$title" \
+        --title "Syncing with NTP server" \
+        --infobox "Attempting to sync with NTP server $out ($hosts)" 4 40
+      
+      loginfo $hosts
+      ntpdate -d -b $hosts >> $LOG 2>&1
+     
+      if [ $? -ne 0 ] ; then
+        dialog --backtitle "$title" \
+          --title "NTP Configuration Error" \
+          --msgbox "Could not reach an NTP server at ${out}" 0 0
+        set_ntp
+      else
+        CONFIG_NTP_HOST="${out}"
+        CONFIG_NTP_IPADDR="${hosts[0]}"
+        dialog --clear --backtitle "$title" \
+          --msgbox "NTP sync successful" 5 23
+      fi
+    else
+      dialog --backtitle "$title" \
+        --title "NTP Configuration Error" \
+        --msgbox "Could not reach an NTP server at ${out}" 0 0
+      set_ntp
+    fi
+  fi
 
-echo "compute_node_ntp_hosts=$admin_ip" >>$tmp_config
-echo >>$tmp_config
+  STATUS_NTP_IS_SETUP=0
+  callback
+}
 
-#
-# The zone configuration data
-#
+##############################################
+# Menus
+##############################################
 
-echo "# Zone-specific configs" >>$tmp_config
-echo >>$tmp_config
+# prints the menu for changing values for a particular service
+# right now that's just the IP address
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# adminui_external_vlan=0" >>$tmp_config
-else
-	echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
-echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
-echo >>$tmp_config
+service_setup_generic() {
+  set_callback "services_menu"
+  set_title "Services ($1)"
 
-echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
-echo "amon_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  service_key="CONFIG_$1_NET_IPADDR"
+  loginfo "setting service: $service_key"
 
-echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
-echo "redis_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  out=( $(dialog --backtitle "$title" \
+    --title "IP address ($1)" \
+    --cancel-label "Back" \
+    --form "Service Configuration ($1)" 0 0 0 \
+    "IP Address"       1 0 "${!service_key}"    1 20 16 0 \
+    "Network"          2 0 "$CONFIG_NET_IPNET"  2 20  0 0 \
+    "Subnet Mask"      3 0 "$CONFIG_NET_IPMASK" 3 20  0 0 \
+    "Default Gateway"  4 0 "$CONFIG_NET_IPGW"   4 20  0 0 \
+    "VLAN"             5 0 "0 (native)"         5 20  0 0 \
+    2>&1 1>&3 ) )
 
-echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
-echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
-echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    services_menu 
+  fi  
+ 
+  __is_ip "${out[0]}" || warn \
+    "${out[0]} is not a valid IP" "service_setup $1"
+  
+  __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[0]}" || warn \
+    "${out[0]} is not in this network" "service_setup $1"
+    
+  eval $service_key="${out[0]}"
 
-echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
-echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  services_menu
+}
 
-echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
-echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
-echo "dhcpd_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+service_setup_dhcp() {
+  set_callback "services_menu"
+  set_title "Services ($1)"
 
-echo "dnsapi_http_port=8000" >>$tmp_config
-echo "dnsapi_http_user=admin" >>$tmp_config
-echo "dnsapi_http_pass=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  service_key="CONFIG_$1_NET_IPADDR"
+  loginfo "setting service: $service_key"
 
-echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
-echo "dsapi_http_user=honeybadger" >>$tmp_config
-echo "dsapi_http_pass=IEatSnakes4Fun" >>$tmp_config
-echo >>$tmp_config
+  out=( $(dialog --backtitle "$title" \
+    --title "IP address ($1)" \
+    --cancel-label "Back" \
+    --form "Service Configuration ($1)" 0 0 0 \
+    "IP Address"       1 0 "${!service_key}"    1 20  16 0 \
+    "Network"          2 0 "$CONFIG_NET_IPNET"  2 20   0 0 \
+    "Subnet Mask"      3 0 "$CONFIG_NET_IPMASK" 3 20   0 0 \
+    "Default Gateway"  4 0 "$CONFIG_NET_IPGW"   4 20   0 0 \
+    "VLAN"             5 0 "0 (native)"         5 20   0 0 \
+    "DHCP Start"       7 0 "$CONFIG_DHCP_START" 7 20  16 0 \
+    "DHCP Stop"        8 0 "$CONFIG_DHCP_STOP " 8 20  16 0 \
+    2>&1 1>&3 ) )
 
-echo "mapi_admin_ip=$mapi_admin_ip" >>$tmp_config
-echo "mapi_client_url=$mapi_client_url" >>$tmp_config
-echo "mapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "mapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "mapi_mac_prefix=90b8d0" >>$tmp_config
-echo "mapi_http_port=8080" >>$tmp_config
-echo "mapi_http_admin_user=admin" >>$tmp_config
-echo "mapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
-echo >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    services_menu 
+  fi  
+ 
+  __is_ip "${out[0]}" || warn \
+    "${out[0]} is not a valid IP" "service_setup $1"
+  
+  __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[0]}" || warn \
+    "${out[0]} is not in this network" "service_setup $1"
+  
+  __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[1]}" || warn \
+    "DHCP start must belong to network" "service_setup $1"
+  
+  __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[2]}" || warn \
+    "DHCP stop must belong to network" "service_setup $1"
+    
+  eval $service_key="${out[0]}"
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# portal_external_vlan=0" >>$tmp_config
-else
-	echo "portal_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "portal_root_pw=$zone_admin_pw" >>$tmp_config
-echo "portal_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  services_menu
+}
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# cloudapi_external_vlan=0" >>$tmp_config
-else
-	echo "cloudapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
+account_menu() {
+  set_callback "account_menu" # return to menu after selection complete
+  set_title "Services (expert)"
+  
+  out=$(dialog --backtitle "$title" \
+    --title "Account Configuration Menu" \
+    --cancel-label "Back" \
+    --menu "Please select one of the users to edit" 0 0 0 \
+    "root"  "$(printf "%-22s %8s" "Set root password" "")" \
+    "admin" "$(printf "%-22s %8s" "Set admin password" "")" \
+    "api"   "$(printf "%-22s %8s" "Set API password" "")" \
+    2>&1 1>&3 )
 
-echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
-echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
-echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "rabbitmq=$rabbitmq" >>$tmp_config
-echo >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu 
+  fi
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# billapi_external_vlan=0" >>$tmp_config
-else
-	echo "billapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "billapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "billapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "billapi_http_admin_user=admin" >>$tmp_config
-echo "billapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
+  case $out in
+    root)
+      set_password ROOT
+      ;;
+    admin)
+      set_password ADMIN
+      ;;
+    api)
+      set_password API
+      ;;
+  esac
+}
 
-echo "riak_root_pw=$zone_admin_pw" >>$tmp_config
-echo "riak_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
 
-echo "ufds_is_local=true" >>$tmp_config
-if [ -z "$external_vlan_id" ]; then
-	echo "# ufds_external_vlan=0" >>$tmp_config
-else
-	echo "ufds_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
-echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
-echo "ufds_ldap_root_pw=secret" >>$tmp_config
-echo "ufds_admin_login=admin" >>$tmp_config
-echo "ufds_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "ufds_admin_email=user@${domainname}" >>$tmp_config
-echo "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
-echo "# Legacy CAPI parameters" >>$tmp_config
-echo "capi_http_admin_user=admin" >>$tmp_config
-echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
+# prints the services menu which is used to configure individual zones
+# zones automatically have their configuration populated after the
+# initial network configuration is completed
+services_menu() {
+  set_callback "services_menu" # return to menu after selection complete
+  set_title "Services (expert)"
+  
+  out=$(dialog --backtitle "$title" \
+    --title "Services Configuration Menu" \
+    --cancel-label "Back" \
+    --menu "Please select one of the configuration options" 13 50 4 \
+    "assets"   "$(printf "%-22s %8s" "Static Assets Server" "")" \
+    "dhcpd"    "$(printf "%-22s %8s" "Management DHCP Daemon" "")" \
+    "amqp"     "$(printf "%-22s %8s" "AMQP Message Bus" "")" \
+    "mapi"     "$(printf "%-22s %8s" "Master API" "")" \
+    2>&1 1>&3 )
 
-echo "phonehome_automatic=true" >>$tmp_config
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
 
-echo
-echo "Your configuration is about to be applied."
-promptval "Would you like to edit the final configuration file?" "n"
-[ "$val" == "y" ] && vi $tmp_config
+  set_last_item $out
+  
+  case $out in
+    mapi)
+      service_setup_generic MAPI
+      ;;
+    assets)
+      service_setup_generic ASSETS
+      ;;
+    dhcpd)
+      service_setup_dhcp DHCP
+      ;;
+    amqp)
+      service_setup_generic AMQP
+      ;;
+  esac
+}
 
-clear
-echo "The headnode will now finish configuration and reboot. Please wait..."
-mv $tmp_config $USBMNT/config
-nicsdown
+
+# general launch menu. this menu is the default method of navigating
+# all the configuration options and dialogs
+launch_menu() {
+  set_callback "launch_menu" # return to menu after selection complete
+  set_title "Welcome"
+  
+  out=$(dialog --backtitle "$title" \
+    --title "Configuration Menu" \
+    --cancel-label "Quit" \
+    --default-item "$last_menu_item" \
+    --menu "Please select one of the configuration options" 18 50 11 \
+    "datacenter" "$(printf "%-22s %8s" "Datacenter" "")" \
+    "hostname"   "$(printf "%-22s %8s" "Set Hostname" "")" \
+    "networks"   "$(printf "%-22s %8s" "Network Configuration" "")" \
+    "resolvers"  "$(printf "%-22s %8s" "DNS Resolvers" "")" \
+    "ntp"        "$(printf "%-22s %8s" "NTP Client" "")" \
+    "keyboard"   "$(printf "%-22s %8s" "Keyboard Layout" "")" \
+    "phonehome"  "$(printf "%-22s %8s" "Feedback Support" "")" \
+    "accounts"   "$(printf "%-22s %8s" "Users & Accounts" "> ")" \
+    "services"   "$(printf "%-22s %8s" "Configure Services" "> ")" \
+    "rescue"     "$(printf "%-22s %8s" "Launch Rescue Shell" "")" \
+    "apply"      "$(printf "%-22s %8s" "Save & Install" "")" \
+    2>&1 1>&3 )
+
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    exit 1
+  fi
+
+  set_last_item $out
+
+  case $out in
+    datacenter)
+      setup_datacenter
+      ;;
+    hostname)
+      set_fqdn
+      ;;
+    networks)
+      select_networks
+      ;; 
+    resolvers)
+      set_resolvers
+      ;;
+    ntp)
+      set_ntp
+      ;;
+    accounts)
+      account_menu
+      ;;
+    keyboard)
+      setup_kbd
+      ;;
+    phonehome)
+      set_phonehome
+      ;;
+    services)
+      services_menu 
+      ;;
+    rescue)
+      clear
+      echo "Launching emergency rescue shell..."
+      bash 
+      callback
+      ;;
+    apply)
+      apply_config
+      ;;
+  esac
+
+}
+
+write_old_config() {
+  __wr "#----------------------------------------------------------------"
+  __wr "# SDC6.5 Headnode Configuration"
+  __wr "#----------------------------------------------------------------"
+  __wr "# version: 0.1"
+  __wr "# date: $(date)"
+  __wr "#"
+  __wr "# this file was auto-generated and must be source-able by bash."
+  __wr "#"
+  __is_vmware && __wr "coal=true"
+  __wr ""
+  __wr "datacenter_name=\"$CONFIG_DCID\""
+  __wr "datacenter_company_name=\"$CONFIG_COMPANY\""
+  __wr "datacenter_location=\"$CONFIG_CITY, $CONFIG_STATE\""
+  __wr "datacenter_headnode_id=0" 
+  __wr ""
+  __wr "default_rack_name=RACK1" #XXX 
+  __wr "default_rack_size=42"    #XXX
+  __wr "default_server_role=pro" #XXX
+  __wr "default_package_sizes=\"128,256,512,1024\"" #XXX
+  __wr ""
+  __wr "mail_to=root@localhost"
+  __wr "mail_from=root@localhost"
+  __wr ""
+  __wr "admin_nic=$CONFIG_NET_MACADDR"
+  __wr "admin_ip=$CONFIG_NET_IPADDR"
+  __wr "admin_netmask=$CONFIG_NET_IPMASK"
+  __wr "admin_network=$CONFIG_NET_IPNET"
+  __wr "admin_gateway=$CONFIG_NET_IPGW"
+  __wr "dns_resolvers=$CONFIG_DNS1,$CONFIG_DNS2"
+  __wr "dns_domain=$CONFIG_DNS_SEARCH"
+  __wr ""
+  __wr "headnode_default_gateway=$CONFIG_NET_IPGW"
+  __wr "compute_node_default_gateway=$CONFIG_NET_IPGW"
+  __wr ""
+  __wr "root_shadow='$(/usr/lib/cryptpass $CONFIG_PASS_ROOT)'"
+  __wr "admin_shadow='$(/usr/lib/cryptpass $CONFIG_PASS_ADMIN)'"
+  __wr ""
+  __wr "ntp_hosts=$CONFIG_NTP_IPADDR"
+  __wr "compute_node_ntp_hosts=$CONFIG_NET_IPADDR"
+  __wr ""
+  __wr "assets_root_pw=$CONFIG_PASS_ROOT"
+  __wr "assets_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "assets_admin_ip=$CONFIG_ASSETS_NET_IPADDR"
+  __wr ""
+  __wr "dhcpd_root_pw=$CONFIG_PASS_ROOT"
+  __wr "dhcpd_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "dhcpd_admin_ip=$CONFIG_DHCP_NET_IPADDR"
+  __wr "dhcp_range_start=$CONFIG_DHCP_START"
+  __wr "dhcp_range_end=$CONFIG_DHCP_STOP"
+  __wr ""
+  __wr "rabbitmq_root_pw=$CONFIG_PASS_ROOT"
+  __wr "rabbitmq_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "rabbitmq_admin_ip=$CONFIG_AMQP_NET_IPADDR"
+  __wr "rabbitmq=guest:guest:$CONFIG_AMQP_NET_IPADDR:5672"
+  __wr ""
+  __wr "mapi_root_pw=$CONFIG_PASS_ROOT"
+  __wr "mapi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "mapi_admin_ip=$CONFIG_MAPI_NET_IPADDR"
+  __wr "mapi_client_url=http://$CONFIG_MAPI_NET_IPADDR:80"
+  __wr "mapi_mac_prefix=90b8d0"     # WTF?
+  __wr "mapi_http_port=8080"        # again WTF?
+  __wr "mapi_http_admin_user=admin" # sigh
+  __wr "mapi_http_admin_pw=$CONFIG_PASS_API"
+  __wr "mapi_datasets=\"smartos,nodejs\""
+  __wr ""
+  __wr "phonehome_automatic=$CONFIG_PHONEHOME"
+  __wr ""
+  __wr "#----------------------------------------------------------------"
+  __wr "# Do not edit below this line. These values will be deprecated"
+  __wr "#----------------------------------------------------------------"
+  __wr ""
+  __wr "swap=0.25x"  #XXX
+  __wr "compute_node_swap=0.25x" #XXX
+  __wr "cloudapi_root_pw=$CONFIG_PASS_ROOT"
+  __wr "cloudapi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "capi_root_pw=$CONFIG_PASS_ROOT"
+  __wr "capi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "billapi_root_pw=$CONFIG_PASS_ROOT"
+  __wr "billapi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "riak_root_pw=$CONFIG_PASS_ROOT"
+  __wr "riak_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "portal_root_pw=$CONFIG_PASS_ROOT"
+  __wr "portal_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "dnsapi_http_port=8000"
+  __wr "dnsapi_root_pw=$CONFIG_PASS_ROOT"
+  __wr "dnsapi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "amon_root_pw=$CONFIG_PASS_ROOT"
+  __wr "amon_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "ca_root_pw=$CONFIG_PASS_ROOT"
+  __wr "ca_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "adminui_root_pw=$CONFIG_PASS_ROOT"
+  __wr "adminui_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "adminui_help_url=http://sdcdoc.joyent.com/"
+  __wr "redis_root_pw=$CONFIG_PASS_ROOT"
+  __wr "redis_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "dhcp_lease_time=86400" 
+  __wr "dhcp_next_server=$CONFIG_DHCP_NET_ADDR"
+  __wr "ufds_is_local=true"
+  __wr "ufds_external_vlan=0"
+  __wr "ufds_ldap_root_dn=cn=root"
+  __wr "ufds_ldap_root_pw=secret"
+  __wr "ufds_admin_login=admin"
+  __wr "ufds_admin_email=root@localhost"
+  __wr "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853"
+  __wr "capi_http_admin_user=admin"
+  __wr "capi_http_admin_pw=tot@ls3crit"
+  __wr "default_rack_name=RACK1"
+  __wr "initial_script=scripts/headnode.sh"  # XXX 
+  __wr ""
+  __wr ""
+  __wr "# End of config"
+}
+
+# dialog for checking & applying configuration
+apply_config() {
+  local out
+  
+  set_title "Apply & Install"
+  setup_complete || warn \
+    "Configuration is not yet complete\nPlease review your configuration" "launch_menu"
+    
+  out=$(dialog --backtitle "$title" \
+    --yesno "Apply configuration & Install SDC?" 0 0 \
+    2>&1 1>&3 )
+
+  if [ $? -eq $DIALOG_OK ] ; then
+    write_old_config
+    write_config
+  else
+    launch_menu
+  fi
+
+}
+
+# Main
+initial_flow() {
+  print_welcome
+  print_eula
+  setup_datacenter
+  set_fqdn
+  select_networks
+  set_resolvers
+  set_ntp
+  set_password ADMIN
+  set_password API
+  CONFIG_PASS_ROOT=$CONFIG_PASS_ADMIN 
+  STATUS_PASS_ROOT_IS_SETUP=0
+  set_phonehome
+  apply_config
+}
+
+#launch_menu
+initial_flow

@@ -176,7 +176,7 @@ if [[ ${POOLS} == "no pools available" ]]; then
         fatal "FATAL: unable to find 'smartos' dataset."
     fi
 
-    printf "%-56s" "Importing zone template dataset... " >&${CONSOLE_FD}
+    printf "%-56s" "importing SMI: smartos" >&${CONSOLE_FD}
     bzcat ${USB_PATH}/datasets/${ds_file} \
         | zfs recv zones/${ds_uuid} \
         || fatal "unable to import ${template}"
@@ -213,7 +213,7 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
         | grep -v -- '-hvm-' | tail -n1)
     if [[ -n ${which_agents} ]]; then
         if [ $restore == 0 ]; then
-            printf "%-58s" "Installing $(basename ${which_agents})... " \
+            printf "%-58s" "installing $(basename ${which_agents})... " \
                 >&${CONSOLE_FD}
             (cd /var/tmp ; bash ${which_agents})
         else
@@ -338,7 +338,7 @@ function create_zone {
                 ds_uuid=$(echo ${res} | cut -d',' -f1)
                 ds_file=$(echo ${res} | cut -d',' -f2)
                 if [[ ${ds_uuid} == ${extra_dataset} ]]; then
-                    printf "%-58s" "Importing ${zone} template dataset... " \
+                    printf "%-58s" "importing SMI: ${zone}" \
                         >&${CONSOLE_FD}
                     bzcat ${USB_PATH}/datasets/${ds_file} \
                         | zfs recv zones/${ds_uuid} \
@@ -354,7 +354,7 @@ function create_zone {
     fi
 
     if [[ ${restore} == 0 ]]; then
-        printf "%-58s" "Creating zone ${existing_uuid}${zone}... " \
+        printf "%-58s" "creating zone ${existing_uuid}${zone}... " \
             >&${CONSOLE_FD}
     else
         # alternate format for sdc-restore

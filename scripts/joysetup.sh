@@ -233,7 +233,7 @@ create_zpool()
     fi
 
     disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
-    printf "%-56s" "Creating pool $pool... " >&4
+    printf "%-56s" "creating pool: $pool" >&4
 
     # If no pool profile was provided, use a default based on the number of
     # devices in that pool.
@@ -344,13 +344,13 @@ setup_datasets()
   datasets=$(zfs list -H -o name | xargs)
   
   if ! echo $datasets | grep dump > /dev/null; then
-    printf "%-56s" "Making dump zvol... " >&4
+    printf "%-56s" "adding volume: dump" >&4
     create_dump
     printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${CONFDS} > /dev/null; then
-    printf "%-56s" "Initializing config dataset for zones... " >&4
+    printf "%-56s" "adding volume: config" >&4
     zfs create ${CONFDS} || fatal "failed to create the config dataset"
     chmod 755 /${CONFDS}
     cp -p /etc/zones/* /${CONFDS}
@@ -360,7 +360,7 @@ setup_datasets()
 
   if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
     if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
-        printf "%-56s" "Creating usbkey dataset... " >&4
+        printf "%-56s" "adding volume: usbkey" >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
         printf "%4s\n" "done" >&4
@@ -368,7 +368,7 @@ setup_datasets()
   fi
 
   if ! echo $datasets | grep ${COREDS} > /dev/null; then
-    printf "%-56s" "Creating global cores dataset... " >&4
+    printf "%-56s" "adding volume: cores" >&4
     zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
         -o compression=gzip ${COREDS} || \
         fatal "failed to create the cores dataset"
@@ -376,14 +376,14 @@ setup_datasets()
   fi
 
   if ! echo $datasets | grep ${OPTDS} > /dev/null; then
-    printf "%-56s" "Creating opt dataset... " >&4
+    printf "%-56s" "adding volume: opt" >&4
     zfs create -o mountpoint=legacy ${OPTDS} || \
       fatal "failed to create the opt dataset"
     printf "%4s\n" "done" >&4
   fi
 
   if ! echo $datasets | grep ${VARDS} > /dev/null; then
-    printf "%-56s" "Initializing var dataset... " >&4
+    printf "%-56s" "adding volume: var" >&4
     zfs create ${VARDS} || \
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
@@ -411,7 +411,7 @@ create_swap()
     fi
 
     if ! zfs list -H -o name ${SWAPVOL}; then
-        printf "%-56s" "Creating swap zvol... " >&4
+        printf "%-56s" "adding volume: swap" >&4
 
         #
 	# We cannot allow the swap size to be less than the size of DRAM, lest
