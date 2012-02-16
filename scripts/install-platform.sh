@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 
 set -o errexit
@@ -55,7 +55,7 @@ if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]
 fi
 
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
-    echo "==> Unpacking ${version} to ${usbcpy}/os"
+    echo "==> Staging ${version}"
     curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
 
     if [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]]; then
@@ -63,6 +63,8 @@ if [[ ! -d ${usbmnt}/os/${version} ]]; then
        usage
     fi
     
+    echo "==> Unpacking ${version} to ${usbmnt}/os"
+    echo "==> This may take a while..."
     mkdir -p ${usbmnt}/os/${version}
     (cd ${usbmnt}/os/${version} \
       && gzcat ${usbcpy}/os/tmp.$$.tgz | tar -xf - 2>/tmp/install_platform.log \
