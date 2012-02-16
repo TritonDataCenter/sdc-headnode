@@ -320,6 +320,9 @@ function copy_base
 
     echo "==> Copying in rc/"
     cp -r rc ${STAGE}/rc
+
+    echo "==> Copying in EULA"
+    cp -r EULA ${STAGE}/EULA
 }
 
 function copy_config {
