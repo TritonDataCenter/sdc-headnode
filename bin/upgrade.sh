@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011, 2012, Joyent Inc., All rights reserved.
+# Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -130,6 +130,7 @@ function backup_usbkey
         zones \
     ) \
     | (cd ${backup_dir}/usbkey && gtar --no-same-owner -xf -)
+    [[ $? != 0 ]] && fatal "USB key backup failed"
 }
 
 function upgrade_usbkey
