@@ -12,186 +12,33 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # The user-script is downloaded and executed on every zone boot. We take
 # advantage of this to maintain the cached config values post-setup.
 if [ -e /var/svc/setup_complete ]; then
-	oldpw=`nawk '{
-	    if (! done && $1 == "\"password\":") {
-		print substr($2, 2, length($2) - 3)
-		done = 1
-	    }
-	}' /opt/smartdc/cloudapi/cfg/config.json`
-	[ "$cloudapi_http_admin_pw" == "$oldpw" ] && exit 0
-
-	echo "Updating cloudapi configuration"
-	nawk -v p=$cloudapi_http_admin_pw '{
-	    if (! done && $1 == "\"password\":") {
-		printf("  \"password\": \"%s\",\n", p)
-		done = 1
-	    } else {
-		print $0
-	    }
-	}' /opt/smartdc/cloudapi/cfg/config.json \
-	 > /opt/smartdc/cloudapi/cfg/config.json.new
-	mv /opt/smartdc/cloudapi/cfg/config.json.new \
-	   /opt/smartdc/cloudapi/cfg/config.json
-	svcadm restart cloudapi
+# TODO
+# Update all the config that could have possibly changed.
+    exit 0
 fi
 
 # XXX is net1 external nic?
 EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
 CLOUDAPI_EXTERNAL_URL="https://$EXT_IPADDR"
 
-echo "Creating SMF manifest"
-cat > /opt/smartdc/cloudapi/cloudapi_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="cloudapi">
-  <service name="smartdc/site/cloudapi" type="service" version="6.1.0">
+echo "Updating config file manifest"
+CFG_FILE_IN=/opt/smartdc/cloudapi/etc/cloudapi.cfg.in
+CFG_FILE=/opt/smartdc/cloudapi/etc/cloudapi.cfg
 
-    <create_default_instance enabled="true"/>
-    <single_instance/>
+# Update config file
+cp $CFG_FILE_IN $CFG_FILE
+gsed -i -e "s|CA_URL|$CA_URL|" $CFG_FILE
+gsed -i -e "s|CLOUDAPI_EXTERNAL_URL|$CLOUDAPI_EXTERNAL_URL|" $CFG_FILE
+gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $CFG_FILE
+gsed -i -e "s|MAPI_URL|$MAPI_URL|" $CFG_FILE
+gsed -i -e "s|MAPI_HTTP_ADMIN_USER|$MAPI_HTTP_ADMIN_USER|" $CFG_FILE
+gsed -i -e "s|MAPI_HTTP_ADMIN_PW|$MAPI_HTTP_ADMIN_PW|" $CFG_FILE
+gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
+gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
+gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
 
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/cloudapi/server.js &amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/cloudapi">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/cloudapi" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/cloudapi" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">Cloudapi daemon (node)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
-cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
-{
-  "siteName": "${CLOUDAPI_EXTERNAL_URL}",
-  "port": 443,
-  "cert": "./ssl/cert.pem",
-  "key": "./ssl/key.pem",
-  "logLevel": "Info",
-  "ufds": {
-    "url": "ldaps://127.0.0.1",
-    "bindDN": "${UFDS_ROOT_DN}",
-    "bindPassword": "${UFDS_ROOT_PW}",
-    "cache": {
-      "size": 1000,
-      "expiry": 300
-    }
-  },
-  "mapi": {
-    "uri": "${MAPI_URL}",
-    "username": "${MAPI_HTTP_ADMIN_USER}",
-    "password": "${MAPI_HTTP_ADMIN_PW}",
-    "datasetCache": {
-      "size": 100,
-      "expiry": 300
-    },
-    "pkgCache": {
-      "size": 100,
-      "expiry": 60
-    }
-  },
-  "ca": {
-    "uri": "${CA_URL}"
-  },
-  "rabbitmq": {
-    "host": "${RABBIT_IP}",
-    "user": "guest",
-    "password": "guest",
-    "vhost": "/"
-  },
-  "datacenters": {
-    "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
-  },
-  "preProvisionHook": {
-    "plugin": "./plugins/capi_limits",
-    "enabled": true,
-    "config": {
-      "datacenter": "${DATACENTER_NAME}",
-      "defaults": {
-        "smartos": 1,
-        "nodejs": 1,
-        "ubuntu": 1
-      }
-    }
-  },
-  "postProvisionHook": {
-    "plugin": "./plugins/machine_email",
-    "enabled": false,
-    "config": {
-      "sendmail": "/opt/local/sbin/sendmail -i",
-      "from": "support@joyent.com",
-      "subject": "Your SmartDataCenter machine is provisioning",
-      "body": "Check /my/machines for updates"
-    }
-  },
-  "userThrottles": {
-    "all": {
-      "username": true,
-      "burst": 30,
-      "rate": 10,
-      "overrides": {
-        "${CAPI_ADMIN_LOGIN}": {
-          "burst": 0,
-          "rate": 0
-        }
-      }
-    },
-    "analytics": {
-      "username": true,
-      "burst": 1000,
-      "rate": 100,
-      "overrides": {
-        "${CAPI_ADMIN_LOGIN}": {
-          "burst": 0,
-          "rate": 0
-        }
-      }
-    }
-  }
-}
-HERE
-
-echo Importing cloudapi_manifest.xml
-/usr/sbin/svccfg import /opt/smartdc/cloudapi/cloudapi_manifest.xml
+echo Importing SMF manifest
+/usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
 
 echo "Creating HAPrgooxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
@@ -236,7 +83,7 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm enable haproxy
 
 echo "Enabling service cloudapi"
-/usr/sbin/svcadm disable smartdc/site/cloudapi
-/usr/sbin/svcadm enable smartdc/site/cloudapi
+/usr/sbin/svcadm disable smartdc/application/cloudapi
+/usr/sbin/svcadm enable smartdc/application/cloudapi
 
 exit 0
