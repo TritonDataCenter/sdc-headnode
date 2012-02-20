@@ -40,7 +40,7 @@ echo "==> Creating backup directory '${TARGET_DIR}/${ROLE}'"
 mkdir -p "${TARGET_DIR}/${ROLE}"
 
 (cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var/db; \
-    tar cbf 512 ${TARGET_DIR}/${ROLE}/var_db.tar redis)
+    tar cbfE 512 ${TARGET_DIR}/${ROLE}/var_db.tar redis)
 if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup database"
     exit 105

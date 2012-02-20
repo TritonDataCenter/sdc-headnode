@@ -29,7 +29,7 @@ if [[ ! -f ${TARGET_DIR}/${ROLE}/var_db.tar ]]; then
 fi
 
 echo "==> Restoring $ROLE backup"
-(cd /zones/$ZONE/root/var/db; tar xbf 512 ${TARGET_DIR}/${ROLE}/var_db.tar)
+(cd /zones/$ZONE/root/var/db; tar xbfE 512 ${TARGET_DIR}/${ROLE}/var_db.tar)
 if [[ $? -ne 0 ]]; then
     echo "Error: restoring database"
     exit 111

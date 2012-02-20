@@ -30,13 +30,13 @@ fi
 
 echo "==> Restoring $ROLE backup"
 mkdir -p /zones/$ZONE/root/var/db
-(cd /zones/$ZONE/root/var/db && tar xbf 512 ${TARGET_DIR}/${ROLE}/var_db.tar)
+(cd /zones/$ZONE/root/var/db && tar xbfE 512 ${TARGET_DIR}/${ROLE}/var_db.tar)
 if [[ $? -ne 0 ]]; then
     echo "Error: restoring database"
     exit 111
 fi
 (cd /zones/$ZONE/root/opt/riak/etc; \
-    tar xbf 512 ${TARGET_DIR}/${ROLE}/etc.tar)
+    tar xbfE 512 ${TARGET_DIR}/${ROLE}/etc.tar)
 if [[ $? -ne 0 ]]; then
     echo "Error: restoring configuration"
     exit 112
