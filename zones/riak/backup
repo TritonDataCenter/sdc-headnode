@@ -41,13 +41,13 @@ echo "==> Creating backup directory '${TARGET_DIR}/${APP_NAME}'"
 mkdir -p "${TARGET_DIR}/${APP_NAME}"
 
 (cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var/db; \
-    tar cbf 512 ${TARGET_DIR}/${APP_NAME}/var_db.tar riak)
+    tar cbfE 512 ${TARGET_DIR}/${APP_NAME}/var_db.tar riak)
 if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup database"
     exit 105
 fi
 (cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/local/etc; \
-    tar cbf 512 ${TARGET_DIR}/${APP_NAME}/etc.tar riak)
+    tar cbfE 512 ${TARGET_DIR}/${APP_NAME}/etc.tar riak)
 if [[ $? -ne 0 ]]; then
     echo "FATAL: Unable to backup configuration"
     exit 106
