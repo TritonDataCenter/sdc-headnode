@@ -323,7 +323,6 @@ function install_platform
 
     if [[ -d ${usbcpy}/os/${platformversion} ]]; then
         echo "${usbcpy}/os/${platformversion} already exists, skipping update."
-        SKIP_SWITCH=1
         return
     fi
 
@@ -416,7 +415,6 @@ import_datasets
 
 recreate_zones
 
-SKIP_SWITCH=0
 install_platform
 
 upgrade_agents
@@ -426,8 +424,7 @@ upgrade_cn_agents
 # Update version, since the upgrade made it here.
 echo "${new_version}" > ${usbmnt}/version
 
-[ $SKIP_SWITCH == 0 ] && \
-    /usbkey/scripts/switch-platform.sh ${platformversion}
+/usbkey/scripts/switch-platform.sh ${platformversion}
 echo "Activating upgrade complete"
 
 message="
