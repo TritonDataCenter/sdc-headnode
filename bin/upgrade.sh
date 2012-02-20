@@ -709,7 +709,6 @@ function install_platform
 	if [[ -d ${usbcpy}/os/${platformversion} ]]; then
 		echo \
 	    "${usbcpy}/os/${platformversion} already exists, skipping update."
-		SKIP_SWITCH=1
 		return
         fi
 
@@ -928,7 +927,6 @@ load_sdc_config
 
 # We do the first part of installing the platform now so the new platform
 # is available for the new code to run on via the lofs mounts below.
-SKIP_SWITCH=0
 install_platform
 
 # All of the following are using node and/or libzonecfg so we need to stop them
@@ -1048,8 +1046,7 @@ recreate_extra_zones
 # Fix up mapi's CN config file
 cleanup_cn_config
 
-[ $SKIP_SWITCH == 0 ] && \
-    /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
+/usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
 
 # Leave headnode setup for compute node upgrades of all roles
 for role in $ROLE_ORDER
