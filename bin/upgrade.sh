@@ -396,6 +396,8 @@ sdc-backup -s datasets
 bfile=`ls /zones/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "unable to make a backup"
 
+date 1>&4 2>&1
+
 mount_usbkey
 
 backup_usbkey
@@ -404,8 +406,12 @@ trap cleanup EXIT
 
 upgrade_pools
 
+date 1>&4 2>&1
+
 # import new headnode dataset if there's one (used for new headnode zones)
 import_datasets
+
+date 1>&4 2>&1
 
 #
 # NOTE: we don't update the config file in any way since we assume this is
@@ -415,9 +421,15 @@ import_datasets
 
 recreate_zones
 
+date 1>&4 2>&1
+
 install_platform
 
+date 1>&4 2>&1
+
 upgrade_agents
+
+date 1>&4 2>&1
 
 upgrade_cn_agents
 
