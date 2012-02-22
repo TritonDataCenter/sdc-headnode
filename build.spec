@@ -5,7 +5,7 @@
   , "platform-release": "master"
   , "agents-shar": "master"
   , "adminui-tarball": "adminui/adminui-pkg-master-.*.tar.bz2"
-  , "amon-tarball": "amon/amon-master-master-.*.tar.bz2"
+  , "amon-tarball": "amon/amon-pkg-master-.*.tar.bz2"
   , "assets-tarball": "assets/assets-pkg-master-.*.tar.bz2"
   , "billapi-tarball": "billapi/billapi-pkg-master-.*.tar.bz2"
   , "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2"
