@@ -67,7 +67,7 @@ dhcpd_dhcp_server=1
 mapi_cpu_shares=50
 mapi_max_lwps=1000
 mapi_memory_cap=32g
-mapi_workers=8
+mapi_workers=12
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
