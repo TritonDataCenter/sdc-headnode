@@ -3,14 +3,17 @@
 # Copyright (c) 2012, Joyent Inc., All rights reserved.
 #
 
-set -o errexit
-set -o pipefail
-
 function usage()
 {
     echo "Usage: $0 <platform URI>"
     echo "(URI can be file:///, http://, anything curl supports or a filename)"
     exit 1
+}
+
+function fatal()
+{
+	printf "Error: %s\n" "$1" >/dev/stderr
+        exit 1
 }
 
 input=$1
@@ -27,8 +30,7 @@ else
        file=$(basename ${input})
        input="file://${dir}/${file}"
     else
-       echo "File: '${input}' not found."
-       usage
+       fatal "file: '${input}' not found."
     fi
 fi
 
@@ -57,19 +59,21 @@ fi
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
     echo "==> Staging ${version}"
     curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
+    [ $? != 0 ] && fatal "retrieving $input"
 
-    if [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]]; then
-       echo "File: '${input}' not found."
-       usage
-    fi
+    [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]] && fatal "file: '${input}' not found."
     
     echo "==> Unpacking ${version} to ${usbmnt}/os"
     echo "==> This may take a while..."
     mkdir -p ${usbmnt}/os/${version}
+    [ $? != 0 ] && fatal "unable to mkdir ${usbmnt}/os/${version}"
     (cd ${usbmnt}/os/${version} \
-      && gzcat ${usbcpy}/os/tmp.$$.tgz | tar -xf - 2>/tmp/install_platform.log \
-      && mv platform-* platform
-    )
+      && gzcat ${usbcpy}/os/tmp.$$.tgz | tar -xf - 2>/tmp/install_platform.log)
+    [ $? != 0 ] && fatal "unpacking image into ${usbmnt}/os/${version}"
+
+    (cd ${usbmnt}/os/${version} && mv platform-* platform)
+    [ $? != 0 ] && fatal "moving image in ${usbmnt}/os/${version}"
+
     rm -f ${usbcpy}/os/tmp.$$.tgz
 
     if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
@@ -81,7 +85,9 @@ fi
 if [[ ! -d ${usbcpy}/os/${version} ]]; then
     echo "==> Copying ${version} to ${usbcpy}/os"
     mkdir -p ${usbcpy}/os
+    [ $? != 0 ] && fatal "mkdir ${usbcpy}/os"
     (cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
+    [ $? != 0 ] && fatal "copying image to ${usbmnt}/os"
 fi
 
 if [[ ${mounted} == "true" ]]; then
@@ -91,8 +97,9 @@ fi
 
 echo "==> Adding to list of available platforms"
 
-# Wait until MAPI is actually up. Attempts to guarantee that (watching the MAPI svc)
-# before calling this script aren't reliable.
+# Wait until MAPI is actually up. Attempts to guarantee that (watching the MAPI
+# svc) before calling this script aren't reliable.
+
 mapi_ping="curl -f --connect-timeout 2 -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} --url http://${CONFIG_mapi_admin_ip}/"
 for i in {1..12}; do
     if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` == "0" ]]; then
@@ -100,45 +107,43 @@ for i in {1..12}; do
     fi
     sleep 5
 done
-if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` != "0" ]]; then
-    echo "FAILED waiting for MAPI to come up, can't update."
-    exit 1
-fi
+[[ `${mapi_ping} >/dev/null 2>&1; echo $?` != "0" ]] && \
+    fatal "FAILED waiting for MAPI to come up, can't update."
 
-curr_list=$(curl -s -f -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
-    --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null || /bin/true)
-if [[ $? -eq 0 ]]; then
-    # MAPI returned empty content for "no platform images".
-    [[ -z "${curr_list}" ]] && curr_list='[]'
+curr_list=$(curl -s -f \
+    -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
+    --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null)
 
-    elements=$(echo "${curr_list}" | json length)
-    found="false"
-    idx=0
-    while [[ ${found} == "false" && ${idx} -lt ${elements} ]]; do
-        name=$(echo "${curr_list}" | json ${idx}.name)
-        if [[ -n ${version} && ${name} == ${version} ]]; then
-            found="true"
-        fi
-        idx=$(($idx + 1))
-    done
+[[ $? != 0 ]] && fatal "FAILED to get current list of platforms, can't update."
 
-    if [[ -n ${version} && ${found} != "true" ]]; then
-        if ! curl -s -f \
-            -X POST \
-            -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
-            --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
-            -H "Accept: application/json" \
-            -d platform_type=${platform_type} \
-            -d name=${version} >/dev/null 2>&1; then
+# MAPI returned empty content for "no platform images".
+[[ -z "${curr_list}" ]] && curr_list='[]'
 
-            echo "==> FAILED to add to list of platforms, you'll need to update manually"
-        else
-            echo "==> Added ${version} to MAPI's list"
-        fi
+elements=$(echo "${curr_list}" | json length)
+found="false"
+idx=0
+while [[ ${found} == "false" && ${idx} -lt ${elements} ]]; do
+    name=$(echo "${curr_list}" | json ${idx}.name)
+    if [[ -n ${version} && ${name} == ${version} ]]; then
+        found="true"
     fi
+    idx=$(($idx + 1))
+done
 
-else
-    echo "FAILED to get current list of platforms, can't update."
+if [[ -n ${version} && ${found} != "true" ]]; then
+    if ! curl -s -f \
+        -X POST \
+        -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
+        --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
+        -H "Accept: application/json" \
+        -d platform_type=${platform_type} \
+        -d name=${version} >/dev/null 2>&1; then
+
+        fatal \
+        "==> FAILED to add to list of platforms, you'll need to update manually"
+    else
+        echo "==> Added ${version} to MAPI's list"
+    fi
 fi
 
 echo "==> Done!"
