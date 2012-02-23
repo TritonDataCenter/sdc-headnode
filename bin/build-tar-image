@@ -58,17 +58,11 @@ THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
 THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 
-# "THIS_BUILDSTAMP" is the new sane replacement for "THIS_VERSION". However,
-# "THIS_VERSION" ends up in /usbkey/version. *Currently* I'm too much of a
-# panzy to change this format because I don't know what might be using that
-# version string. Will change after 6.5 is final (TODO).
-THIS_VERSION=${THIS_TIMESTAMP}.${THIS_BRANCH}-$(git describe)
-
 # "SDC_VERSION" is the version value that gets exposed to the public
 # for development builds this will read <ts>.<branch>.<sha> of the build
 # this value ends up in /usbkey/sdc_version
 if [[ -z $SDC_VERSION ]]; then
-  SDC_VERSION=${THIS_VERSION}
+  SDC_VERSION=${THIS_BUILDSTAMP}
 fi
 
 echo ">> Starting build at $(date)"
@@ -840,7 +834,7 @@ function copy_webinfo
 
 function copy_to_mount
 {
-    echo "${THIS_VERSION}" > ${STAGE}/version
+    echo "${THIS_BUILDSTAMP}" > ${STAGE}/version
 
     # We now want to ensure that we have some build information contained within the build
     # artifact so that we can reuse the information for downstream artifacts.
