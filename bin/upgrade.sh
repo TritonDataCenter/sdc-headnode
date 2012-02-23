@@ -153,6 +153,7 @@ function upgrade_usbkey
         fi
 
         # If necessary, add a new riak disk size to the generic config file
+        # and increase the number of mapi unicorn workers
         grep "^coal=true" /mnt/usbkey/config >/dev/null 2>&1
         if [[ $? != 0 ]]; then
             grep "^riak_disk_size=" /mnt/usbkey/config.inc/generic \
@@ -161,6 +162,13 @@ function upgrade_usbkey
                 echo "riak_disk_size=50g" \
                     >> /mnt/usbkey/config.inc/generic
             fi
+
+            if [ ${CONFIG_mapi_workers} -lt 12 ]; then
+		sed 's/mapi_workers=.*/mapi_workers=12/' \
+                    </mnt/usbkey/config.inc/generic >/tmp/config.$$
+                cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
+            fi
+
         fi
 
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
@@ -412,12 +420,6 @@ date 1>&4 2>&1
 import_datasets
 
 date 1>&4 2>&1
-
-#
-# NOTE: we don't update the config file in any way since we assume this is
-# a minor upgrade from one 6.5.x version to another 6.5.y version and thus,
-# there are no config file changes necessary.
-#
 
 recreate_zones
 
