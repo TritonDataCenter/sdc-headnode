@@ -69,7 +69,7 @@ CONFIG_PASS_ROOT=''
 CONFIG_PASS_ADMIN=''
 CONFIG_PASS_API=''
 CONFIG_KEYBOARD='US-English'
-CONFIG_MAPI_NET_IPADDR='10.0.1.1'
+CONFIG_MAPI_NET_IPADDR=''
 CONFIG_ASSETS_NET_IPADDR=''
 CONFIG_AMQP_NET_IPADDR=''
 CONFIG_DHCP_NET_IPADDR=''
@@ -100,16 +100,57 @@ title='SDC Setup - Welcome'
 # Helper functions
 ##############################################
 
-setup_complete() {
+check_setup() {
   local retval=0
+  local label=''
+  local token=''
+  
   for c in ${status_vars[@]}; do
     loginfo "Checking value: $c"
     if [[ ${!c} -eq 1 ]] ; then
+      case $c in
+        STATUS_NET_IS_SETUP)
+          label="Admin Network"
+          break
+          ;;
+        STATUS_NTP_IS_SETUP)
+          label="NTP"
+          break
+          ;;
+        STATUS_DNS_IS_SETUP)
+          label="DNS"
+          break
+          ;;
+        STATUS_FQDN_IS_SETUP)
+          label="Hostname"
+          break
+          ;;
+        STATUS_DC_IS_SETUP)
+          label="Datacenter"
+          break
+          ;;
+        STATUS_PASS_ROOT_IS_SETUP)
+          label="Root password"
+          break
+          ;;
+        STATUS_PASS_ADMIN_IS_SETUP)
+          label="Admin password"
+          break
+          ;;
+        STATUS_PASS_API_IS_SETUP)
+          label="API password"
+          ;;
+      esac
+
       retval=1
       break
     fi
   done
-  return $retval
+
+  msg="$label setup is not complete\nPlease review your configuration"
+  loginfo "check lablel: $label"
+  [[ ! -z $label ]] && warn "$msg" "launch_menu"
+
 }
 
 sigexit() {
@@ -298,6 +339,7 @@ list_kbd_layouts() {
 
 }
 
+
 setup_kbd() {
   local out
   set_title "Keyboard Layout"
@@ -377,6 +419,7 @@ setup_datacenter() {
   callback
 }
 
+
 set_password() {
   local out
 
@@ -400,14 +443,14 @@ set_password() {
     "password" 2 2 "" 3 2 32 32 \
     "confirmation" 4 2 "" 5 2 32 32 \
     2>&1 1>&3 ) )
+  
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    callback 
+  fi
 
   one="${out[0]}"
   two="${out[1]}"
   IFS=$OLDIFS
-
-  if [ $? -eq $DIALOG_CANCEL ] ; then
-    callback 
-  fi
   
   if [ "${one}" == "${two}" ] ; then
     if [ "${#one}" -lt 6 ] ; then
@@ -497,6 +540,7 @@ select_networks() {
   fi
 
   out=$(echo $ints | xargs dialog --backtitle "$title" \
+    --visit-items \
     --title "Network Configuration" \
     --menu "Please select a management network interface to configure: " 16 50 8 \
     2>&1 1>&3 )
@@ -537,8 +581,13 @@ netconfig_ipv4() {
   hex_mask=$(ifconfig $interface | awk '/inet/ {printf("%s\n", $4); }')
   mac_addr=$(dladm show-phys -mo address $interface | grep -v ^ADDRESS)
   ip_mask=$(__hex_to_dotted "$hex_mask")
+
+  [[ $ip_addr == "0.0.0.0" ]] && ip_addr = ""
+  [[ $ip_mask == "0.0.0.0" ]] && ip_mask = ""
+  [[ $gateway == "0.0.0.0" ]] && gateway = ""
   
   out=( $(dialog --backtitle "$title" \
+    --visit-items \
     --title "Network Configuration" \
     --form "Static Network Configuration (IPv4)" 0 0 0 \
     "MAC Address"     1 0 "$mac_addr"  1 20  0 0 \
@@ -549,7 +598,7 @@ netconfig_ipv4() {
     2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    launch_menu 
+    select_networks
   fi  
 
   CONFIG_NET_MACADDR="$mac_addr"
@@ -637,6 +686,7 @@ set_resolvers() {
   fi 
 
   out=( $(dialog --backtitle "$title" \
+    --visit-items \
     --title "Network Configuration" \
     --form "DNS Client Configuration" 0 0 0 \
     "DNS Server 1 IP" 1 0 "${resolvers[0]}" 1 20 16 0 \
@@ -691,7 +741,8 @@ set_ntp() {
   
   out=$(dialog --backtitle "$title" \
     --title "NTP Client Configuration" \
-    --inputbox "Please specify an NTP Server" 0 0 "$CONFIG_NTP_HOST" \
+    --inputbox "Please specify an NTP Server.\n\
+Enter 'localhost' to use the system clock" 0 0 "$CONFIG_NTP_HOST" \
     2>&1 1>&3 )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
@@ -743,7 +794,6 @@ set_ntp() {
 
 # prints the menu for changing values for a particular service
 # right now that's just the IP address
-
 service_setup_generic() {
   set_callback "services_menu"
   set_title "Services ($1)"
@@ -752,6 +802,7 @@ service_setup_generic() {
   loginfo "setting service: $service_key"
 
   out=( $(dialog --backtitle "$title" \
+    --visit-items \
     --title "IP address ($1)" \
     --cancel-label "Back" \
     --form "Service Configuration ($1)" 0 0 0 \
@@ -776,6 +827,7 @@ service_setup_generic() {
 
   services_menu
 }
+
 
 service_setup_dhcp() {
   set_callback "services_menu"
@@ -818,12 +870,14 @@ service_setup_dhcp() {
   services_menu
 }
 
+
 account_menu() {
   set_callback "account_menu" # return to menu after selection complete
   set_title "Services (expert)"
   
   out=$(dialog --backtitle "$title" \
     --title "Account Configuration Menu" \
+    --visit-items \
     --cancel-label "Back" \
     --menu "Please select one of the users to edit" 0 0 0 \
     "root"  "$(printf "%-22s %8s" "Set root password" "")" \
@@ -858,6 +912,7 @@ services_menu() {
   
   out=$(dialog --backtitle "$title" \
     --title "Services Configuration Menu" \
+    --visit-items \
     --cancel-label "Back" \
     --menu "Please select one of the configuration options" 13 50 4 \
     "assets"   "$(printf "%-22s %8s" "Static Assets Server" "")" \
@@ -898,6 +953,7 @@ launch_menu() {
   out=$(dialog --backtitle "$title" \
     --title "Configuration Menu" \
     --cancel-label "Quit" \
+    --visit-items \
     --default-item "$last_menu_item" \
     --menu "Please select one of the configuration options" 18 50 11 \
     "datacenter" "$(printf "%-22s %8s" "Datacenter" "")" \
@@ -959,6 +1015,7 @@ launch_menu() {
   esac
 
 }
+
 
 write_old_config() {
   __wr "#----------------------------------------------------------------"
@@ -1074,14 +1131,15 @@ write_old_config() {
   __wr "# End of config"
 }
 
+
 # dialog for checking & applying configuration
 apply_config() {
   local out
   
   set_title "Apply & Install"
-  setup_complete || warn \
-    "Configuration is not yet complete\nPlease review your configuration" "launch_menu"
-    
+  # checks if setup is complete
+  check_setup
+ 
   out=$(dialog --backtitle "$title" \
     --yesno "Apply configuration & Install SDC?" 0 0 \
     2>&1 1>&3 )
