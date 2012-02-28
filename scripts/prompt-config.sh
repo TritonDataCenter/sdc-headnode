@@ -519,17 +519,32 @@ for this machine" 0 0 $(hostname) \
 select_networks() {
   local out
   local interfaces
+  local nics
+  local states
   
   set_title "Networking"
   
-  interfaces=$(dladm show-phys -mo link,address | grep -v ^LINK | sort)
+  OLDIFS=$IFS
+  IFS=$'\n'
+  
+  nics=( $(dladm show-phys -mo link,address | grep -v ^LINK ) )
+  states=( $(dladm show-phys -po state) )
+  interfaces=''
 
-  if [ -z "$interfaces" ] ; then
+  IFS=$OLDIFS
+
+  if [ -z "$nics" ] ; then
     dialog --backtitle "$title" \
       --title "Network Configuration Error" \
       --msgbox "No network interfaces present to configure." 0 0
     exit 1
   fi
+  
+  for (( i=0; i<${#nics[@]}; i++ )) ; do
+    link=$( echo ${nics[$i]} | awk '{print $1}' )
+    addr=$( echo ${nics[$i]} | awk '{print $2}' )
+    interfaces="$interfaces $link \"$addr  ${states[$i]}\""
+  done 
 
   # iterate through interfaces and mark the currently used
   # admin interface with an asterisk
@@ -582,9 +597,9 @@ netconfig_ipv4() {
   mac_addr=$(dladm show-phys -mo address $interface | grep -v ^ADDRESS)
   ip_mask=$(__hex_to_dotted "$hex_mask")
 
-  [[ $ip_addr == "0.0.0.0" ]] && ip_addr = ""
-  [[ $ip_mask == "0.0.0.0" ]] && ip_mask = ""
-  [[ $gateway == "0.0.0.0" ]] && gateway = ""
+  [[ $ip_addr == "0.0.0.0" ]] && ip_addr=""
+  [[ $ip_mask == "0.0.0.0" ]] && ip_mask=""
+  [[ $gateway == "0.0.0.0" ]] && gateway=""
   
   out=( $(dialog --backtitle "$title" \
     --visit-items \
