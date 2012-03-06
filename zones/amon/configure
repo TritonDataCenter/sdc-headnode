@@ -32,7 +32,7 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
       "path": "./notifications/email",
       "config": {
         "sendmail": "/opt/local/sbin/sendmail -i",
-        "from": "\"Monitoring (no reply)\" <no-reply@joyent.com>"
+        "from": "\"Monitoring\" <no-reply@joyent.com>"
       }
     }
   }
