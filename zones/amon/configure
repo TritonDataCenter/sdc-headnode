@@ -41,7 +41,7 @@ HERE
 
 # Currently there aren't any vars to interpolate into 'amon-master.smf.in'.
 echo "Importing Amon SMF manifest."
-/usr/sbin/svccfg import /opt/smartdc/amon/master/smf/amon-master.smf.in
+/usr/sbin/svccfg import /opt/smartdc/amon/smf/amon-master.smf.in
 
 echo "Enabling 'amon-master' service."
 /usr/sbin/svcadm enable smartdc/site/amon-master
