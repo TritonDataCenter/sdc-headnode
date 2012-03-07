@@ -31,7 +31,12 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
     "email": {
       "path": "./notifications/email",
       "config": {
-        "sendmail": "/opt/local/sbin/sendmail -i",
+        "smtp": {
+          "host": "127.0.0.1",
+          "port": 25,
+          "ssl": false,
+          "use_authentication": false
+        },
         "from": "\"Monitoring\" <no-reply@joyent.com>"
       }
     }
