@@ -1,0 +1,37 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# Install ZAPI
+mkdir -p /opt/smartdc/zapi
+chown -R nobody:nobody /opt/smartdc/zapi
+
+# Setup HAProxy user/group
+/usr/sbin/groupadd haproxy
+/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
+/usr/bin/passwd -N haproxy
+
+echo "Creating log directory"
+mkdir -p /var/log/zapi
+chown -R nobody:nobody /var/log/zapi
+
+/opt/smartdc/bin/configure || fatal "Unable to configure zone."
+
+sleep 5
+
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0

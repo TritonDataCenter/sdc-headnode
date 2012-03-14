@@ -1,0 +1,159 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+echo "Creating SMF manifests"
+cat > /opt/smartdc/zapi/cfg/zapi_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="zapi">
+  <service name="smartdc/site/zapi" type="service" version="7.0.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/nodejs/bin/node /opt/smartdc/zapi/server.js&amp;"
+      timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/zapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/zapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/zapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">ZAPI daemon</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
+
+echo "Creating ZAPI config file"
+cat > /opt/smartdc/zapi/config.json <<HERE
+{
+  "logLevel": "debug",
+  "amqp": {
+    "host": "$RABBIT_ADMIN_IP",
+    "queue": "heartbeat.zapi"
+  },
+  "api": {
+    "username": "$ZAPI_HTTP_ADMIN_USER",
+    "password": "ZAPI_HTTP_ADMIN_PW",
+    "port": 8080
+  },
+  "ufds": {
+    "url": "ldaps://localhost",
+    "bindDN": "$ZAPI_LDAP_ROOT_DN",
+    "bindPassword": "$ZAPI_LDAP_ROOT_PW",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  }
+}
+HERE
+
+
+echo "Creating HAPrgooxy config file"
+cat > /opt/local/etc/haproxy.cfg <<HERE
+global
+        log 127.0.0.1 local0
+        ulimit-n 4096
+        user haproxy
+        group haproxy
+        daemon
+
+defaults
+        option ssl-hello-chk
+        timeout connect 400ms
+        timeout client 1m
+        timeout server 5m
+
+listen ufds_proxy 127.0.0.1:636
+        mode tcp
+        option tcplog
+        log global
+HERE
+
+
+# Add all UFDS IPs to haproxy
+# Mark the first one as not backup and all the others as backup
+ufds_ips=`set | nawk -F= '/^UFDS_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
+U=0
+for ip in $ufds_ips
+do
+    if [ $U == 0 ] ; then
+        echo "        server ufds$U $ip:636 check" \
+            >> /opt/local/etc/haproxy.cfg
+    else
+        echo "        server ufds$U $ip:636 check backup" \
+            >> /opt/local/etc/haproxy.cfg
+    fi
+
+    let U+=1
+done
+
+echo "Importing haproxy service SMF"
+svccfg import /opt/local/share/smf/manifest/haproxy.xml
+
+echo "Enabling service haproxy"
+/usr/sbin/svcadm disable haproxy
+/usr/sbin/svcadm enable haproxy
+
+
+echo "Intializing ZAPI..."
+cd /opt/smartdc/zapi && make all
+
+echo "Importing zapi_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/zapi/cfg/zapi_manifest.xml
+
+sleep 1
+
+echo "Enabling service zapi"
+/usr/sbin/svcadm disable smartdc/site/zapi
+/usr/sbin/svcadm enable smartdc/site/zapi
+
+exit 0
