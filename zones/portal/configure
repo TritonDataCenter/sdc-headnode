@@ -56,7 +56,6 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/usr/bin:/usr/local/bin:/bin"/>
-          <envvar name="NODE_PATH" value="/opt/smartdc/portal/deps"/>
           <envvar name="PORT" value="4000" />
           <envvar name="NODE_ENV" value="production" />
         </method_environment>
