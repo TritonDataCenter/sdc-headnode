@@ -217,11 +217,15 @@ DSAPI_URL="https://usbheadnode:shnek7bi3op5@datasets.joyent.com"
 PKGSRC_2010Q4="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
 PKGSRC_2011Q2="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/"
 PKGSRC_2011Q2_64="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
+PKGSRC_2011Q4="http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
+PKGSRC_2011Q4_64="http://pkgsrc.joyent.com/sdc/2011Q4/gcc46-64/All/"
 PKGSRC_LIST=(
     "pkgsrc_2011Q2|$PKGSRC_2011Q2"
     "pkgsrc_2011Q2_64|$PKGSRC_2011Q2_64"
-    "pkgsrc_2010Q4|$PKGSRC_2010Q4" )
-
+    "pkgsrc_2010Q4|$PKGSRC_2010Q4"
+    "pkgsrc_2011Q4|$PKGSRC_2011Q4"
+    "pkgsrc_2011Q4_64|$PKGSRC_2011Q4_64"
+    )
 
 
 if [[ $1 == "-r" ]]; then
