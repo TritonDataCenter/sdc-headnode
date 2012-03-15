@@ -50,7 +50,7 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/node server.js &amp;"
+      exec="/opt/smartdc/portal/build/node/bin/node server.js &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/portal">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
