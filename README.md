@@ -147,8 +147,8 @@ most interesting/helpful ones are:
 
 3.  Recreate the zone:
 
-        ssh -A root@10.99.99.7 /usbkey/scripts/destroy-zone.sh mapi
-        ssh -A root@10.99.99.7 /usbkey/scripts/create-zone.sh mapi -w
+        ssh -A root@10.99.99.7 'vmadm destroy $(vmadm lookup alias=mapi)'
+        ssh -A root@10.99.99.7 /usbkey/scripts/headnode.sh
 
 Warning: In general this requires your changes to be locally commited
 (tho not pushed). HEAD-465 added support for uncommited changes for

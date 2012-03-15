@@ -1,11 +1,36 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o xtrace
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
-/opt/smartdc/bin/booter-service-setup
+
+cat > /opt/smartdc/booter/config.js <<CONFIG
+exports.config = {
+  "mapiUrl": "${MAPI_URL}",
+  "user": "${MAPI_USER}",
+  "password": "${MAPI_PW}",
+  "listenIp": "0.0.0.0",
+  "tftpRoot": "/tftpboot",
+  "defaultGateway": "${DHCP_GATEWAY}",
+  "dhcpIp": "${PRIVATE_IP}",
+  "leaseTime": "${DHCP_LEASE_TIME}",
+  "netmask": "${ADMIN_NETMASK}"
+}
+CONFIG
+
+echo "Importing dhcpd manifest"
+/usr/sbin/svccfg import /opt/smartdc/booter/smf/manifests/dhcpd.xml
+
+echo "Enabling dhcpd service"
+/usr/sbin/svcadm enable smartdc/site/dhcpd
+
+echo "Importing tftpd manifest"
+/usr/sbin/svccfg import /opt/smartdc/booter/smf/manifests/tftpd.xml
+
+echo "Enabling tftpd service"
+/usr/sbin/svcadm enable network/tftpd
 
 exit 0
