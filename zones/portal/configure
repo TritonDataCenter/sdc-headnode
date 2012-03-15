@@ -109,7 +109,14 @@ exports.config = {
   googleAnalyticsCode : false,
   cloudApi : { url: "${CLOUD_API_EXTERNAL_URL}", "version": ">=6.5.0" },
   machineQueryLimit : 500,
-  capi : { uri : "${CAPI_API_EXTERNAL_URL}", username : "${CAPI_HTTP_ADMIN_USER}", passwordFile : "./cfg/capiPassword" },
+  capi : { uri : "${CAPI_API_EXTERNAL_URL}", username : "${CAPI_HTTP_ADMIN_USER}", passwordFile : "./cfg/capiPassword" },  
+  ufds: {
+    "url": "${UFDS_API_EXTERNAL_URL}",
+    "bindDN": "cn=root",
+    "passwordFile": "./cfg/capiPassword",
+    "cache": { "size": 1000, "expiry": 300}
+  },
+
   nodemailerOpts : {
     sendmailPath : "/opt/local/sbin/sendmail",
     sender : "no-reply <no-reply@no.de>",
