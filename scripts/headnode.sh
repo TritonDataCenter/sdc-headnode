@@ -300,7 +300,6 @@ create_latest_link
 function create_zone {
     zone=$1
     new_uuid=$(uuid -v4)
-    pkgsrc=$(ls -t ${USB_COPY}/zones/${zone} | grep ^pkgsrc | head -1)
 
     # Do a lookup here to ensure zone with this role doesn't exist
     existing_uuid=$(vmadm lookup tags.smartdc_role=${zone})
@@ -363,8 +362,8 @@ function create_zone {
     fi
     dir=${USB_COPY}/extra/${zone}
     mkdir -p ${dir}
-    rm -f ${dir}/${pkgsrc}
-    ln ${USB_COPY}/zones/${zone}/${pkgsrc} ${dir}/${pkgsrc}
+    rm -f ${dir}/pkgsrc
+    ln ${USB_COPY}/zones/${zone}/pkgsrc ${dir}/pkgsrc
     if [[ -f ${USB_COPY}/zones/${zone}/fs.tar.bz2 ]]; then
         rm -f ${dir}/fs.tar.bz2
         ln ${USB_COPY}/zones/${zone}/fs.tar.bz2 ${dir}/fs.tar.bz2

@@ -58,12 +58,30 @@ async.series([
     }, function (cb) {
         if (!obj.hasOwnProperty('dataset_uuid')) {
             // find out which dataset we should use for these zones
-            fs.readFile('/usbkey/datasets/smartos.uuid', function(error, data) {
+            fs.readFile('/usbkey/zones/' + zone + '/dataset', function(error, data) {
                 if (error) {
-                    return cb(new Error('Unable to find dataset UUID'));
+                    return cb(new Error('Unable to find dataset name: ' + error.message));
                 }
-                obj.dataset_uuid = data.toString().split('\n')[0];
-                cb();
+                obj.dataset_name = data.toString().split('\n')[0];
+                fs.readFile('/usbkey/datasets/' + obj.dataset_name
+                    + '.dsmanifest', function (err, data) {
+
+                    var dsmanifest;
+
+                    if (err) {
+                        return cb(new Error('unable to load dsmanifest: ' + err.message));
+                    }
+
+                    try {
+                        dsmanifest = JSON.parse(data.toString());
+                    } catch (e) {
+                        return cb(new Error('exception loading dsmanifest for '
+                            + zone + ': ' + e.message));
+                    }
+
+                    obj.dataset_uuid = dsmanifest.uuid;
+                    cb();
+                });
             });
         } else {
             // obj already has dataset_uuid so we'll use that.

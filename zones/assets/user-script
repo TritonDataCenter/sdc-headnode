@@ -46,8 +46,14 @@ if [[ -f /var/svc/.ran-user-script ]]; then
 fi
 touch /var/svc/.ran-user-script
 
-pkgsrc_lst=$(ls -1 /assets/extra/${zone_role}/pkgsrc_*)
-pkgsrc_tar=/assets/extra/pkgsrc/$(basename ${pkgsrc_lst}).tar
+
+pkgsrc_version=pkgsrc_$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:upper:] [:lower:])
+[[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
+if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then
+    pkgsrc_version=${pkgsrc_version}_64
+fi
+pkgsrc_lst=/assets/extra/${zone_role}/pkgsrc
+pkgsrc_tar=/assets/extra/pkgsrc/${pkgsrc_version}.tar
 
 # Install using local pkg repo
 mkdir -p /var/svc/pkgs

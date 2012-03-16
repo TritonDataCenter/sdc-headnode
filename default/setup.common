@@ -12,14 +12,19 @@ fatal()
 [[ -z ${ZONE_ROLE} ]] && fatal "FATAL: setup.common running but ZONE_ROLE not set"
 [[ -z ${ASSETS_IP} ]] && fatal "FATAL: setup.common running but ASSETS_IP not set"
 
-pkgsrc_lst=$(curl -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/ \
+pkgsrc_lst=$(curl -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
     | grep 'href="pkgsrc' | cut -d '"' -f2)
 
 curl -o /var/svc/pkgsrc -s -S -f \
-    http://${ASSETS_IP}/extra/${ZONE_ROLE}/${pkgsrc_lst}
+    http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc list from assets server"
+pkgsrc_version=pkgsrc_$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:upper:] [:lower:])
+[[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
+if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then
+    pkgsrc_version=${pkgsrc_version}_64
+fi
 curl -o /var/svc/pkgsrc.tar -s -S -f \
-    http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_lst}.tar
+    http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}.tar
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc tarball from assets server"
 curl -o /var/svc/fs.tar.bz2 -s -S -f \
     http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2

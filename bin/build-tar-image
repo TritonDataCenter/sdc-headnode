@@ -207,26 +207,9 @@ if [[ -z "$BITS_DIR" ]]; then
     echo "BITS_BRANCH: $BITS_BRANCH"
 fi
 
-
-
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
 DSAPI_URL="https://usbheadnode:shnek7bi3op5@datasets.joyent.com"
-
-# Support N version of pkgsrc
-PKGSRC_2010Q4="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
-PKGSRC_2011Q2="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45/All/"
-PKGSRC_2011Q2_64="http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
-PKGSRC_2011Q4="http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
-PKGSRC_2011Q4_64="http://pkgsrc.joyent.com/sdc/2011Q4/gcc46-64/All/"
-PKGSRC_LIST=(
-    "pkgsrc_2011Q2|$PKGSRC_2011Q2"
-    "pkgsrc_2011Q2_64|$PKGSRC_2011Q2_64"
-    "pkgsrc_2010Q4|$PKGSRC_2010Q4"
-    "pkgsrc_2011Q4|$PKGSRC_2011Q4"
-    "pkgsrc_2011Q4_64|$PKGSRC_2011Q4_64"
-    )
-
 
 if [[ $1 == "-r" ]]; then
     # XXX - Temporary warning about recipes
@@ -363,12 +346,37 @@ function copy_pkgsrc
 {
     echo "==> Copying in pkgsrc"
 
+    PKGSRC_LIST=
+    local data=$((${ROOT}/bin/json datasets \
+        | ${ROOT}/bin/json -a name pkgsrc pkgsrc_url | tr ' ' '|' \
+        | grep -v "|$") < ${ROOT}/build.spec)
+    local idx=0
+    rm -f ${ROOT}/cache/pkgsrc_*.lst
+    for ds in ${data}; do
+        local ds_name=$(echo "${ds}" | cut -d '|' -f1)
+        local ds_pkgsrc=$(echo "${ds}" | cut -d '|' -f2)
+        local ds_pkgsrc_url=$(echo "${ds}" | cut -d '|' -f3)
+
+        for zone in $(ls ${ROOT}/zones); do
+            zoneds=$(cat ${ROOT}/zones/${zone}/dataset)
+            if [[ ${zoneds} == ${ds_name} ]]; then
+                cat ${ROOT}/zones/${zone}/pkgsrc >> ${ROOT}/cache/pkgsrc_${ds_pkgsrc}.lst
+                mkdir -p ${STAGE}/zones/${zone}
+            fi
+        done
+        if [[ -f ${ROOT}/cache/pkgsrc_${ds_pkgsrc}.lst ]]; then
+            # Someone needs this pkgsrc
+            PKGSRC_LIST[${idx}]="pkgsrc_${ds_pkgsrc}|${ds_pkgsrc_url}"
+            idx=$((${idx} + 1))
+        fi
+    done
+
     for pkgsrc in ${PKGSRC_LIST[@]} ; do
         local name=${pkgsrc%%|*}
         local url=${pkgsrc##*|}
 
-        local exists=$(find ${ROOT}/zones -type f -iname ${name} )
-        [[ -z ${exists} ]] && continue
+        local pkglist=$(find ${ROOT}/cache -type f -iname ${name}.lst)
+        [[ -z ${pkglist} ]] && continue
 
         local cache_dir=${ROOT}/cache/${name}
         mkdir -p ${cache_dir}
@@ -383,7 +391,7 @@ function copy_pkgsrc
                 "can't build. You need to find some Internet."
         fi
 
-        pkgs=$(cat ${ROOT}/zones/*/${name} \
+        pkgs=$(cat ${pkglist} \
             | xargs -n1 \
             | sort \
             | uniq \
