@@ -13,8 +13,9 @@ The rules are:
         all configuration values
     * 'create.json' - for core zones only: this is the json template used to
         create the zone (used by scripts/build-payload.js)
-    * 'pkgsrc_2010Q4' or 'pkgsrc_2011Q2_64' or 'pkgsrc_2011Q4' or
-        'pkgsrc_2011Q4_64' - list of packages to install for this zone
+    * 'dataset' - the name of the dataset for this zone, dataset must be listed
+        in build.spec.
+    * 'pkgsrc' - list of packages to install for this zone
     * 'restore' - this script takes a backup and restores the data to a freshly
         created zone, must handle backups back to 6.5.0 (if your zone doesn't
         need state other than config, optional)
