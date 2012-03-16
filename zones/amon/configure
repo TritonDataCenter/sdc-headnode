@@ -27,6 +27,10 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
     "username": "${MAPI_HTTP_ADMIN_USER}",
     "password": "${MAPI_HTTP_ADMIN_PW}"
   },
+  "redis": {
+    "host": "${REDIS_ADMIN_IP}",
+    "port": "${REDIS_PORT}"
+  }
   "notificationPlugins": {
     "email": {
       "path": "./notifications/email",
