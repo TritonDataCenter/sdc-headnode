@@ -488,6 +488,7 @@ function get_bit
         #   https://user:pass@stuff.joyent.us/stuff/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
         # where the "master" in "master-latest" is "BITS_BRANCH".
         local url_dir="${BITS_URL}/${pattern_dir}/${BITS_BRANCH}-latest/${pattern_dir}"
+        local md5_url="${BITS_URL}/${pattern_dir}/${BITS_BRANCH}-latest/md5sums.txt"
         local latest_name=$(curl ${CURL_OPTS} --fail -k -sS ${url_dir}/ \
             | grep "href=\"" \
             | cut -d'"' -f2 \
@@ -497,13 +498,32 @@ function get_bit
         if [[ -z "${latest_name}" ]]; then
             fatal "Could not find '${pattern_base}' in '${url_dir}'."
         fi
+        local correct_md5=$(curl --fail -k -sS ${md5_url} \
+            | grep "./${pattern_dir}/${latest_name}$" | cut -d ' ' -f1)
         local cache_path=${ROOT}/cache/${latest_name}
-        if [[ ! -f $cache_path ]]; then
-            echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
-            (cd ${ROOT}/cache \
-                && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
-                    -O ${url_dir}/${latest_name} \
-                || fatal "Unable to download '${url_dir}/${latest_name}'.")
+        local ok=0
+        local retries=0
+        while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
+            if [[ ! -f $cache_path ]]; then
+                echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
+                (cd ${ROOT}/cache \
+                    && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
+                        -O ${url_dir}/${latest_name} \
+                    || fatal "Unable to download '${url_dir}/${latest_name}'.")
+            fi
+
+            local my_md5=$(openssl dgst -md5 < ${cache_path})
+            if [[ ${my_md5} == ${correct_md5} ]]; then
+                ok=1
+                continue
+            else
+                rm -f ${cache_path}
+                retries=$((${retries} + 1))
+                echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
+            fi
+        done
+        if [[ ${ok} -ne 1 ]]; then
+            fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
         fi
         get_bit_rv=${cache_path}
     else
