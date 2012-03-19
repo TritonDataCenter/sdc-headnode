@@ -31,6 +31,7 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
     "host": "${REDIS_ADMIN_IP}",
     "port": "${REDIS_PORT}"
   },
+  "datacenterName": "${DATACENTER_NAME}",
   "notificationPlugins": {
     "email": {
       "path": "./notifications/email",
