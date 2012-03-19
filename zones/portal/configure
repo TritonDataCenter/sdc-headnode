@@ -108,11 +108,11 @@ exports.config = {
   googleAnalyticsCode : false,
   cloudApi : { url: "${CLOUD_API_EXTERNAL_URL}", "version": ">=6.5.0" },
   machineQueryLimit : 500,
-  capi : { uri : "${CAPI_API_EXTERNAL_URL}", username : "${CAPI_HTTP_ADMIN_USER}", passwordFile : "./cfg/capiPassword" },  
+
   ufds: {
     "url": "${UFDS_API_EXTERNAL_URL}",
     "bindDN": "cn=root",
-    "passwordFile": "./cfg/capiPassword",
+    "passwordFile": "./cfg/ufdsPassword",
     "cache": { "size": 1000, "expiry": 300}
   },
 
@@ -147,9 +147,9 @@ exports.config = {
 }
 HERE
 
-echo "Creating CAPI password file"
-cat >/opt/smartdc/portal/cfg/capiPassword <<HERE
-${CAPI_HTTP_ADMIN_PW}
+echo "Creating UFDS password file"
+cat >/opt/smartdc/portal/cfg/ufdsPassword <<HERE
+${UFDS_LDAP_ROOT_PS}
 HERE
 
 # We need to override nginx.conf on reconfigure, and it's safe to do during setup:
