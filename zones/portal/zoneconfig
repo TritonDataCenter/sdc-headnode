@@ -6,6 +6,7 @@ CAPI_API_EXTERNAL_URL=${capi_external_url}
 CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
 CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
 UFDS_API_EXTERNAL_URL=ldaps://${ufds_external_ip}
+UFDS_LDAP_ROOT_PS=${ufds_ldap_root_pw}
 MAIL_TO=${mail_to}
 MAIL_FROM=${mail_from}
 MAPI_API_PRIVATE_IP=${mapi_admin_ip}
