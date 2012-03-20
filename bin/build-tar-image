@@ -512,7 +512,7 @@ function get_bit
                     || fatal "Unable to download '${url_dir}/${latest_name}'.")
             fi
 
-            local my_md5=$(openssl dgst -md5 < ${cache_path})
+            local my_md5=$(${MD5CMD} < ${cache_path})
             if [[ ${my_md5} == ${correct_md5} ]]; then
                 ok=1
                 continue
