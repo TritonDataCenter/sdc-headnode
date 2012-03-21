@@ -7,12 +7,9 @@ ROOT_PW=${billapi_root_pw}
 ADMIN_PW=${billapi_admin_pw}
 TMPFS=512m
 
-RIAK_IP=${riak_admin_ip}
-RIAK_PORT=8098
-
 RABBIT_IP=${rabbitmq_admin_ip}
-
 UFDS_ADMIN_LOGIN=${ufds_admin_login}
-
+RIAK_PORT=8098
+RIAK_ADMIN_IPS=${riak_admin_ips}
 HTTP_ADMIN_USER=${billapi_http_admin_user}
 HTTP_ADMIN_PW=${billapi_http_admin_pw}

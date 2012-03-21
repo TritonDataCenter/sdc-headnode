@@ -4,4 +4,3 @@ RESOLVERS=${dns_resolvers/,/ }
 ROOT_PW=${redis_root_pw}
 ADMIN_PW=${redis_admin_pw}
 TMPFS=512m
-

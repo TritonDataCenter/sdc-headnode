@@ -36,7 +36,7 @@ EXTERNAL_START_IP=${external_provisionable_start}
 EXTERNAL_END_IP=${external_provisionable_end}
 EXTERNAL_VLAN_ID=${external_vlan_id}
 
-CA_PRIVATE_IP=${ca_admin_ip}
+CA_ADMIN_IPS=${ca_admin_ips}
 
 DBCONN_RETRY_AFTER=${dbconn_retry_after}
 DBCONN_NUM_ATTEMPTS=${dbconn_num_attempts}
@@ -57,7 +57,7 @@ COMPUTE_NODE_NTP_HOSTS=${compute_node_ntp_hosts}
 COMPUTE_NODE_SWAP=${compute_node_swap}
 ROOT_SHADOW=${root_shadow}
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
-UFDS_ADMIN_IP=${ufds_admin_ip}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
 CAPI_CLIENT_URL=${capi_client_url}
 CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
 CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}

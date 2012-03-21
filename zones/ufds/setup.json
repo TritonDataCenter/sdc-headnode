@@ -1,0 +1,5 @@
+{
+    "allow_multiple": true,
+    "networks": [ "admin", "external" ],
+    "dependencies": [ ]
+}

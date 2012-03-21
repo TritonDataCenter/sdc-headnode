@@ -149,9 +149,8 @@ listen riak_proxy 127.0.0.1:8098
 HERE
 
 # Add all Riak IPs
-riak_ips=`set | nawk -F= '/^RIAK_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
 R=0
-for i in $riak_ips
+for i in $(echo "${RIAK_ADMIN_IPS}" | tr ',' ' ')
 do
     echo "        server riak$R $i:8098 weight 1 minconn 5 maxconn 25 check" \
         >> /opt/local/etc/haproxy.cfg

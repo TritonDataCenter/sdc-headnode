@@ -13,6 +13,10 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/amon
 
+# for now just take the first IP
+UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+REDIS_ADMIN_IP=$(echo "${REDIS_ADMIN_IPS}" | tr ',' ' ')
+
 mkdir -p /opt/smartdc/amon/cfg
 cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
 {

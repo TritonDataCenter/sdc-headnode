@@ -283,6 +283,9 @@ cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+# XXX Use the first one for now
+RIAK_IP=$(echo "${RIAK_ADMIN_IPS}" | tr ',' ' ')
+
 cat > /opt/smartdc/billapi/config/config.json <<HERE
 {
   "siteName": "${BILLAPI_EXTERNAL_URL}",

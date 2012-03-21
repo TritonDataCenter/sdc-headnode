@@ -35,6 +35,9 @@ else
   sleep 2
 fi
 
+# XXX Use the first for now
+UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+
 # The values must exist in the zoneconfig for them to be avaliable here.
 mkdir -p /opt/smartdc/node.config
 cat >/opt/smartdc/node.config/node.config <<EOF

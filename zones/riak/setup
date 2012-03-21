@@ -48,10 +48,11 @@ done
     echo "WARNING: riak svc still not online after 3 minutes"
 
 # If not the first riak zone, then join the existing cluster.
-join_riak_ips=`set | nawk -F= -v myaddr=$IPADDR \
-    '/^RIAK_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
-for i in $join_riak_ips
+for i in $(echo "${RIAK_ADMIN_IPS}" | tr ',' ' ')
 do
+    #if [[ ${i} == ${myaddr} ]]; then
+        #continue;
+    #fi
 	# HOME must be set for 'erlexec' (used in riak-admin)
 	export HOME=/root
 	echo "join riak cluster at $i"

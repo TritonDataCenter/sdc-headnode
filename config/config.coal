@@ -199,4 +199,7 @@ ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 capi_http_admin_user=admin
 capi_http_admin_pw=tot@ls3crit
 
+# List of zones to install (in order) with sdc-setup
+sdc_setup_all="riak ufds redis amon ca adminui billapi cloudapi workflow"
+
 phonehome_automatic=false

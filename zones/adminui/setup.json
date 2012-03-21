@@ -1,0 +1,4 @@
+{
+    "networks": [ "admin", "external" ],
+    "dependencies": [ "ufds", "ca" ]
+}

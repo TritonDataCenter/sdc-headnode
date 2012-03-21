@@ -96,6 +96,10 @@ cat > /opt/smartdc/portal/portal_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+# XXX use the first IP for now
+CLOUD_API_EXTERNAL_URL=https://$(echo "${CLOUDAPI_EXTERNAL_IPS}" | tr ',' ' ')
+UFDS_API_EXTERNAL_URL=ldaps://$(echo "${UFDS_EXTERNAL_IPS}" | tr ',' ' ')
+
 # Update the config with the correct values.
 mkdir -p /opt/smartdc/portal/cfg
 cat > /opt/smartdc/portal/cfg/config.js <<HERE

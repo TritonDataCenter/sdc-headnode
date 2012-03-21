@@ -1,0 +1,113 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+#
+
+LOGFD=4
+exec 4>/tmp/ufds-config-update.log.$$
+export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=${LOGFD}
+set -o xtrace
+
+export PATH=/usr/bin:/usr/sbin:/smartdc/bin
+. /lib/sdc/config.sh
+load_sdc_config
+admin_uuid=${CONFIG_ufds_admin_uuid}
+
+if [[ -z ${admin_uuid} ]]; then
+    echo "Cannot find UUID for admin user."
+    exit 1
+fi
+
+# We assume caller (sdc-setup) mounted already
+if [[ ! -f /mnt/usbkey/config ]]; then
+    echo "Fatal: /mnt/usbkey/config does not exist."
+    exit 1
+fi
+
+update_smartlogin()
+{
+    declare -a entry=()
+    local sl_entry=""
+
+    ufds_admin_ips=$(grep "^ufds_admin_ips=" /mnt/usbkey/config | cut -d'=' -f2)
+    admin_ip=$(echo "${ufds_admin_ips}" | cut -d',' -f1)
+    external_ip=$(grep "^ufds_external_ips=" /mnt/usbkey/config | cut -d'=' -f2 | cut -d',' -f1)
+
+    if [[ -n ${external_ip} ]]; then
+        grep -v "^capi_external_url=" /mnt/usbkey/config > /mnt/usbkey/config.new \
+            && echo "capi_external_url=http://${external_ip}:8080" >> /mnt/usbkey/config.new \
+            && mv /mnt/usbkey/config.new /mnt/usbkey/config
+    else
+        # no external IP, remove entries
+        grep -v "^capi_external_url=" /mnt/usbkey/config > /mnt/usbkey/config.new \
+            && mv /mnt/usbkey/config.new /mnt/usbkey/config
+    fi
+
+    if [[ -n ${admin_ip} ]]; then
+        grep -v "^capi_client_url=" /mnt/usbkey/config > /mnt/usbkey/config.new \
+            && echo "capi_client_url=http://${admin_ip}:8080" >> /mnt/usbkey/config.new \
+            && mv /mnt/usbkey/config.new /mnt/usbkey/config
+        grep -v "^capi_admin_ip=" /mnt/usbkey/config > /mnt/usbkey/config.new \
+            && echo "capi_admin_ip=${admin_ip}" >> /mnt/usbkey/config.new \
+            && mv /mnt/usbkey/config.new /mnt/usbkey/config
+        sl_entry="http://${admin_ip}:8080"
+
+        #have to update smartlogin in GZ and node.config file for CNs.
+        slogin_conf=/opt/smartdc/agents/etc/smartlogin.cfg
+        if [ -n "$sl_entry" -a -e $slogin_conf ]; then
+            nawk -F= -v entry="$sl_entry" '{
+                if ($1 == "capi-url")
+                    printf("capi-url=%s\n", entry);
+                else
+                    print $0
+            }' $slogin_conf > ${slogin_conf}.new
+            mv ${slogin_conf}.new ${slogin_conf}
+            svcadm restart smartdc/agent/smartlogin
+
+            mapizone=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=mapi)
+
+            if [ -z "$mapizone" ]; then
+                echo "Uh-oh, mapizone is null!" >/dev/stderr
+                echo "This should never happen, dumping diagnostics:" \
+                    >/dev/stderr
+                echo "Admin: ${admin_uuid}"
+                vmadm list >/dev/stderr
+                fatal "abort"
+            fi
+
+            cat /zones/$mapizone/root/opt/smartdc/node.config/node.config \
+                | grep -v "^capi_client_url=" \
+                | grep -v "^ufds_admin_ips=" \
+                > /tmp/node.config.new
+            echo "capi_client_url=http://${admin_ip}:8080" >> /tmp/node.config.new
+            echo "ufds_admin_ips=${ufds_admin_ips}" >> /tmp/node.config.new
+            cp /tmp/node.config.new \
+                /zones/$mapizone/root/opt/smartdc/node.config/node.config
+
+            # If no CNs already setup then we're done
+            local cn_cnt=`sdc-compnode -l | wc -l`
+            [ $cn_cnt -le 2 ] && return
+
+            # Now update existing CN configs
+            echo "Updating configuration on all compute nodes..."
+            sdc-oneachnode -c -g /tmp/node.config.new -d /opt/smartdc/config
+            rm -f /tmp/node.config.new
+            sdc-oneachnode -c mv /opt/smartdc/config/node.config.new \
+                /opt/smartdc/config/node.config
+            echo "Done updating configuration on all compute nodes"
+
+            echo "Restarting smartlogin svc on all compute nodes"
+            sdc-oneachnode -c svcadm restart smartlogin
+        fi
+    else
+        # no admin_ip, remove these keys
+        grep -v "^capi_client_url=" /mnt/usbkey/config \
+            | grep -v "^capi_admin_ip=" > /mnt/usbkey/config.new \
+            && mv /mnt/usbkey/config.new /mnt/usbkey/config
+    fi
+}
+
+update_smartlogin
+
+exit 0

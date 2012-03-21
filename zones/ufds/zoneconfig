@@ -8,6 +8,8 @@ ADMIN_PW=${ufds_admin_pw}
 
 TMPFS=512m
 
+RIAK_ADMIN_IPS=${riak_admin_ips}
+
 UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 

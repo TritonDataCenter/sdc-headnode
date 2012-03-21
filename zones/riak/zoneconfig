@@ -5,4 +5,4 @@ ROOT_PW=${riak_root_pw}
 ADMIN_PW=${riak_admin_pw}
 TMPFS=512m
 RIAK_COOKIE=smartdc
-
+RIAK_ADMIN_IPS=${riak_admin_ips}
