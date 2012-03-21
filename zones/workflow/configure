@@ -1,0 +1,136 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+# XXX is net0 admin nic?
+ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+
+echo "listen_addresses='${POSTGRES_HOST}, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
+
+# enable slow query logging (anything beyond 200ms right now)
+echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
+
+# Import postgres manifest straight from the pkgsrc file:
+if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
+  echo "Importing posgtresql service"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/postgresql:pg91 refresh
+  /usr/sbin/svcadm enable -s postgresql:pg91
+else
+  echo "Restarting postgresql service"
+  /usr/sbin/svcadm disable -s postgresql:pg91
+  /usr/sbin/svcadm enable -s postgresql:pg91
+  sleep 2
+fi
+
+# We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+    svc=$(/usr/bin/svcs -H network/postgresql)
+    state=${svc%% * *}
+    [ "$state" == "online" ] && break
+    sleep 5
+done
+# Move forward anyway
+# If we cannot get a db listing using our password, we need to set it:
+if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
+  -h ${POSTGRES_HOST} -c "\l" 2>/dev/null; then
+  if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
+    -h ${POSTGRES_HOST} \
+    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
+      echo "Changing the default password failed"
+  fi
+fi
+
+if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
+  -h ${POSTGRES_HOST} -c "\l"|grep node_workflow) ]]; then
+    echo "Creating node_workflow database"
+    PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
+      -h ${POSTGRES_HOST} node_workflow
+fi
+
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	oldpw=`nawk '{
+	    if (! done && $1 == "\"password\":") {
+		print substr($2, 2, length($2) - 3)
+		done = 1
+	    }
+	}' /opt/smartdc/wf/etc/config.json`
+	[ "$wf_http_admin_pw" == "$oldpw" ] && exit 0
+
+	echo "Updating wf-api configuration"
+	nawk -v p=$wf_http_admin_pw '{
+	    if (! done && $1 == "\"password\":") {
+		printf("  \"password\": \"%s\",\n", p)
+		done = 1
+	    } else {
+		print $0
+	    }
+	}' /opt/smartdc/wf/etc/config.json \
+	 > /opt/smartdc/wf/etc/config.json.new
+	mv /opt/smartdc/wf/etc/config.json.new \
+	   /opt/smartdc/wf/etc/config.json
+	svcadm restart wf-api
+fi
+
+# XXX is net1 external nic?
+EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
+WFAPI_EXTERNAL_URL="https://$EXT_IPADDR"
+echo "External IP address: ${WFAPI_EXTERNAL_URL}"
+ZONE_UUID=`/usr/bin/zonename`
+
+cat > /opt/smartdc/wf/etc/config.json <<HERE
+{
+  "backend": {
+    "module": "wf-pg-backend",
+    "opts": {
+      "port": 5432,
+      "host": "${POSTGRES_HOST}",
+      "database": "node_workflow",
+      "user": "${POSTGRES_USER}",
+      "password": "${POSTGRES_PW}",
+      "test": false
+    }
+  },
+  "api": {
+    "port": 8080,
+    "cert": "/opt/smartdc/wf/ssl/cert.pem",
+    "key": "/opt/smartdc/wf/ssl/key.pem",
+    "user": "${HTTP_ADMIN_USER}",
+    "password": "${HTTP_ADMIN_PW}"
+  },
+  "runner": {
+    "identifier": "${ZONE_UUID}",
+    "forks": ${WORKERS},
+    "run_interval": 6,
+    "sandbox": {
+      "http": "http",
+      "uuid": "node-uuid",
+      "restify": "restify"
+    }
+  }
+}
+HERE
+
+echo "Rebuilding npm modules"
+cd /opt/smartdc/wf
+PATH=/opt/smartdc/wf/build/node/bin:$PATH /opt/smartdc/wf/build/node/bin/npm rebuild
+
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/wf/g" /opt/smartdc/wf/smf/manifests/wf-api.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/wf/g" /opt/smartdc/wf/smf/manifests/wf-runner.xml)
+
+echo "Importing SMF Manifests"
+$(/usr/sbin/svccfg import /opt/smartdc/wf/smf/manifests/wf-runner.xml)
+$(/usr/sbin/svccfg import /opt/smartdc/wf/smf/manifests/wf-api.xml)
+
+exit 0

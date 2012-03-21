@@ -40,6 +40,8 @@ assets_pkg=sdc_128
 
 billapi_pkg=sdc_128
 
+workflow_pkg=sdc_128
+
 ca_pkg=sdc_1024
 
 ufds_pkg=sdc_256

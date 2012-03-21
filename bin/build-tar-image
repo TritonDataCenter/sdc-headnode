@@ -823,6 +823,7 @@ function copy_zones
         export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
         export BILLAPI_DIR=${ZONE_DIR}/billing_api
         export UFDS_DIR=${ZONE_DIR}/ufds
+        export WORKFLOW_DIR=${ZONE_DIR}/workflow
     fi
 
     for zone in $(ls ${STAGE}/zones); do
