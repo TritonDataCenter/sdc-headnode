@@ -8,23 +8,54 @@ The rules are:
     * 'backup' - this script will be run to do the backup of your zone, all
         state that needs to be kept should get packed up by this (if your zone
         doesn't need state other than config, optional)
+
     * 'configure' - this should be run by setup and will be run on every boot
         of the zone after freshly populated zoneconfig is put in place to apply
-        all configuration values
+        all configuration values.  It should be possible to update zoneconfig
+        and reboot the zone and have this perform appropriate updates for all
+        changed config values.
+
     * 'create.json' - for core zones only: this is the json template used to
         create the zone (used by scripts/build-payload.js)
+
     * 'dataset' - the name of the dataset for this zone, dataset must be listed
         in build.spec.
-    * 'pkgsrc' - list of packages to install for this zone
+
+    * 'pkgsrc' - list of packages to install for this zone.  This list must
+        include all the dependencies.
+
     * 'restore' - this script takes a backup and restores the data to a freshly
         created zone, must handle backups back to 6.5.0 (if your zone doesn't
         need state other than config, optional)
+
     * 'setup' - this gets run when the zone is initially setup, it must call
         configure and when it's successful, create the /var/svc/setup_complete
-        file
+        file.  If unsuccessful it should create /var/svc/setup_failed.
+
+    * 'setup.json' - for non-core zones this includes json that looks something
+        like the following:
+
+        {
+            "delegate_dataset": true,
+            "allow_multiple": true,
+            "networks": [ "admin", "external" ],
+            "dependencies": [ "ufds", "ca" ]
+        }
+
+        with the 'delegate_dataset' and 'allow_multiple' options being optional
+        and defaulting to false. The delegate_dataset causes a 'data' dataset to
+        be created in the zone.  The allow_multiple allows that a given zone can
+        be provisioned to more than one CN (default is that only one copy of
+        your zone can exist in the DC.  The networks and dependencies should be
+        defined even if empty.
+
     * 'user-script' - if for some reason your zone needs a different script than
         the one in default/user-script.common, currently only assets (because
         files are local)
+
+    * 'zoneconfig' - all config options for the zone that can be changed
+        centrally (eg. ufds IPs) should be listed here see other zones for
+        examples.
 
   * Most (all do currently) zones should use setup.common to do the common setup
     stuff that all zones need to do, this will be available at
