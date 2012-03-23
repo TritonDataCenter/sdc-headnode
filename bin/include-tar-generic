@@ -11,13 +11,11 @@ case "$PLATFORM" in
   Darwin)
     # sudo is no longer required on OSX builds
     SUCMD=''
-    MD5CMD="md5 -r"
     TAR=gnutar
     TAR_ROOT=""
     ;;
   SunOS)
     SUCMD='pfexec'
-    MD5CMD="md5sum"
     TAR=gtar
     TAR_ROOT="--owner=root --group=root"
     ;;

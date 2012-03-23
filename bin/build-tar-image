@@ -404,7 +404,7 @@ function copy_pkgsrc
             fi
 
             [[ -f ${cache_dir}/${pkgfile} ]] \
-                && ACTUAL_MD5=$(${MD5CMD} ${cache_dir}/${pkgfile} | cut -d' ' -f1)
+                && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
 
             if [[ ! -f ${cache_dir}/${pkgfile} ]] \
                 || [[ -z ${ACTUAL_MD5} ]] \
@@ -512,7 +512,7 @@ function get_bit
                     || fatal "Unable to download '${url_dir}/${latest_name}'.")
             fi
 
-            local my_md5=$(${MD5CMD} < ${cache_path})
+            local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
             if [[ ${my_md5} == ${correct_md5} ]]; then
                 ok=1
                 continue
@@ -623,7 +623,7 @@ function get_agentsshar
 
     # Make sure it's not corrupt.
     local MD5=$(cat ${agentsmd5_path})
-    local ACTUAL_MD5=$(${MD5CMD} ${agentsshar_path} | cut -d' ' -f1)
+    local ACTUAL_MD5=$(openssl dgst -md5 ${agentsshar_path} | awk '{print $NF}')
     if [[ -z ${MD5} ]] \
         || [[ -z ${ACTUAL_MD5} ]] \
         || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
@@ -890,7 +890,7 @@ function add_manifests
     # build manifest of USB files + move in boot_archive manifest
     rm -f $STAGE/usb_key.manifest || true
     (cd ${STAGE}/ \
-        && find . -type f -exec ${MD5CMD} {} \;) \
+        && find . -type f -exec openssl dgst -md5 {} \; | awk '{print $NF}') \
         > $STAGE/usb_key.manifest
     [[ $? -eq 0 ]] || fatal "Unable to add manifests"
     rm -f $STAGE/boot_archive.manifest || true
