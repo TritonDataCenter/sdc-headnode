@@ -65,7 +65,7 @@ if [ -e /var/svc/setup_complete ]; then
 		print substr($2, 2, length($2) - 3)
 		done = 1
 	    }
-	}' /opt/smartdc/wf/etc/config.json`
+	}' /opt/smartdc/workflow/etc/config.json`
 	[ "$wf_http_admin_pw" == "$oldpw" ] && exit 0
 
 	echo "Updating wf-api configuration"
@@ -76,20 +76,20 @@ if [ -e /var/svc/setup_complete ]; then
 	    } else {
 		print $0
 	    }
-	}' /opt/smartdc/wf/etc/config.json \
-	 > /opt/smartdc/wf/etc/config.json.new
-	mv /opt/smartdc/wf/etc/config.json.new \
-	   /opt/smartdc/wf/etc/config.json
+	}' /opt/smartdc/workflow/etc/config.json \
+	 > /opt/smartdc/workflow/etc/config.json.new
+	mv /opt/smartdc/workflow/etc/config.json.new \
+	   /opt/smartdc/workflow/etc/config.json
 	svcadm restart wf-api
 fi
 
 # XXX is net1 external nic?
 EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
 WFAPI_EXTERNAL_URL="https://$EXT_IPADDR"
-echo "External IP address: ${WFAPI_EXTERNAL_URL}"
+echo "External IP address: ${workflowAPI_EXTERNAL_URL}"
 ZONE_UUID=`/usr/bin/zonename`
 
-cat > /opt/smartdc/wf/etc/config.json <<HERE
+cat > /opt/smartdc/workflow/etc/config.json <<HERE
 {
   "backend": {
     "module": "wf-pg-backend",
@@ -104,8 +104,8 @@ cat > /opt/smartdc/wf/etc/config.json <<HERE
   },
   "api": {
     "port": 8080,
-    "cert": "/opt/smartdc/wf/ssl/cert.pem",
-    "key": "/opt/smartdc/wf/ssl/key.pem",
+    "cert": "/opt/smartdc/workflow/ssl/cert.pem",
+    "key": "/opt/smartdc/workflow/ssl/key.pem",
     "user": "${HTTP_ADMIN_USER}",
     "password": "${HTTP_ADMIN_PW}"
   },
@@ -123,14 +123,14 @@ cat > /opt/smartdc/wf/etc/config.json <<HERE
 HERE
 
 echo "Rebuilding npm modules"
-cd /opt/smartdc/wf
-PATH=/opt/smartdc/wf/build/node/bin:$PATH /opt/smartdc/wf/build/node/bin/npm rebuild
+cd /opt/smartdc/workflow
+PATH=/opt/smartdc/workflow/build/node/bin:$PATH /opt/smartdc/workflow/build/node/bin/npm rebuild
 
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/wf/g" /opt/smartdc/wf/smf/manifests/wf-api.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/wf/g" /opt/smartdc/wf/smf/manifests/wf-runner.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-api.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-runner.xml)
 
 echo "Importing SMF Manifests"
-$(/usr/sbin/svccfg import /opt/smartdc/wf/smf/manifests/wf-runner.xml)
-$(/usr/sbin/svccfg import /opt/smartdc/wf/smf/manifests/wf-api.xml)
+$(/usr/sbin/svccfg import /opt/smartdc/workflow/smf/manifests/wf-runner.xml)
+$(/usr/sbin/svccfg import /opt/smartdc/workflow/smf/manifests/wf-api.xml)
 
 exit 0

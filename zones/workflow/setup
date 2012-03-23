@@ -14,16 +14,16 @@ app_name=$role
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/wf
-mkdir -p /opt/smartdc/wf/ssl
+mkdir -p /var/smartdc/workflow
+mkdir -p /opt/smartdc/workflow/ssl
 
 #echo "Installing local node.js"
-mkdir -p /opt/smartdc/wf/etc
+mkdir -p /opt/smartdc/workflow/etc
 cd -
 /usr/bin/chown -R root:root /opt/smartdc
 
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/wf/ssl/key.pem -out /opt/smartdc/wf/ssl/cert.pem -days 365
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/workflow/ssl/key.pem -out /opt/smartdc/workflow/ssl/cert.pem -days 365
 
 # Before we enable postgresql, we'll make a little change on the way we stop
 # the service, so we can stop it without having to stop all the agents:

@@ -1,4 +1,4 @@
 {
     "networks": [ "admin" ],
-    "dependencies": [ "ufds" ]
+    "dependencies": [ ]
 }
