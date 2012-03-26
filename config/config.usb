@@ -199,7 +199,4 @@ rabbitmq_root_pw=joypass123
 rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
 
-# List of zones to install (in order) with sdc-setup
-sdc_setup_all="riak ufds redis amon ca adminui billapi cloudapi workflow"
-
 phonehome_automatic=true

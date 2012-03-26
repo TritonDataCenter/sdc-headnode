@@ -67,3 +67,5 @@ sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
 sbapi_http_pass=4cea03de8bf6
 
+# List of zones to install (in order) with sdc-setup
+sdc_setup_all="riak ufds redis amon ca adminui billapi cloudapi workflow"
