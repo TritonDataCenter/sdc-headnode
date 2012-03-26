@@ -44,7 +44,7 @@ fi
 : ${DIALOG_LABEL=2}
 
 # Extra FDs
-exec 3>&1 4>&2 
+exec 3>&1 4>&2
 
 CONFIG_COMPANY=''
 CONFIG_DCID=''
@@ -55,12 +55,12 @@ CONFIG_DOMAIN=''
 CONFIG_HOSTNAME=''
 CONFIG_NET_IPADDR=''
 CONFIG_NET_IPMASK=''
-CONFIG_NET_IPNET='' 
+CONFIG_NET_IPNET=''
 CONFIG_NET_IPGW=''
 CONFIG_NET_IFNAME=''
 CONFIG_NET_MACADDR=''
-CONFIG_DNS1='' 
-CONFIG_DNS2='' 
+CONFIG_DNS1=''
+CONFIG_DNS2=''
 CONFIG_DNS_SEARCH=''
 CONFIG_NTP_HOST='pool.ntp.org'
 CONFIG_NTP_IPADDR=''
@@ -93,7 +93,7 @@ ipaddr_vars=$( set -o posix ; set | awk -F= '/_NET_IPADDR$/ {print $1}')
 trap sigexit EXIT SIGINT
 
 next_function=''   # if you exit dialog youre on previous selection
-last_menu_item=''  # ^ 
+last_menu_item=''  # ^
 title='SDC Setup - Welcome'
 
 ##############################################
@@ -104,7 +104,7 @@ check_setup() {
   local retval=0
   local label=''
   local token=''
-  
+
   for c in ${status_vars[@]}; do
     loginfo "Checking value: $c"
     if [[ ${!c} -eq 1 ]] ; then
@@ -165,7 +165,7 @@ loginfo() {
 }
 
 set_callback() {
-  loginfo "setting callback to $1" 
+  loginfo "setting callback to $1"
   next_function=$1
 }
 
@@ -179,7 +179,7 @@ set_title() {
 }
 
 callback() {
-  loginfo "running callback $1" 
+  loginfo "running callback $1"
   ${next_function} $@
 }
 
@@ -215,7 +215,7 @@ __isdigit() {
   [[ $# -eq 1 ]] || return 1
 
   case $1 in
-    *[!0-9]*|"") 
+    *[!0-9]*|"")
       return 1
       ;;
     *)
@@ -252,7 +252,7 @@ __dec_to_ip() {
 
 __is_ip() {
   regex="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
- 
+
   [[ $1 =~ $regex ]] && return 0
   return 1
 }
@@ -266,7 +266,7 @@ __is_hostname() {
 
 __is_cidr() {
   regex="^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(\d[1-2]\d|3[0-2]))$";
- 
+
   [[ $1 =~ $regex ]] && return 0
   return 1
 }
@@ -276,10 +276,10 @@ __is_in_net() {
   checknet=$(__ip_mask_to_net $3 $2)
   [[ "$checknet" == "$1" ]] && return 0
   return 1
-}  
+}
 
 __net_size() {
- dec=$(__ip_to_dec $1)  
+ dec=$(__ip_to_dec $1)
  ipv4_size=4294967296
  printf "%d\n" $(( $ipv4_size - $dec -1 ))
 }
@@ -296,28 +296,28 @@ print_welcome() {
 installing SDC to your server. \
 You will have the option of editing your changes prior \
 to applying the installation." 10 44
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
     exit 1
-  fi  
+  fi
 
 }
 
 print_eula() {
   if [ ! -f $EULA_FILE ] ; then
-    return 0 
+    return 0
   fi
 
   set_title "License Agreement"
-  
+
   dialog --backtitle "$title" --begin 2 4 \
     --title "License Agreement" \
     --exit-label "I AGREE" \
     --textbox $EULA_FILE 20 72
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
     exit 1
-  fi  
+  fi
 
 }
 
@@ -349,7 +349,7 @@ setup_kbd() {
     --default-item 47 \
     --menu "Please select a keyboard layout" 15 40 10\
     2>&1 1>&3 )
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
   fi
@@ -358,21 +358,21 @@ setup_kbd() {
   loginfo "setting keyboard to: $kbd"
   CONFIG_KEYBOARD=$kbd
   kbd -s $kbd 2>&1 > /dev/null
-  
+
   callback
 }
 
- 
+
 # asks about datacenter information, company
 # city and state. All required fields
 setup_datacenter() {
   local out
 
   set_title "Datacenter"
-  
+
   OLDIFS=$IFS
   IFS=$'\n'
-  
+
   out=( $(dialog --backtitle "$title" \
    --visit-items \
    --mixedform "Datacenter" 0 0 0 \
@@ -380,7 +380,7 @@ setup_datacenter() {
   "Datacenter ID" 2 2 "$CONFIG_DCID"    2 16 24 20 0 \
   "City"          3 2 "$CONFIG_CITY"    3 16 24 30 0 \
   "State"         4 2 "$CONFIG_STATE"   4 16 24 30 0 \
-   2>&1 1>&3 ) ) 
+   2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
@@ -389,7 +389,7 @@ setup_datacenter() {
   CONFIG_COMPANY="${out[0]}"
   CONFIG_DCID="${out[1]}"
   CONFIG_CITY="${out[2]}"
-  CONFIG_STATE="${out[3]}" 
+  CONFIG_STATE="${out[3]}"
 
   IFS=$OLDIFS
 
@@ -401,11 +401,11 @@ setup_datacenter() {
   if [ -z $CONFIG_COMPANY ] ; then
     warn "Company is required" setup_datacenter
   fi
- 
+
   if [ -z $CONFIG_DCID ] ; then
     warn "Datacenter ID is required" setup_datacenter
   fi
-  
+
   if [ -z $CONFIG_CITY ] ; then
     warn "City is required" setup_datacenter
   fi
@@ -424,7 +424,7 @@ set_password() {
   local out
 
   # we use the username arg to set these key variables
-  # ie 
+  # ie
   # STATUS_PASS_API_IS_SETUP=1
   # CONFIG_PASS_API=''
 
@@ -435,7 +435,7 @@ set_password() {
 
   OLDIFS=$IFS
   IFS=$'\n'
-  
+
   out=( $(dialog --backtitle "$title" \
     --visit-items \
     --insecure \
@@ -443,15 +443,15 @@ set_password() {
     "password" 2 2 "" 3 2 32 32 \
     "confirmation" 4 2 "" 5 2 32 32 \
     2>&1 1>&3 ) )
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    callback 
+    callback
   fi
 
   one="${out[0]}"
   two="${out[1]}"
   IFS=$OLDIFS
-  
+
   if [ "${one}" == "${two}" ] ; then
     if [ "${#one}" -lt 6 ] ; then
       warn "Password must be at least 6 characters long" "set_password $1"
@@ -461,12 +461,12 @@ set_password() {
     fi
   else
 		warn "Passwords do not match" "set_password $1"
-  fi 
-  
+  fi
+
   loginfo "status key is $status_key"
   eval $status_key=0
-  callback 
-  
+  callback
+
 }
 
 
@@ -474,9 +474,9 @@ set_password() {
 # both required fields, validation performed
 set_fqdn() {
   local out
-  
+
   set_title "Hostname"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Set Hostname" --nocancel \
     --inputbox "Please enter the fully qualified domain name (FQDN) \
@@ -486,34 +486,34 @@ for this machine" 0 0 $(hostname) \
   if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
   fi
-  
+
   [[ -z $out ]] && warn "FQDN cannot be empty" set_fqdn
 
   # bash missing an array join
   CONFIG_FQDN=$out
-  
+
   split=( $(echo $out | sed 's/\./ /g') )
   CONFIG_HOSTNAME="${split[0]}"
   unset split[0]
   CONFIG_DOMAIN=$(echo "${split[@]}" | sed 's/ /\./g')
-  
+
   if [ -z $CONFIG_FQDN ] ; then
     warn "Does not appear to be a FQDN\nMust be in form \"hostname.domainname\"" set_fqdn
   fi
-  
+
   if [ -z $CONFIG_DNS_SEARCH ] ; then
     CONFIG_DNS_SEARCH=$CONFIG_DOMAIN
   fi
 
   loginfo "$(hostname $CONFIG_FQDN)"
   STATUS_FQDN_IS_SETUP=0
-  
-  callback 
+
+  callback
 }
 
 
 # presents a list of all physical devices on the system
-# and prompts the user to select one for use as the 
+# and prompts the user to select one for use as the
 # 'management' / 'admin' network. Only one network needs
 # to be setup at install time
 select_networks() {
@@ -521,12 +521,12 @@ select_networks() {
   local interfaces
   local nics
   local states
-  
+
   set_title "Networking"
-  
+
   OLDIFS=$IFS
   IFS=$'\n'
-  
+
   nics=( $(dladm show-phys -mo link,address | grep -v ^LINK ) )
   states=( $(dladm show-phys -po state) )
   interfaces=''
@@ -539,12 +539,12 @@ select_networks() {
       --msgbox "No network interfaces present to configure." 0 0
     exit 1
   fi
-  
+
   for (( i=0; i<${#nics[@]}; i++ )) ; do
     link=$( echo ${nics[$i]} | awk '{print $1}' )
     addr=$( echo ${nics[$i]} | awk '{print $2}' )
     interfaces="$interfaces $link \"$addr  ${states[$i]}\""
-  done 
+  done
 
   # iterate through interfaces and mark the currently used
   # admin interface with an asterisk
@@ -564,7 +564,7 @@ select_networks() {
     launch_menu
   fi
 
-  # remove our identifying asterisk   
+  # remove our identifying asterisk
   netconfig_ipv4 $(echo $out | sed 's/*//')
 
 }
@@ -578,7 +578,7 @@ netconfig_ipv4() {
   local out
   local ipaddr
   local ip_mask
-  local gateway 
+  local gateway
 
   interface=$1
   set_title "Network Configuration ($interface)"
@@ -587,8 +587,8 @@ netconfig_ipv4() {
       --title "Network Configuration Error" \
       --msgbox "No interface specified for IPv4 configuration." 0 0
     exit 1
-  fi 
-  
+  fi
+
   loginfo "$(ifconfig $interface plumb 2>&1)"
 
   gateway=$(netstat -rn -f inet | awk '/default/ {printf("%s\n", $2); }')
@@ -600,7 +600,7 @@ netconfig_ipv4() {
   [[ $ip_addr == "0.0.0.0" ]] && ip_addr=""
   [[ $ip_mask == "0.0.0.0" ]] && ip_mask=""
   [[ $gateway == "0.0.0.0" ]] && gateway=""
-  
+
   out=( $(dialog --backtitle "$title" \
     --visit-items \
     --title "Network Configuration" \
@@ -614,26 +614,26 @@ netconfig_ipv4() {
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
     select_networks
-  fi  
+  fi
 
   CONFIG_NET_MACADDR="$mac_addr"
   CONFIG_NET_IFNAME="$interface"
   CONFIG_NET_IPADDR="${out[0]}"
   CONFIG_NET_IPMASK="${out[1]}"
   CONFIG_NET_IPGW="${out[2]}"
- 
+
   __is_ip "$CONFIG_NET_IPADDR" || warn \
     "$CONFIG_NET_IPADDR is not a valid IP" "netconfig_ipv4 $interface"
-  
+
   __is_ip "$CONFIG_NET_IPMASK" || warn \
     "$CONFIG_NET_IPMASK is not a valid Netmask" "netconfig_ipv4 $interface"
-  
+
   __is_ip "$CONFIG_NET_IPGW" || warn \
     "$CONFIG_NET_IPGW is not a valid Gateway" "netconfig_ipv4 $interface"
-    
+
   [[ $(__net_size $CONFIG_NET_IPMASK) -lt 32 ]] && warn \
-    "Network too small\nMust have at least 32 hosts" 
-  
+    "Network too small\nMust have at least 32 hosts"
+
   CONFIG_NET_IPNET=$(__ip_mask_to_net $CONFIG_NET_IPADDR $CONFIG_NET_IPMASK)
 
   # we plumb the device immediately so the rest of the setup can conclude
@@ -645,8 +645,8 @@ netconfig_ipv4() {
   # set the rest of the service IP address values
   service_ip_start=$(( $(__ip_to_dec $CONFIG_NET_IPADDR) + 3 ))
   service_net_start=$(__ip_to_dec $CONFIG_NET_IPNET)
-  service_net_size=$(__net_size $CONFIG_NET_IPMASK) 
-  
+  service_net_size=$(__net_size $CONFIG_NET_IPMASK)
+
   CONFIG_ASSETS_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 1 )) )
   CONFIG_DHCP_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 2 )) )
   CONFIG_AMQP_NET_IPADDR=$(__dec_to_ip $(( $service_ip_start + 3 )) )
@@ -659,7 +659,7 @@ netconfig_ipv4() {
 }
 
 
-# prompts the user as to whether or not they want to be able to 
+# prompts the user as to whether or not they want to be able to
 # automatically phone home for reporting issues / usage / etc
 set_phonehome() {
   local title
@@ -671,7 +671,7 @@ set_phonehome() {
     --title "Help & Troubleshooting" \
     --yesno "SDC can automatically report usage and issues to Joyent on
 a periodic basis. This information is kept strictly confidential and is
-only used to improve future versions of SDC.\n\n 
+only used to improve future versions of SDC.\n\n
 Would you like to automatically report issues to Joyent?" 0 0 \
     2>&1 1>&3 )
 
@@ -681,7 +681,7 @@ Would you like to automatically report issues to Joyent?" 0 0 \
     CONFIG_PHONEHOME=false
   fi
 
-  callback 
+  callback
 }
 
 
@@ -698,7 +698,7 @@ set_resolvers() {
 
   if [ -z $search_domain ] ; then
     search_domain=$CONFIG_DOMAIN
-  fi 
+  fi
 
   out=( $(dialog --backtitle "$title" \
     --visit-items \
@@ -717,18 +717,18 @@ set_resolvers() {
     dialog --backtitle "$title" \
       --msgbox "All fields are required" 5 40
     set_resolvers
-  fi 
+  fi
 
   CONFIG_DNS1="${out[0]}"
   CONFIG_DNS2="${out[1]}"
   CONFIG_DNS_SEARCH="${out[2]}"
-  
+
   __is_ip "$CONFIG_DNS1" || warn \
     "$CONFIG_DNS1 is not a valid IP" "set_resolvers"
-  
+
   __is_ip "$CONFIG_DNS2" || warn \
     "$CONFIG_DNS2 is not a valid IP" "set_resolvers"
-  
+
   # TODO validate dns search domain
 
   # we also set the resolver so that dig can work against
@@ -736,7 +736,7 @@ set_resolvers() {
   if [ -f /etc/resolv.conf ] ; then
     mv /etc/resolv.conf /etc/resolv.conf-sdcsetup
   fi
- 
+
   echo "nameserver $CONFIG_DNS1" > /etc/resolv.conf
   echo "nameserver $CONFIG_DNS2" >> /etc/resolv.conf
   echo "domain $CONFIG_DNS_SEARCH" >> /etc/resolv.conf
@@ -753,7 +753,7 @@ set_ntp() {
   local hosts
 
   set_title "NTP Configuration"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "NTP Client Configuration" \
     --inputbox "Please specify an NTP Server.\n\
@@ -776,10 +776,10 @@ Enter 'localhost' to use the system clock" 0 0 "$CONFIG_NTP_HOST" \
       dialog --backtitle "$title" \
         --title "Syncing with NTP server" \
         --infobox "Attempting to sync with NTP server $out ($hosts)" 4 40
-      
+
       loginfo $hosts
       ntpdate -d -b $hosts >> $LOG 2>&1
-     
+
       if [ $? -ne 0 ] ; then
         dialog --backtitle "$title" \
           --title "NTP Configuration Error" \
@@ -829,15 +829,15 @@ service_setup_generic() {
     2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    services_menu 
-  fi  
- 
+    services_menu
+  fi
+
   __is_ip "${out[0]}" || warn \
     "${out[0]} is not a valid IP" "service_setup $1"
-  
+
   __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[0]}" || warn \
     "${out[0]} is not in this network" "service_setup $1"
-    
+
   eval $service_key="${out[0]}"
 
   services_menu
@@ -865,21 +865,21 @@ service_setup_dhcp() {
     2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    services_menu 
-  fi  
- 
+    services_menu
+  fi
+
   __is_ip "${out[0]}" || warn \
     "${out[0]} is not a valid IP" "service_setup $1"
-  
+
   __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[0]}" || warn \
     "${out[0]} is not in this network" "service_setup $1"
-  
+
   __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[1]}" || warn \
     "DHCP start must belong to network" "service_setup $1"
-  
+
   __is_in_net $CONFIG_NET_IPNET $CONFIG_NET_IPMASK "${out[2]}" || warn \
     "DHCP stop must belong to network" "service_setup $1"
-    
+
   eval $service_key="${out[0]}"
 
   services_menu
@@ -889,7 +889,7 @@ service_setup_dhcp() {
 account_menu() {
   set_callback "account_menu" # return to menu after selection complete
   set_title "Services (expert)"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Account Configuration Menu" \
     --visit-items \
@@ -901,7 +901,7 @@ account_menu() {
     2>&1 1>&3 )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    launch_menu 
+    launch_menu
   fi
 
   case $out in
@@ -924,7 +924,7 @@ account_menu() {
 services_menu() {
   set_callback "services_menu" # return to menu after selection complete
   set_title "Services (expert)"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Services Configuration Menu" \
     --visit-items \
@@ -941,7 +941,7 @@ services_menu() {
   fi
 
   set_last_item $out
-  
+
   case $out in
     mapi)
       service_setup_generic MAPI
@@ -964,7 +964,7 @@ services_menu() {
 launch_menu() {
   set_callback "launch_menu" # return to menu after selection complete
   set_title "Welcome"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Configuration Menu" \
     --cancel-label "Quit" \
@@ -999,7 +999,7 @@ launch_menu() {
       ;;
     networks)
       select_networks
-      ;; 
+      ;;
     resolvers)
       set_resolvers
       ;;
@@ -1016,12 +1016,12 @@ launch_menu() {
       set_phonehome
       ;;
     services)
-      services_menu 
+      services_menu
       ;;
     rescue)
       clear
       echo "Launching emergency rescue shell..."
-      bash 
+      bash
       callback
       ;;
     apply)
@@ -1046,9 +1046,9 @@ write_old_config() {
   __wr "datacenter_name=\"$CONFIG_DCID\""
   __wr "datacenter_company_name=\"$CONFIG_COMPANY\""
   __wr "datacenter_location=\"$CONFIG_CITY, $CONFIG_STATE\""
-  __wr "datacenter_headnode_id=0" 
+  __wr "datacenter_headnode_id=0"
   __wr ""
-  __wr "default_rack_name=RACK1" #XXX 
+  __wr "default_rack_name=RACK1" #XXX
   __wr "default_rack_size=42"    #XXX
   __wr "default_server_role=pro" #XXX
   __wr "default_package_sizes=\"128,256,512,1024\"" #XXX
@@ -1128,7 +1128,7 @@ write_old_config() {
   __wr "adminui_help_url=http://sdcdoc.joyent.com/"
   __wr "redis_root_pw=$CONFIG_PASS_ROOT"
   __wr "redis_admin_pw=$CONFIG_PASS_ADMIN"
-  __wr "dhcp_lease_time=86400" 
+  __wr "dhcp_lease_time=86400"
   __wr "dhcp_next_server=$CONFIG_DHCP_NET_ADDR"
   __wr "ufds_is_local=true"
   __wr "ufds_external_vlan=0"
@@ -1140,7 +1140,7 @@ write_old_config() {
   __wr "capi_http_admin_user=admin"
   __wr "capi_http_admin_pw=tot@ls3crit"
   __wr "default_rack_name=RACK1"
-  __wr "initial_script=scripts/headnode.sh"  # XXX 
+  __wr "initial_script=scripts/headnode.sh"  # XXX
   __wr ""
   __wr ""
   __wr "# End of config"
@@ -1150,11 +1150,11 @@ write_old_config() {
 # dialog for checking & applying configuration
 apply_config() {
   local out
-  
+
   set_title "Apply & Install"
   # checks if setup is complete
   check_setup
- 
+
   out=$(dialog --backtitle "$title" \
     --yesno "Apply configuration & Install SDC?" 0 0 \
     2>&1 1>&3 )
@@ -1179,7 +1179,7 @@ initial_flow() {
   set_ntp
   set_password ADMIN
   set_password API
-  CONFIG_PASS_ROOT=$CONFIG_PASS_ADMIN 
+  CONFIG_PASS_ROOT=$CONFIG_PASS_ADMIN
   STATUS_PASS_ROOT_IS_SETUP=0
   set_phonehome
   apply_config
