@@ -202,6 +202,10 @@ echo "Creating MCP API Heartbeater Manifest."
 RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:heartbeater -f /opt/smartdc/mapi/Rakefile
 chown jill:jill /opt/smartdc/mapi/config/heartbeater_client.smf
 
+echo "Creating MCP API Heartbeater Pool Manifest."
+RACK_ENV=production USER=jill GROUP=jill INSTANCES=$HEARTBEATER_INSTANCES /opt/local/bin/rake smf:heartbeater_pool -f /opt/smartdc/mapi/Rakefile
+chown jill:jill /opt/smartdc/mapi/config/heartbeater_client_pool.smf
+
 echo "Creating MCP API Provisioner Manifest."
 RACK_ENV=production USER=jill GROUP=jill /opt/local/bin/rake smf:provisioner -f /opt/smartdc/mapi/Rakefile
 chown jill:jill /opt/smartdc/mapi/config/provisioner_client.smf

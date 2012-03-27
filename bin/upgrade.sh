@@ -151,6 +151,11 @@ function upgrade_usbkey
                     >> /mnt/usbkey/config
             fi
         fi
+        # Add mapi_heartbeater_pool_instances if not there yet
+        grep "^mapi_heartbeater_pool_instances=" /mnt/usbkey/config >/dev/null 2>&1
+        if [[ $? != 0 ]]; then
+          echo "mapi_heartbeater_pool_instances=3" >> /mnt/usbkey/config
+        fi
 
         # If necessary, add a new riak disk size to the generic config file
         # and increase the number of mapi unicorn workers
