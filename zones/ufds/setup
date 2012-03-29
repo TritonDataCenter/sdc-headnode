@@ -21,13 +21,6 @@ chown -R nobody:nobody /opt/smartdc/ufds
 /usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
 /usr/bin/passwd -N haproxy
 
-# Install node/npm
-echo "Installing node and npm"
-cd /opt
-/usr/bin/gtar -j -m -xf /var/svc/nodejs-0.4.12.tar.bz2
-/usr/bin/chown -R nobody:nobody /opt/nodejs /opt/smartdc
-rm -f /var/svc/nodejs-0.4.12.tar.bz2
-
 echo "Creating log directory"
 mkdir -p /var/log/ufds
 chown -R nobody:nobody /var/log/ufds
