@@ -1034,7 +1034,7 @@ launch_menu() {
 
 write_old_config() {
   __wr "#----------------------------------------------------------------"
-  __wr "# SDC6.5 Headnode Configuration"
+  __wr "# SDC 7 Headnode Configuration"
   __wr "#----------------------------------------------------------------"
   __wr "# version: 0.1"
   __wr "# date: $(date)"
