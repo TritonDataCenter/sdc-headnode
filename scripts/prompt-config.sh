@@ -1135,6 +1135,7 @@ write_old_config() {
   __wr "ufds_ldap_root_dn=cn=root"
   __wr "ufds_ldap_root_pw=secret"
   __wr "ufds_admin_login=admin"
+  __wr "ufds_admin_pw=$CONFIG_PASS_ADMIN"
   __wr "ufds_admin_email=root@localhost"
   __wr "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853"
   __wr "capi_http_admin_user=admin"
