@@ -32,7 +32,20 @@ echo "Generating SSL Certificate"
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
-sleep 5
+# Wait up to 50s for UFDS to come up to load bootstrap data.
+echo "Wait for ufds service to come online."
+for i in 0 1 2 3 4 5 6 7 8 9; do
+    echo "Is ufds service online? (i=$i)"
+    [ "$(/usr/bin/svcs -H -o state ufds)" == "online" ] && break
+    sleep 5
+done
+if [[ "$(/usr/bin/svcs -H -o state ufds)" != "online" ]]; then
+    echo "Timeout waiting for ufds service to come online."
+    echo "Marking ufds SMF service as in maintenance."
+    svcadm mark maintenance svc:/smartdc/site/ufds:default
+    exit 1
+fi
+
 echo "Loading bootstrap data"
 cat > /tmp/.bootstrap.ldif <<HERE
 version: 1
