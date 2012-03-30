@@ -57,70 +57,27 @@ if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
       -h ${POSTGRES_HOST} node_workflow
 fi
 
-# The user-script is downloaded and executed on every zone boot. We take
-# advantage of this to maintain the cached config values post-setup.
-if [ -e /var/svc/setup_complete ]; then
-	oldpw=`nawk '{
-	    if (! done && $1 == "\"password\":") {
-		print substr($2, 2, length($2) - 3)
-		done = 1
-	    }
-	}' /opt/smartdc/workflow/etc/config.json`
-	[ "$wf_http_admin_pw" == "$oldpw" ] && exit 0
-
-	echo "Updating wf-api configuration"
-	nawk -v p=$wf_http_admin_pw '{
-	    if (! done && $1 == "\"password\":") {
-		printf("  \"password\": \"%s\",\n", p)
-		done = 1
-	    } else {
-		print $0
-	    }
-	}' /opt/smartdc/workflow/etc/config.json \
-	 > /opt/smartdc/workflow/etc/config.json.new
-	mv /opt/smartdc/workflow/etc/config.json.new \
-	   /opt/smartdc/workflow/etc/config.json
-	svcadm restart wf-api
-fi
-
 # XXX is net1 external nic?
 EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
 WFAPI_EXTERNAL_URL="https://$EXT_IPADDR"
 echo "External IP address: ${workflowAPI_EXTERNAL_URL}"
 ZONE_UUID=`/usr/bin/zonename`
 
-cat > /opt/smartdc/workflow/etc/config.json <<HERE
-{
-  "backend": {
-    "module": "wf-pg-backend",
-    "opts": {
-      "port": 5432,
-      "host": "${POSTGRES_HOST}",
-      "database": "node_workflow",
-      "user": "${POSTGRES_USER}",
-      "password": "${POSTGRES_PW}",
-      "test": false
-    }
-  },
-  "api": {
-    "port": 8080,
-    "cert": "/opt/smartdc/workflow/ssl/cert.pem",
-    "key": "/opt/smartdc/workflow/ssl/key.pem",
-    "user": "${HTTP_ADMIN_USER}",
-    "password": "${HTTP_ADMIN_PW}"
-  },
-  "runner": {
-    "identifier": "${ZONE_UUID}",
-    "forks": ${WORKERS},
-    "run_interval": 6,
-    "sandbox": {
-      "http": "http",
-      "uuid": "node-uuid",
-      "restify": "restify"
-    }
-  }
-}
-HERE
+echo "Updating config file"
+CFG_FILE_IN=/opt/smartdc/workflow/etc/config.json.in
+CFG_FILE=/opt/smartdc/workflow/etc/config.json
+
+# Update config file
+cp $CFG_FILE_IN $CFG_FILE
+gsed -i -e "s|WF_PG_PORT|5432|" $CFG_FILE
+gsed -i -e "s|WF_PG_HOST|$POSTGRES_HOST|" $CFG_FILE
+gsed -i -e "s|WF_PG_USER|$POSTGRES_USER|" $CFG_FILE
+gsed -i -e "s|WF_PG_PASSWORD|$POSTGRES_PW|" $CFG_FILE
+gsed -i -e "s|HTTP_ADMIN_PW|$HTTP_ADMIN_PW|" $CFG_FILE
+gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
+gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
+gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
+gsed -i -e "s|WF_RUN_INTERVAL|6|" $CFG_FILE
 
 echo "Rebuilding npm modules"
 cd /opt/smartdc/workflow
