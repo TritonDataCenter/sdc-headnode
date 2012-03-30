@@ -5,71 +5,39 @@
 
 set -o xtrace
 
-PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-echo "Creating SMF manifests"
-cat > /opt/smartdc/zapi/cfg/zapi_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="zapi">
-  <service name="smartdc/site/zapi" type="service" version="7.0.0">
 
-    <create_default_instance enabled="true"/>
-    <single_instance/>
+# The user-script is downloaded and executed on every zone boot. We take
+# advantage of this to maintain the cached config values post-setup.
+if [ -e /var/svc/setup_complete ]; then
+	oldpw=`nawk '{
+	    if (! done && $1 == "\"password\":") {
+		print substr($2, 2, length($2) - 3)
+		done = 1
+	    }
+	}' /opt/smartdc/zapi/config.json`
+	[ "$zapi_http_admin_pw" == "$oldpw" ] && exit 0
 
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
+	echo "Updating zapi configuration"
+	nawk -v p=$zapi_http_admin_pw '{
+	    if (! done && $1 == "\"password\":") {
+		printf("  \"password\": \"%s\",\n", p)
+		done = 1
+	    } else {
+		print $0
+	    }
+	}' /opt/smartdc/zapi/config.json \
+	 > /opt/smartdc/zapi/config.json.new
+	mv /opt/smartdc/zapi/config.json.new \
+	   /opt/smartdc/zapi/config.json
+	svcadm restart zapi
+fi
 
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
 
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/nodejs/bin/node /opt/smartdc/zapi/server.js&amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/zapi">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/zapi" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/zapi" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">ZAPI daemon</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
+WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | tr ',' ' '):8080
 
 echo "Creating ZAPI config file"
 cat > /opt/smartdc/zapi/config.json <<HERE
@@ -77,12 +45,22 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   "logLevel": "debug",
   "amqp": {
     "host": "$RABBIT_ADMIN_IP",
-    "queue": "heartbeat.zapi"
+    "queue": "heartbeat.zapi",
+    "reconnect": 5
   },
   "api": {
     "username": "$ZAPI_HTTP_ADMIN_USER",
-    "password": "ZAPI_HTTP_ADMIN_PW",
+    "password": "$ZAPI_HTTP_ADMIN_PW",
     "port": 8080
+  },
+  "wfapi": {
+    "url": "$WF_URL",
+    "username": "$WFAPI_HTTP_ADMIN_USER",
+    "password": "$WFAPI_HTTP_ADMIN_PW"
+  },
+  "cnapi": {
+    "maxSockets": 10,
+    "url": "http://10.99.99.7:8080"
   },
   "ufds": {
     "url": "ldaps://localhost",
@@ -95,6 +73,7 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   }
 }
 HERE
+
 
 
 echo "Creating HAPrgooxy config file"
@@ -119,11 +98,11 @@ listen ufds_proxy 127.0.0.1:636
 HERE
 
 
+
 # Add all UFDS IPs to haproxy
 # Mark the first one as not backup and all the others as backup
-ufds_ips=`set | nawk -F= '/^UFDS_ADMIN_IP/ {if ($2 != myaddr) print $2}'`
 U=0
-for ip in $ufds_ips
+for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 do
     if [ $U == 0 ] ; then
         echo "        server ufds$U $ip:636 check" \
@@ -136,6 +115,8 @@ do
     let U+=1
 done
 
+
+
 echo "Importing haproxy service SMF"
 svccfg import /opt/local/share/smf/manifest/haproxy.xml
 
@@ -144,16 +125,20 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm enable haproxy
 
 
-echo "Intializing ZAPI..."
-cd /opt/smartdc/zapi && make all
+echo "Rebuilding npm modules"
+cd /opt/smartdc/zapi
+PATH=/opt/smartdc/zapi/build/node/bin:$PATH /opt/smartdc/zapi/build/node/bin/npm rebuild
 
-echo "Importing zapi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/zapi/cfg/zapi_manifest.xml
+(test -d node_modules/sdc-clients || \
+    git clone git@git.joyent.com:node-sdc-clients.git node_modules/sdc-clients)
+(cd node_modules/sdc-clients && $(NPM) install)
+(test -d node_modules/amqp || git clone https://github.com/postwait/node-amqp.git node_modules/amqp)
 
-sleep 1
+echo "Updating SMF manifest"
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/zapi/g" /opt/smartdc/zapi/smf/manifests/zapi.xml)
 
-echo "Enabling service zapi"
-/usr/sbin/svcadm disable smartdc/site/zapi
-/usr/sbin/svcadm enable smartdc/site/zapi
+
+echo "Importing zapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/zapi/smf/manifests/zapi.xml
 
 exit 0

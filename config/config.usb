@@ -200,3 +200,8 @@ rabbitmq_admin_pw=joypass123
 rabbitmq=guest:guest:10.99.99.5:5672
 
 phonehome_automatic=true
+
+zapi_external_vlan=0
+zapi_root_pw=joypass123
+zapi_http_admin_user=admin
+zapi_http_admin_pw=z3cr3t

@@ -5,12 +5,16 @@
 
 set -o xtrace
 
-PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=zapi
+app_name=$role
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/workflow
 
 # Install ZAPI
 mkdir -p /opt/smartdc/zapi
@@ -21,13 +25,8 @@ chown -R nobody:nobody /opt/smartdc/zapi
 /usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
 /usr/bin/passwd -N haproxy
 
-echo "Creating log directory"
-mkdir -p /var/log/zapi
-chown -R nobody:nobody /var/log/zapi
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
-
-sleep 5
 
 
 touch /var/svc/setup_complete
