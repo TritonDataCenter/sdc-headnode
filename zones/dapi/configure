@@ -9,35 +9,20 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1):8080
 
-echo "Creating ZAPI config file"
-cat > /opt/smartdc/zapi/config.json <<HERE
+echo "Creating DAPI config file"
+cat > /opt/smartdc/dapi/config.json <<HERE
 {
   "logLevel": "debug",
-  "amqp": {
-    "host": "$RABBIT_ADMIN_IP",
-    "queue": "heartbeat.zapi",
-    "reconnect": 5
-  },
   "api": {
-    "username": "$ZAPI_HTTP_ADMIN_USER",
-    "password": "$ZAPI_HTTP_ADMIN_PW",
+    "username": "$DAPI_HTTP_ADMIN_USER",
+    "password": "$DAPI_HTTP_ADMIN_PW",
     "port": 8080
-  },
-  "wfapi": {
-    "url": "$WF_URL",
-    "username": "$WFAPI_HTTP_ADMIN_USER",
-    "password": "$WFAPI_HTTP_ADMIN_PW"
-  },
-  "cnapi": {
-    "maxSockets": 10,
-    "url": "http://10.99.99.7:8080"
   },
   "ufds": {
     "url": "ldaps://localhost",
-    "bindDN": "$ZAPI_LDAP_ROOT_DN",
-    "bindPassword": "$ZAPI_LDAP_ROOT_PW",
+    "bindDN": "$DAPI_LDAP_ROOT_DN",
+    "bindPassword": "$DAPI_LDAP_ROOT_PW",
     "cache": {
       "size": 1000,
       "expiry": 300
@@ -98,14 +83,14 @@ echo "Enabling service haproxy"
 
 
 echo "Rebuilding npm modules"
-cd /opt/smartdc/zapi
-PATH=/opt/smartdc/zapi/build/node/bin:$PATH /opt/smartdc/zapi/build/node/bin/npm rebuild
+cd /opt/smartdc/dapi
+PATH=/opt/smartdc/dapi/build/node/bin:$PATH /opt/smartdc/dapi/build/node/bin/npm rebuild
 
 echo "Updating SMF manifest"
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/zapi/g" /opt/smartdc/zapi/smf/manifests/zapi.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/dapi/g" /opt/smartdc/dapi/smf/manifests/dapi.xml)
 
 
-echo "Importing zapi.xml"
-/usr/sbin/svccfg import /opt/smartdc/zapi/smf/manifests/zapi.xml
+echo "Importing dapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/dapi/smf/manifests/dapi.xml
 
 exit 0

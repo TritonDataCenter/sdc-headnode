@@ -7,18 +7,18 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-role=zapi
+role=dapi
 app_name=$role
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/zapi
+mkdir -p /var/smartdc/dapi
 
-# Install ZAPI
-mkdir -p /opt/smartdc/zapi
-chown -R nobody:nobody /opt/smartdc/zapi
+# Install DAPI
+mkdir -p /opt/smartdc/dapi
+chown -R nobody:nobody /opt/smartdc/dapi
 
 # Setup HAProxy user/group
 /usr/sbin/groupadd haproxy

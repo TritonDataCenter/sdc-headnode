@@ -20,6 +20,7 @@
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"
   , "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2"
   , "zapi-tarball": "zapi/zapi-pkg-master-.*.tar.bz2"
+  , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"
   , "datasets": [
       { "name": "smartos-1.3.18"
       , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
