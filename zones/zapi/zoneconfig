@@ -18,4 +18,5 @@ WFAPI_HTTP_ADMIN_USER=${billapi_http_admin_user}
 WFAPI_HTTP_ADMIN_PW=${billapi_http_admin_pw}
 
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
 UFDS_ADMIN_IPS=${ufds_admin_ips}

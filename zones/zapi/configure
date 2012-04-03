@@ -10,6 +10,7 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
 WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1):8080
+CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1):8080
 
 echo "Creating ZAPI config file"
 cat > /opt/smartdc/zapi/config.json <<HERE
@@ -32,7 +33,7 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   },
   "cnapi": {
     "maxSockets": 10,
-    "url": "http://10.99.99.7:8080"
+    "url": "$CNAPI_URL"
   },
   "ufds": {
     "url": "ldaps://localhost",

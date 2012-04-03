@@ -80,6 +80,10 @@ datacenter: ${DATACENTER_NAME}
 company: ${DATACENTER_COMPANY_NAME}
 address: ${DATACENTER_LOCATION}
 objectclass: datacenter
+
+dn: ou=servers, datacenter=${DATACENTER_NAME}, o=smartdc
+objectclass: organizationalUnit
+ou: servers
 HERE
 
 cat /tmp/.bootstrap.ldif
