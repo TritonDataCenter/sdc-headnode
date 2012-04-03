@@ -210,3 +210,8 @@ dapi_external_vlan=0
 dapi_root_pw=joypass123
 dapi_http_admin_user=admin
 dapi_http_admin_pw=z3cr3t
+
+cnapi_external_vlan=0
+cnapi_root_pw=joypass123
+cnapi_http_admin_user=admin
+cnapi_http_admin_pw=z3cr3t

@@ -1,0 +1,99 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+
+echo "Creating CNAPI config file"
+cat > /opt/smartdc/cnapi/config/config.json <<HERE
+{
+  "logLevel": "debug",
+  "amqp": {
+    "host": "$RABBIT_ADMIN_IP"
+  },
+  "api": {
+    "username": "$CNAPI_HTTP_ADMIN_USER",
+    "password": "$CNAPI_HTTP_ADMIN_PW",
+    "port": 8080
+  },
+  "ufds": {
+    "url": "ldaps://localhost",
+    "bindDN": "$CNAPI_LDAP_ROOT_DN",
+    "bindPassword": "$CNAPI_LDAP_ROOT_PW",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  }
+}
+HERE
+
+
+
+echo "Creating HAProxy config file"
+cat > /opt/local/etc/haproxy.cfg <<HERE
+global
+        log 127.0.0.1 local0
+        ulimit-n 4096
+        user haproxy
+        group haproxy
+        daemon
+
+defaults
+        option ssl-hello-chk
+        timeout connect 400ms
+        timeout client 1m
+        timeout server 5m
+
+listen ufds_proxy 127.0.0.1:636
+        mode tcp
+        option tcplog
+        log global
+HERE
+
+
+
+# Add all UFDS IPs to haproxy
+# Mark the first one as not backup and all the others as backup
+U=0
+for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+do
+    if [ $U == 0 ] ; then
+        echo "        server ufds$U $ip:636 check" \
+            >> /opt/local/etc/haproxy.cfg
+    else
+        echo "        server ufds$U $ip:636 check backup" \
+            >> /opt/local/etc/haproxy.cfg
+    fi
+
+    let U+=1
+done
+
+
+
+echo "Importing haproxy service SMF"
+svccfg import /opt/local/share/smf/haproxy/manifest.xml
+
+echo "Enabling service haproxy"
+/usr/sbin/svcadm disable haproxy
+/usr/sbin/svcadm enable haproxy
+
+
+echo "Rebuilding npm modules"
+cd /opt/smartdc/cnapi
+PATH=/opt/smartdc/cnapi/build/node/bin:$PATH /opt/smartdc/cnapi/build/node/bin/npm rebuild
+
+echo "Updating SMF manifest"
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cnapi/g" /opt/smartdc/cnapi/smf/manifests/cnapi.xml)
+
+
+echo "Importing cnapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/cnapi/smf/manifests/cnapi.xml
+
+exit 0

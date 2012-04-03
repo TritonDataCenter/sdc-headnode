@@ -826,6 +826,7 @@ function copy_zones
         export WORKFLOW_DIR=${ZONE_DIR}/workflow
         export ZAPI_DIR=${ZONE_DIR}/zapi
         export DAPI_DIR=${ZONE_DIR}/dapi
+        export CNAPI_DIR=${ZONE_DIR}/cnapi
     fi
 
     for zone in $(ls ${STAGE}/zones); do
