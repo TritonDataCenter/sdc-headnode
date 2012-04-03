@@ -61,7 +61,7 @@ if [[ $ADMIN_IPADDR == $WF_MAIN_ADMIN_IP ]]; then
     sleep 2
   fi
 
-  # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
+  # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
   for i in 0 1 2 3 4 5 6 7 8 9
   do
       svc=$(/usr/bin/svcs -H network/postgresql)
@@ -70,7 +70,7 @@ if [[ $ADMIN_IPADDR == $WF_MAIN_ADMIN_IP ]]; then
       sleep 5
   done
   # Move forward anyway
-  # If we cannot get a db listing using our password, we need to set it:
+  # If we cannot get a db listing using our password, we need to set it:
   if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
     -h ${POSTGRES_HOST} -c "\l" 2>/dev/null; then
     if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
