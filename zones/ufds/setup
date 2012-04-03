@@ -84,6 +84,10 @@ objectclass: datacenter
 dn: ou=servers, datacenter=${DATACENTER_NAME}, o=smartdc
 objectclass: organizationalUnit
 ou: servers
+
+dn: ou=packages, o=smartdc
+objectclass: organizationalUnit
+ou: packages
 HERE
 
 cat /tmp/.bootstrap.ldif
