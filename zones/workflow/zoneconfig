@@ -11,7 +11,12 @@ POSTGRES_USER=postgres
 POSTGRES_PW=PgresPass123
 WORKERS=10
 
+ADMIN_NETWORK=${admin_network}
+ADMIN_NETMASK=${admin_netmask}
+
 UFDS_ADMIN_LOGIN=${ufds_admin_login}
 
 HTTP_ADMIN_USER=${billapi_http_admin_user}
 HTTP_ADMIN_PW=${billapi_http_admin_pw}
+
+WORKFLOW_ADMIN_IPS=${workflow_admin_ips}

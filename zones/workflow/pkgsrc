@@ -18,4 +18,5 @@ libssh2-1.2.2nb1
 p5-Error-0.17016nb2
 postgresql91-client-9.1.2
 postgresql91-server-9.1.2
+pkg_alternatives-1.5
 python26-2.6.7nb2
