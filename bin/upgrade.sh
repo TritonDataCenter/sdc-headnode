@@ -47,6 +47,18 @@ load_sdc_config
 
 . ./upgrade_common
 
+SAW_ERROR=0
+
+message_ok="
+The new image has been activated. You must reboot the system for the upgrade
+to take effect.  Once you have verified the upgrade is ok, you can remove the
+backup file in $SDC_UPGRADE_SAVE.\n\n"
+
+message_err="
+ERROR: There were errors during the upgrade. You must review the upgrade
+log (/tmp/perform_upgrade.*.log) and resolve the problems reported there before
+you reboot the system. There is a backup file in $SDC_UPGRADE_SAVE.\n\n"
+
 # Ensure we're a SmartOS headnode
 if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     || $(uname -s) != "SunOS" \
@@ -61,6 +73,18 @@ function cleanup
         umount ${usbmnt}
         mounted_usb="false"
     fi
+
+message_term="
+ERROR: The upgrade process terminated prematurely and the system is in an
+unknown state. You must review the upgrade log (/tmp/perform_upgrade.*.log)
+to determine how to proceed.  There is a backup file in $SDC_UPGRADE_SAVE.\n\n"
+
+    [[ $SAW_ERROR == 1 ]] && printf "$message_err"
+    printf "$message_term"
+
+    cd /
+    tar cbf 512 - tmp/*log*  | \
+        gzip >$SDC_UPGRADE_SAVE/logs.$(date -u +%Y%m%dT%H%M%S).tgz
 }
 
 function mount_usbkey
@@ -132,8 +156,10 @@ function upgrade_usbkey
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
+	[ $? != 0 ] && SAW_ERROR=1
 
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
+	[ $? != 0 ] && SAW_ERROR=1
     fi
 }
 
@@ -197,6 +223,7 @@ function delete_new_sdc_zones
 		[ "$zone" == "$MAPI_ZONE" ] && continue
 		echo "Deleting zone: $zone"
 		sdc-setup -D $zone 1>&4 2>&1
+		[ $? != 0 ] && SAW_ERROR=1
 	done
 }
 
@@ -209,7 +236,9 @@ function delete_old_sdc_zones
 		zoneadm -z $zone halt
 		sleep 3
 		zoneadm -z $zone uninstall -F
+		[ $? != 0 ] && SAW_ERROR=1
 		zonecfg -z $zone delete -F
+		[ $? != 0 ] && SAW_ERROR=1
 	done
 }
 
@@ -261,13 +290,16 @@ function import_sdc_datasets
 			        }
 			    }' $i`
 			cp $i /tmp
+			[ $? != 0 ] && SAW_ERROR=1
 			# We have to mv since dsimport wants to copy it back
 			mv /usbkey/datasets/$bzname /tmp
+			[ $? != 0 ] && SAW_ERROR=1
 
 			sed -i "" -e \
 "s|\"url\": \"https:.*/|\"url\": \"http://$CONFIG_assets_admin_ip/datasets/|" \
 			    /tmp/$bname
 			sdc-dsimport /tmp/$bname
+			[ $? != 0 ] && SAW_ERROR=1
 
 			rm -f /tmp/$bname /tmp/$bzname
 		fi
@@ -531,6 +563,7 @@ function recreate_core_zones
 	export SKIP_AGENTS=1
 	export SKIP_SDC_PKGS=1
 	/usbkey/scripts/headnode.sh 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 
 	# Wait for mapi to be ready before we move on
 	cnt=0
@@ -543,14 +576,17 @@ function recreate_core_zones
 		let cnt=$cnt+1
 		sleep 30
 	done
-	[ $cnt -eq 11 ] && \
-	    echo "Warning: MAPI still not ready after 5 minutes"
+	if [ $cnt -eq 11 ]; then
+		echo "Warning: MAPI still not ready after 5 minutes"
+		SAW_ERROR=1
+	fi
 
 	# headnode.sh left the zones running, shut down so we can restore them
 	for zone in `zoneadm list`
 	do
 		[ "$zone" == "global" ] && continue
 		zoneadm -z $zone halt
+		[ $? != 0 ] && SAW_ERROR=1
 	done
 
 	local admin_uuid=${CONFIG_ufds_admin_uuid}
@@ -569,6 +605,7 @@ function recreate_core_zones
 			echo "Restore $role zone"
 			${usbcpy}/zones/${role}/restore ${zone} \
 			    ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
+			[ $? != 0 ] && SAW_ERROR=1
 		fi
 	done
 
@@ -577,6 +614,7 @@ function recreate_core_zones
 	$(vmadm lookup owner_uuid=${admin_uuid} tags.smartdc_role=~^[a-z])
 	do
 		zoneadm -z $zone boot
+		[ $? != 0 ] && SAW_ERROR=1
 	done
 }
 
@@ -640,6 +678,7 @@ function upgrade_sdc_pkgs
 		    -d cpu_cap=$cap \
 		    -d lightweight_processes=$nlwp \
 		    -d zfs_io_priority=$iopri 1>&4 2>&1
+		[ $? != 0 ] && SAW_ERROR=1
 	else
 		# New pkg, add it using POST
 	        curl -i -s \
@@ -654,6 +693,7 @@ function upgrade_sdc_pkgs
 		    -d lightweight_processes=$nlwp \
 		    -d zfs_io_priority=$iopri \
 		    -d owner_uuid=$CONFIG_ufds_admin_uuid 1>&4 2>&1
+		[ $? != 0 ] && SAW_ERROR=1
 	fi
     done
 }
@@ -665,6 +705,7 @@ function convert_capi_ufds
 	echo "Transforming CAPI postgres dumps to LDIF."
 	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_SAVE}/capi_dump \
 	    > $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
+	[ $? != 0 ] && SAW_ERROR=1
 
 	# We're on the headnode, so we know the zonepath is in /zones.
 	cp $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif /zones/$1/root
@@ -678,8 +719,10 @@ function convert_capi_ufds
 		[ $scnt == 0 ] && break
 		cnt=$(($cnt + 1))
 	done
-	[ $cnt == 12 ] && \
-	    echo "WARNING: some ufds svcs still not ready after 2 minutes"
+	if [ $cnt == 12 ]; then
+		echo "WARNING: some ufds svcs still not ready after 2 minutes"
+		SAW_ERROR=1
+	fi
 
 	# re-load config to pick up settings for newly created ufds zone
 	load_sdc_config
@@ -690,6 +733,7 @@ function convert_capi_ufds
 	    -D ${CONFIG_ufds_ldap_root_dn} \
 	    -w ${CONFIG_ufds_ldap_root_pw} \
 	    -f /ufds.ldif 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 
 	rm -f /zones/$1/root/ufds.ldif
 }
@@ -732,6 +776,7 @@ function install_platform
 	    && gunzip | tar -xf - 2>/tmp/install_platform.log \
 	    && mv platform-* platform
 	    )
+	[ $? != 0 ] && SAW_ERROR=1
 
 	[[ -f ${usbmnt}/os/${platformversion}/platform/root.password ]] && \
 	    mv -f ${usbmnt}/os/${platformversion}/platform/root.password \
@@ -741,6 +786,7 @@ function install_platform
 	mkdir -p ${usbcpy}/os
 	(cd ${usbmnt}/os && \
 	    rsync -a ${platformversion}/ ${usbcpy}/os/${platformversion})
+	[ $? != 0 ] && SAW_ERROR=1
 
 	umount_usbkey
 }
@@ -783,6 +829,7 @@ function register_platform
 	if [ $cnt -ge 5 ]; then
 		echo "Error: registering platform failed after 5 retries" \
 		    >/dev/stderr
+		SAW_ERROR=1
 		return
 	fi
 
@@ -791,6 +838,7 @@ function register_platform
 	curl -s -u admin:$CONFIG_mapi_http_admin_pw \
 	    http://$CONFIG_mapi_admin_ip/platform_images/$plat_id/make_default \
 	    -d '' -X PUT 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 
 	# Get headnode server_role (probably also 1, but get it just in case).
 	local srole_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
@@ -804,12 +852,14 @@ function register_platform
 
 	if [ -z "$srole_id" ]; then
 		echo "WARNING: unable to find headnode server role" >/dev/stderr
+		SAW_ERROR=1
 		return
 	fi
 
 	curl -s -u admin:$CONFIG_mapi_http_admin_pw \
 	    http://$CONFIG_mapi_admin_ip/server_roles/$srole_id \
 	    -d platform_image_id=$plat_id -X PUT 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 }
 
 function upgrade_agents
@@ -818,6 +868,7 @@ function upgrade_agents
 	local agents=`ls -t /usbkey/ur-scripts | head -1`
 	echo "Installing agents $agents"
 	bash /usbkey/ur-scripts/$agents 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 }
 
 function upgrade_cn_agents
@@ -829,10 +880,12 @@ function upgrade_cn_agents
 
 	mkdir -p $assetdir
 	cp /usbkey/ur-scripts/$agents $assetdir
+	[ $? != 0 ] && SAW_ERROR=1
 
 	sdc-oneachnode -c "cd /var/tmp;
 	  curl -kOs $CONFIG_assets_admin_ip:/extra/agents/$agents;
 	  (bash /var/tmp/$agents </dev/null >/var/tmp/agent_install.log 2>&1)&"
+	[ $? != 0 ] && SAW_ERROR=1
 
 	rm -f $assetdir/$agents
 }
@@ -866,6 +919,7 @@ if [ $CAPI_FOUND == 1 ]; then
 		zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 \
 		    -Upostgres -h127.0.0.1 -t $i capi \
 		    >$SDC_UPGRADE_SAVE/capi_dump/$i.dump
+		[ $? != 0 ] && SAW_ERROR=1
 	done
 fi
 
@@ -1014,7 +1068,10 @@ while [ $cnt -lt 18 ]; do
 	sleep 10
 	cnt=$(($cnt + 1))
 done
-[ $cnt == 18 ] && echo "WARNING: core svcs still not running after 3 minutes"
+if [ $cnt == 18 ]; then
+	"WARNING: core svcs still not running after 3 minutes"
+	SAW_ERROR=1
+fi
 
 # Make sure we can talk to the new MAPI
 curl -s -u admin:$CONFIG_mapi_http_admin_pw \
@@ -1047,6 +1104,7 @@ recreate_extra_zones
 cleanup_cn_config
 
 /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
+[ $? != 0 ] && SAW_ERROR=1
 
 # Leave headnode setup for compute node upgrades of all roles
 for role in $ROLE_ORDER
@@ -1064,13 +1122,17 @@ cp upgrade_common $assetdir
 cp upgrade_cn $assetdir
 cp /zones/$MAPIZONE/root/opt/smartdc/node.config/node.config $assetdir/config
 
-message="
-The new image has been activated. You must reboot the system for the upgrade
-to take effect.  Once you have verified the upgrade is ok, you can remove the
-backup file in $SDC_UPGRADE_SAVE.\n\n"
-printf "$message"
+if [[ $SAW_ERROR == 1 ]]; then
+	printf "$message_err"
+else
+	printf "$message_ok"
+fi
 
 cd /
 tar cbf 512 - tmp/*log*  | \
     gzip >$SDC_UPGRADE_SAVE/logs.$(date -u +%Y%m%dT%H%M%S).tgz
+
+trap EXIT
+
+[[ $SAW_ERROR == 1 ]] && exit 1
 exit 0
