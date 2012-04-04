@@ -51,6 +51,18 @@ fi
 load_sdc_sysinfo
 load_sdc_config
 
+SAW_ERROR=0
+
+message_ok="
+The new image has been activated. You must reboot the headnode for the upgrade
+to fully take effect.  Once you have verified the upgrade is ok, you can remove
+the backup in /zones and create a new backup for the latest image.\n\n"
+
+message_err="
+ERROR: There were errors during the upgrade. You must review the upgrade
+log (/tmp/perform_upgrade.*.log) and resolve the problems reported there before
+you reboot the system. There is a backup file in /zones.\n\n"
+
 # Ensure we're a SmartOS headnode
 if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     || $(uname -s) != "SunOS" \
@@ -73,6 +85,16 @@ function cleanup
         umount ${usbmnt}
         mounted_usb="false"
     fi
+
+message_term="
+ERROR: The upgrade process terminated prematurely and the system is in an
+unknown state. You must review the upgrade log (/tmp/perform_upgrade.*.log)
+to determine how to proceed.  There is a backup file in /zones.\n\n"
+
+    [[ $SAW_ERROR == 1 ]] && printf "$message_err"
+    printf "$message_term"
+
+    cp /tmp/perform_upgrade* /var/tmp
 }
 
 function mount_usbkey
@@ -82,6 +104,12 @@ function mount_usbkey
         ${usbcpy}/scripts/mount-usb.sh
         mounted_usb="true"
     fi
+}
+
+function umount_usbkey
+{
+    umount /mnt/usbkey
+    mounted_usb="false"
 }
 
 function check_versions
@@ -138,6 +166,7 @@ function upgrade_usbkey
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     if [[ -n ${usbupdate} ]]; then
         (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
+	[ $? != 0 ] && SAW_ERROR=1
 
         # Add a capi_external_url entry if not there and CAPI has an external
         # IP configured.
@@ -177,6 +206,7 @@ function upgrade_usbkey
         fi
 
         (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
+	[ $? != 0 ] && SAW_ERROR=1
     fi
 }
 
@@ -237,6 +267,7 @@ function upgrade_agents
 	AGENTS=`ls -t /usbkey/ur-scripts | head -1`
 	echo "Installing agents $AGENTS"
 	bash /usbkey/ur-scripts/$AGENTS 1>&4 2>&1
+	[ $? != 0 ] && SAW_ERROR=1
 }
 
 function upgrade_cn_agents
@@ -251,6 +282,7 @@ function upgrade_cn_agents
 	sdc-oneachnode -c "cd /var/tmp;
 	  curl -kOs $CONFIG_assets_admin_ip:/extra/agents/$AGENTS;
 	  bash /var/tmp/$AGENTS </dev/null >/var/tmp/agent_install.log 2>&1 &"
+	[ $? != 0 ] && SAW_ERROR=1
 
 	rm -f $assetdir/$AGENTS
 }
@@ -279,9 +311,11 @@ function recreate_zones
         if [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
             ${usbcpy}/zones/${zone}/backup ${zone} \
                 ${backup_dir}/zones/${zone}/
+            [ $? != 0 ] && SAW_ERROR=1
         elif [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
             /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
                 ${backup_dir}/zones/${zone}/
+            [ $? != 0 ] && SAW_ERROR=1
         else
             echo "Info: stateless, no backup script"
         fi
@@ -291,10 +325,13 @@ function recreate_zones
         if [[ -f ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs ]]; then
           cp ${backup_dir}/zones/${zone}/${zone}/${zone}-data.zfs \
               ${usbcpy}/backup/
+          [ $? != 0 ] && SAW_ERROR=1
         fi
 
         ${usbcpy}/scripts/destroy-zone.sh ${zone}
+        [ $? != 0 ] && SAW_ERROR=1
         ${usbcpy}/scripts/create-zone.sh ${zone} -w
+        [ $? != 0 ] && SAW_ERROR=1
 
 	# If we've copied the data dataset, remove it.  Also, we know that
 	# create-zone will have restored the zone using the copied zfs send
@@ -304,6 +341,7 @@ function recreate_zones
             rm ${usbcpy}/backup/${zone}-data.zfs
 	elif [[ -x ${usbcpy}/zones/${zone}/restore ]]; then
 	    zoneadm -z ${zone} halt
+            [ $? != 0 ] && SAW_ERROR=1
 	    # wait until zone is halted
             echo "Wait for zone to shutdown"
             while true; do
@@ -313,8 +351,10 @@ function recreate_zones
             done
 
             ${usbcpy}/zones/${zone}/restore ${zone} ${backup_dir}/zones/${zone}/
+            [ $? != 0 ] && SAW_ERROR=1
 
 	    zoneadm -z ${zone} boot
+            [ $? != 0 ] && SAW_ERROR=1
 	fi
     done
 }
@@ -351,6 +391,7 @@ function install_platform
     fi
 
     ${usbcpy}/scripts/install-platform.sh file://${platformupdate}
+    [ $? != 0 ] && SAW_ERROR=1
 
     local plat_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
         http://$CONFIG_mapi_admin_ip/platform_images | json | \
@@ -376,6 +417,7 @@ function install_platform
     curl -s -u admin:$CONFIG_mapi_http_admin_pw \
         http://$CONFIG_mapi_admin_ip/platform_images/$plat_id/make_default \
         -d '' -X PUT 1>&4 2>&1
+    [ $? != 0 ] && SAW_ERROR=1
 
     # Get headnode server_role (probably also 1, but get it just in case).
     local srole_id=`curl -s -u admin:$CONFIG_mapi_http_admin_pw \
@@ -388,12 +430,14 @@ function install_platform
 
     if [ -z "$srole_id" ]; then
         echo "WARNING: unable to find headnode server role" >/dev/stderr
+        SAW_ERROR=1
         return
     fi
 
     curl -s -u admin:$CONFIG_mapi_http_admin_pw \
         http://$CONFIG_mapi_admin_ip/server_roles/$srole_id \
         -d platform_image_id=$plat_id -X PUT 1>&4 2>&1
+    [ $? != 0 ] && SAW_ERROR=1
 }
 
 mount_usbkey
@@ -444,16 +488,22 @@ upgrade_cn_agents
 echo "${new_version}" > ${usbmnt}/version
 
 /usbkey/scripts/switch-platform.sh ${platformversion}
+[ $? != 0 ] && SAW_ERROR=1
 echo "Activating upgrade complete"
 
-message="
-The new image has been activated. You must reboot the headnode for the upgrade
-to fully take effect.  Once you have verified the upgrade is ok, you can remove
-the backup in /zones and create a new backup for the latest image.\n\n"
-printf "$message"
+umount_usbkey
+
+if [[ $SAW_ERROR == 1 ]]; then
+	printf "$message_err"
+else
+	printf "$message_ok"
+fi
 
 date 1>&4 2>&1
 
 cp /tmp/perform_upgrade* /var/tmp
 
+trap EXIT
+
+[[ $SAW_ERROR == 1 ]] && exit 1
 exit 0
