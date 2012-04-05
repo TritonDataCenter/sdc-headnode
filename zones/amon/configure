@@ -48,6 +48,10 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
         },
         "from": "\"Monitoring\" <no-reply@joyent.com>"
       }
+    },
+    "webhook": {
+      "path": "./notifications/webhook",
+      "config": {}
     }
   }
 }
