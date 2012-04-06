@@ -39,15 +39,18 @@ The rules are:
             "delegate_dataset": true,
             "allow_multiple": true,
             "networks": [ "admin", "external" ],
+            "primary_network": "external",
             "dependencies": [ "ufds", "ca" ]
         }
 
         with the 'delegate_dataset' and 'allow_multiple' options being optional
         and defaulting to false. The delegate_dataset causes a 'data' dataset to
-        be created in the zone.  The allow_multiple allows that a given zone can
+        be created in the zone. The allow_multiple allows that a given zone can
         be provisioned to more than one CN (default is that only one copy of
-        your zone can exist in the DC.  The networks and dependencies should be
-        defined even if empty.
+        your zone can exist in the DC. The networks and dependencies should be
+        defined even if empty. The primary_network allows you to specify the
+        network interface from which the gateway and other parameters will be
+        pulled. When not specified, the first network specified will be primary.
 
     * 'user-script' - if for some reason your zone needs a different script than
         the one in default/user-script.common, currently only assets (because
