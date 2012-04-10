@@ -20,7 +20,7 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   "api": {
     "username": "$CNAPI_HTTP_ADMIN_USER",
     "password": "$CNAPI_HTTP_ADMIN_PW",
-    "port": 8080
+    "port": 80
   },
   "ufds": {
     "url": "ldaps://localhost",
