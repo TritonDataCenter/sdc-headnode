@@ -69,10 +69,8 @@ dns_domain=joyent.us
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
 dhcp_lease_time=86400
-dhcp_next_server=10.99.99.4
 
 # This should not be changed.
-initial_script=scripts/headnode.sh
 
 # This is the entry from /etc/shadow for root (default password: 'root')
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
@@ -121,6 +119,8 @@ ntp_hosts=pool.ntp.org
 #
 compute_node_ntp_hosts=10.99.99.7
 
+phonehome_automatic=false
+
 # Zone-specific configs
 
 adminui_external_vlan=0
@@ -146,10 +146,6 @@ ca_admin_pw=joypass123
 dhcpd_admin_ip=10.99.99.4
 dhcpd_root_pw=joypass123
 dhcpd_admin_pw=joypass123
-
-dnsapi_http_port=8000
-dnsapi_http_user=admin
-dnsapi_http_pass=joypass123
 
 dsapi_url=https://datasets.joyent.com
 dsapi_http_user=honeybadger
@@ -198,8 +194,6 @@ ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
 # Legacy CAPI parameters
 capi_http_admin_user=admin
 capi_http_admin_pw=tot@ls3crit
-
-phonehome_automatic=false
 
 zapi_external_vlan=0
 zapi_root_pw=joypass123
