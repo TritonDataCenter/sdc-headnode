@@ -9,6 +9,7 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1):8080
 
 echo "Creating CNAPI config file"
 cat > /opt/smartdc/cnapi/config/config.json <<HERE
@@ -20,7 +21,12 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   "api": {
     "username": "$CNAPI_HTTP_ADMIN_USER",
     "password": "$CNAPI_HTTP_ADMIN_PW",
-    "port": 80
+    "port": $CNAPI_HTTP_PORT
+  },
+  "wfapi": {
+    "url": "$WF_URL",
+    "username": "$WFAPI_HTTP_ADMIN_USER",
+    "password": "$WFAPI_HTTP_ADMIN_PW"
   },
   "ufds": {
     "url": "ldaps://localhost",

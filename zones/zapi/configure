@@ -25,7 +25,7 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   "api": {
     "username": "$ZAPI_HTTP_ADMIN_USER",
     "password": "$ZAPI_HTTP_ADMIN_PW",
-    "port": 80
+    "port": $ZAPI_HTTP_PORT
   },
   "wfapi": {
     "url": "$WF_URL",

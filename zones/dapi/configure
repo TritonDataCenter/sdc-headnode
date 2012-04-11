@@ -17,7 +17,7 @@ cat > /opt/smartdc/dapi/config.json <<HERE
   "api": {
     "username": "$DAPI_HTTP_ADMIN_USER",
     "password": "$DAPI_HTTP_ADMIN_PW",
-    "port": 80
+    "port": $DAPI_HTTP_PORT
   },
   "ufds": {
     "url": "ldaps://localhost",
