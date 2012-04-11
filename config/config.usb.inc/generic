@@ -21,6 +21,8 @@ pkg_6=sdc_db:2048:4096:51200:400:1000:20
 # Install agents by default
 install_agents=true
 
+initial_script=scripts/headnode.sh
+
 # Agents will be installed here
 agents_root=/opt/smartdc/agents
 zonetracker_database_path=/opt/smartdc/agents/db/zonetracker.sqlite3

@@ -1108,10 +1108,10 @@ write_old_config() {
   __wr "compute_node_swap=0.25x" #XXX
   __wr "cloudapi_root_pw=$CONFIG_PASS_ROOT"
   __wr "cloudapi_admin_pw=$CONFIG_PASS_ADMIN"
-  __wr "capi_root_pw=$CONFIG_PASS_ROOT"
-  __wr "capi_admin_pw=$CONFIG_PASS_ADMIN"
   __wr "billapi_root_pw=$CONFIG_PASS_ROOT"
   __wr "billapi_admin_pw=$CONFIG_PASS_ADMIN"
+  __wr "billapi_http_admin_user=admin"
+  __wr "billapi_http_admin_pw=$CONFIG_PASS_ADMIN"
   __wr "riak_root_pw=$CONFIG_PASS_ROOT"
   __wr "riak_admin_pw=$CONFIG_PASS_ADMIN"
   __wr "portal_root_pw=$CONFIG_PASS_ROOT"
