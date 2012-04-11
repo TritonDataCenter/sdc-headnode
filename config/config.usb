@@ -69,7 +69,6 @@ dns_domain=joyent.us
 dhcp_range_start=10.99.99.20
 dhcp_range_end=10.99.99.199
 dhcp_lease_time=86400
-dhcp_next_server=10.99.99.4
 
 # This should not be changed.
 initial_script=scripts/headnode.sh

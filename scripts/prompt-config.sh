@@ -1129,7 +1129,6 @@ write_old_config() {
   __wr "redis_root_pw=$CONFIG_PASS_ROOT"
   __wr "redis_admin_pw=$CONFIG_PASS_ADMIN"
   __wr "dhcp_lease_time=86400"
-  __wr "dhcp_next_server=$CONFIG_DHCP_NET_ADDR"
   __wr "ufds_is_local=true"
   __wr "ufds_external_vlan=0"
   __wr "ufds_ldap_root_dn=cn=root"
