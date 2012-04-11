@@ -71,6 +71,7 @@ dhcp_range_end=10.99.99.199
 dhcp_lease_time=86400
 
 # This should not be changed.
+initial_script=scripts/headnode.sh
 
 # This is the entry from /etc/shadow for root (default password: 'root')
 root_shadow='$5$2HOHRnK3$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
