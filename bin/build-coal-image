@@ -15,11 +15,9 @@
 set -o errexit
 set -o pipefail
 
-NO_CONFIG_FILE=0
 if [[ $1 == "-c" ]]; then
     shift
-    NO_CONFIG_FILE=1
-    echo "Building with no config file in the image. "
+    echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
 REUSE_USB_BUILD=0
@@ -40,8 +38,7 @@ if [[ -z "$1" ]]; then
     echo "ERROR: no usb tarball supplied"
     echo ""
     echo "Usage:"
-    echo "    $0 [-c] [-r] <usb_tarball>"
-    echo "    -c     Do not copy config into image"
+    echo "    $0 [-r] <usb_tarball>"
     echo "    -r     Consume the usb build rather than copy it"
     echo ""
     exit 1
@@ -181,15 +178,6 @@ function copy_config {
     # Clear current configs from stage area
     rm -f ${MNT_DIR}/config || true
     rm -rf ${MNT_DIR}/config.inc || true
-
-    echo "==> Copying in config"
-    if [[ ${NO_CONFIG_FILE} == 0 ]]; then
-        if [[ -f config/config.coal.local ]]; then
-          cp config/config.coal.local ${MNT_DIR}/config
-        else
-          cp config/config.coal ${MNT_DIR}/config
-        fi
-    fi
 
     if [[ -d config/config.coal.inc.local ]]; then
         cp -r config/config.coal.inc.local ${MNT_DIR}/config.inc

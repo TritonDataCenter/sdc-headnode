@@ -19,8 +19,7 @@ export GZIP=-1
 CONFIG_OPTS=
 if [[ $1 == "-c" ]]; then
     shift
-    CONFIG_OPTS="-c"
-    echo "Building with no config file in the image. "
+    echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
 TYPE=$1
@@ -36,8 +35,7 @@ tar|usb|coal)
 *)
     echo "ERROR: unknown image type '$TYPE' supplied"
     echo ""
-    echo "Usage:    $0 [-c] <tar|usb|coal>"
-    echo "    -c    Do not copy config files to generated images"
+    echo "Usage:    $0 <tar|usb|coal>"
     echo ""
     exit 1;
     ;;

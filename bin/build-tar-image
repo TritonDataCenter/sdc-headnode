@@ -219,11 +219,9 @@ if [[ $1 == "-r" ]]; then
     shift
 fi
 
-NO_CONFIG_FILE=0
 if [[ $1 == "-c" ]]; then
     shift
-    NO_CONFIG_FILE=1
-    echo "Building with no config file in the image. "
+    echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
 PLATFORM=$(uname -s)
@@ -311,15 +309,6 @@ function copy_config {
     # Clear current configs from stage area
     rm -f ${STAGE}/config || true
     rm -rf ${STAGE}/config.inc || true
-
-    echo "==> Copying in config"
-    if [[ ${NO_CONFIG_FILE} == 0 ]]; then
-        if [[ -f config/config.usb.local ]]; then
-          cp config/config.usb.local ${STAGE}/config
-        else
-          cp config/config.usb ${STAGE}/config
-        fi
-    fi
 
     if [[ -d config/config.usb.inc.local ]]; then
         cp -r config/config.usb.inc.local ${STAGE}/config.inc
