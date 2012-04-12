@@ -44,9 +44,9 @@ billapi_pkg=sdc_128
 
 workflow_pkg=sdc_128
 
-zapi_pkg=sdc_64
-dapi_pkg=sdc_64
-cnapi_pkg=sdc_64
+zapi_pkg=sdc_128
+dapi_pkg=sdc_128
+cnapi_pkg=sdc_128
 
 ca_pkg=sdc_1024
 
