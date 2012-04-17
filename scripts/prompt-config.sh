@@ -1067,6 +1067,39 @@ echo "capi_http_admin_user=admin" >>$tmp_config
 echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+
+if [ -z "$external_vlan_id" ]; then
+	echo "# zapi_external_vlan=0" >>$tmp_config
+else
+	echo "zapi_external_vlan=$external_vlan_id" >>$tmp_config
+fi
+echo "zapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "zapi_http_admin_user=admin" >>$tmp_config
+echo "zapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+
+if [ -z "$external_vlan_id" ]; then
+	echo "# dapi_external_vlan=0" >>$tmp_config
+else
+	echo "dapi_external_vlan=$external_vlan_id" >>$tmp_config
+fi
+echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "dapi_http_admin_user=admin" >>$tmp_config
+echo "dapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+
+if [ -z "$external_vlan_id" ]; then
+	echo "# cnapi_external_vlan=0" >>$tmp_config
+else
+	echo "cnapi_external_vlan=$external_vlan_id" >>$tmp_config
+fi
+echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "cnapi_http_admin_user=admin" >>$tmp_config
+echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
 echo "phonehome_automatic=true" >>$tmp_config
 
 echo
