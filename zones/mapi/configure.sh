@@ -45,7 +45,7 @@ http {
   include /opt/local/etc/nginx/mime.types;
   default_type  application/octet-stream;
   access_log /var/log/nginx/access.log;
-  
+
   sendfile on;
   keepalive_timeout  65;
 
@@ -170,7 +170,7 @@ fi
 
 if [[ ! -e /opt/smartdc/mapi/config/unicorn.smf ]]; then
   echo "Creating MCP API Unicorn Manifest."
-  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='mcp_api'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/config/deploy/unicorn.smf.erb')).result" > /opt/smartdc/mapi/config/unicorn.smf
+  /opt/local/bin/ruby -rerb -e "user='jill';group='jill';app_environment='production';application='mcp_api'; working_directory='/opt/smartdc/mapi'; puts ERB.new(File.read('/opt/smartdc/mapi/smartdc/smf/unicorn.smf.erb')).result" > /opt/smartdc/mapi/config/unicorn.smf
   chown jill:jill /opt/smartdc/mapi/config/unicorn.smf
 fi
 
