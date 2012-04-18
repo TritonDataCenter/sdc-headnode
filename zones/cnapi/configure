@@ -9,7 +9,7 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1):8080
+WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
 echo "Creating CNAPI config file"
 cat > /opt/smartdc/cnapi/config/config.json <<HERE
