@@ -12,6 +12,10 @@ fatal()
 [[ -z ${ZONE_ROLE} ]] && fatal "FATAL: setup.common running but ZONE_ROLE not set"
 [[ -z ${ASSETS_IP} ]] && fatal "FATAL: setup.common running but ASSETS_IP not set"
 
+if [[ $(. /opt/smartdc/etc/zoneconfig ; echo ${NO_FS_TARBALL}) == "true" ]]; then
+    NO_FS_TARBALL=1
+fi
+
 pkgsrc_lst=$(curl -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
     | grep 'href="pkgsrc' | cut -d '"' -f2)
 
@@ -26,9 +30,12 @@ fi
 curl -o /var/svc/pkgsrc.tar -s -S -f \
     http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}.tar
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc tarball from assets server"
-curl -o /var/svc/fs.tar.bz2 -s -S -f \
-    http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2
-[[ $? != 0 ]] && fatal "FATAL: unable to get root tarball from assets server"
+
+if [[ -z ${NO_FS_TARBALL} ]]; then
+    curl -o /var/svc/fs.tar.bz2 -s -S -f \
+        http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2
+    [[ $? != 0 ]] && fatal "FATAL: unable to get root tarball from assets server"
+fi
 
 mkdir -p /opt/smartdc/bin
 for file in backup restore; do
@@ -53,21 +60,23 @@ fi
 echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
 echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
 
-# Unpack fs.tar and copy files into proper locations within the zone
-mkdir /.stage
-echo "unpack fs.tar"
-(cd /.stage && bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
-rm -f /var/svc/fs.tar.bz2
-if [[ -d /.stage/root ]]; then
-    echo "install root"
-    (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+if [[ -z ${NO_FS_TARBALL} ]]; then
+   # Unpack fs.tar and copy files into proper locations within the zone
+   mkdir /.stage
+   echo "unpack fs.tar"
+   (cd /.stage && bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
+   rm -f /var/svc/fs.tar.bz2
+   if [[ -d /.stage/root ]]; then
+       echo "install root"
+       (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
+   fi
+   if [[ -d /.stage/site ]]; then
+       echo "install site"
+       (cd /.stage/site && tar cbf 512 - *) | \
+           (cd /lib/svc/manifest/site && tar xbf 512 -)
+   fi
+   rm -rf /.stage
 fi
-if [[ -d /.stage/site ]]; then
-    echo "install site"
-    (cd /.stage/site && tar cbf 512 - *) | \
-        (cd /lib/svc/manifest/site && tar xbf 512 -)
-fi
-rm -rf /.stage
 
 # Install using local pkg repo
 mkdir -p /var/svc/pkgs

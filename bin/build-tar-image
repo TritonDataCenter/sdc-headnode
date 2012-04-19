@@ -833,17 +833,19 @@ function copy_zones
             cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
-        if [[ -n ${tarball_pattern} ]]; then
-            # Find latest that matches tarball_pattern.
-            get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
-        fi
+        if [[ ${tarball_pattern} != "none" ]]; then
+            if [[ -n ${tarball_pattern} ]]; then
+                # Find latest that matches tarball_pattern.
+                get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
+            fi
 
-        if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
-            fatal "Unable to find or build fs.tar.bz2 for ${zone}"
-        else
-            # Keep a copy in cache so we can build next time with no Internet
-            cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
-                ${ROOT}/cache/${zone}.tar.bz2
+            if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
+                fatal "Unable to find or build fs.tar.bz2 for ${zone}"
+            else
+                # Keep a copy in cache so we can build next time with no Internet
+                cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
+                    ${ROOT}/cache/${zone}.tar.bz2
+            fi
         fi
     done
 
