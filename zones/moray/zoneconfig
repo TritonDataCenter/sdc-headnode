@@ -1,0 +1,17 @@
+TEMPLATE_VERSION=0.0.1
+HOSTNAME=${ZONENAME}.${dns_domain}
+RESOLVERS=${dns_resolvers/,/ }
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}
+ROOT_PW=${moray_root_pw}
+ADMIN_PW=${moray_admin_pw}
+TMPFS=512m
+POSTGRES_HOST=127.0.0.1
+POSTGRES_USER=postgres
+POSTGRES_PW=PgresPass123
+WORKERS=10
+
+ADMIN_NETWORK=${admin_network}
+ADMIN_NETMASK=${admin_netmask}
+
+MORAY_ADMIN_IPS=${moray_admin_ips}

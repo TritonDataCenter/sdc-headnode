@@ -42,6 +42,7 @@ assets_pkg=sdc_64
 billapi_pkg=sdc_128
 
 workflow_pkg=sdc_128
+moray_pkg=sdc_128
 
 zapi_pkg=sdc_64
 dapi_pkg=sdc_64
@@ -74,4 +75,4 @@ sbapi_http_user=sdc6support
 sbapi_http_pass=4cea03de8bf6
 
 # List of zones to install (in order) with 'sdc-setup -A'.
-sdc_setup_all="riak ufds redis amon ca adminui billapi cloudapi workflow dapi cnapi zapi"
+sdc_setup_all="riak moray ufds redis amon ca adminui billapi cloudapi workflow dapi cnapi zapi"
