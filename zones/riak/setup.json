@@ -1,5 +1,0 @@
-{
-    "allow_multiple": true,
-    "networks": [ "admin" ],
-    "dependencies": [ ]
-}

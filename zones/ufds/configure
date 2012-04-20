@@ -5,130 +5,11 @@
 
 set -o xtrace
 
+role=ufds
+LDAPTLS_REQCERT=allow
 PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
-
-echo "Creating SMF manifests"
-cat > /opt/smartdc/ufds/cfg/ufds_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="ufds">
-  <service name="smartdc/site/ufds" type="service" version="7.0.0">
-
-    <create_default_instance enabled="true"/>
-    <single_instance/>
-
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/nodejs/bin/node /opt/smartdc/ufds/main.js -f /opt/smartdc/ufds/cfg/config.json&amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">UFDS daemon (ldapjs)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
-
-cat > /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="ufds-capi">
-  <service name="smartdc/site/ufds-capi" type="service" version="7.0.0">
-
-    <create_default_instance enabled="true"/>
-    <single_instance/>
-
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default"/>
-    </dependency>
-
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local"/>
-    </dependency>
-
-    <exec_method
-      type="method"
-      name="start"
-      exec="/opt/nodejs/bin/node /opt/smartdc/ufds/capi.js -f /opt/smartdc/ufds/cfg/config.json&amp;"
-      timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds">
-        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
-        <method_environment>
-          <envvar name="PATH" value="/opt/nodejs/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-        </method_environment>
-      </method_context>
-    </exec_method>
-
-    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/ufds" />
-    </exec_method>
-
-    <property_group name="startd" type="framework">
-      <propval name="ignore_error" type="astring" value="core,signal"/>
-    </property_group>
-
-    <property_group name="application" type="application">
-
-    </property_group>
-
-    <stability value="Stable"/>
-
-    <template>
-      <common_name>
-        <loctext xml:lang="C">UFDS CAPI Interface daemon (node)</loctext>
-      </common_name>
-    </template>
-
-  </service>
-
-</service_bundle>
-HERE
 
 echo "Creating HAProxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
@@ -138,53 +19,55 @@ global
         user haproxy
         group haproxy
         daemon
-
 defaults
+
         balance roundrobin
         timeout connect 400ms
         timeout client 1m
         timeout server 5m
 
-listen riak_proxy 127.0.0.1:8098
+listen moray_proxy 127.0.0.1:81
 HERE
 
-# Add all Riak IPs
+# Add all Moray IPs
 R=0
-for i in $(echo "${RIAK_ADMIN_IPS}" | tr ',' ' ')
+for i in $(echo "${MORAY_ADMIN_IPS}" | tr ',' ' ')
 do
-    echo "        server riak$R $i:8098 weight 1 minconn 5 maxconn 25 check" \
+    echo "        server moray$R $i:80 weight 1 minconn 5 maxconn 25 check" \
         >> /opt/local/etc/haproxy.cfg
     let R+=1
 done
 
 
+echo "Updating config file"
+CFG_FILE_IN=/opt/smartdc/$role/etc/config.json.in
+CFG_FILE=/opt/smartdc/$role/etc/config.json
+
 # Update config file
-cp /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json.in.orig
-gsed -i -e "s/ROOTDN/$UFDS_LDAP_ROOT_DN/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/ROOTPW/$UFDS_LDAP_ROOT_PW/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_IP/127.0.0.1/" /opt/smartdc/ufds/cfg/config.json.in
-gsed -i -e "s/RIAK_PORT/8098/" /opt/smartdc/ufds/cfg/config.json.in
-mv /opt/smartdc/ufds/cfg/config.json.in /opt/smartdc/ufds/cfg/config.json
-mv /opt/smartdc/ufds/cfg/config.json.in.orig /opt/smartdc/ufds/cfg/config.json.in
+cp $CFG_FILE_IN $CFG_FILE
+gsed -i -e "s|UFDS_ADMIN_IP|$UFDS_ADMIN_IP|" $CFG_FILE
+gsed -i -e "s|ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
+gsed -i -e "s|ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
+gsed -i -e "s|MORAY_URL|http://127.0.0.1:81|" $CFG_FILE
 
-echo "Importing ufds_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_manifest.xml
 
-echo "Importing ufds_capi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/ufds/cfg/ufds_capi_manifest.xml
+echo "Importing SMF Manifests"
+$(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-master.xml)
+$(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)
 
 echo "Enabling service haproxy"
-/usr/sbin/svcadm disable haproxy
-/usr/sbin/svcadm enable haproxy
+svcadm disable svc:/net/haproxy:default
+svcadm enable svc:/net/haproxy:default
 
 sleep 1
 
 echo "Enabling service ufds"
-/usr/sbin/svcadm disable smartdc/site/ufds
-/usr/sbin/svcadm enable smartdc/site/ufds
+svcadm disable svc:/smartdc/application/ufds-master:default
+svcadm enable svc:/smartdc/application/ufds-master:default
 
 echo "Enabling service ufds-capi"
-/usr/sbin/svcadm disable smartdc/site/ufds-capi
-/usr/sbin/svcadm enable smartdc/site/ufds-capi
+svcadm disable svc:/smartdc/application/ufds-capi:default
+svcadm enable svc:/smartdc/application/ufds-capi:default
+
 
 exit 0

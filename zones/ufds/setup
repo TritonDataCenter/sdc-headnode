@@ -5,7 +5,8 @@
 
 set -o xtrace
 
-PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+role=ufds
+PATH=/opt/smartdc/ufds/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
@@ -21,14 +22,10 @@ chown -R nobody:nobody /opt/smartdc/ufds
 /usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
 /usr/bin/passwd -N haproxy
 
-echo "Creating log directory"
-mkdir -p /var/log/ufds
-chown -R nobody:nobody /var/log/ufds
-
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
     -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem \
-    -days 365
+    -days 3650
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
@@ -36,67 +33,39 @@ echo "Generating SSL Certificate"
 echo "Wait for ufds service to come online."
 for i in 0 1 2 3 4 5 6 7 8 9; do
     echo "Is ufds up? (i=$i)"
-    LDAPTLS_REQCERT=allow /usr/openldap/bin/ldapwhoami \
-        -H ldaps://127.0.0.1:636 -x -D cn=root -w secret \
+    LDAPTLS_REQCERT=allow ldapwhoami \
+        -H ldaps://127.0.0.1 -x \
+        -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} \
         && break || true
     sleep 5
 done
-LDAPTLS_REQCERT=allow /usr/openldap/bin/ldapwhoami \
-    -H ldaps://127.0.0.1:636 -x -D cn=root -w secret
+
+LDAPTLS_REQCERT=allow ldapwhoami -H ldaps://127.0.0.1 -x \
+    -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW}
 if [ $? -ne 0 ]; then
     echo "Timeout waiting for ufds to come up."
     echo "Marking ufds SMF service as in maintenance."
-    svcadm mark maintenance svc:/smartdc/site/ufds:default
+    svcadm mark maintenance svc:/smartdc/application/ufds-master:default
     exit 1
 fi
 
 echo "Loading bootstrap data"
-cat > /tmp/.bootstrap.ldif <<HERE
-version: 1
+LDIF_IN=/opt/smartdc/$role/data/bootstrap.ldif.in
+LDIF=/tmp/.bootstrap.ldif
 
-dn: o=smartdc
-objectclass: organization
-o: smartdc
+# Update config file
+cp $LDIF_IN $LDIF
+gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $LDIF
+gsed -i -e "s|UFDS_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $LDIF
+gsed -i -e "s|UFDS_ADMIN_PW|$UFDS_ADMIN_PW|" $LDIF
+gsed -i -e "s|UFDS_ADMIN_EMAIL|$UFDS_ADMIN_EMAIL|" $LDIF
+gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $LDIF
+gsed -i -e "s|DATECENTER_COMPANY_NAME|$DATACENTER_COMPANY_NAME|" $LDIF
+gsed -i -e "s|DATACENTER_LOCATION|$DATACENTER_LOCATION|" $LDIF
 
-dn: ou=users, o=smartdc
-objectclass: organizationalUnit
-ou: users
-
-dn: ou=groups, o=smartdc
-objectclass: organizationalUnit
-ou: groups
-
-dn: uuid=${UFDS_ADMIN_UUID}, ou=users, o=smartdc
-login: ${UFDS_ADMIN_LOGIN}
-uuid: ${UFDS_ADMIN_UUID}
-userpassword: ${UFDS_ADMIN_PW}
-email: ${UFDS_ADMIN_EMAIL}
-cn: Admin
-sn: User
-objectclass: sdcPerson
-
-dn: cn=operators, ou=groups, o=smartdc
-uniquemember: uuid=${UFDS_ADMIN_UUID}, ou=users, o=smartdc
-objectclass: groupOfUniqueNames
-
-dn: datacenter=${DATACENTER_NAME}, o=smartdc
-datacenter: ${DATACENTER_NAME}
-company: ${DATACENTER_COMPANY_NAME}
-address: ${DATACENTER_LOCATION}
-objectclass: datacenter
-
-dn: ou=servers, datacenter=${DATACENTER_NAME}, o=smartdc
-objectclass: organizationalUnit
-ou: servers
-
-dn: ou=packages, o=smartdc
-objectclass: organizationalUnit
-ou: packages
-HERE
-
-cat /tmp/.bootstrap.ldif
-LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd -H ldaps://127.0.0.1:636 -x \
-    -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} -f /tmp/.bootstrap.ldif
+LDAPTLS_REQCERT=allow ldapadd -H ldaps://127.0.0.1 -x \
+    -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} \
+    -f $LDIF
 
 # 68 is entry already exists; if we're setting up a redundant UFDS, the entries
 # will already exist. This is a little bit hacky, and a better way would be to
@@ -106,11 +75,11 @@ rc=$?
 if [ $rc -ne 0 ] && [ $rc -ne 68 ]; then
     echo "Failed to load bootstrap data, exiting"
     echo "Marking ufds SMF service as in maintenance"
-    svcadm mark maintenance svc:/smartdc/site/ufds:default
+    svcadm mark maintenance svc:/smartdc/site/ufds-master:default
     exit 1
 fi
 
-rm -f /tmp/.bootstrap.ldif
+rm -f $LDIF
 
 touch /var/svc/setup_complete
 echo "setup done"
