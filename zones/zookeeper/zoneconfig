@@ -1,0 +1,2 @@
+NO_FS_TARBALL=true
+ZK_IPS=${zookeeper_admin_ips}

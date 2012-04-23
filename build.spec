@@ -18,6 +18,7 @@
   , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"
   , "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2"
+  , "zookeeper-tarball": "none"
   , "zapi-tarball": "zapi/zapi-pkg-master-.*.tar.bz2"
   , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"
   , "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2"

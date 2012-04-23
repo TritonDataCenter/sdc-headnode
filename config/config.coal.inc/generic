@@ -57,6 +57,7 @@ cloudapi_pkg=sdc_64
 dhcpd_pkg=sdc_64
 dhcpd_dhcp_server=1
 
+zookeeper_pkg=sdc_128
 mapi_pkg=sdc_512
 mapi_workers=3
 dbconn_retry_after=10

@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+echo "Updating zoo.cfg"
+
+cat > /opt/local/etc/zookeeper/zoo.cfg <<HERE
+# The number of milliseconds of each tick
+tickTime=2000
+# The number of ticks that the initial
+# synchronization phase can take
+initLimit=10
+# The number of ticks that can pass between
+# sending a request and getting an acknowledgement
+syncLimit=5
+dataDir=/var/db/zookeeper
+# the port at which the clients will connect
+clientPort=2181
+HERE
+
+echo "updating zoo.cfg with ensemble ips $ZK_IPS"
+
+# Get local IP addr
+localIp=`ifconfig -a | grep net0 -A 2 | grep inet | cut -d ' ' -f2`
+
+# Strip out the comma seperated ips in ZK_IPS and append them to zoo.cfg
+# See: http://zookeeper.apache.org/doc/r3.3.2/zookeeperAdmin.html#sc_zkMulitServerSetup
+
+IFS=","
+n=0
+for ip in $ZK_IPS
+do
+  $(( n += 1 ))
+  echo server.$n=$ip:2888:3888 >> /opt/local/etc/zookeeper/zoo.cfg
+  # if it's the current zk instance, set myid to the same as the id in the cfg
+  if [ "$ip" == "$localIp" ]
+  then
+    # insert myid to /var/db/zookeeper/myid
+    echo $n > /var/db/zookeeper/myid
+  fi
+done
+
+echo "Enabling service zookeeper"
+/usr/sbin/svcadm disable application/zookeeper
+/usr/sbin/svcadm enable application/zookeeper
+
+exit 0

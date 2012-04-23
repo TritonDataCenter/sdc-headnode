@@ -813,6 +813,7 @@ function copy_zones
         export BILLAPI_DIR=${ZONE_DIR}/billing_api
         export UFDS_DIR=${ZONE_DIR}/ufds
         export WORKFLOW_DIR=${ZONE_DIR}/workflow
+        export ZOOKEEPER_DIR=${ZONE_DIR}/zookeeper
         export ZAPI_DIR=${ZONE_DIR}/zapi
         export DAPI_DIR=${ZONE_DIR}/dapi
         export CNAPI_DIR=${ZONE_DIR}/cnapi

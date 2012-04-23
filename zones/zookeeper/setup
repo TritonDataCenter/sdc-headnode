@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# Install zookeeper package, need to touch this file to disable the license prompt
+touch /opt/local/.dli_license_accepted
+
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
+
+# Load variables
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+#$yes | pkgin install zookeeper-server
+
+zone_uuid=$(zonename)
+zone_role="zookeeper"
+app_name=${zone_role}
+
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/zookeeper
+mkdir -p /opt/smartdc/etc
+
+/opt/smartdc/bin/configure || fatal "Unable to complete configuration of zookeeper zone."
+
+touch /var/svc/setup_complete
+
+echo "setup done"
+
+exit 0
