@@ -47,44 +47,6 @@ do
   fi
 done
 
-
-#echo "Creating SMF manifests"
-#cat > /opt/smartdc/zookeeper_manifest.xml <<HERE
-#<?xml version="1.0"?>
-#<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-#<service_bundle type="manifest" name="zookeeper">
-  #<service name="application/zookeeper" type="service" version="1">
-    #<create_default_instance enabled="false" />
-    #<single_instance />
-    #<dependency name="network" grouping="require_all" restart_on="error" type="service">
-      #<service_fmri value="svc:/milestone/network:default" />
-    #</dependency>
-    #<dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      #<service_fmri value="svc:/system/filesystem/local" />
-    #</dependency>
-    #<method_context>
-      #<method_credential user="zookeeper" group="hadoop" />
-    #</method_context>
-    #<exec_method type="method" name="start" exec="/opt/local/sbin/zkServer.sh start /opt/smartdc/zoo.cfg" timeout_seconds="60" />
-    #<exec_method type="method" name="stop" exec="/opt/local/sbin/zkServer.sh stop /opt/smartdc/zoo.cfg" timeout_seconds="60" />
-    #<property_group name="startd" type="framework">
-      #<propval name="duration" type="astring" value="contract" />
-      #<propval name="ignore_error" type="astring" value="core,signal" />
-    #</property_group>
-    #<property_group name="application" type="application"></property_group>
-    #<stability value="Evolving" />
-    #<template>
-      #<common_name>
-        #<loctext xml:lang="C">ZooKeeper daemon service</loctext>
-      #</common_name>
-    #</template>
-  #</service>
-#</service_bundle>
-#HERE
-
-#echo "Importing SMF Manifests"
-#$(/usr/sbin/svccfg import /opt/smartdc/zookeeper_manifest.xml)
-
 echo "Enabling service zookeeper"
 /usr/sbin/svcadm disable application/zookeeper
 /usr/sbin/svcadm enable application/zookeeper
