@@ -7,23 +7,20 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
+# Install zookeeper package, need to touch this file to disable the license prompt
+touch /opt/local/.dli_license_accepted
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
 # Load variables
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-# Install zookeeper package, need to touch this file to disable the license prompt
-touch /opt/local/.dli_license_accepted
-yes | pkgin install zookeeper-server
+#$yes | pkgin install zookeeper-server
 
 zone_uuid=$(zonename)
 zone_role="zookeeper"
 app_name=${zone_role}
-
-echo $zookeeper_admin_ips
-echo "$ZK_IPS";
-echo $ZK_IPS;
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/zookeeper

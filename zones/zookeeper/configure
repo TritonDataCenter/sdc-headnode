@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o xtrace
@@ -11,8 +11,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 echo "Updating zoo.cfg"
 
-rm /opt/smartdc/zoo.cfg
-cat > /opt/smartdc/zoo.cfg <<HERE
+cat > /opt/local/etc/zookeeper/zoo.cfg <<HERE
 # The number of milliseconds of each tick
 tickTime=2000
 # The number of ticks that the initial 
@@ -21,23 +20,9 @@ initLimit=10
 # The number of ticks that can pass between 
 # sending a request and getting an acknowledgement
 syncLimit=5
-# the directory where the snapshot is stored.
-# do not use /tmp for storage, /tmp here is just 
-# example sakes.
 dataDir=/var/db/zookeeper
 # the port at which the clients will connect
 clientPort=2181
-#
-# Be sure to read the maintenance section of the 
-# administrator guide before turning on autopurge.
-#
-# http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance
-#
-# The number of snapshots to retain in dataDir
-#autopurge.snapRetainCount=3
-# Purge task interval in hours
-# Set to "0" to disable auto purge feature
-#autopurge.purgeInterval=1
 HERE
 
 echo "updating zoo.cfg with ensemble ips $ZK_IPS"
@@ -53,53 +38,52 @@ n=0
 for ip in $ZK_IPS
 do
   $(( n += 1 ))
-  echo server.$n=$ip:2888:3888 >> /opt/smartdc/zoo.cfg
+  echo server.$n=$ip:2888:3888 >> /opt/local/etc/zookeeper/zoo.cfg
   # if it's the current zk instance, set myid to the same as the id in the cfg
-  if [ "$ip" = "$localIp" ]
+  if [ "$ip" == "$localIp" ]
   then
-    rm /var/db/zookeeper/myid
+    # insert myid to /var/db/zookeeper/myid
     echo $n > /var/db/zookeeper/myid
   fi
 done
 
-# insert myid to /var/db/zookeeper/myid
 
-echo "Creating SMF manifests"
-cat > /opt/smartdc/zookeeper_manifest.xml <<HERE
-<?xml version="1.0"?>
-<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="zookeeper">
-  <service name="application/zookeeper" type="service" version="1">
-    <create_default_instance enabled="false" />
-    <single_instance />
-    <dependency name="network" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/milestone/network:default" />
-    </dependency>
-    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
-      <service_fmri value="svc:/system/filesystem/local" />
-    </dependency>
-    <method_context>
-      <method_credential user="zookeeper" group="hadoop" />
-    </method_context>
-    <exec_method type="method" name="start" exec="/opt/local/sbin/zkServer.sh start /opt/smartdc/zoo.cfg" timeout_seconds="60" />
-    <exec_method type="method" name="stop" exec="/opt/local/sbin/zkServer.sh stop /opt/smartdc/zoo.cfg" timeout_seconds="60" />
-    <property_group name="startd" type="framework">
-      <propval name="duration" type="astring" value="contract" />
-      <propval name="ignore_error" type="astring" value="core,signal" />
-    </property_group>
-    <property_group name="application" type="application"></property_group>
-    <stability value="Evolving" />
-    <template>
-      <common_name>
-        <loctext xml:lang="C">ZooKeeper daemon service</loctext>
-      </common_name>
-    </template>
-  </service>
-</service_bundle>
-HERE
+#echo "Creating SMF manifests"
+#cat > /opt/smartdc/zookeeper_manifest.xml <<HERE
+#<?xml version="1.0"?>
+#<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+#<service_bundle type="manifest" name="zookeeper">
+  #<service name="application/zookeeper" type="service" version="1">
+    #<create_default_instance enabled="false" />
+    #<single_instance />
+    #<dependency name="network" grouping="require_all" restart_on="error" type="service">
+      #<service_fmri value="svc:/milestone/network:default" />
+    #</dependency>
+    #<dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      #<service_fmri value="svc:/system/filesystem/local" />
+    #</dependency>
+    #<method_context>
+      #<method_credential user="zookeeper" group="hadoop" />
+    #</method_context>
+    #<exec_method type="method" name="start" exec="/opt/local/sbin/zkServer.sh start /opt/smartdc/zoo.cfg" timeout_seconds="60" />
+    #<exec_method type="method" name="stop" exec="/opt/local/sbin/zkServer.sh stop /opt/smartdc/zoo.cfg" timeout_seconds="60" />
+    #<property_group name="startd" type="framework">
+      #<propval name="duration" type="astring" value="contract" />
+      #<propval name="ignore_error" type="astring" value="core,signal" />
+    #</property_group>
+    #<property_group name="application" type="application"></property_group>
+    #<stability value="Evolving" />
+    #<template>
+      #<common_name>
+        #<loctext xml:lang="C">ZooKeeper daemon service</loctext>
+      #</common_name>
+    #</template>
+  #</service>
+#</service_bundle>
+#HERE
 
-echo "Importing SMF Manifests"
-$(/usr/sbin/svccfg import /opt/smartdc/zookeeper_manifest.xml)
+#echo "Importing SMF Manifests"
+#$(/usr/sbin/svccfg import /opt/smartdc/zookeeper_manifest.xml)
 
 echo "Enabling service zookeeper"
 /usr/sbin/svcadm disable application/zookeeper
