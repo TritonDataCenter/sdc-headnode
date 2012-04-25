@@ -6,17 +6,10 @@ MAIL_FROM=${mail_from}
 ROOT_PW=${billapi_root_pw}
 ADMIN_PW=${billapi_admin_pw}
 TMPFS=512m
-POSTGRES_HOST=127.0.0.1
-POSTGRES_USER=postgres
-POSTGRES_PW=PgresPass123
-WORKERS=10
-
-ADMIN_NETWORK=${admin_network}
-ADMIN_NETMASK=${admin_netmask}
-
-UFDS_ADMIN_LOGIN=${ufds_admin_login}
+WORKERS=5
 
 HTTP_ADMIN_USER=${billapi_http_admin_user}
 HTTP_ADMIN_PW=${billapi_http_admin_pw}
 
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
+MORAY_ADMIN_IPS=${moray_admin_ips}

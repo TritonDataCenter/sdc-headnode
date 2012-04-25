@@ -9,88 +9,34 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-# XXX is net0 admin nic?
-ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 WF_MAIN_ADMIN_IP=$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
-# Function calculates number of bit in a netmask
-#
-mask2cidr() {
-    nbits=0
-    IFS=.
-    for dec in $1 ; do
-        case $dec in
-            255) let nbits+=8;;
-            254) let nbits+=7;;
-            252) let nbits+=6;;
-            248) let nbits+=5;;
-            240) let nbits+=4;;
-            224) let nbits+=3;;
-            192) let nbits+=2;;
-            128) let nbits+=1;;
-            0);;
-            *) echo "Error: $dec is not recognised"; exit 1
-        esac
-    done
-    echo "$nbits"
-}
+echo "Creating HAProxy config file"
+cat > /opt/local/etc/haproxy.cfg <<HERE
+global
+        log 127.0.0.1 local0
+        ulimit-n 65535
+        user haproxy
+        group haproxy
+        daemon
+defaults
 
+        balance roundrobin
+        timeout connect 400ms
+        timeout client 1m
+        timeout server 5m
 
-# Only configure and run PostgreSQL if we are on the first instance
-# (Note this is temporary until we move to moray/manta backend)
-if [[ $ADMIN_IPADDR == $WF_MAIN_ADMIN_IP ]]; then
+listen moray_proxy 127.0.0.1:81
+HERE
 
-  echo "listen_addresses='${POSTGRES_HOST}, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
-  numbits=$(mask2cidr ${ADMIN_NETMASK})
-  echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgsql/data91/pg_hba.conf
-
-  # enable slow query logging (anything beyond 200ms right now)
-  echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
-
-  # Import postgres manifest straight from the pkgsrc file:
-  if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
-    echo "Importing posgtresql service"
-    /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
-    sleep 10 # XXX
-    #/usr/sbin/svccfg -s svc:/network/postgresql:pg91 refresh
-    /usr/sbin/svcadm enable -s postgresql:pg91
-  else
-    echo "Restarting postgresql service"
-    /usr/sbin/svcadm disable -s postgresql:pg91
-    /usr/sbin/svcadm enable -s postgresql:pg91
-    sleep 2
-  fi
-
-  # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
-  for i in 0 1 2 3 4 5 6 7 8 9
-  do
-      svc=$(/usr/bin/svcs -H network/postgresql)
-      state=${svc%% * *}
-      [ "$state" == "online" ] && break
-      sleep 5
-  done
-  # Move forward anyway
-  # If we cannot get a db listing using our password, we need to set it:
-  if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-    -h ${POSTGRES_HOST} -c "\l" 2>/dev/null; then
-    if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
-      -h ${POSTGRES_HOST} \
-      -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
-        echo "Changing the default password failed"
-    fi
-  fi
-
-  if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-    -h ${POSTGRES_HOST} -c "\l"|grep node_workflow) ]]; then
-      echo "Creating node_workflow database"
-      PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
-        -h ${POSTGRES_HOST} node_workflow
-  fi
-
-else
-  echo "Setting POSTGRES_HOST to WF_MAIN_ADMIN_IP"
-  POSTGRES_HOST=$WF_MAIN_ADMIN_IP
-fi
+# Add all Moray IPs
+R=0
+for i in $(echo "${MORAY_ADMIN_IPS}" | tr ',' ' ')
+do
+    echo "        server moray$R $i:80 weight 1 minconn 5 maxconn 25 check" \
+        >> /opt/local/etc/haproxy.cfg
+    let R+=1
+done
 
 
 ZONE_UUID=`/usr/bin/zonename`
@@ -101,19 +47,22 @@ CFG_FILE=/opt/smartdc/workflow/etc/config.json
 
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|WF_PG_PORT|5432|" $CFG_FILE
-gsed -i -e "s|WF_PG_HOST|$POSTGRES_HOST|" $CFG_FILE
-gsed -i -e "s|WF_PG_USER|$POSTGRES_USER|" $CFG_FILE
-gsed -i -e "s|WF_PG_PASSWORD|$POSTGRES_PW|" $CFG_FILE
+gsed -i -e "s|WF_MORAY_URL|http://127.0.0.1:81|" $CFG_FILE
 gsed -i -e "s|HTTP_ADMIN_PW|$HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
 gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
 gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
-gsed -i -e "s|WF_RUN_INTERVAL|6|" $CFG_FILE
+gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE
 
 echo "Rebuilding npm modules"
 cd /opt/smartdc/workflow
 PATH=/opt/smartdc/workflow/build/node/bin:$PATH /opt/smartdc/workflow/build/node/bin/npm rebuild
+
+echo "Enabling service haproxy"
+svcadm disable svc:/net/haproxy:default
+svcadm enable svc:/net/haproxy:default
+
+sleep 1
 
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-api.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-runner.xml)
