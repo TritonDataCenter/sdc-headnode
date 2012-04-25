@@ -2,7 +2,6 @@
   "alias": "assets",
   "autoboot": true,
   "brand": "joyent",
-  "dataset_uuid": "28445220-6eac-11e1-9ce8-5f14ed22e782",
   "filesystems": [
     {
       "source": "/usbkey/datasets",

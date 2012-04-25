@@ -35,13 +35,13 @@
       , "pkgsrc": "2011Q2_64"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
       }
-    , { "name": "smartos-1.6.0"
-      , "uuid": "28445220-6eac-11e1-9ce8-5f14ed22e782"
+    , { "name": "smartos-1.6.2"
+      , "uuid": "a93fda38-80aa-11e1-b8c1-8b1f33cd9007"
       , "pkgsrc": "2011Q4"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
       }
-    , { "name": "smartos64-1.6.0"
-      , "uuid": "76fbfd14-6eb1-11e1-9637-fb5ad39f5bfd"
+    , { "name": "smartos64-1.6.2"
+      , "uuid": "ce610cc2-80ac-11e1-8626-d788d6268d5b"
       , "pkgsrc": "2011Q4_64"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46-64/All/"
       }

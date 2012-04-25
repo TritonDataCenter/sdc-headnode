@@ -176,11 +176,6 @@ if [[ ${POOLS} == "no pools available" ]]; then
         fatal "FATAL: unable to find 'smartos' dataset."
     fi
 
-    printf "%-56s" "importing SMI: smartos" >&${CONSOLE_FD}
-    bzcat ${USB_PATH}/datasets/${ds_file} \
-        | zfs recv zones/${ds_uuid} \
-        || fatal "unable to import ${template}"
-
     printf "%4s\n" "done" >&${CONSOLE_FD}
 
     reboot
@@ -327,28 +322,23 @@ function create_zone {
     cr_once
 
     # If zone has specified dataset_uuid, we need to ensure that's imported.
-    if [[ -f ${USB_COPY}/zones/${zone}/create.json ]]; then
-        extra_dataset=$(cat ${USB_COPY}/zones/${zone}/create.json 2>/dev/null \
-            | json dataset_uuid)
-        if [[ -n ${extra_dataset} && ! -d /zones/${extra_dataset} ]]; then
-            found=0
-            for file in $(ls ${USB_COPY}/datasets/*.dsmanifest); do
-                res=$(cat ${file} | json -a uuid files.0.path | tr ' ' ',')
-                ds_uuid=$(echo ${res} | cut -d',' -f1)
-                ds_file=$(echo ${res} | cut -d',' -f2)
-                if [[ ${ds_uuid} == ${extra_dataset} ]]; then
-                    printf "%-58s" "importing SMI: ${zone}" \
-                        >&${CONSOLE_FD}
-                    bzcat ${USB_PATH}/datasets/${ds_file} \
-                        | zfs recv zones/${ds_uuid} \
-                        || fatal "unable to import ${template}"
-                    found=1
-                    echo "done" >&${CONSOLE_FD}
-                fi
-            done
-            if [[ ${found} == 0 ]]; then
-                fatal "unable to find dataset ${extra_dataset} for ${zone}"
-            fi
+    if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
+        ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
+        [[ -z ${ds_name} ]] && fatal "No dataset specfied in ${USB_COPY}/zones/${zone}/dataset"
+        ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name}.dsmanifest)
+        [[ -z ${ds_manifest} ]] && fatal "No manifest found for ${ds_name}"
+        ds_filename=$(ls ${USB_COPY}/datasets/${ds_name}.zfs.bz2)
+        [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
+        ds_uuid=$(json uuid < ${ds_manifest})
+        [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
+
+        # dsadm exits non-zero when the dataset is already imported, we need to
+        # work around that.
+        if [[ ! -d /zones/${ds_uuid} ]]; then
+            printf "%-58s" "importing SMI: ${ds_name}" \
+                >&${CONSOLE_FD}
+            dsadm install -m ${ds_manifest} -f ${ds_filename}
+            echo "done" >&${CONSOLE_FD}
         fi
     fi
 
