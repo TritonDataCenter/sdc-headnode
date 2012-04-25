@@ -437,6 +437,29 @@ function valid_archive
     fi
 }
 
+function cleanup_bit
+{
+    local bits_pattern=$1
+
+    local bits_dir="${ROOT}/cache"
+    local kept=0
+    local keep_bits=$(build_spec keep-bits)
+
+    if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
+        echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
+
+        local bit=
+        for bit in $(ls -1 ${bits_dir} | grep "${bits_pattern}" | sort -r); do
+            if [[ ${kept} -lt ${keep_bits} ]]; then
+                echo "KEEPING: ${bit}" >&2
+                kept=$((${kept} + 1))
+            else
+                echo "DELETING: ${bit}" >&2
+                rm ${bits_dir}/${bit} >&2
+            fi
+        done
+    fi
+}
 
 # Get a bit (from BIT_URL/BIT_DIR/BIT_BRANCH) to the local "cache/" dir.
 # If the file base name already exists in the cache dir, then it is not
@@ -470,6 +493,7 @@ function get_bit
             cp ${latest_path} ${cache_path}
         fi
         get_bit_rv=${cache_path}
+        cleanup_bit "${pattern_base}"
     elif [[ ${HAVE_INTERNET} == "true" ]]; then
         # BITS_URL URL example:
         #   https://user:pass@stuff.joyent.us/stuff/builds
@@ -515,6 +539,7 @@ function get_bit
             fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
         fi
         get_bit_rv=${cache_path}
+        cleanup_bit "${pattern_base}"
     else
         local latest_name=$(ls -1 ${ROOT}/cache/ \
             | grep "${pattern_base}" \
@@ -526,6 +551,7 @@ function get_bit
         local latest_path=${ROOT}/cache/${latest_name}
         echo "Use '${latest_path}' bit already in cache (no Internet)." >&2
         get_bit_rv=${latest_path}
+        cleanup_bit "${pattern}"
     fi
     echo "${get_bit_rv}"
 }
