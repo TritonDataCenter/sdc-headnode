@@ -96,6 +96,8 @@ TAR=tar
 
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
+USB_SKIP=7812500
+USB_PADDING=508
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
 COAL_VMDK="${USB_SIZE}.coal.vmdk"
@@ -151,6 +153,21 @@ function unpack_image
             || fatal "Unable to unpack USB image"
     fi
     echo "done."
+}
+
+# In the case of VMWare we want to expand the image out so that the cylinders
+# matches what's in the vmdk.
+function expand_image
+{
+    echo -n "==> Expanding USB image for VMWare... "
+
+    if [[ -f $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} && -n ${USB_SKIP} && -n ${USB_PADDING} ]]; then
+        echo ""
+        local file=$IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG}
+        dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} bs=512 count=${USB_PADDING}
+    else
+        echo "skipped."
+    fi
 }
 
 function mount_image
@@ -285,6 +302,7 @@ function create_output
 }
 
 unpack_image
+expand_image
 mount_image
 trap 'cleanup' EXIT
 copy_to_mount
