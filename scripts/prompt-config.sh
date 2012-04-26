@@ -2,7 +2,6 @@
 
 # XXX - TODO
 # - if $ntp_hosts == "local", configure ntp for no external time source
-# - try to figure out why ^C doesn't intr when running under SMF
 
 PATH=/usr/sbin:/usr/bin
 export PATH
@@ -18,13 +17,22 @@ dns_resolver2="8.8.4.4"
 declare -a states
 declare -a nics
 declare -a assigned
+declare prmpt_str
 
-sigexit()
+sig_doshell()
 {
 	echo
-	echo "Headnode system configuration has not been completed."
-	echo "You must reboot to re-run system configuration."
-	exit 0
+	echo
+	echo "Bringing up a shell.  When you are done in the shell hit ^D to"
+	echo "return to the system configuration tool."
+	echo
+
+	/usr/bin/bash
+
+	echo
+	echo "Resuming the system configuration tool."
+	echo
+	printf "$prmpt_str"
 }
 
 #
@@ -191,10 +199,11 @@ promptopt()
 	val=""
 	def="$2"
 	if [ -z "$def" ]; then
-		printf "%s [press enter for none]: " "$1"
+		prmpt_str="$1 [press enter for none]: "
 	else
-		printf "%s [%s]: " "$1" "$def"
+		prmpt_str="$1 [$def]: "
 	fi
+	printf "$prmpt_str"
 	read val
 	# If def was null and they hit return, we just assign null to val
 	[ -z "$val" ] && val="$def"
@@ -206,10 +215,11 @@ promptval()
 	def="$2"
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
+			prmpt_str="$1 [$def]: "
 		else
-			printf "%s: " "$1"
+			prmpt_str="$1: "
 		fi
+		printf "$prmpt_str"
 		read val
 		[ -z "$val" ] && val="$def"
 		# Forward and back quotes not allowed
@@ -235,15 +245,18 @@ prompt_host_ok_val()
 	def="$2"
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
+			prmpt_str="$1 [$def]: "
 		else
-			printf "%s: " "$1"
+			prmpt_str="$1: "
 		fi
+		printf "$prmpt_str"
 		read val
 		[ -z "$val" ] && val="$def"
 		if [ -n "$val" ]; then
+			trap "" SIGINT
 			printf "Checking connectivity..."
 			ping $val >/dev/null 2>&1
+			trap sig_doshell SIGINT
 			if [ $? != 0 ]; then
 				printf "UNREACHABLE\n"
 			else
@@ -262,10 +275,11 @@ promptemail()
 	def="$2"
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
+			prmpt_str="$1 [$def]: "
 		else
-			printf "%s: " "$1"
+			prmpt_str="$1: "
 		fi
+		printf "$prmpt_str"
 		read val
 		[ -z "$val" ] && val="$def"
 		is_email "$val" || val=""
@@ -281,10 +295,11 @@ promptnet()
 	def="$2"
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
-			printf "%s [%s]: " "$1" "$def"
+			prmpt_str="$1 [$def]: "
 		else
-			printf "%s: " "$1"
+			prmpt_str="$1: "
 		fi
+		printf "$prmpt_str"
 		read val
 		[ -z "$val" ] && val="$def"
 		is_net "$val" || val=""
@@ -317,8 +332,8 @@ promptnic()
 	printnics
 	num=0
 	while [ /usr/bin/true ]; do
-		printf "Enter the number of the NIC for the %s interface: " \
-		   "$1"
+		prmpt_str="Enter the number of the NIC for the $1 interface: "
+		printf "$prmpt_str"
 		read num
 		if ! [[ "$num" =~ ^[0-9]+$ ]] ; then
 			echo ""
@@ -340,6 +355,7 @@ promptpw()
 {
 	def="$3"
 
+	trap "" SIGINT
 	while [ /usr/bin/true ]; do
 		val=""
 		while [ -z "$val" ]; do
@@ -386,6 +402,7 @@ promptpw()
 
 		echo "The entries do not match, please re-enter."
 	done
+	trap sig_doshell SIGINT
 }
 
 updatenicstates()
@@ -421,7 +438,8 @@ print_warning()
 	for i in {1..80} ; do printf "-" ; done && printf "\n"
 	printf "\n$1\n"
 
-	printf "\nPress [enter] to continue "
+	prmpt_str="\nPress [enter] to continue "
+	printf "$prmpt_str"
 	read continue
 }
 
@@ -483,7 +501,7 @@ nicsdown() {
 	dladm delete-vnic external0
 }
 
-trap sigexit SIGINT
+trap "" SIGINT
 
 standby=0
 
@@ -522,9 +540,10 @@ for iface in $(dladm show-phys -pmo link); do
 done
 updatenicstates
 
-export TERM=sun-color
 export TERM=xterm-color
 stty erase ^H
+
+trap sig_doshell SIGINT
 
 printheader "Copyright 2012, Joyent, Inc."
 
@@ -533,9 +552,14 @@ You must answer the following questions to configure the headnode.
 You will have a chance to review and correct your answers, as well as a
 chance to edit the final configuration, before it is applied.
 
+At the prompts, if you type ^C you will be placed into a shell. When you
+exit the shell the configuration process will resume from where it was
+interrupted.
+
 Press [enter] to continue"
 
 printf "$message"
+prmpt_str="\nPress [enter] to continue "
 read continue;
 
 if [ -f /tmp/config_in_progress ]; then
@@ -603,6 +627,7 @@ either review the configuration prior to its application, or you can run
 Press [enter] to continue"
 
 	printf "$message"
+	prmpt_str="\nPress [enter] to continue "
 	read continue
 
 	printheader "Networking - Admin"
@@ -1103,6 +1128,7 @@ echo >>$tmp_config
 echo "phonehome_automatic=true" >>$tmp_config
 
 echo
+trap "" SIGINT
 echo "Your configuration is about to be applied."
 promptval "Would you like to edit the final configuration file?" "n"
 [ "$val" == "y" ] && vi $tmp_config
