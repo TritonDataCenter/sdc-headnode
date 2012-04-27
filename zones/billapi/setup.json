@@ -1,5 +1,5 @@
 {
     "networks": [ "admin", "external" ],
     "primary_network": "external",
-    "dependencies": [ "riak" ]
+    "dependencies": [  ]
 }

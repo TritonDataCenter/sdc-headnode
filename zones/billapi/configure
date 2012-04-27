@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o xtrace
@@ -38,6 +38,80 @@ fi
 # XXX is net1 external nic?
 EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
 BILLAPI_EXTERNAL_URL="https://$EXT_IPADDR"
+ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+
+# Function calculates number of bit in a netmask
+#
+mask2cidr() {
+    nbits=0
+    IFS=.
+    for dec in $1 ; do
+        case $dec in
+            255) let nbits+=8;;
+            254) let nbits+=7;;
+            252) let nbits+=6;;
+            248) let nbits+=5;;
+            240) let nbits+=4;;
+            224) let nbits+=3;;
+            192) let nbits+=2;;
+            128) let nbits+=1;;
+            0);;
+            *) echo "Error: $dec is not recognised"; exit 1
+        esac
+    done
+    echo "$nbits"
+}
+
+
+# Note this is temporary until we add a PostgreSQL zone
+
+echo "listen_addresses='${POSTGRES_HOST}, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
+numbits=$(mask2cidr ${ADMIN_NETMASK})
+echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgsql/data91/pg_hba.conf
+
+# enable slow query logging (anything beyond 200ms right now)
+echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
+
+# Import postgres manifest straight from the pkgsrc file:
+if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
+  echo "Importing posgtresql service"
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
+  sleep 10 # XXX
+  #/usr/sbin/svccfg -s svc:/network/postgresql:pg91 refresh
+  /usr/sbin/svcadm enable -s postgresql:pg91
+else
+  echo "Restarting postgresql service"
+  /usr/sbin/svcadm disable -s postgresql:pg91
+  /usr/sbin/svcadm enable -s postgresql:pg91
+  sleep 2
+fi
+
+# We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+    svc=$(/usr/bin/svcs -H network/postgresql)
+    state=${svc%% * *}
+    [ "$state" == "online" ] && break
+    sleep 5
+done
+# Move forward anyway
+# If we cannot get a db listing using our password, we need to set it:
+if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
+  -h ${POSTGRES_HOST} -c "\l" 2>/dev/null; then
+  if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
+    -h ${POSTGRES_HOST} \
+    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
+      echo "Changing the default password failed"
+  fi
+fi
+
+if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
+  -h ${POSTGRES_HOST} -c "\l"|grep billapi_production) ]]; then
+    echo "Creating billapi_production database"
+    PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
+      -h ${POSTGRES_HOST} billapi_production
+fi
+
 
 echo "Creating HTTP Server SMF manifest"
 cat > /opt/smartdc/billapi/billapi_manifest.xml <<HERE
@@ -283,9 +357,6 @@ cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-# XXX Use the first one for now
-RIAK_IP=$(echo "${RIAK_ADMIN_IPS}" | tr ',' ' ')
-
 cat > /opt/smartdc/billapi/config/config.json <<HERE
 {
   "siteName": "${BILLAPI_EXTERNAL_URL}",
@@ -302,11 +373,13 @@ cat > /opt/smartdc/billapi/config/config.json <<HERE
     "vhost": "/",
     "port": 5672
   },
-  "riak": {
-    "host": "${RIAK_IP}",
-    "port": "${RIAK_PORT}"
-  },
-  "userThrottles": {
+  "postgres": {
+    "db": "billapi_production",
+    "host": "${POSTGRES_HOST}",
+    "port": 5432,
+    "user": "${POSTGRES_USER}",
+    "password": "${POSTGRES_PW}"
+  },  "userThrottles": {
     "all": {
       "username": true,
       "burst": 30,
