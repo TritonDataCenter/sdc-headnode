@@ -87,7 +87,7 @@ rm -f /var/svc/pkgsrc.tar
 for i in $(cat /var/svc/pkgsrc)
 do
         echo "Installing $i"
-        pkg_info $i >/dev/null 2>&1 || `yes | pkg_add -f /var/svc/pkgs/$i`
+        pkg_info $i >/dev/null 2>&1 || (yes | pkg_add -f /var/svc/pkgs/$i)
 done
 rm -rf /var/svc/pkgs
 

@@ -12,7 +12,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 echo "listen_addresses='localhost'" >> /var/pgsql/data90/postgresql.conf
 
 # Calculate the bitcounts
-source /lib/sdc/network.shA
+source /lib/sdc/network.sh
 ADMIN_CIDR=$(ip_netmask_to_cidr ${ADMIN_NETWORK} ${ADMIN_NETMASK})
 ADMIN_BITCOUNT=${ADMIN_CIDR##*/}
 EXTERNAL_CIDR=$(ip_netmask_to_cidr ${EXTERNAL_NETWORK} ${EXTERNAL_NETMASK})
