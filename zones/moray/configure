@@ -40,7 +40,7 @@ mask2cidr() {
 
 # Only configure and run PostgreSQL if we are on the first instance
 # (Note this is temporary until we move to manatee backend)
-if [[ $ADMIN_IPADDR == $MORAY_MAIN_ADMIN_IP ]]; then
+if [[ ${ADMIN_IPADDR} == ${MORAY_MAIN_ADMIN_IP} || -z ${MORAY_MAIN_ADMIN_IP} ]]; then
 
     echo "listen_addresses='${POSTGRES_HOST}, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
     numbits=$(mask2cidr ${ADMIN_NETMASK})
