@@ -15,6 +15,7 @@ echo "Creating CNAPI config file"
 cat > /opt/smartdc/cnapi/config/config.json <<HERE
 {
   "logLevel": "debug",
+  "datacenter_name": "$DATACENTER_NAME",
   "amqp": {
     "host": "$RABBIT_ADMIN_IP"
   },

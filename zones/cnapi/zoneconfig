@@ -6,6 +6,8 @@ ADMIN_PW=${ufds_admin_pw}
 
 TMPFS=512m
 
+DATACENTER_NAME=${datacenter_name}
+
 RABBIT_ADMIN_IP=${rabbitmq_admin_ip}
 
 CNAPI_LDAP_ROOT_DN=${ufds_ldap_root_dn}
