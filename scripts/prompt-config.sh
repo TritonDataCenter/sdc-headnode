@@ -3,8 +3,19 @@
 # XXX - TODO
 # - if $ntp_hosts == "local", configure ntp for no external time source
 
+exec 4>>/var/log/prompt-config.log
+echo "=== Starting prompt-config on $(tty) at $(date) ===" >&4
+export PS4='$(tty):${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=4
+set -o xtrace
+
 PATH=/usr/sbin:/usr/bin
 export PATH
+
+# ERRORS (for getanswer's errno)
+ENOTFOUND=1
+EBADJSON=2
+EUNKNOWN=3
 
 # Defaults
 datacenter_headnode_id=0
@@ -193,11 +204,59 @@ is_email() {
 	return 1
 }
 
+# You can call this like:
+#
+#  value=$(getanswer "foo")
+#  [[ $? == 0 ]] || fatal "no answer for question foo"
+#
+getanswer()
+{
+	local key=$1
+	local answer=""
+	local potential=""
+
+	if [[ -z ${answer_file} ]]; then
+		return ${ENOTFOUND}
+	fi
+
+	# json does not distingush between an empty string and a key that's not
+	# there with the normal output, so we fix that so we can distinguish.
+	answer=$(/usr/bin/cat ${answer_file} \
+		| /usr/bin/json -e "if (this['${key}'] === undefined) this['${key}'] = '<<undefined>>';" \
+		"${key}" 2>&1)
+	if [[ $? != 0 ]]; then
+		if [[ -n $(echo "${answer}" | grep "input is not JSON") ]]; then
+			return ${EBADJSON}
+		else
+			return ${EUNKNOWN}
+		fi
+	fi
+
+	if [[ ${answer} == "<<undefined>>" ]]; then
+		return ${ENOTFOUND}
+	fi
+
+	echo "${answer}"
+	return 0
+}
+
 # Optional input
 promptopt()
 {
 	val=""
 	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ $? == 0 ]]; then
+			if [[ ${val} == "<default>" ]]; then
+				val=${def}
+			fi
+			return
+		fi
+	fi
+
 	if [ -z "$def" ]; then
 		prmpt_str="$1 [press enter for none]: "
 	else
@@ -213,6 +272,16 @@ promptval()
 {
 	val=""
 	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+			return
+		fi
+	fi
+
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
 			prmpt_str="$1 [$def]: "
@@ -243,6 +312,15 @@ prompt_host_ok_val()
 {
 	val=""
 	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+		fi
+	fi
+
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
 			prmpt_str="$1 [$def]: "
@@ -273,6 +351,18 @@ promptemail()
 {
 	val=""
 	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+			is_email "$val" || val=""
+		elif [[ -n ${val} ]]; then
+			is_email "$val" || val=""
+		fi
+	fi
+
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
 			prmpt_str="$1 [$def]: "
@@ -293,6 +383,16 @@ promptnet()
 {
 	val=""
 	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+		fi
+		is_net "$val" || val=""
+	fi
+
 	while [ -z "$val" ]; do
 		if [ -n "$def" ]; then
 			prmpt_str="$1 [$def]: "
@@ -323,64 +423,88 @@ printnics()
 # Must choose a valid NIC on this system
 promptnic()
 {
-	if [[ $nic_cnt -eq 1 ]]; then
-		val="${macs[1]}"
-		nic_val=${nics[1]}
-		return
-	fi
+    tag=$(echo $1 | cut -d"'" -f2)
+    if [[ -n ${tag} ]]; then
+        mac=$(getanswer "${tag}_nic")
+        if [[ -n ${mac} ]]; then
+            for idx in ${!macs[*]}; do
+                if [[ ${mac} == ${macs[${idx}]} ]]; then
+                    mac_addr="${macs[${idx}]}"
+                    val="${macs[${idx}]}"
+                    nic_val="${nics[${idx}]}"
+                    return
+                fi
+            done
+        fi
+    fi
 
-	printnics
-	num=0
-	while [ /usr/bin/true ]; do
-		prmpt_str="Enter the number of the NIC for the $1 interface: "
-		printf "$prmpt_str"
-		read num
-		if ! [[ "$num" =~ ^[0-9]+$ ]] ; then
-			echo ""
-		elif [ $num -ge 1 -a $num -le $nic_cnt ]; then
-			mac_addr="${macs[$num]}"
-			assigned[$num]=$1
-			nic_val=${nics[$num]}
-			break
-		fi
-		# echo "You must choose between 1 and $nic_cnt."
-		updatenicstates
-		printnics
-	done
+    if [[ $nic_cnt -eq 1 ]]; then
+        val="${macs[1]}"
+        nic_val=${nics[1]}
+        return
+    fi
 
-	val=$mac_addr
+    printnics
+    num=0
+    while [ /usr/bin/true ]; do
+        prmpt_str="Enter the number of the NIC for the $1 interface: "
+        printf "$prmpt_str"
+        read num
+        if ! [[ "$num" =~ ^[0-9]+$ ]] ; then
+                echo ""
+        elif [ $num -ge 1 -a $num -le $nic_cnt ]; then
+                mac_addr="${macs[$num]}"
+                assigned[$num]=$1
+                nic_val=${nics[$num]}
+                break
+        fi
+        # echo "You must choose between 1 and $nic_cnt."
+        updatenicstates
+        printnics
+    done
+
+    val=$mac_addr
 }
 
 promptpw()
 {
 	def="$3"
+    key="$4"
+
+	if [[ -n ${key} ]]; then
+		preset_val=$(getanswer "${key}")
+	fi
 
 	trap "" SIGINT
 	while [ /usr/bin/true ]; do
 		val=""
 		while [ -z "$val" ]; do
-			if [ -z "$def" ]; then
-				printf "%s: " "$1"
+			if [[ -n ${preset_val} ]]; then
+				val=${preset_val}
 			else
-				printf "%s [enter to keep existing]: " "$1"
+				if [ -z "$def" ]; then
+					printf "%s: " "$1"
+				else
+					printf "%s [enter to keep existing]: " "$1"
+				fi
+				stty -echo
+				read val
+				stty echo
+				echo
 			fi
-
-			stty -echo
-			read val
-			stty echo
-			echo
 			if [ -n "$val" ]; then
 				if [ "$2" == "chklen" -a ${#val} -lt 6 ]; then
 					echo "The password must be at least" \
-					    "6 characters long."
+						"6 characters long."
 					val=""
+					preset_val=""
 				else
-	 				break
+					break
 				fi
 			else
 				if [ -n "$def" ]; then
 					val=$def
-	 				return
+					return
 				else
 					echo "A value must be provided."
 				fi
@@ -389,11 +513,15 @@ promptpw()
 
 		cval=""
 		while [ -z "$cval" ]; do
-			printf "%s: " "Confirm password"
-			stty -echo
-			read cval
-			stty echo
-			echo
+			if [[ -n ${preset_val} ]]; then
+				cval=${preset_val}
+			else
+				printf "%s: " "Confirm password"
+				stty -echo
+				read cval
+				stty echo
+				echo
+			fi
 			[ -n "$cval" ] && break
 			echo "A value must be provided."
 		done
@@ -419,6 +547,11 @@ printheader()
   local newline=
   local cols=`tput cols`
   local subheader=$1
+
+  if [[ $(getanswer "simple_headers") == "true" ]]; then
+    echo "> ${subheader}"
+    return
+  fi
 
   if [ $cols -gt 80 ] ;then
     newline='\n'
@@ -505,9 +638,10 @@ trap "" SIGINT
 
 standby=0
 
-while getopts "S" opt
+while getopts "f:S" opt
 do
 	case "$opt" in
+		f)	answer_file=${OPTARG};;
 		S)	standby=1;;
 	esac
 done
@@ -515,6 +649,15 @@ done
 shift $(($OPTIND - 1))
 
 USBMNT=$1
+
+if [[ -n ${answer_file} ]]; then
+    if [[ ! -f ${answer_file} ]]; then
+        echo "ERROR: answer file '${answer_file}' does not exist!"
+        exit 1
+    fi
+elif [[ -f ${USBMNT}/private/answers.json ]]; then
+    answer_file=${USBMNT}/private/answers.json
+fi
 
 #
 # Get local NIC info
@@ -525,6 +668,10 @@ while IFS=: read -r link addr ; do
     ((nic_cnt++))
     nics[$nic_cnt]=$link
     macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
+    # reformat the nic so that it's in the proper 00:00:ab... form not 0:0:ab...
+    macs[$nic_cnt]=$(printf "%s:%s:%s:%s:%s:%s" \
+        $(echo ":${macs[${nic_cnt}]}:" \
+        | sed -e "s/[:\"]\([0-9a-f]\)[\":]/:0\1:/g" | tr ':' ' '))
     assigned[$nic_cnt]="-"
 done < <(dladm show-phys -pmo link,address 2>/dev/null)
 
@@ -558,9 +705,24 @@ interrupted.
 
 Press [enter] to continue"
 
-printf "$message"
-prmpt_str="\nPress [enter] to continue "
-read continue;
+if [[ $(getanswer "skip_instructions") != "true" ]]; then
+	printf "$message"
+fi
+
+console=$(getanswer "config_console")
+if [[ -n ${console} ]]; then
+	if [[ ${console} == "vga" ]]; then
+		console="/dev/console"
+	elif [[ ${console} == "ttya" ]]; then
+		console="/dev/tty/a"
+	elif [[ ${console} == "ttyb" ]]; then
+		console="/dev/tty/b"
+	fi
+fi
+if [[ -z ${console} || ${console} != $(tty) ]]; then
+	prmpt_str="\nPress [enter] to continue "
+	read continue;
+fi
 
 if [ -f /tmp/config_in_progress ]; then
 	message="
@@ -594,26 +756,31 @@ as help with management of distributed systems. If you are setting up a second
 headnode at a datacenter, then please have the ID of the previous headnode
 handy.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
-	promptval "Enter the company name" "$datacenter_company_name"
+	promptval "Enter the company name" "$datacenter_company_name" "datacenter_company_name"
 	datacenter_company_name="$val"
 
 	while [ true ]; do
-		promptval "Enter a name for this datacenter" "$datacenter_name"
+		key="datacenter_name"
+		promptval "Enter a name for this datacenter" "$datacenter_name" "${key}"
 		if [ "$val" != "ca" ]; then
 			datacenter_name="$val"
 			break
 		fi
 		echo "The datacenter name 'ca' is reserved for system use"
+		# disable key, since this means bad value in answer file
+		key=
 	done
 
 	promptval "Enter the City and State for this datacenter" \
-	    "$datacenter_location"
+	    "$datacenter_location" "datacenter_location"
 	datacenter_location="$val"
 
 	promptval "Enter your headnode ID or press enter to accept the default"\
-	    "$datacenter_headnode_id"
+	    "$datacenter_headnode_id" "datacenter_headnode_id"
 	datacenter_headnode_id="$val"
 
 	printheader "Networking"
@@ -626,9 +793,11 @@ either review the configuration prior to its application, or you can run
 
 Press [enter] to continue"
 
-	printf "$message"
-	prmpt_str="\nPress [enter] to continue "
-	read continue
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+		prmpt_str="\nPress [enter] to continue "
+		read continue
+	fi
 
 	printheader "Networking - Admin"
 	message="
@@ -640,21 +809,23 @@ network. It is important that this network be used exclusively for SDC
 management. Note that DHCP traffic will be present on this network following
 the installation and that this network is connected in VLAN ACCESS mode only.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
 	promptnic "'admin'"
 	admin_nic="$val"
 	admin_iface="$nic_val"
 
-	promptnet "(admin) headnode IP address" "$admin_ip"
+	promptnet "(admin) headnode IP address" "$admin_ip" "admin_ip"
 	admin_ip="$val"
 
 	[[ -z "$admin_netmask" ]] && admin_netmask="255.255.255.0"
 
-	promptnet "(admin) headnode netmask" "$admin_netmask"
+	promptnet "(admin) headnode netmask" "$admin_netmask" "admin_netmask"
 	admin_netmask="$val"
 
-	promptnet "(admin) gateway IP address" "$admin_gateway"
+	promptnet "(admin) gateway IP address" "$admin_gateway" "admin_gateway"
 	admin_gateway="$val"
 
 	if [[ -z "$admin_zone_ip" ]]; then
@@ -663,7 +834,7 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 		admin_zone_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 	fi
 
-	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip"
+	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip" "admin_provisionable_start"
 	admin_zone_ip="$val"
 
 	printheader "Networking - External"
@@ -672,28 +843,30 @@ The external network is used by the headnode and its applications to connect to
 external networks. That is, it can be used to communicate with either the
 Internet, an intranet, or any other WAN.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
 	promptnic "'external'"
 	external_nic="$val"
 	external_iface="$nic_val"
 
-	promptnet "(external) headnode IP address" "$external_ip"
+	promptnet "(external) headnode IP address" "$external_ip" "external_ip"
 	external_ip="$val"
 
 	[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
 
-	promptnet "(external) headnode netmask" "$external_netmask"
+	promptnet "(external) headnode netmask" "$external_netmask" "external_netmask"
 	external_netmask="$val"
 
-	promptnet "(external) gateway IP address" "$external_gateway"
+	promptnet "(external) gateway IP address" "$external_gateway" "external_gateway"
 	external_gateway="$val"
 
-	promptopt "(external) VLAN ID" "$external_vlan_id"
+	promptopt "(external) VLAN ID" "$external_vlan_id" "external_vlan_id"
 	external_vlan_id="$val"
 
 	if [[ -z "$external_provisionable_start" ]]; then
-		ip_netmask_to_network "$external_gateway" "$external_netmask"
+		ip_netmask_to_network "$external_gateway" "$external_netmask" "external_netmask"
 		gw_host_addr=$host_addr
 
 		ip_netmask_to_network "$external_ip" "$external_netmask"
@@ -713,29 +886,33 @@ Internet, an intranet, or any other WAN.\n\n"
 	fi
 
 	promptnet "Starting provisionable IP address" \
-	   "$external_provisionable_start"
+	   "$external_provisionable_start" "external_provisionable_start"
 	external_provisionable_start="$val"
 
 	promptnet "  Ending provisionable IP address" \
-	   "$external_provisionable_end"
+	   "$external_provisionable_end" "external_provisionable_end"
 	external_provisionable_end="$val"
 
 	printheader "Networking - Continued"
 	message=""
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
 	message="
 The default gateway will determine which router will be used to connect to
 other networks. This will almost certainly be the router connected to your
 'External' network.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
 	[[ -z "$headnode_default_gateway" ]] && \
 	    headnode_default_gateway="$external_gateway"
 
-	promptnet "Enter the default gateway IP" "$headnode_default_gateway"
+	promptnet "Enter the default gateway IP" "$headnode_default_gateway" "headnode_default_gateway"
 	headnode_default_gateway="$val"
 
 	# Bring the admin and external nics up now: they need to be for the
@@ -747,25 +924,29 @@ The DNS servers set here will be used to provide name resolution abilities to
 the SDC cluster itself. These will also be default DNS servers for zones
 provisioned on the 'external' network.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
-	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1"
+	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1" "dns_resolver1"
 	dns_resolver1="$val"
-	prompt_host_ok_val "Enter the Secondary DNS server IP" "$dns_resolver2"
+	prompt_host_ok_val "Enter the Secondary DNS server IP" "$dns_resolver2" "dns_resolver2"
 	dns_resolver2="$val"
-	promptval "Enter the headnode domain name" "$domainname"
+	promptval "Enter the headnode domain name" "$domainname" "dns_domain"
 	domainname="$val"
-	promptval "Default DNS search domain" "$dns_domain"
+	promptval "Default DNS search domain" "$dns_domain" "dns_search"
 	dns_domain="$val"
 
 	message="
 By default the headnode acts as an NTP server for the admin network. You can
 set the headnode to be an NTP client to synchronize to another NTP server.\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+	    printf "$message"
+	fi
 
 	prompt_host_ok_val \
-	    "Enter an NTP server IP address or hostname" "$ntp_hosts"
+	    "Enter an NTP server IP address or hostname" "$ntp_hosts" "ntp_host"
 	ntp_hosts="$val"
 
 	ntpdate -b $ntp_hosts >/dev/null 2>&1
@@ -781,60 +962,70 @@ various services to communicate with each other.  In addition, SDC has the
 ability to send notification emails to a specific address. Each of these
 values will be configured below.\n\n"
 
-	printf "$message"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
 
-	promptpw "Enter root password" "nolen" "$root_shadow"
+	promptpw "Enter root password" "nolen" "$root_shadow" "root_password"
 	root_shadow="$val"
 
-	promptpw "Enter admin password" "chklen" "$zone_admin_pw"
+	promptpw "Enter admin password" "chklen" "$zone_admin_pw" "admin_password"
 	zone_admin_pw="$val"
 
-	promptpw "Enter HTTP API svc password" "chklen" "$http_admin_pw"
+	promptpw "Enter HTTP API svc password" "chklen" "$http_admin_pw" "api_password"
 	http_admin_pw="$val"
 
-	promptemail "Administrator email goes to" "$mail_to"
+	promptemail "Administrator email goes to" "$mail_to" "mail_to"
 	mail_to="$val"
 
 	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
-	promptemail "Support email should appear from" "$mail_from"
+	promptemail "Support email should appear from" "$mail_from" "mail_from"
 	mail_from="$val"
 
 	printheader "Verify Configuration"
 	message=""
 
-	printf "$message"
-
-	printf "Company name: $datacenter_company_name\n"
-	printf "Datacenter Name: %s, Location: %s\n" \
-	    "$datacenter_name" "$datacenter_location"
-	printf "Headnode ID: $datacenter_headnode_id\n"
-	printf "Email Admin Address: %s, From: %s\n" \
-	    "$mail_to" "$mail_from"
-	printf "Domain name: %s, Gateway IP address: %s\n" \
-	    $domainname $headnode_default_gateway
-	if [ -z "$external_vlan_id" ]; then
-		ext_vlanid="none"
-	else
-		ext_vlanid="$external_vlan_id"
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
 	fi
-	printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
-	    "IP addr." "Netmask" "Gateway" "VLAN"
-	printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
-	    $admin_ip $admin_netmask $admin_gateway "none"
-	printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
-	    $external_ip $external_netmask $external_gateway $ext_vlanid
-	echo
-	printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
-	printf "Provisionable IP range: %s - %s\n" \
-	    $external_provisionable_start $external_provisionable_end
-	printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
-	    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
-	printf "NTP server: $ntp_hosts\n"
-	echo
 
-	promptval "Is this correct?" "y"
-	[ "$val" == "y" ] && break
-	clear
+	if [[ $(getanswer "skip_final_summary") != "true" ]]; then
+		printf "Company name: $datacenter_company_name\n"
+		printf "Datacenter Name: %s, Location: %s\n" \
+			"$datacenter_name" "$datacenter_location"
+		printf "Headnode ID: $datacenter_headnode_id\n"
+		printf "Email Admin Address: %s, From: %s\n" \
+			"$mail_to" "$mail_from"
+		printf "Domain name: %s, Gateway IP address: %s\n" \
+			$domainname $headnode_default_gateway
+		if [ -z "$external_vlan_id" ]; then
+			ext_vlanid="none"
+		else
+			ext_vlanid="$external_vlan_id"
+		fi
+		printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
+			"IP addr." "Netmask" "Gateway" "VLAN"
+		printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
+			$admin_ip $admin_netmask $admin_gateway "none"
+		printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
+			$external_ip $external_netmask $external_gateway $ext_vlanid
+		echo
+		printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
+		printf "Provisionable IP range: %s - %s\n" \
+			$external_provisionable_start $external_provisionable_end
+		printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
+			"$dns_resolver1" "$dns_resolver2" "$dns_domain"
+		printf "NTP server: $ntp_hosts\n"
+		echo
+	fi
+
+    if [[ $(getanswer "skip_final_confirm") != "true" ]]; then
+		promptval "Is this correct?" "y"
+		[ "$val" == "y" ] && break
+	    clear
+    else
+        break
+    fi
 done
 
 #
@@ -1129,11 +1320,13 @@ echo "phonehome_automatic=true" >>$tmp_config
 
 echo
 trap "" SIGINT
-echo "Your configuration is about to be applied."
-promptval "Would you like to edit the final configuration file?" "n"
-[ "$val" == "y" ] && vi $tmp_config
+if [[ $(getanswer "skip_edit_config") != "true" ]]; then
+	echo "Your configuration is about to be applied."
+	promptval "Would you like to edit the final configuration file?" "n"
+	[ "$val" == "y" ] && vi $tmp_config
+    clear
+fi
 
-clear
 echo "The headnode will now finish configuration and reboot. Please wait..."
 mv $tmp_config $USBMNT/config
 nicsdown

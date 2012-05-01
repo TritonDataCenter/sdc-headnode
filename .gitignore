@@ -17,3 +17,4 @@
 /hvm/agents*
 /recipe.*
 /*.tar.bz2
+/answers.json

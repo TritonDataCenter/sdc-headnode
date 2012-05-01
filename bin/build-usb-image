@@ -162,6 +162,13 @@ function copy_config {
     else
         cp -r config/config.usb.inc ${MNT_DIR}/config.inc
     fi
+
+    ANSWER_FILE=$(build_spec answer-file)
+    if [[ -n ${ANSWER_FILE} && -f ${ANSWER_FILE} ]]; then
+        echo "WARNING: Copying in ${ANSWER_FILE}, remove answer-file from build.spec* to disable."
+        mkdir -p ${MNT_DIR}/private
+        cp ${ANSWER_FILE} ${MNT_DIR}/private/answers.json
+    fi
 }
 
 # Copy to mount is basically just extracting everything to the image mount
@@ -181,7 +188,7 @@ function copy_to_mount
     BUILD_TIMESTAMP=$(cat $MNT_DIR/release.json | $ROOT/bin/json timestamp)
     BUILD_DESCRIBE=$(cat $MNT_DIR/release.json | $ROOT/bin/json describe)
     THIS_BUILDSTAMP=${BUILD_BRANCH}-${BUILD_TIMESTAMP}-${BUILD_DESCRIBE}
-    
+
     THIS_VERSION=$(cat ${MNT_DIR}/version)
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
