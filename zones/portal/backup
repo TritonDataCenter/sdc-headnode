@@ -45,10 +45,16 @@ if [ -f $BASE_DIR/$CFG_FILE ]; then
 				# strip quotes and comma
 				print substr($3, 2, length($3) - 3)
 			}
-		    }'`
+		}'`
+
+		if [[ $tag == "siteCopyFile" ]]; then
+			cp $cpath $cpath.backup
+			cpath="$cpath.backup"
+		fi
 
 		[ -n "$cpath" ] && FILES="$FILES $cpath"
 	done
+
 
 	tar cbf 512 ${TARGET_DIR}/${ROLE}/config.tar $FILES
 fi
