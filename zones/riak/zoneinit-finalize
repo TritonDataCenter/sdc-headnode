@@ -17,6 +17,9 @@ source /opt/smartdc/bin/configure.sh
 # Ensure that we get the correct /etc/project settings for riak and FD limits
 gsed -i '/^riak/ c\riak:100:Riak default project:riak:riak:process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)' /etc/project
 
+# Update maximum ports so Riak doesn't (easily) run out of them during operation
+gsed -i'' -e 's/ERL_MAX_PORTS [0-9][0-9]*/ERL_MAX_PORTS 65536/' /opt/local/etc/riak/vm.args
+
 echo "Importing RIAK manifest"
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
 /usr/sbin/svcadm enable -s epmd
