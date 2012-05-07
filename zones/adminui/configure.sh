@@ -70,7 +70,7 @@ http {
           expires max;
         }
 
-        location /ca {
+        location /ca/ {
             root   share/examples/nginx/html;
             index  index.html index.htm;
 
