@@ -12,6 +12,14 @@ source /var/svc/setup.common
 
 echo "Finishing setup of rabbitmq zone"
 
+#
+# Erlang prior to R15B always binds to CPUs by default. To deal with
+# this we need to explicitly tell Erlang not to bind to CPUs.
+#
+echo 'SERVER_ERL_ARGS="$SERVER_ERL_ARGS +sbt u"' \
+    >> /opt/local/etc/rabbitmq/rabbitmq-env.conf
+
+
 # Setup .erlang.cookie symlink
 if [[ ! -L /root/.erlang.cookie ]]; then
 	ln -s /var/db/rabbitmq/.erlang.cookie /root/.erlang.cookie
