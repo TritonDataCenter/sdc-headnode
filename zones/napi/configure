@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+INSTDIR=/opt/smartdc/napi
+CONF=${INSTDIR}/config.json
+
+if [[ -z "${EXTERNAL_VLAN_ID}" ]]; then
+    EXTERNAL_VLAN_ID=0
+fi
+
+RESOLVER_LIST=""
+for R in $RESOLVERS; do
+    c=","
+    if [[ -z $RESOLVER_LIST ]]; then
+        c=""
+    fi
+    RESOLVER_LIST="${RESOLVER_LIST}${c} \"$R\""
+done
+
+cat > ${CONF} <<ADMIN_CONFIG
+{
+  "port": 8080,
+  "macOUI": "${MAC_OUI}",
+  "user": "${ADMIN_USER}",
+  "password": "${ADMIN_PW}",
+  "initialNetworks": {
+    "admin": {
+      "vlan": 0,
+      "network": "${ADMIN_NETWORK}",
+      "netmask": "${ADMIN_NETMASK}",
+      "gateway": "${ADMIN_GATEWAY}",
+      "startIP": "${ADMIN_START_IP}",
+      "endIP": "${ADMIN_END_IP}",
+      "resolvers": [ ${RESOLVER_LIST} ]
+ADMIN_CONFIG
+
+if [[ -n "${EXTERNAL_NETWORK}" ]]; then
+    cat >> ${CONF} <<EXTERNAL_CONFIG
+    },
+    "external": {
+      "vlan": ${EXTERNAL_VLAN_ID},
+      "network": "${EXTERNAL_NETWORK}",
+      "netmask": "${EXTERNAL_NETMASK}",
+      "gateway": "${EXTERNAL_GATEWAY}",
+      "startIP": "${EXTERNAL_START_IP}",
+      "endIP": "${EXTERNAL_END_IP}",
+      "resolvers": [ ${RESOLVER_LIST} ]
+EXTERNAL_CONFIG
+fi
+
+cat >> ${CONF} <<END_CONFIG
+    }
+  }
+}
+END_CONFIG
+
+echo "Importing napi manifest"
+/usr/sbin/svccfg import ${INSTDIR}/smf/manifests/napi.xml
+
+echo "Enabling napi service"
+/usr/sbin/svcadm enable smartdc/site/napi
+
+exit 0

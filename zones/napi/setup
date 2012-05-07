@@ -1,0 +1,28 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+role=napi
+app_name=$role
+
+echo "Finishing setup of $role zone"
+
+# This includes the fatal function and downloads and installs files.
+source /var/svc/setup.common
+
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/napi
+
+# Apply configuration from /opt/smartdc/etc/zoneconfig now
+/opt/smartdc/bin/configure || fatal "Unable to configure zone."
+
+touch /var/svc/setup_complete
+echo "setup done"
+(sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
+
+exit 0

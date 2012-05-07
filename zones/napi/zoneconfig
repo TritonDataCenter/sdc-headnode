@@ -1,0 +1,25 @@
+TEMPLATE_VERSION=0.0.1
+HOSTNAME=${ZONENAME}.${dns_domain}
+ROOT_PW=${napi_root_pw}
+TMPFS=512m
+
+ADMIN_USER=${napi_http_admin_user}
+ADMIN_PW=${napi_http_admin_pw}
+RESOLVERS=${dns_resolvers/,/ }
+MAC_OUI="${mapi_mac_prefix}"
+
+ADMIN_NETWORK=${admin_network}
+ADMIN_NETMASK=${admin_netmask}
+ADMIN_GATEWAY=${admin_gateway}
+ADMIN_IP=${admin_ip}
+ADMIN_VLAN_ID=${admin_vlan_id}
+ADMIN_START_IP=${dhcp_range_start}
+ADMIN_END_IP=${dhcp_range_end}
+
+EXTERNAL_NETWORK=${external_network}
+EXTERNAL_NETMASK=${external_netmask}
+EXTERNAL_GATEWAY=${external_gateway}
+EXTERNAL_IP=${external_ip}
+EXTERNAL_START_IP=${external_provisionable_start}
+EXTERNAL_END_IP=${external_provisionable_end}
+EXTERNAL_VLAN_ID=${external_vlan_id}

@@ -1316,6 +1316,18 @@ echo "cnapi_http_admin_user=admin" >>$tmp_config
 echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+
+if [ -z "$external_vlan_id" ]; then
+	echo "# napi_external_vlan=0" >>$tmp_config
+else
+	echo "napi_external_vlan=$external_vlan_id" >>$tmp_config
+fi
+echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "napi_http_admin_user=admin" >>$tmp_config
+echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+
 echo "phonehome_automatic=true" >>$tmp_config
 
 echo

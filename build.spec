@@ -22,6 +22,7 @@
   , "zapi-tarball": "zapi/zapi-pkg-master-.*.tar.bz2"
   , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"
   , "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2"
+  , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "moray-tarball": "moray/moray-pkg-master-.*.tar.bz2"
   , "datasets": [
       { "name": "smartos-1.3.18"
