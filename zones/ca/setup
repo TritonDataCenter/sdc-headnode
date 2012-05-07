@@ -22,11 +22,7 @@ data_ds=`zfs list -H -oname | grep "data$"`
 
 echo "finalizing ca zone"
 
-npm install --user=root --no-rebuild-bundle -g /pkg/cabase.tar.gz
-npm install --user=root --no-rebuild-bundle -g /pkg/caaggsvc.tar.gz
-npm install --user=root --no-rebuild-bundle -g /pkg/castashsvc.tar.gz
-npm install --user=root --no-rebuild-bundle -g /pkg/caconfigsvc.tar.gz
-
+/opt/smartdc/ca/cmd/cazoneinstall || fatal "cazoneinstall failed."
 /opt/smartdc/bin/configure || fatal "Failed to run configure for zone."
 
 touch /var/svc/setup_complete
