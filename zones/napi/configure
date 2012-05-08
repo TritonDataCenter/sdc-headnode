@@ -25,7 +25,7 @@ done
 
 cat > ${CONF} <<ADMIN_CONFIG
 {
-  "port": 8080,
+  "port": 80,
   "macOUI": "${MAC_OUI}",
   "user": "${ADMIN_USER}",
   "password": "${ADMIN_PW}",

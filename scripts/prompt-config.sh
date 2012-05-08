@@ -1051,6 +1051,10 @@ next_addr=$(expr $next_addr + 1)
 rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
+next_addr=$(expr $next_addr + 1)
+napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+napi_client_url="http://${napi_admin_ip}:80"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1325,6 +1329,8 @@ fi
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_http_admin_user=admin" >>$tmp_config
 echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "napi_admin_ip=$napi_admin_ip" >>$tmp_config
+echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo >>$tmp_config
 
 

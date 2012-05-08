@@ -1,0 +1,10 @@
+{
+  "alias": "napi",
+  "autoboot": true,
+  "brand": "joyent",
+  "delegate_dataset": true,
+  "tags": {
+      "smartdc_role": "napi"
+  },
+  "zfs_storage_pool_name": "zones"
+}

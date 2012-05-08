@@ -425,6 +425,7 @@ if [[ ! ${skip_zones} ]]; then
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     create_zone assets
+    create_zone napi
     create_zone dhcpd
     create_zone rabbitmq
     create_zone mapi
