@@ -449,6 +449,9 @@ function copy_base
             cp -r config/config.usb.inc ${STAGE}/config.inc
         fi
     fi
+    if [[ -n $SDC_VERSION ]]; then
+      echo "sdc_version=${SDC_VERSION}" >> ${STAGE}/config.inc/generic
+    fi
 
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
