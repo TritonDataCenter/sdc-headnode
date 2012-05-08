@@ -17,6 +17,7 @@ echo "Creating ZAPI config file"
 cat > /opt/smartdc/zapi/config.json <<HERE
 {
   "logLevel": "debug",
+  "maxSockets": 10,
   "amqp": {
     "host": "$RABBIT_ADMIN_IP",
     "queue": "heartbeat.zapi",
@@ -38,10 +39,14 @@ cat > /opt/smartdc/zapi/config.json <<HERE
     "url": "$CNAPI_URL"
   },
   "dapi": {
-    "maxSockets": 10,
     "url": "$DAPI_URL",
     "username": "$DAPI_HTTP_ADMIN_USER",
     "password": "$DAPI_HTTP_ADMIN_PW"
+  },
+  "napi": {
+    "url": "$NAPI_URL",
+    "username": "$NAPI_HTTP_ADMIN_USER",
+    "password": "$NAPI_HTTP_ADMIN_PW"
   },
   "ufds": {
     "url": "ldaps://localhost",
