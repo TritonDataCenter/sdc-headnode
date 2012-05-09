@@ -1,9 +1,9 @@
 {
-  "alias": "rabbitmq",
+  "alias": "workflow0",
   "autoboot": true,
   "brand": "joyent",
   "tags": {
-      "smartdc_role": "rabbitmq"
+      "smartdc_role": "workflow"
   },
   "zfs_storage_pool_name": "zones"
 }

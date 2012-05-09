@@ -142,12 +142,18 @@ async.series([
         if (config.hasOwnProperty('ufds_admin_uuid')) {
             obj.owner_uuid = config['ufds_admin_uuid'];
         }
-        if (config.hasOwnProperty(zone + '_admin_ip')) {
+        if (config.hasOwnProperty(zone + '_admin_ip')
+            || config.hasOwnProperty(zone + '_admin_ips')) {
+
             if (!obj.hasOwnProperty('nics')) {
                 obj.nics = [];
             }
             newobj = {};
-            newobj.ip = config[zone + '_admin_ip'];
+            if (config.hasOwnProperty(zone + '_admin_ip')) {
+                newobj.ip = config[zone + '_admin_ip'];
+            } else {
+                newobj.ip = config[zone + '_admin_ips'];
+            }
             if (config.hasOwnProperty('admin_netmask')) {
                 newobj.netmask = config['admin_netmask'];
             } else {

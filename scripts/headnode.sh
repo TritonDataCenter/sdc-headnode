@@ -200,6 +200,13 @@ if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
     done
 fi
 
+if [[ -n ${CONFIG_sdc7_only} ]]; then
+    cr_once
+    echo "               --> This is SDC7, prepare to be impressed! <--" \
+        >&${CONSOLE_FD}
+    echo "" >&${CONSOLE_FD}
+fi
+
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
@@ -425,10 +432,25 @@ if [[ ! ${skip_zones} ]]; then
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     create_zone assets
-    create_zone napi
-    create_zone dhcpd
-    create_zone rabbitmq
-    create_zone mapi
+    if [[ -n ${CONFIG_sdc7_only} ]]; then
+        # These are here in the order they'll be brought up.
+        create_zone zookeeper
+        # TODO: manatee
+        create_zone moray
+        create_zone ufds
+        create_zone napi
+        create_zone workflow
+        create_zone rabbitmq
+        create_zone cnapi
+        create_zone dhcpd
+        create_zone dapi
+        create_zone zapi
+    else
+        create_zone napi
+        create_zone dhcpd
+        create_zone rabbitmq
+        create_zone mapi
+    fi
 fi
 
 if [ -n "${CREATEDZONES}" ]; then

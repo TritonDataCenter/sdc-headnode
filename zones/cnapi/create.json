@@ -1,9 +1,9 @@
 {
-  "alias": "rabbitmq",
+  "alias": "cnapi0",
   "autoboot": true,
   "brand": "joyent",
   "tags": {
-      "smartdc_role": "rabbitmq"
+      "smartdc_role": "cnapi"
   },
   "zfs_storage_pool_name": "zones"
 }

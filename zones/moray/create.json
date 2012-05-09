@@ -1,9 +1,9 @@
 {
-  "alias": "rabbitmq",
+  "alias": "moray0",
   "autoboot": true,
   "brand": "joyent",
   "tags": {
-      "smartdc_role": "rabbitmq"
+      "smartdc_role": "moray"
   },
   "zfs_storage_pool_name": "zones"
 }

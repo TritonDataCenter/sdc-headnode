@@ -1,5 +1,5 @@
 {
-  "alias": "napi",
+  "alias": "napi0",
   "autoboot": true,
   "brand": "joyent",
   "delegate_dataset": true,
