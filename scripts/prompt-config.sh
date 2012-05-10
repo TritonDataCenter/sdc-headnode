@@ -1387,6 +1387,12 @@ echo "napi_admin_ip=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo >>$tmp_config
 
+echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
+echo "workflow_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "workflow_http_admin_user=admin" >>$tmp_config
+echo "workflow_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
 echo "phonehome_automatic=true" >>$tmp_config
 
 echo

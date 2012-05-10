@@ -16,8 +16,8 @@ CNAPI_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 CNAPI_HTTP_ADMIN_USER=${cnapi_http_admin_user}
 CNAPI_HTTP_ADMIN_PW=${cnapi_http_admin_pw}
 
-WFAPI_HTTP_ADMIN_USER=${billapi_http_admin_user}
-WFAPI_HTTP_ADMIN_PW=${billapi_http_admin_pw}
+WFAPI_HTTP_ADMIN_USER=${workflow_http_admin_user}
+WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
 
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 
