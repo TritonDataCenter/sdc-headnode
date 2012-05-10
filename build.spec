@@ -31,11 +31,6 @@
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
       , "headnode_zones": "true"
       }
-    , { "name": "smartos64-1.4.7"
-      , "uuid": "141194fa-dd77-11e0-8539-27dd8d8264b8"
-      , "pkgsrc": "2011Q2_64"
-      , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q2/gcc45-64/All/"
-      }
     , { "name": "smartos-1.6.3"
       , "uuid": "01b2c898-945f-11e1-a523-af1afbe22822"
       , "pkgsrc": "2011Q4"
