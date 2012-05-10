@@ -880,6 +880,13 @@ function copy_zones
 
 }
 
+function copy_tools
+{
+    if [[ -d ${ROOT}/tools ]]; then
+        cp -r ${ROOT}/tools ${STAGE}/tools
+    fi
+}
+
 function copy_webinfo
 {
     target=$(build_spec webinfo-tarball)
@@ -936,6 +943,7 @@ copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_agentsshar
 copy_datasets
 copy_zones
+copy_tools
 copy_webinfo
 copy_config
 

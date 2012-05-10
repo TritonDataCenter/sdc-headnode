@@ -200,11 +200,18 @@ if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
     done
 fi
 
-if [[ -n ${CONFIG_sdc7_only} ]]; then
+# print a banner on first boot indicating this is SDC7
+if [[ -n ${CONFIG_sdc7_only} && ! -x /opt/smartdc/agents/bin/apm ]]; then
     cr_once
     echo "               --> This is SDC7, prepare to be impressed! <--" \
         >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
+fi
+
+if [[ -n ${CONFIG_sdc7_only} && ! -d /opt/smartdc/bin ]]; then
+    mkdir -p /opt/smartdc/bin
+    cp /usbkey/tools/* /opt/smartdc/bin
+    chmod 755 /opt/smartdc/bin/*
 fi
 
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.

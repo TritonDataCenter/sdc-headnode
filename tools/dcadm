@@ -1,0 +1,148 @@
+#!/usr/bin/bash
+#
+# Important! This is just a place-holder until we rewrite in node.
+#
+
+exec 4>>/var/log/dcadm.log
+export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=4
+set -o xtrace
+
+source /lib/sdc/config.sh
+load_sdc_config
+
+CURL_OPTS="-m 10 -f -sS -i"
+
+# CNAPI!
+CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${CONFIG_cnapi_http_admin_user} && -n ${CONFIG_cnapi_http_admin_pw} ]]; then
+    CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
+fi
+if [[ -n ${CNAPI_IP} ]]; then
+    CNAPI_URL="http://${CNAPI_IP}"
+fi
+
+# ZAPI!
+ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${CONFIG_zapi_http_admin_user} && -n ${CONFIG_zapi_http_admin_pw} ]]; then
+    ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
+fi
+if [[ -n ${ZAPI_IP} ]]; then
+    ZAPI_URL="http://${ZAPI_IP}"
+fi
+
+# NAPI!
+NAPI_URL=${CONFIG_napi_client_url}
+if [[ -n ${CONFIG_napi_http_admin_user} && -n ${CONFIG_napi_http_admin_pw} ]]; then
+    NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
+fi
+
+mode=$1
+shift
+
+usage()
+{
+    cat >&2 <<EOF
+Usage: $0 <mode> [args]
+
+  == Modes ==
+
+  list-machines
+  list-networks
+  list-nodes
+
+  cnapi [raw curl args]
+  napi  [raw curl args]
+  zapi  [raw curl args]
+
+EOF
+    exit 1
+}
+
+cnapi()
+{
+    path=$1
+    shift
+    curl ${CURL_OPTS} -u "${CNAPI_CREDENTIALS}" --url "${CNAPI_URL}${path}" "$@" \
+        || exit
+}
+
+napi()
+{
+    path=$1
+    shift
+    curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" "$@" \
+        || exit
+}
+
+zapi()
+{
+    path=$1
+    shift
+    curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" "$@" \
+        || exit
+}
+
+list_machines()
+{
+    printf "%-12s %-36s  %-6s %7s %16s\n" \
+        "ALIAS" "UUID" "BRAND" "RAM" "STATE"
+    printf "%-12s %36s  %6s %7s %16s\n" \
+        $(zapi /machines \
+            | json -H \
+            -a alias uuid brand ram state)
+}
+
+list_networks()
+{
+    printf "%-12s %-36s  %-4s %16s %16s\n" \
+        "NAME" "UUID" "VLAN" "NETWORK" "GATEWAY"
+    printf "%-12s %36s  %4s %16s %16s\n" \
+        $(napi /networks \
+            | json -H \
+            -a name uuid vlan network gateway)
+}
+
+list_nodes()
+{
+    # XXX I want admin_ip here but it's not in the output (yet?)
+    printf "%-12s %-36s  %7s\n" \
+        "HOSTNAME" "UUID" "RAM"
+    printf "%-12s %36s  %7s\n" \
+        $(cnapi /servers \
+            | json -H \
+            -e 'memorytotalbytes=parseInt(memorytotalbytes / (1024 * 1024))' \
+            -a hostname uuid memorytotalbytes)
+}
+
+
+if [[ -z ${mode} ]]; then
+    usage
+fi
+
+case ${mode} in
+list-machines)
+    list_machines
+;;
+list-networks)
+    list_networks
+;;
+list-nodes)
+    list_nodes
+;;
+cnapi)
+    cnapi "$@"
+;;
+napi)
+    napi "$@"
+;;
+zapi)
+    zapi "$@"
+;;
+*)
+    echo "Illegal mode: ${mode}" >&2
+    usage
+;;
+esac
+
+exit 0
