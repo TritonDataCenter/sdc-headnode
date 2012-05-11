@@ -1,9 +1,4 @@
-gcc-compiler-4.6.2
 gcc-runtime-4.6.2
-gcc-tools-2.22
-scmgit-1.7.7.2nb1
-scmgit-docs-1.7.7.2
-scmgit-base-1.7.7.2nb1
 gmake-3.82nb3
 curl-7.23.1nb1
 haproxy-1.4.18

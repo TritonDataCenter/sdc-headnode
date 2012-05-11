@@ -110,11 +110,6 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm disable haproxy
 /usr/sbin/svcadm enable haproxy
 
-
-echo "Rebuilding npm modules"
-cd /opt/smartdc/zapi
-PATH=/opt/smartdc/zapi/build/node/bin:$PATH /opt/smartdc/zapi/build/node/bin/npm rebuild
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/zapi/g" /opt/smartdc/zapi/smf/manifests/zapi.xml)
 

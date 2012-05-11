@@ -91,11 +91,6 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm disable haproxy
 /usr/sbin/svcadm enable haproxy
 
-
-echo "Rebuilding npm modules"
-cd /opt/smartdc/cnapi
-PATH=/opt/smartdc/cnapi/build/node/bin:$PATH /opt/smartdc/cnapi/build/node/bin/npm rebuild
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cnapi/g" /opt/smartdc/cnapi/smf/manifests/cnapi.xml)
 

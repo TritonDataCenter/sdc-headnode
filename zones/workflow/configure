@@ -54,10 +54,6 @@ gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
 gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
 gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE
 
-echo "Rebuilding npm modules"
-cd /opt/smartdc/workflow
-PATH=/opt/smartdc/workflow/build/node/bin:$PATH /opt/smartdc/workflow/build/node/bin/npm rebuild
-
 echo "Enabling service haproxy"
 svcadm disable svc:/net/haproxy:default
 svcadm enable svc:/net/haproxy:default
