@@ -22,14 +22,12 @@ pkgsrc_lst=$(curl -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
 curl -o /var/svc/pkgsrc -s -S -f \
     http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc list from assets server"
-pkgsrc_version=pkgsrc_$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:upper:] [:lower:])
+pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:lower:] [:upper:])
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
 if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then
     pkgsrc_version=${pkgsrc_version}_64
 fi
-curl -o /var/svc/pkgsrc.tar -s -S -f \
-    http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}.tar
-[[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc tarball from assets server"
+pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
 
 if [[ -z ${NO_FS_TARBALL} ]]; then
     curl -o /var/svc/fs.tar.bz2 -s -S -f \
@@ -79,17 +77,11 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
 fi
 
 # Install using local pkg repo
-mkdir -p /var/svc/pkgs
-(cd /var/svc/pkgs && tar -xf /var/svc/pkgsrc.tar \
-      $(cat /var/svc/pkgsrc | sed -e "s/$/.tgz/" | xargs))
-rm -f /var/svc/pkgsrc.tar
-
 for i in $(cat /var/svc/pkgsrc)
 do
         echo "Installing $i"
-        pkg_info $i >/dev/null 2>&1 || (yes | pkg_add -f /var/svc/pkgs/$i)
+        pkg_info $i >/dev/null 2>&1 || (yes | pkg_add -f ${pkgsrc_url}/$i)
 done
-rm -rf /var/svc/pkgs
 
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import now. (we do this again after setup)

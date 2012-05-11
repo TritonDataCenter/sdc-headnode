@@ -197,6 +197,9 @@ if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
     for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
         rm -f ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
         ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
+        d=${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile} .tar | tr [:lower:] [:upper:] | sed -e "s/^PKGSRC_//")
+        mkdir -p ${d}
+        (cd ${d} && tar -zxvf ${pkgsrcfile})
     done
 fi
 

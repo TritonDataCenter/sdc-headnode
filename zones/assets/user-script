@@ -47,25 +47,21 @@ fi
 touch /var/svc/.ran-user-script
 
 
-pkgsrc_version=pkgsrc_$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:upper:] [:lower:])
+
+pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:lower:] [:upper:])
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
 if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then
     pkgsrc_version=${pkgsrc_version}_64
 fi
 pkgsrc_lst=/assets/extra/${zone_role}/pkgsrc
-pkgsrc_tar=/assets/extra/pkgsrc/${pkgsrc_version}.tar
+pkgsrc_dir=/assets/extra/pkgsrc/${pkgsrc_version}
 
 # Install using local pkg repo
-mkdir -p /var/svc/pkgs
-(cd /var/svc/pkgs && tar -xf ${pkgsrc_tar} \
-      $(cat ${pkgsrc_lst} | sed -e "s/$/.tgz/" | xargs))
-
 for i in $(cat ${pkgsrc_lst})
 do
         echo "Installing $i"
-        pkg_info $i >/dev/null 2>&1 || pkg_add -f /var/svc/pkgs/$i
+        pkg_info $i >/dev/null 2>&1 || pkg_add -f ${pkgsrc_dir}/$i
 done
-rm -rf /var/svc/pkgs
 
 bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1 &
 if [[ $? != 0 ]]; then
