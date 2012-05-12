@@ -90,6 +90,7 @@ list_machines()
     printf "%-12s %36s  %6s %7s %16s\n" \
         $(zapi /machines \
             | json -H \
+	    -e 'alias=(alias || "-")' \
             -a alias uuid brand ram state)
 }
 

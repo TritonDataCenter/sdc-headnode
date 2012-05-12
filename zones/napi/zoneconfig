@@ -1,12 +1,7 @@
-TEMPLATE_VERSION=0.0.1
-HOSTNAME=${ZONENAME}.${dns_domain}
-ROOT_PW=${napi_root_pw}
-TMPFS=512m
-
 ADMIN_USER=${napi_http_admin_user}
 ADMIN_PW=${napi_http_admin_pw}
 RESOLVERS=${dns_resolvers/,/ }
-MAC_OUI="${mapi_mac_prefix}"
+MAC_OUI="${napi_mac_prefix}"
 
 ADMIN_NETWORK=${admin_network}
 ADMIN_NETMASK=${admin_netmask}

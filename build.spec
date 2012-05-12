@@ -11,7 +11,6 @@
   , "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2"
   , "cloudapi-tarball": "cloudapi/cloudapi-pkg-master-.*.tar.bz2"
   , "dhcpd-tarball": "dhcpd/dhcpd-pkg-master-.*.tar.bz2"
-  , "mapi-tarball": "mapi/mapi-pkg-master-.*.tar.bz2"
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
   , "redis-tarball": "redis/redis-pkg-master-.*.tar.bz2"

@@ -1,12 +1,5 @@
-TEMPLATE_VERSION=0.0.1
-TMPFS=512m
-HOSTNAME=${ZONENAME}.${dns_domain}
-RESOLVERS=${dns_resolvers/,/ }
 PRIVATE_IP=${dhcpd_admin_ip}
 PUBLIC_IP=${dhcpd_admin_ip}
-ROOT_PW=${dhcpd_root_pw}
-ADMIN_PW=${dhcpd_admin_pw}
-
 DHCP_GATEWAY=${compute_node_default_gateway}
 DHCP_LEASE_TIME=${dhcp_lease_time}
 ADMIN_NETMASK=${admin_netmask}

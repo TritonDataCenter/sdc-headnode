@@ -77,8 +77,8 @@ The rules are:
 
   * The logs to figure out problems are (in order of execution):
 
-    GZ: `svcs -L system/smartdc/init` -- debug log for initial setup (core zones
-        only: assets, dhcpd, rabbitmq, mapi)
+    GZ: `svcs -L system/smartdc/init` -- debug log for initial setup
+        (core zones only)
     GZ: /tmp/sdc-setup.log.* -- debug log from sdc-setup (for non-core zones)
     ZONE: `svcs -L mdata:fetch` -- fetches the user-script
     ZONE: `svcs -L mdata:execute` -- executes the user-script (downloads setup,

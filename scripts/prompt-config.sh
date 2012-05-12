@@ -1044,10 +1044,6 @@ next_addr=$(expr $next_addr + 1)
 dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
-mapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-mapi_client_url="http://${mapi_admin_ip}:80"
-
-next_addr=$(expr $next_addr + 1)
 napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 napi_client_url="http://${napi_admin_ip}:80"
 
@@ -1107,38 +1103,33 @@ echo "swap=0.25x" >>$tmp_config
 echo "compute_node_swap=0.25x" >>$tmp_config
 echo >>$tmp_config
 
-sdc7=$(getanswer "sdc7_only")
-if [[ -n ${sdc7} ]]; then
-	echo "sdc7_only=\"true\"" >>$tmp_config
+echo "zookeeper_root_pw=$zone_admin_pw" >>$tmp_config
+echo "zookeeper_admin_ips=$zookeeper_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "zookeeper_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "zookeeper_admin_ips=$zookeeper_admin_ip" >>$tmp_config
-	echo >>$tmp_config
+echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
+echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
-	echo >>$tmp_config
+echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
+echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
-	echo >>$tmp_config
+echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
+echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
-	echo >>$tmp_config
+echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
-	echo >>$tmp_config
+echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
-	echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
-	echo >>$tmp_config
-
-	echo "zapi_root_pw=$zone_admin_pw" >>$tmp_config
-	echo "zapi_admin_ips=$zapi_admin_ip" >>$tmp_config
-	echo >>$tmp_config
-fi
+echo "zapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "zapi_admin_ips=$zapi_admin_ip" >>$tmp_config
+echo >>$tmp_config
 
 echo "# datacenter_name should be unique among your cloud," >>$tmp_config
 echo "# datacenter_headnode_id should be a positive integer that is unique" \
@@ -1274,17 +1265,6 @@ echo "dsapi_http_user=honeybadger" >>$tmp_config
 echo "dsapi_http_pass=IEatSnakes4Fun" >>$tmp_config
 echo >>$tmp_config
 
-echo "mapi_admin_ip=$mapi_admin_ip" >>$tmp_config
-echo "mapi_client_url=$mapi_client_url" >>$tmp_config
-echo "mapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "mapi_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "mapi_mac_prefix=90b8d0" >>$tmp_config
-echo "mapi_http_port=8080" >>$tmp_config
-echo "mapi_http_admin_user=admin" >>$tmp_config
-echo "mapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
-echo >>$tmp_config
-
 if [ -z "$external_vlan_id" ]; then
 	echo "# portal_external_vlan=0" >>$tmp_config
 else
@@ -1387,6 +1367,7 @@ echo "napi_http_admin_user=admin" >>$tmp_config
 echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "napi_admin_ip=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
+echo "napi_mac_prefix=90b8d0" >>$tmp_config
 echo >>$tmp_config
 
 echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config

@@ -1,11 +1,3 @@
-TEMPLATE_VERSION=0.0.1
-HOSTNAME=${ZONENAME}.${dns_domain}
-RESOLVERS=${dns_resolvers/,/ }
-ROOT_PW=${ufds_root_pw}
-ADMIN_PW=${ufds_admin_pw}
-
-TMPFS=512m
-
 DATACENTER_NAME=${datacenter_name}
 
 RABBIT_ADMIN_IP=${rabbitmq_admin_ip}
@@ -22,4 +14,3 @@ WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
-UFDS_ADMIN_IPS=${ufds_admin_ips}

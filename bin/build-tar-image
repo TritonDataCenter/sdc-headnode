@@ -15,9 +15,7 @@
 set -o errexit
 set -o pipefail
 
-
 ROOT=$(cd $(dirname $0)/../; pwd)
-
 
 # Write output to log file.
 THIS_TIMESTAMP=${TIMESTAMP}
@@ -274,7 +272,7 @@ function create_directories
     echo "==> Creating stage/"
     rm -rf ${STAGE}
     mkdir -p ${STAGE}
-    mkdir -p ${STAGE}/data
+    mkdir -p ${STAGE}/extra/pkgsrc
 }
 
 function copy_base
@@ -315,6 +313,9 @@ function copy_config {
     else
         cp -r config/config.usb.inc ${STAGE}/config.inc
     fi
+    if [[ -f config/banner ]]; then
+        cp config/banner ${STAGE}/banner
+    fi
 }
 
 function pkgin_get
@@ -334,6 +335,16 @@ function pkgin_get
 function copy_pkgsrc
 {
     echo "==> Copying in pkgsrc"
+
+    # move old cache to new name so everyone doesn't have to download again.
+    [[ ! -d ${ROOT}/cache/2010Q4 ]] && \
+        mv -f ${ROOT}/cache/pkgsrc_2010Q4 ${ROOT}/cache/2010Q4
+    [[ ! -d ${ROOT}/cache/2011Q2_64 ]] && \
+        mv -f ${ROOT}/cache/pkgsrc_2011Q2_64 ${ROOT}/cache/2011Q2_64
+    [[ ! -d ${ROOT}/cache/2011Q4 ]] && \
+        mv -f ${ROOT}/cache/pkgsrc_2011Q4 ${ROOT}/cache/2011Q4
+    [[ ! -d ${ROOT}/cache/2011Q4_64 ]] && \
+        mv -f ${ROOT}/cache/pkgsrc_2011Q4_64 ${ROOT}/cache/2011Q4_64
 
     PKGSRC_LIST=
     local data=$((${ROOT}/bin/json datasets \
@@ -355,7 +366,7 @@ function copy_pkgsrc
         done
         if [[ -f ${ROOT}/cache/pkgsrc_${ds_pkgsrc}.lst ]]; then
             # Someone needs this pkgsrc
-            PKGSRC_LIST[${idx}]="pkgsrc_${ds_pkgsrc}|${ds_pkgsrc_url}"
+            PKGSRC_LIST[${idx}]="${ds_pkgsrc}|${ds_pkgsrc_url}"
             idx=$((${idx} + 1))
         fi
     done
@@ -400,7 +411,7 @@ function copy_pkgsrc
                 || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
 
                 echo "==> Downloading ${pkgfile}"
-                    # if this exists, it's corrupt
+                # if this exists, it's corrupt
                 rm -f ${cache_dir}/${pkgfile}
                 if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
                     (cd ${cache_dir} \
@@ -412,8 +423,11 @@ function copy_pkgsrc
             fi
         done
 
-        echo "==> Creating ${name}.tar"
-        (cd ${cache_dir} && ${TAR} -cvf ${STAGE}/data/${name}.tar ${pkgs})
+        mkdir -p ${STAGE}/extra/pkgsrc/${name}
+        local pkg=
+        for pkg in ${pkgs}; do
+            ln ${cache_dir}/${pkg} ${STAGE}/extra/pkgsrc/${name}/${pkg}
+        done
     done
 }
 

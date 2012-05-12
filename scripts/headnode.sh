@@ -55,81 +55,7 @@ function cr_once
     fi
 }
 
-#
-# MAPI needs some extra data files, all MAPI specific stuff should be here.
-#
-function copy_special_mapi_files
-{
-    dir=${USB_COPY}/extra/mapi
-
-    sysinfo > ${dir}/headnode-sysinfo.json
-    mkdir -p ${dir}/datasets
-    cp ${USB_COPY}/datasets/*.dsmanifest ${dir}/datasets/
-    rm -f ${dir}/joysetup.sh
-    ln ${USB_COPY}/scripts/joysetup.sh ${dir}/joysetup.sh
-    mkdir -p ${dir}/agents
-    rm -f ${dir}/agents/*.sh
-    ln ${USB_COPY}/ur-scripts/agents-*.sh ${dir}/agents/
-    mkdir -p ${dir}/config.inc
-    rm -rf ${dir}/config.inc/*
-    for file in \
-        $(find ${USB_COPY}/config.inc/ -maxdepth 1 -type f -not -name ".*"); do
-        ln ${file} ${dir}/config.inc/
-    done
-}
-
-# Create packages for internal-use
-function setup_sdc_pkgs
-{
-    # Wait for mapi to be ready to load packages
-    set +o errexit
-    cnt=0
-    while [ $cnt -lt 10 ]
-    do
-	sleep 30
-	curl -f -s \
-            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
-	    http://$CONFIG_mapi_admin_ip/packages >/dev/null 2>&1
-	[ $? == 0 ] && break
-	let cnt=$cnt+1
-    done
-    set -o errexit
-    [ $cnt -eq 10 ] && \
-        echo "Warning: MAPI still not ready to load packages" >&${CONSOLE_FD}
-
-    local pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
-    for p in $pkgs
-    do
-        # Pkg entry format:
-        # name:ram:swap:disk:cap:nlwp:iopri
-        local nm=${p%%:*}
-        p=${p#*:}
-        local ram=${p%%:*}
-        p=${p#*:}
-        local swap=${p%%:*}
-        p=${p#*:}
-        local disk=${p%%:*}
-        p=${p#*:}
-        local cap=${p%%:*}
-        p=${p#*:}
-        local nlwp=${p%%:*}
-        p=${p#*:}
-        local iopri=${p%%:*}
-
-        curl -i -s \
-            -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} \
-            http://$CONFIG_mapi_admin_ip/packages \
-            -X POST \
-            -d name=$nm \
-            -d ram=$ram \
-            -d swap=$swap \
-            -d disk=$disk \
-            -d cpu_cap=$cap \
-            -d lightweight_processes=$nlwp \
-            -d zfs_io_priority=$iopri \
-            -d owner_uuid=$CONFIG_ufds_admin_uuid
-    done
-}
+# TODO: add something in that adds packages.
 
 trap 'errexit $?' EXIT
 
@@ -160,21 +86,10 @@ load_sdc_config
 # Now the infrastructure zones
 # check if we've imported a zpool
 POOLS=`zpool list`
-
 if [[ ${POOLS} == "no pools available" ]]; then
-
     cr_once
 
     ${USB_PATH}/scripts/joysetup.sh || exit 1
-
-    ds_uuid=$(cat ${USB_PATH}/datasets/smartos.uuid)
-    ds_file=$(cat ${USB_PATH}/datasets/smartos.filename)
-
-    if [[ -z ${ds_uuid} || -z ${ds_file} \
-        || ! -f ${USB_PATH}/datasets/${ds_file} ]]; then
-
-        fatal "FATAL: unable to find 'smartos' dataset."
-    fi
 
     printf "%4s\n" "done" >&${CONSOLE_FD}
 
@@ -192,26 +107,22 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
 fi
 
 # Setup the pkgsrc directory for the core zones to pull files from.
-if [[ ! -d ${USB_COPY}/extra/pkgsrc ]]; then
-    mkdir -p ${USB_COPY}/extra/pkgsrc
-    for pkgsrcfile in $(ls -1 ${USB_COPY}/data/pkgsrc_*); do
-        rm -f ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
-        ln ${pkgsrcfile} ${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile})
-        d=${USB_COPY}/extra/pkgsrc/$(basename ${pkgsrcfile} .tar | tr [:lower:] [:upper:] | sed -e "s/^PKGSRC_//")
-        mkdir -p ${d}
-        (cd ${d} && tar -zxvf ${pkgsrcfile})
-    done
-fi
+# We need to switch the name from 2010q4 to 2010Q4, so we just link the files
+# into one with the correct name.  Thanks PCFS!
+for dir in $(ls ${USB_COPY}/extra/pkgsrc/ | grep q); do
+    upper=$(echo "${dir}" | tr [:lower:] [:upper:])
+    mkdir -p ${USB_COPY}/extra/pkgsrc/${upper}
+    (cd ${USB_COPY}/extra/pkgsrc/${upper} && ln -f ${USB_COPY}/extra/pkgsrc/${dir}/* .)
+done
 
 # print a banner on first boot indicating this is SDC7
-if [[ -n ${CONFIG_sdc7_only} && ! -x /opt/smartdc/agents/bin/apm ]]; then
+if [[ -f /usbkey/banner && ! -x /opt/smartdc/agents/bin/apm ]]; then
     cr_once
-    echo "               --> This is SDC7, prepare to be impressed! <--" \
-        >&${CONSOLE_FD}
+    cat /usbkey/banner >&${CONSOLE_FD}
     echo "" >&${CONSOLE_FD}
 fi
 
-if [[ -n ${CONFIG_sdc7_only} && ! -d /opt/smartdc/bin ]]; then
+if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin
     cp /usbkey/tools/* /opt/smartdc/bin
     chmod 755 /opt/smartdc/bin/*
@@ -408,11 +319,6 @@ function create_zone {
         ) > ${dir}/zoneconfig
     fi
 
-    # MAPI needs some files for CNs that we don't need for other zones.
-    if [[ ${zone} == "mapi" ]]; then
-        copy_special_mapi_files
-    fi
-
     NODE_PATH="/usr/node_modules:${NODE_PATH}" \
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
     echo "done" >&${CONSOLE_FD}
@@ -441,26 +347,19 @@ function num_not_setup {
 if [[ ! ${skip_zones} ]]; then
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
+    # These are here in the order they'll be brought up.
     create_zone assets
-    if [[ -n ${CONFIG_sdc7_only} ]]; then
-        # These are here in the order they'll be brought up.
-        create_zone zookeeper
-        # TODO: manatee
-        create_zone moray
-        create_zone ufds
-        create_zone napi
-        create_zone workflow
-        create_zone rabbitmq
-        create_zone cnapi
-        create_zone dhcpd
-        create_zone dapi
-        create_zone zapi
-    else
-        create_zone napi
-        create_zone dhcpd
-        create_zone rabbitmq
-        create_zone mapi
-    fi
+    create_zone zookeeper
+    # TODO: manatee
+    create_zone moray
+    create_zone ufds
+    create_zone napi
+    create_zone workflow
+    create_zone rabbitmq
+    create_zone cnapi
+    create_zone dhcpd
+    create_zone dapi
+    create_zone zapi
 fi
 
 if [ -n "${CREATEDZONES}" ]; then
@@ -532,13 +431,6 @@ if [ -n "${CREATEDZONES}" ]; then
         printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
     fi
 
-    if [[ ${restore} == 0 && ${standby} == 0 ]]; then
-        for i in $CREATEDZONES
-        do
-            [[ $i == "mapi" && -z ${SKIP_SDC_PKGS} ]] && setup_sdc_pkgs
-        done
-    fi
-
     if [ $standby == 1 ]; then
         if [ -n "$bufile" ]; then
              # We have to do the restore in the background since svcs the
@@ -587,11 +479,14 @@ else
     fi
 fi
 
-if [[ -f ${USB_COPY}/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
-    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat ${USB_COPY}/webinfo.tar \
-        | tar -xf - )
-fi
-
-( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
+#
+# XXX this was commented out for HEAD-1048 as it depends on MAPI.  See HEAD-1051
+#
+#if [[ -f ${USB_COPY}/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
+#    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat ${USB_COPY}/webinfo.tar \
+#        | tar -xf - )
+#fi
+#
+#( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
 
 exit 0
