@@ -40,6 +40,7 @@ tar|usb|coal)
     exit 1;
     ;;
 esac
+export TYPE
 
 $ROOT/bin/build-tar-image $CONFIG_OPTS
 [[ "$TYPE" == "tar" ]] && exit 0

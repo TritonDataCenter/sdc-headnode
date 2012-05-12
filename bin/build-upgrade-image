@@ -122,7 +122,7 @@ function create_upgrade
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
         boot/grub/menu.lst.tmpl \
-        data \
+        extra \
         datasets/smartos* \
         rc \
         scripts \
