@@ -12,6 +12,7 @@
 unset LD_LIBRARY_PATH
 PATH=/usr/bin:/usr/sbin:/smartdc/bin
 export PATH
+export HEADNODE_SETUP_START=$(date +%s)
 
 #
 # We set errexit (a.k.a. "set -e") to force an exit on error conditions, and
@@ -53,6 +54,34 @@ function cr_once
         printf "\r" >&${CONSOLE_FD}
         did_cr_once=1
     fi
+}
+
+# This takes printf args, and will add one additional arg which is the time
+# since the last run (or from start if first arg is "FROM_START")
+function printf_timer
+{
+    local p=${prev_t}
+
+    [[ -z ${p} ]] && p=${HEADNODE_SETUP_START}
+    if [[ $1 == "FROM_START" ]]; then
+        p=${HEADNODE_SETUP_START}
+        shift
+    fi
+
+    now=$(date +%s)
+    delta_t=$((${now} - ${p}))
+    if [[ -n ${CONFIG_show_setup_timers} ]]; then
+        cr_once
+
+        # This mess just runs printf again with the same args we were passed
+        # adding the delta argument.
+        eval printf \
+            $(for arg in "$@"; do
+                echo "\"${arg}\""
+            done; echo \"${delta_t}\") \
+        >&${CONSOLE_FD}
+    fi
+    prev_t=${now}
 }
 
 # TODO: add something in that adds packages.
@@ -128,6 +157,8 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     chmod 755 /opt/smartdc/bin/*
 fi
 
+printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
+
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
@@ -144,7 +175,7 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
                 >&${CONSOLE_FD}
             (cd /var/tmp ; bash ${which_agents} >&4 2>&1)
         fi
-        printf "%4s\n" "done" >&${CONSOLE_FD}
+        printf_timer "%4s (%ss)\n" "done"
     else
         fatal "No agents-*.sh found!"
     fi
@@ -266,7 +297,7 @@ function create_zone {
             printf "%-58s" "importing SMI: ${ds_name}" \
                 >&${CONSOLE_FD}
             dsadm install -m ${ds_manifest} -f ${ds_filename}
-            echo "done" >&${CONSOLE_FD}
+            printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
     fi
 
@@ -321,7 +352,46 @@ function create_zone {
 
     NODE_PATH="/usr/node_modules:${NODE_PATH}" \
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
-    echo "done" >&${CONSOLE_FD}
+
+    local loops=
+    local zonepath=
+    if [[ ${CONFIG_serialize_setup} == "true" ]]; then
+        loops=0
+        zonepath=$(vmadm get ${new_uuid} | json zonepath)
+        if [[ -z ${zonepath} ]]; then
+            fatal "Unable to find zonepath for ${new_uuid}"
+        fi
+
+        while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
+            && ! -f ${zonepath}/root/var/svc/setup_failed \
+            && loops -lt 300 ]]; do
+
+            sleep 1
+            loops=$((${loops} + 1))
+        done
+
+        if [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
+            # Got here and complete, now just wait for services.
+            while [[ -n $(svcs -xvz ${new_uuid}) && loops -lt 300 ]]; do
+                sleep 1
+                loops=$((${loops} + 1))
+            done
+        fi
+
+        delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
+        if [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
+            printf_timer "%4s (%ss)\n" "done"
+        elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
+            echo "failed" >&${CONSOLE_FD}
+            fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
+        elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
+            echo "svcs-fail" >&${CONSOLE_FD}
+            fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
+        else
+            echo "timeout" >&${CONSOLE_FD}
+            fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
+        fi
+    fi
 
     CREATEDZONES="${CREATEDZONES} ${zone}"
     CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
@@ -344,7 +414,8 @@ function num_not_setup {
     echo ${remain}
 }
 
-if [[ ! ${skip_zones} ]]; then
+if [[ -z ${skip_zones} ]]; then
+    printf_timer "%-58s%s (%ss)\n" "standby/restore check..." "done"
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
@@ -362,73 +433,76 @@ if [[ ! ${skip_zones} ]]; then
     create_zone zapi
 fi
 
-if [ -n "${CREATEDZONES}" ]; then
-    # Check that all of the zone's svcs are up before we end.
-    # The svc installing the zones is still running since we haven't exited
-    # yet, so the svc count should be 1 for us to end successfully.
-    # If they're not up after 4 minutes, report a possible issue.
-    if [ $restore == 0 ]; then
-        msg="Waiting for services to finish starting..."
-        printf "%-58s\r" "${msg}"
-    else
-        # alternate formatting when restoring (sdc-restore)
-        msg="waiting for services to finish starting... "
-        printf "%s\r" "${msg}"
-    fi
-    i=0
-    while [ $i -lt 48 ]; do
-        nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
-        if [ $nstarting -lt 2 ]; then
-                break
-        fi
-        if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-            printf "%-58s%s\r" "${msg}" "${nstarting}" >&${CONSOLE_FD}
-        fi
-        sleep 5
-        i=`expr $i + 1`
-    done
-    if [[ ${restore} == 0 ]]; then
-        printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
-    else
-        # alternate formatting when restoring (sdc-restore)
-        printf "%s%-20s\n" "${msg}" "done" >&${CONSOLE_FD}
-    fi
+if [[ -n ${CREATEDZONES} ]]; then
+    if [[ ${CONFIG_serialize_setup} != "true" ]]; then
 
-    if [ $nstarting -gt 1 ]; then
-        echo "Warning: services in the following zones are still not running:" \
-            >&${CONSOLE_FD}
-        svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u \
-            >&${CONSOLE_FD}
-    fi
-
-    # The SMF services should now be up, so we wait for the setup scripts
-    # in each of the created zones to be completed (these run in the
-    # background for all but assets so may not have finished with the services)
-    i=0
-    nsettingup=$(num_not_setup ${CREATEDUUIDS})
-    while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do
-        if [[ ${restore} == 0 ]]; then
-            msg="Waiting for zones to finish setting up..."
+        # Check that all of the zone's svcs are up before we end.
+        # The svc installing the zones is still running since we haven't exited
+        # yet, so the svc count should be 1 for us to end successfully.
+        # If they're not up after 4 minutes, report a possible issue.
+        if [ $restore == 0 ]; then
+            msg="Waiting for services to finish starting..."
+            printf "%-58s\r" "${msg}"
         else
-            msg="waiting for zones to finish setting up... "
+            # alternate formatting when restoring (sdc-restore)
+            msg="waiting for services to finish starting... "
+            printf "%s\r" "${msg}"
         fi
-        if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-            printf "%-58s%s\r" "${msg}" "${nsettingup}" >&${CONSOLE_FD}
+        i=0
+        while [ $i -lt 48 ]; do
+            nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
+            if [ $nstarting -lt 2 ]; then
+                    break
+            fi
+            if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
+                printf "%-58s%s\r" "${msg}" "${nstarting}" >&${CONSOLE_FD}
+            fi
+            sleep 5
+            i=`expr $i + 1`
+        done
+        if [[ ${restore} == 0 ]]; then
+            printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
+        else
+            # alternate formatting when restoring (sdc-restore)
+            printf "%s%-20s\n" "${msg}" "done" >&${CONSOLE_FD}
         fi
-        i=$((${i} + 1))
-        sleep 5
-        nsettingup=$(num_not_setup ${CREATEDUUIDS})
-    done
 
-    if [[ ${nsettingup} -gt 0 ]]; then
-        printf "%-58s%s\n" "${msg}" "failed"  >&${CONSOLE_FD}
-        fatal "Warning: some zones did not finish setup, installation has " \
-            "failed."
-    elif [[ ${restore} == 0 ]]; then
-        printf "%-58s%s\n" "${msg}" "done"  >&${CONSOLE_FD}
-    else
-        # alternate formatting when restoring (sdc-restore)
-        printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
+        if [ $nstarting -gt 1 ]; then
+            echo "Warning: services in the following zones are still not running:" \
+                >&${CONSOLE_FD}
+            svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u \
+                >&${CONSOLE_FD}
+        fi
+
+        # The SMF services should now be up, so we wait for the setup scripts
+        # in each of the created zones to be completed (these run in the
+        # background for all but assets so may not have finished with the services)
+        i=0
+        nsettingup=$(num_not_setup ${CREATEDUUIDS})
+        while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do
+            if [[ ${restore} == 0 ]]; then
+                msg="Waiting for zones to finish setting up..."
+            else
+                msg="waiting for zones to finish setting up... "
+            fi
+            if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
+                printf "%-58s%s\r" "${msg}" "${nsettingup}" >&${CONSOLE_FD}
+            fi
+            i=$((${i} + 1))
+            sleep 5
+            nsettingup=$(num_not_setup ${CREATEDUUIDS})
+        done
+
+        if [[ ${nsettingup} -gt 0 ]]; then
+            printf "%-58s%s\n" "${msg}" "failed"  >&${CONSOLE_FD}
+            fatal "Warning: some zones did not finish setup, installation has " \
+                "failed."
+        elif [[ ${restore} == 0 ]]; then
+            printf "%-58s%s\n" "${msg}" "done"  >&${CONSOLE_FD}
+        else
+            # alternate formatting when restoring (sdc-restore)
+            printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
+        fi
     fi
 
     if [ $standby == 1 ]; then
@@ -450,16 +524,15 @@ if [ -n "${CREATEDZONES}" ]; then
         echo "done" >&${CONSOLE_FD}
     fi
 
-    if [ $restore == 0 ]; then
-        # clear the screen
-        #echo "[H[J" >&${CONSOLE_FD}
+    printf_timer "%-58sdone (%ss)\n" "completing setup..."
 
+    if [ $restore == 0 ]; then
         echo "" >&${CONSOLE_FD}
         if [ $standby == 1 ]; then
             echo "Restoring standby headnode" >&${CONSOLE_FD}
         else
-            echo "==> Setup complete.  Press [enter] to get login prompt." \
-                >&${CONSOLE_FD}
+            printf_timer "FROM_START" \
+"==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
         fi
         echo "" >&${CONSOLE_FD}
     fi

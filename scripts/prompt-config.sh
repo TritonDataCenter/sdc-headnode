@@ -1378,6 +1378,12 @@ echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config
 
+# Always show the timers and make setup serial for now.
+echo "show_setup_timers=true" >> $tmp_config
+echo "serialize_setup=true" >> $tmp_config
+
+echo "" >> $tmp_config
+
 echo
 trap "" SIGINT
 if [[ $(getanswer "skip_edit_config") != "true" ]]; then
