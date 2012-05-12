@@ -337,13 +337,13 @@ function copy_pkgsrc
     echo "==> Copying in pkgsrc"
 
     # move old cache to new name so everyone doesn't have to download again.
-    [[ ! -d ${ROOT}/cache/2010Q4 ]] && \
+    [[ ! -d ${ROOT}/cache/2010Q4 && -d ${ROOT}/cache/pkgsrc_2010Q4 ]] && \
         mv -f ${ROOT}/cache/pkgsrc_2010Q4 ${ROOT}/cache/2010Q4
-    [[ ! -d ${ROOT}/cache/2011Q2_64 ]] && \
+    [[ ! -d ${ROOT}/cache/2011Q2_64 && -d ${ROOT}/cache/pkgsrc_2011Q2_64 ]] && \
         mv -f ${ROOT}/cache/pkgsrc_2011Q2_64 ${ROOT}/cache/2011Q2_64
-    [[ ! -d ${ROOT}/cache/2011Q4 ]] && \
+    [[ ! -d ${ROOT}/cache/2011Q4 && -d ${ROOT}/cache/pkgsrc_2011Q4 ]] && \
         mv -f ${ROOT}/cache/pkgsrc_2011Q4 ${ROOT}/cache/2011Q4
-    [[ ! -d ${ROOT}/cache/2011Q4_64 ]] && \
+    [[ ! -d ${ROOT}/cache/2011Q4_64 && -d ${ROOT}/cache/pkgsrc_2011Q4_64 ]] && \
         mv -f ${ROOT}/cache/pkgsrc_2011Q4_64 ${ROOT}/cache/2011Q4_64
 
     PKGSRC_LIST=
