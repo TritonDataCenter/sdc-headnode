@@ -1069,6 +1069,7 @@ rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
 next_addr=$(expr $next_addr + 1)
 cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+cnapi_client_url="http://${cnapi_admin_ip}:80"
 
 next_addr=$(expr $next_addr + 1)
 dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1372,6 +1373,7 @@ fi
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_http_admin_user=admin" >>$tmp_config
 echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
 

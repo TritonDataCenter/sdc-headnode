@@ -7,15 +7,23 @@ set -o xtrace
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-cat > /opt/smartdc/booter/config.js <<CONFIG
-exports.config = {
-  "mapiUrl": "${MAPI_URL}",
-  "user": "${MAPI_USER}",
-  "password": "${MAPI_PW}",
+cat > /opt/smartdc/booter/config.json <<CONFIG
+{
+  "napi": {
+    "url": "${NAPI_URL}",
+    "username": "${NAPI_USER}",
+    "password": "${NAPI_PW}"
+  },
+  "cnapi": {
+    "url": "${CNAPI_URL}",
+    "username": "${CNAPI_USER}",
+    "password": "${CNAPI_PW}"
+  },
   "listenIp": "0.0.0.0",
+  "port": 67,
   "tftpRoot": "/tftpboot",
   "defaultGateway": "${DHCP_GATEWAY}",
-  "dhcpIp": "${PRIVATE_IP}",
+  "serverIp": "${PRIVATE_IP}",
   "leaseTime": "${DHCP_LEASE_TIME}",
   "netmask": "${ADMIN_NETMASK}"
 }
