@@ -1,6 +1,6 @@
 {
   "alias": "moray0",
-  "autoboot": true,
+  "autoboot": false,
   "brand": "joyent",
   "tags": {
       "smartdc_role": "moray"

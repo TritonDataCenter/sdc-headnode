@@ -84,6 +84,70 @@ function printf_timer
     prev_t=${now}
 }
 
+# Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
+# entirely well still getting all the things done that it would have done that
+# we care about.
+function fake_zoneinit
+{
+    local zoneroot=$1
+
+    if [[ -z ${zoneroot} || ! -d ${zoneroot} ]]; then
+        fatal "fake_zoneinit(): bad zoneroot: ${zoneroot}"
+    fi
+
+    rm ${zoneroot}/var/adm/utmpx ${zoneroot}/var/adm/wtmpx ; touch ${zoneroot}/var/adm/wtmpx
+    rm -rf ${zoneroot}/var/svc/log/*
+    rm -rf ${zoneroot}/root/zone*
+    cat > ${zoneroot}/root/zoneinit <<EOF
+#!/usr/bin/bash
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PKGSRC_REPO=http://pkgsrc.joyent.com/sdc6/2011Q4/i386/All
+
+# Unset passwords that might have been mistakenly left in datasets (yes really)
+passwd -N root
+passwd -N admin
+
+# Then disable services we don't ever need (disabling ssh is important so
+# we don't need to bother generating an ssh key for this zone)
+svcadm disable ssh:default
+svcadm disable inetd
+
+# Remove these default keys (that are again in the dataset!)
+rm -f /etc/ssh/ssh_*key*
+
+# networking is async, make sure it's up here before we
+# try to talk to pkgsrc.
+count=0
+while ! ping pkgsrc.joyent.com; do
+    sleep 1
+    count=\$((\${count} + 1))
+    if [[ \${count} -gt 60 ]]; then
+        echo "timed out waiting for network" >&2
+        exit 1
+    fi
+done
+
+echo "PKG_PATH=\${PKGSRC_REPO}" > /opt/local/etc/pkg_install.conf
+echo "\${PKGSRC_REPO}" > /opt/local/etc/pkgin/repositories.conf
+pkgin -V -f -y update || true
+
+# start mdata so we run the user-script
+svcadm enable mdata:fetch
+
+# suicide
+rm -f /root/zoneinit
+svccfg delete zoneinit
+
+exit 0
+EOF
+
+    chmod 555 ${zoneroot}/root/zoneinit
+}
+
+
 # TODO: add something in that adds packages.
 
 trap 'errexit $?' EXIT
@@ -350,8 +414,11 @@ function create_zone {
         ) > ${dir}/zoneconfig
     fi
 
+    # by breaking this up we're able to use fake_zoneinit instead of zoneinit
     NODE_PATH="/usr/node_modules:${NODE_PATH}" \
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
+    fake_zoneinit /zones/${new_uuid}/root
+    vmadm boot ${new_uuid}
 
     local loops=
     local zonepath=

@@ -1,6 +1,6 @@
 {
   "alias": "dhcpd",
-  "autoboot": true,
+  "autoboot": false,
   "brand": "joyent",
   "filesystems": [
     {

@@ -1,6 +1,6 @@
 {
   "alias": "napi0",
-  "autoboot": true,
+  "autoboot": false,
   "brand": "joyent",
   "delegate_dataset": true,
   "tags": {
