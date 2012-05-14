@@ -499,12 +499,9 @@ sdc_zone_install()
         echo "+ FAILED!"
     fi
 
-    echo "+ Sleeping for 60 seconds (takes a while for nics to show up)"
-    sleep 60
-
     local admin=
     local external=
-    local result=$(zapi /machines/${uuid} | json -H nics | json -a nic_tag ip | tr ' ' '=')
+    local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
     eval "${result}"
     if [[ -z ${admin} ]]; then
         fatal "unable to find Admin IP for ${uuid}"
