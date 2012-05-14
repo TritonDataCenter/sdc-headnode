@@ -351,7 +351,7 @@ function copy_pkgsrc
         | ${ROOT}/bin/json -a name pkgsrc pkgsrc_url | tr ' ' '|' \
         | grep -v "|$") < ${ROOT}/build.spec)
     local idx=0
-    rm -f ${ROOT}/cache/pkgsrc_*.lst
+    rm -f ${ROOT}/cache/*.lst
     for ds in ${data}; do
         local ds_name=$(echo "${ds}" | cut -d '|' -f1)
         local ds_pkgsrc=$(echo "${ds}" | cut -d '|' -f2)
@@ -360,11 +360,11 @@ function copy_pkgsrc
         for zone in $(ls ${ROOT}/zones); do
             zoneds=$(cat ${ROOT}/zones/${zone}/dataset)
             if [[ ${zoneds} == ${ds_name} ]]; then
-                cat ${ROOT}/zones/${zone}/pkgsrc >> ${ROOT}/cache/pkgsrc_${ds_pkgsrc}.lst
+                cat ${ROOT}/zones/${zone}/pkgsrc >> ${ROOT}/cache/${ds_pkgsrc}.lst
                 mkdir -p ${STAGE}/zones/${zone}
             fi
         done
-        if [[ -f ${ROOT}/cache/pkgsrc_${ds_pkgsrc}.lst ]]; then
+        if [[ -f ${ROOT}/cache/${ds_pkgsrc}.lst ]]; then
             # Someone needs this pkgsrc
             PKGSRC_LIST[${idx}]="${ds_pkgsrc}|${ds_pkgsrc_url}"
             idx=$((${idx} + 1))
