@@ -414,6 +414,14 @@ function create_zone {
         ) > ${dir}/zoneconfig
     fi
 
+    dtrace_pid=
+    if [[ -x /usbkey/tools/zoneboot.d \
+        && ${CONFIG_dtrace_zone_setup} == "true" ]]; then
+
+        /usbkey/tools/zoneboot.d ${new_uuid} >/var/log/${new_uuid}.setup.json 2>&1 &
+        dtrace_pid=$!
+    fi
+
     # by breaking this up we're able to use fake_zoneinit instead of zoneinit
     NODE_PATH="/usr/node_modules:${NODE_PATH}" \
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
@@ -448,14 +456,18 @@ function create_zone {
         delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
         if [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
             printf_timer "%4s (%ss)\n" "done"
+            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
         elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
             echo "failed" >&${CONSOLE_FD}
+            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
         elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
             echo "svcs-fail" >&${CONSOLE_FD}
+            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
         else
             echo "timeout" >&${CONSOLE_FD}
+            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
         fi
     fi

@@ -1381,6 +1381,9 @@ echo "phonehome_automatic=true" >>$tmp_config
 # Always show the timers and make setup serial for now.
 echo "show_setup_timers=true" >> $tmp_config
 echo "serialize_setup=true" >> $tmp_config
+if [[ $(getanswer "dtrace_zone_setup") == "true" ]]; then
+    echo "dtrace_zone_setup=true" >> $tmp_config
+fi
 
 echo "" >> $tmp_config
 
