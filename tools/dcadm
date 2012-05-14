@@ -37,6 +37,17 @@ if [[ -n ${CONFIG_napi_http_admin_user} && -n ${CONFIG_napi_http_admin_pw} ]]; t
     NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
 fi
 
+# WORKFLOW!
+WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${CONFIG_workflow_http_admin_user}
+    && -n ${CONFIG_workflow_http_admin_pw} ]]; then
+
+    WORKFLOW_CREDENTIALS="${CONFIG_workflow_http_admin_user}:${CONFIG_workflow_http_admin_pw}"
+fi
+if [[ -n ${WORKFLOW_IP} ]]; then
+    WORKFLOW_URL="http://${WORKFLOW_IP}"
+fi
+
 mode=$1
 shift
 
@@ -53,6 +64,7 @@ Usage: $0 <mode> [args]
 
   cnapi [raw curl args]
   napi  [raw curl args]
+  workflow [raw curl args]
   zapi  [raw curl args]
 
 EOF
@@ -73,6 +85,16 @@ napi()
     shift
     curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" "$@" \
         || exit
+    echo ""  # sometimes the result is not terminated with a newline
+}
+
+workflow()
+{
+    path=$1
+    shift
+    curl ${CURL_OPTS} -u "${WORKFLOW_CREDENTIALS}" --url "${WORKFLOW_URL}${path}" "$@" \
+        || exit
+    echo ""  # sometimes the result is not terminated with a newline
 }
 
 zapi()
@@ -136,6 +158,9 @@ cnapi)
 ;;
 napi)
     napi "$@"
+;;
+workflow)
+    workflow "$@"
 ;;
 zapi)
     zapi "$@"
