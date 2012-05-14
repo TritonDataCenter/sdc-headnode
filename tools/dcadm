@@ -11,11 +11,13 @@ set -o xtrace
 source /lib/sdc/config.sh
 load_sdc_config
 
-CURL_OPTS="-m 10 -f -sS -i"
+CURL_OPTS="-m 10 -sS -i"
 
 # CNAPI!
 CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_cnapi_http_admin_user} && -n ${CONFIG_cnapi_http_admin_pw} ]]; then
+if [[ -n ${CONFIG_cnapi_http_admin_user}
+    && -n ${CONFIG_cnapi_http_admin_pw} ]]; then
+
     CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
 fi
 if [[ -n ${CNAPI_IP} ]]; then
@@ -24,7 +26,9 @@ fi
 
 # ZAPI!
 ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_zapi_http_admin_user} && -n ${CONFIG_zapi_http_admin_pw} ]]; then
+if [[ -n ${CONFIG_zapi_http_admin_user}
+    && -n ${CONFIG_zapi_http_admin_pw} ]]; then
+
     ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
 fi
 if [[ -n ${ZAPI_IP} ]]; then
@@ -33,7 +37,10 @@ fi
 
 # NAPI!
 NAPI_URL=${CONFIG_napi_client_url}
-if [[ -n ${CONFIG_napi_http_admin_user} && -n ${CONFIG_napi_http_admin_pw} ]]; then
+
+if [[ -n ${CONFIG_napi_http_admin_user}
+    && -n ${CONFIG_napi_http_admin_pw} ]]; then
+
     NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
 fi
 
@@ -51,6 +58,12 @@ fi
 mode=$1
 shift
 
+fatal()
+{
+    echo "$@" >&2
+    exit 1
+}
+
 usage()
 {
     cat >&2 <<EOF
@@ -61,6 +74,8 @@ Usage: $0 <mode> [args]
   list-machines
   list-networks
   list-nodes
+  sdc-zone-install <role>
+  sdc-zone-list
 
   cnapi [raw curl args]
   napi  [raw curl args]
@@ -77,6 +92,7 @@ cnapi()
     shift
     curl ${CURL_OPTS} -u "${CNAPI_CREDENTIALS}" --url "${CNAPI_URL}${path}" "$@" \
         || exit
+    echo ""  # sometimes the result is not terminated with a newline
 }
 
 napi()
@@ -103,6 +119,7 @@ zapi()
     shift
     curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" "$@" \
         || exit
+    echo ""  # sometimes the result is not terminated with a newline
 }
 
 list_machines()
@@ -138,6 +155,388 @@ list_nodes()
             -a hostname uuid memorytotalbytes)
 }
 
+add_config_ips()
+{
+    role=$1
+    admin_ip=$2
+    external_ip=$3
+
+    /usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+    [[ $? != 0 ]] && fatal "unable to mount the USB key"
+
+    for net in admin external; do
+        this_ip=$( eval echo \${$(echo ${net}_ip)} )
+        if [[ -n ${this_ip} ]]; then
+            existing_ips=$(grep "^${role}_${net}_ips=" /mnt/usbkey/config \
+                | cut -d'=' -f2 | tr -d ' ' | tr ',' ' ')
+            new_ips=$( (for ip in ${existing_ips}; do echo ${ip}; done; \
+                echo ${this_ip}) | sort | uniq | xargs | tr ' ' ',')
+            if [[ -z ${existing_ips} ]]; then
+                # remove the empty key if it exists
+                grep -v "^${role}_${net}_ips=" /mnt/usbkey/config \
+                    > /mnt/usbkey/config.new
+                echo "${role}_${net}_ips=${new_ips}" >> /mnt/usbkey/config.new
+                mv /mnt/usbkey/config.new /mnt/usbkey/config
+            elif [[ $(echo "${existing_ips}" | wc -c) \
+                -lt $(echo "${new_ips}" | wc -c) ]]; then
+
+                # new list is longer
+                sed -i "" -e \
+                    "s/^${role}_${net}_ips=.*$/${role}_${net}_ips=${new_ips}/" \
+                    /mnt/usbkey/config
+            fi
+        fi
+    done
+
+    # if the zone has its own additional update_config script, call that now
+    # it can update the /mnt/usbkey/config if it needs to, and any other
+    # config options
+    if [[ -x /usbkey/zones/${role}/update_config ]]; then
+        /usbkey/zones/${role}/update_config
+    fi
+
+    cmp /mnt/usbkey/config /usbkey/config >/dev/null 2>&1 \
+        || cp /mnt/usbkey/config /usbkey/config
+    umount /mnt/usbkey
+
+    # update zoneconfig for any zone that has these keys
+    for z in $(ls -1 /usbkey/zones); do
+        if [[ -f /usbkey/zones/${z}/zoneconfig ]]; then
+            grep "=.*${role}_.*_ips" /usbkey/zones/${z}/zoneconfig \
+                >/dev/null 2>&1 \
+                && update_zoneconfig ${z}
+        fi
+    done
+}
+
+del_config_ips()
+{
+    role=$1
+    zone_ips=$2
+
+    /usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+    [[ $? != 0 ]] && fatal "unable to mount the USB key"
+
+    admin_ips=$(grep "^${role}_admin_ips=" /mnt/usbkey/config)
+    external_ips=$(grep "^${role}_external_ips=" /mnt/usbkey/config)
+    new_admin=${admin_ips}
+    new_external=${external_ips}
+
+    for ip in ${zone_ips}; do
+        new_admin=$(echo "${new_admin}" \
+            | sed -e "s/\([=,]\)${ip},/\1/" \
+            | sed -e "s/\([=,]\)${ip}$/\1/" \
+            | sed -e "s/,$//")
+        new_external=$(echo "${new_external}" \
+            | sed -e "s/\([=,]\)${ip},/\1/" \
+            | sed -e "s/\([=,]\)${ip}$/\1/" \
+            | sed -e "s/,$//")
+    done
+
+    sed -e "s/^${role}_admin_ips=.*$/${new_admin}/" /mnt/usbkey/config \
+        | sed -e "s/^${role}_external_ips=.*$/${new_external}/" \
+        > /mnt/usbkey/config.new
+
+    if ! cmp /mnt/usbkey/config.new /mnt/usbkey/config >/dev/null 2>&1; then
+        mv /mnt/usbkey/config.new /mnt/usbkey/config
+    else
+        rm -f /mnt/usbkey/config.new
+    fi
+
+    # if the zone has its own additional update_config script, call that now
+    # it can update the /mnt/usbkey/config if it needs to, and any other
+    # config options
+    if [[ -x /usbkey/zones/${role}/update_config ]]; then
+        /usbkey/zones/${role}/update_config
+    fi
+
+    if ! cmp /mnt/usbkey/config /usbkey/config >/dev/null 2>&1; then
+        cp /mnt/usbkey/config /usbkey/config
+    fi
+
+    umount /mnt/usbkey
+
+    # update zoneconfig for any zone that has these keys
+    for z in $(ls -1 /usbkey/zones); do
+        if [[ -f /usbkey/zones/${z}/zoneconfig ]]; then
+            grep "=.*${role}_.*_ips" /usbkey/zones/${z}/zoneconfig \
+                >/dev/null 2>&1 \
+                && update_zoneconfig ${z}
+        fi
+    done
+}
+
+# TODO: something reasonable.
+next_alias()
+{
+    local zrole=$1
+
+    echo "${zrole}0"
+}
+
+add_pkg_zone_parameters()
+{
+    zrole=$1
+
+    local package=$(eval "echo \${CONFIG_${zrole}_pkg}")
+    if [[ -z ${package} ]]; then
+        fatal "${zrole}: unable to determine package."
+    fi
+
+    local pkg=
+    local idx=0
+    while [[ -n $(eval "echo \${CONFIG_pkg_${idx}}") ]]; do
+        pkg=$(eval "echo \${CONFIG_pkg_${idx}}")
+        if [[ ${pkg%%:*} == ${package} ]]; then
+            # name:ram:swap:disk:cap:nlwp:iopri
+            local ram=$(echo ${pkg} | cut -d ':' -f 2)
+            local swap=$(echo ${pkg} | cut -d ':' -f 3)
+            local disk=$(echo ${pkg} | cut -d ':' -f 4)
+            local cap=$(echo ${pkg} | cut -d ':' -f 5)
+            local nlwp=$(echo ${pkg} | cut -d ':' -f 6)
+            local iopri=$(echo ${pkg} | cut -d ':' -f 7)
+
+            [[ -n ${ram} ]] \
+                && zone_parameters="${zone_parameters}, ram: ${ram}"
+            [[ -n ${swap} ]] \
+                && zone_parameters="${zone_parameters}, max_swap: ${swap}"
+            [[ -n ${disk} ]] \
+                && zone_parameters="${zone_parameters}, quota: ${disk}"
+            [[ -n ${cap} ]] \
+                && zone_parameters="${zone_parameters}, cpu_cap: ${cap}"
+            [[ -n ${nlwp} ]] \
+                && zone_parameters="${zone_parameters}, max_lwps: ${nlwp}"
+            [[ -n ${iopri} ]] \
+                && zone_parameters="${zone_parameters}, zfs_io_priority: ${iopri}"
+        fi
+        idx=$((${idx} + 1))
+    done
+}
+
+get_zone_parameters()
+{
+    local zrole=$1
+    local setup_json="/usbkey/zones/${zrole}/setup.json"
+
+    if [[ ! -f ${setup_json} ]]; then
+        fatal \
+            "${zrole}: missing setup.json file in /usbkey/config/zones/${zrole}"
+    fi
+
+    # This is where results go!
+    zone_parameters="{ brand: 'joyent'"
+
+    local dataset=$(cat /usbkey/zones/${zrole}/dataset | head -1)
+    if [[ -z ${dataset} || ! -f /usbkey/datasets/${dataset}.dsmanifest ]]; then
+        fatal "${zrole}: has missing/invalid dataset version."
+    fi
+    dataset=$(json uuid < /usbkey/datasets/${dataset}.dsmanifest)
+    if [[ -z ${dataset} ]]; then
+        fatal "${zrole}: unable to find dataset uuid."
+    fi
+    zone_parameters="${zone_parameters}, dataset_uuid: '${dataset}'"
+    zone_parameters="${zone_parameters}, owner_uuid: '${CONFIG_ufds_admin_uuid}'"
+
+    local primary_network=$(json primary_network < ${setup_json})
+    local all_networks=$(napi /networks | json -H -a name uuid | tr ' ' ',')
+    local networks=$( (json networks | json -a) < ${setup_json} | xargs)
+    local primary_uuid=
+    local net_uuids=
+    local all_net=
+    local net=
+
+    for net in ${networks}; do
+        for all_net in ${all_networks}; do
+            if [[ ${all_net%%,*} == ${net} ]]; then
+                if [[ -z ${net_uuids} ]]; then
+                    net_uuids="\"${all_net##*,}\""
+                else
+                    net_uuids="${net_uuids},\"${all_net##*,}\""
+                fi
+            fi
+            if [[ ! -z {$primary_network} \
+                && ${all_net%%,*} == ${primary_network} ]]; then
+
+                primary_uuid=${all_net##*,}
+            fi
+        done
+    done
+
+    zone_parameters="${zone_parameters}, networks: [${net_uuids}]"
+
+    if [[ -n ${primary_uuid} ]]; then
+        zone_parameters="${zone_parameters}, primary_network: '${primary_uuid}'"
+    fi
+
+    # check for delegated dataset
+    if [[ $(json delegate_dataset < ${setup_json}) == "true" ]]; then
+        zone_parameters="${zone_parameters}, delegate_dataset: true"
+    fi
+
+    # find the next alias
+    zone_parameters="${zone_parameters}, alias: '$(next_alias ${zrole})'"
+
+    # add suff that comes from the pkg
+    add_pkg_zone_parameters ${zrole}
+}
+
+setup_zone_files()
+{
+    zrole=$1
+
+    local extra_root=/usbkey/extra
+    local assetdir=${extra_root}/${zrole}
+    local srcdir=/usbkey/zones/${zrole}
+
+    mkdir -p ${assetdir}
+    for file in backup bashrc configure fs.tar.bz2 pkgsrc restore setup; do
+    if [[ -f ${srcdir}/${file} ]]; then
+        cp -f ${srcdir}/${file} ${assetdir}/${file}
+    fi
+    done
+    cp -f /usbkey/default/*.common ${assetdir}/
+}
+
+update_zoneconfig()
+{
+    zrole=$1
+
+    in_filename=/usbkey/zones/${zrole}/zoneconfig
+    out_filename=/usbkey/extra/${zrole}/zoneconfig
+
+    if [[ ! -f ${in_filename} ]]; then
+        fatal "FATAL: ${in_filename} does not exist."
+    fi
+
+    mkdir -p /usbkey/extra/${zrole}
+
+    # (re)create the zoneconfig file
+    (
+        . /usbkey/config
+        . /usbkey/config.inc/generic
+        . ${in_filename}
+        for var in $(cat ${in_filename} \
+        | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
+        echo "${var}='${!var}'"
+        done
+    ) > ${out_filename}
+}
+
+sdc_zone_install()
+{
+    local zrole=$1
+    local networks=
+
+    if [[ -z ${zrole} ]]; then
+        usage
+    fi
+
+    zone_parameters=
+    get_zone_parameters ${zrole}
+    setup_zone_files ${zrole}
+
+    # update config that zone uses, before provision in case something changed.
+    update_zoneconfig "${zrole}"
+
+    # above we added: { ..., so now we need to close the curlies.
+    zone_parameters="${zone_parameters} }"
+
+    # create mdata temp file
+    tmpfile="/tmp/payload.$$"
+    node -e "
+        fs = require('fs');
+        us = fs.readFileSync('/usbkey/default/user-script.common', 'utf-8');
+        o = ${zone_parameters};
+        o.tags = {};
+        o.tags['smartdc_role'] = '${zrole}';
+        o.customer_metadata = {};
+        o.customer_metadata['assets-ip'] = '${CONFIG_assets_admin_ip}';
+        o.customer_metadata['user-script'] = us.toString();
+        fs.writeFileSync('${tmpfile}', JSON.stringify(o, null, 2), 'utf-8');" \
+        >&4 2>&1
+
+    if [[ $? != 0 || ! -f ${tmpfile} ]]; then
+        echo "Unable to convert user script to JSON." >&2
+        exit 1
+    fi
+
+    echo "=== BEGIN PAYLOAD ===" >&4
+    cat ${tmpfile} >&4
+    echo "===  END PAYLOAD  ===" >&4
+
+    zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} 2>&1 | tee /tmp/provision.$$ >&4
+    local uuid=$(json -H uuid < /tmp/provision.$$)
+    if [[ -z ${uuid} ]]; then
+        fatal "unable to get uuid for new ${zrole} machine."
+    fi
+
+    echo "+ Sent provision to ZAPI for ${uuid}"
+    # This may in fact be the hackiest possible way I could think up to do this
+    touch /tmp/job_status.$$.old
+    local prev_execution=
+    local chain_results=
+    local execution=
+    local job_status=
+    local loop=0
+    while [[ ${execution} != 'succeeded' && ${loop} -lt 120 ]]; do
+        local job=$(grep "^Job-Location:" /tmp/provision.$$ | cut -d ' ' -f2 | tr -d [:space:])
+        if [[ -n ${job} ]]; then
+            job_status=$(workflow ${job} | json -H)
+            echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
+            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
+            mv /tmp/job_status.$$.new /tmp/job_status.$$.old
+            execution=$(echo "${job_status}" | json execution)
+            if [[ ${execution} != ${prev_execution} ]]; then
+                echo "+ Job status changed to: ${execution}"
+                prev_execution=${execution}
+            fi
+        fi
+        sleep 0.5
+    done
+    if [[ ${execution} == "succeeded" ]]; then
+        echo "+ Success!"
+    else
+        echo "+ FAILED!"
+    fi
+
+    echo "+ Sleeping for 60 seconds (takes a while for nics to show up)"
+    sleep 60
+
+    local admin=
+    local external=
+    local result=$(zapi /machines/${uuid} | json -H nics | json -a nic_tag ip | tr ' ' '=')
+    eval "${result}"
+    if [[ -z ${admin} ]]; then
+        fatal "unable to find Admin IP for ${uuid}"
+    fi
+    add_config_ips "${zrole}" "${admin}" "${external}"
+}
+
+
+sdc_zone_list()
+{
+    local zone=
+
+    printf "%-12s %-36s  %-7s %10s %16s\n" \
+        "ALIAS" "UUID" "RAM" "STATE" "ROLE"
+
+    for zone in $(zapi /machines?owner_uuid=${CONFIG_ufds_admin_uuid} \
+        | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
+            -a alias smartdc_role state uuid ram \
+        | tr ' ' ',' | sort); do
+
+        local alias=$(echo "${zone}" | cut -d',' -f1)
+        local role=$(echo "${zone}" | cut -d',' -f2)
+        local state=$(echo "${zone}" | cut -d',' -f3)
+        local uuid=$(echo "${zone}" | cut -d',' -f4)
+        local ram=$(echo "${zone}" | cut -d',' -f5)
+
+        if [[ ${state} != "destroyed" ]]; then
+            printf "%-12s %-36s  %-7s %10s %16s\n" \
+                "${alias}" "${uuid}" "${ram}" "${state}" "${role}"
+        fi
+    done
+}
 
 if [[ -z ${mode} ]]; then
     usage
@@ -152,6 +551,12 @@ list-networks)
 ;;
 list-nodes)
     list_nodes
+;;
+sdc-zone-install)
+    sdc_zone_install "$@"
+;;
+sdc-zone-list)
+    sdc_zone_list "$@"
 ;;
 cnapi)
     cnapi "$@"
