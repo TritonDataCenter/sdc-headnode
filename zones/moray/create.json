@@ -3,7 +3,8 @@
   "autoboot": false,
   "brand": "joyent",
   "tags": {
-      "smartdc_role": "moray"
+      "smartdc_role": "moray",
+      "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"
 }

@@ -1,5 +1,5 @@
 {
-  "alias": "assets",
+  "alias": "assets0",
   "autoboot": false,
   "brand": "joyent",
   "filesystems": [
@@ -23,7 +23,8 @@
     }
   ],
   "tags": {
-      "smartdc_role": "assets"
+      "smartdc_role": "assets",
+      "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"
 }

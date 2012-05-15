@@ -1,5 +1,5 @@
 {
-  "alias": "dhcpd",
+  "alias": "dhcpd0",
   "autoboot": false,
   "brand": "joyent",
   "filesystems": [
@@ -14,7 +14,8 @@
     }
   ],
   "tags": {
-      "smartdc_role": "dhcpd"
+      "smartdc_role": "dhcpd",
+      "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"
 }

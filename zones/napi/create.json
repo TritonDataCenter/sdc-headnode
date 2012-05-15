@@ -4,7 +4,8 @@
   "brand": "joyent",
   "delegate_dataset": true,
   "tags": {
-      "smartdc_role": "napi"
+      "smartdc_role": "napi",
+      "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"
 }

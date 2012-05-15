@@ -592,15 +592,25 @@ sdc_destroy()
     local zone=
     local destroy_uuid=
     for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
-        | json -H -e 'alias=(alias || "-")' -e 'smartdc_role=(tags.smartdc_role || "-")' \
-        -a uuid smartdc_role alias | tr ' ' ','); do
+        | json -H -e 'alias=(alias || "-")' \
+        -e 'smartdc_role=(tags.smartdc_role || "-")' \
+        -e 'smartdc_type=(tags.smartdc_type || "-")' \
+        -a uuid smartdc_role smartdc_type alias | tr ' ' ','); do
 
         local uuid=${zone%%,*}
         local zrole=$(echo "${zone}" | cut -d ',' -f2)
+        local ztype=$(echo "${zone}" | cut -d ',' -f3)
         local alias=${zone##*,}
 
         if [[ -z ${zrole} || ${zrole} == "-" ]]; then
-            fatal "sdc_destroy: zone '${arg}' has no smartdc_role."
+            echo "sdc_destroy: zone '${arg}' has no smartdc_role." >&2
+            continue
+        fi
+
+        if [[ -z $(eval echo \${${zrole}_count}) ]]; then
+            eval ${zrole}_count=1
+        else
+            eval ${zrole}_count=$(($(eval \${${zrole}_count}) + 1))
         fi
 
         if [[ ${uuid} == ${arg} || ${alias} == ${arg} ]]; then
@@ -610,6 +620,10 @@ sdc_destroy()
     done
 
     [[ -z ${destroy_uuid} ]] && fatal "sdc_destroy: unable to find uuid for zone matching '${arg}'"
+
+    if [[ $(eval echo \${${zrole}_count}) -le 1 && ${ztype} == "core" ]]; then
+        fatal "Cannot remove last ${zrole} zone (this is a core zone)."
+    fi
 
     # Find the IPs that NAPI thinks the zone has so we can remove them
     local zone_ips=$(napi /nics?belongs_to_uuid=${destroy_uuid} | json -H -a ip | xargs)
