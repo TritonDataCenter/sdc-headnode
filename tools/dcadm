@@ -77,6 +77,7 @@ Usage: $0 <mode> [args]
   machine-list
   network-list
   sdc-create <role>
+  sdc-destroy <uuid|alias>
   sdc-list
   server-list
 
@@ -142,7 +143,7 @@ machine_list()
        eval ${host_mappings}
     fi
 
-    for zone in $(zapi /machines?status=active \
+    for zone in $(zapi /machines?state=active \
 	    | json -H \
         -e 'alias=(alias || "-")' \
         -a alias brand state uuid ram server_uuid \
@@ -194,8 +195,8 @@ server_list()
     printf "%-12s %36s  %7s\n" \
         $(cnapi /servers \
             | json -H \
-            -e 'memorytotalbytes=parseInt(memorytotalbytes / (1024 * 1024))' \
-            -a hostname uuid memorytotalbytes)
+            -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
+            -a hostname uuid memory_total_bytes)
 }
 
 add_config_ips()
@@ -309,12 +310,37 @@ del_config_ips()
     done
 }
 
-# TODO: something reasonable.
 next_alias()
 {
     local zrole=$1
+    local zone=
+    local idx=0
 
-    echo "${zrole}0"
+    local all_zones=$(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+        | json -H -e 'alias=(alias || "-")' -e 'smartdc_role=(tags.smartdc_role || "-")' \
+        -a smartdc_role alias | tr ' ' ',')
+
+    # 100 here for runaway protection
+    while [[ ${idx} -lt 100 ]]; do
+        local found=0
+        for zone in ${all_zones}; do
+            local role=${zone%%,*}
+            local alias=${zone##*,}
+
+            if [[ ${role} == ${zrole} && ${alias} == "${zrole}${idx}" ]]; then
+                found=1
+            fi
+        done
+
+        # if it wasn't found, we'll use this one
+        [[ ${found} == 0 ]] && break
+
+        idx=$((${idx} + 1))
+    done
+
+    [[ ${idx} == 100 ]] && fatal "next_alias(${zrole}): alias overflow"
+
+    echo "${zrole}${idx}"
 }
 
 add_pkg_zone_parameters()
@@ -506,37 +532,29 @@ sdc_create()
     echo "=== BEGIN PAYLOAD ===" >&4
     cat ${tmpfile} >&4
     echo "===  END PAYLOAD  ===" >&4
+
     provision_zone_from_payload ${tmpfile}
 
     if [[ $? == 0 ]]; then
+        # created successfully
         local admin=
         local external=
-        local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
+        local result=$(napi /nics?belongs_to_uuid=${provisioned_uuid} | json -H -a nic_tag ip | tr ' ' '=')
         eval "${result}"
         if [[ -z ${admin} ]]; then
-            fatal "unable to find Admin IP for ${uuid}"
+            fatal "unable to find Admin IP for ${provisioned_uuid}"
         fi
         add_config_ips "${zrole}" "${admin}" "${external}"
     fi
 }
 
-provision_zone_from_payload()
+# filename passed must have a 'Job-Location: ' header in it.
+watch_job()
 {
-    local tmpfile=$1
-    local verbose="$2"
-    zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} 2>&1 | tee /tmp/provision.$$ >&4
-    local uuid=$(json -H uuid < /tmp/provision.$$)
-    if [[ -z ${uuid} ]]; then
-        if [[ -n $verbose ]]; then
-            cat /tmp/provision.$$ | json -H
-            exit 1
-        else
-            fatal "unable to get uuid for new ${zrole} machine."
-        fi
-    fi
+    local filename=$1
 
-    echo "+ Sent provision to ZAPI for ${uuid}"
     # This may in fact be the hackiest possible way I could think up to do this
+    rm -f /tmp/job_status.$$.old
     touch /tmp/job_status.$$.old
     local prev_execution=
     local chain_results=
@@ -544,7 +562,7 @@ provision_zone_from_payload()
     local job_status=
     local loop=0
     while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
-        local job=$(grep "^Job-Location:" /tmp/provision.$$ | cut -d ' ' -f2 | tr -d [:space:])
+        local job=$(grep "^Job-Location:" ${filename} | cut -d ' ' -f2 | tr -d [:space:])
         if [[ -n ${job} ]]; then
             job_status=$(workflow ${job} | json -H)
             echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
@@ -567,6 +585,67 @@ provision_zone_from_payload()
     fi
 }
 
+sdc_destroy()
+{
+    local arg=$1
+
+    local zone=
+    local destroy_uuid=
+    for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+        | json -H -e 'alias=(alias || "-")' -e 'smartdc_role=(tags.smartdc_role || "-")' \
+        -a uuid smartdc_role alias | tr ' ' ','); do
+
+        local uuid=${zone%%,*}
+        local zrole=$(echo "${zone}" | cut -d ',' -f2)
+        local alias=${zone##*,}
+
+        if [[ -z ${zrole} || ${zrole} == "-" ]]; then
+            fatal "sdc_destroy: zone '${arg}' has no smartdc_role."
+        fi
+
+        if [[ ${uuid} == ${arg} || ${alias} == ${arg} ]]; then
+            [[ -n ${destroy_uuid} ]] && fatal "More than one zone found matching: '${arg}'"
+            destroy_uuid=${uuid}
+        fi
+    done
+
+    [[ -z ${destroy_uuid} ]] && fatal "sdc_destroy: unable to find uuid for zone matching '${arg}'"
+
+    # Find the IPs that NAPI thinks the zone has so we can remove them
+    local zone_ips=$(napi /nics?belongs_to_uuid=${destroy_uuid} | json -H -a ip | xargs)
+
+    zapi /machines/${destroy_uuid} -X DELETE | tee /tmp/destroy.$$ >&4
+
+    echo "+ Sent DELETE to ZAPI for ${destroy_uuid}"
+    watch_job /tmp/destroy.$$
+
+    if [[ $? == 0 ]]; then
+        # it's destroyed! Go ahead and remove IPs now.
+        del_config_ips "${zrole}" "${zone_ips}"
+    fi
+}
+
+provision_zone_from_payload()
+{
+    local tmpfile=$1
+    local verbose="$2"
+    zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} 2>&1 | tee /tmp/provision.$$ >&4
+    provisioned_uuid=$(json -H uuid < /tmp/provision.$$)
+    if [[ -z ${provisioned_uuid} ]]; then
+        if [[ -n $verbose ]]; then
+            cat /tmp/provision.$$ | json -H
+            exit 1
+        else
+            fatal "unable to get uuid for new ${zrole} machine."
+        fi
+    fi
+
+    echo "+ Sent provision to ZAPI for ${provisioned_uuid}"
+    watch_job /tmp/provision.$$
+
+    return $?
+}
+
 machine_create()
 {
     local filename=$1
@@ -579,6 +658,8 @@ machine_create()
         fatal "unable to find file '${filename}'"
     fi
     provision_zone_from_payload "${filename}" "true"
+
+    return $?
 }
 
 sdc_list()
@@ -600,7 +681,7 @@ sdc_list()
        eval ${host_mappings}
     fi
 
-    for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&status=active" \
+    for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
             -a alias smartdc_role state uuid ram server_uuid \
         | tr ' ' ',' | sort); do
@@ -638,6 +719,9 @@ network-list)
 ;;
 sdc-create)
     sdc_create "$@"
+;;
+sdc-destroy)
+    sdc_destroy "$@"
 ;;
 sdc-list)
     sdc_list "$@"
