@@ -610,19 +610,20 @@ sdc_destroy()
         if [[ -z $(eval echo \${${zrole}_count}) ]]; then
             eval ${zrole}_count=1
         else
-            eval ${zrole}_count=$(($(eval \${${zrole}_count}) + 1))
+            eval ${zrole}_count=$(($(eval echo \${${zrole}_count}) + 1))
         fi
 
         if [[ ${uuid} == ${arg} || ${alias} == ${arg} ]]; then
             [[ -n ${destroy_uuid} ]] && fatal "More than one zone found matching: '${arg}'"
             destroy_uuid=${uuid}
+            destroy_zrole=${zrole}
         fi
     done
 
     [[ -z ${destroy_uuid} ]] && fatal "sdc_destroy: unable to find uuid for zone matching '${arg}'"
 
-    if [[ $(eval echo \${${zrole}_count}) -le 1 && ${ztype} == "core" ]]; then
-        fatal "Cannot remove last ${zrole} zone (this is a core zone)."
+    if [[ $(eval echo \${${destroy_zrole}_count}) -le 1 && ${ztype} == "core" ]]; then
+        fatal "Cannot remove last ${destroy_zrole} zone (this is a core zone)."
     fi
 
     # Find the IPs that NAPI thinks the zone has so we can remove them
@@ -635,7 +636,7 @@ sdc_destroy()
 
     if [[ $? == 0 ]]; then
         # it's destroyed! Go ahead and remove IPs now.
-        del_config_ips "${zrole}" "${zone_ips}"
+        del_config_ips "${destroy_zrole}" "${zone_ips}"
     fi
 }
 
