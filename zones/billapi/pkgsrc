@@ -11,8 +11,5 @@ p5-Error-0.17016nb2
 postgresql91-client-9.1.2
 postgresql91-server-9.1.2
 pkg_alternatives-1.5
-gcc-tools-2.22
-gcc-compiler-4.6.2
-gmake-3.82nb3
 curl-7.23.1nb1
 python26-2.6.7nb2

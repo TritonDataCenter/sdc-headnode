@@ -24,13 +24,7 @@
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "moray-tarball": "moray/moray-pkg-master-.*.tar.bz2"
   , "datasets": [
-      { "name": "smartos-1.3.18"
-      , "uuid": "47e6af92-daf0-11e0-ac11-473ca1173ab0"
-      , "pkgsrc": "2010Q4"
-      , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All/"
-      , "headnode_zones": "true"
-      }
-    , { "name": "smartos-1.6.3"
+      { "name": "smartos-1.6.3"
       , "uuid": "01b2c898-945f-11e1-a523-af1afbe22822"
       , "pkgsrc": "2011Q4"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
