@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 #
+
 # Important! This is just a place-holder until we rewrite in node.
 #
 
@@ -71,13 +72,13 @@ Usage: $0 <mode> [args]
 
   == Modes ==
 
-  list-machines
-  list-networks
-  list-nodes
-  list-datasets
-  sdc-zone-install <role>
-  sdc-zone-list
-  machine-create -f <file>
+  dataset-list
+  machine-create [<file>]
+  machine-list
+  network-list
+  sdc-create <role>
+  sdc-list
+  server-list
 
   cnapi [raw curl args]
   napi  [raw curl args]
@@ -124,18 +125,44 @@ zapi()
     echo ""  # sometimes the result is not terminated with a newline
 }
 
-list_machines()
+machine_list()
 {
-    printf "%-12s %-36s  %-6s %7s %16s\n" \
-        "ALIAS" "UUID" "BRAND" "RAM" "STATE"
-    printf "%-12s %36s  %6s %7s %16s\n" \
-        $(zapi /machines \
-            | json -H \
-	    -e 'alias=(alias || "-")' \
-            -a alias uuid brand ram state)
+    printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
+        "ALIAS" "SERVER" "UUID" "BRAND" "RAM" "STATE"
+
+    # this sets the variables:
+    #
+    #  hostname_UUID=<hostname>
+    #
+    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+    host_mappings=$(cnapi /servers \
+        | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
+        | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
+    if [[ -n ${host_mappings} ]]; then
+       eval ${host_mappings}
+    fi
+
+    for zone in $(zapi /machines?status=active \
+	    | json -H \
+        -e 'alias=(alias || "-")' \
+        -a alias brand state uuid ram server_uuid \
+        | tr ' ' ',' | sort); do
+
+        local alias=$(echo "${zone}" | cut -d',' -f1)
+        local brand=$(echo "${zone}" | cut -d',' -f2)
+        local state=$(echo "${zone}" | cut -d',' -f3)
+        local uuid=$(echo "${zone}" | cut -d',' -f4)
+        local ram=$(echo "${zone}" | cut -d',' -f5)
+        local server_uuid=$(echo "${zone}" | cut -d',' -f6)
+        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
+        [[ -z ${server_name} ]] && server_name="-"
+
+        printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
+            "${alias}" "${server_name}" "${uuid}" "${brand}" "${ram}" "${state}"
+    done
 }
 
-list_networks()
+network_list()
 {
     printf "%-12s %-36s  %-4s %16s %16s\n" \
         "NAME" "UUID" "VLAN" "NETWORK" "GATEWAY"
@@ -145,7 +172,7 @@ list_networks()
             -a name uuid vlan network gateway)
 }
 
-list_datasets()
+dataset_list()
 {
     local ds
 
@@ -159,7 +186,7 @@ list_datasets()
     done
 }
 
-list_nodes()
+server_list()
 {
     # XXX I want admin_ip here but it's not in the output (yet?)
     printf "%-12s %-36s  %7s\n" \
@@ -438,7 +465,7 @@ update_zoneconfig()
     ) > ${out_filename}
 }
 
-sdc_zone_install()
+sdc_create()
 {
     local zrole=$1
     local networks=
@@ -481,16 +508,17 @@ sdc_zone_install()
     echo "===  END PAYLOAD  ===" >&4
     provision_zone_from_payload ${tmpfile}
 
-    local admin=
-    local external=
-    local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
-    eval "${result}"
-    if [[ -z ${admin} ]]; then
-        fatal "unable to find Admin IP for ${uuid}"
+    if [[ $? == 0 ]]; then
+        local admin=
+        local external=
+        local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
+        eval "${result}"
+        if [[ -z ${admin} ]]; then
+            fatal "unable to find Admin IP for ${uuid}"
+        fi
+        add_config_ips "${zrole}" "${admin}" "${external}"
     fi
-    add_config_ips "${zrole}" "${admin}" "${external}"
 }
-
 
 provision_zone_from_payload()
 {
@@ -515,7 +543,7 @@ provision_zone_from_payload()
     local execution=
     local job_status=
     local loop=0
-    while [[ ${execution} != 'succeeded' && ${loop} -lt 120 ]]; do
+    while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
         local job=$(grep "^Job-Location:" /tmp/provision.$$ | cut -d ' ' -f2 | tr -d [:space:])
         if [[ -n ${job} ]]; then
             job_status=$(workflow ${job} | json -H)
@@ -532,35 +560,49 @@ provision_zone_from_payload()
     done
     if [[ ${execution} == "succeeded" ]]; then
         echo "+ Success!"
+        return 0
     else
-        echo "+ FAILED!"
+        echo "+ FAILED! (details in ${job})"
+        return 1
     fi
 }
 
-
-create_machine()
+machine_create()
 {
-    # TODO: allow reading from stdin.
-    if [[ "$1" != "-f" ]] || [[ -z "$1" ]] || [[ -z "$2" ]]; then
-        usage
+    local filename=$1
+
+    if [[ -z ${filename} || ${filename} == "-" ]]; then
+        echo "machine_create: reading from stdin" >&2
+        filename="/dev/stdin"
     fi
-    if [[ ! -f "$2" ]]; then
-        fatal "unable to find file '$2'"
+    if [[ ! -e ${filename} ]]; then
+        fatal "unable to find file '${filename}'"
     fi
-    provision_zone_from_payload "$2" "true"
+    provision_zone_from_payload "${filename}" "true"
 }
 
-
-sdc_zone_list()
+sdc_list()
 {
     local zone=
 
-    printf "%-12s %-36s  %-7s %10s %16s\n" \
-        "ALIAS" "UUID" "RAM" "STATE" "ROLE"
+    printf "%-12s %-16s %-36s  %-7s %10s %16s\n" \
+        "ALIAS" "SERVER" "UUID" "RAM" "STATE" "ROLE"
+
+    # this sets the variables:
+    #
+    #  hostname_UUID=<hostname>
+    #
+    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+    host_mappings=$(cnapi /servers \
+        | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
+        | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
+    if [[ -n ${host_mappings} ]]; then
+       eval ${host_mappings}
+    fi
 
     for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&status=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
-            -a alias smartdc_role state uuid ram \
+            -a alias smartdc_role state uuid ram server_uuid \
         | tr ' ' ',' | sort); do
 
         local alias=$(echo "${zone}" | cut -d',' -f1)
@@ -568,9 +610,12 @@ sdc_zone_list()
         local state=$(echo "${zone}" | cut -d',' -f3)
         local uuid=$(echo "${zone}" | cut -d',' -f4)
         local ram=$(echo "${zone}" | cut -d',' -f5)
+        local server_uuid=$(echo "${zone}" | cut -d',' -f6)
+        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
+        [[ -z ${server_name} ]] && server_name="-"
 
-        printf "%-12s %-36s  %-7s %10s %16s\n" \
-            "${alias}" "${uuid}" "${ram}" "${state}" "${role}"
+        printf "%-12s %-16s %-36s  %-7s %10s %16s\n" \
+            "${alias}" "${server_name}" "${uuid}" "${ram}" "${state}" "${role}"
     done
 }
 
@@ -579,26 +624,26 @@ if [[ -z ${mode} ]]; then
 fi
 
 case ${mode} in
-list-machines)
-    list_machines
-;;
-list-networks)
-    list_networks
-;;
-list-datasets)
-    list_datasets
-;;
-list-nodes)
-    list_nodes
-;;
-sdc-zone-install)
-    sdc_zone_install "$@"
-;;
-sdc-zone-list)
-    sdc_zone_list "$@"
+dataset-list)
+    dataset_list "$@"
 ;;
 machine-create)
-    create_machine "$@"
+    machine_create "$@"
+;;
+machine-list)
+    machine_list "$@"
+;;
+network-list)
+    network_list "$@"
+;;
+sdc-create)
+    sdc_create "$@"
+;;
+sdc-list)
+    sdc_list "$@"
+;;
+server-list)
+    server_list "$@"
 ;;
 cnapi)
     cnapi "$@"
