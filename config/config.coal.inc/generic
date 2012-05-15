@@ -4,6 +4,8 @@
 
 # Pkg entry format:
 #        name:ram:swap:disk:cap:nlwp:iopri
+#
+# These must start with 0 and increment by 1.  Do not skip numbers!
 pkg_0=sdc_64:64:256:10240:100:1000:10
 pkg_1=sdc_128:128:256:10240:100:1000:10
 pkg_2=sdc_256:256:512:10240:100:1000:10
