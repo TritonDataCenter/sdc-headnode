@@ -52,6 +52,7 @@ zapi_pkg=sdc_128
 dapi_pkg=sdc_128
 cnapi_pkg=sdc_128
 napi_pkg=sdc_128
+dcapi_pkg=sdc_128
 
 ca_pkg=sdc_1024
 

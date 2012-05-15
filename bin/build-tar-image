@@ -860,6 +860,7 @@ function copy_zones
         export CNAPI_DIR=${ZONE_DIR}/cnapi
         export NAPI_DIR=${ZONE_DIR}/napi
         export MORAY_DIR=${ZONE_DIR}/moray
+        export DCAPI_DIR=${ZONE_DIR}/dcapi
     fi
 
     for zone in $(ls ${STAGE}/zones); do

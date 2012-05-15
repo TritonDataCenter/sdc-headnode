@@ -23,6 +23,7 @@
   , "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2"
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "moray-tarball": "moray/moray-pkg-master-.*.tar.bz2"
+  , "dcapi-tarball": "dcapi/dcapi-pkg-master-.*.tar.bz2"
   , "datasets": [
       { "name": "smartos-1.6.3"
       , "uuid": "01b2c898-945f-11e1-a523-af1afbe22822"
