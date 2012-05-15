@@ -74,8 +74,10 @@ Usage: $0 <mode> [args]
   list-machines
   list-networks
   list-nodes
+  list-datasets
   sdc-zone-install <role>
   sdc-zone-list
+  machine-create -f <file>
 
   cnapi [raw curl args]
   napi  [raw curl args]
@@ -141,6 +143,20 @@ list_networks()
         $(napi /networks \
             | json -H \
             -a name uuid vlan network gateway)
+}
+
+list_datasets()
+{
+    local ds
+
+    # XXX: CNAPI doesn't seem to support this right now, so get this from
+    # the usbkey for now
+    printf "%-12s %-8s %-36s\n" \
+        "NAME" "VERSION" "UUID"
+    for ds in /usbkey/datasets/*.dsmanifest; do
+        printf "%-12s %-8s %-36s\n" \
+            $(json -a name version uuid < ${ds})
+    done
 }
 
 list_nodes()
@@ -463,11 +479,32 @@ sdc_zone_install()
     echo "=== BEGIN PAYLOAD ===" >&4
     cat ${tmpfile} >&4
     echo "===  END PAYLOAD  ===" >&4
+    provision_zone_from_payload ${tmpfile}
 
+    local admin=
+    local external=
+    local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
+    eval "${result}"
+    if [[ -z ${admin} ]]; then
+        fatal "unable to find Admin IP for ${uuid}"
+    fi
+    add_config_ips "${zrole}" "${admin}" "${external}"
+}
+
+
+provision_zone_from_payload()
+{
+    local tmpfile=$1
+    local verbose="$2"
     zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} 2>&1 | tee /tmp/provision.$$ >&4
     local uuid=$(json -H uuid < /tmp/provision.$$)
     if [[ -z ${uuid} ]]; then
-        fatal "unable to get uuid for new ${zrole} machine."
+        if [[ -n $verbose ]]; then
+            cat /tmp/provision.$$ | json -H
+            exit 1
+        else
+            fatal "unable to get uuid for new ${zrole} machine."
+        fi
     fi
 
     echo "+ Sent provision to ZAPI for ${uuid}"
@@ -498,15 +535,19 @@ sdc_zone_install()
     else
         echo "+ FAILED!"
     fi
+}
 
-    local admin=
-    local external=
-    local result=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | tr ' ' '=')
-    eval "${result}"
-    if [[ -z ${admin} ]]; then
-        fatal "unable to find Admin IP for ${uuid}"
+
+create_machine()
+{
+    # TODO: allow reading from stdin.
+    if [[ "$1" != "-f" ]] || [[ -z "$1" ]] || [[ -z "$2" ]]; then
+        usage
     fi
-    add_config_ips "${zrole}" "${admin}" "${external}"
+    if [[ ! -f "$2" ]]; then
+        fatal "unable to find file '$2'"
+    fi
+    provision_zone_from_payload "$2" "true"
 }
 
 
@@ -544,6 +585,9 @@ list-machines)
 list-networks)
     list_networks
 ;;
+list-datasets)
+    list_datasets
+;;
 list-nodes)
     list_nodes
 ;;
@@ -552,6 +596,9 @@ sdc-zone-install)
 ;;
 sdc-zone-list)
     sdc_zone_list "$@"
+;;
+machine-create)
+    create_machine "$@"
 ;;
 cnapi)
     cnapi "$@"
