@@ -1365,7 +1365,7 @@ fi
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_http_admin_user=admin" >>$tmp_config
 echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "napi_admin_ip=$napi_admin_ip" >>$tmp_config
+echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
 echo >>$tmp_config
