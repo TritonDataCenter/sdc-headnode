@@ -517,7 +517,7 @@ sdc_zone_list()
     printf "%-12s %-36s  %-7s %10s %16s\n" \
         "ALIAS" "UUID" "RAM" "STATE" "ROLE"
 
-    for zone in $(zapi /machines?owner_uuid=${CONFIG_ufds_admin_uuid} \
+    for zone in $(zapi "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&status=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
             -a alias smartdc_role state uuid ram \
         | tr ' ' ',' | sort); do
@@ -528,10 +528,8 @@ sdc_zone_list()
         local uuid=$(echo "${zone}" | cut -d',' -f4)
         local ram=$(echo "${zone}" | cut -d',' -f5)
 
-        if [[ ${state} != "destroyed" ]]; then
-            printf "%-12s %-36s  %-7s %10s %16s\n" \
-                "${alias}" "${uuid}" "${ram}" "${state}" "${role}"
-        fi
+        printf "%-12s %-36s  %-7s %10s %16s\n" \
+            "${alias}" "${uuid}" "${ram}" "${state}" "${role}"
     done
 }
 
