@@ -24,6 +24,9 @@ install_agents=true
 
 initial_script=scripts/headnode.sh
 
+# Positive offset from UTC 0. Used to calculate cron job start times.
+utc_offset=0
+
 # Agents will be installed here
 agents_root=/opt/smartdc/agents
 zonetracker_database_path=/opt/smartdc/agents/db/zonetracker.sqlite3
