@@ -44,6 +44,7 @@ if [[ -f "/lib/sdc/config.sh" ]]; then
     load_sdc_config
     UFDS_CREDENTIALS="$CONFIG_ufds_ldap_root_dn:$CONFIG_ufds_ldap_root_pw"
     UFDS_ADMIN_UUID="$CONFIG_ufds_admin_uuid"
+    UFDS_HOST="${CONFIG_ufds_admin_ips%%,*}"
 else
     if [[ -z "$UFDS_CREDENTIALS" ]]; then
         UFDS_CREDENTIALS=cn=root:secret
@@ -53,12 +54,12 @@ else
     fi
 fi
 if [[ -z "$UFDS_HOST" ]]; then
-    UFDS_HOST=$(sdc-mapi /customers/$UFDS_ADMIN_UUID/zones/ufds0 | json -H ips.1.address)
+    echo "Unable to find UFDS host." >&2
+    exit 1
 fi
 if [[ -z "$UFDS_PORT" ]]; then
     UFDS_PORT=636
 fi
-
 
 ufds_dn=$(echo "$UFDS_CREDENTIALS" | cut -d: -f1)
 ufds_pw=$(echo "$UFDS_CREDENTIALS" | cut -d: -f2)

@@ -8,7 +8,6 @@
 already_checked=""
 
 . /lib/sdc/config.sh
-. /smartdc/lib/sdc-common
 
 res=0
 parseflag=false
@@ -17,6 +16,14 @@ PATH=/opt/smartdc/agents/bin:$PATH
 load_sdc_sysinfo
 load_sdc_config_filename
 load_sdc_config
+
+#
+# Print an error message and exit
+#
+function fatal() {
+  echo "$*" >&2
+  exit 1
+}
 
 #
 # Prints a separator for friendly output
