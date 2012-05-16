@@ -1,0 +1,62 @@
+# sdc-ldap(1) -- light wrapper around ldap* commands for this datacenter's LDAP
+
+
+## SYNOPSIS
+
+sdc-ldap [-v] COMMAND ARGS
+
+
+## DESCRIPTION
+
+This is a light convenience wrapper around some of the "ldap*" commands
+(e.g. "ldapsearch ...") for calling the Smart Data Center LDAP server.
+
+For example:
+
+    $ sdc-ldap search login=admin
+    dn: uuid=930896af-bf8c-48d4-885c-6573a94b1853, ou=operators, o=smartdc
+    cn: Admin
+    email: user@joyent.com
+    login: admin
+    objectclass: sdcperson
+    sn: User
+    uuid: 930896af-bf8c-48d4-885c-6573a94b1853
+
+
+
+## COMMANDS
+
+`search`
+    call 'ldapsearch' with appropriate connection/auth args
+
+`modify`
+    call 'ldapmodify' with appropriate connection/auth args
+
+`add`
+    call 'ldapadd' with appropriate connection/auth args
+
+`delete`, `del`, `rm`
+    call 'ldapdelete' with appropriate connection/auth args
+
+`whoami`
+    call 'ldapwhoami' (if available)
+
+
+## OPTIONS
+
+`-v`
+    Show the "ldap*" command that is being issued. If used this option must
+    but the first argument.
+
+Any additional options and arguments supported by the particular "ldap*"
+command may be used.
+
+
+## COPYRIGHT
+
+sdc-ldap Copyright (c) 2011 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+ldapsearch (1), ldapadd (1), ldapwhoami (1), ldapdelete (1), ldapmodify (1)

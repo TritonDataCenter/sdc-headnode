@@ -1,0 +1,16 @@
+.TH "sdc\-phonehome" "1" "June 2011" "" ""
+.
+.SH "NAME"
+\fBsdc-phonehome\fR \-\- collect status of the headnode and upload the result
+.
+.SH "SYNOPSIS"
+\fBsdc\-phonehome\fR
+.
+.SH "DESCRIPTION"
+This utility will collect the status of the headnode and upload it using
+\fBsdc-sbupload(1)\fR.  The command collects the datacenter configuration
+settings, the MAPI /servers, /networks and /zones data and the kstat
+system_misc results on each node.
+
+.SH "COPYRIGHT"
+sdc\-phonehome Copyright (c) 2011 Joyent Inc\., All rights reserved\.

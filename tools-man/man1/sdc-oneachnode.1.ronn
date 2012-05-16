@@ -1,0 +1,64 @@
+# sdc-oneachnode(1) -- Run a command on each node in the Smart Data Center
+
+
+## SYNOPSIS
+
+`sdc-oneachnode [-t|-T timeout] [-g|-p file] [-d dir]
+               [-n node[,node,..]] [-cjv] [cmd]`
+
+
+## DESCRIPTION
+
+Run the given command on each node (headnode and compute nodes) in the data
+center.
+
+## OPTIONS
+
+`-c`, `--computeonly`
+    Only execute on compute nodes, i.e. exclude the headnode.
+
+`-d`, `--dir`
+    Directory in which to write files delivered via `-g` or `-p`
+
+`-g` <file>, `--get` <file>
+    Have nodes get the specified file from this node
+
+`-j`, `--json`
+    Force JSON output
+
+`-n`, `--node`
+    Node (or comma-separated list of nodes) on which to execute
+    (hostname or UUID)
+
+`-p` <file>, `--put` <file>
+    Have nodes put the specified file to this node
+
+`-t`, `--timeout`
+    Timeout (in seconds) for node discovery
+
+`-T`, `--exectimeout`
+    Timeout (in seconds) for command execution on discovered nodes
+
+`-v`, `--verbose`
+    Set verbosity
+
+`-x`, `--exclude`
+    Exclude nodes specified via `-n`
+
+## EXIT STATUS
+
+The exit status returned is the highest exit status from the commands run
+on designated nodes.  Therefore, if all commands succeed (that is, have a
+zero exit status), the exit status is zero -- but if any one fails, the
+exit status is non-zero (and specifically, the highest exit status returned).
+Further, the exit status will be non-zero if any command is timed out
+or if any other error is encountered.
+
+## COPYRIGHT
+
+sdc-oneachnode Copyright (c) 2011 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+curl (1), json (1)

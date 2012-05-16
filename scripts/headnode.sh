@@ -219,6 +219,9 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin
     cp /usbkey/tools/* /opt/smartdc/bin
     chmod 755 /opt/smartdc/bin/*
+    mkdir -p /opt/smartdc/man
+    cp -R /usbkey/tools-man/* /opt/smartdc/man/
+    find /opt/smartdc/man/ -type f -exec chmod 444 {} \;
 fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."

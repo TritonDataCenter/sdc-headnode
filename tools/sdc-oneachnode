@@ -1,0 +1,607 @@
+#!/usr/bin/env node
+
+/*
+ * Copyright (c) 2011, Joyent Inc. All rights reserved.
+ */
+
+amqp = require('amqp');
+sys = require('util');
+http = require('http');
+fs = require('fs');
+execFile = require('child_process').execFile;
+
+var requestID = function ()
+{
+        return (Math.floor(Math.random() * 0xffffffff).toString(16));
+};
+
+var sysinfoID = requestID();
+var execID = requestID();
+var outstanding = 0;
+var nodes_outstanding;
+var dispatched = 0;
+var results = {};
+var cmd = 'sdc-oneachnode';
+var start = new Date().valueOf();
+var exchange;
+var last;
+var config;
+var connection;
+var writable = true;
+
+var options = {
+	computeonly: { option: 'c', value: false,
+	    usage: 'only execute on compute nodes' },
+	dir: { option: 'd', value: '/tmp',
+	    usage: 'directory in which to write files' },
+	get: { option: 'g', value: '',
+	    usage: 'have nodes get the specified file from this node' },
+	json: { option: 'j', value: false,
+	    usage: 'force JSON output' },
+	node: { option: 'n', value: {},
+	    usage: 'node (or comma-separated list of nodes) on which to\n' +
+	    'execute (hostname or UUID)' },
+	put: { option: 'p', alias: 'f', value: '',
+	    usage: 'have nodes put the specified file to this node' },
+	timeout: { option: 't', value: 10,
+	    usage: 'timeout (in seconds) for node discovery' },
+	exectimeout: { option: 'T', value: 60,
+	    usage: 'timeout (in seconds) for command execution on ' +
+	    'discovered\nnodes' },
+	verbose: { option: 'v', value: false,
+	    usage: 'set verbosity' },
+	exclude: { option: 'x', value: false,
+	    usage: 'exclude nodes specified via -n' },
+	command: { value: '' }
+};
+
+var exit = function (code, asynchronous)
+{
+	var exiting = {};
+
+	/*
+	 * Unfortunately, node's process.exit() does no flushing of output
+	 * for us.  And because we have scattered state that we don't want to
+	 * bother cleaning up to induce a proper exit, to correctly exit we
+	 * need to not actually exit until stdout is known to be writable
+	 * (indicating that it has been successfully flushed).
+	 */
+	if (writable)
+		process.exit(code);
+
+	setTimeout(function () { exit(code, true); }, 10);
+
+	if (asynchronous)
+		return;
+
+	/*
+	 * If we have been called synchronously, callers are expecting exit()
+	 * to not return.  To effect this, we throw a bogus exception and
+	 * then use an installed uncaughtException listener to catch this
+	 * sentinel and ignore it -- which allows I/O to be asynchronously
+	 * flushed and process.exit() to be ultimately called.
+	 */
+	process.addListener('uncaughtException', function (err) {
+		if (err === exiting)
+			return;
+
+		process.stderr.write(cmd + ': uncaught exception: ' +
+		    sys.inspect(err) + '\n');
+		process.exit(1);
+	});
+
+	throw (exiting);
+};
+
+process.stdout.on('drain', function () { writable = true; });
+
+var emit = function (str)
+{
+	writable = process.stdout.write(str + '\n');
+};
+
+var usage = function (msg)
+{
+	var indent = new Array(24).join(' ');
+	emit(cmd + ': ' + msg);
+	emit('Usage: ' + cmd +
+	    ' [-t|-T timeout] [-g|-p file] [-d dir] [-n node[,node,..]]\n' +
+	    '                      [-cjv] [cmd]\n');
+
+	for (opt in options) {
+		var option = options[opt], usage;
+
+		if (!option.usage)
+			continue;
+
+		usage = option.usage.split('\n').join('\n' + indent);
+		emit('  -' + option.option + ', --' + opt +
+		    new Array(16 - opt.length).join(' ') + usage);
+	}
+
+	exit(1);
+};
+
+var warn = function (msg)
+{
+	emit(cmd + ': warning: ' + msg);
+};
+
+var fatal = function (msg)
+{
+	emit(cmd + ': ' + msg);
+	exit(1);
+};
+
+var parseOptions = function ()
+{
+	var i, j, k, opt;
+
+	var optusage = function (o, msg) { usage('\'' + o + '\' ' + msg); };
+	var optcheck = function (o, found) {
+		if (!found)
+			optusage(o, 'is not a valid option');
+
+		if (found.present)
+			optusage(o, 'is present more than once');
+
+		found.present = true;
+	};
+
+	for (i = 2; i < process.argv.length; i++) {
+		var arg = process.argv[i];
+		var found = undefined, o;
+
+		if (arg.indexOf('-') != 0) {
+			options.command.value = process.argv.slice(i).join(' ');
+			break;
+		}
+
+		if (arg.substr(0, 2) == '--') {
+			/*
+			 * This is a long-form option.
+			 */
+			o = arg.substr(2).split('=')[0];
+			arg = arg.split('=')[1];
+
+			optcheck(o, found = options[o]);
+
+			if (!arg) {
+				if (typeof (found.value) != 'boolean')
+					optusage(o, 'requires an argument');
+
+				found.value = true;
+				continue;
+			}
+		} else {
+			for (j = 1; j < arg.length; j++) {
+				o = arg.charAt(j);
+
+				for (opt in options) {
+					if (options[opt].option == o ||
+					    options[opt].alias == o) {
+						found = options[opt];
+						break;
+					}
+				}
+
+				optcheck(o, found);
+
+				if (typeof (found.value) == 'boolean') {
+					found.value = true;
+					continue;
+				}
+
+				break;
+			}
+
+			if (j == arg.length)
+				continue;
+
+			if (j != arg.length - 1 || i == process.argv.length - 1)
+				optusage(o, 'requires an argument');
+
+			arg = process.argv[++i];
+		}
+
+		if (typeof (found.value) == 'boolean') {
+			if (arg == 'true') {
+				found.value = true;
+			} else if (arg == 'false') {
+				found.value = false;
+			} else {
+				optusage(o, 'must be \'true\' or \'false\'');
+			}
+
+			continue;
+		}
+
+		if (typeof (found.value) == 'string') {
+			found.value = arg;
+			continue;
+		}
+
+		if (typeof (found.value) == 'object') {
+			var vals = arg.split(',');
+
+			found.items = vals.length;
+			for (k = 0; k < vals.length; k++)
+				found.value[vals[k]] = true;
+			continue;
+		}
+
+		found.value = parseInt(arg, 10);
+
+		if (found.value + '' != arg)
+			optusage(o, 'requires an integer argument');
+	}
+};
+
+var verbose = function (msg)
+{
+	if (options.verbose.value)
+		emit(cmd + ': ' + msg);
+};
+
+var nodename = function (node)
+{
+	return (node.sysinfo.UUID + ' (' + node.sysinfo.Hostname + ')');
+};
+
+var output = function ()
+{
+	var json = options.json.value, terse = true;
+	var pad = function (str, width) {
+		var rval = str + '', i;
+
+		for (i = (str + '').length; i < width; i++)
+			rval += ' ';
+
+		return (rval);
+	};
+
+	var output = [];
+	var i, status = 0;
+
+	if (options.node.present && !dispatched)
+		fatal('specified node(s) invalid or not responding');
+
+	/*
+	 * We set our exit status to be the maximum of our exit status codes,
+	 * assuring that if a command fails, we fail accordingly.
+	 */
+	for (node in results) {
+		if (results[node].result &&
+		    results[node].result.exit_status > status)
+			status = results[node].result.exit_status;
+	}
+
+	if (json) {
+		for (node in results)
+			output.push(results[node]);
+
+		emit(JSON.stringify(output));
+		exit(status);
+	}
+
+	/*
+	 * If we have asked for human-readable output, take a pass through all
+	 * of our results to see they are all on a single line.
+	 */
+	for (node in results) {
+		if (!results[node].result)
+			continue;
+
+		output.push({ node: node, result: results[node] });
+
+		if (!results[node].output ||
+		    results[node].result.exit_status != 0) {
+			results[node].output = results[node].result.stdout +
+			    results[node].result.stderr;
+		}
+
+		var s = results[node].output.split('\n');
+
+		if (s.length > 2 || (s.length == 2 && s[s.length - 1] != ''))
+			terse = false;
+	}
+
+	output.sort(function (l, r) { return (l.node.localeCompare(r.node)); });
+
+	if (terse)
+		emit(pad('HOST', 20) + ' OUTPUT');
+
+	for (i = 0; i < output.length; i++) {
+		var node = output[i].node;
+		var result = output[i].result;
+
+		if (!result.result) {
+			warn('no response from ' + nodename(result));
+			continue;
+		}
+
+		if (terse) {
+			emit(pad(result.sysinfo.Hostname, 20) +
+			    ' ' + result.output.split('\n')[0]);
+			continue;
+		}
+
+		emit('=== Output from ' + nodename(result) + ':');
+		emit(result.output.toString());
+	}
+
+	exit(status);
+};
+
+var onReply = function (m, headers, deliveryInfo)
+{
+	var key = deliveryInfo.routingKey.split('.');
+	var command = options.command.value;
+	var shell = '#!/bin/bash\n\nexport PATH=' + process.env.PATH + '\n\n';
+	var node = options.node.value;
+	var exclude = options.exclude.value;
+	var timedout = { stderr: '<Command timed out>', stdout: '',
+	    exit_status: 127 };
+
+	verbose('received: ' + sys.inspect(m, false, null));
+
+	if (key[3] == sysinfoID || key[1] === 'startup') {
+		if (options.computeonly.value &&
+		    m['Boot Parameters'] && m['Boot Parameters'].headnode) {
+			return;
+		}
+
+		if (options.node.present) {
+			if (!exclude && !node[m.Hostname] && !node[m.UUID])
+				return;
+
+			if (exclude && (node[m.Hostname] || node[m.UUID]))
+				return;
+		}
+
+		/*
+		 * This is a reply to our sysinfo request.  We will now send
+		 * out the actual command to execute.
+		 */
+		results[key[2]] = { sysinfo: m, result: timedout };
+		exchange.publish('ur.execute.' + key[2] + '.' + execID,
+		    { type: 'script', script: shell + command,
+		    args: [], env: {} });
+		outstanding++;
+		dispatched++;
+		last = new Date().valueOf();
+	}
+
+	if (key[3] == execID) {
+		/*
+		 * This is a reply to our request to execute the command;
+		 * if we have no outstanding commands and the timeout has
+		 * elapsed, we dump our output.
+		 */
+		var now = new Date().valueOf();
+
+		results[key[2]].result = m;
+
+		outstanding--;
+		if (options.node.present) {
+			// if we've given an explicit list of nodes, output when all of
+			// those have responded.
+			if (--nodes_outstanding == 0) {
+				output();
+			}
+		} else if (outstanding == 0 && now - start >
+		    options.timeout.value * 1000) {
+			output();
+		}
+	}
+};
+
+var onReady = function ()
+{
+	exchange = connection.exchange('amq.topic', { type: 'topic' });
+	var queue = connection.queue('ur.oneachnode.' + Math.random());
+
+	queue.addListener('open', function () {
+		/*
+		 * We want to bind the routing key to our queue that will
+		 * allow us to receive all execute-reply messages.
+		 */
+		queue.bind('amq.topic', 'ur.execute-reply.*.*');
+		queue.bind('amq.topic', 'ur.startup.*');
+
+		queue.subscribeJSON(onReply);
+
+		verbose('broadcasting sysinfo request to ' + sysinfoID);
+
+		/*
+		 * Send out the sysinfo broadcast.
+		 */
+		exchange.publish('ur.broadcast.sysinfo.' + sysinfoID, {});
+	});
+};
+
+/*
+ * To enable file transfer between the head-node and one or more compute nodes,
+ * we hang out the shingle for HTTP GETs or PUTs, as designated.  To get a
+ * a file on a compute node, we will only return the file specified via -g;
+ * To put a file from a compute node, we will only accept a PUT if it is to the
+ * request ID we select for execution, and will only store the files in the
+ * specified directory, with each file named with the UUID of the compute node
+ * from which the file was retrieved.
+ */
+var enableHTTP = function ()
+{
+	var socket, local, size, pump, method;
+	var keepalive = function () { last = new Date().valueOf(); };
+
+	var get = function (req, res, url) {
+		var input;
+
+		verbose('downloading ' + size + ' bytes to node ' + url[2]);
+
+		input = fs.createReadStream(options.get.value);
+
+		input.addListener('data', keepalive);
+		input.addListener('end', function () {
+			outstanding--;
+			results[url[2]].output = '<Successfully got ' +
+			    options.get.value + ' as ' + local + '>';
+			verbose('download to ' + local + ' on node ' +
+			    url[2] + ' completed');
+		});
+
+		res.writeHead(200, { 'Content-Length': size });
+		sys.pump(input, res);
+	};
+
+	var put = function (req, res, url) {
+		var filename = options.dir.value + '/' + url[2];
+		var output;
+
+		verbose('uploading to ' + filename);
+
+		output = fs.createWriteStream(filename);
+
+		output.addListener('close', function () {
+			outstanding--;
+			results[url[2]].output = '<Successfully put ' +
+			    options.put.value + ' as ' + filename + '>';
+			verbose('upload to ' + filename + ' completed');
+		});
+
+		req.addListener('data', keepalive);
+		req.addListener('end', function () {
+			res.writeHead(200);
+			res.end();
+			output.destroySoon();
+		});
+
+		sys.pump(req, output);
+	};
+
+	var server = http.createServer(function (req, res) {
+		verbose('received ' + req.method + ' of ' + req.url +
+		    ' from ' + req.connection.remoteAddress);
+
+		if (req.method != method) {
+			res.writeHead(405, 'only ' + method + ' supported');
+			res.end();
+			return;
+		}
+
+		var url = req.url.split('/');
+
+		if (url.length != 3) {
+			res.writeHead(404, 'expected UUID');
+			res.end();
+			return;
+		}
+
+		if (url[1] != execID || !results[url[2]]) {
+			res.writeHead(404, 'invalid request ID');
+			res.end();
+			return;
+		}
+
+		keepalive();
+		outstanding++;
+
+		pump(req, res, url);
+	});
+
+	/*
+	 * Look for an available socket on which to listen.
+	 */
+	for (socket = 32411; socket < 33000; socket++) {
+		try {
+			server.listen(socket);
+			break;
+		} catch (err) {
+			continue;
+		}
+	}
+
+	if (options.get.present) {
+		pump = get;
+		method = 'GET';
+
+		local = options.dir.value + '/' +
+		    options.get.value.split('/').pop();
+
+		try {
+			size = fs.statSync(options.get.value).size;
+		} catch (err) {
+			fatal(err);
+		}
+
+		options.command.value = 'if [ -f ' + local + ' ]; ' +
+		    ' then echo "<' + local + ' exists; aborting>"; ' +
+		    ' exit 1 ; fi\n';
+
+		options.command.value += 'curl -f http://' + config.admin_ip +
+		    ':' + socket + '/' + execID + '/`sysinfo | json UUID`' +
+		    ' -o ' + local;
+
+		/*
+		 * On failure, we want to delete any partial file.
+		 */
+		options.command.value += '\nstatus=$?\n';
+		options.command.value += 'if [ $status -ne 0 ]; then ' +
+		    'rm ' + local + '; fi\n';
+		options.command.value += 'exit $status'
+	} else {
+		pump = put;
+		method = 'PUT';
+
+		options.command.value = 'curl -fX PUT --data-binary @' +
+		    options.put.value + ' http://' + config.admin_ip + ':' +
+		    socket + '/' + execID + '/`sysinfo | json UUID`';
+	}
+
+};
+
+execFile('/bin/bash',
+    [ '/lib/sdc/config.sh', '-json' ], function (error, stdout, stderr) {
+	if (error) {
+		warn('couldn\'t read config: ' + stderr.toString());
+		exit(1);
+	}
+
+	config = JSON.parse(stdout.toString());
+
+	parseOptions();
+
+	if (options.get.present && options.put.present)
+		usage('cannot both get and put a file');
+
+	if (options.get.present || options.put.present) {
+		if (options.command.value != '')
+			usage('cannot specify both a file and a command');
+
+		enableHTTP();
+	} else if (options.command.value == '') {
+		usage('must specify a command');
+	}
+
+	if (options.node.present) {
+		nodes_outstanding = options.node.items;
+	}
+
+	var r = config.rabbitmq.split(':');
+	var creds = { login: r[0], password: r[1], host: r[2], port: r[3] };
+
+	connection = amqp.createConnection(creds);
+	connection.addListener('ready', onReady);
+
+	var id = setInterval(function () {
+		var now = new Date().valueOf();
+		var timeout = options.timeout.value * 1000;
+		var exectimeout = options.exectimeout.value * 1000;
+
+		if ((outstanding == 0 && now - start > timeout) ||
+		    (outstanding && now - last > exectimeout)) {
+			clearTimeout(id);
+			output();
+		}
+	}, 1000);
+});

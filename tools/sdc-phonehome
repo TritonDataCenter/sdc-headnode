@@ -1,0 +1,117 @@
+#!/bin/bash
+
+#
+# Copyright (c) 2012, Joyent Inc. All rights reserved.
+#
+
+set -o errexit
+set -o pipefail
+
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
+
+BIN=$(cd $(dirname $0); pwd)
+
+function mapi
+{
+	local label=`echo $1 | cut -d/ -f2-`
+	local cred=$CONFIG_mapi_http_admin_user:$CONFIG_mapi_http_admin_pw
+	local url=http://${CONFIG_mapi_admin_ip}$1
+
+	#
+	# Before we set this to be the array that is the result, check to
+	# see that the number of resources is non-zero; if it's zero, set
+	# it to an empty array.
+	#
+	local count=$(curl -fsIu "$cred" --url "$url" | tr '\r' '\n' | \
+	    grep X-Joyent-Resource-Count | nawk '{ print $2 }')
+
+	echo '"'$label'": '
+
+	if [[ "$count" == "0" ]]; then
+		echo "[],"
+		return
+	fi
+
+	curl -fsu "$cred" --url "$url"
+	echo ','
+}
+
+function config
+{
+	local configvar=CONFIG_$1
+	echo \"$1\": \"${!configvar}\",
+}
+
+function gather
+{
+	echo '{ "config": {'
+	config datacenter_name
+	config datacenter_company_name
+	config datacenter_location
+	config datacenter_headnode_id
+	echo '"UUID": "'${uuid}'" }',
+
+	mapi /servers
+	mapi /networks
+	mapi /zones
+	echo '"nodes":'
+	${BIN}/sdc-oneachnode -jT 10 -t 10 kstat -pn system_misc
+	echo '}'
+}
+
+source /lib/sdc/config.sh
+load_sdc_config
+
+#
+# Phonehome only runs on headnodes.
+#
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && exit 0
+
+dir=/opt/smartdc/phonehome
+err=$dir/sdc-phonehome.err
+mkdir -p $dir
+
+if [[ "$CONFIG_coal" == "true" ]]; then
+	suffix=.coal
+else
+	suffix=
+fi
+
+exec 2> $err
+
+#
+# Now that we have stderr redirected, enable xtrace
+#
+set -o xtrace
+
+uuid=`sysinfo | json UUID`
+output=$dir/sdc-phonehome.${uuid}.latest
+upfile=$dir/sdc-phonehome${suffix}
+gather > $output
+
+cat $output | json 1> /dev/null
+
+#
+# We keep a report for the last month, plus one for each of the past 12
+# months, plus one for each of the past years.
+#
+cp $output $dir/sdc-phonehome.${uuid}.year-`TZ=UTC date "+%Y"`
+cp $output $dir/sdc-phonehome.${uuid}.month-`TZ=UTC date "+%m"`
+cp $output $dir/sdc-phonehome.${uuid}.day-`TZ=UTC date "+%d"`
+
+#
+# Phonehome shouldn't upload automatically if it has been explicitly turned off.
+#
+[[ $CONFIG_phonehome_automatic == "false" ]] && exit 0
+
+[[ -h $upfile ]] && rm $upfile
+ln -s $output $upfile
+( cd $dir && sdc-sbupload `basename $upfile` ) || false
+rm $upfile
+
+#
+# Note that we will only remove the error file if we successfully uploaded
+# our phone-home data.
+#
+rm $err

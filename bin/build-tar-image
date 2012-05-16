@@ -24,6 +24,7 @@ if [[ -z "$THIS_TIMESTAMP" ]]; then
 fi
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
+RONNJS="${ROOT}/bin/ronnjs/bin/ronn.js"
 
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
@@ -896,9 +897,24 @@ function copy_zones
 
 function copy_tools
 {
+    set -o xtrace
     if [[ -d ${ROOT}/tools ]]; then
         cp -r ${ROOT}/tools ${STAGE}/tools
     fi
+
+    if [[ -x ${RONNJS} ]]; then
+        for file in $(find ${ROOT}/tools-man/ -name "*.ronn"); do
+            ${RONNJS} --roff --build ${file} --date `git log -1 --date=short --pretty=format:'%cd' ${file}` `date +%Y`
+        done
+    else
+        fatal "unable to build man pages, missing: ${RONNJS}"
+    fi
+
+    mkdir -p ${STAGE}/tools-man
+    for file in $(cd ${ROOT}/tools-man && find . -type f -name "*.roff"); do
+        mkdir -p ${STAGE}/tools-man/$(dirname ${file})
+        cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
+    done
 }
 
 function copy_webinfo

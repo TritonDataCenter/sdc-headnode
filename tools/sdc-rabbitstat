@@ -1,0 +1,207 @@
+#!/usr/bin/env node
+
+/*
+ * Copyright (c) 2011, Joyent Inc. All rights reserved.
+ */
+
+http = require('http');
+fs = require('fs');
+execFile = require('child_process').execFile;
+
+var cmd = 'sdc-rabbitstat';
+var stats = [ {} ];
+var gen = 0;
+var head = 0;
+
+var warn = function (msg)
+{
+	console.log(cmd + ': warning: ' + msg);
+};
+
+var fatal = function (msg)
+{
+	console.log(cmd + ': ' + msg);
+	process.exit(1);
+};
+
+var usage = function (msg)
+{
+	console.log('Usage: ' + cmd + ' [-c]\n');
+
+	var opt = function (o, msg) {
+		console.log('        -' + o + '  ' + msg);
+	};
+
+	opt('c', 'emit curl command to get RabbitMQ management API ' +
+	    'overview and exit');
+
+	process.exit(1);
+};
+
+var output = function (latency)
+{
+	var pad = function (str, width) {
+		var rval = '', i;
+
+		str = str + '';
+
+		for (i = 0; i < width - str.length; i++)
+			rval += ' ';
+
+		rval += str;
+
+		return (rval);
+	};
+
+	var f, fields = {
+		'latency': { latency: true, sep: true },
+		'publish': {},
+		'ack': { sep: true },
+		'get': { field: 'deliver_get' },
+		' ack': { field: 'deliver' },
+		'no-ack': { field: 'deliver_no_ack', sep: true },
+		'msg': { field: 'messages', queue: true },
+		'ready': { field: 'messages_ready', queue: true },
+		'unack': { field: 'messages_unacknowledged', queue: true },
+	};
+
+	for (f in fields) {
+		if (!fields[f].hasOwnProperty('width'))
+			fields[f].width = 7;
+
+		if (!fields[f].hasOwnProperty('field'))
+			fields[f].field = f;
+	}
+
+	if ((head++ % 10) == 0) {
+		var header = '';
+		for (f in fields) {
+			if (header != '')
+				header += ' ';
+
+			header += pad(f, fields[f].width);
+
+			if (fields[f].sep)
+				header += ' |';
+		}
+
+		console.log(header);
+	}
+ 
+	var line = '';
+
+	for (f in fields) {
+		var val, oval;
+
+		if (fields[f].latency) {
+			val = latency + 'ms';
+		} else {
+			var obj = fields[f].queue ?
+			    'queue_totals' : 'message_stats';
+
+			val = stats[gen][obj][fields[f].field];
+
+			if (!fields[f].queue) {
+				oval = stats[gen ^ 1][obj][fields[f].field];
+				val = val - oval;
+
+				/*
+				 * Somewhat amazingly, the management plugin
+				 * statistics do not increase monotonically.
+				 * In particular, when one disables cainstsvc,
+				 * the "publish" field goes backwards. (!)
+				 * If we see a negative value, we'll simply
+				 * print a dash for the field.
+				 */
+				if (val < 0)
+					val = '-';
+			}
+		}
+
+		if (line != '')
+			line += ' ';
+
+		line += pad(val, fields[f].width);
+
+		if (fields[f].sep)
+			line += ' :';
+	}
+
+	console.log(line);
+};
+
+var request = function (creds, done)
+{
+	var options = { 
+		host: creds.host,
+		port: creds.port,
+		path: '/api/overview',
+		headers: {
+			Authorization: 'Basic ' + new Buffer(creds.login +
+			    ':' + creds.password).toString('base64'),
+			Connection: 'Keep-Alive'
+		}
+	};
+
+	var data = '';
+	var sent = (new Date()).valueOf();
+	var received = undefined;
+
+	var req = http.get(options, function (res) {
+		received = (new Date()).valueOf();
+		res.setEncoding('utf8');
+		res.on('data', function (chunk) { data += chunk; });
+
+		res.on('end', function () {
+			if (gen >= stats.length)
+				stats.push({});
+
+			stats[gen] = JSON.parse(data);
+			stats[gen].sent = sent;
+			stats[gen].received = received;
+
+			if (stats.length == 2)
+				output(received - sent);
+
+			gen ^= 1;
+			done();
+		});
+	});
+};
+
+execFile('/bin/bash',
+    [ '/lib/sdc/config.sh', '-json' ], function (error, stdout, stderr) {
+	var outstanding = false;
+
+	if (error) {
+		warn('couldn\'t read config: ' + stderr.toString());
+		process.exit(1);
+	}
+
+	config = JSON.parse(stdout.toString());
+
+	var r = config.rabbitmq.split(':');
+	var creds = { login: r[0], password: r[1], host: r[2], port: r[3] };
+	
+	/*
+	 * By default, the statistics port is the AMQP port + 50000.
+	 */
+	creds.port = 50000 + parseInt(creds.port);
+
+	if (process.argv.length > 2) {
+		if (process.argv[2] != '-c')
+			usage();
+
+		console.log('curl -iX GET -u ' + creds.login + ':' +
+		    creds.password + ' http://' + creds.host + ':' +
+		    creds.port + '/api');
+		process.exit(0);
+	}
+
+	setInterval(function () {
+		if (!outstanding) {
+			outstanding = true;
+			request(creds, function () { outstanding = false });
+		}
+	}, 1000);
+});

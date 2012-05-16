@@ -1,0 +1,68 @@
+# sdc-dsapi(1) -- call the configured Smart Data Center Dataset API
+
+
+## SYNOPSIS
+
+`sdc-dsapi [-v] URLPATH [CURL-OPTIONS...]`
+
+
+## DESCRIPTION
+
+This is a light convenience wrapper around `curl` for calling the Dataset API
+configured for this Smart Data Center.
+
+At its simplest:
+
+    $ sdc-dsapi /datasets | head -30
+    HTTP/1.1 200 OK
+    Server: nginx
+    Date: Wed, 30 Mar 2011 23:00:27 GMT
+    Content-Type: application/json
+    Connection: keep-alive
+    Content-Length: 7273
+    
+    [
+      {
+        "name": "smartos",
+        "version": "1.3.11",
+        "type": "template",
+        "description": "Base template to build other templates on",
+        "created_at": "2011-03-24T22:48Z",
+        "updated_at": "2011-03-24T22:48Z",
+        "os": "smartos",
+        "files": [
+          {
+            "path": "smartos-1.3.11.zfs.bz2",
+            "sha1": "ede3b2e6351a2d426229f50db83a9f927d5c6a41",
+            "size": 41880166,
+            "url": "...",
+          }
+        ],
+        "requirements": {
+          "networks": [
+            {
+              "name": "net0",
+              "description": "public"
+            }
+    ...
+
+Formatting of the response is done via the `json` tool.
+
+
+## OPTIONS
+
+`-v`
+    Show the curl command that is being issued. If used this option must appear
+    before the URLPATH argument.
+
+Any additional options supported by `curl` may be used.
+
+
+## COPYRIGHT
+
+sdc-dsapi Copyright (c) 2011 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+curl (1), json (1), sdc-capi (1), sdc-cloudapi (1), sdc-mapi (1)

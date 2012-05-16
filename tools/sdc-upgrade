@@ -1,0 +1,126 @@
+#!/usr/bin/bash
+
+#
+# Copyright (c) 2011, Joyent Inc. All rights reserved.
+#
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+# set -o xtrace
+
+usage()
+{
+	echo "   Head Node Usage: sdc-upgrade <upgrade file>"
+	echo "Compute Node Usage: sdc-upgrade"
+	exit 1
+}
+
+function cleanup
+{       
+	echo "Cleaning up"
+	cd /
+	rm -rf ${TEMPDIR}
+	echo "Done"
+}       
+            
+function on_error
+{           
+	echo "FATAL: an error occurred, see ${ERRORLOG} for details."
+	exit 1  
+}
+
+# Load config variables with CONFIG_ prefix
+. /lib/sdc/config.sh
+load_sdc_config
+
+headnode=`sysinfo | json '["Boot Parameters"].headnode'`
+
+if [[ $headnode == "true" ]]; then
+	[ $# != 1 ] && usage
+
+	ERRORLOG="/tmp/perform_upgrade.$$.log"
+	TEMPDIR="/var/tmp/upgrade.$$"
+
+	#
+	# This is a fancy way of saying, send:
+	#
+	#  - a copy of stdout
+	#  - a copy of stderr
+	#  - xtrace output
+	#   
+	# to the log file.
+	#
+	rm -f ${ERRORLOG}
+	exec > >(tee -a ${ERRORLOG}) 2>&1
+	exec 4>>${ERRORLOG}
+	BASH_XTRACEFD=4
+	export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]
+	}(): }'
+	set -o errexit
+	set -o pipefail
+	set -o xtrace
+
+	# consume the first arg (remainder get passed through)
+	input=$1
+	shift
+	if [[ ! -f ${input} ]]; then
+ 		# since output is going through tee and might lag slightly
+		sleep 0.1
+		usage
+	fi
+
+	mkdir -p ${TEMPDIR}
+	trap cleanup EXIT
+	trap on_error ERR
+	echo "Logfile is ${ERRORLOG}"
+    
+	# unpack upgrade file to and go to the temp dir
+	echo "Unpacking ${input} to ${TEMPDIR}"
+	gzcat ${input} | (cd ${TEMPDIR} && tar -xf -)
+	cd ${TEMPDIR}
+
+	if [[ ! -d ${TEMPDIR}/upgrade ]]; then
+		echo "FATAL: ${input} contains no 'upgrade' directory"
+		exit 1
+	fi
+
+	if [[ ! -f ${TEMPDIR}/upgrade/upgrade.sh ]]; then
+		echo "FATAL: ${input} contains no 'upgrade.sh' script"
+		exit 1
+	fi
+
+	echo "Running Upgrade Script"
+	cd ${TEMPDIR}/upgrade
+	bash ${TEMPDIR}/upgrade/upgrade.sh $@
+	echo "Upgrade script exited with status $?"
+
+	# unset trap
+	trap - EXIT
+	cleanup
+
+else
+	[ $# -gt 0 ] && usage
+
+	rm -rf /var/tmp/upgrade
+	mkdir -p /var/tmp/upgrade
+
+	cd /var/tmp/upgrade
+	curl -k -o upgrade_cn \
+	    -s $CONFIG_assets_admin_ip:/extra/upgrade/upgrade_cn
+
+	hd=$(dd if=/var/tmp/upgrade/upgrade_cn bs=1 count=6 2>/dev/null)
+	if [ "$hd" == "<html>" ]; then
+		echo \
+	"The headnode must be upgraded before compute nodes can be upgraded."
+		cd /
+		rm -rf /var/tmp/upgrade
+		exit 1
+	fi
+
+	chmod +x /var/tmp/upgrade/upgrade_cn
+	/var/tmp/upgrade/upgrade_cn
+fi
+
+exit 0

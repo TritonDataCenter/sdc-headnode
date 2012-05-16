@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+# Convenience wrapper for calling DSAPI (the Dataset API).
+#
+
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+set -o errexit
+set -o pipefail
+
+
+# Arguments.
+verbose=0
+if [ "$1" == "-v" ]; then
+    shift
+    verbose=1
+fi
+path=$1
+if [[ -z "$path" ]]; then
+    echo "error: no PATH argument given"
+    echo "Usage: sdc-dsapi [-v] PATH [EXTRA-CURL-ARGS]"
+    exit 1
+fi
+shift;
+JSON=$(which json 2>/dev/null || true)
+
+
+# Determine DSAPI URL.
+if [[ -f /lib/sdc/config.sh ]]; then
+    source /lib/sdc/config.sh
+    load_sdc_config
+    if [[ -z "$DSAPI_URL" ]]; then
+        DSAPI_URL=$CONFIG_dsapi_url
+    fi
+    if [[ -z "$DSAPI_CREDENTIALS" ]]; then
+        DSAPI_CREDENTIALS="$CONFIG_dsapi_http_user:$CONFIG_dsapi_http_pass"
+    fi
+fi
+if [[ -z "$DSAPI_URL" ]]; then
+    DSAPI_URL=https://datasets.joyent.com
+fi
+if [[ -z "$DSAPI_CREDENTIALS" ]]; then
+    echo "error: DSAPI_CREDENTIALS envvar is not set: set it to 'username:password'"
+    exit 1
+fi
+
+# Need an IP for datasets hostname.
+hostname=$(echo $DSAPI_URL | cut -f3 -d "/" | cut -f1 -d ":")
+if [[ ! `echo "${hostname}" | grep "^[0-9\.]*$" 2>&1` ]]; then
+  ip=$(dig $hostname +short)
+  DSAPI_URL=$(echo $DSAPI_URL | sed  "s|\(.*\)$hostname\(.*\)|\1$ip\2|")
+fi
+
+
+# Note: the 'echo' doesn't show the real quoting of args.
+MASKED_CREDENTIALS=$(echo "$DSAPI_CREDENTIALS" | sed 's/:.*$/:***/')
+[ "$verbose" == "1" ] && echo "# curl -k -sS -i -u $MASKED_CREDENTIALS --url $DSAPI_URL$path $@" >&2
+if [[ ! -x "$JSON" ]]; then
+    curl -k -sS -i -u $DSAPI_CREDENTIALS --url "$DSAPI_URL$path" "$@"
+    echo ""
+else
+    curl -k -sS -i -u $DSAPI_CREDENTIALS --url "$DSAPI_URL$path" "$@" | json -q
+fi

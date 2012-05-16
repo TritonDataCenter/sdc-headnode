@@ -1,0 +1,179 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011, 2012 Joyent Inc., All rights reserved.
+#
+# Utility to check the health of various headnode subsystems.
+#
+
+already_checked=""
+
+. /lib/sdc/config.sh
+. /smartdc/lib/sdc-common
+
+res=0
+parseflag=false
+PATH=/opt/smartdc/agents/bin:$PATH
+
+load_sdc_sysinfo
+load_sdc_config_filename
+load_sdc_config
+
+#
+# Prints a separator for friendly output
+#
+function separator() {
+  printf -vch "%63s" ""
+  printf "%s\n" "${ch// /=}"
+}
+
+#
+# Check the svcs in the global zone
+#
+function check_global() {
+
+  zone=global
+  state="running"
+  role="global"
+  status="online"
+
+  #
+  # Check the status of SMF svcs in the zone
+  #
+  err_cnt=$(svcs -x -z ${zone} | nawk \
+     'BEGIN{cnt=0}{if ($1 == "Zone:") cnt++} END {print cnt}')
+  if [ $err_cnt != 0 ]; then
+    status="svc-err"
+    res=1
+  fi
+
+  if [ $parseflag == true ] ; then
+    printf "%s:%s:%s:%s\n" ${role} ${state} "-" "${status}"
+  else
+    printf "%-36s %-15s %-15s %10s\n" ${role} $state "-" "$status"
+  fi
+}
+
+#
+# Check the zones that are running on the headnode (locally)
+#
+function check_zones() {
+
+  for zone in $(vmadm lookup owner_uuid=${admin_uuid} tags.smartdc_role=~^[a-z])
+  do
+    values=$(vmadm get ${zone} | json -a tags.smartdc_role state)
+    state=${values##* }
+    role=${values%% *}
+    status="online"
+
+    [[ "$state" == "" ]] && state="unknown"
+
+    if [ "$state" != "running" ]; then
+      res=1
+      status="offline"
+    else
+      #
+      # Check the status of SMF svcs in the zone
+      #
+      err_cnt=$(svcs -x -z ${zone} | nawk \
+         'BEGIN{cnt=0}{if ($1 == "Zone:") cnt++} END {print cnt}')
+      if [ $err_cnt != 0 ]; then
+        status="svc-err"
+        res=1
+      fi
+    fi
+
+    if [ $parseflag == true ] ; then
+      printf "%s:%s:%s:%s\n" ${role} ${state} "-" "${status}"
+    else
+      printf "%-36s %-15s %-15s %10s\n" ${role} $state "-" "$status"
+    fi
+
+    already_checked="${already_checked} ${zone}"
+  done
+}
+
+#
+# Check the status of the agents.
+#
+function check_agents() {
+  export AMQP_HOST=$(nawk -F= '{
+    if ($1 == "rabbitmq") {
+      split($2, a, ":")
+      print a[3]
+    }
+  }' $SDC_CONFIG_FILENAME)
+
+  if [ ! -x /opt/smartdc/agents/bin/ping-agent ]; then
+    echo "ping-agent is not installed"
+    exit 1
+  fi
+
+  for i in dataset provisioner-v2 zonetracker zonetracker-v2 heartbeat ur; do
+    ping-agent $SYSINFO_UUID $i timeout=10000 2>&1 | egrep -s "_routingKey:"
+    if [ $? == 0 ]; then
+      status="online"
+    else
+      status="offline"
+      res=1
+    fi
+    if [ $parseflag == true ] ; then
+      printf "%s:%s:%s:%s\n" "global" "running" "$i" "$status"
+    else
+      printf "%-36s %-15s %-15s %10s\n" "global" "running" "$i" "$status"
+    fi
+  done
+
+  # Smartlogin is different, and suboptimal
+  local sl_status=$(/usr/bin/svcs -H -o STATE smartlogin)
+  if [ $parseflag == true ] ; then
+    printf "%s:%s:%s:%s\n" "global" "running" "smartlogin" "$sl_status"
+  else
+    printf "%-36s %-15s %-15s %10s\n" "global" "running" "smartlogin" \
+      "$sl_status"
+  fi
+}
+
+function print_header() {
+  printf "%-36s %-15s %-15s %10s\n" "ZONE" "STATE" "AGENT" "STATUS"
+}
+
+function print_usage() {
+  printf "Usage: $0 [ -p ]\n"
+}
+
+# we only run on the headnode
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
+    fatal "$myname must be run on the headnode"
+
+admin_uuid=${CONFIG_ufds_admin_uuid}
+if [[ -z ${admin_uuid} ]]; then
+    fatal "$myname: unable to find admin UUID."
+fi
+
+# Parse command line
+while getopts hp OPT; do
+  case "$OPT" in
+    p)
+      parseflag=true
+      ;;
+    h)
+      print_usage
+      exit 0
+      ;;
+    \?)
+      print_usage
+      ;;
+  esac
+done
+
+shift `expr $OPTIND - 1`
+
+if [ $parseflag == false ] ; then
+  print_header
+fi
+
+check_global
+check_zones
+check_agents
+
+exit $res

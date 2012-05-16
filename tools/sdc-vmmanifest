@@ -1,0 +1,158 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o errexit
+
+now=$(date -u +%Y-%m-%dT%H:%MZ)
+vm_uuid=$(uuid)
+
+function usage
+{
+    cat <<USAGE
+Usage: $0 -f filename -n <name> -v <version> [options]
+
+    -d <image description> (optional, default: "<NAME> <VERSION> VM Image")
+    -D <disk driver> (optional, default: "virtio")
+    -f <filename of VM image> (required)
+    -n <name of VM image> (required)
+    -N <NIC driver> (optional, default: "virtio")
+    -o <OS name> (optional, default: argument to -n)
+    -s <size of virtual disk (as seen by VM, MiB)> (required)
+    -u <CAPI user name> (optional, default: admin)
+    -v <version of VM image> (required)
+
+Example:
+
+    $0 -f ubuntu-10.04.2.img.gz -s 5120 -n ubuntu -v 10.04.2
+
+USAGE
+    exit 1
+}
+
+while getopts d:D:f:n:N:o:s:u:v:? c; do
+    case ${c} in
+    d)
+        description=${OPTARG}
+        ;;
+    D)
+        disk_driver=${OPTARG}
+        ;;
+    f)
+        filename=${OPTARG}
+        ;;
+    n)
+        name=${OPTARG}
+        ;;
+    N)
+        nic_driver=${OPTARG}
+        ;;
+    o)
+        os=${OPTARG}
+        ;;
+    s)
+        image_size=${OPTARG}
+        ;;
+    u)
+        capi_user=${OPTARG}
+        ;;
+    v)
+        version=${OPTARG}
+        ;;
+    \?)
+        usage
+        ;;
+    esac
+done
+
+if [[ -z ${filename} || -z ${name} || -z ${version} || -z ${image_size} ]]; then
+    echo "FATAL: All of -f, -n, -s and -v are required."
+    usage
+fi
+
+if [[ -z ${description} ]]; then
+    description="${name} ${version} VM image"
+fi
+
+if [[ -z ${os} ]]; then
+    os=${name}
+fi
+
+if [[ -z ${capi_user} ]]; then
+    capi_user="admin"
+fi
+
+if [[ ! -f ${filename} ]]; then
+    echo "FATAL: ${filename} does not exist."
+    usage
+fi
+
+if [[ -z ${disk_driver} ]]; then
+    disk_driver="virtio"
+fi
+
+if [[ -z ${nic_driver} ]]; then
+    nic_driver="virtio"
+fi
+
+shasum=$(sum -x sha1 ${filename} | cut -d' ' -f1)
+filesize=$(ls -l ${filename} | awk '{ print $5 }')
+
+function get_capi_uuid
+{
+    uuid=$(/smartdc/bin/sdc-capi /customers/${capi_user} | /usr/bin/json -H uuid)
+    if [[ $? != 0 || -z ${uuid} ]]; then
+        echo "Unable to find UUID for user '${capi_user}'" >&2
+        usage
+    fi
+
+    echo "${uuid}"
+}
+
+capi_uuid=$(get_capi_uuid)
+
+if [[ -z ${capi_uuid} ]]; then
+    echo "FATAL: Unable to determine ${capi_user}'s UUID"
+    usage
+fi
+
+cat <<EOF
+{
+  "name": "${name}",
+  "version": "${version}",
+  "type": "zvol",
+  "cpu_type": "host",
+  "description": "${description}",
+  "created_at": "${now}",
+  "updated_at": "${now}",
+  "os": "${os}",
+  "image_size": "${image_size}",
+  "files": [
+    {
+      "path": "${filename}",
+      "sha1": "${shasum}",
+      "size": ${filesize}
+    }
+  ],
+  "requirements": {
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ]
+  },
+  "disk_driver": "${disk_driver}",
+  "nic_driver": "${nic_driver}",
+  "uuid": "${vm_uuid}",
+  "creator_uuid": "${capi_uuid}",
+  "restricted_to_uuid": "${capi_uuid}",
+  "vendor_uuid": "${capi_uuid}",
+  "owner_uuid": "${capi_uuid}",
+  "creator_name": "${capi_user}",
+  "platform_type": "smartos",
+  "cloud_name": "sdc",
+  "urn": "sdc:${capi_user}:${name}:${version}"
+}
+EOF

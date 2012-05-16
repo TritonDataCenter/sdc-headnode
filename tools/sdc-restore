@@ -1,0 +1,796 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011, Joyent Inc. All rights reserved.
+#
+# Note:
+#
+#  "full" (-F) means:
+#
+#     that all core zones will get deleted and recreated in addition to
+#     restoring the data.
+#
+#  "standby" (-S) means:
+#
+#     to do a restore, but take the current running GZ's network info and uuid.
+#
+#  without either of those options means:
+#
+#     only restore the data into those zones that exist both in the backup
+#     and on the system being restored to.
+#
+
+
+unset LD_LIBRARY_PATH
+PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH
+
+# This writes xtrace output and anything redirected to LOGFD to the log file.
+LOGFD=4
+exec 4>/tmp/restorelog.$$
+export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=${LOGFD}
+set -o xtrace
+export TRACE_SDC_SETUP=${LOGFD} # make sure if we call sdc-setup, it uses xtrace
+
+STARTED_AT=$(date +%s)
+echo "(debug log is /tmp/restorelog.$$)"
+
+. /smartdc/lib/sdc-common
+
+HEADNODE_UUID=$(sysinfo | json UUID)
+
+usage()
+{
+    printf "usage: $(basename $0) [-F ] [-S] [-U] backup_file\n"
+    exit 1
+}
+
+warn()
+{
+    printf "Warning: %s\n" "$1"
+}
+
+load_zone_lists()
+{
+    # These functions come from sdc-common and load space separated tupples
+    # of uuid,tag for each of: all smartdc zones, non-core (extra) zones, and
+    # core zones.
+    SMARTDC_ZONES=$(get_smartdc_zones)
+    CORE_ZONES=$(only_core_zones ${SMARTDC_ZONES})
+    EXTRA_ZONES=$(only_extra_zones ${SMARTDC_ZONES})
+
+    echo "SDC_ZONES: [${SMARTDC_ZONES}]" >&${LOGFD}
+    echo "CORE_ZONES: [${CORE_ZONES}]" >&${LOGFD}
+    echo "EXTRA_ZONES: [${EXTRA_ZONES}]" >&${LOGFD}
+
+    # We might reload the local zones (because those can change while we run)
+    # but we don't need to reload the BU_ ones since those won't change.
+    if [[ -z ${BU_SMARTDC_ZONES} ]]; then
+        # try to load from zones.uuids, but old backups (6.5.x) won't have this
+        # so fall back to zones.lst in which case we'll just not have uuids.
+        BU_SMARTDC_ZONES=$(cat ${dest}/zones.uuids 2>&${LOGFD} | xargs)
+        if [[ -z ${BU_SMARTDC_ZONES} ]]; then
+            BU_SMARTDC_ZONES=$(cat ${dest}/zones.lst 2>&${LOGFD} | \
+                sed -e "s/^/,/" | xargs)
+        fi
+        if [[ -z ${BU_SMARTDC_ZONES} ]]; then
+            fatal "missing list of zones in archive"
+        fi
+        BU_CORE_ZONES=$(only_core_zones ${BU_SMARTDC_ZONES})
+        BU_EXTRA_ZONES=$(only_extra_zones ${BU_SMARTDC_ZONES})
+
+        echo "BU_SDC_ZONES: [${BU_SMARTDC_ZONES}]" >&${LOGFD}
+        echo "BU_CORE_ZONES: [${BU_CORE_ZONES}]" >&${LOGFD}
+        echo "BU_EXTRA_ZONES: [${BU_EXTRA_ZONES}]" >&${LOGFD}
+    fi
+}
+
+halt_all_sdc_zones()
+{
+    echo "==> Shutting down all SmartDC zones"
+
+    for i in ${SMARTDC_ZONES}; do # we get a tuple of uuid,tag
+        uuid=${i%%,*}
+        tag=${i##*,}
+
+        # zone may already be down
+        echo -n "halting ${uuid} (${tag})... "
+        output=$(zoneadm -z $uuid halt 2>&1 | grep -v "zone is already halted")
+        res=$?
+        if [[ $res != 0 && -n ${output} ]]; then
+            warn "error halting ${uuid} (${tag}): exitcode: ${res}"
+            echo " \\_ error was: ${output}"
+        else
+            echo "done"
+        fi
+    done
+}
+
+boot_zones()
+{
+    which=$1
+    shift
+    if [[ -n "$*" ]]; then
+        echo "==> Booting ${which} SmartDC zones"
+    fi
+    for i in $*; do # we get a tuple of uuid,tag
+        uuid=${i%,*}
+        tag=${i##*,}
+
+        echo -n "booting ${uuid} (${tag})... "
+        zoneadm -z ${uuid} boot
+        res=$?
+        if [[ $res != 0 ]]; then
+            warn "error booting zone ${uuid} (${tag}): exitcode: ${res}"
+        else
+            echo "done"
+        fi
+    done
+}
+
+#
+# Delete the core zones and recreate them.  The user may be doing this because
+# some of the zones are messed up or missing for some reason, so we check
+# for the existence of the zones and tolerate errors when we are deleting.
+#
+recreate_core_zones()
+{
+    echo "==> Deleting core zones"
+    for i in ${CORE_ZONES}; do # we get a tuple of uuid,tag
+        uuid=${i%%,*}
+        tag=${i##*,}
+
+        if [[ -n ${uuid} ]]; then
+            echo -n "deleting ${tag}: "
+            vmadm delete ${uuid}
+        fi
+    done
+
+    echo "==> Recreating core zones"
+
+    if [[ -f ${dest}/zones.uuids ]]; then
+        # We want to recreate them with the same uuid if we can, so the MAPI
+        # backup will be consistent, so we pass this in as an env variable.
+        export OLD_ZONES=$(cat ${dest}/zones.uuids)
+    fi
+    /mnt/usbkey/scripts/headnode.sh restore 2>&${LOGFD} 4>&1
+    [[ $? != 0 ]] && fatal "failed to recreate zones"
+
+    # reload the lists since we may have created new zones.
+    load_zone_lists
+}
+
+restore()
+{
+    uuid=$1
+    tag=$2
+
+    # Pull over the role's restore script
+    rm -rf /tmp/restore.$$ || fatal "Unable to remove existing restore dir."
+    mkdir /tmp/restore.$$
+
+    if [[ ${headnode} == 1 ]]; then
+        # on the headnode, we want to pull these files locally
+        if [[ -f  /usbkey/extra/${tag}/restore ]]; then
+            cp /usbkey/extra/${tag}/restore /tmp/restore.$$/restore
+        fi
+    else
+        # we have to grab from the assets zone on the headnode
+        curl -k -o /tmp/restore.$$/restore \
+            -s -S -f http://${CONFIG_assets_admin_ip}/extra/${tag}/restore
+    fi
+
+    # TODO: we can't distingush here between an error getting the restore script
+    #       and no restore script in the first place. Figure out how to do that.
+    if [[ ! -f /tmp/restore.$$/restore ]]; then
+        echo "skipping ${uuid} (${tag}): no restore script."
+        rm -rf /tmp/restore.$$
+        return
+    fi
+
+    # TODO: we can't distingush here between backups that are supposed to be
+    #       missing and those that aren't.  Figure out how to do that.
+    if [[ ! -d $dest/${tag} ]]; then
+        echo "skipping ${uuid} (${tag}): not found in archive."
+        rm -rf /tmp/restore.$$
+        return
+    fi
+
+    echo -n "restoring ${uuid} (${tag})... "
+    chmod +x /tmp/restore.$$/restore
+    /tmp/restore.$$/restore ${uuid} $dest >&${LOGFD} 2>&1
+    res=$?
+    if [[ $res != 0 ]]; then
+        warn "error restoring ${tag} (${uuid}): errcode: ${res}"
+    else
+        echo "done"
+    fi
+
+    rm -rf /tmp/restore.$$
+}
+
+# Use the restored MAPI data to recreate the extra zones that were on the
+# original headnode.  After getting the record from mapi, we first have to
+# delete the zone (to remove it from mapi) then recreate it so it gets
+# provisioned onto this system.
+recreate_extra_zones()
+{
+    # For some reason, even though we've already waited for mapi to be
+    # running, if we charge ahead on the zone deletes below, they won't
+    # be processed unless we give everything a little more time to settle
+    # down.
+    sleep 45
+
+    # This pulls the $zones variable from MAPI
+    get_admin_zones
+
+    if [[ -n ${zones} ]]; then
+        echo "==> Recreating extra zones"
+    fi
+
+    for z in ${zones}; do
+        local hname=`curl -s -u ${creds} \
+            http://${mapi}/customers/${admin_uuid}/zones/${z} | \
+            json '["server"].hostname'`
+
+        [[ ${hname} != "headnode" ]] && continue
+
+        # This pulls the smartdc_role $tag from MAPI
+        get_zone_role ${z}
+        [[ -z ${tag} ]] && continue
+
+        # ensure this is not a core zone (since these also are in MAPI post-6.5)
+        is_core=0
+        for cz in ${core_zones}; do
+            if [[ ${cz} == ${tag} ]]; then
+                is_core=1
+            fi
+        done
+        [[ ${is_core} == 1 ]] && continue;
+
+        echo -n "deleting ${tag} zone... "
+
+        # get IP info for this VM (from MAPI)
+        get_net_ip ${z} "admin"
+        admin_ip=${IP}
+        get_net_ip ${z} "external"
+        external_ip=${IP}
+
+        # Delete the existing zone
+        # TODO: check for failure
+        sdc-setup -D ${z} 4>&${LOGFD}
+
+        echo "done"
+        echo -n "creating ${tag} zone... "
+
+        # Specify original IP address(es)
+        ip_addrs=
+        reuse_ip_addrs=
+        [[ -n ${admin_ip} ]] && ip_addrs=${admin_ip}
+        if [[ -n ${external_ip} ]]; then
+            if [[ -n ${ip_addrs} ]]; then
+                ip_addrs="${ip_addrs},${external_ip}"
+            else
+                ip_addrs="${external_ip}"
+            fi
+        fi
+        [[ -n ${ip_addrs} ]] && reuse_ip_cmd="-I ${ip_addrs}"
+
+        local zname=$(sdc-setup -c headnode ${reuse_ip_cmd} -r ${tag} \
+            2>/tmp/setuperr.$$ 4>&${LOGFD} | nawk '{if ($1 == "New") print $3}')
+
+        if [[ -z ${zname} ]]; then
+            echo "WARNING: failure setting up ${tag} zone" \
+                >/dev/stderr
+            cat /tmp/setuperr.$$ >/dev/stderr
+            rm -f /tmp/setup.$$
+            continue
+        fi
+        rm -f /tmp/setuperr.$$
+
+        echo "done (${zname})"
+
+        # Wait up to 10 minutes for asynchronous role setup to finish
+        echo -n "waiting for ${tag} to finish seting up... "
+        cnt=0
+        while [[ ${cnt} -lt 60 ]]; do
+            sleep 10
+            [[ -e /zones/${zname}/root/var/svc/setup_complete ]] && \
+                break
+            cnt=$(expr $cnt + 1)
+        done
+        if [[ $cnt == 60 ]]; then
+            echo "WARNING: setup did not finish after 10 minutes" >/dev/stderr
+        else
+            echo "done"
+        fi
+
+        # Shut back down so we can restore later.
+        # However, if we're the riak role and we have a local ufds role
+        # too, then we need to leave riak running so ufds will be able
+        # to complete its initial setup.
+        skip=0
+        if [[ ${tag} == "riak" ]]; then
+            for t in ${zones}
+            do
+                local hname=$(curl -s -u ${creds} \
+                    http://${mapi}/customers/${admin_uuid}/zones/${t} | \
+                    json '["server"].hostname')
+
+                [[ ${hname} != "headnode" ]] && continue
+
+                get_zone_role ${t}
+                [[ -z ${tag} ]] && continue
+
+                if [[ ${tag} == "ufds" ]]; then
+                    skip=1
+                    riak_halt=${zname}
+                    break
+                fi
+            done
+        fi
+
+        [[ $skip == 0 ]] && zoneadm -z ${zname} halt
+    done
+
+    [[ -n ${riak_halt} ]] && zoneadm -z ${riak_halt} halt
+
+    # reload the lists since we may have created new zones.
+    load_zone_lists
+}
+
+validate_options()
+{
+    [[ $headnode == 0 && $full == 1 ]] && \
+    fatal "-F is only valid on the headnode"
+
+    [[ $headnode == 0 && $standby == 1 ]] && \
+    fatal "-S is only valid on the headnode"
+}
+
+unpack_archive()
+{
+    echo "==> Unpacking archive"
+    dest=/zones/tmp_bu.$$
+    mkdir -p ${dest} || \
+        fatal "unable to create temporary directory $dest"
+    echo -n "unpacking $bufile... "
+    gzcat $bufile | (cd $dest && tar xbf 512 -) || \
+        fatal "unpacking file $bufile, all zones will remain shutdown"
+    echo "done"
+}
+
+validate_archive()
+{
+    if [[ $headnode != 1 ]]; then
+        # TODO only headnode backups contain backup.sum or config, figure out
+        #      how to validate other backups too.
+        return
+    fi
+
+    if [[ ! -f ${dest}/backup.sum || ! -f ${dest}/config ]]; then
+        cleanup
+        fatal "${bufile} is missing critical files, cannot proceed"
+    fi
+    currsum=$(sum -x md5 ${dest}/config | cut -d' ' -f1)
+    busum=$(cat ${dest}/backup.sum)
+    if [ ${currsum} != ${busum} ]; then
+        cleanup
+        fatal "${bufile} checksum does not match, cannot proceed"
+    fi
+}
+
+mount_usbkey()
+{
+    # check if usb key already mounted, Note: ${mounted} is a global we check
+    # at unmount as well.
+    mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
+    [[ -z "$mounted" ]] && (/usbkey/scripts/mount-usb.sh || \
+        fatal "unable to mount USB key, all zones will remain shutdown")
+}
+
+restore_usbkey_config()
+{
+    echo -n "restoring configuration files... "
+    cp -pr $dest/config* /mnt/usbkey || \
+        fatal "unable to restore configuration, all zones will remain shutdown"
+
+    # If restoring a standby headnode, use the current *_nic values from
+    # the config instead of what we had in the backup.
+    if [[ $standby == 1 ]]; then
+        sed -e "s/admin_nic=.*/admin_nic=$CONFIG_admin_nic/" \
+            -e "s/external_nic=.*/external_nic=$CONFIG_external_nic/" \
+            /mnt/usbkey/config >/tmp/config.$$
+        cp /tmp/config.$$ /mnt/usbkey/config
+        rm -f /tmp/config.$$
+    fi
+
+    cp -pr /mnt/usbkey/config* /usbkey || \
+        fatal "unable to restore configuration copy, all zones will " \
+            "remain shutdown"
+    echo "done"
+}
+
+restore_usbkey_datasets()
+{
+    if [[ -d "${dest}/datasets" ]]; then
+        echo -n "restoring datasets... "
+        cp -pr ${dest}/datasets /usbkey || \
+            fatal "unable to restore datasets, all zones will remain shutdown"
+        echo "done"
+    else
+        echo "skipping datasets, no backup data in the archive."
+    fi
+}
+
+restore_usbkey()
+{
+    echo "==> Restoring usbkey data"
+    restore_usbkey_config
+    restore_usbkey_datasets
+}
+
+restore_core_zones()
+{
+    echo "==> Restoring core zones"
+    for i in ${CORE_ZONES}; do # we get a tuple of uuid,tag
+        uuid=${i%%,*}
+        tag=${i##*,}
+
+        restore ${uuid} ${tag}
+    done
+}
+
+restore_gz_config()
+{
+    if [[ -d "${dest}/global" ]]; then
+        echo -n "restoring global zone config files... "
+        [ -f ${dest}/global/smartlogin.cfg ] && \
+            cp ${dest}/global/smartlogin.cfg /opt/smartdc/agents/etc
+        echo "done"
+    else
+        echo "*** warning, older backup; missing global zone config files."
+    fi
+}
+
+unmount_usbkey()
+{
+    if [[ -z ${mounted} ]]; then
+        umount /mnt/usbkey 2>&${LOGFD}
+    fi
+}
+
+wait_for_mapi()
+{
+    echo -n "waiting for MAPI to be ready."
+    cnt=0
+    while [[ ${cnt} -lt 24 ]]; do
+        num=$(svcs -z mapi -x 2>&1 | wc -l)
+        [ $num == 0 ] && break
+        echo -n "."
+        sleep 5
+        let cnt=$cnt+1
+    done
+    echo " done"
+}
+
+update_headnode_uuid()
+{
+    echo -n "updating headnode UUID in MAPI... "
+    curl -s -u admin:${CONFIG_mapi_http_admin_pw} \
+        http://${CONFIG_mapi_admin_ip}/servers/1 -d uuid="${HEADNODE_UUID}" \
+        -X PUT >/tmp/sdc$$.out 2>&1
+
+    check_mapi_err
+    if [ -n "$emsg" ]; then
+        printf "failed to restore headnode UUID %s\n" ${HEADNODE_UUID} \
+            >/dev/stderr
+        printf " \\_ %s\n" "$emsg" >/dev/stderr
+    else
+        echo "done"
+    fi
+    rm -f /tmp/sdc$$.out
+}
+
+# Get the MAPI network IP addr for the given tag (admin or external)
+# $1 is zonename
+# $2 is tag
+get_net_ip()
+{
+    IP=`curl -s -u ${creds} \
+        http://${mapi}/zones/$1/nics | json | nawk -v tag=$2 '{
+        if ($1 == "\"name\":") {
+            # strip quotes and comma
+            if (substr($2, 2, length($2) - 3) == tag)
+                found = 1
+        }
+        if (found && $1 == "\"ip\":") {
+            # strip quotes and comma
+            print substr($2, 2, length($2) - 3)
+            exit 0
+        }
+        }'`
+}
+
+restore_extra_zones()
+{
+    # Now restore any extra zones on this node
+    if [[ -n ${BU_EXTRA_ZONES} ]]; then
+        echo "==> Restoring extra SmartDC zones"
+        for i in ${BU_EXTRA_ZONES}; do # we get a tuple of uuid,tag
+            uuid=${i%,*}
+            tag=${i##*,}
+
+            exists_on_node=0
+            for ez in ${EXTRA_ZONES}; do # we get a tuple of uuid,tag
+                euuid=${ez%%,*}
+                etag=${ez##*,}
+
+                if [[ ${tag} == ${etag} ]]; then
+                    exists_on_node=1
+                fi
+            done
+
+            if [[ ${exists_on_node} == 1 ]]; then
+                restore ${uuid} ${tag}
+            else
+                echo "skipping ${tag}: exists in backup but not on this node."
+            fi
+        done
+        boot_zones "extra" ${INITIAL_EXTRAS}
+    fi
+}
+
+cleanup()
+{
+    echo "==> Cleanup"
+    cd /zones
+    echo -n "removing temporary dir ${testdir}... "
+    if [[ -d ${dest} ]]; then
+        rm -rf ${dest}
+    fi
+    echo "done"
+}
+
+control_c()
+{
+    echo -en "\n*** Exiting ***\n"
+    cleanup
+    exit $?
+}
+
+# Use: output_tags_list <indent> <list>
+output_zones_list()
+{
+    indent=$1
+    shift
+    indent=$(printf "%-${indent}s" " ")
+
+    line=
+    for i in $*; do # we get a tuple of uuid,tag
+        uuid=${i%,*}
+        tag=${i##*,}
+        len=$(printf "${tag}" | wc -c | tr -d ' ')
+        llen=$(printf "${line}" | wc -c | tr -d ' ')
+
+        if [[ $((${llen} + ${len})) -gt 80 ]]; then
+            echo "${line}"
+            line="${indent}${tag}"
+        elif [[ ${llen} -eq 0 ]]; then
+            line="${indent}${tag}"
+        else
+            line="${line},${tag}"
+        fi
+    done
+    if [[ -n $(printf "${line}" | tr -d ' ') ]]; then
+        echo "${line}"
+    fi
+}
+
+# This tells the user what we're about to do and gives them a chance to bail out
+warn_user()
+{
+    waitsecs=10
+    echo "-----------------------------------"
+    echo "  Warning: this tool is about to:"
+    echo "-----------------------------------"
+    echo ""
+    action="halt"
+    if [[ ${full} == 1 ]]; then
+        action="halt and destroy"
+    fi
+    echo " * ${action} these zones: "
+    echo ""
+    output_zones_list 6 ${CORE_ZONES}
+    echo ""
+    if [[ ${full} == 1 ]]; then
+        echo " * recreate the core zones:"
+        echo ""
+        echo "${core_zones}" | tr ' ' ',' | sed -e "s/^/      /"
+        echo ""
+    fi
+    echo " * replace data for the following zones:"
+    echo ""
+    output_zones_list 6 ${BU_SMARTDC_ZONES}
+    echo ""
+    for i in {0..9}; do
+        msg="If this is *not* what you want press CTRL-C."
+        printf "%s You have %d seconds.   \r" "${msg}" $((10 - ${i}))
+        sleep 1
+    done
+    # TODO: if we have no zones, warn that they might want to use -F instead.
+    printf "%-80s\n" "waited 10 seconds, now proceeding."
+}
+
+main()
+{
+    validate_options
+    unpack_archive # so we can can look at zone lists and validate checksums
+    validate_archive
+    trap control_c SIGINT # now that we've unpacked, cleanup on CTRL-C
+    load_zone_lists
+    warn_user
+
+    # We don't want smartdc zones running with stale data during the restore
+    # (e.g. mapi handing out incorrect IP addrs. to compute nodes).
+    halt_all_sdc_zones
+
+    # Keep the list of extras that were here before we restored so we can recreate.
+    INITIAL_EXTRAS=${EXTRA_ZONES}
+
+    # validate that we have a valid backup from sdc-backup
+    if [[ $headnode == 1 ]]; then
+        mount_usbkey
+
+        # copy files from backup to key
+        restore_usbkey
+
+        if [[ $full == 1 ]]; then
+            recreate_core_zones
+            # now make sure they're stopped again
+            halt_all_sdc_zones
+        fi
+
+        # Whenever we restore the headnode, refresh the restore scripts in the
+        # assets zone so compute node restores use up-to-date code.
+        refresh_assets
+
+        # We only restore the core stateful zones at this point.  If we did a full
+        # rebuild, we recreated these and reloaded, otherwise we didn't delete so
+        # they should still exist.
+        restore_core_zones
+
+        # Restore GZ config
+        # NOTE: Older backups may not have had the GZ backed up
+        restore_gz_config
+
+        # core zones have been restored, start them up since we need them to
+        # create others.
+        boot_zones "core" ${CORE_ZONES}
+
+        # unmount key only if we mounted it
+        unmount_usbkey
+
+        # Wait up to 2 minutes for mapi to boot back up
+        wait_for_mapi
+
+        if [[ ${standby} == 1 ]]; then
+            # we're restoring a standby headnode, use our UUID now instead.
+            update_headnode_uuid
+        fi
+
+        if [[ ${standby} == 1 || ${full} == 1 ]]; then
+            # This will reload the config vars again (with the config we restored)
+            # in case we're restoring a standby headnode with a manual run of the
+            #    sdc-restore -S
+            # command and not as part of a standby boot.
+            init_mapi_config
+
+            # re-create the extra zones that were on the old headnode
+            recreate_extra_zones
+        fi
+    fi
+
+    # restore any extra zones which exist in the backup and on this node.
+    restore_extra_zones
+
+    # remove temporary stuff
+    cleanup
+
+    elapsed=$(($(date +%s) - ${STARTED_AT}))
+    echo "==> Restore complete (${elapsed} seconds elapsed)"
+
+    return 0
+}
+
+restore_usb()
+{
+    waitsecs=10
+    echo "-----------------------------------"
+    echo "  Warning: this tool is about to:"
+    echo "-----------------------------------"
+    echo ""
+    echo "remove the existing contents of the USB key and restore from backup"
+    echo ""
+    for i in {0..9}; do
+        msg="If this is *not* what you want press CTRL-C."
+        printf "%s You have %d seconds.   \r" "${msg}" $((10 - ${i}))
+        sleep 1
+    done
+    printf "%-80s\n" "waited 10 seconds, now proceeding."
+
+    mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
+    [[ -z "$mounted" ]] && (/usbkey/scripts/mount-usb.sh || \
+        fatal "unable to mount USB key")
+
+    BDISK=`mount -p | nawk '{
+        if ($3 == "/mnt/usbkey") {
+            split($1, a, ":")
+            print a[1]
+        }
+    }'`
+    [ ! -b "$BDISK" ] && fatal "device \"$BDISK\" does not exist"
+
+    cd /mnt/usbkey
+    echo "removing existing files"
+    rm -rf *
+
+    echo "restoring files from backup"
+    tar xbf 512 $bufile
+    cd /
+    umount /mnt/usbkey
+
+    echo "setting up grub"
+    printf "(hd0) %s\n" $BDISK >/tmp/grub$$.map
+    printf "root (hd0,0)\nsetup (hd0)\n" | grub --device-map=/tmp/grub$$.map
+    [ $? != 0 ] && echo "ERROR: installing grub boot blocks"
+    rm -f /tmp/grub$$.map
+
+    echo "done"
+    exit 0
+}
+
+#
+# Parse options then call main()
+#
+
+# Load config variables with CONFIG_ prefix
+. /lib/sdc/config.sh
+load_sdc_config
+
+headnode=1
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
+    headnode=0
+
+tmpdir=/zones
+full=0
+standby=0
+dousb=0
+
+while getopts "FSU" opt
+do
+    case "$opt" in
+        F)  full=1;;
+        S)  standby=1;;
+	U)  dousb=1;;
+        *)  usage;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+[[ $# != 1 ]] && usage
+
+bufile=$1
+if [[ $bufile != "-" ]]; then
+    [[ -e $bufile ]] || fatal "file $bufile does not exist"
+fi
+
+[ $full == 1 -a $dousb == 1 ] && usage
+[ $standby == 1 -a $dousb == 1 ] && usage
+
+[ $dousb == 1 ] && restore_usb
+
+# We have the options loaded (as globals) so we can call main()
+main
+
+exit 0

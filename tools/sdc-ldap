@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+# Convenience wrapper for calling some of the "ldap*" commands against UFDS.
+#
+
+#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+#set -o xtrace
+set -o errexit
+set -o pipefail
+
+
+arch=$(uname -s)
+
+
+# Arguments.
+verbose=0
+if [ "$1" == "-v" ]; then
+    shift
+    verbose=1
+fi
+command=$1
+if [[ -z "$command" ]]; then
+    echo "sdc-ldap -- light wrapper around ldap* commands for this datacenter's LDAP"
+    echo ""
+    echo "Usage:"
+    echo "  sdc-ldap [-v] COMMAND ARGS"
+    echo ""
+    echo "Commands:"
+    echo "  search, s         call 'ldapsearch' with appropriate connection/auth args"
+    echo "  modify            call 'ldapmodify'"
+    echo "  add               call 'ldapadd'"
+    echo "  delete, del, rm   call 'ldapdelete'"
+    echo "  whoami            call 'ldapwhoami' (if available)"
+    exit 0
+fi
+shift;
+
+
+# Determine connection and auth info.
+if [[ -f "/lib/sdc/config.sh" ]]; then
+    source /lib/sdc/config.sh
+    load_sdc_config
+    UFDS_CREDENTIALS="$CONFIG_ufds_ldap_root_dn:$CONFIG_ufds_ldap_root_pw"
+    UFDS_ADMIN_UUID="$CONFIG_ufds_admin_uuid"
+else
+    if [[ -z "$UFDS_CREDENTIALS" ]]; then
+        UFDS_CREDENTIALS=cn=root:secret
+    fi
+    if [[ -z "$UFDS_ADMIN_UUID" ]]; then
+        UFDS_ADMIN_UUID=930896af-bf8c-48d4-885c-6573a94b1853
+    fi
+fi
+if [[ -z "$UFDS_HOST" ]]; then
+    UFDS_HOST=$(sdc-mapi /customers/$UFDS_ADMIN_UUID/zones/ufds0 | json -H ips.1.address)
+fi
+if [[ -z "$UFDS_PORT" ]]; then
+    UFDS_PORT=636
+fi
+
+
+ufds_dn=$(echo "$UFDS_CREDENTIALS" | cut -d: -f1)
+ufds_pw=$(echo "$UFDS_CREDENTIALS" | cut -d: -f2)
+
+# Pick up OpenLDAP tools (instead of the Sun LDAP tools).
+if [[ "$(uname -s)" == "SunOS" ]]; then
+    export PATH=/usr/openldap/bin:$PATH
+fi
+
+# This is necessary for OpenLDAP commands to be able to use ldaps over SSL.
+export LDAPTLS_REQCERT=allow
+
+
+export ldap_opts="-H ldaps://$UFDS_HOST:$UFDS_PORT -x -D ${ufds_dn} -w ${ufds_pw}"
+export ldap_opts_masked="-H ldaps://$UFDS_HOST:$UFDS_PORT -x -D ${ufds_dn} -w ***"
+
+
+# Run the command.
+case $command in
+
+# Currently this does LDIF flattening of results as per:
+# <http://richmegginson.livejournal.com/18726.html?view=27430#t27430>
+# Is an option necessary to remove this?
+search|s)
+    [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapsearch $ldap_opts_masked -LLL -b o=smartdc $@" >&2
+    ldapsearch $ldap_opts -LLL -b o=smartdc "$@" | sed -n '1 {h; $ !d;}; $ {H; g; s/\n //g; p; q;}; /^ / {H; d;}; /^ /! {x; s/\n //g; p;}'
+    ;;
+
+modify)
+    [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapmodify $ldap_opts_masked $@" >&2
+    ldapmodify $ldap_opts "$@"
+    ;;
+
+add)
+    [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapadd $ldap_opts_masked $@" >&2
+    ldapadd $ldap_opts "$@"
+    ;;
+
+delete|rm|del)
+    [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapdelete $ldap_opts_masked $@" >&2
+    ldapdelete $ldap_opts "$@"
+    ;;
+
+whoami)
+    [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapwhoami $ldap_opts_masked $@" >&2
+    ldapwhoami $ldap_opts "$@"
+    ;;
+
+*)
+    echo "sdc-ldap: error: unknown command '$command'"
+    exit 1
+    ;;
+esac
