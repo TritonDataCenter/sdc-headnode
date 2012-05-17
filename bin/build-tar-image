@@ -898,7 +898,6 @@ function copy_zones
 
 function copy_tools
 {
-    set -o xtrace
     if [[ -d ${ROOT}/tools ]]; then
         cp -r ${ROOT}/tools ${STAGE}/tools
     fi

@@ -459,11 +459,15 @@ setup_zone_files()
 
     mkdir -p ${assetdir}
     for file in backup bashrc configure fs.tar.bz2 pkgsrc restore setup; do
-    if [[ -f ${srcdir}/${file} ]]; then
-        cp -f ${srcdir}/${file} ${assetdir}/${file}
-    fi
+        if [[ -f ${srcdir}/${file} ]]; then
+            rm -f ${assetdir}/${file}
+            ln ${srcdir}/${file} ${assetdir}/${file}
+        fi
     done
-    cp -f /usbkey/default/*.common ${assetdir}/
+    for file in $(ls /usbkey/default/*.common); do
+        rm -f ${assetdir}/$(basename ${file})
+        ln /usbkey/default/$(basename ${file}) ${assetdir}/$(basename ${file})
+    done
 }
 
 update_zoneconfig()
@@ -510,6 +514,15 @@ sdc_create()
     # above we added: { ..., so now we need to close the curlies.
     zone_parameters="${zone_parameters} }"
 
+    local smartdc_type=
+    local create_json="/usbkey/zones/${zrole}/create.json"
+    if [[ -f ${create_json} ]]; then
+        smartdc_type=$(json tags.smartdc_type < ${create_json})
+    fi
+    if [[ -z ${smartdc_type} ]]; then
+        smartdc_type="extra"
+    fi
+
     # create mdata temp file
     tmpfile="/tmp/payload.$$"
     node -e "
@@ -518,6 +531,7 @@ sdc_create()
         o = ${zone_parameters};
         o.tags = {};
         o.tags['smartdc_role'] = '${zrole}';
+        o.tags['smartdc_type'] = '${smartdc_type}';
         o.customer_metadata = {};
         o.customer_metadata['assets-ip'] = '${CONFIG_assets_admin_ip}';
         o.customer_metadata['user-script'] = us.toString();

@@ -1,3 +1,4 @@
 PRIVATE_IP=${rabbitmq_admin_ip}
 PUBLIC_IP=${rabbitmq_admin_ip}
 RABBITMQ=${rabbitmq}
+RABBIT_ADMIN_IPS=${rabbit_admin_ips}

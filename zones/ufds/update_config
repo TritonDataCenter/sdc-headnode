@@ -9,7 +9,7 @@ export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
 
-export PATH=/usr/bin:/usr/sbin:/smartdc/bin
+export PATH=/usr/bin:/usr/sbin:/smartdc/bin:/opt/smartdc/bin
 . /lib/sdc/config.sh
 load_sdc_config
 admin_uuid=${CONFIG_ufds_admin_uuid}
@@ -65,6 +65,8 @@ update_smartlogin()
             mv ${slogin_conf}.new ${slogin_conf}
             svcadm restart smartdc/agent/smartlogin
 
+# XXX DISABLED BECAUSE THERE'S NO MAPI!
+if /bin/false; then
             mapizone=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=mapi)
 
             if [ -z "$mapizone" ]; then
@@ -96,6 +98,7 @@ update_smartlogin()
             sdc-oneachnode -c mv /opt/smartdc/config/node.config.new \
                 /opt/smartdc/config/node.config
             echo "Done updating configuration on all compute nodes"
+fi
 
             echo "Restarting smartlogin svc on all compute nodes"
             sdc-oneachnode -c svcadm restart smartlogin

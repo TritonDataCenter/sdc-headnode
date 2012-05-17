@@ -1241,7 +1241,10 @@ echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
 echo "redis_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+# NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
+#       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
+echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
 echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
@@ -1250,7 +1253,10 @@ echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+# NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
+#       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
+echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dhcpd_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
@@ -1283,7 +1289,10 @@ echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+# NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
+#       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
+echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config

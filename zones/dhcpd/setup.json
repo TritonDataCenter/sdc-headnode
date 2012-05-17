@@ -1,0 +1,4 @@
+{
+    "networks": [ "admin" ],
+    "dependencies": [ "cnapi", "napi" ]
+}
