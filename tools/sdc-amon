@@ -13,9 +13,6 @@ set -o errexit
 set -o pipefail
 
 
-DEFAULT_AMON_VERSION=1
-
-
 
 # Arguments.
 verbose=0
@@ -39,7 +36,7 @@ shift;
 JSON=$(which json 2>/dev/null || true)
 
 
-# Determine DSAPI URL.
+# Determine Amon URL.
 if [[ -z "$AMON_URL" && -f /lib/sdc/config.sh ]]; then
     source /lib/sdc/config.sh
     load_sdc_config
