@@ -35,6 +35,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin || fatal "unable to create /opt/smartdc/bin"
 fi
 
+touch /opt/smartdc/etc/zoneconfig.new # in case 'zoneconfig' is empty
 curl -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
     http://${assets_ip}/extra/${zone_role}/zoneconfig
 if [[ $? != 0 ]]; then
