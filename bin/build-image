@@ -12,7 +12,7 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     set -o xtrace
 fi
 
-ROOT=$(cd $(dirname $0)/../; pwd)
+ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
 
 export GZIP=-1
 
