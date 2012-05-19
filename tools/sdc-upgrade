@@ -18,17 +18,17 @@ usage()
 }
 
 function cleanup
-{       
+{
 	echo "Cleaning up"
 	cd /
 	rm -rf ${TEMPDIR}
 	echo "Done"
-}       
-            
+}
+
 function on_error
-{           
+{
 	echo "FATAL: an error occurred, see ${ERRORLOG} for details."
-	exit 1  
+	exit 1
 }
 
 # Load config variables with CONFIG_ prefix
@@ -49,7 +49,7 @@ if [[ $headnode == "true" ]]; then
 	#  - a copy of stdout
 	#  - a copy of stderr
 	#  - xtrace output
-	#   
+	#
 	# to the log file.
 	#
 	rm -f ${ERRORLOG}
@@ -75,7 +75,7 @@ if [[ $headnode == "true" ]]; then
 	trap cleanup EXIT
 	trap on_error ERR
 	echo "Logfile is ${ERRORLOG}"
-    
+
 	# unpack upgrade file to and go to the temp dir
 	echo "Unpacking ${input} to ${TEMPDIR}"
 	gzcat ${input} | (cd ${TEMPDIR} && tar -xf -)

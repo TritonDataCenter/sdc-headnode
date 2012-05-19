@@ -4,199 +4,35 @@
 # Important! This is just a place-holder until we rewrite in node.
 #
 
-exec 4>>/var/log/dcadm.log
-export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-export BASH_XTRACEFD=4
-set -o xtrace
-
-source /lib/sdc/config.sh
-load_sdc_config
-
-CURL_OPTS="-m 10 -sS -i"
-
-# CNAPI!
-CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_cnapi_http_admin_user}
-    && -n ${CONFIG_cnapi_http_admin_pw} ]]; then
-
-    CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
-fi
-if [[ -n ${CNAPI_IP} ]]; then
-    CNAPI_URL="http://${CNAPI_IP}"
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
 fi
 
-# ZAPI!
-ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_zapi_http_admin_user}
-    && -n ${CONFIG_zapi_http_admin_pw} ]]; then
-
-    ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
-fi
-if [[ -n ${ZAPI_IP} ]]; then
-    ZAPI_URL="http://${ZAPI_IP}"
-fi
-
-# NAPI!
-NAPI_URL=${CONFIG_napi_client_url}
-
-if [[ -n ${CONFIG_napi_http_admin_user}
-    && -n ${CONFIG_napi_http_admin_pw} ]]; then
-
-    NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
-fi
-
-# WORKFLOW!
-WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_workflow_http_admin_user}
-    && -n ${CONFIG_workflow_http_admin_pw} ]]; then
-
-    WORKFLOW_CREDENTIALS="${CONFIG_workflow_http_admin_user}:${CONFIG_workflow_http_admin_pw}"
-fi
-if [[ -n ${WORKFLOW_IP} ]]; then
-    WORKFLOW_URL="http://${WORKFLOW_IP}"
-fi
-
-mode=$1
-shift
-
-fatal()
-{
-    echo "$@" >&2
+if [[ ! -f /opt/smartdc/bin/libdc.sh ]]; then
+    echo "fatal: unable to find libdc.sh"
     exit 1
-}
+fi
+source /opt/smartdc/bin/libdc.sh
+
+command=$1
+shift
 
 usage()
 {
-    cat >&2 <<EOF
-Usage: $0 <mode> [args]
+    cat <<EOF
 
-  == Modes ==
+Usage:
+        $0 <sub-command> [options]
 
-  dataset-list
-  machine-create [<file>]
-  machine-list
-  network-list
-  sdc-create <role>
-  sdc-destroy <uuid|alias>
-  sdc-list
-  server-list
+Sub-commands:
 
-  cnapi [raw curl args]
-  napi  [raw curl args]
-  workflow [raw curl args]
-  zapi  [raw curl args]
+        create [role]   - create a sdc_role zone
+        destroy [alias] - destroy an sdc_role zone by alias
+        list            - list all sdc_role zones in this DC
 
 EOF
     exit 1
-}
-
-cnapi()
-{
-    path=$1
-    shift
-    curl ${CURL_OPTS} -u "${CNAPI_CREDENTIALS}" --url "${CNAPI_URL}${path}" "$@" \
-        || exit
-    echo ""  # sometimes the result is not terminated with a newline
-}
-
-napi()
-{
-    path=$1
-    shift
-    curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" "$@" \
-        || exit
-    echo ""  # sometimes the result is not terminated with a newline
-}
-
-workflow()
-{
-    path=$1
-    shift
-    curl ${CURL_OPTS} -u "${WORKFLOW_CREDENTIALS}" --url "${WORKFLOW_URL}${path}" "$@" \
-        || exit
-    echo ""  # sometimes the result is not terminated with a newline
-}
-
-zapi()
-{
-    path=$1
-    shift
-    curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" "$@" \
-        || exit
-    echo ""  # sometimes the result is not terminated with a newline
-}
-
-machine_list()
-{
-    printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
-        "ALIAS" "SERVER" "UUID" "BRAND" "RAM" "STATE"
-
-    # this sets the variables:
-    #
-    #  hostname_UUID=<hostname>
-    #
-    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
-    host_mappings=$(cnapi /servers \
-        | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
-        | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
-    if [[ -n ${host_mappings} ]]; then
-       eval ${host_mappings}
-    fi
-
-    for zone in $(zapi /machines?state=active \
-	    | json -H \
-        -e 'alias=(alias || "-")' \
-        -a alias brand state uuid ram server_uuid \
-        | tr ' ' ',' | sort); do
-
-        local alias=$(echo "${zone}" | cut -d',' -f1)
-        local brand=$(echo "${zone}" | cut -d',' -f2)
-        local state=$(echo "${zone}" | cut -d',' -f3)
-        local uuid=$(echo "${zone}" | cut -d',' -f4)
-        local ram=$(echo "${zone}" | cut -d',' -f5)
-        local server_uuid=$(echo "${zone}" | cut -d',' -f6)
-        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
-        [[ -z ${server_name} ]] && server_name="-"
-
-        printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
-            "${alias}" "${server_name}" "${uuid}" "${brand}" "${ram}" "${state}"
-    done
-}
-
-network_list()
-{
-    printf "%-12s %-36s  %-4s %16s %16s\n" \
-        "NAME" "UUID" "VLAN" "NETWORK" "GATEWAY"
-    printf "%-12s %36s  %4s %16s %16s\n" \
-        $(napi /networks \
-            | json -H \
-            -a name uuid vlan network gateway)
-}
-
-dataset_list()
-{
-    local ds
-
-    # XXX: CNAPI doesn't seem to support this right now, so get this from
-    # the usbkey for now
-    printf "%-12s %-8s %-36s\n" \
-        "NAME" "VERSION" "UUID"
-    for ds in /usbkey/datasets/*.dsmanifest; do
-        printf "%-12s %-8s %-36s\n" \
-            $(json -a name version uuid < ${ds})
-    done
-}
-
-server_list()
-{
-    # XXX I want admin_ip here but it's not in the output (yet?)
-    printf "%-12s %-36s  %7s\n" \
-        "HOSTNAME" "UUID" "RAM"
-    printf "%-12s %36s  %7s\n" \
-        $(cnapi /servers \
-            | json -H \
-            -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
-            -a hostname uuid memory_total_bytes)
 }
 
 add_config_ips()
@@ -562,43 +398,6 @@ sdc_create()
     fi
 }
 
-# filename passed must have a 'Job-Location: ' header in it.
-watch_job()
-{
-    local filename=$1
-
-    # This may in fact be the hackiest possible way I could think up to do this
-    rm -f /tmp/job_status.$$.old
-    touch /tmp/job_status.$$.old
-    local prev_execution=
-    local chain_results=
-    local execution=
-    local job_status=
-    local loop=0
-    while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
-        local job=$(grep "^Job-Location:" ${filename} | cut -d ' ' -f2 | tr -d [:space:])
-        if [[ -n ${job} ]]; then
-            job_status=$(workflow ${job} | json -H)
-            echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
-            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
-            mv /tmp/job_status.$$.new /tmp/job_status.$$.old
-            execution=$(echo "${job_status}" | json execution)
-            if [[ ${execution} != ${prev_execution} ]]; then
-                echo "+ Job status changed to: ${execution}"
-                prev_execution=${execution}
-            fi
-        fi
-        sleep 0.5
-    done
-    if [[ ${execution} == "succeeded" ]]; then
-        echo "+ Success!"
-        return 0
-    else
-        echo "+ FAILED! (details in ${job})"
-        return 1
-    fi
-}
-
 sdc_destroy()
 {
     local arg=$1
@@ -654,49 +453,12 @@ sdc_destroy()
     fi
 }
 
-provision_zone_from_payload()
-{
-    local tmpfile=$1
-    local verbose="$2"
-    zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} 2>&1 | tee /tmp/provision.$$ >&4
-    provisioned_uuid=$(json -H uuid < /tmp/provision.$$)
-    if [[ -z ${provisioned_uuid} ]]; then
-        if [[ -n $verbose ]]; then
-            cat /tmp/provision.$$ | json -H
-            exit 1
-        else
-            fatal "unable to get uuid for new ${zrole} machine."
-        fi
-    fi
-
-    echo "+ Sent provision to ZAPI for ${provisioned_uuid}"
-    watch_job /tmp/provision.$$
-
-    return $?
-}
-
-machine_create()
-{
-    local filename=$1
-
-    if [[ -z ${filename} || ${filename} == "-" ]]; then
-        echo "machine_create: reading from stdin" >&2
-        filename="/dev/stdin"
-    fi
-    if [[ ! -e ${filename} ]]; then
-        fatal "unable to find file '${filename}'"
-    fi
-    provision_zone_from_payload "${filename}" "true"
-
-    return $?
-}
-
 sdc_list()
 {
     local zone=
 
-    printf "%-12s %-16s %-36s  %-7s %10s %16s\n" \
-        "ALIAS" "SERVER" "UUID" "RAM" "STATE" "ROLE"
+    printf "%-12s %-16s %-36s  %-7s %10s %16s %15s\n" \
+        "ALIAS" "SERVER" "UUID" "RAM" "STATE" "ROLE" "ADMIN_IP"
 
     # this sets the variables:
     #
@@ -722,56 +484,31 @@ sdc_list()
         local ram=$(echo "${zone}" | cut -d',' -f5)
         local server_uuid=$(echo "${zone}" | cut -d',' -f6)
         local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
+        local admin_ip=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | grep "^admin" | cut -d ' ' -f2)
+        [[ -z ${admin_ip} ]] && admin_ip="-"
         [[ -z ${server_name} ]] && server_name="-"
 
-        printf "%-12s %-16s %-36s  %-7s %10s %16s\n" \
-            "${alias}" "${server_name}" "${uuid}" "${ram}" "${state}" "${role}"
+        printf "%-12s %-16s %-36s  %-7s %10s %16s %15s\n" \
+            "${alias}" "${server_name}" "${uuid}" "${ram}" "${state}" "${role}" "${admin_ip}"
     done
 }
 
-if [[ -z ${mode} ]]; then
+if [[ -z ${command} ]]; then
     usage
 fi
 
-case ${mode} in
-dataset-list)
-    dataset_list "$@"
-;;
-machine-create)
-    machine_create "$@"
-;;
-machine-list)
-    machine_list "$@"
-;;
-network-list)
-    network_list "$@"
-;;
-sdc-create)
+case ${command} in
+create)
     sdc_create "$@"
 ;;
-sdc-destroy)
+destroy|delete)
     sdc_destroy "$@"
 ;;
-sdc-list)
+list)
     sdc_list "$@"
 ;;
-server-list)
-    server_list "$@"
-;;
-cnapi)
-    cnapi "$@"
-;;
-napi)
-    napi "$@"
-;;
-workflow)
-    workflow "$@"
-;;
-zapi)
-    zapi "$@"
-;;
 *)
-    echo "Illegal mode: ${mode}" >&2
+    echo "Unknown command: ${command}" >&2
     usage
 ;;
 esac

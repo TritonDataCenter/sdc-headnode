@@ -1,0 +1,79 @@
+#!/usr/bin/bash
+#
+
+# Important! This is just a place-holder until we rewrite in node.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+if [[ ! -f /opt/smartdc/bin/libdc.sh ]]; then
+    echo "fatal: unable to find libdc.sh"
+    exit 1
+fi
+source /opt/smartdc/bin/libdc.sh
+
+command=$1
+shift
+
+usage()
+{
+    cat <<EOF
+
+Usage:
+        $0 <sub-command> [options]
+
+Sub-commands:
+
+        list         - list all servers in this DC
+        setup [uuid] - setup a new server in this DC
+
+EOF
+    exit 1
+}
+
+server_list()
+{
+    servers=$(cnapi /servers | json -H -a uuid)
+    if [[ -n ${servers} ]]; then
+        printf "%-12s %-36s  %7s  %15s\n" \
+            "HOSTNAME" "UUID" "RAM" "ADMIN_IP"
+        for uuid in $(cnapi /servers | json -H -a uuid); do
+            # if someone has a better way to do this, it'd be a appreciated.
+            admin_ip=$(cnapi /servers/${uuid} | json -H 0.sysinfo \
+                | json "Network Interfaces" | sed -e "s/^[{}]//" \
+                | sed -e "s/ *//" | sed -e "s/^\".*\"\: {/{/" | sed -e "s/},/}/" \
+                | json -a "NIC Names".0 ip4addr | grep "^admin " | cut -d ' ' -f2)
+            data=$(cnapi /servers/${uuid} \
+                | json -H -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
+                -a hostname memory_total_bytes)
+            hostname=${data%% *}
+            ram=${data##* }
+
+            printf "%-12s %36s  %7s  %15s\n" \
+                "${hostname}" "${uuid}" "${ram}" "${admin_ip}"
+        done
+    fi
+}
+
+if [[ -z ${command} ]]; then
+    usage
+fi
+
+case ${command} in
+list)
+    server_list "$@"
+;;
+setup)
+    echo "Server setup not yet implemented"
+    exit 1
+;;
+*)
+    echo "Unknown command: ${command}" >&2
+    usage
+;;
+esac
+
+exit 0

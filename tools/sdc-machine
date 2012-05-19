@@ -1,0 +1,126 @@
+#!/usr/bin/bash
+#
+
+# Important! This is just a place-holder until we rewrite in node.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+if [[ ! -f /opt/smartdc/bin/libdc.sh ]]; then
+    echo "fatal: unable to find libdc.sh"
+    exit 1
+fi
+
+source /opt/smartdc/bin/libdc.sh
+
+command=$1
+shift
+
+usage()
+{
+    cat <<EOF
+
+Usage:
+        $0 <sub-command> [options]
+
+Sub-commands:
+
+        create [filename] - create a machine from a payload
+        destroy [uuid]    - destroy the machine by uuid
+        list              - list all machines in this DC
+
+EOF
+    exit 1
+}
+
+machine_destroy()
+{
+    local uuid=$1
+
+    [[ -z ${uuid} ]] && fatal "destroy: unable to find uuid for zone matching '${arg}'"
+
+    zapi /machines/${uuid} -X DELETE > /tmp/destroy.$$
+
+    echo "+ Sent DELETE to ZAPI for ${uuid}"
+    watch_job /tmp/destroy.$$
+
+    return $?;
+}
+
+machine_list()
+{
+    printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
+        "ALIAS" "SERVER" "UUID" "BRAND" "RAM" "STATE"
+
+    # this sets the variables:
+    #
+    #  hostname_UUID=<hostname>
+    #
+    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+    host_mappings=$(cnapi /servers \
+        | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
+        | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
+    if [[ -n ${host_mappings} ]]; then
+       eval ${host_mappings}
+    fi
+
+    for zone in $(zapi /machines?state=active \
+	    | json -H \
+        -e 'alias=(alias || "-")' \
+        -a alias brand state uuid ram server_uuid \
+        | tr ' ' ',' | sort); do
+
+        local alias=$(echo "${zone}" | cut -d',' -f1)
+        local brand=$(echo "${zone}" | cut -d',' -f2)
+        local state=$(echo "${zone}" | cut -d',' -f3)
+        local uuid=$(echo "${zone}" | cut -d',' -f4)
+        local ram=$(echo "${zone}" | cut -d',' -f5)
+        local server_uuid=$(echo "${zone}" | cut -d',' -f6)
+        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
+        [[ -z ${server_name} ]] && server_name="-"
+
+        printf "%-12s %-16s %-36s  %-6s %7s %16s\n" \
+            "${alias}" "${server_name}" "${uuid}" "${brand}" "${ram}" "${state}"
+    done
+}
+
+machine_create()
+{
+    local filename=$1
+
+    if [[ -z ${filename} || ${filename} == "-" ]]; then
+        echo "machine_create: reading from stdin" >&2
+        filename="/dev/stdin"
+    fi
+    if [[ ! -e ${filename} ]]; then
+        fatal "unable to find file '${filename}'"
+    fi
+    provision_zone_from_payload "${filename}" "true"
+
+    return $?
+}
+
+if [[ -z ${command} ]]; then
+    usage
+fi
+
+case ${command} in
+create)
+    machine_create "$@"
+;;
+delete|destroy)
+    machine_destroy "$@"
+;;
+list)
+    machine_list "$@"
+;;
+*)
+    echo "Unknown command: ${command}" >&2
+    usage
+;;
+esac
+
+exit 0

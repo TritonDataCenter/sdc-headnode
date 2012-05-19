@@ -40,6 +40,12 @@ JSON=$(which json 2>/dev/null || true)
 if [[ -z "$AMON_URL" && -f /lib/sdc/config.sh ]]; then
     source /lib/sdc/config.sh
     load_sdc_config
+
+    if [[ -z ${CONFIG_amon_admin_ips} ]]; then
+        echo "error: Unable to find IP for amon. Is it installed?"
+        exit 1
+    fi
+
     # Just use the first of the "amon_admin_ips".
     AMON_URL=http://$(echo $CONFIG_amon_admin_ips | cut -d, -f1)
 fi

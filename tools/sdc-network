@@ -1,0 +1,60 @@
+#!/usr/bin/bash
+#
+
+# Important! This is just a place-holder until we rewrite in node.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+if [[ ! -f /opt/smartdc/bin/libdc.sh ]]; then
+    echo "fatal: unable to find libdc.sh"
+    exit 1
+fi
+source /opt/smartdc/bin/libdc.sh
+
+command=$1
+shift
+
+usage()
+{
+    cat <<EOF
+
+Usage:
+        $0 <sub-command> [options]
+
+Sub-commands:
+
+        list - list all networks in this DC
+
+EOF
+    exit 1
+}
+
+network_list()
+{
+    printf "%-12s %-36s  %-4s %16s %16s\n" \
+        "NAME" "UUID" "VLAN" "NETWORK" "GATEWAY"
+    printf "%-12s %36s  %4s %16s %16s\n" \
+        $(napi /networks \
+            | json -H \
+            -a name uuid vlan network gateway)
+}
+
+if [[ -z ${command} ]]; then
+    usage
+fi
+
+case ${command} in
+list)
+    network_list "$@"
+;;
+*)
+    echo "Unknown command: ${command}" >&2
+    usage
+;;
+esac
+
+exit 0
