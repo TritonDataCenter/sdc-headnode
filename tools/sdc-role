@@ -372,16 +372,14 @@ sdc_create()
         o.customer_metadata['assets-ip'] = '${CONFIG_assets_admin_ip}';
         o.customer_metadata['user-script'] = us.toString();
         fs.writeFileSync('${tmpfile}', JSON.stringify(o, null, 2), 'utf-8');" \
-        >&4 2>&1
+        2>&1
 
     if [[ $? != 0 || ! -f ${tmpfile} ]]; then
         echo "Unable to convert user script to JSON." >&2
         exit 1
     fi
 
-    echo "=== BEGIN PAYLOAD ===" >&4
-    cat ${tmpfile} >&4
-    echo "===  END PAYLOAD  ===" >&4
+    cat ${tmpfile}
 
     provision_zone_from_payload ${tmpfile}
 
@@ -442,7 +440,7 @@ sdc_destroy()
     # Find the IPs that NAPI thinks the zone has so we can remove them
     local zone_ips=$(napi /nics?belongs_to_uuid=${destroy_uuid} | json -H -a ip | xargs)
 
-    zapi /machines/${destroy_uuid} -X DELETE | tee /tmp/destroy.$$ >&4
+    zapi /machines/${destroy_uuid} -X DELETE | tee /tmp/destroy.$$
 
     echo "+ Sent DELETE to ZAPI for ${destroy_uuid}"
     watch_job /tmp/destroy.$$
