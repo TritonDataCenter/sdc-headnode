@@ -24,12 +24,10 @@ cat > /opt/smartdc/zapi/config.json <<HERE
     "reconnect": 5
   },
   "api": {
-    "username": "$ZAPI_HTTP_ADMIN_USER",
-    "password": "$ZAPI_HTTP_ADMIN_PW",
     "port": 80
   },
   "wfapi": {
-    "workflows": ["provision", "start", "stop", "reboot", "destroy"],
+    "workflows": ["provision", "start", "stop", "reboot", "destroy", "update"],
     "url": "$WF_URL",
     "username": "$WFAPI_HTTP_ADMIN_USER",
     "password": "$WFAPI_HTTP_ADMIN_PW"
