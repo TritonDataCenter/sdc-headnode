@@ -43,7 +43,7 @@ PATH=/usr/sbin:/usr/bin; export PATH
 
 case "\$1" in
 'start')
-    /opt/local/bin/node /opt/smartdc/consoleproxy/consoleproxy.js 2>&1 &
+    /opt/smartdc/adminui/node/bin/node /opt/smartdc/adminui/consoleproxy/server.js 2>&1 &
     ;;
 
 'stop')
@@ -63,7 +63,7 @@ EOF
 fi
 
 echo Creating manifest for consoleproxy:
-cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
+cat > /opt/smartdc/adminui/consoleproxy/consoleproxy-manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type="manifest" name="consoleproxy">
@@ -85,22 +85,21 @@ cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
       name="start"
       exec="/opt/smartdc/bin/smartdc-consoleproxy %m"
       timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/consoleproxy">
+      <method_context working_directory="/opt/smartdc/adminui/consoleproxy">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
           <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
-          <envvar name="ADMINUI_PATH" value="/opt/smartdc/adminui" />
         </method_environment>
       </method_context>
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/consoleproxy" />
+      <method_context working_directory="/opt/smartdc/adminui/consoleproxy" />
     </exec_method>
 
     <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/consoleproxy" />
+      <method_context working_directory="/opt/smartdc/adminui/consoleproxy" />
     </exec_method>
 
     <property_group name="startd" type="framework">
@@ -125,9 +124,9 @@ cat > /opt/smartdc/consoleproxy/consoleproxy-manifest.xml <<HERE
 HERE
 
 echo "Importing consoleproxy-manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/consoleproxy/consoleproxy-manifest.xml
+/usr/sbin/svccfg import /opt/smartdc/adminui/consoleproxy/consoleproxy-manifest.xml
 
-ln -sf /opt/local/etc/openssl/private/selfsigned.pem /opt/smartdc/consoleproxy/self.pem
+ln -sf /opt/local/etc/openssl/private/selfsigned.pem /opt/smartdc/adminui/consoleproxy/self.pem
 
 echo "Enablig service consoleproxy"
 /usr/sbin/svcadm enable smartdc/app/consoleproxy

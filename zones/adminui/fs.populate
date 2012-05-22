@@ -30,12 +30,10 @@ if [[ -n ${ADMINUI_DIR} ]]; then
 else
     git clone git@git.joyent.com:mcp_api_admin.git -b $(basename ${CHECKOUT_TARGET}) adminui-repo
     cd adminui-repo
-    git submodule update --init --recursive
     mnfst_string="adminui-repo@"${CHECKOUT_TARGET}
 fi
 
 mv caproxy ../
-mv consoleproxy ../
 
 # Remove all .git directories from the repo
 find . -type d -name ".git" -exec echo {} \;
