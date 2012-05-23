@@ -21,6 +21,9 @@ echo "export PATH=\$PATH:/opt/smartdc/amon/bin" >>/root/.bashrc
 # run the configuration
 /opt/smartdc/bin/configure || fatal "unable to configure"
 
+# Amon master needs postfix to send email notifications.
+/usr/sbin/svcadm enable postfix
+
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
