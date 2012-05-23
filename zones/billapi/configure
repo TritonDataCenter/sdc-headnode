@@ -113,7 +113,7 @@ if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
 fi
 
 
-echo "Creating HTTP Server SMF manifest"
+echo "Creating HTTP Server manifest"
 cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -174,7 +174,7 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-echo "Creating AMQP Consumer SMF manifest"
+echo "Creating AMQP Consumer manifest"
 cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -304,7 +304,7 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-echo "Creating Report Queue manifest"
+echo "Creating Sync manifest"
 cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
@@ -369,6 +369,72 @@ cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
 </service_bundle>
 HERE
 
+echo "Creating Postgres Migrate manifest"
+cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
+<?xml version="1.0"?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<service_bundle type="manifest" name="billapi-migrate">
+  <service name="smartdc/site/billapi-migrate" type="service" version="6.1.0">
+
+    <create_default_instance enabled="true"/>
+    <single_instance/>
+
+    <dependency name="network" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/milestone/network:default"/>
+    </dependency>
+
+    <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
+      <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <dependency name="postgresql" grouping="require_all" restart_on="none" type="service">
+      <service_fmri value="svc:/network/postgresql"/>
+    </dependency>
+
+    <exec_method
+      type="method"
+      name="start"
+      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/migrate.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      timeout_seconds="600">
+      <method_context working_directory="/opt/smartdc/billapi">
+        <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
+        <method_environment>
+          <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+          <envvar name="LD_PRELOAD_32" value="/usr/lib/extendedFILE.so.1" />
+        </method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <exec_method type="method" name="stop" exec=":true" timeout_seconds="60">
+      <method_context working_directory="/opt/smartdc/billapi" />
+    </exec_method>
+
+    <property_group name="startd" type="framework">
+      <propval name="ignore_error" type="astring" value="core,signal"/>
+      <propval name="duration" type="astring" value="transient" />
+    </property_group>
+
+    <property_group name="application" type="application">
+
+    </property_group>
+
+    <stability value="Stable"/>
+
+    <template>
+      <common_name>
+        <loctext xml:lang="C">Billing API Database Migrator (node)</loctext>
+      </common_name>
+    </template>
+
+  </service>
+
+</service_bundle>
+HERE
+
 cat > /opt/smartdc/billapi/config/config.json <<HERE
 {
   "siteName": "${BILLAPI_EXTERNAL_URL}",
@@ -419,6 +485,9 @@ echo "Importing billapi_queue_manifest.xml"
 echo "Importing billapi_sync_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_sync_manifest.xml
 
+echo "Importing billapi_migrate_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_migrate_manifest.xml
+
 echo "Enabling service billapi-http"
 /usr/sbin/svcadm disable smartdc/site/billapi-http
 /usr/sbin/svcadm enable smartdc/site/billapi-http
@@ -431,5 +500,8 @@ echo "Enabling service billapi-queue"
 echo "Enabling service billapi-sync"
 /usr/sbin/svcadm disable smartdc/site/billapi-sync
 /usr/sbin/svcadm enable smartdc/site/billapi-sync
+echo "Enabling service billapi-migrate"
+/usr/sbin/svcadm disable smartdc/site/billapi-migrate
+/usr/sbin/svcadm enable smartdc/site/billapi-migrate
 
 exit 0
