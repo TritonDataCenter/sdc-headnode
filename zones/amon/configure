@@ -29,14 +29,10 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
     "password": "${UFDS_LDAP_ROOT_PW}"
   },
   "cnapi": {
-    "url": "http://${CNAPI_ADMIN_IP}",
-    "username": "${CNAPI_HTTP_ADMIN_USER}",
-    "password": "${CNAPI_HTTP_ADMIN_PW}"
+    "url": "http://${CNAPI_ADMIN_IP}"
   },
   "zapi": {
-    "url": "http://${ZAPI_ADMIN_IP}",
-    "username": "${ZAPI_HTTP_ADMIN_USER}",
-    "password": "${ZAPI_HTTP_ADMIN_PW}"
+    "url": "http://${ZAPI_ADMIN_IP}"
   },
   "redis": {
     "host": "${REDIS_ADMIN_IP}",
