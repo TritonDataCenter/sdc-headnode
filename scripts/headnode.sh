@@ -26,6 +26,9 @@ set -o pipefail
 
 CONSOLE_FD=4 ; export CONSOLE_FD
 
+# time to wait for each zone to setup (in seconds)
+ZONE_SETUP_TIMEOUT=180
+
 function fatal
 {
     printf "%-80s\r" " " >&${CONSOLE_FD}
@@ -442,22 +445,28 @@ function create_zone {
 
         while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
             && ! -f ${zonepath}/root/var/svc/setup_failed \
-            && loops -lt 300 ]]; do
+            && loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
 
             sleep 1
             loops=$((${loops} + 1))
         done
 
-        if [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
+        if [[ ${loops} -lt ${ZONE_SETUP_TIMEOUT} \
+            && -f ${zonepath}/root/var/svc/setup_complete ]]; then
+
             # Got here and complete, now just wait for services.
-            while [[ -n $(svcs -xvz ${new_uuid}) && loops -lt 300 ]]; do
+            while [[ -n $(svcs -xvz ${new_uuid}) && loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
                 sleep 1
                 loops=$((${loops} + 1))
             done
         fi
 
         delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
-        if [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
+        if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
+            echo "timeout" >&${CONSOLE_FD}
+            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+            fatal "Failed to create ${zone}: setup timed out after ${delta_t} seconds."
+        elif [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
             printf_timer "%4s (%ss)\n" "done"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
         elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
