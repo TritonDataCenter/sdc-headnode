@@ -134,7 +134,7 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/server.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/server.js -f /opt/smartdc/billapi/config/config.json &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/billapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -199,7 +199,7 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/consumer.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/consumer.js -f /opt/smartdc/billapi/config/config.json &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/billapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -264,7 +264,7 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/queue.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/queue.js -f /opt/smartdc/billapi/config/config.json &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/billapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -329,7 +329,7 @@ cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/sync.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/sync.js -f /opt/smartdc/billapi/config/config.json &amp;"
       timeout_seconds="60">
       <method_context working_directory="/opt/smartdc/billapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
@@ -394,7 +394,7 @@ cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/node/bin/node /opt/smartdc/billapi/script/migrate.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/migrate.js -f /opt/smartdc/billapi/config/config.json &amp;"
       timeout_seconds="600">
       <method_context working_directory="/opt/smartdc/billapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
