@@ -192,6 +192,10 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
       <service_fmri value="svc:/system/filesystem/local"/>
     </dependency>
 
+    <dependency name="postgresql" grouping="require_all" restart_on="none" type="service">
+      <service_fmri value="svc:/network/postgresql"/>
+    </dependency>
+
     <exec_method
       type="method"
       name="start"
@@ -253,6 +257,10 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
       <service_fmri value="svc:/system/filesystem/local"/>
     </dependency>
 
+    <dependency name="postgresql" grouping="require_all" restart_on="none" type="service">
+      <service_fmri value="svc:/network/postgresql"/>
+    </dependency>
+
     <exec_method
       type="method"
       name="start"
@@ -312,6 +320,10 @@ cat > /opt/smartdc/billapi/billapi_sync_manifest.xml <<HERE
 
     <dependency name="filesystem" grouping="require_all" restart_on="error" type="service">
       <service_fmri value="svc:/system/filesystem/local"/>
+    </dependency>
+
+    <dependency name="postgresql" grouping="require_all" restart_on="none" type="service">
+      <service_fmri value="svc:/network/postgresql"/>
     </dependency>
 
     <exec_method
