@@ -114,11 +114,11 @@ fi
 
 
 echo "Creating HTTP Server SMF manifest"
-cat > /opt/smartdc/billapi/billapi_manifest.xml <<HERE
+cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <service_bundle type="manifest" name="billapi">
-  <service name="smartdc/site/billapi" type="service" version="6.1.0">
+  <service name="smartdc/site/billapi-http" type="service" version="6.1.0">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -407,8 +407,8 @@ cat > /opt/smartdc/billapi/config/config.json <<HERE
 }
 HERE
 
-echo "Importing billapi_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_manifest.xml
+echo "Importing billapi_http_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_http_manifest.xml
 
 echo "Importing billapi_consumer_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_consumer_manifest.xml
@@ -419,9 +419,9 @@ echo "Importing billapi_queue_manifest.xml"
 echo "Importing billapi_sync_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/billapi/billapi_sync_manifest.xml
 
-echo "Enabling service billapi"
-/usr/sbin/svcadm disable smartdc/site/billapi
-/usr/sbin/svcadm enable smartdc/site/billapi
+echo "Enabling service billapi-http"
+/usr/sbin/svcadm disable smartdc/site/billapi-http
+/usr/sbin/svcadm enable smartdc/site/billapi-http
 echo "Enabling service billapi-consumer"
 /usr/sbin/svcadm disable smartdc/site/billapi-consumer
 /usr/sbin/svcadm enable smartdc/site/billapi-consumer
