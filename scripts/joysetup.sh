@@ -8,7 +8,7 @@ export PATH
 
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
-TEMP_CONFIGS=/var/tmp/node.config/
+TEMP_CONFIGS=/var/tmp/joysetup/node.config
 
 #
 # Servers must have twice as much available disk space as RAM for setup
@@ -459,7 +459,7 @@ output_zpool_info()
 # plus authorized keys and anything else we want
 install_configs()
 {
-    SMARTDC=/opt/smartdc/config/
+    SMARTDC=/opt/smartdc/config
 
     # On standalone machines we don't get config in /var/tmp
     if [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
@@ -469,7 +469,7 @@ install_configs()
     if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
         printf "%-56s" "Compute node, installing config files... " >&4
         if [[ ! -d $TEMP_CONFIGS ]]; then
-            fatal "config files not present in /var/tmp"
+            fatal "config files not present in $TEMP_CONFIGS"
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
@@ -486,6 +486,30 @@ install_configs()
     fi
 }
 
+setup_filesystems()
+{
+    svcadm disable -s filesystem/smartdc
+    svcadm enable -s filesystem/smartdc
+    svcadm disable -s filesystem/minimal
+    svcadm enable -s filesystem/minimal
+    svcadm disable -s smartdc/config
+    svcadm enable -s smartdc/config
+}
+
+install_agents()
+{
+    zfs list >&2
+    df -h >&2
+    AGENTS_SHAR_URL=$(cat ${SMARTDC}/node.config \
+        | grep "^agents_shar_url=" | cut -d'=' -f2- | tr -d \')
+
+    cp -R /var/tmp/joysetup/ /var/run
+
+    cd /var/run/joysetup
+
+    bash ./agentsetup.sh $AGENTS_SHAR_URL
+}
+
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
@@ -500,14 +524,10 @@ if [[ ${POOLS} == "no pools available" ]]; then
     install_configs
     create_swap
     output_zpool_info
+
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-        # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
-        #
-        #   1. pretend we exited with status 0
-        #   2. send back the response to rabbitmq for this job
-        #   3. reboot
-        #
-        exit 113
+        setup_filesystems
+        install_agents
     fi
 
     # We're the headnode

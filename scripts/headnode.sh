@@ -202,6 +202,44 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
     exit 0
 fi
 
+# Create a subset of the headnode config which will be downloaded by compute
+# nodes when they are setting up for the first time.
+read -r -d '' KEYS <<ENDKEYS || true
+datacenter_name
+root_authorized_keys_file
+assets_admin_ip
+ntp_hosts
+swap
+rabbitmq
+root_shadow
+ufds_admin_ip
+ufds_admin_uuid
+dhcp_lease_time
+capi_client_url
+capi_http_admin_user
+capi_http_admin_pw
+zonetracker_database_path
+ENDKEYS
+
+KEYS=$(echo $KEYS | tr -d '\n')
+
+read -r -d '' SUBSETJS <<ENDSUBSETJS || true
+newobj={};
+'$KEYS'.split(/\\s+/).forEach(function (k) {
+  newobj[k]=this[k];
+});
+ENDSUBSETJS
+
+mkdir -p /usbkey/extras/config
+bash /lib/sdc/config.sh -json \
+    | json -e "$SUBSETJS" newobj \
+    > /usbkey/extras/config/computenode-config.json
+
+# Put the agents in a place where they will be available to compute nodes.
+mkdir -p /usbkey/extras/agents
+cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extras/agents/
+ln -s `ls /usbkey/extras/agents | tail -n 1` /usbkey/extras/agents/latest
+
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
 # into one with the correct name.  Thanks PCFS!
