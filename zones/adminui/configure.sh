@@ -130,31 +130,31 @@ if [[ ! -e /opt/smartdc/adminui/config/unicorn.conf ]]; then
   chown jill:jill /opt/smartdc/adminui/config/unicorn.conf
 fi
 
-if [[ ! -n ${KEEP_DATA_DATASET} ]]; then
-  echo "[ADMINUI] Generating config.json"
-  host=`hostname`
+host=`hostname`
 
-  su - jill -c "cd /opt/smartdc/adminui; \
-    DATACENTER_NAME=$DATACENTER_NAME \
-    AMQP_HOST=$AMQP_HOST \
-    HELP_URL=$HELP_URL \
-    SDC_VERSION=$SDC_VERSION \
-    ADMINUI_IP=$ADMINUI_IP \
-    MAIL_FROM=$MAIL_FROM \
-    MAIL_TO=$MAIL_TO \
-    DSAPI_URL=$DSAPI_URL \
-    DSAPI_USER=$DSAPI_USER \
-    DSAPI_PASS=$DSAPI_PASS \
-    CAPI_URL=$CAPI_URL \
-    CA_CLIENT_URL=$CA_CLIENT_URL \
-    CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER \
-    CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW \
-    MAPI_URL=$MAPI_URL \
-    MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
-    MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
-    HVM=$HAVE_HVM \
-    /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
-fi
+echo "[ADMINUI] Generating config files via rake task"
+
+su - jill -c "cd /opt/smartdc/adminui; \
+  DATACENTER_NAME=$DATACENTER_NAME \
+  AMQP_HOST=$AMQP_HOST \
+  HELP_URL=$HELP_URL \
+  SDC_VERSION=$SDC_VERSION \
+  ADMINUI_IP=$ADMINUI_IP \
+  PUBLIC_IP=$PUBLIC_IP \
+  MAIL_FROM=$MAIL_FROM \
+  MAIL_TO=$MAIL_TO \
+  DSAPI_URL=$DSAPI_URL \
+  DSAPI_USER=$DSAPI_USER \
+  DSAPI_PASS=$DSAPI_PASS \
+  CAPI_URL=$CAPI_URL \
+  CA_CLIENT_URL=$CA_CLIENT_URL \
+  CAPI_HTTP_ADMIN_USER=$CAPI_HTTP_ADMIN_USER \
+  CAPI_HTTP_ADMIN_PW=$CAPI_HTTP_ADMIN_PW \
+  MAPI_URL=$MAPI_URL \
+  MAPI_HTTP_ADMIN_USER=$MAPI_HTTP_ADMIN_USER \
+  MAPI_HTTP_ADMIN_PW=$MAPI_HTTP_ADMIN_PW \
+  HVM=$HAVE_HVM \
+  /opt/local/bin/rake config -f /opt/smartdc/adminui/Rakefile"
 
 if [[ ! -e /opt/smartdc/adminui/tmp/pids ]]; then
   su - jill -c "mkdir -p /opt/smartdc/adminui/tmp/pids"
