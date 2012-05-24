@@ -54,7 +54,11 @@ cat > /opt/smartdc/dcapi/etc/config.json <<HERE
     "username": "$ZAPI_HTTP_ADMIN_USER",
     "password": "$ZAPI_HTTP_ADMIN_PW"
   },
-
+  "dsapi": {
+    "url": "$DSAPI_URL",
+    "username": "$DSAPI_HTTP_USER",
+    "password": "$DSAPI_HTTP_PW"
+  },
   "ufds": {
     "url": "ldaps://localhost",
     "bindDN": "$DCAPI_LDAP_ROOT_DN",

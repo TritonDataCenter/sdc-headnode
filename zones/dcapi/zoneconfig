@@ -25,6 +25,9 @@ DAPI_HTTP_ADMIN_PW=${dapi_http_admin_pw}
 NAPI_HTTP_ADMIN_USER=${napi_http_admin_user}
 NAPI_HTTP_ADMIN_PW=${napi_http_admin_pw}
 
+DSAPI_URL=${dsapi_url}
+DSAPI_HTTP_USER=${dsapi_http_user}
+DSAPI_HTTP_PW=${dsapi_http_pass}
 
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
