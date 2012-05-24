@@ -230,15 +230,15 @@ newobj={};
 });
 ENDSUBSETJS
 
-mkdir -p /usbkey/extras/config
+mkdir -p /usbkey/extra/config
 bash /lib/sdc/config.sh -json \
     | json -e "$SUBSETJS" newobj \
-    > /usbkey/extras/config/computenode-config.json
+    > /usbkey/extra/config/computenode-config.json
 
 # Put the agents in a place where they will be available to compute nodes.
-mkdir -p /usbkey/extras/agents
-cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extras/agents/
-ln -s `ls /usbkey/extras/agents | tail -n 1` /usbkey/extras/agents/latest
+mkdir -p /usbkey/extra/agents
+cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
+ln -s `ls /usbkey/extra/agents | tail -n 1` /usbkey/extra/agents/latest
 
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
