@@ -985,16 +985,20 @@ install_platform
 
 # All of the following are using node and/or libzonecfg so we need to stop them
 # before we can lofs mount the new files.
-svcadm disable zones-monitoring
-svcadm disable smartlogin
-svcadm disable cainstsvc
-svcadm disable zonetracker-v2
-svcadm disable metadata
-svcadm disable amon-relay >/dev/null 2>&1 # may not exist
-svcadm disable amon-agent >/dev/null 2>&1 # may not exist
-svcadm disable webinfo
-svcadm disable vmadmd
-svcadm disable ur
+core_svcs="
+	smartlogin
+	cainstsvc
+	zonetracker-v2
+	metadata
+	webinfo
+	vmadmd
+	ur"
+
+for i in $core_svcs
+do
+	echo "disable $i"
+	svcadm disable $i
+done
 
 # We need the latest smartdc tools to provision the extra zones.
 echo "Mount the new image"
@@ -1019,33 +1023,42 @@ cp -pr /image/usr/vm/node_modules/* /tmp/node_modules
 sed -e 's%/usr/vm/sbin/zoneevent%/image/usr/vm/sbin/zoneevent%' \
     /image/usr/vm/node_modules/VM.js >/tmp/node_modules/VM.js
 
-# wait a few seconds for the svcs to stop using libzonecfg
+# We need to wait for the svcs to stop using libzonecfg
+echo "Wait for svcs to finish disabling"
 cnt=0
-while [ $cnt -lt 3 ]; do
-	sleep 5
-	mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 \
-	    /usr/lib/libzonecfg.so.1
-	[ $? == 0 ] && break
-	cnt=$(($cnt + 1))
-	fuser -f /usr/lib/libzonecfg.so.1 1>&4 2>&1
-	ps -ef 1>&4 2>&1
-	svcs -a | grep smartdc 1>&4 2>&1
-	svcs -xv 1>&4 2>&1
-done
+while [ $cnt -lt 20 ]; do
+	alldown=1
+	for i in $core_svcs
+	do
+		state=`svcs -H -ostate $i`
+		echo "check $i $state" 1>&4
+		[ "$state" == "disabled" ] && continue
 
+		alldown=0
+		[ "$state" == "maintenance" ] && svcadm clear $i
+	done
+
+	[ $alldown -eq 1 ] && break
+	cnt=$(($cnt + 1))
+	sleep 10
+done
+[ $cnt -eq 20 ] && \
+    fatal "Failure disabling core svcs, the upgrade is incomplete"
+
+mount -F lofs -o ro /image/usr/lib/libzonecfg.so.1 /usr/lib/libzonecfg.so.1
+[ $? != 0 ] && \
+    fatal "Unable to mount new libzonecfg, the upgrade is incomplete"
 mount -F lofs -o ro /tmp/node_modules /usr/node_modules
+[ $? != 0 ] && \
+    fatal "Unable to mount new node modules, the upgrade is incomplete"
 mount -F lofs -o ro /image/usr/bin/json /usr/bin/json
 mount -F lofs -o ro /image/usr/sbin/zlogin /usr/sbin/zlogin
 mount -F lofs -o ro /image/usr/sbin/zoneadm /usr/sbin/zoneadm
 mount -F lofs -o ro /image/usr/sbin/zonecfg /usr/sbin/zonecfg
-
-# If we're upgrading an image with vmadm, make sure we use the new one
-# by lofs mounting over the old one.
-[ -f /usr/sbin/vmadm ] && \
-    mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
-
+mount -F lofs -o ro /image/usr/sbin/vmadm /usr/sbin/vmadm
 mount -F lofs -o ro /image/usr/bin/node /usr/bin/node
 mount -F lofs -o ro /image/usr/lib/zones /usr/lib/zones
+
 svcadm enable ur
 svcadm enable vmadmd
 svcadm enable metadata
