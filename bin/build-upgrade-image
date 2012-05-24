@@ -126,6 +126,8 @@ function create_upgrade
         datasets/smartos* \
         rc \
         scripts \
+        tools \
+        tools-man \
         default \
         ur-scripts \
         zones \
