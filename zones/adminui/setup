@@ -13,88 +13,20 @@ app_name=$role
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-# symlink_ruby() just creates missing symlinks to ruby18 and irb18 on zones
-# running ruby applications.
-# It does not expect any argument.
-#
-function symlink_ruby
-{
-  # These happen to do not be created always:
-  if [[ ! -e /opt/local/bin/ruby ]]; then
-    echo "Symlinking ruby"
-    ln -s /opt/local/bin/ruby18 /opt/local/bin/ruby
-  fi
-
-  if [[ ! -e /opt/local/bin/irb ]]; then
-    echo "Symlinking irb"
-    ln -s /opt/local/bin/irb18 /opt/local/bin/irb
-  fi
-}
-
-#
-# It's pretty obvious what create_jill_account() does. Intended to run on zones
-# running ruby applications. It does not expect any arguments, for now.
-#
-function create_jill_account
-{
-  echo "Creating jill account"
-  groupadd jill
-  useradd -g jill -d /opt/smartdc jill
-  chown -R jill:jill /opt/smartdc
-
-  # XXX /etc/oshadow breaks changepass, not sure yet what's putting it there.
-  if [[ -f /etc/oshadow ]]; then
-      echo "WARNING: removing /etc/oshadow"
-      rm -f /etc/oshadow
-  fi
-
-  echo "jill:naiWaic8sh" | /opt/local/sbin/changepass -n -m
-  usermod -P 'Service Management' jill
-  usermod -s /usr/bin/bash jill
-  # Properly set PATH and other relevant stuff.
-  cp /home/admin/.bash_profile /opt/smartdc/.bash_profile
-  cp /home/admin/.bashrc /opt/smartdc/.bashrc
-  cp /home/admin/.irbrc /opt/smartdc/.irbrc
-  cp /home/admin/.profile /opt/smartdc/.profile
-}
-
-cd /var/svc
-
-# Cookie to identify this as a SmartDC zone and its role
+# Identify this as a smartdc zone
 mkdir -p /var/smartdc/adminui
+
 mkdir -p /opt/smartdc/adminui
-mkdir -p /opt/smartdc/adminui-data
-
-echo "configuring adminui datasets"
-
-# This needs to run after scmgit pkgsrc package has been installed:
-
-cp -Rf /opt/smartdc/adminui-repo/* /opt/smartdc/adminui
-
-# Create some directories into adminui-data
-mkdir -p /opt/smartdc/adminui-data/log
-mkdir -p /opt/smartdc/adminui-data/tmp/pids
-
-# Remove and symlink directories:
-mv /opt/smartdc/adminui/config /opt/smartdc/adminui-data/config
-rm -Rf /opt/smartdc/adminui/log
-rm -Rf /opt/smartdc/adminui/tmp
-rm -Rf /opt/smartdc/adminui/config
-ln -s /opt/smartdc/adminui-data/log /opt/smartdc/adminui/log
-ln -s /opt/smartdc/adminui-data/tmp /opt/smartdc/adminui/tmp
-ln -s /opt/smartdc/adminui-data/config /opt/smartdc/adminui/config
-
-# Cleanup build products:
-cd /root/
-rm -Rf /opt/smartdc/adminui-repo
-rm /root/adminui-app-timestamp
-
-symlink_ruby
-create_jill_account
 
 # We need to generate our own self signed certificate for Nginx:
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:4096 -keyout /opt/local/etc/openssl/private/selfsigned.pem -out /opt/local/etc/openssl/private/selfsigned.pem
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' \
+  -newkey rsa:4096 -days 365 \
+    -keyout /opt/smartdc/adminui/ssl/default.pem \
+    -out /opt/smartdc/adminui/ssl/default.pem
+
+# Add node_modules/bin to PATH
+echo "\nexport PATH=\$PATH:/opt/smartdc/zapi/node_modules/.bin" >> /root/.bashrc
 
 # Setup HAProxy user/group
 /usr/sbin/groupadd haproxy
@@ -102,10 +34,7 @@ echo "Generating SSL Certificate"
 /usr/bin/passwd -N haproxy
 
 # do configuration now.
-/opt/smartdc/bin/configure
-
-## Call the verify script
-(cd /opt/smartdc/adminui && ./script/verify_setup.sh)
+/opt/smartdc/bin/configure || fatal "Unable to configure adminui zone"
 
 touch /var/svc/setup_complete
 echo "setup done"
