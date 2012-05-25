@@ -237,8 +237,9 @@ bash /lib/sdc/config.sh -json \
 
 # Put the agents in a place where they will be available to compute nodes.
 mkdir -p /usbkey/extra/agents
-cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
-ln -s `ls /usbkey/extra/agents | tail -n 1` /usbkey/extra/agents/latest
+cp -Ppr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
+rm -f /usbkey/extra/agents/latest
+ln -s `ls -t /usbkey/extra/agents | head -1` /usbkey/extra/agents/latest
 
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
@@ -271,8 +272,8 @@ printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
     # Install the agents here so initial zones have access to metadata.
-    which_agents=$(ls -1 ${USB_PATH}/ur-scripts/agents-*.sh \
-        | grep -v -- '-hvm-' | tail -n1)
+    which_agents=$(ls -t ${USB_PATH}/ur-scripts/agents-*.sh \
+        | grep -v -- '-hvm-' | head -1)
     if [[ -n ${which_agents} ]]; then
         if [ $restore == 0 ]; then
             printf "%-58s" "installing $(basename ${which_agents})... " \
