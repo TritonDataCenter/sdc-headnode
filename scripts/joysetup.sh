@@ -8,7 +8,7 @@ export PATH
 
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
-TEMP_CONFIGS=/var/tmp/joysetup/node.config
+TEMP_CONFIGS=/var/tmp/node.config
 
 #
 # Servers must have twice as much available disk space as RAM for setup
@@ -488,6 +488,7 @@ install_configs()
 
 setup_filesystems()
 {
+    cd /
     svcadm disable -s filesystem/smartdc
     svcadm enable -s filesystem/smartdc
     svcadm disable -s filesystem/minimal
@@ -498,15 +499,8 @@ setup_filesystems()
 
 install_agents()
 {
-    zfs list >&2
-    df -h >&2
-    AGENTS_SHAR_URL=$(cat ${SMARTDC}/node.config \
-        | grep "^agents_shar_url=" | cut -d'=' -f2- | tr -d \')
-
-    cp -R /var/tmp/joysetup/ /var/run
-
-    cd /var/run/joysetup
-
+    AGENTS_SHAR_URL=http://${ASSETS_IP}/extra/agents/latest
+    cd /var/tmp
     bash ./agentsetup.sh $AGENTS_SHAR_URL
 }
 

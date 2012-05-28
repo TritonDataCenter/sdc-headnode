@@ -212,7 +212,7 @@ ntp_hosts
 swap
 rabbitmq
 root_shadow
-ufds_admin_ip
+ufds_admin_ips
 ufds_admin_uuid
 dhcp_lease_time
 capi_client_url
@@ -224,22 +224,27 @@ ENDKEYS
 KEYS=$(echo $KEYS | tr -d '\n')
 
 read -r -d '' SUBSETJS <<ENDSUBSETJS || true
-newobj={};
+newobj=[];
 '$KEYS'.split(/\\s+/).forEach(function (k) {
-  newobj[k]=this[k];
+    newobj.push(k + "='" + this[k] + "'");
 });
+newobj = newobj.join("\\n");
 ENDSUBSETJS
 
-mkdir -p /usbkey/extra/config
-bash /lib/sdc/config.sh -json \
-    | json -e "$SUBSETJS" newobj \
-    > /usbkey/extra/config/computenode-config.json
+if [[ ! -d /usbkey/extra/joysetup ]]; then
+    mkdir -p /usbkey/extra/joysetup
+    bash /lib/sdc/config.sh -json \
+        | json -e "$SUBSETJS" newobj \
+        > /usbkey/extra/joysetup/node.config
+    cp /usbkey/scripts/joysetup.sh /usbkey/extra/joysetup
+fi
 
 # Put the agents in a place where they will be available to compute nodes.
-mkdir -p /usbkey/extra/agents
-cp -Ppr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
-rm -f /usbkey/extra/agents/latest
-ln -s `ls -t /usbkey/extra/agents | head -1` /usbkey/extra/agents/latest
+if [[ ! -d /usbkey/extra/agents ]]; then
+    mkdir -p /usbkey/extra/agents
+    cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
+    ln -s `ls /usbkey/extra/agents | tail -n 1` /usbkey/extra/agents/latest
+fi
 
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
