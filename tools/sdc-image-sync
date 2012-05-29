@@ -1,0 +1,183 @@
+#!/bin/bash
+#
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+#
+
+# This script is intended to copy any changes that a sysadmin might legitimately
+# make on the headnode image back to the USB stick so that those changes
+# are persistent.
+#
+# This cmd can be invoked by the user and also be sdc-backup.  Since its
+# invoked by sdc-backup, we don't want to modify anything on the USB stick
+# unless there are actual changes.
+#
+# There are two kinds of changes to copy, actual files which need to go into
+# the image, and updates that need to be made to the config files.
+
+export PATH="/usr/bin:/usr/sbin"
+
+. /smartdc/lib/sdc-common
+
+declare -A SDC_PKGS=()
+# The cnt is the next number to use when adding a new pkg_ entry
+PKG_CNT=1
+
+UPDATED=0
+
+load_config_pkgs()
+{
+	pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
+	for p in $pkgs
+	do
+		# Pkg entry format:
+		# name:ram:swap:disk:cap:nlwp:iopri
+		nm=${p%%:*}
+
+		SDC_PKGS[$nm]=1
+		PKG_CNT=$((PKG_CNT + 1))
+	done
+}
+
+add_pkg()
+{
+	UPDATED=1
+
+	echo "add '$1' package for '$2' to the generic config file"
+
+	curl -i -s -u $creds \
+	    http://${mapi}/customers/${admin_uuid}/packages | \
+	    json | nawk -v pnm=$1 -v cnt=$PKG_CNT '{
+		if ($1 == "\"name\":")
+		    # strip quotes and comma
+		    if (pnm == substr($2, 2, length($2) - 3)) found = 1
+
+		if (found) {
+		    if ($1 == "\"ram\":") {
+		        # strip comma
+		        ram = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "\"disk\":") {
+		        disk = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "\"swap\":") {
+		        swap = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "\"cpu_cap\":") {
+		        cap = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "\"lightweight_processes\":") {
+		        nlwp = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "\"zfs_io_priority\":") {
+		        iopri = substr($2, 1, length($2) - 1)
+		    } else if ($1 == "}," || $1 == "}") {
+			# Pkg entry format:
+			# name:ram:swap:disk:cap:nlwp:iopri
+			printf("pkg_%d=%s:%s:%s:%s:%s:%s:%s\n", cnt,
+			    pnm, ram, swap, disk, cap, nlwp, iopri);
+			found=0
+		    }
+		}
+	    }' >> /mnt/usbkey/config.inc/generic
+
+	# Just added an entry, so increment the cnt
+	PKG_CNT=$((PKG_CNT + 1))
+
+	# Change role pkg entry to use new pkg
+	nawk -F= -v entry="${2}_pkg" -v val=$1 '{
+	    if ($1 == entry)
+		printf("%s=%s\n", $1, val)
+	    else
+		print $0
+        }' /mnt/usbkey/config.inc/generic >/mnt/usbkey/config.inc/generic.new
+	mv /mnt/usbkey/config.inc/generic.new /mnt/usbkey/config.inc/generic
+}
+
+update_sdc_zone_pkgs()
+{
+        get_admin_zones
+
+        for z in $zones
+        do
+		get_zone_role $z
+		[ -z "$tag" ] && continue
+
+		rpkg=`curl -i -s -u $creds \
+		    http://${mapi}/customers/${admin_uuid}/zones/$z | \
+		    json | nawk '{
+			if ($1 == "\"package_name\":") {
+			    # strip quotes and comma or just quotes
+			    if (substr($2, length($2), 1) == ",")
+			        print substr($2, 2, length($2) - 3)
+		            else
+			        print substr($2, 2, length($2) - 2)
+			}
+		    }'`
+
+		[ -z "$rpkg" ] && continue
+
+		# If this pkg is not in the config file, add it.
+		[[ ${SDC_PKGS[$rpkg]} != 1 ]] && add_pkg "$rpkg" "$tag"
+        done
+}
+
+save_root_password() {
+    enc_password=`nawk -F: '{if ($1 == "root") print $2}' /etc/shadow`
+
+    # First check if it has changed
+    [ "$CONFIG_root_shadow" == "$enc_password" ] && return
+
+    echo "Updating root password in the config file"
+    UPDATED=1
+
+    sed -e "s|^root_shadow=.*$|root_shadow='${enc_password}'|" \
+      /mnt/usbkey/config > /mnt/usbkey/config.new \
+      && mv /mnt/usbkey/config.new /mnt/usbkey/config
+}
+
+#
+# image-sync only runs on headnodes.
+#
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && exit 0
+
+/usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+if [ $? != 0 ]; then
+	echo "Error: unable to mount the USB stick"
+	exit 1
+fi
+
+init_mapi_config
+rm -f /tmp/servers$$.out
+
+# Perform updates here
+
+# Check root pw and save
+save_root_password
+
+# Check for new SDC-zone packages and add them to the generic config if
+# they're missing.
+load_config_pkgs
+# XXX fix this to not use mapi
+# update_sdc_zone_pkgs
+
+if [[ $UPDATED == 1 ]]; then
+    # update the cached copy so compute nodes get the same data
+    cp /mnt/usbkey/config /usbkey/config
+    cp /mnt/usbkey/config.inc/generic /usbkey/config.inc/generic
+fi
+
+umount /mnt/usbkey
+
+#
+# If we want to save updates to other files on the image, uncomment the
+# following block and add the copy code in the middle.  Right now we don't
+# have anything to copy.
+#
+
+#/usbkey/scripts/mount-image.sh >/dev/null 2>&1
+#if [ $? != 0 ]; then
+#	echo "Error: unable to mount the image"
+#	exit 1
+#fi
+#
+# example:
+# cp -pr /etc/user_attr /image/etc/user_attr
+#
+#/usbkey/scripts/umount-image.sh
+
+exit 0
