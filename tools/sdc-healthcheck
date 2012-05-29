@@ -115,7 +115,7 @@ function check_agents() {
     exit 1
   fi
 
-  for i in dataset provisioner-v2 zonetracker zonetracker-v2 heartbeat ur; do
+  for i in dataset provisioner-v2 zonetracker-v2 heartbeat ur; do
     ping-agent $SYSINFO_UUID $i timeout=10000 2>&1 | egrep -s "_routingKey:"
     if [ $? == 0 ]; then
       status="online"
