@@ -1037,7 +1037,7 @@ admin_network="$net_a.$net_b.$net_c.$net_d"
 #
 # Calculate admin network IP address for each core zone
 #
-next_addr=$(expr $next_addr + 1)
+next_addr=$admin_zone_ip
 assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
