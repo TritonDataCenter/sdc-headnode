@@ -226,6 +226,35 @@ function delete_old_sdc_zones
 	done
 }
 
+# Converts an IP and netmask to a network
+# For example: 10.99.99.7 + 255.255.255.0 -> 10.99.99.0
+# Each field is in the net_a, net_b, net_c and net_d variables.
+# Also, host_addr stores the address of the host w/o the network number (e.g.
+# 7 in the 10.99.99.7 example above).
+ip_netmask_to_haddr()
+{
+	IP=$1
+	NETMASK=$2
+
+	OLDIFS=$IFS
+	IFS=.
+	set -- $IP
+	net_a=$1
+	net_b=$2
+	net_c=$3
+	net_d=$4
+	addr_d=$net_d
+
+	set -- $NETMASK
+	net_a=$(($net_a & $1))
+	net_b=$(($net_b & $2))
+	net_c=$(($net_c & $3))
+	net_d=$(($net_d & $4))
+	host_addr=$(($addr_d & ~$4))
+
+	IFS=$OLDIFS
+}
+
 # Fix up the USB key config file
 function cleanup_config
 {
@@ -235,13 +264,20 @@ function cleanup_config
 	cat <<-SED_DONE >/tmp/upg.$$
 	/^adminui_admin_ip=/d
 	/^adminui_external_ip=/d
+	/^assets_admin_ip=/d
 	/^ca_admin_ip=/d
 	/^ca_client_url=/d
+	/^capi_/d
+	/^dhcpd_admin_ip=/d
+	/^dhcp_next_server=/d
+	/^mapi_/d
 	/^portal_external_ip=/d
 	/^portal_external_url=/d
 	/^cloudapi_admin_ip=/d
 	/^cloudapi_external_ip=/d
 	/^cloudapi_external_url=/d
+	/^rabbitmq_admin_ip=/d
+	/^rabbitmq=/d
 	/^riak_admin_ip=/d
 	/^billapi_admin_ip=/d
 	/^billapi_external_ip=/d
@@ -251,52 +287,139 @@ function cleanup_config
 	/^initial_script=/d
 	SED_DONE
 
-	if [ "$CONFIG_capi_is_local" == "true" -o \
-	     "$CONFIG_ufds_is_local" == "true" ]; then
-		echo "/^capi_/d" >>/tmp/upg.$$
-	fi
-
 	sed -f /tmp/upg.$$ </mnt/usbkey/config >/tmp/config.$$
 
-	# If upgrading from a system without ufds, add ufds entries
-	egrep -s ufds_ /mnt/usbkey/config
-	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		ufds_is_local=$CONFIG_capi_is_local
-		ufds_external_vlan=0
-		ufds_root_pw=$CONFIG_capi_root_pw
-		ufds_ldap_root_dn=cn=root
-		ufds_ldap_root_pw=secret
-		ufds_admin_login=$CONFIG_capi_admin_login
-		ufds_admin_pw=$CONFIG_capi_admin_pw
-		ufds_admin_email=$CONFIG_capi_admin_email
-		ufds_admin_uuid=$CONFIG_capi_admin_uuid
-		# Legacy CAPI parameters
-		capi_http_admin_user=$CONFIG_capi_http_admin_user
-		capi_http_admin_pw=$CONFIG_capi_http_admin_pw
-		DONE
-	fi
+	# Calculate fixed addresses for some of the new zones
+	# Using the model from the 6.x prompt-config.sh we use the old
+	# assets_admin_ip address as the starting point for the zones and
+	# increment up.
+	# XXX should really start from the adminui_admin_ip address?
+	# This address is being removed from the config and not in the new one.
+	ip_netmask_to_haddr "$CONFIG_assets_admin_ip" "$CONFIG_admin_netmask"
+	next_addr=$host_addr
+	assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
-	# If upgrading from a system without redis, add redis entries
-	egrep -s redis_ /mnt/usbkey/config
-	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		redis_root_pw=$CONFIG_adminui_root_pw
-		redis_admin_pw=$CONFIG_adminui_admin_pw
-		DONE
-	fi
+	next_addr=$(expr $next_addr + 1)
+	dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
-	# If upgrading from a system without amon, add amon entries
-	egrep -s amon_ /mnt/usbkey/config
-	if [ $? != 0 ]; then
-		cat <<-DONE >>/tmp/config.$$
-		amon_root_pw=$CONFIG_adminui_root_pw
-		amon_admin_pw=$CONFIG_adminui_admin_pw
-		DONE
-	fi
+	next_addr=$(expr $next_addr + 1)
+	napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	ufds_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	workflow_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	zapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	cat <<-DONE >>/tmp/config.$$
+
+	assets_admin_ip=$assets_admin_ip
+	assets_admin_ips=$assets_admin_ip
+	dhcpd_admin_ip=$dhcpd_admin_ip
+	dhcpd_admin_ips=$dhcpd_admin_ip
+	rabbitmq_admin_ip=$rabbitmq_admin_ip
+	rabbitmq_admin_ips=$rabbitmq_admin_ip
+	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
+
+	zookeeper_root_pw=$CONFIG_adminui_root_pw
+	zookeeper_admin_ips=$zookeeper_admin_ip
+
+	moray_root_pw=$CONFIG_adminui_root_pw
+	moray_admin_ips=$moray_admin_ip
+
+	ufds_root_pw=$CONFIG_adminui_root_pw
+	ufds_admin_ips=$ufds_admin_ip
+
+	workflow_root_pw=$CONFIG_adminui_root_pw
+	workflow_admin_ips=$workflow_admin_ip
+
+	cnapi_root_pw=$CONFIG_adminui_root_pw
+	cnapi_admin_ips=$cnapi_admin_ip
+
+	dapi_root_pw=$CONFIG_adminui_root_pw
+	dapi_admin_ips=$dapi_admin_ip
+
+	zapi_root_pw=$CONFIG_adminui_root_pw
+	zapi_admin_ips=$zapi_admin_ip
+
+	amon_root_pw=$CONFIG_adminui_root_pw
+	amon_admin_pw=$CONFIG_adminui_admin_pw
+
+	redis_root_pw=$CONFIG_adminui_root_pw
+	redis_admin_pw=$CONFIG_adminui_admin_pw
+
+	ufds_is_local=$CONFIG_capi_is_local
+	# ufds_external_vlan=0
+	ufds_root_pw=$CONFIG_capi_root_pw
+	ufds_ldap_root_dn=cn=root
+	ufds_ldap_root_pw=secret
+	ufds_admin_login=$CONFIG_capi_admin_login
+	ufds_admin_pw=$CONFIG_capi_admin_pw
+	ufds_admin_email=$CONFIG_capi_admin_email
+	ufds_admin_uuid=$CONFIG_capi_admin_uuid
+	# Legacy CAPI parameters
+	capi_http_admin_user=$CONFIG_capi_http_admin_user
+	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
+
+	# zapi_external_vlan=0
+	zapi_root_pw=$CONFIG_adminui_root_pw
+	zapi_http_admin_user=admin
+	zapi_http_admin_pw=$CONFIG_adminui_admin_pw
+
+	# dapi_external_vlan=0
+	dapi_root_pw=$CONFIG_adminui_root_pw
+	dapi_http_admin_user=admin
+	dapi_http_admin_pw=$CONFIG_adminui_admin_pw
+
+	# cnapi_external_vlan=0
+	cnapi_root_pw=$CONFIG_adminui_root_pw
+	cnapi_http_admin_user=admin
+	cnapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	cnapi_client_url=http://${cnapi_admin_ip}:80
+
+	# napi_external_vlan=0
+	napi_root_pw=$CONFIG_adminui_root_pw
+	napi_http_admin_user=admin
+	napi_http_admin_pw=$CONFIG_adminui_admin_pw
+	napi_admin_ips=$napi_admin_ip
+	napi_client_url=http://${napi_admin_ip}:80
+	napi_mac_prefix=90b8d0
+
+	workflow_root_pw=$CONFIG_adminui_root_pw
+	workflow_admin_pw=$CONFIG_adminui_admin_pw
+	workflow_http_admin_user=admin
+	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
+
+	dcapi_root_pw=$CONFIG_adminui_root_pw
+	dcapi_http_admin_user=admin
+	dcapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	dcapi_client_url=
+
+	show_setup_timers=true
+	serialize_setup=true
+	DONE
 
 	cp /tmp/config.$$ /mnt/usbkey/config
-	cp /mnt/usbkey/config /usbkey/config
+ 	cp /mnt/usbkey/config /usbkey/config
+
 	rm -f /tmp/config.$$ /tmp/upg.$$
 
 	# Load the new pkg values from the upgrade conf.generic into variables.
@@ -312,16 +435,19 @@ function cleanup_config
 		/^adminui_cpu_shares/d
 		/^adminui_max_lwps/d
 		/^adminui_memory_cap/d
+		/^dhcpd_cpu_shares/d
+		/^dhcpd_max_lwps/d
+		/^dhcpd_memory_cap/d
+		/^assets_/d
 		/^billapi_/d
 		/^ca_/d
 		/^capi_/d
 		/^cloudapi_/d
+		/^mapi_/d
 		/^portal_/d
+		/^rabbitmq_/d
 		/^riak_/d
-		s/assets_memory_cap=.*/assets_memory_cap=${GENERIC_assets_memory_cap}/
-		s/dhcpd_memory_cap=.*/dhcpd_memory_cap=${GENERIC_dhcpd_memory_cap}/
-		s/mapi_memory_cap=.*/mapi_memory_cap=${GENERIC_mapi_memory_cap}/
-		s/rabbitmq_memory_cap=.*/rabbitmq_memory_cap=${GENERIC_rabbitmq_memory_cap}/
+		/^sdc_version/d
 	SED_DONE
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
@@ -329,7 +455,6 @@ function cleanup_config
 
 	# add all pkg_ entries from upgrade generic file
 	echo "" >>/tmp/config.$$
-		
 	cnt=1
 	for i in $pkgs
 	do
@@ -337,42 +462,38 @@ function cleanup_config
 		cnt=$((cnt + 1))
 	done
 
-	# Move the initial_script entry to generic
-	echo "" >>/tmp/config.$$
-	echo "# This should not be changed." >>/tmp/config.$$
-	echo "initial_script=scripts/headnode.sh" >>/tmp/config.$$
-
-	# add new zone entries
+	# add new entries
 	cat <<-DONE >>/tmp/config.$$
 
+	initial_script=scripts/headnode.sh
+
+	# Positive offset from UTC 0. Used to calculate cron job start times.
+	utc_offset=0
+
 	adminui_pkg=${GENERIC_adminui_pkg}
+	amon_pkg=${GENERIC_amon_pkg}
 	assets_pkg=${GENERIC_assets_pkg}
 	billapi_pkg=${GENERIC_billapi_pkg}
 	ca_pkg=${GENERIC_ca_pkg}
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
+	cnapi_pkg=${GENERIC_cnapi_pkg}
+	dapi_pkg=${GENERIC_dapi_pkg}
+	dcapi_pkg=${GENERIC_dcapi_pkg}
 	dhcpd_pkg=${GENERIC_dhcpd_pkg}
-	mapi_pkg=${GENERIC_mapi_pkg}
+	moray_pkg=${GENERIC_moray_pkg}
+	napi_pkg=${GENERIC_napi_pkg}
 	portal_pkg=${GENERIC_portal_pkg}
 	rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
 	riak_pkg=${GENERIC_riak_pkg}
+	redis_pkg=${GENERIC_redis_pkg}
+	ufds_pkg=${GENERIC_ufds_pkg}
+	workflow_pkg=${GENERIC_workflow_pkg}
+	zapi_pkg=${GENERIC_zapi_pkg}
+	zookeeper_pkg=${GENERIC_zookeeper_pkg}
+
+	# List of zones to install (in order) with 'sdc-setup -A'.
+	sdc_setup_all="moray ufds redis amon ca adminui billapi cloudapi workflow dapi cnapi zapi"
 	DONE
-
-	# Add any missing entries for new roles that didn't used to exist.
-
-	egrep -s ufds_ /mnt/usbkey/config.inc/generic
-	if [ $? != 0 ]; then
-		echo "ufds_pkg=${GENERIC_ufds_pkg}" >>/tmp/config.$$
-	fi
-
-	egrep -s redis_ /mnt/usbkey/config.inc/generic
-	if [ $? != 0 ]; then
-		echo "redis_pkg=${GENERIC_redis_pkg}" >>/tmp/config.$$
-	fi
-
-	egrep -s amon_ /mnt/usbkey/config.inc/generic
-	if [ $? != 0 ]; then
-		echo "amon_pkg=${GENERIC_amon_pkg}" >>/tmp/config.$$
-	fi
 
 	cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
 	cp /mnt/usbkey/config.inc/generic /usbkey/config.inc/generic
