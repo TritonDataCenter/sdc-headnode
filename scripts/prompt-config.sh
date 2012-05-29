@@ -1194,10 +1194,6 @@ echo "dhcp_range_end=$dhcp_range_end" >>$tmp_config
 echo "dhcp_lease_time=86400" >>$tmp_config
 echo >>$tmp_config
 
-echo "# This should not be changed." >>$tmp_config
-echo "initial_script=scripts/headnode.sh" >>$tmp_config
-echo >>$tmp_config
-
 echo "# This is the entry from /etc/shadow for root" >>$tmp_config
 root_shadow=$(/usr/lib/cryptpass "$root_shadow")
 echo "root_shadow='${root_shadow}'" >>$tmp_config
