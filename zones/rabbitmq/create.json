@@ -1,7 +1,6 @@
 {
   "alias": "rabbitmq0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "tags": {
       "smartdc_role": "rabbitmq",
       "smartdc_type": "core"

@@ -1,7 +1,6 @@
 {
   "alias": "zookeeper0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "tags": {
       "smartdc_role": "zookeeper",
       "smartdc_type": "core"

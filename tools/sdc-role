@@ -229,7 +229,11 @@ get_zone_parameters()
     fi
 
     # This is where results go!
-    zone_parameters="{ brand: 'joyent'"
+    if [[ $(json brand < ${setup_json}) == "joyent-minimal" ]]; then
+        zone_parameters="{ brand: 'joyent-minimal'"
+    else
+        zone_parameters="{ brand: 'joyent'"
+    fi
 
     local dataset=$(cat /usbkey/zones/${zrole}/dataset | head -1)
     if [[ -z ${dataset} || ! -f /usbkey/datasets/${dataset}.dsmanifest ]]; then

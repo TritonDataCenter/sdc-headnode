@@ -39,7 +39,7 @@ su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) stop"
 svcadm disable rabbitmq
 # HOME must be set for 'erlexec' (used in rabbitmq-plugins)
 export HOME=/root
-rabbitmq-plugins enable rabbitmq_management 
+rabbitmq-plugins enable rabbitmq_management
 svcadm enable rabbitmq
 
 touch /var/svc/setup_complete

@@ -1,7 +1,6 @@
 {
   "alias": "zapi0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "tags": {
       "smartdc_role": "zapi",
       "smartdc_type": "core"

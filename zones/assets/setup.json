@@ -1,4 +1,5 @@
 {
+    "brand": "joyent-minimal",
     "networks": [ "admin" ],
     "dependencies": [ ]
 }

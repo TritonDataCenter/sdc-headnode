@@ -1,7 +1,6 @@
 {
   "alias": "cnapi0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "tags": {
       "smartdc_role": "cnapi",
       "smartdc_type": "core"

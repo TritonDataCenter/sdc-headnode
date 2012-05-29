@@ -1,4 +1,5 @@
 {
+    "brand": "joyent-minimal",
     "delegate_dataset": true,
     "networks": [ "admin" ],
     "dependencies": [ "ufds" ]

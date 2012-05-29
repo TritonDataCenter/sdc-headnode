@@ -1,7 +1,6 @@
 {
   "alias": "napi0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "delegate_dataset": true,
   "tags": {
       "smartdc_role": "napi",

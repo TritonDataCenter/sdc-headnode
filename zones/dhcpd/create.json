@@ -1,7 +1,6 @@
 {
   "alias": "dhcpd0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "filesystems": [
     {
       "source": "/usbkey/os",
