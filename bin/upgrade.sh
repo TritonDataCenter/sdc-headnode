@@ -490,9 +490,6 @@ function cleanup_config
 	workflow_pkg=${GENERIC_workflow_pkg}
 	zapi_pkg=${GENERIC_zapi_pkg}
 	zookeeper_pkg=${GENERIC_zookeeper_pkg}
-
-	# List of zones to install (in order) with 'sdc-setup -A'.
-	sdc_setup_all="moray ufds redis amon ca adminui billapi cloudapi workflow dapi cnapi zapi"
 	DONE
 
 	cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
