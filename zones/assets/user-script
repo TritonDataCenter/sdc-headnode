@@ -46,8 +46,6 @@ if [[ -f /var/svc/.ran-user-script ]]; then
 fi
 touch /var/svc/.ran-user-script
 
-
-
 pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:lower:] [:upper:])
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
 if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then

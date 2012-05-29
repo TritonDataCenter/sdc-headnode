@@ -475,8 +475,12 @@ function create_zone {
     # by breaking this up we're able to use fake_zoneinit instead of zoneinit
     NODE_PATH="/usr/node_modules:${NODE_PATH}" \
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
-    fake_zoneinit /zones/${new_uuid}/root
-    vmadm boot ${new_uuid}
+
+    # for joyent minimal we can autoboot and have already faked out zoneinit
+    if [[ $(json brand < ${USB_COPY}/zones/${zone}/create.json) != "joyent-minimal" ]]; then
+        fake_zoneinit /zones/${new_uuid}/root
+        vmadm boot ${new_uuid}
+    fi
 
     local loops=
     local zonepath=
