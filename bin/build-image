@@ -1228,6 +1228,7 @@ function create_upgrade
     rm -rf ${ROOT}/cache/upgrade
     mkdir -p ${ROOT}/cache/upgrade/usbkey
     cp ${ROOT}/bin/upgrade.sh ${ROOT}/cache/upgrade/upgrade.sh
+    echo "${SDC_VERSION}" >>  ${ROOT}/cache/upgrade/SDC_VERSION
     cp ${STAGE}/config ${STAGE}/config.default
     chmod 755 ${ROOT}/cache/upgrade/upgrade.sh
     (cd ${STAGE} \

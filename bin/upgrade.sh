@@ -18,6 +18,8 @@ ROOT=$(pwd)
 export SDC_UPGRADE_ROOT=${ROOT}
 export SDC_UPGRADE_SAVE=/zones
 
+SDC_VERSION=$(cat SDC_VERSION)
+
 # We use the 6.5 rc11 USB key image build date to check the minimum
 # upgradeable version.
 VERS_6_5=20110922
@@ -186,6 +188,17 @@ function upgrade_usbkey
           echo "mapi_heartbeater_pool_instances=3" >> /mnt/usbkey/config
         fi
 
+        # set the version string for adminui
+        if [[ -n ${SDC_VERSION} ]]; then
+          grep "^sdc_version" /mnt/usbkey/config >/dev/null 2>&1
+          if [[ $? != 0 ]]; then
+            sed "s/sdc_version=.*/sdc_version=${SDC_VERSION}/" \
+              </mnt/usbkey/config.inc/generic >/tmp/config.$$
+            cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
+          else
+            echo "sdc_version=${SDC_VERSION}" >> /mnt/usbkey/config.inc/generic
+          fi
+        fi
         # If necessary, add a new riak disk size to the generic config file
         # and increase the number of mapi unicorn workers
         grep "^coal=true" /mnt/usbkey/config >/dev/null 2>&1
