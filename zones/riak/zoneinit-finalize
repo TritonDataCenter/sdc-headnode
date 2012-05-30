@@ -20,6 +20,11 @@ gsed -i '/^riak/ c\riak:100:Riak default project:riak:riak:process.max-file-desc
 # Update maximum ports so Riak doesn't (easily) run out of them during operation
 gsed -i'' -e 's/ERL_MAX_PORTS [0-9][0-9]*/ERL_MAX_PORTS 65536/' /opt/local/etc/riak/vm.args
 
+# Update JS memory limits for mapreduce
+gsed -i'' -e 's/{js_max_vm_mem, [0-9][0-9]*}/{js_max_vm_mem, 32}/' /opt/local/etc/riak/app.config
+gsed -i'' -e 's/{js_thread_stack, [0-9][0-9]*}/{js_thread_stack, 64}/' /opt/local/etc/riak/app.config
+
+
 echo "Importing RIAK manifest"
 /usr/sbin/svccfg import /opt/local/share/smf/manifest/epmd.xml
 /usr/sbin/svcadm enable -s epmd
