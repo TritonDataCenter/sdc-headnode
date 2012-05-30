@@ -16,8 +16,6 @@
 
 export PATH="/usr/bin:/usr/sbin"
 
-. /smartdc/lib/sdc-common
-
 declare -A SDC_PKGS=()
 # The cnt is the next number to use when adding a new pkg_ entry
 PKG_CNT=1
@@ -43,6 +41,9 @@ add_pkg()
 	UPDATED=1
 
 	echo "add '$1' package for '$2' to the generic config file"
+
+	# XXX fix the code below once we have pkgs
+	return
 
 	curl -i -s -u $creds \
 	    http://${mapi}/customers/${admin_uuid}/packages | \
@@ -90,30 +91,25 @@ add_pkg()
 
 update_sdc_zone_pkgs()
 {
-        get_admin_zones
+	[[ -z ${CONFIG_zapi_http_admin_user} ]] && return
+	[[ -z ${CONFIG_zapi_http_admin_pw} ]] && return
+	[[ -z ${CONFIG_zapi_admin_ips} ]] && return
 
-        for z in $zones
-        do
-		get_zone_role $z
-		[ -z "$tag" ] && continue
+	local zcreds="$CONFIG_zapi_http_admin_user:$CONFIG_zapi_http_admin_pw"
+	local zapi_ip=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
+	local zurl="http://${zapi_ip}"
 
-		rpkg=`curl -i -s -u $creds \
-		    http://${mapi}/customers/${admin_uuid}/zones/$z | \
-		    json | nawk '{
-			if ($1 == "\"package_name\":") {
-			    # strip quotes and comma or just quotes
-			    if (substr($2, length($2), 1) == ",")
-			        print substr($2, 2, length($2) - 3)
-		            else
-			        print substr($2, 2, length($2) - 2)
-			}
-		    }'`
-
-		[ -z "$rpkg" ] && continue
-
+	curl -i -sS -u ${zcreds} \
+    --url "${zurl}/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+	    | json -H  \
+	    -e 'smartdc_role=(tags.smartdc_role || "-")' \
+	    -e 'pkg=(internal_metadata.package_name || "-")' \
+	    -a smartdc_role pkg | \
+	    while read role pkg
+	    do
 		# If this pkg is not in the config file, add it.
-		[[ ${SDC_PKGS[$rpkg]} != 1 ]] && add_pkg "$rpkg" "$tag"
-        done
+		[[ ${SDC_PKGS[$pkg]} != 1 ]] && add_pkg "$pkg" "$role"
+	    done
 }
 
 save_root_password() {
@@ -141,7 +137,9 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
-init_mapi_config
+source /lib/sdc/config.sh
+load_sdc_config
+
 rm -f /tmp/servers$$.out
 
 # Perform updates here
@@ -152,8 +150,7 @@ save_root_password
 # Check for new SDC-zone packages and add them to the generic config if
 # they're missing.
 load_config_pkgs
-# XXX fix this to not use mapi
-# update_sdc_zone_pkgs
+update_sdc_zone_pkgs
 
 if [[ $UPDATED == 1 ]]; then
     # update the cached copy so compute nodes get the same data
