@@ -35,8 +35,5 @@
       , "pkgsrc": "2011Q4_64"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46-64/All/"
       }
-    , { "name": "ubuntu10.04-0.1.0"
-      , "uuid": "56108678-1183-11e1-83c3-ff3185a5b47f"
-      }
   ]
 }
