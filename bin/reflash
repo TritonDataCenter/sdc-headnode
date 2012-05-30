@@ -1,0 +1,257 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+#
+# This tool is for reflashing an existing headnode with a new tar image.
+#
+# WARNING: This is a very dangerous tool! Do not point it at a host containing
+# any data you want to keep!
+#
+#
+# You can use:
+#
+# ./bin/reflash latest <host>
+#
+#    To install the latest master version from your build.spec.* bits-url
+#
+# ./bin/reflash boot-master-20120530T021716Z-gaba5e72.tgz <host>
+#
+#    To install a specific tar image you created with './bin/build-image tar'
+#
+# ./bin/reflash https://foo.host.com/path/to/whatever.tgz <host>
+#
+#    To install an image from a remote URL
+#
+
+set -o errexit
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+usage()
+{
+    cat <<EOF
+Usage: $0 <filename|URL> <hostname>
+EOF
+    exit 1
+}
+
+if [[ $1 == "-F" ]]; then
+    LIVE_DANGEROUSLY=1
+    shift
+fi
+if [[ $1 == "-?" || $1 == "-h" ]]; then
+    usage
+fi
+
+filename=$1
+hostname=$2
+
+MD5_SUM=
+if [[ $(uname -s) == "SunOS" ]]; then
+    MD5_CMD="/usr/bin/sum -x md5"
+elif [[ $(uname -s) == "Darwin" ]]; then
+    MD5_CMD="md5 -q"
+else
+    echo "Unsupported platform $(uname -s)" >&2
+    exit 2
+fi
+
+get_bits_url()
+{
+    bits_url="https://guest:GrojhykMid@stuff.joyent.us/stuff/builds"
+
+    if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+        MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
+        ${ROOT}/build.spec.local)
+    elif [[ -f "${ROOT}/build.spec" ]]; then
+        MERGED_SPEC=$(cat ${ROOT}/build.spec)
+    elif [[ -f "${ROOT}/build.spec.local" ]]; then
+        MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
+    fi
+
+    spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "bits-url")
+    if [[ -n ${spec_bits_url} ]]; then
+        echo ${spec_bits_url}
+    else
+        echo ${bits_url}
+    fi
+}
+
+get_latest()
+{
+    bits_url=$(get_bits_url)
+
+    file=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
+        | grep "href" | cut -d '"' -f2 | grep "^boot-")
+
+    if [[ -n ${file} ]]; then
+        echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
+    fi
+}
+
+get_md5()
+{
+    file=$1
+    bits_url=$(get_bits_url)
+    md5=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
+        | grep "${file}" | cut -d ' ' -f1)
+
+    if [[ -n ${md5} ]]; then
+        echo "${md5}"
+    fi
+}
+
+if [[ -z ${filename} || -z ${hostname} || -n $3 ]]; then
+    usage
+fi
+
+URL=
+FILENAME=
+if [[ ${filename} == "latest" ]]; then
+    echo "Finding latest usbheadnode build..."
+    URL=$(get_latest)
+    if [[ -z ${URL} ]]; then
+        echo "Failed to find latest from ${URL}!" >&2
+        exit 1
+    fi
+    FILENAME=$(basename ${URL})
+    MD5_SUM=$(get_md5 "${FILENAME}")
+    echo "Latest is ${URL}..."
+elif [[ ${filename} =~ "http" ]]; then
+    URL=${filename}
+    echo "Using URL ${URL}..."
+    FILENAME=$(basename ${URL})
+elif [[ ! -f ${filename} ]]; then
+    usage
+else
+    echo "Attempting upload..."
+    scp ${filename} root@${hostname}:/var/tmp
+    FILENAME=$(basename ${filename})
+    MD5_SUM=$(${MD5_CMD} ${filename} | cut -d ' ' -f1)
+fi
+
+if [[ -z ${LIVE_DANGEROUSLY} ]]; then
+cat <<EOF
+
+ *** WARNING ***
+
+This is about to attempt flash the machine '${hostname}' without any further
+confirmation if this is not what you want to do:
+
+ PRESS CTRL-C NOW!
+
+All data on the specified machine will be destroyed. Including potential
+customer data!
+
+ *** WARNING ***
+
+EOF
+
+for i in {9..1}; do
+    printf "Starting flash in %d seconds...   \r" ${i}
+    sleep 1
+done
+
+echo "Continuing!                                "
+fi
+
+ssh -T root@${hostname} <<EOF
+set -o errexit
+
+# Turn on DNS since we might need it
+echo "Enabling DNS..."
+sed -i "" "s/^hosts:.*/hosts:      files mdns dns/" /etc/nsswitch.conf
+
+# XXX this is a hack to figure out if we're in the bh1 lab (assume we are if
+# the IP is 10.2.X.X) so that we can switch the stuff url to an IP because the
+# URL doesn't work in the lab.
+URL="${URL}"
+if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
+    | cut -d "'" -f2 | grep 10\.2\. | wc -l | tr -d ' ') -gt 0 ]]; then
+
+    # assume we're in the lab
+    echo "Running in BH1, fixing URL..."
+    URL=\$(echo "\${URL}" | sed -e "s/stuff.joyent.us/10.2.0.190/")
+fi
+
+# Make sure we've got our file
+if [[ ! -f "/var/tmp/${FILENAME}" ]]; then
+    echo "Downloading \${URL}"
+    curl -f -k -o /var/tmp/${FILENAME} \${URL}
+    if [[ ! -f "/var/tmp/${FILENAME}" ]]; then
+        echo "FAILED to download image." >&2
+        exit 1
+    fi
+fi
+
+# Check MD5 of image
+if [[ -n "${MD5_SUM}" ]]; then
+    MD5=\$(/usr/bin/sum -x md5 /var/tmp/${FILENAME} | cut -d ' ' -f1)
+    if [[ \${MD5} != "${MD5_SUM}" ]]; then
+        echo "MD5 does not match." >&2
+        exit 1
+    fi
+fi
+
+# mount the usb key
+echo "Mounting USB key..."
+/usbkey/scripts/mount-usb.sh
+
+# Keep only the answers.json if it exists
+if [[ -f /mnt/usbkey/private/answers.json ]]; then
+    echo "Saving answers.json..."
+    cp /mnt/usbkey/private/answers.json /var/tmp/answers.flashing
+fi
+
+# Remove everything!
+echo "Wiping /mnt/usbkey..."
+rm -rf /mnt/usbkey/*
+
+# Unpack the image
+# XXX there doesn't appear to be a way to disable these permission warnings on
+# SmartOS tar. They occur because we're writing to pcfs which doesn't support
+# the permissions from the tarball.
+echo "Unpacking new image..."
+(cd /mnt/usbkey && tar -zxf /var/tmp/${FILENAME}) 2>&1 \
+     | sed -e "s/tar: warning - file permissions have changed for //" \
+     | sed -e "s/ (are 0100.*, should be .*)$//"
+
+# Restore the answers.json if we had one.
+if [[ -f /var/tmp/answers.flashing ]]; then
+    echo "Restoring answers.json..."
+    mkdir -p /mnt/usbkey/private
+    cp /var/tmp/answers.flashing /mnt/usbkey/private/answers.json
+    rm -f /var/tmp/answers.flashing
+fi
+
+# Ensure we've got a platform + grub
+if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+    echo "Missing grub menu.lst, bailing" >&2
+    exit 1
+fi
+if [[ -z \$(find /mnt/usbkey/os/ -name "boot_archive") ]]; then
+    echo "Missing boot_archive, bailing" >&2
+    exit 1
+fi
+
+# This is what sdc-factoryreset does
+echo "Performing factoryreset..."
+SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)
+[[ -n \${SYS_ZPOOL} ]] || SYS_ZPOOL=zones
+zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
+
+# Good to go!
+echo "Rebooting..."
+reboot -q
+
+exit 0
+EOF
+
+if [[ $? == 0 ]]; then
+    echo "Success! '${hostname}' should be running through setup shortly!"
+    exit 0
+else
+    echo "Uh-oh! Something failed, good luck fixing it!" >&2
+    exit 2
+fi
