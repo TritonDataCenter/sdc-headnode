@@ -21,3 +21,6 @@
 /tools-man/man1/sdc-dsapi.1.roff
 /tools-man/man1/sdc-ldap.1.roff
 /tools-man/man1/sdc-oneachnode.1.roff
+/build
+/docs/*.html
+/docs/*.json
