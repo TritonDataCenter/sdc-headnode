@@ -1,0 +1,71 @@
+.TH "sdc\-restore" "1" "August 2011" "" ""
+.
+.SH "NAME"
+\fBsdc-restore\fR \-\- restore a node from a backup
+.
+.SH "SYNOPSIS"
+\fBsdc\-restore\fR [\-F] [\-S] [\-U] backup_file
+.
+.SH "DESCRIPTION"
+This utility restores the node using a backup file created by the
+\fBsdc\-backup\fR command.
+The headnode boots off of a USB memory stick, so its important that you
+have several backup memory sticks available.
+Most of the SmartDC zones are stateless and are not backed up. Instead,
+these zones will automaticly update their configuration from the headnode
+when they are rebooted.
+The \fBsdc\-restore\fR
+command restores the stateful zones contained in the backup, along with
+the headnode configuration (if run on the headnode).
+The \-F option is only valid on the headnode.
+With this option, all of the core headnode zones will be recreated,
+and then any other stateful zones contained in the backup will be restored.
+The \-S option is only valid on the headnode.
+Use this option when restoring a headnode backup onto a standby headnode
+system.  In this case, certain system-specific configuration settings will
+not be restored.  Instead, the values from the standby system will remain
+in place.
+The \-U option restores the USB key from a backup made using sdc-backup \-U.
+None of the running zones will be effected.
+.
+.SH "OPTIONS"
+\fB\-F\fR             full restore - recreate core zones
+
+.
+\fB\-S\fR             standby headnode - restore onto a standby
+               headnode
+
+.
+\fB\-U\fR             restore USB key - restore backup made
+               from sdc-backup \-U
+.
+.SH "EXAMPLES"
+
+In this example you mount a USB memory stick which holds the backup. The \-F
+option recreates all of the zones, then restores the stateful zones
+using the /usb_backup/backup\-2011\-08\-22\-20\-57\-22.tgz backup file.
+You would use the device name of your memory stick for this procedure.
+.br
+
+.br
+# mkdir /usb_backup
+.br
+# mount -F pcfs /dev/dsk/c0d1p0:c /usb_backup
+.br
+# sdc-restore -F /usb_backup/backup\-2011\-08\-22\-20\-57\-22.tgz
+.br
+ ...
+.br
+# umount /usb_backup
+
+.br
+In this example you restore the USB memory stick using a backup from
+sdc-backup \-U.
+.br
+
+.br
+# sdc-restore -U /zones/usbkey.tar
+.br
+
+.SH "COPYRIGHT"
+sdc\-restore Copyright (c) 2011 Joyent Inc\., All rights reserved\.

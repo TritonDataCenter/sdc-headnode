@@ -1,0 +1,160 @@
+.TH "sdc\-backup" "1" "August 2011" "" ""
+.
+.SH "NAME"
+\fBsdc-backup\fR \-\- backup a node running SmartDC zones
+.
+.SH "SYNOPSIS"
+\fBsdc\-backup\fR [\-d directory] [\-s zone]*
+.br
+\fBsdc\-backup\fR \-S
+.br
+\fBsdc\-backup\fR \-l
+.br
+\fBsdc\-backup\fR \-U device
+.
+.SH "DESCRIPTION"
+This utility creates a back up file of the headnode, or of a compute node
+that has SmartDC zones deployed on it, which can later be used by
+the \fBsdc\-restore\fR command.
+The headnode boots off of a USB memory stick, so its important that you
+have several backup memory sticks available.  The -U option can be used
+to create backup USB memory sticks.
+Most of the SmartDC zones are stateless and are not backed up.
+The \fBsdc\-backup\fR command saves data from the stateful zones,
+along with the current headnode configuration (if run on the headnode).
+By default, the backup file is created in /zones, which consumes space in
+the node's zpool.  The backup file should be moved off of /zones and onto
+stable off\-line storage as soon as possible.
+.br
+
+.br
+When creating a backup USB memory stick, the master USB memory stick must
+also be inserted into the system.  If you are unsure of the device name
+for the new USB memory stick, you can find the list of disks on
+your system using the \-l option.  If there are only two
+USB memory keys plugged into the system, then the device to use with the \-U
+option will be the non\-master USB device.
+.
+.SH "OPTIONS"
+\fB\-d directory\fR     Save the backup file in the specified
+                 directory.
+.
+.br
+\fB\-l\fR               List the USB disks to determine which
+                 to use with the \-U option.
+.
+.br
+\fB\-S\fR               Backup for standby headnode.  This saves
+                 the backup onto the master USB key to allow
+                 for easy re-creation of the headnode on a
+                 standby system.
+.
+.br
+\fB\-s zone\fR          Skip the specified zone. More than one
+                 -s option may be used to skip multiple
+                 zones.
+.
+.br
+\fB\-U\fR device        Create a bootable USB image on the
+                 specified device.  If the device is '-',
+                 then a tar archive of the USB key is sent
+                 to stdout instead.
+.
+.br
+.SH "EXAMPLES"
+
+This example creates a backup file in /zones.
+.br
+
+.br
+# sdc-backup 
+.br
+Backing up the ca zone
+.br
+Backing up the capi zone
+.br
+Backing up the mapi zone
+.br
+The backup file (size 20M) is /zones/backup-2011-08-23-16-12-34.tgz
+.br
+Copy or move this file to your backup medium.
+.br
+
+.br
+
+.br
+This example creates a backup file in /backups and skips backing up the
+adminui and riak zones.
+.br
+
+.br
+# sdc-backup -d /backups -s adminui -s riak
+.br
+ . . .
+.br
+The backup file (size 20M) is /backups/backup-2011-08-23-16-12-34.tgz
+.br
+
+.br
+
+.br
+In this example you mount a USB memory stick which will hold the backup, then
+create a backup file on that memory stick.  You would use the device
+name of your memory stick for this procedure.
+.br
+
+.br
+# mkdir /usb_backup
+.br
+# mount -F pcfs /dev/dsk/c0d1p0:c /usb_backup
+.br
+# sdc-backup -d /usb_backup
+.br
+Backing up the adminui zone
+.br
+Backing up the ca zone
+.br
+Backing up the capi zone
+.br
+Backing up the mapi zone
+.br
+The backup file (size 20M) is /usb_backup/backup-2011-08-23-16-08-01.tgz
+.br
+# umount /usb_backup
+.br
+
+.br
+
+.br
+In this example you list the USB disks so you can see which one to use
+to create a backup USB memory key.
+.br
+
+.br
+# sdc-backup -l
+.br
+c0d0p0 (master)
+.br
+c0d1p0 
+.br
+
+.br
+
+.br
+In this example you make a new bootable USB memory stick.
+You would use the device name of your new memory stick for this procedure.
+.br
+
+.br
+# sdc-backup -U c0d1p0
+
+.br
+This example creates a backup file of the USB key.
+.br
+
+.br
+# sdc-backup -U - | gzip >/zones/usbkey.tgz
+.br
+
+.SH "COPYRIGHT"
+sdc\-backup Copyright (c) 2011 Joyent Inc\., All rights reserved\.
