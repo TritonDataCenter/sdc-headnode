@@ -134,7 +134,7 @@ function create_upgrade
     )
 
     PLATFORM_STAMP=$(ls -t $IMG_TMP_DIR/upgrade.$$/os/ | head -1)
-    cp -Rp $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP
+    cp -R $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP
     (cd $IMG_TMP_DIR && \
         ${TAR} -cvzf $IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz platform-$PLATFORM_STAMP)
     USING_PLATFORM="$IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz"
