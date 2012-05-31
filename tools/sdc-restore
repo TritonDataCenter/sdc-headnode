@@ -51,6 +51,38 @@ warn()
     printf "Warning: %s\n" "$1"
 }
 
+fatal()
+{
+    printf "Error: %s\n" "$1" >/dev/stderr
+    exit 1
+}
+
+# Refresh the backup/restore scripts in the assets zone so compute nodes
+# use up-to-date code.
+refresh_assets()
+{
+	# get ufds owner UUID - this is the "admin" user
+	admin_uuid=$CONFIG_ufds_admin_uuid
+
+	for i in `ls -d /usbkey/zones/*`
+	do
+		zone=${i##*/}
+
+		# This only returns if there's exactly 1, if we want to support
+		# multiple zones with the same role on one machine, this needs
+		# to be fixed.
+		uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} \
+		    tags.smartdc_role=${zone} 2>/dev/null)
+		# Assume that if we have backup, we have restore too.
+		[ ! -e /usbkey/zones/${uuid}/backup ] && continue
+
+		assetdir=/usbkey/extra/$zone
+		mkdir -p $assetdir
+		cp /usbkey/zones/${uuid}/backup \
+		    /usbkey/zones/${uuid}/restore $assetdir
+	done
+}
+
 # Get list of all smartdc role zones on this node.
 get_smartdc_zones()
 {
@@ -221,7 +253,7 @@ recreate_core_zones()
     echo "==> Recreating core zones"
 
     if [[ -f ${dest}/zones.uuids ]]; then
-        # We want to recreate them with the same uuid if we can, so the MAPI
+        # We want to recreate them with the same uuid if we can, so the DB
         # backup will be consistent, so we pass this in as an env variable.
         export OLD_ZONES=$(cat ${dest}/zones.uuids)
     fi
@@ -281,131 +313,76 @@ restore()
     rm -rf /tmp/restore.$$
 }
 
-# Use the restored MAPI data to recreate the extra zones that were on the
-# original headnode.  After getting the record from mapi, we first have to
-# delete the zone (to remove it from mapi) then recreate it so it gets
+# Use the restored ZAPI data to recreate the extra zones that were on the
+# original headnode.  After getting the record from zapi, we first have to
+# delete the zone (to remove it from zapi) then recreate it so it gets
 # provisioned onto this system.
 recreate_extra_zones()
 {
-    # For some reason, even though we've already waited for mapi to be
-    # running, if we charge ahead on the zone deletes below, they won't
-    # be processed unless we give everything a little more time to settle
-    # down.
-    sleep 45
+    echo "==> Recreating extra zones"
 
-    # This pulls the $zones variable from MAPI
-    get_admin_zones
+    local hn_uuid=`curl -i -sS -u ${CNAPI_CREDENTIALS} \
+        --url "${CNAPI_URL}/servers?hostname=headnode" | json -H -a uuid`
+    [ -z "$hn_uuid" ] && fatal "unable to determine headnode UUID"
 
-    if [[ -n ${zones} ]]; then
-        echo "==> Recreating extra zones"
-    fi
+    local url="${ZAPI_URL}/machines"
+    url="$url?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active"
 
-    for z in ${zones}; do
-        local hname=`curl -s -u ${creds} \
-            http://${mapi}/customers/${admin_uuid}/zones/${z} | \
-            json '["server"].hostname'`
+    curl -i -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H \
+        -e 'role=(tags.smartdc_role || "-")' \
+        -e 'ztype=(tags.smartdc_type || "-")' \
+        -a role server_uuid ztype uuid | \
+        while read role srv_uuid ztype z
+        do
+            [ "$srv_uuid" != "$hn_uuid" ] && continue
+            [ "$ztype" == "core" ] && continue
 
-        [[ ${hname} != "headnode" ]] && continue
+            echo -n "deleting ${role} zone... "
 
-        # This pulls the smartdc_role $tag from MAPI
-        get_zone_role ${z}
-        [[ -z ${tag} ]] && continue
+            # get IP info for this VM (from ZAPI)
+            get_net_ip ${z} "admin"
+            admin_ip=${IP}
+            get_net_ip ${z} "external"
+            external_ip=${IP}
 
-        # ensure this is not a core zone (since these also are in MAPI post-6.5)
-        is_core=0
-        for cz in ${core_zones}; do
-            if [[ ${cz} == ${tag} ]]; then
-                is_core=1
-            fi
-        done
-        [[ ${is_core} == 1 ]] && continue;
+            # Delete the existing zone
+            # TODO: check for failure
+            sdc-role delete ${z} 4>&${LOGFD}
 
-        echo -n "deleting ${tag} zone... "
-
-        # get IP info for this VM (from MAPI)
-        get_net_ip ${z} "admin"
-        admin_ip=${IP}
-        get_net_ip ${z} "external"
-        external_ip=${IP}
-
-        # Delete the existing zone
-        # TODO: check for failure
-        sdc-setup -D ${z} 4>&${LOGFD}
-
-        echo "done"
-        echo -n "creating ${tag} zone... "
-
-        # Specify original IP address(es)
-        ip_addrs=
-        reuse_ip_addrs=
-        [[ -n ${admin_ip} ]] && ip_addrs=${admin_ip}
-        if [[ -n ${external_ip} ]]; then
-            if [[ -n ${ip_addrs} ]]; then
-                ip_addrs="${ip_addrs},${external_ip}"
-            else
-                ip_addrs="${external_ip}"
-            fi
-        fi
-        [[ -n ${ip_addrs} ]] && reuse_ip_cmd="-I ${ip_addrs}"
-
-        local zname=$(sdc-setup -c headnode ${reuse_ip_cmd} -r ${tag} \
-            2>/tmp/setuperr.$$ 4>&${LOGFD} | nawk '{if ($1 == "New") print $3}')
-
-        if [[ -z ${zname} ]]; then
-            echo "WARNING: failure setting up ${tag} zone" \
-                >/dev/stderr
-            cat /tmp/setuperr.$$ >/dev/stderr
-            rm -f /tmp/setup.$$
-            continue
-        fi
-        rm -f /tmp/setuperr.$$
-
-        echo "done (${zname})"
-
-        # Wait up to 10 minutes for asynchronous role setup to finish
-        echo -n "waiting for ${tag} to finish seting up... "
-        cnt=0
-        while [[ ${cnt} -lt 60 ]]; do
-            sleep 10
-            [[ -e /zones/${zname}/root/var/svc/setup_complete ]] && \
-                break
-            cnt=$(expr $cnt + 1)
-        done
-        if [[ $cnt == 60 ]]; then
-            echo "WARNING: setup did not finish after 10 minutes" >/dev/stderr
-        else
             echo "done"
-        fi
+            echo -n "creating ${role} zone... "
 
-        # Shut back down so we can restore later.
-        # However, if we're the riak role and we have a local ufds role
-        # too, then we need to leave riak running so ufds will be able
-        # to complete its initial setup.
-        skip=0
-        if [[ ${tag} == "riak" ]]; then
-            for t in ${zones}
-            do
-                local hname=$(curl -s -u ${creds} \
-                    http://${mapi}/customers/${admin_uuid}/zones/${t} | \
-                    json '["server"].hostname')
-
-                [[ ${hname} != "headnode" ]] && continue
-
-                get_zone_role ${t}
-                [[ -z ${tag} ]] && continue
-
-                if [[ ${tag} == "ufds" ]]; then
-                    skip=1
-                    riak_halt=${zname}
-                    break
+            # Specify original IP address(es)
+            ip_addrs=
+            reuse_ip_addrs=
+            [[ -n ${admin_ip} ]] && ip_addrs=${admin_ip}
+            if [[ -n ${external_ip} ]]; then
+                if [[ -n ${ip_addrs} ]]; then
+                    ip_addrs="${ip_addrs},${external_ip}"
+                else
+                    ip_addrs="${external_ip}"
                 fi
-            done
-        fi
+            fi
+            [[ -n ${ip_addrs} ]] && reuse_ip_cmd="-I ${ip_addrs}"
 
-        [[ $skip == 0 ]] && zoneadm -z ${zname} halt
+	    # XXX need a way to specify IP
+            local zname=$(sdc-role create ${reuse_ip_cmd} ${role} \
+                2>/tmp/setuperr.$$ 4>&${LOGFD} | \
+                nawk '/Sent provision to ZAPI for/{print $NF}')
+
+            if [[ -z ${zname} ]]; then
+                echo "WARNING: failure setting up ${role} zone" >/dev/stderr
+                cat /tmp/setuperr.$$ >/dev/stderr
+                rm -f /tmp/setup.$$
+                continue
+            fi
+            rm -f /tmp/setuperr.$$
+
+            echo "done (${zname})"
+
+            # Shut back down so we can restore later.
+            zoneadm -z ${zname} halt
     done
-
-    [[ -n ${riak_halt} ]] && zoneadm -z ${riak_halt} halt
 
     # reload the lists since we may have created new zones.
     load_zone_lists
@@ -532,12 +509,14 @@ unmount_usbkey()
     fi
 }
 
-wait_for_mapi()
+wait_for_zapi()
 {
-    echo -n "waiting for MAPI to be ready."
+    echo -n "waiting for ZAPI zone to be ready."
+    local zname=`vmadm lookup tags.smartdc_role=~^zapi`
+    [ -z "$zname" ] && fatal "no ZAPI zone"
     cnt=0
     while [[ ${cnt} -lt 24 ]]; do
-        num=$(svcs -z mapi -x 2>&1 | wc -l)
+        num=$(svcs -z $zname -x 2>&1 | wc -l)
         [ $num == 0 ] && break
         echo -n "."
         sleep 5
@@ -548,30 +527,31 @@ wait_for_mapi()
 
 update_headnode_uuid()
 {
-    echo -n "updating headnode UUID in MAPI... "
-    curl -s -u admin:${CONFIG_mapi_http_admin_pw} \
-        http://${CONFIG_mapi_admin_ip}/servers/1 -d uuid="${HEADNODE_UUID}" \
-        -X PUT >/tmp/sdc$$.out 2>&1
+    echo -n "updating headnode UUID in the DB... "
 
-    check_mapi_err
-    if [ -n "$emsg" ]; then
+    # XXX fix this once CNAPI-47 is fixed, currently there is no PUT support
+    curl -s -f -u ${CNAPI_CREDENTIALS} \
+        --url "${CNAPI_URL}/servers?hostname=headnode" \
+        -d uuid="${HEADNODE_UUID}" -X PUT
+
+    if [[ $? != 0 ]]; then
         printf "failed to restore headnode UUID %s\n" ${HEADNODE_UUID} \
             >/dev/stderr
-        printf " \\_ %s\n" "$emsg" >/dev/stderr
     else
         echo "done"
     fi
-    rm -f /tmp/sdc$$.out
 }
 
-# Get the MAPI network IP addr for the given tag (admin or external)
-# $1 is zonename
+# Get the ZAPI network IP addr for the given tag (admin or external)
+# $1 is zonename (uuid)
 # $2 is tag
 get_net_ip()
 {
-    IP=`curl -s -u ${creds} \
-        http://${mapi}/zones/$1/nics | json | nawk -v tag=$2 '{
-        if ($1 == "\"name\":") {
+    local url="${ZAPI_URL}/machines/$1"
+
+    IP=`curl -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H -a nics | \
+        | nawk -v tag=$2 '{
+        if ($1 == "\"nic_tag\":") {
             # strip quotes and comma
             if (substr($2, 2, length($2) - 3) == tag)
                 found = 1
@@ -581,7 +561,7 @@ get_net_ip()
             print substr($2, 2, length($2) - 3)
             exit 0
         }
-        }'`
+    }'`
 }
 
 restore_extra_zones()
@@ -668,13 +648,18 @@ warn_user()
     echo "-----------------------------------"
     echo ""
     action="halt"
-    if [[ ${full} == 1 ]]; then
-        action="halt and destroy"
-    fi
+    [[ ${full} == 1 ]] && action="halt and destroy"
     echo " * ${action} these zones: "
     echo ""
-    output_zones_list 6 ${CORE_ZONES}
-    echo ""
+    printf "      "
+    prefix=""
+    for i in ${SMARTDC_ZONES}; do # we get a tuple of uuid,tag
+        uuid=${i%%,*}
+        tag=${i##*,}
+        printf "%s%s" $prefix $tag
+        prefix=","
+    done
+    printf "\n\n"
     if [[ ${full} == 1 ]]; then
         echo " * recreate the core zones:"
         echo ""
@@ -683,8 +668,18 @@ warn_user()
     fi
     echo " * replace data for the following zones:"
     echo ""
-    output_zones_list 6 ${BU_SMARTDC_ZONES}
-    echo ""
+    printf "      "
+    prefix=""
+    for i in ${SMARTDC_ZONES}; do # we get a tuple of uuid,tag
+        uuid=${i%%,*}
+        tag=${i##*,}
+        if [[ -d ${dest}/$tag ]]; then
+            printf "%s%s" $prefix $tag
+            prefix=","
+        fi
+    done
+    [[ -z "$prefix" ]] && printf "NONE"
+    printf "\n\n"
     for i in {0..9}; do
         msg="If this is *not* what you want press CTRL-C."
         printf "%s You have %d seconds.   \r" "${msg}" $((10 - ${i}))
@@ -704,10 +699,11 @@ main()
     warn_user
 
     # We don't want smartdc zones running with stale data during the restore
-    # (e.g. mapi handing out incorrect IP addrs. to compute nodes).
+    # (e.g. napi handing out incorrect IP addrs. to compute nodes).
     halt_all_sdc_zones
 
-    # Keep the list of extras that were here before we restored so we can recreate.
+    # Keep the list of extras that were here before we restored so we can
+    # recreate.
     INITIAL_EXTRAS=${EXTRA_ZONES}
 
     # validate that we have a valid backup from sdc-backup
@@ -727,9 +723,9 @@ main()
         # assets zone so compute node restores use up-to-date code.
         refresh_assets
 
-        # We only restore the core stateful zones at this point.  If we did a full
-        # rebuild, we recreated these and reloaded, otherwise we didn't delete so
-        # they should still exist.
+        # We only restore the core stateful zones at this point.  If we did a
+	# full rebuild, we recreated these and reloaded, otherwise we didn't
+	# delete so they should still exist.
         restore_core_zones
 
         # Restore GZ config
@@ -743,8 +739,32 @@ main()
         # unmount key only if we mounted it
         unmount_usbkey
 
-        # Wait up to 2 minutes for mapi to boot back up
-        wait_for_mapi
+        # Wait up to 2 minutes for zapi to boot back up
+        wait_for_zapi
+
+        if [[ ${standby} == 1 || ${full} == 1 ]]; then
+            # This will reload the config vars again (with the config we
+            # restored) in case we're restoring a standby headnode with a
+            # manual run of the sdc-restore -S command and not as part of a
+            # standby boot.
+            load_sdc_config
+        fi
+
+	[[ -z ${CONFIG_zapi_http_admin_user} ]] && fatal "missing zapi config"
+	[[ -z ${CONFIG_zapi_http_admin_pw} ]] && fatal "missing zapi config"
+	[[ -z ${CONFIG_zapi_admin_ips} ]] && fatal "missing zapi config"
+
+	[[ -z ${CONFIG_cnapi_http_admin_user} ]] && fatal "missing cnapi config"
+	[[ -z ${CONFIG_cnapi_http_admin_pw} ]] && fatal "missing cnapi config"
+	[[ -z ${CONFIG_cnapi_admin_ips} ]] && fatal "missing cnapi config"
+
+	CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
+	CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
+	CNAPI_URL="http://${CNAPI_IP}"
+
+	ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
+	ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
+	ZAPI_URL="http://${ZAPI_IP}"
 
         if [[ ${standby} == 1 ]]; then
             # we're restoring a standby headnode, use our UUID now instead.
@@ -752,12 +772,6 @@ main()
         fi
 
         if [[ ${standby} == 1 || ${full} == 1 ]]; then
-            # This will reload the config vars again (with the config we restored)
-            # in case we're restoring a standby headnode with a manual run of the
-            #    sdc-restore -S
-            # command and not as part of a standby boot.
-            init_mapi_config
-
             # re-create the extra zones that were on the old headnode
             recreate_extra_zones
         fi
