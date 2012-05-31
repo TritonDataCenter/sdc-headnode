@@ -1386,7 +1386,6 @@ echo >>$tmp_config
 echo "dcapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dcapi_http_admin_user=admin" >>$tmp_config
 echo "dcapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "dcapi_client_url=$dcapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config
