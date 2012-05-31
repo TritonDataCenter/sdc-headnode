@@ -15,6 +15,10 @@
 #
 #    To install the latest master version from your build.spec.* bits-url
 #
+# ./bin/reflash release-XXXXX <host>
+#
+#    To install the latest release-XXXXX version from your build.spec.* bits-url
+#
 # ./bin/reflash boot-master-20120530T021716Z-gaba5e72.tgz <host>
 #
 #    To install a specific tar image you created with './bin/build-image tar'
@@ -80,25 +84,48 @@ get_bits_url()
 
 get_latest()
 {
+    release=$1
     bits_url=$(get_bits_url)
 
-    file=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
-        | grep "href" | cut -d '"' -f2 | grep "^boot-")
+    if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
+        file=$(curl -f -s -k \
+            ${bits_url}/sdc/${release}-latest/usbheadnode/ \
+            | grep "href" | cut -d '"' -f2 | grep "^boot-")
 
-    if [[ -n ${file} ]]; then
-        echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
+        if [[ -n ${file} ]]; then
+            echo "${bits_url}/sdc/${release}-latest/usbheadnode/${file}"
+        fi
+    else
+        file=$(curl -f -s -k \
+            ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
+            | grep "href" | cut -d '"' -f2 | grep "^boot-")
+
+        if [[ -n ${file} ]]; then
+            echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
+        fi
     fi
 }
 
 get_md5()
 {
-    file=$1
+    release=$1
+    file=$2
     bits_url=$(get_bits_url)
-    md5=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
-        | grep "${file}" | cut -d ' ' -f1)
 
-    if [[ -n ${md5} ]]; then
-        echo "${md5}"
+    if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
+        md5=$(curl -f -s -k ${bits_url}/sdc/${release}-latest/md5sums.txt \
+            | grep "${file}" | cut -d ' ' -f1)
+
+        if [[ -n ${md5} ]]; then
+            echo "${md5}"
+        fi
+    else
+        md5=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
+            | grep "${file}" | cut -d ' ' -f1)
+
+        if [[ -n ${md5} ]]; then
+            echo "${md5}"
+        fi
     fi
 }
 
@@ -116,9 +143,19 @@ if [[ ${filename} == "latest" ]]; then
         exit 1
     fi
     FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "${FILENAME}")
+    MD5_SUM=$(get_md5 "latest" "${FILENAME}")
     echo "Latest is ${URL}..."
-elif [[ ${filename} =~ "http" ]]; then
+elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
+    echo "Finding latest ${filename} usbheadnode build..."
+    URL=$(get_latest ${filename})
+    if [[ -z ${URL} ]]; then
+        echo "Failed to find latest ${filename} from ${URL}!" >&2
+        exit 1
+    fi
+    FILENAME=$(basename ${URL})
+    MD5_SUM=$(get_md5 "${filename}" "${FILENAME}")
+    echo "Latest ${filename} is ${URL}..."
+elif [[ ${filename} =~ "^http" ]]; then
     URL=${filename}
     echo "Using URL ${URL}..."
     FILENAME=$(basename ${URL})
@@ -194,14 +231,28 @@ if [[ -n "${MD5_SUM}" ]]; then
     fi
 fi
 
+# let everyone who might be logged in know
+echo 'This system is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
+    | wall
+
 # mount the usb key
 echo "Mounting USB key..."
 /usbkey/scripts/mount-usb.sh
 
-# Keep only the answers.json if it exists
+# Remove these first so we only restore if they existed to start with
+rm -f /var/tmp/root.authorized_keys.flashing /var/tmp/answers.flashing
+
+# Keep the answers.json if it exists
 if [[ -f /mnt/usbkey/private/answers.json ]]; then
     echo "Saving answers.json..."
     cp /mnt/usbkey/private/answers.json /var/tmp/answers.flashing
+fi
+
+# Also keep root.authorized_keys if it exists
+if [[ -f /mnt/usbkey/config.inc/root.authorized_keys ]]; then
+    echo "Saving root.authorized_keys..."
+    cp /mnt/usbkey/config.inc/root.authorized_keys \
+        /var/tmp/root.authorized_keys.flashing
 fi
 
 # Remove everything!
@@ -223,6 +274,14 @@ if [[ -f /var/tmp/answers.flashing ]]; then
     mkdir -p /mnt/usbkey/private
     cp /var/tmp/answers.flashing /mnt/usbkey/private/answers.json
     rm -f /var/tmp/answers.flashing
+fi
+
+# Restore root.authorized_keys if we had one
+if [[ -f /var/tmp/root.authorized_keys.flashing ]]; then
+    echo "Restoring root.authorized_keys..."
+    cp /var/tmp/root.authorized_keys.flashing \
+        /mnt/usbkey/config.inc/root.authorized_keys
+    rm -f /var/tmp/root.authorized_keys.flashing
 fi
 
 # Ensure we've got a platform + grub
