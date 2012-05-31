@@ -411,7 +411,6 @@ function cleanup_config
 	dcapi_root_pw=$CONFIG_adminui_root_pw
 	dcapi_http_admin_user=admin
 	dcapi_http_admin_pw=$CONFIG_adminui_admin_pw
-	dcapi_client_url=
 
 	show_setup_timers=true
 	serialize_setup=true
