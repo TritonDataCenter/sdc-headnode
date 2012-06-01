@@ -1306,10 +1306,6 @@ echo "billapi_http_admin_user=admin" >>$tmp_config
 echo "billapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "riak_root_pw=$zone_admin_pw" >>$tmp_config
-echo "riak_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
 echo "ufds_is_local=true" >>$tmp_config
 if [ -z "$external_vlan_id" ]; then
 	echo "# ufds_external_vlan=0" >>$tmp_config

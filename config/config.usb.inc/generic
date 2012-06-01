@@ -76,8 +76,6 @@ rabbitmq_pkg=sdc_1024
 
 redis_pkg=sdc_1024
 
-riak_pkg=sdc_db
-
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
 sbapi_http_pass=4cea03de8bf6

@@ -483,7 +483,6 @@ function cleanup_config
 	napi_pkg=${GENERIC_napi_pkg}
 	portal_pkg=${GENERIC_portal_pkg}
 	rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
-	riak_pkg=${GENERIC_riak_pkg}
 	redis_pkg=${GENERIC_redis_pkg}
 	ufds_pkg=${GENERIC_ufds_pkg}
 	workflow_pkg=${GENERIC_workflow_pkg}

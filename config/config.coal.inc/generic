@@ -70,8 +70,6 @@ dbconn_num_attempts=10
 
 portal_pkg=sdc_64
 
-riak_pkg=sdc_db
-
 rabbitmq_pkg=sdc_128
 
 redis_pkg=sdc_64
