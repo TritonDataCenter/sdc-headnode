@@ -383,17 +383,15 @@ sdc_create()
         exit 1
     fi
 
-    cat ${tmpfile}
-
     provision_zone_from_payload ${tmpfile}
-
     if [[ $? == 0 ]]; then
         # created successfully
         local admin=
         local external=
         local result=$(napi /nics?belongs_to_uuid=${provisioned_uuid} | json -H -a nic_tag ip | tr ' ' '=')
         eval "${result}"
-        if [[ -z ${admin} ]]; then
+        # portal is the only special case where we have no admin IP
+        if [[ -z ${admin} && ${zrole} != "portal" ]]; then
             fatal "unable to find Admin IP for ${provisioned_uuid}"
         fi
         add_config_ips "${zrole}" "${admin}" "${external}"
@@ -432,19 +430,20 @@ sdc_destroy()
             [[ -n ${destroy_uuid} ]] && fatal "More than one zone found matching: '${arg}'"
             destroy_uuid=${uuid}
             destroy_zrole=${zrole}
+            destroy_ztype=${ztype}
         fi
     done
 
     [[ -z ${destroy_uuid} ]] && fatal "sdc_destroy: unable to find uuid for zone matching '${arg}'"
 
-    if [[ $(eval echo \${${destroy_zrole}_count}) -le 1 && ${ztype} == "core" ]]; then
+    if [[ $(eval echo \${${destroy_zrole}_count}) -le 1 && ${destroy_ztype} == "core" ]]; then
         fatal "Cannot remove last ${destroy_zrole} zone (this is a core zone)."
     fi
 
     # Find the IPs that NAPI thinks the zone has so we can remove them
     local zone_ips=$(napi /nics?belongs_to_uuid=${destroy_uuid} | json -H -a ip | xargs)
 
-    zapi /machines/${destroy_uuid} -X DELETE | tee /tmp/destroy.$$
+    zapi /machines/${destroy_uuid} -X DELETE > /tmp/destroy.$$ 2>&1
 
     echo "+ Sent DELETE to ZAPI for ${destroy_uuid}"
     watch_job /tmp/destroy.$$
@@ -502,12 +501,15 @@ fi
 case ${command} in
 create)
     sdc_create "$@"
+    exit $?
 ;;
 destroy|delete)
     sdc_destroy "$@"
+    exit $?
 ;;
 list)
     sdc_list "$@"
+    exit $?
 ;;
 *)
     echo "Unknown command: ${command}" >&2
@@ -515,4 +517,4 @@ list)
 ;;
 esac
 
-exit 0
+exit 2

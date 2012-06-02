@@ -29,6 +29,6 @@ EOF
     exit 1
 fi
 
-workflow "$@"
+workflow "$@" | json -H
 
 exit 0

@@ -64,8 +64,9 @@ cnapi()
     path=$1
     shift
     (curl ${CURL_OPTS} -u "${CNAPI_CREDENTIALS}" --url "${CNAPI_URL}${path}" \
-        "$@" | json) || exit
+        "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
+    return 0
 }
 
 napi()
@@ -73,8 +74,9 @@ napi()
     path=$1
     shift
     (curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" \
-        "$@" | json) || exit
+        "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
+    return 0
 }
 
 workflow()
@@ -82,17 +84,19 @@ workflow()
     path=$1
     shift
     (curl ${CURL_OPTS} -u "${WORKFLOW_CREDENTIALS}" --url \
-        "${WORKFLOW_URL}${path}" "$@" | json) || exit
+        "${WORKFLOW_URL}${path}" "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
+    return 0
 }
 
 zapi()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" \
-        "$@" | json) || exit
+    curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" \
+        "$@" || return $?
     echo ""  # sometimes the result is not terminated with a newline
+    return 0
 }
 
 # filename passed must have a 'Job-Location: ' header in it.
@@ -108,18 +112,29 @@ watch_job()
     local execution=
     local job_status=
     local loop=0
+
+    local job=$(grep "^Job-Location:" ${filename})
+    if [[ $? != 0 || -z ${job} ]]; then
+        echo "+ FAILED! Result has no Job-Location: header. See ${filename}." >&2
+        return 2
+    fi
+    job=$(echo "${job}" | cut -d ' ' -f2 | tr -d [:space:])
+    if [[ -z ${job} ]]; then
+        echo "+ FAILED! Unable to parse Job-Location: header. See ${filename}." >&2
+        return 2
+    fi
+
+    echo "+ Job is ${job}"
+
     while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
-        local job=$(grep "^Job-Location:" ${filename} | cut -d ' ' -f2 | tr -d [:space:])
-        if [[ -n ${job} ]]; then
-            job_status=$(workflow ${job} | json -H)
-            echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
-            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
-            mv /tmp/job_status.$$.new /tmp/job_status.$$.old
-            execution=$(echo "${job_status}" | json execution)
-            if [[ ${execution} != ${prev_execution} ]]; then
-                echo "+ Job status changed to: ${execution}"
-                prev_execution=${execution}
-            fi
+        job_status=$(workflow ${job} | json -H)
+        echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
+        diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
+        mv /tmp/job_status.$$.new /tmp/job_status.$$.old
+        execution=$(echo "${job_status}" | json execution)
+        if [[ ${execution} != ${prev_execution} ]]; then
+            echo "+ Job status changed to: ${execution}"
+            prev_execution=${execution}
         fi
         sleep 0.5
     done
@@ -127,7 +142,7 @@ watch_job()
         echo "+ Success!"
         return 0
     else
-        echo "+ FAILED! (details in ${job})"
+        echo "+ FAILED! (details in ${job})" >&2
         return 1
     fi
 }
@@ -136,14 +151,22 @@ provision_zone_from_payload()
 {
     local tmpfile=$1
     local verbose="$2"
+
     zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
+    return_code=$?
+    if [[ ${return_code} != 0 ]]; then
+        echo "ZAPI FAILED with:" >&2
+        cat /tmp/provision.$$ >&2
+        return ${return_code}
+    fi
     provisioned_uuid=$(json -H uuid < /tmp/provision.$$)
     if [[ -z ${provisioned_uuid} ]]; then
         if [[ -n $verbose ]]; then
+            echo "+ FAILED: Unable to get uuid for new ${zrole} machine (see /tmp/provision.$$)."
             cat /tmp/provision.$$ | json -H
             exit 1
         else
-            fatal "unable to get uuid for new ${zrole} machine."
+            fatal "+ FAILED: Unable to get uuid for new ${zrole} machine (see /tmp/provision.$$)."
         fi
     fi
 

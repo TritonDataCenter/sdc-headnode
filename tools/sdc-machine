@@ -42,7 +42,7 @@ machine_destroy()
 
     [[ -z ${uuid} ]] && fatal "destroy: unable to find uuid for zone matching '${arg}'"
 
-    zapi /machines/${uuid} -X DELETE > /tmp/destroy.$$
+    zapi /machines/${uuid} -X DELETE > /tmp/destroy.$$ 2>&1
 
     echo "+ Sent DELETE to ZAPI for ${uuid}"
     watch_job /tmp/destroy.$$
@@ -110,12 +110,15 @@ fi
 case ${command} in
 create)
     machine_create "$@"
+    exit $?
 ;;
 delete|destroy)
     machine_destroy "$@"
+    exit $?
 ;;
 list)
     machine_list "$@"
+    exit $?
 ;;
 *)
     echo "Unknown command: ${command}" >&2
@@ -123,4 +126,4 @@ list)
 ;;
 esac
 
-exit 0
+exit 2

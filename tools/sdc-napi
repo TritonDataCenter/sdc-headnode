@@ -29,6 +29,6 @@ EOF
     exit 1
 fi
 
-napi "$@"
+napi "$@" | json -H
 
 exit 0
