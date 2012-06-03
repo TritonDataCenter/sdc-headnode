@@ -218,6 +218,40 @@ add_pkg_zone_parameters()
     done
 }
 
+check_zone_dependencies()
+{
+    local zrole=$1
+    local setup_json="/usbkey/zones/${zrole}/setup.json"
+
+    if [[ ! -f ${setup_json} ]]; then
+        fatal \
+            "${zrole}: missing setup.json file in /usbkey/config/zones/${zrole}"
+    fi
+
+    local found=
+    local installed_roles=$(zapi \
+        "/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+        | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
+        -a smartdc_role | tr ' ' ',')
+
+    for dep in $(json -a dependencies < ${setup_json} | json -a); do
+        found=0
+        for installed in ${installed_roles}; do
+            if [[ ${installed} == ${dep} ]]; then
+                found=1
+            fi
+        done
+
+        if [[ ${found} == 0 ]]; then
+            echo "FATAL: You must have at least one ${dep} zone installed" \
+                "before installing ${zrole}."
+            return 1
+        fi
+    done
+
+    return 0
+}
+
 get_zone_parameters()
 {
     local zrole=$1
@@ -345,6 +379,10 @@ sdc_create()
     fi
 
     zone_parameters=
+    check_zone_dependencies ${zrole}
+    if [[ $? != 0 ]]; then
+        exit 1
+    fi
     get_zone_parameters ${zrole}
     setup_zone_files ${zrole}
 
