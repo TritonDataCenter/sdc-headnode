@@ -1074,6 +1074,10 @@ dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 zapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+next_addr=$(expr $next_addr + 1)
+dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+dcapi_url="http://${dcapi_admin_ip}:80"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1382,6 +1386,7 @@ echo >>$tmp_config
 echo "dcapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dcapi_http_admin_user=admin" >>$tmp_config
 echo "dcapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "dcapi_url=$dcapi_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

@@ -15,7 +15,6 @@ source /var/svc/setup.common
 
 # Identify this as a smartdc zone
 mkdir -p /var/smartdc/adminui
-
 mkdir -p /opt/smartdc/adminui
 
 # We need to generate our own self signed certificate for Nginx:
@@ -26,7 +25,7 @@ echo "Generating SSL Certificate"
     -out /opt/smartdc/adminui/ssl/default.pem
 
 # Add node_modules/bin to PATH
-echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin" >> /root/.bashrc
+echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin:/opt/smartdc/adminui/build/node/bin" >> /root/.bashrc
 
 # Setup HAProxy user/group
 /usr/sbin/groupadd haproxy

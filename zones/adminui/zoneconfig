@@ -14,7 +14,7 @@ DSAPI_URL=${dsapi_url}
 DSAPI_USER=${dsapi_http_user}
 DSAPI_PASS=${dsapi_http_pass}
 
-DCAPI_IPS=${dcapi_ips}
+DCAPI_URL=${dcapi_url}
 DCAPI_USER=${dcapi_http_user}
 DCAPI_PASS=${dcapi_http_pass}
 
