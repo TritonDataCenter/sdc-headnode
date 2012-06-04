@@ -13,7 +13,10 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 host=`hostname`
 
 echo "Creating config.json from zoneconfig"
-node /opt/smartdc/adminui/tools/create-config-from-zoneconfig /opt/smartdc/zoneconfig
+(/opt/smartdc/adminui/build/node/bin/node \
+  /opt/smartdc/adminui/tools/create-config-from-zoneconfig \
+  /opt/smartdc/zoneconfig \
+  /opt/smartdc/adminui/etc/config.json)
 
 echo "Creating HAPrgooxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
