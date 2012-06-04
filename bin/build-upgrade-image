@@ -105,6 +105,7 @@ function create_upgrade
     cp ${ROOT}/bin/upgrade.sh ${STAGE}/upgrade/upgrade.sh
     cp ${ROOT}/bin/upgrade_cn ${STAGE}/upgrade/upgrade_cn
     cp ${ROOT}/bin/upgrade_common ${STAGE}/upgrade/upgrade_common
+    cp ${ROOT}/bin/upgrade_finish.sh ${STAGE}/upgrade/upgrade_finish.sh
 
     local sconf=${ROOT}/config/config.usb.inc/generic
 

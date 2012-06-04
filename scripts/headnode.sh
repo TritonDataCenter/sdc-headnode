@@ -273,6 +273,15 @@ fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 
+upgrading=0
+if [[ -x /var/upgrade_headnode/upgrade_finish.sh ]]; then
+    upgrading=1
+    printf "%-58s" "Running pre-setup upgrade tasks... " >&${CONSOLE_FD}
+    /var/upgrade_headnode/upgrade_finish.sh "pre" \
+        4>/var/upgrade_headnode/finish_pre.log
+    printf_timer "%4s (%ss)\n" "done"
+fi
+
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
@@ -689,6 +698,13 @@ else
             rm -f /zones/.standby
         fi
     fi
+fi
+
+if [[ $upgrading == 1 ]]; then
+    printf "%-58s" "Running post-setup upgrade tasks... " >&${CONSOLE_FD}
+    /var/upgrade_headnode/upgrade_finish.sh "post" \
+        4>/var/upgrade_headnode/finish_post.log
+    printf_timer "%4s (%ss)\n" "done"
 fi
 
 #

@@ -163,28 +163,6 @@ function upgrade_usbkey
     fi
 }
 
-function import_datasets
-{
-    local ds_uuid=$(cat ${usbmnt}/datasets/smartos.uuid)
-    local ds_file=$(cat ${usbmnt}/datasets/smartos.filename)
-
-    if [[ -z ${ds_uuid} ]]; then
-        fatal "no uuid set in ${usbmnt}/datasets/smartos.uuid"
-    else
-        echo "Ensuring dataset ${ds_uuid} is imported."
-        if [[ -z $(zfs list | grep "^zones/${ds_uuid}") ]]; then
-            # not already imported
-            if [[ -f ${usbmnt}/datasets/${ds_file} ]]; then
-                bzcat ${usbmnt}/datasets/${ds_file} \
-                    | zfs recv zones/${ds_uuid} \
-                    || fatal "unable to import ${ds_uuid}"
-            else
-                fatal "unable to import ${ds_uuid} (${ds_file} doesn't exist)"
-            fi
-        fi
-    fi
-}
-
 # Similar to function in /smartdc/lib/sdc-common but we might not have that
 # available before we upgrade.  This function will be available on CNs since
 # we have sdc-setup there already if we are upgrading them.
@@ -610,7 +588,7 @@ get_sdc_zonelist
 
 if [ $CAPI_FOUND == 1 ]; then
 	# dump capi
-	echo "Dump CAPI for RIAK conversion"
+	echo "Dump CAPI for Moray conversion"
 	mkdir -p $SDC_UPGRADE_SAVE/capi_dump
 	tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
 	    -Atc '\\\\dt' capi | cut -d '|' -f2`
@@ -652,9 +630,6 @@ upgrade_usbkey
 upgrade_pools
 upgrade_zfs_datasets
 
-# import new headnode datasets (used for new headnode zones)
-import_datasets
-
 umount_usbkey
 
 echo "Cleaning up existing zones"
@@ -668,8 +643,18 @@ install_platform
 /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
 [ $? != 0 ] && SAW_ERROR=1
 
+# Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
+echo "Cleaning up old agents"
+rm -rf /opt/smartdc/agents/smf/*
+
+# Fix up /var
+mkdir -m755 -p /var/db/dsadm
+
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
+
+cp -pr $ROOT/upgrade_finish.sh $SDC_UPGRADE_DIR
+chmod +x $SDC_UPGRADE_DIR/upgrade_finish.sh
 
 trap EXIT
 
