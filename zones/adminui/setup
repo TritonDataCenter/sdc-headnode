@@ -26,7 +26,7 @@ echo "Generating SSL Certificate"
     -out /opt/smartdc/adminui/ssl/default.pem
 
 # Add node_modules/bin to PATH
-echo "\nexport PATH=\$PATH:/opt/smartdc/zapi/node_modules/.bin" >> /root/.bashrc
+echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin" >> /root/.bashrc
 
 # Setup HAProxy user/group
 /usr/sbin/groupadd haproxy
