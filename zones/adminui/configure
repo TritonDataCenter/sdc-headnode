@@ -58,7 +58,7 @@ svccfg import /opt/local/share/smf/manifest/haproxy.xml
 echo "Updating adminui service manifest"
 $(/opt/local/bin/gsed -i"" \
   -e "s/@@PREFIX@@/\/opt\/smartdc\/adminui/g" \
-  /opt/smartdc/adminui/smf/manifests/zapi.xml)
+  /opt/smartdc/adminui/smf/manifests/adminui.xml)
 
 echo "Importing adminui service manifest"
 svccfg import /opt/smartdc/adminui/smf/manifests/adminui.xml
