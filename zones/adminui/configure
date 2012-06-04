@@ -15,7 +15,7 @@ host=`hostname`
 echo "Creating config.json from zoneconfig"
 (/opt/smartdc/adminui/build/node/bin/node \
   /opt/smartdc/adminui/tools/create-config-from-zoneconfig \
-  /opt/smartdc/zoneconfig \
+  /opt/smartdc/etc/zoneconfig \
   /opt/smartdc/adminui/etc/config.json)
 
 echo "Creating HAPrgooxy config file"
