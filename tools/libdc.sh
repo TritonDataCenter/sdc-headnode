@@ -147,7 +147,7 @@ provision_zone_from_payload()
     local tmpfile=$1
     local verbose="$2"
 
-    zapi /machines -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
+    zapi /vms -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
     return_code=$?
     if [[ ${return_code} != 0 ]]; then
         echo "ZAPI FAILED with:" >&2
@@ -157,11 +157,11 @@ provision_zone_from_payload()
     provisioned_uuid=$(json -H vm_uuid < /tmp/provision.$$)
     if [[ -z ${provisioned_uuid} ]]; then
         if [[ -n $verbose ]]; then
-            echo "+ FAILED: Unable to get uuid for new ${zrole} machine (see /tmp/provision.$$)."
+            echo "+ FAILED: Unable to get uuid for new ${zrole} VM (see /tmp/provision.$$)."
             cat /tmp/provision.$$ | json -H
             exit 1
         else
-            fatal "+ FAILED: Unable to get uuid for new ${zrole} machine (see /tmp/provision.$$)."
+            fatal "+ FAILED: Unable to get uuid for new ${zrole} VM (see /tmp/provision.$$)."
         fi
     fi
 

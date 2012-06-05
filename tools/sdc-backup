@@ -52,8 +52,7 @@ refresh_assets()
 		zone=${i##*/}
 
 		# This only returns if there's exactly 1, if we want to support
-		# multiple zones with the same role on one machine, this needs
-		# to be fixed.
+		# multiple zones with the same role on one VM, this needs to be fixed.
 		uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} \
 		    tags.smartdc_role=${zone} 2>/dev/null)
 		# Assume that if we have backup, we have restore too.

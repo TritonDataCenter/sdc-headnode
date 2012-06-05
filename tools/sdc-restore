@@ -69,7 +69,7 @@ refresh_assets()
 		zone=${i##*/}
 
 		# This only returns if there's exactly 1, if we want to support
-		# multiple zones with the same role on one machine, this needs
+		# multiple zones with the same role on one VM, this needs
 		# to be fixed.
 		uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} \
 		    tags.smartdc_role=${zone} 2>/dev/null)
@@ -325,7 +325,7 @@ recreate_extra_zones()
         --url "${CNAPI_URL}/servers?hostname=headnode" | json -H -a uuid`
     [ -z "$hn_uuid" ] && fatal "unable to determine headnode UUID"
 
-    local url="${ZAPI_URL}/machines"
+    local url="${ZAPI_URL}/vms"
     url="$url?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active"
 
     curl -i -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H \
@@ -547,7 +547,7 @@ update_headnode_uuid()
 # $2 is tag
 get_net_ip()
 {
-    local url="${ZAPI_URL}/machines/$1"
+    local url="${ZAPI_URL}/vms/$1"
 
     IP=`curl -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H -a nics | \
         | nawk -v tag=$2 '{

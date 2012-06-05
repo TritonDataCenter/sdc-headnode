@@ -100,7 +100,7 @@ update_sdc_zone_pkgs()
 	local zurl="http://${zapi_ip}"
 
 	curl -i -sS -u ${zcreds} \
-    --url "${zurl}/machines?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+    --url "${zurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'smartdc_role=(tags.smartdc_role || "-")' \
 	    -e 'pkg=(internal_metadata.package_name || "-")' \
