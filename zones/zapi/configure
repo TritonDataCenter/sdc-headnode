@@ -28,18 +28,14 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   },
   "wfapi": {
     "workflows": ["provision", "start", "stop", "reboot", "destroy", "update"],
-    "url": "$WF_URL",
-    "username": "$WFAPI_HTTP_ADMIN_USER",
-    "password": "$WFAPI_HTTP_ADMIN_PW"
+    "url": "$WF_URL"
   },
   "cnapi": {
     "maxSockets": 10,
     "url": "$CNAPI_URL"
   },
   "dapi": {
-    "url": "$DAPI_URL",
-    "username": "$DAPI_HTTP_ADMIN_USER",
-    "password": "$DAPI_HTTP_ADMIN_PW"
+    "url": "$DAPI_URL"
   },
   "napi": {
     "url": "$NAPI_URL",

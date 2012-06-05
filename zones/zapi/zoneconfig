@@ -6,18 +6,8 @@ NAPI_HTTP_ADMIN_PW=${napi_http_admin_pw}
 
 ZAPI_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 ZAPI_LDAP_ROOT_PW=${ufds_ldap_root_pw}
-ZAPI_HTTP_ADMIN_USER=${zapi_http_admin_user}
-ZAPI_HTTP_ADMIN_PW=${zapi_http_admin_pw}
 
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
-WFAPI_HTTP_ADMIN_USER=${workflow_http_admin_user}
-WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
-
-DAPI_HTTP_ADMIN_USER=${dapi_http_admin_user}
-DAPI_HTTP_ADMIN_PW=${dapi_http_admin_pw}
-
 CNAPI_ADMIN_IPS=${cnapi_admin_ips}
-
 DAPI_ADMIN_IPS=${dapi_admin_ips}
-
 UFDS_ADMIN_IPS=${ufds_admin_ips}
