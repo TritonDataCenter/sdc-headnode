@@ -38,14 +38,24 @@ server_list()
 {
     servers=$(cnapi /servers | json -H -a uuid)
     if [[ -n ${servers} ]]; then
+        # this sets the variables:
+        #
+        #  nic_UUID_<tag>=<IP>
+        #
+        # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+        admin_ip_mappings=$(napi /nics?belongs_to_type=server | json -H -a \
+            -e "eval_line='nic_' + this.belongs_to_uuid.replace(/\-/g, '_') + '_' + nic_tag + '=' + ip;" \
+            eval_line)
+        if [[ -n ${admin_ip_mappings} ]]; then
+            eval ${admin_ip_mappings}
+        fi
+
         printf "%-12s %-36s  %7s  %15s\n" \
             "HOSTNAME" "UUID" "RAM" "ADMIN_IP"
         for uuid in $(cnapi /servers | json -H -a uuid); do
             # if someone has a better way to do this, it'd be a appreciated.
-            admin_ip=$(cnapi /servers/${uuid} | json -H 0.sysinfo \
-                | json "Network Interfaces" | sed -e "s/^[{}]//" \
-                | sed -e "s/ *//" | sed -e "s/^\".*\"\: {/{/" | sed -e "s/},/}/" \
-                | json -a "NIC Names".0 ip4addr | grep "^admin " | cut -d ' ' -f2)
+            admin_ip=$(eval echo \${nic_$(echo ${uuid} | tr '-' '_')_admin})
+            [[ -z ${admin_ip} ]] && admin_ip="-"
             data=$(cnapi /servers/${uuid} \
                 | json -H -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
                 -a hostname memory_total_bytes)

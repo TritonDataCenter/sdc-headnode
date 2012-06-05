@@ -29,6 +29,6 @@ EOF
     exit 1
 fi
 
-zapi "$@"
+zapi "$@" | json -H
 
 exit 0
