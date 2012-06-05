@@ -113,21 +113,16 @@ watch_job()
     local job_status=
     local loop=0
 
-    local job=$(grep "^Job-Location:" ${filename})
-    if [[ $? != 0 || -z ${job} ]]; then
+    local job=$(json -H job_uuid < /tmp/provision.$$)
+    if [[ -z ${job} ]]; then
         echo "+ FAILED! Result has no Job-Location: header. See ${filename}." >&2
         return 2
     fi
-    job=$(echo "${job}" | cut -d ' ' -f2 | tr -d [:space:])
-    if [[ -z ${job} ]]; then
-        echo "+ FAILED! Unable to parse Job-Location: header. See ${filename}." >&2
-        return 2
-    fi
 
-    echo "+ Job is ${job}"
+    echo "+ Job is /jobs/${job}"
 
     while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
-        job_status=$(workflow ${job} | json -H)
+        job_status=$(workflow /jobs/${job} | json -H)
         echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
         diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
         mv /tmp/job_status.$$.new /tmp/job_status.$$.old
@@ -142,7 +137,7 @@ watch_job()
         echo "+ Success!"
         return 0
     else
-        echo "+ FAILED! (details in ${job})" >&2
+        echo "+ FAILED! (details in /jobs/${job})" >&2
         return 1
     fi
 }
@@ -159,7 +154,7 @@ provision_zone_from_payload()
         cat /tmp/provision.$$ >&2
         return ${return_code}
     fi
-    provisioned_uuid=$(json -H uuid < /tmp/provision.$$)
+    provisioned_uuid=$(json -H vm_uuid < /tmp/provision.$$)
     if [[ -z ${provisioned_uuid} ]]; then
         if [[ -n $verbose ]]; then
             echo "+ FAILED: Unable to get uuid for new ${zrole} machine (see /tmp/provision.$$)."
