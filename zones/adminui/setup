@@ -17,12 +17,15 @@ source /var/svc/setup.common
 mkdir -p /var/smartdc/adminui
 mkdir -p /opt/smartdc/adminui
 
+# Location for ssl cert
+mkdir -p /opt/smartdc/adminui/etc/ssl
+
 # We need to generate our own self signed certificate for Nginx:
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' \
   -newkey rsa:4096 -days 365 \
-    -keyout /opt/smartdc/adminui/ssl/default.pem \
-    -out /opt/smartdc/adminui/ssl/default.pem
+    -keyout /opt/smartdc/adminui/etc/ssl/default.pem \
+    -out /opt/smartdc/adminui/etc/ssl/default.pem
 
 # Add node_modules/bin to PATH
 echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin:/opt/smartdc/adminui/build/node/bin" >> /root/.bashrc
