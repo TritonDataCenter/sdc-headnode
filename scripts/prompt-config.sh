@@ -1072,7 +1072,7 @@ next_addr=$(expr $next_addr + 1)
 dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
-zapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
 dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1132,8 +1132,8 @@ echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
-echo "zapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "zapi_admin_ips=$zapi_admin_ip" >>$tmp_config
+echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "# datacenter_name should be unique among your cloud," >>$tmp_config
@@ -1330,13 +1330,13 @@ echo >>$tmp_config
 
 
 if [ -z "$external_vlan_id" ]; then
-	echo "# zapi_external_vlan=0" >>$tmp_config
+	echo "# vmapi_external_vlan=0" >>$tmp_config
 else
-	echo "zapi_external_vlan=$external_vlan_id" >>$tmp_config
+	echo "vmapi_external_vlan=$external_vlan_id" >>$tmp_config
 fi
-echo "zapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "zapi_http_admin_user=admin" >>$tmp_config
-echo "zapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "vmapi_http_admin_user=admin" >>$tmp_config
+echo "vmapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 

@@ -42,9 +42,9 @@ vm_destroy()
 
     [[ -z ${uuid} ]] && fatal "destroy: unable to find uuid for zone matching '${arg}'"
 
-    zapi /vms/${uuid} -X DELETE > /tmp/destroy.$$ 2>&1
+    vmapi /vms/${uuid} -X DELETE > /tmp/destroy.$$ 2>&1
 
-    echo "+ Sent DELETE to ZAPI for ${uuid}"
+    echo "+ Sent DELETE to VMAPI for ${uuid}"
     watch_job /tmp/destroy.$$
 
     return $?;
@@ -67,7 +67,7 @@ vm_list()
        eval ${host_mappings}
     fi
 
-    for zone in $(zapi /vms?state=active \
+    for zone in $(vmapi /vms?state=active \
 	    | json -H \
         -e 'alias=(alias || "-")' \
         -a alias brand state uuid ram server_uuid \

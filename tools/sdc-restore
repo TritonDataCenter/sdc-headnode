@@ -38,7 +38,7 @@ echo "(debug log is /tmp/restorelog.$$)"
 HEADNODE_UUID=$(sysinfo | json UUID)
 
 core_zones="assets cnapi dapi dhcpd moray napi rabbitmq ufds workflow"
-core_zones="$core_zones zapi zookeeper"
+core_zones="$core_zones vmapi zookeeper"
 
 usage()
 {
@@ -313,9 +313,9 @@ restore()
     rm -rf /tmp/restore.$$
 }
 
-# Use the restored ZAPI data to recreate the extra zones that were on the
-# original headnode.  After getting the record from zapi, we first have to
-# delete the zone (to remove it from zapi) then recreate it so it gets
+# Use the restored VMAPI data to recreate the extra zones that were on the
+# original headnode.  After getting the record from vmapi, we first have to
+# delete the zone (to remove it from vmapi) then recreate it so it gets
 # provisioned onto this system.
 recreate_extra_zones()
 {
@@ -325,10 +325,10 @@ recreate_extra_zones()
         --url "${CNAPI_URL}/servers?hostname=headnode" | json -H -a uuid`
     [ -z "$hn_uuid" ] && fatal "unable to determine headnode UUID"
 
-    local url="${ZAPI_URL}/vms"
+    local url="${VMAPI_URL}/vms"
     url="$url?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active"
 
-    curl -i -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H \
+    curl -i -sS -u ${VMAPI_CREDENTIALS} --url "$url" | json -H \
         -e 'role=(tags.smartdc_role || "-")' \
         -e 'ztype=(tags.smartdc_type || "-")' \
         -a role server_uuid ztype uuid | \
@@ -339,7 +339,7 @@ recreate_extra_zones()
 
             echo -n "deleting ${role} zone... "
 
-            # get IP info for this VM (from ZAPI)
+            # get IP info for this VM (from VMAPI)
             get_net_ip ${z} "admin"
             admin_ip=${IP}
             get_net_ip ${z} "external"
@@ -368,7 +368,7 @@ recreate_extra_zones()
 	    # XXX need a way to specify IP
             local zname=$(sdc-role create ${reuse_ip_cmd} ${role} \
                 2>/tmp/setuperr.$$ 4>&${LOGFD} | \
-                nawk '/Sent provision to ZAPI for/{print $NF}')
+                nawk '/Sent provision to VMAPI for/{print $NF}')
 
             if [[ -z ${zname} ]]; then
                 echo "WARNING: failure setting up ${role} zone" >/dev/stderr
@@ -509,11 +509,11 @@ unmount_usbkey()
     fi
 }
 
-wait_for_zapi()
+wait_for_vmapi()
 {
-    echo -n "waiting for ZAPI zone to be ready."
-    local zname=`vmadm lookup tags.smartdc_role=~^zapi`
-    [ -z "$zname" ] && fatal "no ZAPI zone"
+    echo -n "waiting for VMAPI zone to be ready."
+    local zname=`vmadm lookup tags.smartdc_role=~^vmapi`
+    [ -z "$zname" ] && fatal "no VMAPI zone"
     cnt=0
     while [[ ${cnt} -lt 24 ]]; do
         num=$(svcs -z $zname -x 2>&1 | wc -l)
@@ -542,14 +542,14 @@ update_headnode_uuid()
     fi
 }
 
-# Get the ZAPI network IP addr for the given tag (admin or external)
+# Get the VMAPI network IP addr for the given tag (admin or external)
 # $1 is zonename (uuid)
 # $2 is tag
 get_net_ip()
 {
-    local url="${ZAPI_URL}/vms/$1"
+    local url="${VMAPI_URL}/vms/$1"
 
-    IP=`curl -sS -u ${ZAPI_CREDENTIALS} --url "$url" | json -H -a nics | \
+    IP=`curl -sS -u ${VMAPI_CREDENTIALS} --url "$url" | json -H -a nics | \
         | nawk -v tag=$2 '{
         if ($1 == "\"nic_tag\":") {
             # strip quotes and comma
@@ -739,8 +739,8 @@ main()
         # unmount key only if we mounted it
         unmount_usbkey
 
-        # Wait up to 2 minutes for zapi to boot back up
-        wait_for_zapi
+        # Wait up to 2 minutes for vmapi to boot back up
+        wait_for_vmapi
 
         if [[ ${standby} == 1 || ${full} == 1 ]]; then
             # This will reload the config vars again (with the config we
@@ -750,9 +750,9 @@ main()
             load_sdc_config
         fi
 
-	[[ -z ${CONFIG_zapi_http_admin_user} ]] && fatal "missing zapi config"
-	[[ -z ${CONFIG_zapi_http_admin_pw} ]] && fatal "missing zapi config"
-	[[ -z ${CONFIG_zapi_admin_ips} ]] && fatal "missing zapi config"
+	[[ -z ${CONFIG_vmapi_http_admin_user} ]] && fatal "missing vmapi config"
+	[[ -z ${CONFIG_vmapi_http_admin_pw} ]] && fatal "missing vmapi config"
+	[[ -z ${CONFIG_vmapi_admin_ips} ]] && fatal "missing vmapi config"
 
 	[[ -z ${CONFIG_cnapi_http_admin_user} ]] && fatal "missing cnapi config"
 	[[ -z ${CONFIG_cnapi_http_admin_pw} ]] && fatal "missing cnapi config"
@@ -762,9 +762,9 @@ main()
 	CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
 	CNAPI_URL="http://${CNAPI_IP}"
 
-	ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
-	ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
-	ZAPI_URL="http://${ZAPI_IP}"
+	VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
+	VMAPI_CREDENTIALS="${CONFIG_vmapi_http_admin_user}:${CONFIG_vmapi_http_admin_pw}"
+	VMAPI_URL="http://${VMAPI_IP}"
 
         if [[ ${standby} == 1 ]]; then
             # we're restoring a standby headnode, use our UUID now instead.

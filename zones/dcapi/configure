@@ -12,7 +12,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
-ZAPI_URL=http://$(echo "${ZAPI_ADMIN_IPS}" | cut -d',' -f1)
+VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 
 echo "Creating DCAPI config file"
@@ -49,10 +49,10 @@ cat > /opt/smartdc/dcapi/etc/config.json <<HERE
     "username": "$NAPI_HTTP_ADMIN_USER",
     "password": "$NAPI_HTTP_ADMIN_PW"
   },
-  "zapi": {
-    "url": "$ZAPI_URL",
-    "username": "$ZAPI_HTTP_ADMIN_USER",
-    "password": "$ZAPI_HTTP_ADMIN_PW"
+  "vmapi": {
+    "url": "$VMAPI_URL",
+    "username": "$VMAPI_HTTP_ADMIN_USER",
+    "password": "$VMAPI_HTTP_ADMIN_PW"
   },
   "dsapi": {
     "url": "$DSAPI_URL",

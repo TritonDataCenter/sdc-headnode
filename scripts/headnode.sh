@@ -578,7 +578,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone cnapi
     create_zone dhcpd
     create_zone dapi
-    create_zone zapi
+    create_zone vmapi
 fi
 
 if [[ -n ${CREATEDZONES} ]]; then

@@ -305,7 +305,7 @@ function cleanup_config
 	dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
-	zapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	cat <<-DONE >>/tmp/config.$$
 
@@ -335,8 +335,8 @@ function cleanup_config
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
 
-	zapi_root_pw=$CONFIG_adminui_root_pw
-	zapi_admin_ips=$zapi_admin_ip
+	vmapi_root_pw=$CONFIG_adminui_root_pw
+	vmapi_admin_ips=$vmapi_admin_ip
 
 	amon_root_pw=$CONFIG_adminui_root_pw
 	amon_admin_pw=$CONFIG_adminui_admin_pw
@@ -357,10 +357,10 @@ function cleanup_config
 	capi_http_admin_user=$CONFIG_capi_http_admin_user
 	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
 
-	# zapi_external_vlan=0
-	zapi_root_pw=$CONFIG_adminui_root_pw
-	zapi_http_admin_user=admin
-	zapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	# vmapi_external_vlan=0
+	vmapi_root_pw=$CONFIG_adminui_root_pw
+	vmapi_http_admin_user=admin
+	vmapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
 	# dapi_external_vlan=0
 	dapi_root_pw=$CONFIG_adminui_root_pw
@@ -464,7 +464,7 @@ function cleanup_config
 	redis_pkg=${GENERIC_redis_pkg}
 	ufds_pkg=${GENERIC_ufds_pkg}
 	workflow_pkg=${GENERIC_workflow_pkg}
-	zapi_pkg=${GENERIC_zapi_pkg}
+	vmapi_pkg=${GENERIC_vmapi_pkg}
 	zookeeper_pkg=${GENERIC_zookeeper_pkg}
 	DONE
 

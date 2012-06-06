@@ -17,7 +17,7 @@ mkdir -p /var/smartdc/amon
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 REDIS_ADMIN_IP=$(echo "${REDIS_ADMIN_IPS}" | tr ',' ' ')
 CNAPI_ADMIN_IP=$(echo "${CNAPI_ADMIN_IPS}" | tr ',' ' ')
-ZAPI_ADMIN_IP=$(echo "${ZAPI_ADMIN_IPS}" | tr ',' ' ')
+VMAPI_ADMIN_IP=$(echo "${VMAPI_ADMIN_IPS}" | tr ',' ' ')
 
 mkdir -p /opt/smartdc/amon/cfg
 cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
@@ -31,8 +31,8 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
   "cnapi": {
     "url": "http://${CNAPI_ADMIN_IP}"
   },
-  "zapi": {
-    "url": "http://${ZAPI_ADMIN_IP}"
+  "vmapi": {
+    "url": "http://${VMAPI_ADMIN_IP}"
   },
   "redis": {
     "host": "${REDIS_ADMIN_IP}",

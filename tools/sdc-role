@@ -152,7 +152,7 @@ next_alias()
     local zone=
     local idx=0
 
-    local all_zones=$(zapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+    local all_zones=$(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'alias=(alias || "-")' -e 'smartdc_role=(tags.smartdc_role || "-")' \
         -a smartdc_role alias | tr ' ' ',')
 
@@ -229,7 +229,7 @@ check_zone_dependencies()
     fi
 
     local found=
-    local installed_roles=$(zapi \
+    local installed_roles=$(vmapi \
         "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
         -a smartdc_role | tr ' ' ',')
@@ -442,7 +442,7 @@ sdc_destroy()
 
     local zone=
     local destroy_uuid=
-    for zone in $(zapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+    for zone in $(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'alias=(alias || "-")' \
         -e 'smartdc_role=(tags.smartdc_role || "-")' \
         -e 'smartdc_type=(tags.smartdc_type || "-")' \
@@ -481,9 +481,9 @@ sdc_destroy()
     # Find the IPs that NAPI thinks the zone has so we can remove them
     local zone_ips=$(napi /nics?belongs_to_uuid=${destroy_uuid} | json -H -a ip | xargs)
 
-    zapi /vms/${destroy_uuid} -X DELETE > /tmp/destroy.$$ 2>&1
+    vmapi /vms/${destroy_uuid} -X DELETE > /tmp/destroy.$$ 2>&1
 
-    echo "+ Sent DELETE to ZAPI for ${destroy_uuid}"
+    echo "+ Sent DELETE to VMAPI for ${destroy_uuid}"
     watch_job /tmp/destroy.$$
 
     if [[ $? == 0 ]]; then
@@ -511,7 +511,7 @@ sdc_list()
        eval ${host_mappings}
     fi
 
-    for zone in $(zapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+    for zone in $(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
             -a alias smartdc_role state uuid ram server_uuid \
         | tr ' ' ',' | sort); do

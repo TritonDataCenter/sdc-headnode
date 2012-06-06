@@ -13,14 +13,14 @@ WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 
-echo "Creating ZAPI config file"
-cat > /opt/smartdc/zapi/config.json <<HERE
+echo "Creating VMAPI config file"
+cat > /opt/smartdc/vmapi/config.json <<HERE
 {
   "logLevel": "debug",
   "maxSockets": 10,
   "amqp": {
     "host": "$RABBIT_ADMIN_IP",
-    "queue": "heartbeat.zapi",
+    "queue": "heartbeat.vmapi",
     "reconnect": 5
   },
   "api": {
@@ -44,8 +44,8 @@ cat > /opt/smartdc/zapi/config.json <<HERE
   },
   "ufds": {
     "url": "ldaps://localhost",
-    "bindDN": "$ZAPI_LDAP_ROOT_DN",
-    "bindPassword": "$ZAPI_LDAP_ROOT_PW",
+    "bindDN": "$VMAPI_LDAP_ROOT_DN",
+    "bindPassword": "$VMAPI_LDAP_ROOT_PW",
     "cache": {
       "size": 1000,
       "expiry": 300
@@ -105,10 +105,10 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm enable haproxy
 
 echo "Updating SMF manifest"
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/zapi/g" /opt/smartdc/zapi/smf/manifests/zapi.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/vmapi/g" /opt/smartdc/vmapi/smf/manifests/vmapi.xml)
 
 
-echo "Importing zapi.xml"
-/usr/sbin/svccfg import /opt/smartdc/zapi/smf/manifests/zapi.xml
+echo "Importing vmapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/vmapi/smf/manifests/vmapi.xml
 
 exit 0

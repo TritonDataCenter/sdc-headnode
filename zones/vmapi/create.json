@@ -1,8 +1,8 @@
 {
-  "alias": "zapi0",
+  "alias": "vmapi0",
   "brand": "joyent-minimal",
   "tags": {
-      "smartdc_role": "zapi",
+      "smartdc_role": "vmapi",
       "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"

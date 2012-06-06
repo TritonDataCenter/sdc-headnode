@@ -22,15 +22,15 @@ if [[ -n ${CNAPI_IP} ]]; then
     CNAPI_URL="http://${CNAPI_IP}"
 fi
 
-# ZAPI!
-ZAPI_IP=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_zapi_http_admin_user}
-    && -n ${CONFIG_zapi_http_admin_pw} ]]; then
+# VMAPI!
+VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${CONFIG_vmapi_http_admin_user}
+    && -n ${CONFIG_vmapi_http_admin_pw} ]]; then
 
-    ZAPI_CREDENTIALS="${CONFIG_zapi_http_admin_user}:${CONFIG_zapi_http_admin_pw}"
+    VMAPI_CREDENTIALS="${CONFIG_vmapi_http_admin_user}:${CONFIG_vmapi_http_admin_pw}"
 fi
-if [[ -n ${ZAPI_IP} ]]; then
-    ZAPI_URL="http://${ZAPI_IP}"
+if [[ -n ${VMAPI_IP} ]]; then
+    VMAPI_URL="http://${VMAPI_IP}"
 fi
 
 # NAPI!
@@ -89,11 +89,11 @@ workflow()
     return 0
 }
 
-zapi()
+vmapi()
 {
     path=$1
     shift
-    curl ${CURL_OPTS} -u "${ZAPI_CREDENTIALS}" --url "${ZAPI_URL}${path}" \
+    curl ${CURL_OPTS} -u "${VMAPI_CREDENTIALS}" --url "${VMAPI_URL}${path}" \
         "$@" || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -147,10 +147,10 @@ provision_zone_from_payload()
     local tmpfile=$1
     local verbose="$2"
 
-    zapi /vms -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
+    vmapi /vms -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
     return_code=$?
     if [[ ${return_code} != 0 ]]; then
-        echo "ZAPI FAILED with:" >&2
+        echo "VMAPI FAILED with:" >&2
         cat /tmp/provision.$$ >&2
         return ${return_code}
     fi
@@ -165,7 +165,7 @@ provision_zone_from_payload()
         fi
     fi
 
-    echo "+ Sent provision to ZAPI for ${provisioned_uuid}"
+    echo "+ Sent provision to VMAPI for ${provisioned_uuid}"
     watch_job /tmp/provision.$$
 
     return $?

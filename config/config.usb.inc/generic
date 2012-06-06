@@ -51,7 +51,7 @@ billapi_pkg=sdc_128
 workflow_pkg=sdc_128
 moray_pkg=sdc_1024
 
-zapi_pkg=sdc_128
+vmapi_pkg=sdc_128
 dapi_pkg=sdc_128
 cnapi_pkg=sdc_128
 napi_pkg=sdc_128

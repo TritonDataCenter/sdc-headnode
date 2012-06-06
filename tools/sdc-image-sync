@@ -91,16 +91,16 @@ add_pkg()
 
 update_sdc_zone_pkgs()
 {
-	[[ -z ${CONFIG_zapi_http_admin_user} ]] && return
-	[[ -z ${CONFIG_zapi_http_admin_pw} ]] && return
-	[[ -z ${CONFIG_zapi_admin_ips} ]] && return
+	[[ -z ${CONFIG_vmapi_http_admin_user} ]] && return
+	[[ -z ${CONFIG_vmapi_http_admin_pw} ]] && return
+	[[ -z ${CONFIG_vmapi_admin_ips} ]] && return
 
-	local zcreds="$CONFIG_zapi_http_admin_user:$CONFIG_zapi_http_admin_pw"
-	local zapi_ip=$(echo "${CONFIG_zapi_admin_ips}" | cut -d ',' -f1)
-	local zurl="http://${zapi_ip}"
+	local vmcreds="$CONFIG_vmapi_http_admin_user:$CONFIG_vmapi_http_admin_pw"
+	local vmapi_ip=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
+	local vmurl="http://${vmapi_ip}"
 
-	curl -i -sS -u ${zcreds} \
-    --url "${zurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+	curl -i -sS -u ${vmcreds} \
+    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'smartdc_role=(tags.smartdc_role || "-")' \
 	    -e 'pkg=(internal_metadata.package_name || "-")' \
