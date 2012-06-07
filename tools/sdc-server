@@ -50,22 +50,36 @@ server_list()
             eval ${admin_ip_mappings}
         fi
 
-        printf "%-12s %-36s  %7s  %15s\n" \
+        printf "%-20s %-36s  %7s  %15s\n" \
             "HOSTNAME" "UUID" "RAM" "ADMIN_IP"
         for uuid in $(cnapi /servers | json -H -a uuid); do
             # if someone has a better way to do this, it'd be a appreciated.
             admin_ip=$(eval echo \${nic_$(echo ${uuid} | tr '-' '_')_admin})
             [[ -z ${admin_ip} ]] && admin_ip="-"
+                #| json -H -e 'if this.memory_total_bytes { memory_total_bytes=parseInt(memory_total_bytes) / (1024 * 1024) } else { memory_total_bytes=0 }' \
             data=$(cnapi /servers/${uuid} \
-                | json -H -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
+                | json -H -e 'memory_total_bytes = (this.hasOwnProperty("memory_total_bytes") ? memory_total_bytes : 0)' \
+                -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
                 -a hostname memory_total_bytes)
             hostname=${data%% *}
             ram=${data##* }
 
-            printf "%-12s %36s  %7s  %15s\n" \
+            printf "%-20s %36s  %7s  %15s\n" \
                 "${hostname}" "${uuid}" "${ram}" "${admin_ip}"
         done
     fi
+}
+
+server_setup()
+{
+    server_uuid=$1
+
+    if [[ -n $2 ]]; then
+        usage
+    fi
+
+    # Time for setup!
+    cnapi /servers/${server_uuid}/setup -X PUT -m 60000
 }
 
 if [[ -z ${command} ]]; then
@@ -77,8 +91,7 @@ list)
     server_list "$@"
 ;;
 setup)
-    echo "Server setup not yet implemented"
-    exit 1
+    server_setup "$@"
 ;;
 *)
     echo "Unknown command: ${command}" >&2
