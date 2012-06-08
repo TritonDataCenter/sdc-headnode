@@ -76,11 +76,14 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
    rm -rf /.stage
 fi
 
-# Install using local pkg repo
+# Install using local pkg repo, we need to force lower case because the pkgsrc
+# packages get copied through pcfs which destroys their case.
 for i in $(cat /var/svc/pkgsrc)
 do
-        echo "Installing $i"
-        pkg_info $i >/dev/null 2>&1 || (yes | pkg_add -f ${pkgsrc_url}/$i)
+    lower_case=$(echo ${i} | tr [:upper:] [:lower:])
+    echo "Installing $i"
+    pkg_info $i >/dev/null 2>&1 \
+        || (yes | pkg_add -f ${pkgsrc_url}/${lower_case})
 done
 
 # We can't add any site-specific manifests automatically, since we're running

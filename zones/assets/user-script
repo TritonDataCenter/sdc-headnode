@@ -54,11 +54,15 @@ fi
 pkgsrc_lst=/assets/extra/${zone_role}/pkgsrc
 pkgsrc_dir=/assets/extra/pkgsrc/${pkgsrc_version}
 
-# Install using local pkg repo
+
+# Install using local pkg repo, we need to force lower case because the pkgsrc
+# packages get copied through pcfs which destroys their case.
 for i in $(cat ${pkgsrc_lst})
 do
-        echo "Installing $i"
-        pkg_info $i >/dev/null 2>&1 || pkg_add -f ${pkgsrc_dir}/$i
+    lower_case=$(echo ${i} | tr [:upper:] [:lower:])
+    echo "Installing $i"
+    pkg_info $i >/dev/null 2>&1 \
+        || (yes | pkg_add -f ${pkgsrc_dir}/${lower_case})
 done
 
 bash /opt/smartdc/bin/setup >/var/svc/setup.log 2>&1 &
