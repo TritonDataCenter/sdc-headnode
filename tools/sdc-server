@@ -50,8 +50,8 @@ server_list()
             eval ${admin_ip_mappings}
         fi
 
-        printf "%-20s %-36s  %7s  %15s\n" \
-            "HOSTNAME" "UUID" "RAM" "ADMIN_IP"
+        printf "%-20s %-36s  %-5s  %7s  %15s\n" \
+            "HOSTNAME" "UUID" "SETUP" "RAM" "ADMIN_IP"
         for uuid in $(cnapi /servers | json -H -a uuid); do
             # if someone has a better way to do this, it'd be a appreciated.
             admin_ip=$(eval echo \${nic_$(echo ${uuid} | tr '-' '_')_admin})
@@ -60,12 +60,13 @@ server_list()
             data=$(cnapi /servers/${uuid} \
                 | json -H -e 'memory_total_bytes = (this.hasOwnProperty("memory_total_bytes") ? memory_total_bytes : 0)' \
                 -e 'memory_total_bytes=parseInt(memory_total_bytes / (1024 * 1024))' \
-                -a hostname memory_total_bytes)
+                -a hostname setup memory_total_bytes)
             hostname=${data%% *}
+            setup=$(echo ${data} | cut -d ' ' -f2)
             ram=${data##* }
 
-            printf "%-20s %36s  %7s  %15s\n" \
-                "${hostname}" "${uuid}" "${ram}" "${admin_ip}"
+            printf "%-20s %36s  %-5s  %7s  %15s\n" \
+                "${hostname}" "${uuid}" "${setup}" "${ram}" "${admin_ip}"
         done
     fi
 }
