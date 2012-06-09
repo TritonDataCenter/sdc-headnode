@@ -648,7 +648,7 @@ echo "Cleaning up old agents"
 rm -rf /opt/smartdc/agents/smf/*
 
 # Fix up /var
-mkdir -m755 -p /var/db/dsadm
+mkdir -m755 -p /var/db/imgadm
 
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR

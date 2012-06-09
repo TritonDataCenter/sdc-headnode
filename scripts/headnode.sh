@@ -414,12 +414,12 @@ function create_zone {
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
 
-        # dsadm exits non-zero when the dataset is already imported, we need to
+        # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
         if [[ ! -d /zones/${ds_uuid} ]]; then
             printf "%-58s" "importing SMI: ${ds_name}" \
                 >&${CONSOLE_FD}
-            dsadm install -m ${ds_manifest} -f ${ds_filename}
+            imgadm install -m ${ds_manifest} -f ${ds_filename}
             printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
     fi
