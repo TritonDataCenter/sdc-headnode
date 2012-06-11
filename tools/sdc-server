@@ -27,8 +27,9 @@ Usage:
 
 Sub-commands:
 
-        list         - list all servers in this DC
-        setup [uuid] - setup a new server in this DC
+        list           - list all servers in this DC
+        setup <uuid>   - setup a new server in this DC
+        sysinfo <uuid> - output the latest \`sysinfo\` from the server
 
 EOF
     exit 1
@@ -83,6 +84,20 @@ server_setup()
     cnapi /servers/${server_uuid}/setup -X PUT -m 60000
 }
 
+server_sysinfo()
+{
+    server_uuid=$1
+
+    if [[ -n $2 ]]; then
+        usage
+    fi
+
+    info=$(cnapi /servers/${server_uuid})
+    if [[ -n ${info} ]]; then
+        echo "${info}" | json -H sysinfo | json
+    fi
+}
+
 if [[ -z ${command} ]]; then
     usage
 fi
@@ -93,6 +108,9 @@ list)
 ;;
 setup)
     server_setup "$@"
+;;
+sysinfo)
+    server_sysinfo "$@"
 ;;
 *)
     echo "Unknown command: ${command}" >&2
