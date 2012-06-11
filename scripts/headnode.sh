@@ -185,7 +185,14 @@ POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     cr_once
 
-    ${USB_PATH}/scripts/joysetup.sh || exit 1
+    if ! ${USB_PATH}/scripts/joysetup.sh; then
+        # copy the log out just in case we made it as far as setting up /var
+        cp /tmp/joysetup.* /zones
+        exit 1
+    fi
+
+    # copy the log out to /var so we don't lose on reboot
+    cp /tmp/joysetup.* /zones
 
     printf "%4s\n" "done" >&${CONSOLE_FD}
 
@@ -208,6 +215,8 @@ read -r -d '' KEYS <<ENDKEYS || true
 datacenter_name
 root_authorized_keys_file
 assets_admin_ip
+dns_domain
+dns_resolvers
 ntp_hosts
 swap
 rabbitmq

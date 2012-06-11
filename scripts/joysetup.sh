@@ -19,6 +19,10 @@ MIN_DISK_TO_RAM=2
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
 
+# keep a copy of the output in /tmp/joysetup.$$ for later viewing
+exec > >(tee /tmp/joysetup.$$)
+exec 2>&1
+
 set -o errexit
 set -o pipefail
 set -o xtrace
@@ -190,7 +194,7 @@ function swap_in_GiB
 # mirrored pool is created with two disks.  A RAID-Z pool is created with three
 # or more disks.
 #
-# The arguments to joysetup specify the pool(s), disks for each pool, and 
+# The arguments to joysetup specify the pool(s), disks for each pool, and
 # the profile of each pool (RAID-Z, mirrored, etc.).  An example:
 #
 #     pools=zones,tank
@@ -342,7 +346,7 @@ create_dump()
 setup_datasets()
 {
   datasets=$(zfs list -H -o name | xargs)
-  
+
   if ! echo $datasets | grep dump > /dev/null; then
     printf "%-56s" "adding volume: dump" >&4
     create_dump
@@ -522,7 +526,33 @@ if [[ ${POOLS} == "no pools available" ]]; then
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
         setup_filesystems
         install_agents
+
+        # On a CN we're not rebooting, so we want the following reloaded.
+
+        # Restarting zones causes /zones/manifests/ to be populated
+        svcadm restart svc:/system/zones:default
+
     fi
+
+    # Restarting network/physical causes /etc/resolv.conf to be written out
+    # do disable/enable so we can use -s.  We need this to finish here so
+    # that resolv.conf is updated, since node (imgadm) needs resolv.conf to
+    # be updated before it starts (no way to reload).
+    svcadm disable -s svc:/network/physical:default
+    svcadm enable -s svc:/network/physical:default
+
+    echo $(cat /etc/resolv.conf)
+
+    if [[ ! -f /var/db/imgadm/sources.list ]]; then
+        # For now we initialize with the global one since we don't have a local
+        # imgapi yet.
+        mkdir -p /var/db/imgadm
+        echo "https://datasets.joyent.com/datasets/" \
+            > /var/db/imgadm/sources.list
+        imgadm update
+    fi
+
+    echo $(cat /etc/resolv.conf)
 
     # We're the headnode
     if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
