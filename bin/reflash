@@ -97,11 +97,11 @@ get_latest()
         fi
     else
         file=$(curl -f -s -k \
-            ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
+            ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
             | grep "href" | cut -d '"' -f2 | grep "^boot-")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
+            echo "${bits_url}/usbheadnodetar/master-latest/usbheadnode/${file}"
         fi
     fi
 }
