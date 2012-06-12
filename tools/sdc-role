@@ -381,7 +381,7 @@ sdc_create()
     zone_parameters=
     check_zone_dependencies ${zrole}
     if [[ $? != 0 ]]; then
-        exit 1
+        return 1
     fi
     get_zone_parameters ${zrole}
     setup_zone_files ${zrole}
@@ -418,7 +418,7 @@ sdc_create()
 
     if [[ $? != 0 || ! -f ${tmpfile} ]]; then
         echo "Unable to convert user script to JSON." >&2
-        exit 1
+        return 1
     fi
 
     provision_zone_from_payload ${tmpfile}
@@ -433,7 +433,10 @@ sdc_create()
             fatal "unable to find Admin IP for ${provisioned_uuid}"
         fi
         add_config_ips "${zrole}" "${admin}" "${external}"
+        return 0
     fi
+
+    return 1
 }
 
 sdc_destroy()
@@ -489,7 +492,11 @@ sdc_destroy()
     if [[ $? == 0 ]]; then
         # it's destroyed! Go ahead and remove IPs now.
         del_config_ips "${destroy_zrole}" "${zone_ips}"
+
+        return 0
     fi
+
+    return 1
 }
 
 sdc_list()
@@ -530,6 +537,8 @@ sdc_list()
         printf "%-12s %-16s %-36s  %-7s %10s %16s %15s\n" \
             "${alias}" "${server_name}" "${uuid}" "${ram}" "${state}" "${role}" "${admin_ip}"
     done
+
+    return 0
 }
 
 if [[ -z ${command} ]]; then
