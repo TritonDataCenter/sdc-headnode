@@ -277,7 +277,7 @@ get_zone_parameters()
     if [[ -z ${dataset} ]]; then
         fatal "${zrole}: unable to find dataset uuid."
     fi
-    zone_parameters="${zone_parameters}, dataset_uuid: '${dataset}'"
+    zone_parameters="${zone_parameters}, image_uuid: '${dataset}'"
     zone_parameters="${zone_parameters}, owner_uuid: '${CONFIG_ufds_admin_uuid}'"
 
     local primary_network=$(json primary_network < ${setup_json})
