@@ -191,14 +191,6 @@ async.series([
                 if (process.env.ASSETS_IP) {
                     obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
                 }
-                if (process.env.SDC_DATACENTER_NAME) {
-                    obj.customer_metadata['sdc-datacenter-name'] =
-                        process.env.SDC_DATACENTER_NAME;
-                }
-                if (process.env.SDC_DATACENTER_HEADNODE_ID) {
-                    obj.customer_metadata['sdc-datacenter-headnode-id'] =
-                        process.env.SDC_DATACENTER_HEADNODE_ID;
-                }
 
                 if (error) {
                     if (error.code !== 'ENOENT') {

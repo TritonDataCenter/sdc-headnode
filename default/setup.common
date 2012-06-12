@@ -47,16 +47,17 @@ curl -o /root/.bashrc -s -S -f \
     http://${ASSETS_IP}/extra/${ZONE_ROLE}/bashrc
 
 # The /.dcinfo file contains info about the datacenter in which this zone runs.
-dc_name=$(mdata-get sdc-datacenter-name)
-dc_headnode_id=$(mdata-get sdc-datacenter-headnode-id)
-if [[ -z ${dc_name} ]]; then
+dc_name=$(mdata-get sdc:datacenter_name)
+if [[ $? == 0 && -z ${dc_name} ]]; then
     dc_name="UNKNOWN"
 fi
-if [[ -z ${dc_heanode_id} ]]; then
+dc_headnode_id=$(mdata-get sdc:headnode_id)
+if [[ $? == 0 && -z ${dc_heanode_id} ]]; then
     dc_heanode_id=0
 fi
-echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
-echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
+[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
+[[ -n ${dc_headnode_id} ]] \
+    && echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
 
 if [[ -z ${NO_FS_TARBALL} ]]; then
    # Unpack fs.tar and copy files into proper locations within the zone

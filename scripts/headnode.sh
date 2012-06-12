@@ -313,15 +313,6 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     fi
 fi
 
-if [[ -f /.dcinfo ]]; then
-    eval $(cat /.dcinfo)
-fi
-if [[ -z ${SDC_DATACENTER_HEADNODE_ID} ]]; then
-    SDC_DATACENTER_HEADNODE_ID=0
-fi
-export SDC_DATACENTER_NAME SDC_DATACENTER_HEADNODE_ID
-
-
 # headnode.sh normally does the initial setup of the headnode when it first
 # boots.  This creates the core zones, installs agents, etc.  However, when
 # we are booting with the standby option, if there is a backup file on the
