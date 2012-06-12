@@ -113,7 +113,7 @@ watch_job()
     local job_status=
     local loop=0
 
-    local job=$(json -H job_uuid < /tmp/provision.$$)
+    local job=$(json -H job_uuid < ${filename})
     if [[ -z ${job} ]]; then
         echo "+ FAILED! Result has no Job-Location: header. See ${filename}." >&2
         return 2
