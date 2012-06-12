@@ -497,8 +497,11 @@ setup_filesystems()
     svcadm enable -s filesystem/smartdc
     svcadm disable -s filesystem/minimal
     svcadm enable -s filesystem/minimal
-    svcadm disable -s smartdc/config
-    svcadm enable -s smartdc/config
+    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+        # Only restart smartdc/config on CN, on HN we're rebooting.
+        svcadm disable -s smartdc/config
+        svcadm enable -s smartdc/config
+    fi
 }
 
 install_agents()
@@ -522,9 +525,9 @@ if [[ ${POOLS} == "no pools available" ]]; then
     install_configs
     create_swap
     output_zpool_info
+    setup_filesystems
 
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-        setup_filesystems
         install_agents
 
         # On a CN we're not rebooting, so we want the following reloaded.
