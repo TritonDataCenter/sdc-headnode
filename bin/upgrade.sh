@@ -25,9 +25,10 @@ ROOT=$(pwd)
 export SDC_UPGRADE_DIR=/var/upgrade_headnode
 export SDC_UPGRADE_SAVE=/var/tmp/upgrade_save
 
-# We use the 6.5 rc11 USB key image build date to check the minimum
+# XXX fix this for oldest supported version
+# We use the 6.5.4 USB key image build date to check the minimum
 # upgradeable version.
-VERS_6_5=20110922
+VERS_6_5_4=20120523
 
 # This is the list of zones that did not exist in 6.5 and which have
 # no 6.5 equivalent (e.g. ufds replaces capi, so its not in this list).
@@ -58,14 +59,6 @@ message_err="
 ERROR: There were errors during the upgrade. You must review the upgrade
 log (/tmp/perform_upgrade.*.log) and resolve the problems reported there before
 you reboot the system. There is a backup file in $SDC_UPGRADE_SAVE.\n\n"
-
-# Ensure we're a SmartOS headnode
-if [[ ${SYSINFO_Bootparam_headnode} != "true" \
-    || $(uname -s) != "SunOS" \
-    || -z ${SYSINFO_Live_Image} ]]; then
-
-    fatal "this can only be run on a SmartOS headnode."
-fi
 
 function cleanup
 {
@@ -110,12 +103,12 @@ function check_versions
 	    fatal "unable to find version file in ${usbmnt}"
 
 	# Check version to ensure it's possible to apply this update.
-	# We only support upgrading from 6.5 or later builds.  The 6.5 rc11
+	# We only support upgrading from 6.5.4 or later builds.  The 6.5.4
 	# build date is in the version string and hardcoded in this script.
 	v_old=`echo $existing_version | \
 	    nawk -F. '{split($1, f, "T"); print f[1]}'`
-	[ $v_old -lt $VERS_6_5 ] && \
-	    fatal "the system must be running at least SDC 6.5 to be upgraded"
+	[ $v_old -lt $VERS_6_5_4 ] && \
+	    fatal "the system must be running at least SDC 6.5.4 to be upgraded"
 
 	printf "Upgrading from ${existing_version}\n    to ${new_version}\n"
 }
@@ -568,14 +561,41 @@ function install_platform
 	umount_usbkey
 }
 
+function wait_and_clear
+{
+	while [ true ]; do
+		# It seems like jobs -p can miscount if we don't run jobs first
+		jobs >/dev/null
+		local cnt=`jobs -p | wc -l`
+		[ $cnt -eq 0 ] && break
+		for s in `svcs -x | nawk '/^svc:/ {print $1}'`
+		do
+			svcadm clear $s
+		done
+		sleep 1
+	done
+}
+
+# Ensure we're a SmartOS headnode
+if [[ ${SYSINFO_Bootparam_headnode} != "true" \
+    || $(uname -s) != "SunOS" \
+    || -z ${SYSINFO_Live_Image} ]]; then
+
+    fatal "this can only be run on a SmartOS headnode."
+fi
+
 rm -rf $SDC_UPGRADE_SAVE
 mkdir -p $SDC_UPGRADE_SAVE
-
-HEADNODE=1
 
 mount_usbkey
 check_versions
 umount_usbkey
+
+# Make sure there are no svcs in maintenance. This will break checking later
+# in the upgrade process.
+maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
+[ $maint_svcs -gt 0 ] && \
+    fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
 
 # Make sure we can talk to the old MAPI
 curl -s -u admin:$CONFIG_mapi_http_admin_pw \
@@ -644,8 +664,69 @@ install_platform
 [ $? != 0 ] && SAW_ERROR=1
 
 # Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
+#
+# This process is execessively complex but if not done carefully we will wedge
+# with svcs in maintenance.  We start by removing all but the agents_core.
+# Sometimes this leaves one or more agents still installed, so we do it again.
+# Finally we remove the agents_core (which should be the only thing left) and
+# then clean up the dirs so new agents will install into a fresh environment.
+# The wait_and_clear function is used to watch for svcs goint into maintenance
+# during this process and clear them so that the agent uninstall can continue.
 echo "Cleaning up old agents"
-rm -rf /opt/smartdc/agents/smf/*
+
+AGENTS_DIR=/opt/smartdc/agents
+
+TOREMOVE=`/opt/smartdc/agents/bin/agents-npm --no-registry ls installed \
+    2>/dev/null | nawk '{print $1}'`
+for agent in $TOREMOVE
+do
+    (echo "$agent" | egrep -s '^atropos@') && continue
+    # We have to do agents_core after the others
+    (echo "$agent" | egrep -s '^agents_core@') && continue
+
+    # Supress possible npm warning removing CA (See AGENT-392)
+    if (echo "$agent" | egrep -s '^cainstsvc'); then
+        [ -e $AGENTS_DIR/smf/cainstsvc-default.xml ] && \
+            touch $AGENTS_DIR/smf/cainstsvc.xml
+    fi
+
+    echo "uninstall $agent"
+    /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
+    wait_and_clear
+done
+
+TOREMOVE=`/opt/smartdc/agents/bin/agents-npm --no-registry ls installed \
+    2>/dev/null | nawk '{print $1}'`
+for agent in $TOREMOVE
+do
+    (echo "$agent" | egrep -s '^atropos@') && continue
+    # We have to do agents_core after the others
+    (echo "$agent" | egrep -s '^agents_core@') && continue
+
+    echo "uninstall $agent"
+    /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
+    wait_and_clear
+done
+
+TOREMOVE=`/opt/smartdc/agents/bin/agents-npm --no-registry ls installed \
+    2>/dev/null | nawk '{print $1}'`
+for agent in $TOREMOVE
+do
+    (echo "$agent" | egrep -s '^atropos@') && continue
+
+    echo "uninstall $agent"
+    /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
+    wait_and_clear
+done
+
+for dir in $(ls "$AGENTS_DIR"); do
+    case "$dir" in
+    db|smf) continue ;;
+    *)      rm -fr $AGENTS_DIR/$dir ;;
+    esac
+done
+
+rm -rf $AGENTS_DIR/smf/*
 
 # Fix up /var
 mkdir -m755 -p /var/db/imgadm
