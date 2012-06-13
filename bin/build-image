@@ -6,6 +6,7 @@ set -o pipefail
 if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
     BASH_IS_NOT_ANCIENT='true'
 fi
+
 if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
     export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
@@ -30,27 +31,34 @@ if [[ -z "$TYPE" ]]; then
 fi
 
 case $TYPE in
-tar|usb|coal)
+tar|usb|coal|dataset)
     ;;
 *)
     echo "ERROR: unknown image type '$TYPE' supplied"
     echo ""
-    echo "Usage:    $0 <tar|usb|coal>"
+    echo "Usage:    $0 <tar|usb|coal|dataset>"
     echo ""
     exit 1;
     ;;
 esac
 export TYPE
 
-$ROOT/bin/build-tar-image $CONFIG_OPTS
-[[ "$TYPE" == "tar" ]] && exit 0
+if [[ ${TYPE} != "dataset" || -z $(ls -1dt $ROOT/usb-* | head -1) ]]; then
+    $ROOT/bin/build-tar-image $CONFIG_OPTS
+    [[ "$TYPE" == "tar" ]] && exit 0
 
-BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
+    BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
 
-$ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
-[[ "$TYPE" == "usb" ]] && exit 0
+    $ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
+    [[ "$TYPE" == "usb" ]] && exit 0
+fi
 
-USB_TARBALL=$(ls -1dt $ROOT/usb-* | head -1)
+USB_TARBALL=$(ls -1dt $ROOT/usb-*.tgz | head -1)
+
+if [[ ${TYPE} == "dataset" ]]; then
+         ${ROOT}/bin/build-dataset ${CONFIG_OPTS} -r ${USB_TARBALL}
+         exit 0
+fi
 
 $ROOT/bin/build-coal-image $CONFIG_OPTS -r $USB_TARBALL
 

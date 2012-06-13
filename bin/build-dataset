@@ -1,0 +1,177 @@
+#!/bin/bash
+#
+# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+#
+
+#
+# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
+# there are many important error conditions that this does not capture --
+# first among them failures within a pipeline (only the exit status of the
+# final stage is propagated).  To exit on these failures, we also set
+# "pipefail" (a very useful option introduced to bash as of version 3 that
+# propagates any non-zero exit values in a pipeline).
+#
+
+set -o errexit
+set -o pipefail
+
+REUSE_USB_BUILD=0
+if [[ $1 == "-r" ]]; then
+    shift
+    REUSE_USB_BUILD=1
+    echo "Re-using USB build rather than creating new copy. "
+fi
+
+function rel2abs () {
+  local abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
+  [[ -z "$abs_path" ]] && return 1
+  local end=$(basename $1)
+  echo "${abs_path%*/}/$end"
+}
+
+if [[ -z "$1" ]]; then
+    echo "ERROR: no usb tarball supplied"
+    echo ""
+    echo "Usage:"
+    echo "    $0 [-r] <usb_tarball>"
+    echo "    -r     Consume the usb build rather than copy it"
+    echo ""
+    exit 1
+fi
+
+TAR_BUILD_FILENAME=$(rel2abs $1)
+shift
+
+TAR_BUILD_IS_DIRECTORY=0
+if [[ -d $TAR_BUILD_FILENAME ]]; then
+    TAR_BUILD_IS_DIRECTORY=1
+fi
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+# Write output to log file.
+THIS_TIMESTAMP=${TIMESTAMP}
+if [[ -z "$THIS_TIMESTAMP" ]]; then
+    THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
+fi
+LOGDIR="${ROOT}/log"
+LOGFILE="${LOGDIR}/build.log.dataset.${THIS_TIMESTAMP}"
+mkdir -p log
+exec > >(tee ${LOGFILE}) 2>&1
+
+if [[ $(uname -s) != "SunOS" || $(zonename) == "global"
+    || ${USER} != "root" ]]; then
+
+    echo "This is only supported on a SmartOS non-global zone as root." >&2
+    exit 2
+fi
+
+if ! zfs list zones/$(zonename)/data; then
+    echo "You must have a delegated dataset for this to work."
+    exit 2
+fi
+
+export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=4
+set -o xtrace
+
+MERGED_SPEC=
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec);
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+fi
+
+function build_spec () {
+    local thing=$1;
+    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
+};
+
+echo ">> Starting build at $(date)"
+
+function fatal
+{
+    echo "$(basename $0): fatal error: $*"
+    exit 1
+}
+
+function errexit
+{
+		echo ">> Doing cleanup"
+    if [[ -n ${DATASET} ]]; then
+        echo ">> Removing ${DATASET}"
+        zfs destroy -r ${DATASET}
+    fi
+
+    if [[ $1 -ne 0 ]]; then
+				# Failed so also delete output file(s).
+        if [[ -z ${filename} && -f ${filename} ]]; then
+            echo ">> Removing ${filename}"
+            rm ${filename}
+        fi
+        if [[ -z ${manifest} && -f ${manifest} ]]; then
+            echo ">> Removing ${manifest}"
+            rm ${manifest}
+        fi
+        fatal "error exit status $1 at line $2"
+    fi
+
+    exit 0
+}
+
+trap 'errexit $? $LINENO' EXIT
+
+NEW_UUID=$(uuid)
+echo ">> Building dataset ${NEW_UUID} from ${TAR_BUILD_FILENAME}"
+DATASET=zones/$(zonename)/data/${NEW_UUID}
+zfs create -V 4G -o compression=gzip ${DATASET}
+gtar -O -zxf ${TAR_BUILD_FILENAME} $(basename ${TAR_BUILD_FILENAME} .tgz)-4gb.img \
+    | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
+zfs snapshot ${DATASET}@sending
+filename=$(basename ${TAR_BUILD_FILENAME} .tgz).zvol.bz2
+zfs send -p ${DATASET}@sending | pbzip2 >${filename}
+#zfs destroy -r ${DATASET}
+
+now=$(date -u +%Y-%m-%dT%H:%MZ)
+shasum=$(/usr/bin/sum -x sha1 ${filename} | cut -d' ' -f1)
+filesize=$(ls -l ${filename} | awk '{ print $5 }')
+version=$(basename ${TAR_BUILD_FILENAME} .tgz | sed -e "s/^usb-.*-20/20/") # fix in 2099 ;)
+manifest=$(basename ${TAR_BUILD_FILENAME} .tgz).dsmanifest
+
+cat >${manifest} <<EOF
+{
+  "name": "sdc-headnode ",
+  "version": "${version}",
+  "type": "zvol",
+  "cpu_type": "host",
+  "description": "SDC Headnode for use on SDC",
+  "created_at": "${now}",
+  "updated_at": "${now}",
+  "os": "smartos",
+  "image_size": 4096,
+  "files": [
+    {
+      "path": "${filename}",
+      "sha1": "${shasum}",
+      "size": ${filesize}
+    }
+  ],
+  "requirements": {
+    "min_ram": 2048,
+    "networks": [
+      {
+        "name": "net0",
+        "description": "public"
+      }
+    ]
+  },
+  "disk_driver": "ide",
+  "nic_driver": "e1000",
+  "uuid": "${NEW_UUID}",
+  "platform_type": "smartos"
+}
+EOF
+
+exit 0
