@@ -97,54 +97,7 @@ fi
 
 echo "==> Adding to list of available platforms"
 
-# Wait until MAPI is actually up. Attempts to guarantee that (watching the MAPI
-# svc) before calling this script aren't reliable.
-
-mapi_ping="curl -f --connect-timeout 2 -u ${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw} --url http://${CONFIG_mapi_admin_ip}/"
-for i in {1..12}; do
-    if [[ `${mapi_ping} >/dev/null 2>&1; echo $?` == "0" ]]; then
-        break
-    fi
-    sleep 5
-done
-[[ `${mapi_ping} >/dev/null 2>&1; echo $?` != "0" ]] && \
-    fatal "FAILED waiting for MAPI to come up, can't update."
-
-curr_list=$(curl -s -f \
-    -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
-    --url http://${CONFIG_mapi_admin_ip}/admin/platform_images 2>/dev/null)
-
-[[ $? != 0 ]] && fatal "FAILED to get current list of platforms, can't update."
-
-# MAPI returned empty content for "no platform images".
-[[ -z "${curr_list}" ]] && curr_list='[]'
-
-elements=$(echo "${curr_list}" | json length)
-found="false"
-idx=0
-while [[ ${found} == "false" && ${idx} -lt ${elements} ]]; do
-    name=$(echo "${curr_list}" | json ${idx}.name)
-    if [[ -n ${version} && ${name} == ${version} ]]; then
-        found="true"
-    fi
-    idx=$(($idx + 1))
-done
-
-if [[ -n ${version} && ${found} != "true" ]]; then
-    if ! curl -s -f \
-        -X POST \
-        -u "${CONFIG_mapi_http_admin_user}:${CONFIG_mapi_http_admin_pw}" \
-        --url http://${CONFIG_mapi_admin_ip}/admin/platform_images \
-        -H "Accept: application/json" \
-        -d platform_type=${platform_type} \
-        -d name=${version} >/dev/null 2>&1; then
-
-        fatal \
-        "==> FAILED to add to list of platforms, you'll need to update manually"
-    else
-        echo "==> Added ${version} to MAPI's list"
-    fi
-fi
+# XXX 
 
 echo "==> Done!"
 

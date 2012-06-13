@@ -283,11 +283,12 @@ fi
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 
 upgrading=0
-if [[ -x /var/upgrade_headnode/upgrade_finish.sh ]]; then
+if [[ -x /var/upgrade_headnode/upgrade_hooks.sh ]]; then
     upgrading=1
-    printf "%-58s" "Running pre-setup upgrade tasks... " >&${CONSOLE_FD}
-    /var/upgrade_headnode/upgrade_finish.sh "pre" \
+    printf "%-58s\n" "Running pre-setup upgrade tasks... " >&${CONSOLE_FD}
+    /var/upgrade_headnode/upgrade_hooks.sh "pre" \
         4>/var/upgrade_headnode/finish_pre.log
+    printf "%-58s" "Ran pre-setup upgrade tasks... " >&${CONSOLE_FD}
     printf_timer "%4s (%ss)\n" "done"
 fi
 
@@ -544,6 +545,13 @@ function create_zone {
     CREATEDZONES="${CREATEDZONES} ${zone}"
     CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
 
+    if [[ $upgrading == 1 ]]; then
+        printf "%-58s" "Upgrading zone $zone ... " >&${CONSOLE_FD}
+        /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
+            4>/var/upgrade_headnode/finish_post.log
+        printf_timer "%4s (%ss)\n" "done"
+    fi
+
     return 0
 }
 
@@ -701,9 +709,10 @@ else
 fi
 
 if [[ $upgrading == 1 ]]; then
-    printf "%-58s" "Running post-setup upgrade tasks... " >&${CONSOLE_FD}
-    /var/upgrade_headnode/upgrade_finish.sh "post" \
+    printf "%-58s\n" "Running post-setup upgrade tasks... " >&${CONSOLE_FD}
+    /var/upgrade_headnode/upgrade_hooks.sh "post" \
         4>/var/upgrade_headnode/finish_post.log
+    printf "%-58s" "Ran post-setup upgrade tasks... " >&${CONSOLE_FD}
     printf_timer "%4s (%ss)\n" "done"
 fi
 

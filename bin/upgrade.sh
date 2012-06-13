@@ -734,8 +734,8 @@ mkdir -m755 -p /var/db/imgadm
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
 
-cp -pr $ROOT/upgrade_finish.sh $SDC_UPGRADE_DIR
-chmod +x $SDC_UPGRADE_DIR/upgrade_finish.sh
+cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
+chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 
 trap EXIT
 
