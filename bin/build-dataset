@@ -99,7 +99,7 @@ function fatal
 
 function errexit
 {
-		echo ">> Doing cleanup"
+    echo ">> Doing cleanup"
     if [[ -n ${DATASET} ]]; then
         echo ">> Removing ${DATASET}"
         zfs destroy -r ${DATASET}
@@ -127,8 +127,13 @@ NEW_UUID=$(uuid)
 echo ">> Building dataset ${NEW_UUID} from ${TAR_BUILD_FILENAME}"
 DATASET=zones/$(zonename)/data/${NEW_UUID}
 zfs create -V 4G -o compression=gzip ${DATASET}
-gtar -O -zxf ${TAR_BUILD_FILENAME} $(basename ${TAR_BUILD_FILENAME} .tgz)-4gb.img \
-    | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
+if [[ ${TAR_BUILD_IS_DIRECTORY} ]]; then
+    dd if=${TAR_BUILD_FILENAME}/${TAR_BUILD_FILENAME}-4gb.img \
+        of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
+else
+    gtar -O -zxf ${TAR_BUILD_FILENAME} $(basename ${TAR_BUILD_FILENAME} .tgz)-4gb.img \
+        | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
+fi
 zfs snapshot ${DATASET}@sending
 filename=$(basename ${TAR_BUILD_FILENAME} .tgz).zvol.bz2
 zfs send -p ${DATASET}@sending | pbzip2 >${filename}
