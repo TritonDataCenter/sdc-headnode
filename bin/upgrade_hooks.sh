@@ -25,11 +25,11 @@ pre_tasks()
         imgadm update
     fi
 
-    echo "Installing images" >&${CONSOLE_FD}
+    echo "Installing images" >/dev/console
     for i in /usbkey/datasets/*.dsmanifest
     do
         bname=${i##*/}
-        echo "Import dataset $bname" >&${CONSOLE_FD}
+        echo "Import dataset $bname" >/dev/console
 
         bzname=`nawk '{
             if ($1 == "\"path\":") {
@@ -40,8 +40,7 @@ pre_tasks()
         }' $i`
 
         if [ ! -f /usbkey/datasets/$bzname ]; then
-            echo "Skipping $i, no image file in /usbkey/datasets" \
-                >&${CONSOLE_FD}
+            echo "Skipping $i, no image file in /usbkey/datasets" >/dev/console
             continue
         fi
 

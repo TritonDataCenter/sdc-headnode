@@ -23,18 +23,13 @@ set -o xtrace
 
 ROOT=$(pwd)
 export SDC_UPGRADE_DIR=/var/upgrade_headnode
-export SDC_UPGRADE_SAVE=/var/tmp/upgrade_save
 
 # XXX fix this for oldest supported version
 # We use the 6.5.4 USB key image build date to check the minimum
 # upgradeable version.
 VERS_6_5_4=20120523
 
-# This is the list of zones that did not exist in 6.5 and which have
-# no 6.5 equivalent (e.g. ufds replaces capi, so its not in this list).
-BRAND_NEW_ZONES="redis amon"
-
-declare -A SDC_PKGS=()
+ZONES6X="adminui assets billapi ca capi cloudapi dhcpd mapi portal rabbitmq riak"
 
 mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
@@ -46,19 +41,17 @@ usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' \
 load_sdc_sysinfo
 load_sdc_config
 
-. ./upgrade_common
-
 SAW_ERROR=0
 
 message_ok="
 The new image has been activated. You must reboot the system for the upgrade
 to take effect.  Once you have verified the upgrade is ok, you can remove the
-backup file in $SDC_UPGRADE_SAVE.\n\n"
+backup file in $SDC_UPGRADE_DIR.\n\n"
 
 message_err="
 ERROR: There were errors during the upgrade. You must review the upgrade
 log (/tmp/perform_upgrade.*.log) and resolve the problems reported there before
-you reboot the system. There is a backup file in $SDC_UPGRADE_SAVE.\n\n"
+you reboot the system. There is a backup file in $SDC_UPGRADE_DIR.\n\n"
 
 function cleanup
 {
@@ -70,14 +63,14 @@ function cleanup
 message_term="
 ERROR: The upgrade process terminated prematurely and the system is in an
 unknown state. You must review the upgrade log (/tmp/perform_upgrade.*.log)
-to determine how to proceed.  There is a backup file in $SDC_UPGRADE_SAVE.\n\n"
+to determine how to proceed.  There is a backup file in $SDC_UPGRADE_DIR.\n\n"
 
     [[ $SAW_ERROR == 1 ]] && printf "$message_err"
     printf "$message_term"
 
     cd /
     tar cbf 512 - tmp/*log*  | \
-        gzip >$SDC_UPGRADE_SAVE/logs.$(date -u +%Y%m%dT%H%M%S).tgz
+        gzip >$SDC_UPGRADE_DIR/logs.$(date -u +%Y%m%dT%H%M%S).tgz
 }
 
 function mount_usbkey
@@ -92,6 +85,91 @@ function umount_usbkey
 {
 	umount /mnt/usbkey
         mounted_usb="false"
+}
+
+function fatal
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    exit 1
+}
+
+function upgrade_pools
+{
+    #
+    # All ZFS pools should have atime=off.  If an operator wants to enable atime
+    # on a particular dataset, this setting won't affect that setting, since any
+    # datasets with a modified atime property will no longer inherit that
+    # setting from the pool's setting.
+    #
+    local pool
+    for pool in $(zpool list -H -o name); do
+         zfs set atime=off ${pool} || \
+              fatal "failed to set atime=off on pool ${pool}"
+    done
+
+    #
+    # When this compute node was first setup, it may have had an incorrect dump
+    # device size.  Let's fix that.  The dump device should be half the size of
+    # available physical memory.
+    #
+    local system_pool=$(svcprop -p config/zpool smartdc/init)
+    local dumpsize=$(zfs get -Hp -o value volsize ${system_pool}/dump)
+    if [[ $dumpsize -eq 4294967296 ]]; then
+        local newsize_in_MiB=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
+        zfs set volsize=${newsize_in_MiB}m ${system_pool}/dump
+    fi
+}
+
+function upgrade_zfs_datasets
+{
+    #
+    # Certain template datasets were created with ZFS on-disk version 1.  Find
+    # those datasets and upgrade them to the latest version.
+    #
+    zfs upgrade -a
+}
+
+function check_capi
+{
+	CAPI_FOUND=0
+
+	for zone in `zoneadm list -cp | cut -f2 -d:`
+	do
+		# Remember we saw the capi zone so we can
+		# convert to ufds later.
+		[[ "$i" == "capi" ]] && CAPI_FOUND=1
+	done
+}
+
+# Shutdown all core zones.
+function shutdown_sdc_zones
+{
+	for zone in $ZONES6X
+	do
+		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
+
+		echo "Shutting down zone: $zone"
+		zlogin $zone /usr/sbin/shutdown -y -g 0 -i 5 1>&4 2>&1
+
+		# Check for zone being down and halt it forcefully if needed
+		local cnt=0
+		while [ $cnt -lt 18 ]; do
+			sleep 5
+			local zstate=`zoneadm -z $zone list -p | cut -f3 -d:`
+			[ "$zstate" == "installed" ] && break
+			cnt=$(($cnt + 1))
+		done
+
+		# After 90 seconds, shutdown harder
+		if [ $cnt == 18 ]; then
+			echo "Forced shutdown of zone: $zone"
+			zlogin $zone svcs 1>&4 2>&1
+			ps -fz $zone 1>&4 2>&1
+			zoneadm -z $zone halt
+		fi
+	done
 }
 
 function check_versions
@@ -156,9 +234,6 @@ function upgrade_usbkey
     fi
 }
 
-# Similar to function in /smartdc/lib/sdc-common but we might not have that
-# available before we upgrade.  This function will be available on CNs since
-# we have sdc-setup there already if we are upgrading them.
 check_mapi_err()
 {
 	hd=$(dd if=/tmp/sdc$$.out bs=1 count=6 2>/dev/null)
@@ -182,14 +257,13 @@ check_mapi_err()
 	return 0
 }
 
-function delete_old_sdc_zones
+function delete_sdc_zones
 {
-	# 6.5 zones were not provisioned through mapi
-	for zone in $OLD_CLEANUP
+	for zone in $ZONES6X
 	do
+		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
+
 		echo "Deleting zone: $zone"
-		zoneadm -z $zone halt
-		sleep 3
 		zoneadm -z $zone uninstall -F
 		[ $? != 0 ] && SAW_ERROR=1
 		zonecfg -z $zone delete -F
@@ -469,16 +543,16 @@ function cleanup_config
 }
 
 # Transform CAPI pg_dumps into LDIF, then load into UFDS
-# capi dump files are in $SDC_UPGRADE_SAVE/capi_dump
+# capi dump files are in $SDC_UPGRADE_DIR/capi_dump
 function convert_capi_ufds
 {
 	echo "Transforming CAPI postgres dumps to LDIF."
-	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_SAVE}/capi_dump \
-	    > $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif
+	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_DIR}/capi_dump \
+	    > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif
 	[ $? != 0 ] && SAW_ERROR=1
 
 	# We're on the headnode, so we know the zonepath is in /zones.
-	cp $SDC_UPGRADE_SAVE/capi_dump/ufds.ldif /zones/$1/root
+	cp $SDC_UPGRADE_DIR/capi_dump/ufds.ldif /zones/$1/root
 
 	# Wait up to 2 minutes for ufds zone to be ready
 	echo "Waiting for ufds zone to finish booting"
@@ -508,6 +582,7 @@ function convert_capi_ufds
 	rm -f /zones/$1/root/ufds.ldif
 }
 
+# We expect the usbkey to already be mounted when we run this
 function install_platform
 {
 	local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
@@ -525,8 +600,6 @@ function install_platform
 	    "${usbcpy}/os/${platformversion} already exists, skipping update."
 		return
         fi
-
-	mount_usbkey
 
 	# cleanup old images from the USB key
 	local cnt=$(ls -d ${usbmnt}/os/* | wc -l)
@@ -546,7 +619,8 @@ function install_platform
 	    && gunzip | tar -xf - 2>/tmp/install_platform.log \
 	    && mv platform-* platform
 	    )
-	[ $? != 0 ] && SAW_ERROR=1
+	[ $? != 0 ] && \
+	    fatal "unable to install the new platform onto the USB key"
 
 	[[ -f ${usbmnt}/os/${platformversion}/platform/root.password ]] && \
 	    mv -f ${usbmnt}/os/${platformversion}/platform/root.password \
@@ -556,9 +630,8 @@ function install_platform
 	mkdir -p ${usbcpy}/os
 	(cd ${usbmnt}/os && \
 	    rsync -a ${platformversion}/ ${usbcpy}/os/${platformversion})
-	[ $? != 0 ] && SAW_ERROR=1
-
-	umount_usbkey
+	[ $? != 0 ] && \
+	    fatal "unable to install the new platform onto the USB key"
 }
 
 function wait_and_clear
@@ -584,8 +657,7 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     fatal "this can only be run on a SmartOS headnode."
 fi
 
-rm -rf $SDC_UPGRADE_SAVE
-mkdir -p $SDC_UPGRADE_SAVE
+mkdir -p $SDC_UPGRADE_DIR
 
 mount_usbkey
 check_versions
@@ -604,19 +676,19 @@ check_mapi_err
 rm -f /tmp/sdc$$.out
 [ -n "$emsg" ] && fatal "MAPI API is not responding"
 
-get_sdc_zonelist
+check_capi
 
 if [ $CAPI_FOUND == 1 ]; then
 	# dump capi
 	echo "Dump CAPI for Moray conversion"
-	mkdir -p $SDC_UPGRADE_SAVE/capi_dump
+	mkdir -p $SDC_UPGRADE_DIR/capi_dump
 	tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
 	    -Atc '\\\\dt' capi | cut -d '|' -f2`
 	for i in $tables
 	do
 		zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 \
 		    -Upostgres -h127.0.0.1 -t $i capi \
-		    >$SDC_UPGRADE_SAVE/capi_dump/$i.dump
+		    >$SDC_UPGRADE_DIR/capi_dump/$i.dump
 		[ $? != 0 ] && SAW_ERROR=1
 	done
 fi
@@ -626,18 +698,18 @@ trap cleanup EXIT
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
 # up, since 6.x backup depends on the zones running.
 
-[ $OLD_STYLE_ZONES == 0 ] && fatal "Unable to find expected zones"
-
-mkdir -p $SDC_UPGRADE_DIR
-
 # Run full backup with the old sdc-backup code, then unpack the backup archive.
 # Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
 # existence of backup file.
 echo "Creating a backup"
-sdc-backup -s datasets -d $SDC_UPGRADE_SAVE
+sdc-backup -s datasets -d $SDC_UPGRADE_DIR
 [[ $? != 0 ]] && fatal "unable to make a backup"
-bfile=`ls $SDC_UPGRADE_SAVE/backup-* 2>/dev/null`
+bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
+
+# Now we can shutdown the zones so we are in a more stable state for the
+# rest of this phase of the upgrade.
+shutdown_sdc_zones
 
 mkdir $SDC_UPGRADE_DIR/bu.tmp
 (cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
@@ -645,20 +717,24 @@ mkdir $SDC_UPGRADE_DIR/bu.tmp
 mount_usbkey
 
 backup_usbkey
-upgrade_usbkey
 
 upgrade_pools
 upgrade_zfs_datasets
 
+install_platform
+
+# At this point we start doing destructive actions on the HN, so we should
+# no longer call "fatal" if we see an error.
+
+upgrade_usbkey
+
 umount_usbkey
 
-echo "Cleaning up existing zones"
-delete_old_sdc_zones
+echo "Deleting existing zones"
+delete_sdc_zones
 
 cleanup_config
 load_sdc_config
-
-install_platform
 
 /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
 [ $? != 0 ] && SAW_ERROR=1
@@ -672,7 +748,7 @@ install_platform
 # then clean up the dirs so new agents will install into a fresh environment.
 # The wait_and_clear function is used to watch for svcs goint into maintenance
 # during this process and clear them so that the agent uninstall can continue.
-echo "Cleaning up old agents"
+echo "Deleting old agents"
 
 AGENTS_DIR=/opt/smartdc/agents
 
@@ -690,7 +766,7 @@ do
             touch $AGENTS_DIR/smf/cainstsvc.xml
     fi
 
-    echo "uninstall $agent"
+    echo "Uninstall: $agent"
     /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
     wait_and_clear
 done
@@ -703,7 +779,7 @@ do
     # We have to do agents_core after the others
     (echo "$agent" | egrep -s '^agents_core@') && continue
 
-    echo "uninstall $agent"
+    echo "Uninstall: $agent"
     /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
     wait_and_clear
 done
@@ -714,7 +790,7 @@ for agent in $TOREMOVE
 do
     (echo "$agent" | egrep -s '^atropos@') && continue
 
-    echo "uninstall $agent"
+    echo "Uninstall: $agent"
     /opt/smartdc/agents/bin/agents-npm uninstall $agent 1>&4 2>&1 &
     wait_and_clear
 done
