@@ -133,14 +133,86 @@ function upgrade_zfs_datasets
 
 function check_capi
 {
-	CAPI_FOUND=0
+    CAPI_FOUND=0
 
-	for zone in `zoneadm list -cp | cut -f2 -d:`
-	do
-		# Remember we saw the capi zone so we can
-		# convert to ufds later.
-		[[ "$i" == "capi" ]] && CAPI_FOUND=1
+    for zone in `zoneadm list -cp | cut -f2 -d:`
+    do
+        # Remember we saw the capi zone so we can convert to ufds later.
+        [[ "$zone" == "capi" ]] && CAPI_FOUND=1
+    done
+}
+
+function dump_capi
+{
+    zstate=`zoneadm -z capi list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the capi zone must be running"
+
+    echo "Dump CAPI for database conversion"
+    mkdir -p $SDC_UPGRADE_DIR/capi_dump
+    tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
+        -Atc '\\\dt' capi | cut -d '|' -f2`
+    for i in $tables
+    do
+        zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
+            -h127.0.0.1 -t $i capi \ >$SDC_UPGRADE_DIR/capi_dump/$i.dump
+        [ $? != 0 ] && fatal "dumping the CAPI database"
+    done
+
+    shutdown_zone capi
+}
+
+function dump_mapi
+{
+    zstate=`zoneadm -z mapi list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
+
+    echo "Dump MAPI for database conversion"
+    mkdir -p $SDC_UPGRADE_DIR/mapi_dump
+    tables=`zlogin mapi /opt/local/bin/psql -Upostgres -w -Atc '\\\dt' mapi | \
+        cut -d '|' -f2`
+    for i in $tables
+    do
+        zlogin mapi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
+            -t $i mapi \ >$SDC_UPGRADE_DIR/mapi_dump/$i.dump
+        [ $? != 0 ] && fatal "dumping the MAPI database"
+    done
+
+    shutdown_zone mapi
+}
+
+function dump_riak
+{
+    zstate=`zoneadm -z riak list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the riak zone must be running"
+
+    echo "Dump Riak for database conversion"
+    $ROOT/dmp_riak $SDC_UPGRADE_DIR/riak_dump
+    [ $? != 0 ] && fatal "dumping the Riak database"
+
+    shutdown_zone riak
+}
+
+function shutdown_zone
+{
+	echo "Shutting down zone: $1"
+	zlogin $1 /usr/sbin/shutdown -y -g 0 -i 5 1>&4 2>&1
+
+	# Check for zone being down and halt it forcefully if needed
+	local cnt=0
+	while [ $cnt -lt 18 ]; do
+		sleep 5
+		local zstate=`zoneadm -z $1 list -p | cut -f3 -d:`
+		[ "$zstate" == "installed" ] && break
+		cnt=$(($cnt + 1))
 	done
+
+	# After 90 seconds, shutdown harder
+	if [ $cnt == 18 ]; then
+		echo "Forced shutdown of zone: $1"
+		zlogin $1 svcs 1>&4 2>&1
+		ps -fz $1 1>&4 2>&1
+		zoneadm -z $1 halt
+	fi
 }
 
 # Shutdown all core zones.
@@ -150,25 +222,11 @@ function shutdown_sdc_zones
 	do
 		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
 
-		echo "Shutting down zone: $zone"
-		zlogin $zone /usr/sbin/shutdown -y -g 0 -i 5 1>&4 2>&1
+		# skip zone that is already shutdown
+    		zstate=`zoneadm -z $zone list -p | cut -d: -f3`
+		[ "$zstate" == "installed" ] && continue
 
-		# Check for zone being down and halt it forcefully if needed
-		local cnt=0
-		while [ $cnt -lt 18 ]; do
-			sleep 5
-			local zstate=`zoneadm -z $zone list -p | cut -f3 -d:`
-			[ "$zstate" == "installed" ] && break
-			cnt=$(($cnt + 1))
-		done
-
-		# After 90 seconds, shutdown harder
-		if [ $cnt == 18 ]; then
-			echo "Forced shutdown of zone: $zone"
-			zlogin $zone svcs 1>&4 2>&1
-			ps -fz $zone 1>&4 2>&1
-			zoneadm -z $zone halt
-		fi
+		shutdown_zone $zone
 	done
 }
 
@@ -669,30 +727,6 @@ maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
 [ $maint_svcs -gt 0 ] && \
     fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
 
-# Make sure we can talk to the old MAPI
-curl -s -u admin:$CONFIG_mapi_http_admin_pw \
-    http://$CONFIG_mapi_admin_ip/servers >/tmp/sdc$$.out 2>&1
-check_mapi_err
-rm -f /tmp/sdc$$.out
-[ -n "$emsg" ] && fatal "MAPI API is not responding"
-
-check_capi
-
-if [ $CAPI_FOUND == 1 ]; then
-	# dump capi
-	echo "Dump CAPI for Moray conversion"
-	mkdir -p $SDC_UPGRADE_DIR/capi_dump
-	tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
-	    -Atc '\\\\dt' capi | cut -d '|' -f2`
-	for i in $tables
-	do
-		zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 \
-		    -Upostgres -h127.0.0.1 -t $i capi \
-		    >$SDC_UPGRADE_DIR/capi_dump/$i.dump
-		[ $? != 0 ] && SAW_ERROR=1
-	done
-fi
-
 trap cleanup EXIT
 
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
@@ -707,8 +741,18 @@ sdc-backup -s datasets -d $SDC_UPGRADE_DIR
 bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
 
-# Now we can shutdown the zones so we are in a more stable state for the
-# rest of this phase of the upgrade.
+# We shutdown the zones whose databases we're dumping, as we go along, so that
+# the data provided by these zones won't change after the dump
+
+check_capi
+[ $CAPI_FOUND == 1 ] && dump_capi
+
+dump_mapi
+
+dump_riak
+
+# Now we can shutdown the rest of the zones so we are in a more stable state
+# for the rest of this phase of the upgrade.
 shutdown_sdc_zones
 
 mkdir $SDC_UPGRADE_DIR/bu.tmp

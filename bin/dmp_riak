@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+
+/*
+ * Copyright (c) 2012, Joyent Inc. All rights reserved.
+ *
+ * Read the buckets, keys and values out of riak and save the values into
+ * files.  Under the dump_dir we create a directory for each bucket name.
+ * Within the bucket directory we create a file named with the key and the
+ * file will contain the key's value.
+ *
+ * Getting the data corresponds to the following curl commands:
+ * 1) Get the list of buckets
+ *    curl -s http://{riak_ip}:8098/riak?buckets=true
+ *
+ * 2) Get the list of keys within a bucket
+ *    curl -s http://{riak_ip}:8098/riak/{bucket_name}?keys=true
+ *
+ * 3) Get the value for the key
+ *    curl -s http://{riak_ip}:8098/riak/{bucket_name}/{key}
+ */
+
+http = require('http');
+fs = require('fs');
+execFile = require('child_process').execFile;
+
+var config;
+var port=8098;
+var dump_dir='/zones/me/riak_dump/';
+process.stdout.on('drain', function () { writable = true; });
+
+var show_http_err = function (e) {
+    console.log("HTTP error: " + e.message);
+    process.exit(1);
+}
+
+var process_key = function (bucket, key) {
+    var options = {
+        host: config.riak_admin_ip,
+        port: port,
+        path: '/riak/' + bucket + '/' + key
+    };
+
+    http.get(options, function (res) {
+        var data = '';
+
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) { data += chunk; });
+
+        res.on('end', function () {
+            fs.writeFileSync(dump_dir + bucket + '/' + key, data);
+        });
+    }).on('error', show_http_err);
+}
+
+var process_bucket = function (bucket) {
+    var options = {
+        host: config.riak_admin_ip,
+        port: port,
+        path: '/riak/' + bucket + '?keys=true'
+    };
+
+    fs.mkdirSync(dump_dir + bucket, 0755);
+
+    http.get(options, function (res) {
+        var data = '';
+
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) { data += chunk; });
+
+        res.on('end', function () {
+            resp = JSON.parse(data);
+            for (k in resp.keys) {
+                process_key(bucket, resp.keys[k]);
+            }
+        });
+    }).on('error', show_http_err);
+}
+
+var get_buckets = function (res) {
+    var data = '';
+
+    res.setEncoding('utf8');
+    res.on('data', function (chunk) { data += chunk; });
+
+    res.on('end', function () {
+        resp = JSON.parse(data);
+        for (b in resp.buckets) {
+            process_bucket(resp.buckets[b]);
+        }
+    });
+}
+
+execFile('/bin/bash',
+    [ '/lib/sdc/config.sh', '-json' ], function (error, stdout, stderr) {
+        if (error) {
+            console.log('Error: couldn\'t read config: ' + stderr.toString());
+            process.exit(1);
+        }
+
+        config = JSON.parse(stdout.toString());
+
+        /* arg0 == "node", arg1 == {prog_name}, arg2 == {dump_dir} parameter */
+        if (process.argv.length < 3) {
+            console.log("Error: missing directory path");
+            process.exit(1);
+        }       
+
+        dump_dir = process.argv[2] + '/';
+        fs.mkdirSync(process.argv[2], 0755);
+
+        var options = {
+            host: config.riak_admin_ip,
+            port: port,
+            path: '/riak?buckets=true'
+        };
+
+        http.get(options, get_buckets).on('error', show_http_err);
+});
