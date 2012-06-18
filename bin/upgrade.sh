@@ -154,11 +154,16 @@ function dump_capi
     for i in $tables
     do
         zlogin capi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
-            -h127.0.0.1 -t $i capi \ >$SDC_UPGRADE_DIR/capi_dump/$i.dump
+            -h127.0.0.1 -t $i capi >$SDC_UPGRADE_DIR/capi_dump/$i.dump
         [ $? != 0 ] && fatal "dumping the CAPI database"
     done
 
     shutdown_zone capi
+
+    echo "Transforming CAPI postgres dumps to LDIF"
+    $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump \
+        > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif
+    [ $? != 0 ] && fatal "transforming the CAPI dumps"
 }
 
 function dump_mapi

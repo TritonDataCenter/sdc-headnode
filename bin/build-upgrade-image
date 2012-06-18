@@ -106,6 +106,8 @@ function create_upgrade
     cp ${ROOT}/bin/upgrade_hooks.sh ${STAGE}/upgrade/upgrade_hooks.sh
     cp ${ROOT}/bin/dmp_riak ${STAGE}/upgrade/dmp_riak
     chmod +x ${STAGE}/upgrade/dmp_riak
+    cp ${ROOT}/bin/capi2ldif.sh ${STAGE}/upgrade/capi2ldif.sh
+    chmod +x ${STAGE}/upgrade/capi2ldif.sh
 
     local sconf=${ROOT}/config/config.usb.inc/generic
 

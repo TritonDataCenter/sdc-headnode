@@ -548,7 +548,7 @@ function create_zone {
     if [[ $upgrading == 1 ]]; then
         printf "%-58s" "upgrading zone $zone ... " >&${CONSOLE_FD}
         /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
-            4>/var/upgrade_headnode/finish_post.log
+            4>/var/upgrade_headnode/finish_${zone}.log
         printf_timer "%4s (%ss)\n" "done"
     fi
 
