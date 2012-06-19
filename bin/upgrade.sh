@@ -251,7 +251,8 @@ function check_versions
 	[ $v_old -lt $VERS_6_5_4 ] && \
 	    fatal "the system must be running at least SDC 6.5.4 to be upgraded"
 
-	printf "Upgrading from ${existing_version}\n    to ${new_version}\n"
+	printf "Upgrading from %s\n              to %s\n" \
+	    ${existing_version} ${new_version}
 }
 
 function backup_usbkey
@@ -287,37 +288,17 @@ function backup_usbkey
 
 function upgrade_usbkey
 {
+    echo "Upgrading the USB key"
+
+    # Remove obsolete system-zone info
+    rm -rf ${usbmnt}/zones/* /usbkey/zones/*
+
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
-    if [[ -n ${usbupdate} ]]; then
-        (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
-	[ $? != 0 ] && SAW_ERROR=1
+    (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
+    [ $? != 0 ] && SAW_ERROR=1
 
-        (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
-	[ $? != 0 ] && SAW_ERROR=1
-    fi
-}
-
-check_mapi_err()
-{
-	hd=$(dd if=/tmp/sdc$$.out bs=1 count=6 2>/dev/null)
-	if [ "$hd" == "<html>" ]; then
-		emsg="mapi failure"
-		return
-	fi
-
-	emsg=`json </tmp/sdc$$.out | nawk '{
-		if ($1 == "\"errors\":") {
-			error=1
-			next
-		}
-		if (error) {
-			s=index($0, "\"")
-			tmp=substr($0, s + 1)
-			print substr(tmp, 1, length(tmp) - 1)
-			exit 0
-		}
-	}'`
-	return 0
+    (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
+    [ $? != 0 ] && SAW_ERROR=1
 }
 
 function delete_sdc_zones
@@ -555,6 +536,12 @@ function cleanup_config
 		/^rabbitmq_/d
 		/^riak_/d
 		/^sdc_version/d
+		/^# If the capi_allow_file/d
+		/^# CIDR addresses like:/d
+		/^# 10.99.99.0\/24/d
+		/^# 10.88.88.0\/24/d
+		/^# These networks are then the/d
+		/^# this file existing and being populated/d
 	SED_DONE
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config.inc/generic \
@@ -562,7 +549,11 @@ function cleanup_config
 
 	# add all pkg_ entries from upgrade generic file
 	echo "" >>/tmp/config.$$
-	cnt=1
+	echo "# Pkg entry format:" >>/tmp/config.$$
+	echo "#        name:ram:swap:disk:cap:nlwp:iopri" >>/tmp/config.$$
+	echo "#" >>/tmp/config.$$
+	echo "# These must start with 0 and increment by 1." >>/tmp/config.$$
+	cnt=0
 	for i in $pkgs
 	do
 		echo "pkg_$cnt=$i" >>/tmp/config.$$
