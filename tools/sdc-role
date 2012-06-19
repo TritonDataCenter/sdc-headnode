@@ -27,9 +27,9 @@ Usage:
 
 Sub-commands:
 
-        create [role]   - create a sdc_role zone
-        destroy [alias] - destroy an sdc_role zone by alias
-        list            - list all sdc_role zones in this DC
+        create [server] <role> - create a sdc_role zone
+        destroy <alias>        - destroy an sdc_role zone by alias
+        list                   - list all sdc_role zones in this DC
 
 EOF
     exit 1
@@ -218,6 +218,41 @@ add_pkg_zone_parameters()
     done
 }
 
+check_zone_server()
+{
+    local server=$1
+    local zrole=$2
+
+    local status=$(cnapi /servers/${server} | json -H status)
+    if [[ -z ${status} ]]; then
+        echo "ERROR: Cannot find server ${server}"
+        return 1
+    elif [[ ${status} != "running" ]]; then
+        echo "ERROR: ${server} status is '${status}', must be: 'running'"
+        return 1
+    fi
+
+    # disabled for now since we still want to be able to force 2 on one server
+    # while we're building.
+
+    if /bin/false; then
+        local installed_roles=$(vmapi \
+            "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&server_uuid=${server}&state=active" \
+            | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
+            -a smartdc_role | tr ' ' ',')
+
+        for installed in ${installed_roles}; do
+            if [[ ${installed} == ${zrole} ]]; then
+                echo "ERROR: There is already a ${zrole} zone installed" \
+                    "on ${server}."
+                return 1
+            fi
+        done
+    fi
+
+    return 0
+}
+
 check_zone_dependencies()
 {
     local zrole=$1
@@ -373,6 +408,13 @@ sdc_create()
 {
     local zrole=$1
     local networks=
+    local server=
+
+    # If we have 2 arguments, server comes first.  Then zrole.
+    if [[ -n $2 ]]; then
+        server=${zrole}
+        zrole=$2
+    fi
 
     if [[ -z ${zrole} ]]; then
         usage
@@ -383,11 +425,24 @@ sdc_create()
     if [[ $? != 0 ]]; then
         return 1
     fi
+
+    if [[ -n ${server} ]]; then
+        check_zone_server ${server} ${zrole}
+        if [[ $? != 0 ]]; then
+            return 1
+        fi
+    fi
+
     get_zone_parameters ${zrole}
     setup_zone_files ${zrole}
 
     # update config that zone uses, before provision in case something changed.
     update_zoneconfig "${zrole}"
+
+    # If we have a server_uuid add that now
+    if [[ -n ${server} ]]; then
+        zone_parameters="${zone_parameters}, server_uuid: \"${server}\""
+    fi
 
     # above we added: { ..., so now we need to close the curlies.
     zone_parameters="${zone_parameters} }"
