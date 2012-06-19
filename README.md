@@ -114,3 +114,76 @@ Likewise for the others zones using these envvars:
     PUBAPI_DIR
     CLOUDAPI_DIR
 
+# Upgrade Overview
+
+A lot of issues are discovered during upgrade, these are typically related to 
+backup and restore as they are used during the upgrade process). 
+The root cause is usually a lack of understanding of how
+the upgrade mechanism works or simply an oversight, i.e. not thinking about 
+how the change you are making will affect or be applied in an upgrade situation.
+This document provides a list of guidelines and examples for everyone to 
+follow which will make backup/restore/upgrade a lot more stable.  
+Since upgrade basically backs up the zones, deletes them, recreates them, 
+then restores them, having stable backup/restore will go a long way toward 
+making upgrade more stable as well.  Although each role does have its own 
+backup/restore scripts, unfortunately these are all currently fairly inconsistent. 
+Having more commonality and simplicity in these scripts will also help make 
+things more stable.  Because restore and upgrade are already 
+high-stress operations, we need to make these things as reliable as we can.
+
+In addition, because of the way that we do upgrade, its important to
+remember that we may be backing up using older code and restoring using
+newer code as part of the upgrade process.  Restore needs to be backward
+compatible with older backups.  This is another reason for simplicity in the
+way that we do backup/restore.
+
+# Upgrade Guidelines
+
+1. The zone should store all of its persistent data under one common place in
+the file system.  For example, the adminui zone stores all of its data under
+/opt/smartdc/adminui-data which is easy to backup from the global zone.  As
+an alternative, more complex zones, such as mapi, should store all of their
+persistent data under their "data" ZFS dataset which we can snapshot and
+send into a file as a backup.  Mapi makes things more complex than necessary
+because it has configuration files outside of this dataset
+(/opt/smartdc/node.config/node.config) which require extra code.  This
+should be avoided if possible.
+
+2. Backup/restore should not be dependent on parsing a config file inside the
+zone to find things to backup. For example, in JPC the cloudapi
+configuration has a billing plugin which in not installed in the "plugins"
+directory.  Instead, it was installed elsewhere (breaking guideline #1)
+and necessitating the parsing of the configuration file for backup to find
+it.
+
+3. Backup should not be dependent on the zone running.  For example, we
+should not be trying to following symbolic links inside the zone that are
+only valid when the zone is booted.  Mapi is an example of a zone that does
+something it would be better to avoid. It has /opt/smartdc/mapi/config as a
+symlink to /opt/smartdc/mapi-data/config.  That symlink is both invalid from
+the global zone and only points to something inside the zone when the zone
+is running.  The mapi backup script can work around this by accessing the
+mapi-data hierarchy directly, but it is simpler to avoid this sort of thing,
+especially if another engineer who does not know all of the details of the
+zone has to work on this.  We should not have to zlogin to the zone to run
+something to get a good backup.  While we can do this (e.g. when we dump the
+mapi DB), the zone should be stable when it is shutdown and all persistent
+data should be in the directory or directories that will be backed up using #1 
+above.  If the zone's backup does want to zlogin, the code must
+gracefully handle the case where zlogin fails because the zone is halted.
+This should not be considered an error.
+
+4. If you are changing configuration or other ways that a zone can be
+customized, you need to ensure that the restore code will do the right
+thing if it gets a backup that was made on an older version of the zone.
+While this is mostly going to occur due to an upgrade, in theory the
+customer would need this behavior any time they restore an older backup.
+
+The backup/restore scripts are currently in pretty good shape, although
+some of them could still benefit from further simplification.  Going forward,
+it will be best if each team takes full responsibility for ensuring that their
+backup/restore works properly, both as part of sdc-backup/sdc-restore, and
+as part of upgrade.  I'll work on a wiki page that everyone can use as a
+checklist and summary of these guidelines to make it easier for each team
+to test these things going forward.
+
