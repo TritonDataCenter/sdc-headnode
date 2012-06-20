@@ -25,13 +25,8 @@ execFile = require('child_process').execFile;
 
 var config;
 var port=8098;
-var dump_dir='/zones/me/riak_dump/';
+var dump_dir='';
 process.stdout.on('drain', function () { writable = true; });
-
-var show_http_err = function (e) {
-    console.log("HTTP error: " + e.message);
-    process.exit(1);
-}
 
 var process_key = function (bucket, key) {
     var options = {
@@ -44,49 +39,102 @@ var process_key = function (bucket, key) {
         var data = '';
 
         res.setEncoding('utf8');
-        res.on('data', function (chunk) { data += chunk; });
 
-        res.on('end', function () {
-            fs.writeFileSync(dump_dir + bucket + '/' + key, data);
+        res.on('data', function (chunk) {
+            data += chunk;
         });
-    }).on('error', show_http_err);
+
+        res.on('end', function (e) {
+            fs.writeFile(dump_dir + bucket + '/' + key, data, function (e) {
+                if (e)
+                    console.log("Error writing key: " + key + ", " + e.message);
+            });
+        });
+
+        res.on('error', function (e) {
+            console.log("HTTP error: " + e.message);
+            console.log("key: " + bucket + '/' + key);
+        });
+    });
 }
 
 var process_bucket = function (bucket) {
     var options = {
         host: config.riak_admin_ip,
         port: port,
-        path: '/riak/' + bucket + '?keys=true'
+        path: '/riak/' + bucket + '?keys=stream;props=false'
     };
 
-    fs.mkdirSync(dump_dir + bucket, 0755);
+    fs.mkdir(dump_dir + bucket, 0755, function (e) {
+/*
+        if (e) {
+            console.log("mkdir err " + e.message);
+        }
+*/
 
-    http.get(options, function (res) {
-        var data = '';
+        http.get(options, function (res) {
+            var data = '';
 
-        res.setEncoding('utf8');
-        res.on('data', function (chunk) { data += chunk; });
+            res.setEncoding('utf8');
+            res.on('data', function (chunk) {
+    	    if (chunk == "{}")
+                    return;
 
-        res.on('end', function () {
-            resp = JSON.parse(data);
-            for (k in resp.keys) {
-                process_key(bucket, resp.keys[k]);
-            }
+                if (chunk == "{\"keys\":[]}")
+                    return;
+
+                last = chunk.charAt(chunk.length - 1);
+
+                if (last == "}") {
+                    if (data.length == 0) {
+                        resp = JSON.parse(chunk);
+                    } else {
+                        data += chunk;
+                        resp = JSON.parse(data);
+                    }
+
+                    for (var k in resp.keys) {
+                       process_key(bucket, resp.keys[k]);
+                    }
+                    data = '';
+                } else {
+                    data += chunk;
+                }
+             });
+
+            res.on('end', function () {
+                /* XXX */
+                if (data.length != 0)
+                    console.log("data len not 0");
+            });
+
+            res.on('error', function (e) {
+                console.log("HTTP error: " + e.message);
+                console.log("bucket: " + bucket);
+            });
         });
-    }).on('error', show_http_err);
+
+    });
 }
 
 var get_buckets = function (res) {
     var data = '';
 
     res.setEncoding('utf8');
-    res.on('data', function (chunk) { data += chunk; });
+
+    res.on('data', function (chunk) {
+        data += chunk;
+    });
 
     res.on('end', function () {
         resp = JSON.parse(data);
-        for (b in resp.buckets) {
+        for (var b in resp.buckets)
             process_bucket(resp.buckets[b]);
-        }
+    });
+
+    res.on('error', function (e) {
+        console.log("HTTP error: " + e.message);
+        console.log("bucket: " + bucket);
     });
 }
 
@@ -106,13 +154,18 @@ execFile('/bin/bash',
         }       
 
         dump_dir = process.argv[2] + '/';
-        fs.mkdirSync(process.argv[2], 0755);
+        fs.mkdir(process.argv[2], 0755, function (e) {
+            if (e) {
+                console.log("mkdir err " + e.message);
+            }
 
-        var options = {
-            host: config.riak_admin_ip,
-            port: port,
-            path: '/riak?buckets=true'
-        };
+            var options = {
+                host: config.riak_admin_ip,
+                port: port,
+                path: '/riak?buckets=true'
+            };
 
-        http.get(options, get_buckets).on('error', show_http_err);
-});
+            http.get(options, get_buckets);
+        });
+    }
+);
