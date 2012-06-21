@@ -260,7 +260,7 @@ check_zone_dependencies()
 
     if [[ ! -f ${setup_json} ]]; then
         fatal \
-            "${zrole}: missing setup.json file in /usbkey/config/zones/${zrole}"
+            "${zrole}: missing setup.json file in /usbkey/zones/${zrole}"
     fi
 
     local found=
@@ -294,7 +294,7 @@ get_zone_parameters()
 
     if [[ ! -f ${setup_json} ]]; then
         fatal \
-            "${zrole}: missing setup.json file in /usbkey/config/zones/${zrole}"
+            "${zrole}: missing setup.json file in /usbkey/zones/${zrole}"
     fi
 
     # This is where results go!
