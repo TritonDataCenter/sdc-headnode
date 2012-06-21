@@ -288,7 +288,7 @@ if [[ -x /var/upgrade_headnode/upgrade_hooks.sh ]]; then
     printf "%-58s\n" "running pre-setup upgrade tasks... " >&${CONSOLE_FD}
     /var/upgrade_headnode/upgrade_hooks.sh "pre" \
         4>/var/upgrade_headnode/finish_pre.log
-    printf "%-58s" "ran pre-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf "%-58s" "completed pre-setup upgrade tasks... " >&${CONSOLE_FD}
     printf_timer "%4s (%ss)\n" "done"
 fi
 
@@ -503,7 +503,7 @@ function create_zone {
 
         while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
             && ! -f ${zonepath}/root/var/svc/setup_failed \
-            && loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
+            && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
 
             sleep 1
             loops=$((${loops} + 1))
@@ -513,7 +513,8 @@ function create_zone {
             && -f ${zonepath}/root/var/svc/setup_complete ]]; then
 
             # Got here and complete, now just wait for services.
-            while [[ -n $(svcs -xvz ${new_uuid}) && loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
+            while [[ -n $(svcs -xvz ${new_uuid}) && \
+                $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
                 sleep 1
                 loops=$((${loops} + 1))
             done
@@ -546,7 +547,7 @@ function create_zone {
     CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
 
     if [[ $upgrading == 1 ]]; then
-        printf "%-58s" "upgrading zone $zone ... " >&${CONSOLE_FD}
+        printf "%-58s" "upgrading zone $zone... " >&${CONSOLE_FD}
         /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
             4>/var/upgrade_headnode/finish_${zone}.log
         printf_timer "%4s (%ss)\n" "done"
@@ -687,8 +688,13 @@ if [[ -n ${CREATEDZONES} ]]; then
         if [ $standby == 1 ]; then
             echo "Restoring standby headnode" >&${CONSOLE_FD}
         else
-            printf_timer "FROM_START" \
+            if [[ $upgrading == 1 ]]; then
+                printf_timer "FROM_START" \
+                    "initial setup complete (in %s seconds).\n"
+            else
+                printf_timer "FROM_START" \
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
+            fi
         fi
         echo "" >&${CONSOLE_FD}
     fi
@@ -712,7 +718,7 @@ if [[ $upgrading == 1 ]]; then
     printf "%-58s\n" "running post-setup upgrade tasks... " >&${CONSOLE_FD}
     /var/upgrade_headnode/upgrade_hooks.sh "post" \
         4>/var/upgrade_headnode/finish_post.log
-    printf "%-58s" "ran post-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf "%-58s" "completed post-setup upgrade tasks... " >&${CONSOLE_FD}
     printf_timer "%4s (%ss)\n" "done"
 fi
 

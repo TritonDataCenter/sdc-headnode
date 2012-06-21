@@ -11,14 +11,99 @@
 # The role-specific hooks are called after each zone role has been setup.
 #
 
+unset LD_LIBRARY_PATH
+# /image/usr/sbin is here so we pickup vmadm on 6.5
+PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
+export PATH
+
 BASH_XTRACEFD=4
 set -o xtrace
 
 . /lib/sdc/config.sh
 
+# time to wait for each zone to setup (in seconds)
+ZONE_SETUP_TIMEOUT=180
+
+# We have to install the extra zones in dependency order
+EXTRA_ZONES="billapi ca dcapi redis adminui amon cloudapi portal"
+
 saw_err()
 {
     echo "    $1" >> /var/upgrade_headnode/error_finalize.txt
+}
+
+create_extra_zones()
+{
+    declare -A existing_zones=()
+
+    for i in `sdc-role list | nawk '{if ($6 != "ROLE") print $6}'`
+    do
+        existing_zones[$i]=1
+    done
+
+    local new_uuid=
+    local loops=
+    local zonepath=
+
+    for i in $EXTRA_ZONES
+    do
+        [[ ${existing_zones[$i]} == 1 ]] && continue
+
+        echo "creating zone $i..." >/dev/console
+        sdc-role create $i 1>&4 2>&1
+        if [ $? != 0 ]; then
+            saw_err "Error creating $i zone"
+            mv /tmp/payload.* /var/upgrade_headnode
+            mv /tmp/provision.* /var/upgrade_headnode
+            continue
+        fi
+
+        new_uuid=`sdc-role list | nawk -v role=$i '{if ($6 == role) print $3}'`
+        if [[ -z "$new_uuid" ]]; then
+            saw_err "Error creating $i zone: not found"
+            continue
+        fi
+
+        zonepath=$(vmadm get ${new_uuid} | json zonepath)
+        if [[ -z ${zonepath} ]]; then
+            saw_err "Error creating $i zone: no zonepath"
+            continue
+        fi
+
+        loops=0
+        while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
+            && ! -f ${zonepath}/root/var/svc/setup_failed \
+            && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]
+        do
+            sleep 1
+            loops=$((${loops} + 1))
+        done
+
+        if [[ ${loops} -lt ${ZONE_SETUP_TIMEOUT} && \
+            -f ${zonepath}/root/var/svc/setup_complete ]]; then
+
+            # Got here and complete, now just wait for services.
+            while [[ -n $(svcs -xz ${new_uuid}) && \
+                $loops -lt ${ZONE_SETUP_TIMEOUT} ]]
+            do
+                sleep 1
+                loops=$((${loops} + 1))
+            done
+        fi
+
+        if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
+            saw_err "Error creating $i zone: setup timed out"
+        elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
+            saw_err "Error creating $i zone: setup failed"
+        elif [[ -n $(svcs -xz ${new_uuid}) ]]; then
+            saw_err "Error creating $i zone: svcs error"
+        else
+            # Zone is setup ok, run the post-setup hook
+            echo "upgrading zone $i..." >/dev/console
+            /var/upgrade_headnode/upgrade_hooks.sh $i ${new_uuid} \
+              4>/var/upgrade_headnode/finish_${i}.log
+        fi
+    done
 }
 
 pre_tasks()
@@ -57,19 +142,42 @@ pre_tasks()
 
 post_tasks()
 {
-    if [ -f /var/upgrade_headnode/error_finalize.txt ]; then
-        echo "ERRORS during upgrade:" >/dev/console
-        cat /var/upgrade_headnode/error_finalize.txt >/dev/console
-        echo "You must resolve these errors before the headnode is usable" \
-            >/dev/console
-        fatal="true"
+    # Need to wait for all svcs to be up before we can create additional zones
+    # Give headnode.sh a second to emit all of its messages.
+    sleep 1
+    echo "Upgrade: waiting for all svcs to be ready..." >/dev/console
+    loops=0
+    while [[ -n $(svcs -x) && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]
+    do
+        sleep 1
+        loops=$((${loops} + 1))
+    done
+
+    if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
+        saw_err "Error global zone: svcs timed out"
+        echo "Upgrade: ERROR global zone: svcs timed out" >/dev/console
+        exit 1
     fi
+
+    echo "Upgrade: all svcs are ready, continuing..." >/dev/console
+
+    create_extra_zones
+
+    dname="/var/upgrade.$(date -u "+%Y%m%dT%H%M%S")"
 
     # XXX Install old platforms used by CNs
 
-    mv /var/upgrade_headnode /var/upgrade.$(date -u "+%Y%m%dT%H%M%S")
+    mv /var/upgrade_headnode $dname
+    echo "The upgrade is finished" >/dev/console
+    echo "The upgrade logs are in $dname" >/dev/console
 
-    [ -n "$fatal" ] && exit 1
+    if [ -f $dname/error_finalize.txt ]; then
+        echo "ERRORS during upgrade:" >/dev/console
+        cat $dname/error_finalize.txt >/dev/console
+        echo "You must resolve these errors before the headnode is usable" \
+            >/dev/console
+        exit 1
+    fi
 }
 
 # arg1 is zonename
@@ -103,7 +211,12 @@ ufds_tasks()
 case "$1" in
 "pre") pre_tasks;;
 
-"post") post_tasks;;
+"post") echo "Finishing the upgrade in the background" >/dev/console
+        /var/upgrade_headnode/upgrade_hooks.sh "post_bg" \
+            4>/var/upgrade_headnode/finish_post.log &
+        ;;
+
+"post_bg") post_tasks;;
 
 "ufds") ufds_tasks $2;;
 esac

@@ -251,7 +251,7 @@ function check_versions
 	[ $v_old -lt $VERS_6_5_4 ] && \
 	    fatal "the system must be running at least SDC 6.5.4 to be upgraded"
 
-	printf "Upgrading from %s\n              to %s\n" \
+	printf "Upgrading from %s\n            to %s\n" \
 	    ${existing_version} ${new_version}
 }
 
