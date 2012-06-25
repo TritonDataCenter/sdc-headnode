@@ -183,6 +183,11 @@ function dump_mapi
     done
 
     shutdown_zone mapi
+
+    echo "Transforming MAPI postgres dumps to LDIF"
+    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump \
+        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
+    [ $? != 0 ] && fatal "transforming the MAPI dumps"
 }
 
 function dump_riak

@@ -206,6 +206,14 @@ ufds_tasks()
         -w ${CONFIG_ufds_ldap_root_pw} \
         -f /ufds.ldif 1>&4 2>&1
     [ $? != 0 ] && saw_err "Error loading CAPI data into UFDS"
+
+    cp /var/upgrade_headnode/mapi_dump/mapi-ufds.ldif /zones/$1/root
+    zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
+        -H ${client_url} \
+        -D ${CONFIG_ufds_ldap_root_dn} \
+        -w ${CONFIG_ufds_ldap_root_pw} \
+        -f /mapi-ufds.ldif 1>&4 2>&1
+    [ $? != 0 ] && saw_err "Error loading MAPI data into UFDS"
 }
 
 case "$1" in
