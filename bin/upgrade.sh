@@ -190,18 +190,6 @@ function dump_mapi
     [ $? != 0 ] && fatal "transforming the MAPI dumps"
 }
 
-function dump_riak
-{
-    zstate=`zoneadm -z riak list -p | cut -d: -f3`
-    [ "$zstate" != "running" ] && fatal "the riak zone must be running"
-
-    echo "Dump Riak for database conversion"
-    $ROOT/dmp_riak $SDC_UPGRADE_DIR/riak_dump
-    [ $? != 0 ] && fatal "dumping the Riak database"
-
-    shutdown_zone riak
-}
-
 function shutdown_zone
 {
 	echo "Shutting down zone: $1"
@@ -749,8 +737,6 @@ check_capi
 [ $CAPI_FOUND == 1 ] && dump_capi
 
 dump_mapi
-
-dump_riak
 
 # Now we can shutdown the rest of the zones so we are in a more stable state
 # for the rest of this phase of the upgrade.
