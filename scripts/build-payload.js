@@ -1,6 +1,6 @@
-#!/usr/bin/node
+#!/usr/node/bin/node
 
-var async = require('async');
+var async = require('/usr/node/node_modules/async');
 var cp = require('child_process');
 var execFile = cp.execFile;
 var fs = require('fs');

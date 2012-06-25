@@ -458,7 +458,7 @@ sdc_create()
 
     # create mdata temp file
     tmpfile="/tmp/payload.$$"
-    node -e "
+    /usr/node/bin/node -e "
         fs = require('fs');
         us = fs.readFileSync('/usbkey/default/user-script.common', 'utf-8');
         o = ${zone_parameters};
