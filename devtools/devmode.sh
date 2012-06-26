@@ -19,8 +19,8 @@ set -o errexit
 set -o pipefail
 
 ROOT_DIR=$(cd $(dirname $0); pwd)
-PKG_REPO="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/All"
-BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2010Q4/gcc45/bootstrap.tar.gz"
+PKG_REPO="http://pkgsrc.joyent.com/sdc/2012Q1/i386/All"
+BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2012Q1/i386/bootstrap.tar.gz"
 
 if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
@@ -51,11 +51,6 @@ if [[ ! -x /opt/local/bin/pkgin ]]; then
     mkdir -p /opt/local/etc/pkgin
     echo ${PKG_REPO} > /opt/local/etc/pkgin/repositories.conf
     /opt/local/bin/pkgin update
-fi
-
-if [[ -z $(crle | grep '/opt/gcc/lib') ]]; then
-    echo "==> Setting up crle"
-    crle -u -l /opt/local/lib
 fi
 
 if [[ -z $(mount | grep "^/root") ]]; then
