@@ -85,7 +85,7 @@ function transform_packages(file, callback) {
         }
         uuid = stdout;
         changes.push({
-          dn: util.format('uuid=%s, ou=packages, o=smartdc', uuid),
+          dn: 'uuid=' + uuid + ', ou=packages, o=smartdc',
           uuid: uuid,
           active: 'true',
           cpu_cap: pieces[5],
