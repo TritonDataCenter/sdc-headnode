@@ -294,6 +294,31 @@ function upgrade_usbkey
     [ $? != 0 ] && SAW_ERROR=1
 }
 
+# Save the external network IP addresses so we can re-use that info after the
+# upgrade.
+function save_zone_addrs
+{
+    cat /dev/null > $SDC_UPGRADE_DIR/ext_addrs.txt
+    for i in `ls /usbkey/zones`
+    do
+        local addr=`zonecfg -z $i info net 2>/dev/null | nawk '{
+            if ($1 == "global-nic:" && $2 == "external")
+                found = 1
+            if (found && $1 == "property:") {
+                if (index($2, "name=ip,") != 0) {
+                    p = index($2, "value=")
+                    s = substr($2, p + 7)
+                    p = index(s, "\"")
+                    s = substr(s, 1, p - 1)
+                    print s
+                    exit 0
+                }
+            }
+        }'`
+        [ -n "$addr" ] && echo "$i $addr" >> $SDC_UPGRADE_DIR/ext_addrs.txt
+    done
+}
+
 function delete_sdc_zones
 {
 	for zone in $ZONES6X
@@ -722,13 +747,15 @@ trap cleanup EXIT
 # up, since 6.x backup depends on the zones running.
 
 # Run full backup with the old sdc-backup code, then unpack the backup archive.
-# Unfortunately the 6.5 sdc-backup exits 1 even when it succeeds so check for
-# existence of backup file.
+# Double check the existence of backup file.
 echo "Creating a backup"
 sdc-backup -s datasets -d $SDC_UPGRADE_DIR
 [[ $? != 0 ]] && fatal "unable to make a backup"
 bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
+
+# Keep track of the core zone external addresses
+save_zone_addrs
 
 # We shutdown the zones whose databases we're dumping, as we go along, so that
 # the data provided by these zones won't change after the dump

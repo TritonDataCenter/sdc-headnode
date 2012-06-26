@@ -24,12 +24,31 @@ set -o xtrace
 # time to wait for each zone to setup (in seconds)
 ZONE_SETUP_TIMEOUT=180
 
+SDC_UPGRADE_DIR=/var/upgrade_headnode
+
 # We have to install the extra zones in dependency order
 EXTRA_ZONES="billapi ca dcapi redis adminui amon cloudapi portal"
 
 saw_err()
 {
-    echo "    $1" >> /var/upgrade_headnode/error_finalize.txt
+    echo "    $1" >> ${SDC_UPGRADE_DIR}/error_finalize.txt
+}
+
+shutdown_zone()
+{
+	zlogin $1 /usr/sbin/shutdown -y -g 0 -i 5 1>&4 2>&1
+
+	# Check for zone being down and halt it forcefully if needed
+	local cnt=0
+	while [[ $cnt -lt 18 ]]; do
+		sleep 5
+		local zstate=`zoneadm -z $1 list -p | cut -f3 -d:`
+		[[ "$zstate" == "installed" ]] && break
+		cnt=$(($cnt + 1))
+	done
+
+	# After 90 seconds, shutdown harder
+	[[ $cnt == 18 ]] && zoneadm -z $1 halt
 }
 
 create_extra_zones()
@@ -53,8 +72,8 @@ create_extra_zones()
         sdc-role create $i 1>&4 2>&1
         if [ $? != 0 ]; then
             saw_err "Error creating $i zone"
-            mv /tmp/payload.* /var/upgrade_headnode
-            mv /tmp/provision.* /var/upgrade_headnode
+            mv /tmp/payload.* ${SDC_UPGRADE_DIR}
+            mv /tmp/provision.* ${SDC_UPGRADE_DIR}
             continue
         fi
 
@@ -100,8 +119,8 @@ create_extra_zones()
         else
             # Zone is setup ok, run the post-setup hook
             echo "upgrading zone $i..." >/dev/console
-            /var/upgrade_headnode/upgrade_hooks.sh $i ${new_uuid} \
-              4>/var/upgrade_headnode/finish_${i}.log
+            ${SDC_UPGRADE_DIR}/upgrade_hooks.sh $i ${new_uuid} \
+              4>${SDC_UPGRADE_DIR}/finish_${i}.log
         fi
     done
 }
@@ -167,7 +186,7 @@ post_tasks()
 
     # XXX Install old platforms used by CNs
 
-    mv /var/upgrade_headnode $dname
+    mv ${SDC_UPGRADE_DIR} $dname
     echo "The upgrade is finished" >/dev/console
     echo "The upgrade logs are in $dname" >/dev/console
 
@@ -178,6 +197,23 @@ post_tasks()
             >/dev/console
         exit 1
     fi
+}
+
+# This function is used to restore a zone role when the 6.5.x backup is
+# compatible with the 7.0 role configuration.
+#
+# arg1 is role
+# arg2 is zonename
+compatible_restore_task()
+{
+    # We're going to replace the config files, so halt the zone
+    shutdown_zone $2
+
+    /usbkey/zones/$1/restore $2 ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
+    [ $? != 0 ] && saw_err "Error restoring $1 zone $2"
+
+    # Boot the zone with the new config data
+    zoneadm -z $2 boot
 }
 
 # arg1 is zonename
@@ -199,7 +235,7 @@ ufds_tasks()
     [ $? != 0 ] && \
         saw_err "Error loading CAPI data into UFDS - deleting admin user"
 
-    cp /var/upgrade_headnode/capi_dump/ufds.ldif /zones/$1/root
+    cp ${SDC_UPGRADE_DIR}/capi_dump/ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
         -H ${client_url} \
         -D ${CONFIG_ufds_ldap_root_dn} \
@@ -207,7 +243,7 @@ ufds_tasks()
         -f /ufds.ldif 1>&4 2>&1
     [ $? != 0 ] && saw_err "Error loading CAPI data into UFDS"
 
-    cp /var/upgrade_headnode/mapi_dump/mapi-ufds.ldif /zones/$1/root
+    cp ${SDC_UPGRADE_DIR}/mapi_dump/mapi-ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
         -H ${client_url} \
         -D ${CONFIG_ufds_ldap_root_dn} \
@@ -220,11 +256,27 @@ case "$1" in
 "pre") pre_tasks;;
 
 "post") echo "Finishing the upgrade in the background" >/dev/console
-        /var/upgrade_headnode/upgrade_hooks.sh "post_bg" \
-            4>/var/upgrade_headnode/finish_post.log &
+        ${SDC_UPGRADE_DIR}/upgrade_hooks.sh "post_bg" \
+            4>${SDC_UPGRADE_DIR}/finish_post.log &
         ;;
 
 "post_bg") post_tasks;;
+
+"cloudapi")
+    # Currently a simple restore is fine for cloudapi and the 7.0 restore is
+    # compatible with the 6.5.x backup, but if we need to do any transforms on
+    # the 6.5.x backup data, we should split out a separate cloudapi_tasks
+    # function.
+    compatible_restore_task "cloudapi" $2
+    ;;
+
+"portal")
+    # Currently a simple restore is fine for portal and the 7.0 restore is
+    # compatible with the 6.5.x backup, but if we need to do any transforms on
+    # the 6.5.x backup data, we should split out a separate portal_tasks
+    # function.
+    compatible_restore_task "portal" $2
+    ;;
 
 "ufds") ufds_tasks $2;;
 esac
