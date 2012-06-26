@@ -241,7 +241,9 @@ ufds_tasks()
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
         -f /ufds.ldif 1>&4 2>&1
-    [ $? != 0 ] && saw_err "Error loading CAPI data into UFDS"
+    # err 68 means it already exists - allow this in case we're re-running
+    local res=$?
+    [[ $res != 0 && $res != 68 ]] && saw_err "Error loading CAPI data into UFDS"
 
     cp ${SDC_UPGRADE_DIR}/mapi_dump/mapi-ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
@@ -249,7 +251,8 @@ ufds_tasks()
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
         -f /mapi-ufds.ldif 1>&4 2>&1
-    [ $? != 0 ] && saw_err "Error loading MAPI data into UFDS"
+    res=$?
+    [[ $res != 0 && $res != 68 ]] && saw_err "Error loading MAPI data into UFDS"
 }
 
 case "$1" in
