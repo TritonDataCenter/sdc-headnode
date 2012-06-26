@@ -1,6 +1,7 @@
 {
     "build-tgz": "true"
-  , "bits-url": "https://guest:GrojhykMid@stuff.joyent.us/stuff/builds"
+  , "bits-url": "https://stuff.joyent.us/stuff/builds"
+  , "bits-url-open": "http://stuff:kie7Ooph@stuff.smartdatacenter.org"
   , "bits-branch": "master"
   , "platform-release": "master"
   , "agents-shar": "master"

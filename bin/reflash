@@ -63,7 +63,7 @@ fi
 
 get_bits_url()
 {
-    bits_url="https://guest:GrojhykMid@stuff.joyent.us/stuff/builds"
+    bits_url="https://stuff.smartdatacenter.org/"
 
     if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
         MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \

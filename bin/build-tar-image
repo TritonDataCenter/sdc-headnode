@@ -129,7 +129,7 @@ fi
 # build will get its dependent pre-built bits.
 #
 # "BITS_URL" can either be a URL directory, e.g.
-# "https://guest:GrojhykMid@216.57.203.68/stuff/builds", or a local
+# "https://stuff.joyent.us/stuff/builds", or a local
 # directory. If an existing local dir, then "BITS_DIR" will be set to that
 # for the build code below.
 #
@@ -178,6 +178,17 @@ if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
 fi
 if [[ -z "$BITS_URL" ]]; then
     BITS_URL=$(build_spec bits-url)
+    if [[ ! -f ~/.sdcbuild.json ]]; then
+      (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o \
+        BatchMode=yes stuff@stuff.joyent.us:.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
+    fi
+    if [[ -f ~/.sdcbuild.json ]]; then
+      username=$(cat ~/.sdcbuild.json | json username)
+      password=$(cat ~/.sdcbuild.json | json password)
+      BITS_URL=$(echo $BITS_URL | sed -e "s/\/\//\/\/${username}:${password}@/g")
+    else
+      BITS_URL=$(build_spec bits-url-open)
+    fi
 fi
 if [[ -z "$BITS_URL" && ! -z "$(build_spec master-url)" ]]; then
     echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
