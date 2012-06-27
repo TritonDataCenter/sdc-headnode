@@ -183,8 +183,8 @@ if [[ -z "$BITS_URL" ]]; then
         BatchMode=yes stuff@stuff.joyent.us:.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
     fi
     if [[ -f ~/.sdcbuild.json ]]; then
-      username=$(cat ~/.sdcbuild.json | json username)
-      password=$(cat ~/.sdcbuild.json | json password)
+      username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+      password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
       BITS_URL=$(echo $BITS_URL | sed -e "s/\/\//\/\/${username}:${password}@/g")
     else
       BITS_URL=$(build_spec bits-url-open)
