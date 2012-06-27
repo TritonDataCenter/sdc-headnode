@@ -320,11 +320,8 @@ function copy_config {
     rm -f ${STAGE}/config || true
     rm -rf ${STAGE}/config.inc || true
 
-    if [[ -d config/config.usb.inc.local ]]; then
-        cp -r config/config.usb.inc.local ${STAGE}/config.inc
-    else
-        cp -r config/config.usb.inc ${STAGE}/config.inc
-    fi
+    cp -r config/config.usb.inc ${STAGE}/config.inc
+
     if [[ -f config/banner ]]; then
         cp config/banner ${STAGE}/banner
     fi

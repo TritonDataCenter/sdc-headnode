@@ -122,11 +122,6 @@ most interesting/helpful ones are:
           "coal-memsize": 3400
         }
 
-- You can have a "config/config.coal.local" file which is a complete
-  override of "config/config.coal" if you want to tweak any of those
-  variables.
-
-
 # Re-building a single zone
 
 

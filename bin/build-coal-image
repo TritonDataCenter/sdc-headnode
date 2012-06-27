@@ -196,11 +196,7 @@ function copy_config {
     rm -f ${MNT_DIR}/config || true
     rm -rf ${MNT_DIR}/config.inc || true
 
-    if [[ -d config/config.coal.inc.local ]]; then
-        cp -r config/config.coal.inc.local ${MNT_DIR}/config.inc
-    else
-        cp -r config/config.coal.inc ${MNT_DIR}/config.inc
-    fi
+    cp -r config/config.coal.inc ${MNT_DIR}/config.inc
 }
 
 # Copy to mount is basically just extracting everything to the image mount
