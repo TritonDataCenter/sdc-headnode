@@ -96,7 +96,17 @@ get_latest()
             echo "${bits_url}/sdc/${release}-latest/usbheadnode/${file}"
         fi
     else
-        file=$(curl -f -s -k \
+        if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
+            echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
+            if [[ ! -f "$HOME/.sdcbuild.json" ]]; then
+                echo "error: '~/.sdcbuild.json' does not exist" >&2
+                exit 1
+            fi
+            username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+            password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+            bits_url=$(echo $bits_url | sed -e "s/\/\//\/\/${username}:${password}@/g")
+        fi
+        file=$(curl -f -sS -k \
             ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
             | grep "href" | cut -d '"' -f2 | grep "^boot-")
 
@@ -120,7 +130,7 @@ get_md5()
             echo "${md5}"
         fi
     else
-        md5=$(curl -f -s -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
+        md5=$(curl -f -sS -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
             | grep "${file}" | cut -d ' ' -f1)
 
         if [[ -n ${md5} ]]; then
