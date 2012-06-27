@@ -28,22 +28,34 @@ CFG_FILE=/opt/smartdc/cloudapi/etc/cloudapi.cfg
 # XXX use the first for now
 CA_URL=http://$(echo "${CA_ADMIN_IPS}" | tr ',' ' '):23181
 
+CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
+DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
+VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
+NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
+
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|CA_URL|$CA_URL|" $CFG_FILE
 gsed -i -e "s|CLOUDAPI_EXTERNAL_URL|$CLOUDAPI_EXTERNAL_URL|" $CFG_FILE
 gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $CFG_FILE
-gsed -i -e "s|MAPI_URL|$MAPI_URL|" $CFG_FILE
-gsed -i -e "s|MAPI_HTTP_ADMIN_USER|$MAPI_HTTP_ADMIN_USER|" $CFG_FILE
-gsed -i -e "s|MAPI_HTTP_ADMIN_PW|$MAPI_HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
 
+gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
+gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
+gsed -i -e "s|IMGAPI_URL|$DSAPI_URL|" $CFG_FILE
+gsed -i -e "s|IMGAPI_HTTP_ADMIN_USER|$DSAPI_HTTP_USER|" $CFG_FILE
+gsed -i -e "s|IMGAPI_HTTP_ADMIN_PW|$DSAPI_HTTP_PW|" $CFG_FILE
+gsed -i -e "s|VMAPI_HTTP_ADMIN_USER|$VMAPI_HTTP_ADMIN_USER|" $CFG_FILE
+gsed -i -e "s|VMAPI_HTTP_ADMIN_PW|$VMAPI_HTTP_ADMIN_PW|" $CFG_FILE
+gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
+gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
+
 echo Importing SMF manifest
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
 
-echo "Creating HAPrgooxy config file"
+echo "Creating HAProxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
 global
         log 127.0.0.1 local0

@@ -29,6 +29,10 @@ echo "Generating SSL Certificate"
 /usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
 /usr/bin/passwd -N haproxy
 
+# Add build/node/bin and node_modules/.bin to PATH
+echo "" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/cloudapi/build/node/bin:/opt/smartdc/cloudapi/node_modules/.bin" >>/root/.bashrc
+
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure cloudapi zone"
 

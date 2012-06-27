@@ -2,13 +2,28 @@ CA_ADMIN_IPS=${ca_admin_ips}
 CLOUDAPI_EXTERNAL_URL=${cloudapi_external_url}
 DATACENTER_NAME=${datacenter_name}
 
-MAPI_URL=http://${mapi_admin_ip}:8080
-MAPI_API_PRIVATE_IP=${mapi_admin_ip}
-MAPI_HTTP_ADMIN_USER=${mapi_http_admin_user}
-MAPI_HTTP_ADMIN_PW=${mapi_http_admin_pw}
-
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 UFDS_ADMIN_LOGIN=${ufds_admin_login}
 UFDS_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_ROOT_PW=${ufds_ldap_root_pw}
 
+CNAPI_HTTP_ADMIN_USER=${cnapi_http_admin_user}
+CNAPI_HTTP_ADMIN_PW=${cnapi_http_admin_pw}
+
+VMAPI_HTTP_ADMIN_USER=${vmapi_http_admin_user}
+VMAPI_HTTP_ADMIN_PW=${vmapi_http_admin_pw}
+
+DAPI_HTTP_ADMIN_USER=${dapi_http_admin_user}
+DAPI_HTTP_ADMIN_PW=${dapi_http_admin_pw}
+
+NAPI_HTTP_ADMIN_USER=${napi_http_admin_user}
+NAPI_HTTP_ADMIN_PW=${napi_http_admin_pw}
+
+DSAPI_URL=${dsapi_url}
+DSAPI_HTTP_USER=${dsapi_http_user}
+DSAPI_HTTP_PW=${dsapi_http_pass}
+
+NAPI_ADMIN_IPS=${napi_admin_ips}
+DAPI_ADMIN_IPS=${dapi_admin_ips}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
