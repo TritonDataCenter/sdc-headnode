@@ -27,7 +27,7 @@ chown -R nobody:nobody /opt/smartdc/cnapi
 
 # Add node_modules/bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/cnapi/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/cnapi/build/node/bin:/opt/smartdc/cnapi/node_modules/.bin" >>/root/.bashrc
 
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."

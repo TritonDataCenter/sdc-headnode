@@ -183,8 +183,8 @@ if [[ -z "$BITS_URL" ]]; then
         BatchMode=yes stuff@stuff.joyent.us:.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
     fi
     if [[ -f ~/.sdcbuild.json ]]; then
-      username=$(cat ~/.sdcbuild.json | json username)
-      password=$(cat ~/.sdcbuild.json | json password)
+      username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+      password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
       BITS_URL=$(echo $BITS_URL | sed -e "s/\/\//\/\/${username}:${password}@/g")
     else
       BITS_URL=$(build_spec bits-url-open)
@@ -320,11 +320,8 @@ function copy_config {
     rm -f ${STAGE}/config || true
     rm -rf ${STAGE}/config.inc || true
 
-    if [[ -d config/config.usb.inc.local ]]; then
-        cp -r config/config.usb.inc.local ${STAGE}/config.inc
-    else
-        cp -r config/config.usb.inc ${STAGE}/config.inc
-    fi
+    cp -r config/config.usb.inc ${STAGE}/config.inc
+
     if [[ -f config/banner ]]; then
         cp config/banner ${STAGE}/banner
     fi

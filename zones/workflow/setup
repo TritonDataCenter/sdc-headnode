@@ -28,9 +28,9 @@ mkdir -p /opt/smartdc/workflow/etc
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/workflow/ssl/key.pem -out /opt/smartdc/workflow/ssl/cert.pem -days 365
 
-# Add node_modules/bin to PATH
+# Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/workflow/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/workflow/build/node/bin:/opt/smartdc/workflow/node_modules/.bin" >>/root/.bashrc
 
 /opt/smartdc/bin/configure || fatal "Failed to configure zone."
 

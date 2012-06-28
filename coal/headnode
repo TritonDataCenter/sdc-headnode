@@ -5,9 +5,7 @@ PATH=$PATH:/Library/Application\ Support/VMware\ Fusion/
 
 HOST='10.99.99.7'
 script_dir=$(dirname $0)
-if [[ -f "$script_dir/../config/config.coal.local" ]]; then
-  HOST=$(grep '^admin_ip=' "$script_dir/../config/config.coal.local" | awk -F'=' '{print $2}')
-elif [[ -f "$script_dir/../config/config.coal" ]]; then
+if [[ -f "$script_dir/../config/config.coal" ]]; then
   HOST=$(grep '^admin_ip=' "$script_dir/../config/config.coal" | awk -F'=' '{print $2}')
 fi
 
