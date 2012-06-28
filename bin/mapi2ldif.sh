@@ -12,7 +12,7 @@ var util = require('util');
 
 ///--- Globals
 
-var Types = ['packages'];
+var Types = ['packages', 'vms', 'zones'];
 
 ///--- Helpers
 // NOTE: Seamlessly copying from capi2lidf.sh, maybe should consider sharing?.
@@ -78,12 +78,13 @@ function transform_packages(file, callback) {
         return;
       }
 
-      child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
+      // child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
+      child = exec('/opt/local/bin/uuid', function (error, stdout, stderr) {
         if (error !== null) {
           console.log('exec error: ' + error);
           return;
         }
-        uuid = stdout;
+        uuid = stdout.replace(/^\s+|\s+$/g, '');
         changes.push({
           dn: 'uuid=' + uuid + ', ou=packages, o=smartdc',
           uuid: uuid,
@@ -114,6 +115,145 @@ function transform_packages(file, callback) {
 }
 
 
+function transform_vms(file, callback) {
+  var util = require('util'),
+      exec = require('child_process').exec,
+      child;
+
+  return read_lines(file, function(err, lines) {
+    if (err)
+      return err_and_exit('Error loading vms file: %s', err.toString());
+
+    var changes = [], done = 0, total = lines.length;
+
+    // How to access these values?
+    //
+    //     image_uuid
+    //     server_uuid
+    //     datasets
+    //     nics
+    //     tags
+    //     delegate_dataset
+    //     zpool
+    lines.forEach(function(line) {
+      var change;
+      var pieces = line.split('\t'), uuid;
+
+      if (pieces.length == 45) {
+        change = vm_from_zone(pieces);
+      } else if (pieces.length == 30) {
+        change = vm_from_vm(pieces);
+      } else {
+        done +=1;
+        return;
+      }
+
+      changes.push(change);
+      done += 1;
+    });
+
+    var checkInt = setInterval(function() {
+      if (done >= total) {
+        clearInterval(checkInt);
+        return callback(changes);
+      }
+    }, 500);
+  });
+}
+
+
+function vm_from_vm(pieces) {
+  var change;
+  var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
+  var brand = 'kvm';
+  var uuid = pieces[1];
+  var owner_uuid = pieces[3];
+
+  var zone_state = pieces[29];
+  var state;
+
+  if (destroyed != '') {
+    zone_state = 'destroyed';
+    state = 'destroyed';
+  } else if (zone_state == 'ready' || zone_state == 'running') {
+    state = 'running';
+  } else {
+    state = 'off';
+  }
+
+  change = {
+    dn: 'vm=' + uuid + ', uuid=' + owner_uuid + ', ou=users, o=smartdc',
+    uuid: uuid,
+    brand: brand,
+    max_physical_memory: pieces[16],
+    max_swap: pieces[13],
+    max_lwps: pieces[21],
+    quota: pieces[22],
+    cpu_shares: pieces[20],
+    zfs_io_priority: pieces[18],
+    alias: pieces[2],
+    ram: pieces[16],
+    internal_metadata: pieces[15],
+    customer_metadata: pieces[14],
+    cpu_cap: pieces[19],
+    zone_state: zone_state,
+    state: state,
+    create_timestamp: pieces[23],
+    last_modified: pieces[23],
+    destroyed: destroyed,
+    vcpus: pieces[28],
+    disks: pieces[25],
+    objectclass: 'vm'
+  };
+
+  return change;
+}
+
+
+function vm_from_zone(pieces) {
+  var change;
+  var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
+  var brand = 'joyent';
+  var uuid = pieces[1];
+  var owner_uuid = pieces[35];
+
+  var zone_state = pieces[44];
+  var state;
+
+  if (destroyed != '') {
+    zone_state = 'destroyed';
+    state = 'destroyed';
+  } else if (zone_state == 'ready' || zone_state == 'running') {
+    state = 'running';
+  } else {
+    state = 'off';
+  }
+
+  change = {
+    dn: 'vm=' + uuid + ', uuid=' + owner_uuid + ', ou=users, o=smartdc',
+    uuid: uuid,
+    brand: brand,
+    max_physical_memory: pieces[30],
+    max_swap: pieces[32],
+    max_lwps: pieces[33],
+    quota: pieces[31],
+    cpu_shares: pieces[34],
+    zfs_io_priority: pieces[39],
+    alias: pieces[38],
+    ram: pieces[30],
+    internal_metadata: pieces[41],
+    customer_metadata: pieces[40],
+    cpu_cap: pieces[27],
+    zone_state: zone_state,
+    state: state,
+    create_timestamp: pieces[4],
+    last_modified: pieces[4],
+    destroyed: destroyed,
+    objectclass: 'vm'
+  };
+
+  return change;
+}
 
 ///--- Mainline
 
@@ -151,6 +291,9 @@ fs.readdir(directory, function(err, files) {
     case 'packages':
       transform_packages(file, callback);
       break;
+    case 'vms':
+    case 'zones':
+      transform_vms(file, callback);
     default:
       console.error('Skipping %s', f);
     }
