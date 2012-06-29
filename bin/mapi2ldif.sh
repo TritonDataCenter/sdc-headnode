@@ -14,6 +14,16 @@ var util = require('util');
 
 var Types = ['packages', 'vms', 'zones'];
 
+// position of the uuid - number of columns
+var UUID_POSITIONS = {
+  'servers': [16, 29],
+  'datasets': [4, 28],
+  'zfs_storage_pools': [1, 11]
+};
+
+var SERVERS, IMAGES, ZPOOLS;
+
+
 ///--- Helpers
 // NOTE: Seamlessly copying from capi2lidf.sh, maybe should consider sharing?.
 
@@ -22,6 +32,8 @@ function err_and_exit() {
   process.exit(1);
 }
 
+
+
 function usage(msg, code) {
   if (typeof(msg) === 'string')
     console.error(msg);
@@ -29,6 +41,7 @@ function usage(msg, code) {
   console.error('%s <directory>', path.basename(process.argv[1]));
   process.exit(code || 0);
 }
+
 
 
 function process_argv() {
@@ -47,6 +60,7 @@ function process_argv() {
 }
 
 
+
 function read_lines(file, callback) {
   return fs.readFile(file, 'utf8', function(err, data) {
     if (err)
@@ -57,9 +71,55 @@ function read_lines(file, callback) {
 }
 
 
+
+function read_lines_sync(file) {
+  try {
+    var data = fs.readFileSync(file, 'utf8');
+    return data.split('\n');
+  } catch (err) {
+    return err_and_exit('Error loading '+ file + ': %s', err.toString());
+  }
+}
+
+
+
 // Real stuff goes here:
 
+// These function will read a table and create a mapping between
+// row ids and uuids like
+//
+// { '1': <uuid> }
+//
+// Then on a table like zones we are table to replace server_id with
+// the corresponding server_uuid
+function transform_uuids(table) {
+  var util = require('util'),
+      exec = require('child_process').exec,
+      child;
+
+  var file = directory + '/' + table + '.dump';
+  var lines = read_lines_sync(file);
+  var hash = {};
+  var total = lines.length;
+  var uuid = UUID_POSITIONS[table][0];
+  var columns = UUID_POSITIONS[table][1];
+
+  lines.forEach(function(line) {
+    var pieces = line.split('\t');
+    if (pieces.length < columns) {
+      return;
+    }
+
+    hash[pieces[0]] = pieces[uuid];
+  });
+
+  return hash;
+}
+
+
+
 function transform_packages(file, callback) {
+
   var util = require('util'),
       exec = require('child_process').exec,
       child;
@@ -124,17 +184,15 @@ function transform_vms(file, callback) {
     if (err)
       return err_and_exit('Error loading vms file: %s', err.toString());
 
-    var changes = [], done = 0, total = lines.length;
+    var changes = [];
+    var total = lines.length;
 
     // How to access these values?
     //
-    //     image_uuid
-    //     server_uuid
     //     datasets
     //     nics
     //     tags
     //     delegate_dataset
-    //     zpool
     lines.forEach(function(line) {
       var change;
       var pieces = line.split('\t'), uuid;
@@ -144,20 +202,13 @@ function transform_vms(file, callback) {
       } else if (pieces.length == 30) {
         change = vm_from_vm(pieces);
       } else {
-        done +=1;
         return;
       }
 
       changes.push(change);
-      done += 1;
     });
 
-    var checkInt = setInterval(function() {
-      if (done >= total) {
-        clearInterval(checkInt);
-        return callback(changes);
-      }
-    }, 500);
+    return callback(changes);
   });
 }
 
@@ -184,6 +235,8 @@ function vm_from_vm(pieces) {
   change = {
     dn: 'vm=' + uuid + ', uuid=' + owner_uuid + ', ou=users, o=smartdc',
     uuid: uuid,
+    server_uuid: SERVERS[pieces[5]],
+    image_uuid: IMAGES[pieces[4]],
     brand: brand,
     max_physical_memory: pieces[16],
     max_swap: pieces[13],
@@ -203,6 +256,7 @@ function vm_from_vm(pieces) {
     destroyed: destroyed,
     vcpus: pieces[28],
     disks: pieces[25],
+    zpool: ZPOOLS[pieces[26]],
     objectclass: 'vm'
   };
 
@@ -232,6 +286,8 @@ function vm_from_zone(pieces) {
   change = {
     dn: 'vm=' + uuid + ', uuid=' + owner_uuid + ', ou=users, o=smartdc',
     uuid: uuid,
+    server_uuid: SERVERS[pieces[19]],
+    image_uuid: IMAGES[pieces[29]],
     brand: brand,
     max_physical_memory: pieces[30],
     max_swap: pieces[32],
@@ -249,6 +305,7 @@ function vm_from_zone(pieces) {
     create_timestamp: pieces[4],
     last_modified: pieces[4],
     destroyed: destroyed,
+    zpool: ZPOOLS[pieces[14]],
     objectclass: 'vm'
   };
 
@@ -258,6 +315,12 @@ function vm_from_zone(pieces) {
 ///--- Mainline
 
 process_argv();
+
+// We do this here because many other transform function might need these
+// values
+SERVERS = transform_uuids('servers');
+IMAGES = transform_uuids('datasets');
+ZPOOLS = transform_uuids('zfs_storage_pools');
 
 fs.readdir(directory, function(err, files) {
   if(err)
