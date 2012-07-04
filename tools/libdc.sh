@@ -109,9 +109,13 @@ watch_job()
     touch /tmp/job_status.$$.old
     local prev_execution=
     local chain_results=
-    local execution=
+    local execution="unknown"
     local job_status=
     local loop=0
+    local output=
+    local http_result=
+    local http_code=
+    local http_message=
 
     local job=$(json -H job_uuid < ${filename})
     if [[ -z ${job} ]]; then
@@ -121,21 +125,36 @@ watch_job()
 
     echo "+ Job is /jobs/${job}"
 
-    while [[ ${execution} != 'succeeded' && ${execution} != "failed" && ${loop} -lt 120 ]]; do
-        job_status=$(workflow /jobs/${job} | json -H)
-        echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
-        diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
-        mv /tmp/job_status.$$.new /tmp/job_status.$$.old
-        execution=$(echo "${job_status}" | json execution)
-        if [[ ${execution} != ${prev_execution} ]]; then
-            echo "+ Job status changed to: ${execution}"
-            prev_execution=${execution}
+    while [[ ${execution} == "running" || ${execution} == "queued" || ${execution} == "unknown" ]] \
+        && [[ ${loop} -lt 120 ]]; do
+
+        local output=$(workflow /jobs/${job})
+        local http_result=$(echo "${output}" | grep "^HTTP/1.1 [0-9][0-9][0-9] " | tail -1)
+        local http_code=$(echo "${http_result}" | cut -d' ' -f2)
+        local http_message=$(echo "${http_result}" | cut -d' ' -f3-)
+
+        if echo "${http_code}" | grep "^[45]" >/dev/null; then
+            echo "+ Failed to get status (will retry), workflow said: ${http_code} ${http_message}"
+        else
+            job_status=$(echo "${output}" | json -H)
+            echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
+            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
+            mv /tmp/job_status.$$.new /tmp/job_status.$$.old
+            execution=$(echo "${job_status}" | json execution)
+            if [[ ${execution} != ${prev_execution} ]]; then
+                echo "+ Job status changed to: ${execution}"
+                prev_execution=${execution}
+            fi
         fi
         sleep 0.5
     done
+
     if [[ ${execution} == "succeeded" ]]; then
         echo "+ Success!"
         return 0
+    elif [[ ${execution} == "canceled" ]]; then
+        echo "+ CANCELED! (details in /jobs/${job})" >&2
+        return 1
     else
         echo "+ FAILED! (details in /jobs/${job})" >&2
         return 1
