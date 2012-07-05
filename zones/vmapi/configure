@@ -17,7 +17,7 @@ echo "Creating VMAPI config file"
 cat > /opt/smartdc/vmapi/config.json <<HERE
 {
   "logLevel": "debug",
-  "maxSockets": 10,
+  "maxSockets": 100,
   "amqp": {
     "host": "$RABBIT_ADMIN_IP",
     "queue": "heartbeat.vmapi",
