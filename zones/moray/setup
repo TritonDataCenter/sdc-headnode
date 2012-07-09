@@ -31,6 +31,10 @@ echo "Generating SSL Certificate"
 echo "Updating postgresql stop method"
 $(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m fast/" /opt/local/share/smf/postgresql91-server/method)
 
+# Add build/node/bin and node_modules/.bin to PATH
+echo "" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+
 /opt/smartdc/bin/configure || fatal "Failed to configure zone."
 
 touch /var/svc/setup_complete

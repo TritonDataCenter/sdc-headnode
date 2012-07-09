@@ -27,7 +27,7 @@ chown -R nobody:nobody /opt/smartdc/dapi
 
 # Add node_modules/bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/dapi/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
 
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."

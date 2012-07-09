@@ -29,6 +29,10 @@ echo "Generating SSL Certificate"
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
+# Add build/node/bin and node_modules/.bin to PATH
+echo "" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+
 # Wait up to 50s for UFDS to come up to load bootstrap data.
 echo "Wait for ufds service to come online."
 for i in 0 1 2 3 4 5 6 7 8 9; do

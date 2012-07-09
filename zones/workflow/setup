@@ -14,10 +14,10 @@ app_name=$role
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/workflow
-mkdir -p /opt/smartdc/workflow/ssl
+mkdir -p /var/smartdc/$role
+mkdir -p /opt/smartdc/$role/ssl
 
-mkdir -p /opt/smartdc/workflow/etc
+mkdir -p /opt/smartdc/$role/etc
 /usr/bin/chown -R root:root /opt/smartdc
 
 # Setup HAProxy user/group
@@ -26,11 +26,11 @@ mkdir -p /opt/smartdc/workflow/etc
 /usr/bin/passwd -N haproxy
 
 echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/workflow/ssl/key.pem -out /opt/smartdc/workflow/ssl/cert.pem -days 365
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/$role/ssl/key.pem -out /opt/smartdc/$role/ssl/cert.pem -days 365
 
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/workflow/build/node/bin:/opt/smartdc/workflow/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
 
 /opt/smartdc/bin/configure || fatal "Failed to configure zone."
 

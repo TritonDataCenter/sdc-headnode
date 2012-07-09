@@ -18,6 +18,10 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/napi
 
+# Add build/node/bin and node_modules/.bin to PATH
+echo "" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
