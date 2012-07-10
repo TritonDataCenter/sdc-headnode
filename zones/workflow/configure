@@ -11,6 +11,11 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 WF_MAIN_ADMIN_IP=$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
+CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
+DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
+VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
+NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
+
 echo "Creating HAProxy config file"
 cat > /opt/local/etc/haproxy.cfg <<HERE
 global
@@ -27,6 +32,11 @@ defaults
         timeout server 5m
 
 listen moray_proxy 127.0.0.1:81
+
+listen ufds_proxy 127.0.0.1:636
+        mode tcp
+        option tcplog
+        log global
 HERE
 
 # Add all Moray IPs
@@ -36,6 +46,22 @@ do
     echo "        server moray$R $i:80 weight 1 minconn 5 maxconn 25 check" \
         >> /opt/local/etc/haproxy.cfg
     let R+=1
+done
+
+# Add all UFDS IPs to haproxy
+# Mark the first one as not backup and all the others as backup
+U=0
+for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+do
+    if [ $U == 0 ] ; then
+        echo "        server ufds$U $ip:636 check" \
+            >> /opt/local/etc/haproxy.cfg
+    else
+        echo "        server ufds$U $ip:636 check backup" \
+            >> /opt/local/etc/haproxy.cfg
+    fi
+
+    let U+=1
 done
 
 
@@ -53,6 +79,15 @@ gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
 gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
 gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
 gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE
+gsed -i -e "s|UFDS_URL|ldaps://localhost|" $CFG_FILE
+gsed -i -e "s|UFDS_LDAP_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
+gsed -i -e "s|UFDS_LDAP_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
+gsed -i -e "s|DAPI_URL|$DAPI_URL|" $CFG_FILE
+gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
+gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
+gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
+gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
+gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
 
 echo "Enabling service haproxy"
 svcadm disable svc:/net/haproxy:default
