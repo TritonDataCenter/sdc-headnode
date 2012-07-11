@@ -32,11 +32,6 @@ defaults
         timeout server 5m
 
 listen moray_proxy 127.0.0.1:81
-
-listen ufds_proxy 127.0.0.1:636
-        mode tcp
-        option tcplog
-        log global
 HERE
 
 # Add all Moray IPs
@@ -47,6 +42,15 @@ do
         >> /opt/local/etc/haproxy.cfg
     let R+=1
 done
+
+
+cat >> /opt/local/etc/haproxy.cfg <<HERE
+
+listen ufds_proxy 127.0.0.1:636
+        mode tcp
+        option tcplog
+        log global
+HERE
 
 # Add all UFDS IPs to haproxy
 # Mark the first one as not backup and all the others as backup
