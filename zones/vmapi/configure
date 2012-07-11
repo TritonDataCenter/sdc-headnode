@@ -34,9 +34,6 @@ cat > /opt/smartdc/vmapi/config.json <<HERE
     "maxSockets": 10,
     "url": "$CNAPI_URL"
   },
-  "dapi": {
-    "url": "$DAPI_URL"
-  },
   "napi": {
     "url": "$NAPI_URL",
     "username": "$NAPI_HTTP_ADMIN_USER",
