@@ -29,6 +29,6 @@ EOF
     exit 1
 fi
 
-cnapi "$@" | json -H
+cnapi "$@" | json -H -q
 
 exit 0
