@@ -19,8 +19,8 @@ set -o errexit
 set -o pipefail
 
 ROOT_DIR=$(cd $(dirname $0); pwd)
-PKG_REPO="http://pkgsrc.joyent.com/sdc/2012Q1/i386/All"
-BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc/2012Q1/i386/bootstrap.tar.gz"
+PKG_REPO="http://pkgsrc.joyent.com/sdc6/2012Q1/i386/All"
+BOOTSTRAP_TGZ="http://pkgsrc.joyent.com/sdc6/2012Q1/i386/bootstrap.tar.gz"
 
 if [[ "$(uname)" != "SunOS" ]] || [[ "$(uname -v | cut -d'_' -f1)" != "joyent" ]]; then
     echo "FATAL: this only works on the SmartOS Live Image!"
@@ -45,8 +45,9 @@ fi
 if [[ ! -x /opt/local/bin/pkgin ]]; then
     echo "==> Installing minimal pkgsrc"
     (cd /opt && curl -k ${BOOTSTRAP_TGZ} | gtar -C/ -zxf -)
-    echo "PKG_PATH=${PKG_REPO}" >> \
+    echo "PKG_PATH=${PKG_REPO}" > \
       /opt/local/etc/pkg_install.conf
+    /opt/local/sbin/pkg_admin rebuild >/dev/null
     echo "==> Installing pkgin"
     mkdir -p /opt/local/etc/pkgin
     echo ${PKG_REPO} > /opt/local/etc/pkgin/repositories.conf
