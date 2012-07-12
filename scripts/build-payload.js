@@ -223,6 +223,11 @@ async.series([
     } else {
         cb();
     }
+    }, function(cb) {
+      obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
+      obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
+      obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
+      cb();
     }
 ], function (err) {
     if (err) {
