@@ -1078,6 +1078,9 @@ next_addr=$(expr $next_addr + 1)
 dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 dcapi_url="http://${dcapi_admin_ip}:80"
 
+next_addr=$(expr $next_addr + 1)
+portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1279,6 +1282,7 @@ else
 fi
 echo "portal_root_pw=$zone_admin_pw" >>$tmp_config
 echo "portal_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 if [ -z "$external_vlan_id" ]; then

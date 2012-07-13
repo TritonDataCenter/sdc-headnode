@@ -12,20 +12,6 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 role=portal
 app_name=$role
 
-# The user-script is downloaded and executed on every zone boot. We take
-# advantage of this to maintain the cached config values post-setup.
-if [ -e /var/svc/setup_complete ]; then
-    pwfile=`node -e 'JSON.stringify(require("/opt/smartdc/portal/cfg/config.js").config)' | json capi.passwordFile`
-    oldpw=`cat /opt/smartdc/portal/$pwfile`
-    [ "$capi_http_admin_pw" == "$oldpw" ] && exit 0
-
-    echo "Updating portal configuration"
-    echo -n $capi_http_admin_pw > $pwfile
-
-	chown 502:staff /opt/smartdc/portal/$pwfile
-	svcadm restart portal
-fi
-
 PUBLIC_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 EXTERNAL_URL="https://$PUBLIC_IP"
 
@@ -98,7 +84,7 @@ HERE
 
 # XXX use the first IP for now
 CLOUD_API_EXTERNAL_URL=https://$(echo "${CLOUDAPI_EXTERNAL_IPS}" | tr ',' ' ')
-UFDS_API_EXTERNAL_URL=ldaps://$(echo "${UFDS_EXTERNAL_IPS}" | tr ',' ' ')
+UFDS_API_ADMIN_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 
 # Update the config with the correct values.
 mkdir -p /opt/smartdc/portal/cfg
@@ -114,7 +100,7 @@ exports.config = {
   machineQueryLimit : 500,
 
   ufds: {
-    "url": "${UFDS_API_EXTERNAL_URL}",
+    "url": "${UFDS_API_ADMIN_URL}",
     "bindDN": "cn=root",
     "passwordFile": "./cfg/ufdsPassword",
     "cache": { "size": 1000, "expiry": 300}

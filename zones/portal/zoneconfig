@@ -1,8 +1,4 @@
 CLOUDAPI_EXTERNAL_IPS=${cloudapi_external_ips}
 
-CAPI_API_EXTERNAL_URL=${capi_external_url}
-CAPI_HTTP_ADMIN_USER=${capi_http_admin_user}
-CAPI_HTTP_ADMIN_PW=${capi_http_admin_pw}
-
 UFDS_LDAP_ROOT_PS=${ufds_ldap_root_pw}
-UFDS_EXTERNAL_IPS=${ufds_external_ips}
+UFDS_ADMIN_IPS=${ufds_admin_ips}

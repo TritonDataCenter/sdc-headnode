@@ -1,4 +1,4 @@
 {
-    "networks": [ "external" ],
+    "networks": [ "external", "admin" ],
     "dependencies": [ "ufds", "cloudapi" ]
 }
