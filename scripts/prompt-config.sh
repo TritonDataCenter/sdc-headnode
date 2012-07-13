@@ -1052,6 +1052,9 @@ next_addr=$(expr $next_addr + 1)
 zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
+manatee_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+next_addr=$(expr $next_addr + 1)
 moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1113,6 +1116,10 @@ echo >>$tmp_config
 
 echo "zookeeper_root_pw=$zone_admin_pw" >>$tmp_config
 echo "zookeeper_admin_ips=$zookeeper_admin_ip" >>$tmp_config
+echo >>$tmp_config
+
+echo "manatee_root_pw=$zone_admin_pw" >>$tmp_config
+echo "manatee_admin_ips=$manatee_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "moray_root_pw=$zone_admin_pw" >>$tmp_config

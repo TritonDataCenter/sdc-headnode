@@ -578,7 +578,7 @@ if [[ -z ${skip_zones} ]]; then
     # These are here in the order they'll be brought up.
     create_zone assets
     create_zone zookeeper
-    # TODO: manatee
+    create_zone manatee
     create_zone moray
     create_zone ufds
     create_zone napi

@@ -16,6 +16,7 @@
   , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"
   , "dcapi-tarball": "dcapi/dcapi-pkg-master-.*.tar.bz2"
   , "dhcpd-tarball": "dhcpd/dhcpd-pkg-master-.*.tar.bz2"
+  , "manatee-tarball": "manatee/manatee-pkg-master-.*.tar.bz2"
   , "moray-tarball": "moray/moray-pkg-master-.*.tar.bz2"
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"

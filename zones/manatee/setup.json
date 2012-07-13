@@ -1,0 +1,6 @@
+{
+    "brand": "joyent-minimal",
+    "allow_multiple": true,
+    "networks": [ "admin" ],
+    "dependencies": [ "zookeeper" ]
+}

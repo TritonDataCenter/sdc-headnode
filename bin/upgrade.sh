@@ -416,6 +416,9 @@ function cleanup_config
 	zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
+	manatee_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
 	moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
@@ -448,6 +451,9 @@ function cleanup_config
 
 	zookeeper_root_pw=$CONFIG_adminui_root_pw
 	zookeeper_admin_ips=$zookeeper_admin_ip
+
+	manatee_root_pw=$CONFIG_adminui_root_pw
+	manatee_admin_ips=$manatee_admin_ip
 
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
@@ -596,6 +602,7 @@ function cleanup_config
 	dapi_pkg=${GENERIC_dapi_pkg}
 	dcapi_pkg=${GENERIC_dcapi_pkg}
 	dhcpd_pkg=${GENERIC_dhcpd_pkg}
+	manatee_pkg=${GENERIC_manatee_pkg}
 	moray_pkg=${GENERIC_moray_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
 	portal_pkg=${GENERIC_portal_pkg}

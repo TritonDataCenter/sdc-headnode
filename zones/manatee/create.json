@@ -1,0 +1,10 @@
+{
+  "alias": "manatee0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "manatee",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones",
+  "delegate_dataset": true
+}

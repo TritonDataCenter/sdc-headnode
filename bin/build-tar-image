@@ -867,6 +867,7 @@ function copy_zones
         export DAPI_DIR=${ZONE_DIR}/dapi
         export CNAPI_DIR=${ZONE_DIR}/cnapi
         export NAPI_DIR=${ZONE_DIR}/napi
+        export MANATEE_DIR=${ZONE_DIR}/manatee
         export MORAY_DIR=${ZONE_DIR}/moray
         export DCAPI_DIR=${ZONE_DIR}/dcapi
     fi
