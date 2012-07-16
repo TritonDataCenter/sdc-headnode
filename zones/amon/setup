@@ -14,9 +14,9 @@ assets_ip=${ASSETS_IP} # populated by user-script
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-# Add amon master's bin dir to the PATH for convenience functions.
+# Add node_modules/bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/amon/bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
 
 # run the configuration
 /opt/smartdc/bin/configure || fatal "unable to configure"
