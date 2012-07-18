@@ -11,6 +11,12 @@ CNAPI_HTTP_ADMIN_PW=${cnapi_http_admin_pw}
 WFAPI_HTTP_ADMIN_USER=${workflow_http_admin_user}
 WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
 
-UFDS_ADMIN_IPS=${ufds_admin_ips}
+NAPI_HTTP_ADMIN_USER=${napi_http_admin_user}
+NAPI_HTTP_ADMIN_PW=${napi_http_admin_pw}
 
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
+DAPI_ADMIN_IPS=${dapi_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}

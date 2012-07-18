@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o xtrace
@@ -9,6 +9,10 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
+DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
+NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
+VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
 echo "Creating CNAPI config file"
@@ -25,9 +29,24 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
     "port": 80
   },
   "wfapi": {
+    "workflows": [ "provision-cnapi" ],
     "url": "$WF_URL",
     "username": "$WFAPI_HTTP_ADMIN_USER",
     "password": "$WFAPI_HTTP_ADMIN_PW"
+  },
+  "napi": {
+    "url": "$NAPI_URL",
+    "username": "$NAPI_HTTP_ADMIN_USER",
+    "password": "$NAPI_HTTP_ADMIN_PW"
+  },
+  "cnapi": {
+    "url": "$CNAPI_URL"
+  },
+  "vmapi": {
+    "url": "$VMAPI_URL"
+  },
+  "dapi": {
+    "url": "$DAPI_URL"
   },
   "ufds": {
     "url": "ldaps://localhost",
