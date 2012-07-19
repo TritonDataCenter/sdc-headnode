@@ -14,6 +14,7 @@ echo "Creating DAPI config file"
 cat > /opt/smartdc/dapi/config.json <<HERE
 {
   "logLevel": "debug",
+  "algorithms": ["most-ram"],
   "api": {
     "port": 80
   }
