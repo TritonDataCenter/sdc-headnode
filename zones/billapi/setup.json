@@ -1,5 +1,6 @@
 {
     "networks": [ "admin", "external" ],
     "primary_network": "external",
-    "dependencies": [  ]
+    "dependencies": [  ],
+    "delegate_dataset": true
 }

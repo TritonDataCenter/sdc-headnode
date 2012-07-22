@@ -72,6 +72,9 @@ echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgs
 # enable slow query logging (anything beyond 200ms right now)
 echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
 
+# set pool recordsize to the same size as Postgres' block size
+zfs set recordsize=8k `zfs list | sed -n 's/.*\/\(zones.*data\)/\1/p'`
+
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
   echo "Importing posgtresql service"
