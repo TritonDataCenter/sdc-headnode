@@ -48,6 +48,9 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   "dapi": {
     "url": "$DAPI_URL"
   },
+  "redis": {
+    "host": "$REDIS_ADMIN_IPS"
+  },
   "ufds": {
     "url": "ldaps://localhost",
     "bindDN": "$CNAPI_LDAP_ROOT_DN",

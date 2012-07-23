@@ -580,6 +580,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone zookeeper
     create_zone manatee
     create_zone moray
+    create_zone redis
     create_zone ufds
     create_zone napi
     create_zone workflow

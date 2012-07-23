@@ -1,0 +1,9 @@
+{
+  "alias": "redis0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "redis",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones"
+}

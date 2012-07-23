@@ -1072,6 +1072,9 @@ cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 cnapi_client_url="http://${cnapi_admin_ip}:80"
 
 next_addr=$(expr $next_addr + 1)
+redis_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+next_addr=$(expr $next_addr + 1)
 dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1248,6 +1251,7 @@ echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
 echo "amon_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
+echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
 echo "redis_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config

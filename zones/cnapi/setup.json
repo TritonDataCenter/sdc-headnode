@@ -1,5 +1,5 @@
 {
     "brand": "joyent-minimal",
     "networks": [ "admin" ],
-    "dependencies": [ "ufds" ]
+    "dependencies": [ "ufds", "redis" ]
 }
