@@ -4,7 +4,7 @@ set -o xtrace
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-PATH=/opt/smartdc/registrar/build/node/bin:/opt/local/bin:/usr/sbin/:/usr/bin:$PATH
+PATH=/opt/smartdc/manatee/build/node/bin:/opt/local/bin:/usr/sbin/:/usr/bin:$PATH
 REGISTRAR_CFG=/opt/smartdc/registrar/etc/config.json
 
 function fatal
