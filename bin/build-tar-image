@@ -859,7 +859,7 @@ function copy_zones
         export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
         export PORTAL_DIR=${ZONE_DIR}/public-web-client
         export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
-        export BILLAPI_DIR=${ZONE_DIR}/billing_api
+        export USAGEAPI_DIR=${ZONE_DIR}/usage_api
         export UFDS_DIR=${ZONE_DIR}/ufds
         export WORKFLOW_DIR=${ZONE_DIR}/workflow
         export ZOOKEEPER_DIR=${ZONE_DIR}/zookeeper

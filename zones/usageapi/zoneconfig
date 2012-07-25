@@ -2,8 +2,8 @@ RABBIT_IP=${rabbitmq_admin_ip}
 
 UFDS_ADMIN_LOGIN=${ufds_admin_login}
 
-HTTP_ADMIN_USER=${billapi_http_admin_user}
-HTTP_ADMIN_PW=${billapi_http_admin_pw}
+HTTP_ADMIN_USER=${usageapi_http_admin_user}
+HTTP_ADMIN_PW=${usageapi_http_admin_pw}
 
 POSTGRES_HOST=127.0.0.1
 POSTGRES_USER=postgres

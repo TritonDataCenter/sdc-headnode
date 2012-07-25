@@ -11,10 +11,10 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-ROLE=billapi
+ROLE=usageapi
 UUID=$1
 SRC_DIR=$2
-CFG_FILE=/zones/$UUID/root/opt/smartdc/billapi/config/config.json
+CFG_FILE=/zones/$UUID/root/opt/smartdc/usageapi/config/config.json
 
 # Older backups may not have had this zone
 if [[ -d "${SRC_DIR}/${ROLE}" && -f "${SRC_DIR}/${ROLE}/config.json" ]]; then

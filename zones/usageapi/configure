@@ -17,27 +17,27 @@ if [ -e /var/svc/setup_complete ]; then
 		print substr($2, 2, length($2) - 3)
 		done = 1
 	    }
-	}' /opt/smartdc/billapi/config/config.json`
-	[ "$billapi_http_admin_pw" == "$oldpw" ] && exit 0
+	}' /opt/smartdc/usageapi/config/config.json`
+	[ "$usageapi_http_admin_pw" == "$oldpw" ] && exit 0
 
-	echo "Updating billapi configuration"
-	nawk -v p=$billapi_http_admin_pw '{
+	echo "Updating usageapi configuration"
+	nawk -v p=$usageapi_http_admin_pw '{
 	    if (! done && $1 == "\"password\":") {
 		printf("  \"password\": \"%s\",\n", p)
 		done = 1
 	    } else {
 		print $0
 	    }
-	}' /opt/smartdc/billapi/config/config.json \
-	 > /opt/smartdc/billapi/config/config.json.new
-	mv /opt/smartdc/billapi/config/config.json.new \
-	   /opt/smartdc/billapi/config/config.json
-	svcadm restart billapi
+	}' /opt/smartdc/usageapi/config/config.json \
+	 > /opt/smartdc/usageapi/config/config.json.new
+	mv /opt/smartdc/usageapi/config/config.json.new \
+	   /opt/smartdc/usageapi/config/config.json
+	svcadm restart usageapi
 fi
 
 # XXX is net1 external nic?
 EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
-BILLAPI_EXTERNAL_URL="https://$EXT_IPADDR"
+usageapi_EXTERNAL_URL="https://$EXT_IPADDR"
 ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 
 # Function calculates number of bit in a netmask
@@ -109,19 +109,19 @@ if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
 fi
 
 if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-  -h ${POSTGRES_HOST} -c "\l"|grep billapi_production) ]]; then
-    echo "Creating billapi_production database"
+  -h ${POSTGRES_HOST} -c "\l"|grep usageapi_production) ]]; then
+    echo "Creating usageapi_production database"
     PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
-      -h ${POSTGRES_HOST} billapi_production
+      -h ${POSTGRES_HOST} usageapi_production
 fi
 
 
 echo "Creating HTTP Server manifest"
-cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
+cat > /opt/smartdc/usageapi/usageapi_http_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="billapi">
-  <service name="smartdc/site/billapi-http" type="service" version="6.1.0">
+<service_bundle type="manifest" name="usageapi">
+  <service name="smartdc/site/usageapi-http" type="service" version="6.1.0">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -137,9 +137,9 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/server.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/usageapi/build/node/bin/node /opt/smartdc/usageapi/script/server.js -f /opt/smartdc/usageapi/config/config.json &amp;"
       timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi">
+      <method_context working_directory="/opt/smartdc/usageapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
@@ -149,11 +149,11 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <property_group name="startd" type="framework">
@@ -168,7 +168,7 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
 
     <template>
       <common_name>
-        <loctext xml:lang="C">Billing API HTTP Server (node)</loctext>
+        <loctext xml:lang="C">Usage API HTTP Server (node)</loctext>
       </common_name>
     </template>
 
@@ -178,11 +178,11 @@ cat > /opt/smartdc/billapi/billapi_http_manifest.xml <<HERE
 HERE
 
 echo "Creating AMQP Consumer manifest"
-cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
+cat > /opt/smartdc/usageapi/usageapi_consumer_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="billapi-consumer">
-  <service name="smartdc/site/billapi-consumer" type="service" version="6.1.0">
+<service_bundle type="manifest" name="usageapi-consumer">
+  <service name="smartdc/site/usageapi-consumer" type="service" version="6.1.0">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -202,9 +202,9 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/consumer.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/usageapi/build/node/bin/node /opt/smartdc/usageapi/script/consumer.js -f /opt/smartdc/usageapi/config/config.json &amp;"
       timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi">
+      <method_context working_directory="/opt/smartdc/usageapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
@@ -214,11 +214,11 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <property_group name="startd" type="framework">
@@ -233,7 +233,7 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
 
     <template>
       <common_name>
-        <loctext xml:lang="C">Billing API AMQP Consumer (node)</loctext>
+        <loctext xml:lang="C">Usage API AMQP Consumer (node)</loctext>
       </common_name>
     </template>
 
@@ -243,11 +243,11 @@ cat > /opt/smartdc/billapi/billapi_consumer_manifest.xml <<HERE
 HERE
 
 echo "Creating Report Queue manifest"
-cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
+cat > /opt/smartdc/usageapi/usageapi_queue_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="billapi-queue">
-  <service name="smartdc/site/billapi-queue" type="service" version="6.1.0">
+<service_bundle type="manifest" name="usageapi-queue">
+  <service name="smartdc/site/usageapi-queue" type="service" version="6.1.0">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -267,9 +267,9 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/queue.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/usageapi/build/node/bin/node /opt/smartdc/usageapi/script/queue.js -f /opt/smartdc/usageapi/config/config.json &amp;"
       timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi">
+      <method_context working_directory="/opt/smartdc/usageapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
@@ -279,11 +279,11 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <exec_method type="method" name="stop" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <property_group name="startd" type="framework">
@@ -298,7 +298,7 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
 
     <template>
       <common_name>
-        <loctext xml:lang="C">Billing API Report Queue (node)</loctext>
+        <loctext xml:lang="C">Usage API Report Queue (node)</loctext>
       </common_name>
     </template>
 
@@ -308,11 +308,11 @@ cat > /opt/smartdc/billapi/billapi_queue_manifest.xml <<HERE
 HERE
 
 echo "Creating Postgres Migrate manifest"
-cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
+cat > /opt/smartdc/usageapi/usageapi_migrate_manifest.xml <<HERE
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="billapi-migrate">
-  <service name="smartdc/site/billapi-migrate" type="service" version="6.1.0">
+<service_bundle type="manifest" name="usageapi-migrate">
+  <service name="smartdc/site/usageapi-migrate" type="service" version="6.1.0">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -332,9 +332,9 @@ cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
     <exec_method
       type="method"
       name="start"
-      exec="/opt/smartdc/billapi/build/node/bin/node /opt/smartdc/billapi/script/migrate.js -f /opt/smartdc/billapi/config/config.json &amp;"
+      exec="/opt/smartdc/usageapi/build/node/bin/node /opt/smartdc/usageapi/script/migrate.js -f /opt/smartdc/usageapi/config/config.json &amp;"
       timeout_seconds="600">
-      <method_context working_directory="/opt/smartdc/billapi">
+      <method_context working_directory="/opt/smartdc/usageapi">
         <method_credential user="nobody" group="nobody" privileges="basic,net_privaddr"/>
         <method_environment>
           <envvar name="PATH" value="/opt/smartdc/node/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
@@ -344,11 +344,11 @@ cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <exec_method type="method" name="stop" exec=":true" timeout_seconds="60">
-      <method_context working_directory="/opt/smartdc/billapi" />
+      <method_context working_directory="/opt/smartdc/usageapi" />
     </exec_method>
 
     <property_group name="startd" type="framework">
@@ -364,7 +364,7 @@ cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
 
     <template>
       <common_name>
-        <loctext xml:lang="C">Billing API Database Migrator (node)</loctext>
+        <loctext xml:lang="C">Usage API Database Migrator (node)</loctext>
       </common_name>
     </template>
 
@@ -373,12 +373,12 @@ cat > /opt/smartdc/billapi/billapi_migrate_manifest.xml <<HERE
 </service_bundle>
 HERE
 
-cat > /opt/smartdc/billapi/config/config.json <<HERE
+cat > /opt/smartdc/usageapi/config/config.json <<HERE
 {
-  "siteName": "${BILLAPI_EXTERNAL_URL}",
+  "siteName": "${usageapi_EXTERNAL_URL}",
   "port": 443,
-  "cert": "/opt/smartdc/billapi/ssl/cert.pem",
-  "key": "/opt/smartdc/billapi/ssl/key.pem",
+  "cert": "/opt/smartdc/usageapi/ssl/cert.pem",
+  "key": "/opt/smartdc/usageapi/ssl/key.pem",
   "logLevel": 4,
   "user": "${HTTP_ADMIN_USER}",
   "password": "${HTTP_ADMIN_PW}",
@@ -390,7 +390,7 @@ cat > /opt/smartdc/billapi/config/config.json <<HERE
     "port": 5672
   },
   "postgres": {
-    "db": "billapi_production",
+    "db": "usageapi_production",
     "host": "${POSTGRES_HOST}",
     "port": 5432,
     "user": "${POSTGRES_USER}",
@@ -411,29 +411,29 @@ cat > /opt/smartdc/billapi/config/config.json <<HERE
 }
 HERE
 
-echo "Importing billapi_http_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_http_manifest.xml
+echo "Importing usageapi_http_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/usageapi/usageapi_http_manifest.xml
 
-echo "Importing billapi_consumer_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_consumer_manifest.xml
+echo "Importing usageapi_consumer_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/usageapi/usageapi_consumer_manifest.xml
 
-echo "Importing billapi_queue_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_queue_manifest.xml
+echo "Importing usageapi_queue_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/usageapi/usageapi_queue_manifest.xml
 
-echo "Importing billapi_migrate_manifest.xml"
-/usr/sbin/svccfg import /opt/smartdc/billapi/billapi_migrate_manifest.xml
+echo "Importing usageapi_migrate_manifest.xml"
+/usr/sbin/svccfg import /opt/smartdc/usageapi/usageapi_migrate_manifest.xml
 
-echo "Enabling service billapi-http"
-/usr/sbin/svcadm disable smartdc/site/billapi-http
-/usr/sbin/svcadm enable smartdc/site/billapi-http
-echo "Enabling service billapi-consumer"
-/usr/sbin/svcadm disable smartdc/site/billapi-consumer
-/usr/sbin/svcadm enable smartdc/site/billapi-consumer
-echo "Enabling service billapi-queue"
-/usr/sbin/svcadm disable smartdc/site/billapi-queue
-/usr/sbin/svcadm enable smartdc/site/billapi-queue
-echo "Enabling service billapi-migrate"
-/usr/sbin/svcadm disable smartdc/site/billapi-migrate
-/usr/sbin/svcadm enable smartdc/site/billapi-migrate
+echo "Enabling service usageapi-http"
+/usr/sbin/svcadm disable smartdc/site/usageapi-http
+/usr/sbin/svcadm enable smartdc/site/usageapi-http
+echo "Enabling service usageapi-consumer"
+/usr/sbin/svcadm disable smartdc/site/usageapi-consumer
+/usr/sbin/svcadm enable smartdc/site/usageapi-consumer
+echo "Enabling service usageapi-queue"
+/usr/sbin/svcadm disable smartdc/site/usageapi-queue
+/usr/sbin/svcadm enable smartdc/site/usageapi-queue
+echo "Enabling service usageapi-migrate"
+/usr/sbin/svcadm disable smartdc/site/usageapi-migrate
+/usr/sbin/svcadm enable smartdc/site/usageapi-migrate
 
 exit 0

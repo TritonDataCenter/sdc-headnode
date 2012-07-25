@@ -11,10 +11,10 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-ROLE=billapi
+ROLE=usageapi
 UUID=$1
 TARGET_DIR=$2
-CFG_FILE=/zones/$UUID/root/opt/smartdc/billapi/config/config.json
+CFG_FILE=/zones/$UUID/root/opt/smartdc/usageapi/config/config.json
 
 if [[ ! -d "${TARGET_DIR}" ]]; then
     echo "Invalid directory: '${TARGET_DIR}'"

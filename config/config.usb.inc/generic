@@ -46,7 +46,7 @@ amon_pkg=sdc_256
 
 assets_pkg=sdc_128
 
-billapi_pkg=sdc_128
+usageapi_pkg=sdc_128
 
 workflow_pkg=sdc_128
 manatee_pkg=sdc_1024
