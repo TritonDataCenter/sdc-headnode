@@ -595,7 +595,7 @@ function cleanup_config
 	adminui_pkg=${GENERIC_adminui_pkg}
 	amon_pkg=${GENERIC_amon_pkg}
 	assets_pkg=${GENERIC_assets_pkg}
-	billapi_pkg=${GENERIC_billapi_pkg}
+	usageapi_pkg=${GENERIC_usageapi_pkg}
 	ca_pkg=${GENERIC_ca_pkg}
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
 	cnapi_pkg=${GENERIC_cnapi_pkg}
