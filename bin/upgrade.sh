@@ -742,6 +742,18 @@ nusers=`who | wc -l`
 [ $nusers -gt 1 ] && \
     fatal "there are multiple users logged in, unable to proceed with upgrade."
 
+# check that we have enough space
+mount_usbkey
+fspace=`df -k /mnt/usbkey | nawk '{if ($4 != "avail") print $4}'`
+umount_usbkey
+# At least 700MB free on key?
+[[ $fspace -lt 700000 ]] && \
+    fatal "there is not enough free space on the USB key"
+fspace=`zfs list -o avail -Hp zones`
+# At least 1GB free on disk?
+[[ $fspace -lt 1000000000 ]] && \
+    fatal "there is not enough free space in the zpool"
+
 trap cleanup EXIT
 
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
