@@ -42,8 +42,9 @@ zfs allow -ld postgres create,destroy,snapshot,mount,send,receive $DATASET
 # change dataset perms such that manatee can access the dataset and mount/unmount
 chmod 777 -R /zones/$ZONE_UUID/
 
-# change smf log directory perms such that postgres can log there
-chmod 777 /var/svc/log
+# add pg log dir
+mkdir -p /var/pg
+chmod 777 /var/pg
 
 # make the pg data dir
 echo "creating $PG_DIR"
