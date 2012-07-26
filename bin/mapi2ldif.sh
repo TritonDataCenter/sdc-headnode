@@ -138,8 +138,7 @@ function transform_packages(file, callback) {
         return;
       }
 
-      // child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
-      child = exec('/opt/local/bin/uuid', function (error, stdout, stderr) {
+      child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
         if (error !== null) {
           console.log('exec error: ' + error);
           return;

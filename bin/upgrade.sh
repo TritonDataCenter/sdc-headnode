@@ -201,11 +201,10 @@ function dump_mapi
 
     shutdown_zone mapi
 
-# XXX
-#    echo "Transforming MAPI postgres dumps to LDIF"
-#    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump \
-#        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
-#    [ $? != 0 ] && fatal "transforming the MAPI dumps"
+    echo "Transforming MAPI postgres dumps to LDIF"
+    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump \
+        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
+    [ $? != 0 ] && fatal "transforming the MAPI dumps"
 }
 
 function shutdown_zone
