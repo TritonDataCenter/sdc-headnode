@@ -1,0 +1,194 @@
+#!/bin/bash
+#
+# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
+export PATH
+
+ZONES6X="adminui assets billapi ca cloudapi dhcpd mapi portal rabbitmq riak"
+
+function fatal
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    exit 1
+}
+
+#
+# rollback only runs on headnodes.
+#
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
+    fatal "this command can only be run on the headnode"
+
+# -F is a private option to disable the prompt - used when rolling back
+# in the middle of a failed upgrade.
+FORCE=0
+while getopts "F" opt
+do
+	case "$opt" in
+		F)	FORCE=1;;
+		*)	fatal "invalid option";;
+	esac
+done
+
+[ ! -d /var/usb_rollback ] && \
+    fatal "rollback is not possible: data does not exist"
+
+dname=${0%/*}
+bname=${0##*/}
+
+[[ "$dname" == "/tmp" ]] && FORCE=1
+
+if [[ $FORCE == 0 ]]; then
+    echo "--------------------------------------------------------------"
+    echo "Warning:"
+    echo "This command will revert and reboot the system to the previous"
+    echo "release. Any new data and new configuration will be lost."
+    echo "--------------------------------------------------------------"
+    echo -n "Enter 'y' to continue: "
+    read val
+    [[ "$val" != "y" ]] && exit 0
+fi
+
+if [ "$dname" != "/tmp" ]; then
+    # move the cmd tp /tmp and rerun it there since /tmp doesn't rollback
+    cp $0 /tmp
+    cp /var/usb_rollback/ds_orig /tmp
+    cp /var/usb_rollback/files_orig /tmp
+    /tmp/$bname $@ &
+    exit 0
+fi
+
+# quiesce the system
+
+echo
+echo "halting zones"
+for i in `zoneadm list`
+do
+    [ "$i" == "global" ] && continue
+    zoneadm -z $i halt
+done
+
+echo "transitioning to single-user mode"
+svcadm milestone single-user
+
+CAPI_FOUND=0
+zfs list -o name -H zones/capi_rollback >/dev/null 2>&1
+if [[ $? == 0 ]]; then
+	CAPI_FOUND=1
+	ZONES6X="$ZONES6X capi"
+fi
+
+# in an unknown state, so first try to clean up the USB key mount
+umount /mnt/usbkey >/dev/null 2>&1
+
+# Restore usbkey backup
+/usbkey/scripts/mount-usb.sh
+[ $? != 0 ] && fatal "unable to mount USB key"
+echo "rolling back USB key"
+
+BDISK=`mount -p | nawk '{
+    if ($3 == "/mnt/usbkey") {
+        split($1, a, ":")
+        print a[1]
+    }
+}'`
+if [ ! -b "$BDISK" ]; then
+    umount /mnt/usbkey
+    fatal "USB device \"$BDISK\" does not exist"
+fi
+
+(cd /mnt/usbkey; rm -rf `ls -a | \
+    nawk '{if ($1 != "." && $1 != ".." && $1 != "boot") print $1}'`)
+(cd /var/usb_rollback; \
+    tar cbf 512 - `ls -a | \
+    nawk '{if ($1 != "." && $1 != ".." && $1 != "boot" && $1 != "ds_orig" && \
+        $1 != "files_orig") print $1}'`) | \
+    (cd /mnt/usbkey; tar xbf 512 -)
+if [ $? != 0 ]; then
+    umount /mnt/usbkey
+    fatal "restoring USB key"
+fi
+cp -p /var/usb_rollback/boot/grub/menu.lst /mnt/usbkey/boot/grub/menu.lst
+umount /mnt/usbkey
+ 
+cnt=0
+while [[ $cnt -lt 36 ]]; do
+    st=`svcs -H -o state multi-user`
+    [ "$st" == "disabled" ] && break
+    sleep 5
+    cnt=$(($cnt + 1))
+done
+
+[[ $cnt -ge 36 ]] && echo "multi-user not disabled \($st\) after 3 minutes"
+
+# Put the old zone datasets back where they belong
+
+echo "rolling back datasets"
+
+for z in $ZONES6X
+do
+	zfs rename zones/${z}_rollback zones/${z}
+
+	zfs set mountpoint=/zones/${z}		zones/${z}
+	zfs set mountpoint=/zones/${z}/cores	zones/${z}/cores
+done
+
+# We need to re-enable the zoned attribute for the delegated datasets
+adminui_dds=`zfs list -o name -H | egrep "^zones/adminui/adminui-app"`
+mapi_dds=`zfs list -o name -H | egrep "^zones/mapi/mapi-app"`
+
+zfs set zoned=on $adminui_dds
+zfs set zoned=on zones/adminui/adminui-data
+zfs set zoned=on zones/ca/ca-data
+zfs set zoned=on $mapi_dds
+zfs set zoned=on zones/mapi/mapi-data
+
+if [[ $CAPI_FOUND == 1 ]]; then
+	capi_dds=`zfs list -o name -H | egrep "^zones/capi/capi-app"`
+	zfs set zoned=on $capi_dds
+	zfs set zoned=on zones/capi/capi-data
+fi
+
+# Restore the rest of the datasets
+
+zfs rollback zones/config@rollback
+zfs destroy  zones/config@rollback
+zfs rollback zones/cores@rollback
+zfs destroy  zones/cores@rollback
+zfs rollback zones/usbkey@rollback
+zfs destroy  zones/usbkey@rollback
+zfs rollback zones/opt@rollback
+zfs destroy  zones/opt@rollback
+zfs rollback zones/var@rollback
+zfs destroy  zones/var@rollback
+
+zfs list -H -o name -s name >/tmp/ds_new
+for i in `comm -13 /tmp/ds_orig /tmp/ds_new`
+do
+    zfs destroy -Rf $i >/dev/null 2>&1
+done
+
+ls /zones >/tmp/files_new
+for i in `comm -13 /tmp/files_orig /tmp/files_new`
+do
+    rm -rf $i
+done
+
+rm -rf /var/usb_rollback
+
+# If rolling back in the middle of a failed upgrade, grab the log files now
+# that the file systems have been rolled back.
+logfile=`ls /tmp/perform_upgrade.*.log 2>/dev/null`
+if [[ -n "$logfile" ]]; then
+    rm -rf /var/upgrade_failed /var/upgrade_headnode
+    mkdir -p /var/upgrade_failed
+    cp -p /tmp/*log* /var/upgrade_failed
+fi
+
+echo "rebooting"
+reboot
+
+exit 0

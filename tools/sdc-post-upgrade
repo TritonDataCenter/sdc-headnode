@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
+export PATH
+
+function fatal
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    exit 1
+}
+
+#
+# post-upgrade only runs on headnodes.
+#
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
+    fatal "this command can only be run on the headnode"
+
+COMMIT=0
+while getopts "c" opt
+do
+	case "$opt" in
+		c)	COMMIT=1;;
+		*)	fatal "invalid option";;
+	esac
+done
+
+if [[ $COMMIT == 1 ]]; then
+    [ ! -d /var/usb_rollback ] && \
+        fatal "nothing to commit: data does not exist"
+
+    echo "-----------------------------------------------------------------"
+    echo "Warning:
+    echo "This command will commit the upgrade and prevent future rollback.
+    echo "-----------------------------------------------------------------"
+    echo -n "Enter 'y' to continue: "
+    read val
+    [[ "$val" != "y" ]] && exit 0
+
+    for i in `zfs list -o name -H -t snapshot | egrep "rollback$"`
+    do
+        zfs destroy $i
+    done
+
+    rm -rf /var/usb_rollback
+fi
+
+exit 0

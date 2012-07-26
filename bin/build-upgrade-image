@@ -108,6 +108,10 @@ function create_upgrade
     chmod +x ${STAGE}/upgrade/capi2ldif.sh
     cp ${ROOT}/bin/mapi2ldif.sh ${STAGE}/upgrade/mapi2ldif.sh
     chmod +x ${STAGE}/upgrade/mapi2ldif.sh
+    cp ${ROOT}/bin/setup_rb.sh ${STAGE}/upgrade/setup_rb.sh
+    chmod +x ${STAGE}/upgrade/setup_rb.sh
+    cp ${ROOT}/tools/sdc-rollback ${STAGE}/upgrade/sdc-rollback
+    chmod +x ${STAGE}/upgrade/sdc-rollback
 
     local sconf=${ROOT}/config/config.usb.inc/generic
 

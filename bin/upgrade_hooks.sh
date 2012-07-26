@@ -63,13 +63,23 @@ create_extra_zones()
     local new_uuid=
     local loops=
     local zonepath=
+    local ext_ip=
+    local ext_ip_arg=
 
     for i in $EXTRA_ZONES
     do
         [[ ${existing_zones[$i]} == 1 ]] && continue
 
         echo "creating zone $i..." >/dev/console
-        sdc-role create $i 1>&4 2>&1
+
+        ext_ip=`nawk -v role=$i '{
+            if ($1 == role) print $2
+        }' ${SDC_UPGRADE_DIR}/ext_addrs.txt`
+        ext_ip_arg=""
+        # XXX fix this to use the correct stuff for sdc-role
+        # [ -n "$ext_ip" ] && ext_ip_arg="-i $ext_ip"
+
+        sdc-role create $ext_ip_arg $i 1>&4 2>&1
         if [ $? != 0 ]; then
             saw_err "Error creating $i zone"
             mv /tmp/payload.* ${SDC_UPGRADE_DIR}
@@ -221,6 +231,8 @@ ufds_tasks()
 {
     # load config to pick up settings for newly created ufds zone
     load_sdc_config
+
+    [[ $CONFIG_ufds_is_local != "true" ]] && return
 
     ufds_ip=`vmadm list -o nics.0.ip -H uuid=$1`
     client_url="ldaps://${ufds_ip}"

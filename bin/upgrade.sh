@@ -41,18 +41,6 @@ usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' \
 load_sdc_sysinfo
 load_sdc_config
 
-SAW_ERROR=0
-
-message_ok="
-The new image has been activated. You must reboot the system for the upgrade
-to take effect.  Once you have verified the upgrade is ok, you can remove the
-backup file in $SDC_UPGRADE_DIR.\n\n"
-
-message_err="
-ERROR: There were errors during the upgrade. You must review the upgrade
-log (/tmp/perform_upgrade.*.log) and resolve the problems reported there before
-you reboot the system. There is a backup file in $SDC_UPGRADE_DIR.\n\n"
-
 function cleanup
 {
     if [[ ${mounted_usb} == "true" ]]; then
@@ -61,16 +49,37 @@ function cleanup
     fi
 
 message_term="
-ERROR: The upgrade process terminated prematurely and the system is in an
-unknown state. You must review the upgrade log (/tmp/perform_upgrade.*.log)
-to determine how to proceed.  There is a backup file in $SDC_UPGRADE_DIR.\n\n"
+ERROR: The upgrade process terminated prematurely.  You can review the upgrade
+logs in /var/upgrade_headnode to determine how to correct the failure.
+The system should now be rebooted to restart all services.\n\n"
 
-    [[ $SAW_ERROR == 1 ]] && printf "$message_err"
     printf "$message_term"
 
     cd /
-    tar cbf 512 - tmp/*log*  | \
-        gzip >$SDC_UPGRADE_DIR/logs.$(date -u +%Y%m%dT%H%M%S).tgz
+    cp -p tmp/*log* $SDC_UPGRADE_DIR
+    rm -rf /var/upgrade_failed
+    mv $SDC_UPGRADE_DIR /var/upgrade_failed
+}
+
+function recover
+{
+    if [[ ${mounted_usb} == "true" ]]; then
+        umount ${usbmnt}
+        mounted_usb="false"
+    fi
+
+message_term="
+ERROR: The upgrade process encountered an error and is rolling back to the
+previous configuration. The rollback will take a couple of minutes and then the
+system will reboot to restart all services. After the system reboots, you can
+review the upgrade logs in /var/upgrade_failed to determine how to correct
+the failure. Until the system reboots, don't do anything.\n\n"
+
+    printf "$message_term"
+    cd /
+
+    # use the local copy of rollback since it didn't exist on the 6.5.x usbkey
+    $ROOT/sdc-rollback -F
 }
 
 function mount_usbkey
@@ -93,6 +102,14 @@ function fatal
 
     echo "ERROR: ${msg}" >/dev/stderr
     exit 1
+}
+
+function fatal_rb
+{
+    msg=$1
+
+    echo "ERROR: ${msg}" >/dev/stderr
+    recover
 }
 
 function upgrade_pools
@@ -184,10 +201,11 @@ function dump_mapi
 
     shutdown_zone mapi
 
-    echo "Transforming MAPI postgres dumps to LDIF"
-    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump \
-        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
-    [ $? != 0 ] && fatal "transforming the MAPI dumps"
+# XXX
+#    echo "Transforming MAPI postgres dumps to LDIF"
+#    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump \
+#        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
+#    [ $? != 0 ] && fatal "transforming the MAPI dumps"
 }
 
 function shutdown_zone
@@ -248,37 +266,6 @@ function check_versions
 	    ${existing_version} ${new_version}
 }
 
-function backup_usbkey
-{
-    backup_dir=${usbcpy}/backup/${existing_version}.$(date -u +%Y%m%dT%H%M%SZ)
-
-    if [[ -d ${backup_dir} ]]; then
-        fatal "unable to create backup dir ${backup_dir}"
-    fi
-    mkdir -p ${backup_dir}/usbkey
-    mkdir -p ${backup_dir}/zones
-
-    printf "Creating USB backup in\n${backup_dir}\n"
-
-    # touch these, just to make sure they exist (in case of older build)
-    touch ${usbmnt}/datasets/smartos.uuid
-    touch ${usbmnt}/datasets/smartos.filename
-    mkdir -p ${usbmnt}/default
-
-    (cd ${usbmnt} && gtar -cf - \
-        boot/grub/menu.lst.tmpl \
-        data \
-        datasets/smartos.{uuid,filename} \
-        default \
-        rc \
-        scripts \
-        ur-scripts \
-        zones \
-    ) \
-    | (cd ${backup_dir}/usbkey && gtar --no-same-owner -xf -)
-    [[ $? != 0 ]] && fatal "USB key backup failed"
-}
-
 function upgrade_usbkey
 {
     echo "Upgrading the USB key"
@@ -288,10 +275,10 @@ function upgrade_usbkey
 
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
-    [ $? != 0 ] && SAW_ERROR=1
+    [ $? != 0 ] && fatal_rb "upgrading USB key"
 
     (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
-    [ $? != 0 ] && SAW_ERROR=1
+    [ $? != 0 ] && fatal_rb "syncing USB key to disk"
 }
 
 # Save the external network IP addresses so we can re-use that info after the
@@ -319,6 +306,8 @@ function save_zone_addrs
     done
 }
 
+# Since the zone datasets have been renamed for rollback, we can't use
+# zoneadm uninstall.  Instead mark and delete.
 function delete_sdc_zones
 {
 	for zone in $ZONES6X
@@ -326,10 +315,10 @@ function delete_sdc_zones
 		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
 
 		echo "Deleting zone: $zone"
-		zoneadm -z $zone uninstall -F
-		[ $? != 0 ] && SAW_ERROR=1
+		zoneadm -z $zone mark -F configured
+		[ $? != 0 ] && fatal_rb "marking zone $zone"
 		zonecfg -z $zone delete -F
-		[ $? != 0 ] && SAW_ERROR=1
+		[ $? != 0 ] && fatal_rb "deleting zone $zone"
 	done
 }
 
@@ -628,7 +617,7 @@ function convert_capi_ufds
 	echo "Transforming CAPI postgres dumps to LDIF."
 	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_DIR}/capi_dump \
 	    > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif
-	[ $? != 0 ] && SAW_ERROR=1
+	[ $? != 0 ] && fatal_rb "converting CAPI dump"
 
 	# We're on the headnode, so we know the zonepath is in /zones.
 	cp $SDC_UPGRADE_DIR/capi_dump/ufds.ldif /zones/$1/root
@@ -642,10 +631,8 @@ function convert_capi_ufds
 		[ $scnt == 0 ] && break
 		cnt=$(($cnt + 1))
 	done
-	if [ $cnt == 12 ]; then
-		echo "WARNING: some ufds svcs still not ready after 2 minutes"
-		SAW_ERROR=1
-	fi
+	[ $cnt == 12 ] && \
+	    fatal_rb "some ufds svcs still not ready after 2 minutes"
 
 	# re-load config to pick up settings for newly created ufds zone
 	load_sdc_config
@@ -656,7 +643,7 @@ function convert_capi_ufds
 	    -D ${CONFIG_ufds_ldap_root_dn} \
 	    -w ${CONFIG_ufds_ldap_root_pw} \
 	    -f /ufds.ldif 1>&4 2>&1
-	[ $? != 0 ] && SAW_ERROR=1
+	[ $? != 0 ] && fatal_rb "loading UFDS"
 
 	rm -f /zones/$1/root/ufds.ldif
 }
@@ -699,7 +686,7 @@ function install_platform
 	    && mv platform-* platform
 	    )
 	[ $? != 0 ] && \
-	    fatal "unable to install the new platform onto the USB key"
+	    fatal_rb "unable to install the new platform onto the USB key"
 
 	[[ -f ${usbmnt}/os/${platformversion}/platform/root.password ]] && \
 	    mv -f ${usbmnt}/os/${platformversion}/platform/root.password \
@@ -710,7 +697,7 @@ function install_platform
 	(cd ${usbmnt}/os && \
 	    rsync -a ${platformversion}/ ${usbcpy}/os/${platformversion})
 	[ $? != 0 ] && \
-	    fatal "unable to install the new platform onto the USB key"
+	    fatal_rb "unable to copy the new platform onto the disk"
 }
 
 function wait_and_clear
@@ -736,6 +723,9 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     fatal "this can only be run on a SmartOS headnode."
 fi
 
+# We might be re-running upgrade again after a rollback, so first cleanup
+rm -rf $SDC_UPGRADE_DIR
+
 mkdir -p $SDC_UPGRADE_DIR
 
 mount_usbkey
@@ -743,10 +733,15 @@ check_versions
 umount_usbkey
 
 # Make sure there are no svcs in maintenance. This will break checking later
-# in the upgrade process.
+# in the upgrade process. Also, we don't want multiple users on the HN in
+# the middle of an upgrade.
 maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
 [ $maint_svcs -gt 0 ] && \
     fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
+
+nusers=`who | wc -l`
+[ $nusers -gt 1 ] && \
+    fatal "there are multiple users logged in, unable to proceed with upgrade."
 
 trap cleanup EXIT
 
@@ -776,23 +771,31 @@ dump_mapi
 # for the rest of this phase of the upgrade.
 shutdown_sdc_zones
 
+# shutdown the smartdc svcs too
+echo "stopping svcs"
+for i in `svcs -a | nawk '/smartdc/{print $3}'`
+do
+    svcadm disable $i
+done
+
 mkdir $SDC_UPGRADE_DIR/bu.tmp
 (cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
 
-mount_usbkey
-
-backup_usbkey
-
-upgrade_pools
 upgrade_zfs_datasets
+upgrade_pools
 
-install_platform
+# Setup for rollback
+echo "saving data for rollback"
+$ROOT/setup_rb.sh
+
+trap recover EXIT
 
 # At this point we start doing destructive actions on the HN, so we should
-# no longer call "fatal" if we see an error.
+# no longer call "fatal" if we see an error. Intead, call fatal_rb.
 
+mount_usbkey
+install_platform
 upgrade_usbkey
-
 umount_usbkey
 
 echo "Deleting existing zones"
@@ -802,7 +805,7 @@ cleanup_config
 load_sdc_config
 
 /usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
-[ $? != 0 ] && SAW_ERROR=1
+[ $? != 0 ] && fatal_rb "switching platform"
 
 # Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
 #
@@ -879,8 +882,6 @@ cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 
 trap EXIT
-
-[[ $SAW_ERROR == 1 ]] && fatal "first pass of upgrade failed"
 
 echo "Rebooting to finish the upgrade"
 reboot
