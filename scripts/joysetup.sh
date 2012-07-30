@@ -504,13 +504,6 @@ setup_filesystems()
     fi
 }
 
-install_agents()
-{
-    AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest
-    cd /var/tmp
-    bash ./agentsetup.sh $AGENTS_SHAR_URL
-}
-
 POOLS=`zpool list`
 if [[ ${POOLS} == "no pools available" ]]; then
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
@@ -528,13 +521,9 @@ if [[ ${POOLS} == "no pools available" ]]; then
     setup_filesystems
 
     if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
-        install_agents
-
         # On a CN we're not rebooting, so we want the following reloaded.
-
         # Restarting zones causes /zones/manifests/ to be populated
         svcadm restart svc:/system/zones:default
-
     fi
 
     # Restarting network/physical causes /etc/resolv.conf to be written out
