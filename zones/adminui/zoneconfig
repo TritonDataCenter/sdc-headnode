@@ -41,3 +41,6 @@ NAPI_ADMIN_IPS=${napi_admin_ips}
 DSAPI_URL=${dsapi_url}
 DSAPI_HTTP_USER=${dsapi_http_user}
 DSAPI_HTTP_PW=${dsapi_http_pass}
+
+REDIS_ADMIN_IPS=${redis_admin_ips}
+REDIS_PORT=6379
