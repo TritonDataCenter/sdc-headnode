@@ -10,6 +10,7 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
+ASSETS_URL=http://$(echo "${ASSETS_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
@@ -38,6 +39,9 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
     "url": "$NAPI_URL",
     "username": "$NAPI_HTTP_ADMIN_USER",
     "password": "$NAPI_HTTP_ADMIN_PW"
+  },
+  "assets": {
+    "url": "$ASSETS_URL"
   },
   "cnapi": {
     "url": "$CNAPI_URL"

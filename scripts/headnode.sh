@@ -246,6 +246,7 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         | json -e "$SUBSETJS" newobj \
         > /usbkey/extra/joysetup/node.config
     cp /usbkey/scripts/joysetup.sh /usbkey/extra/joysetup
+    cp /usbkey/scripts/agentsetup.sh /usbkey/extra/joysetup
 fi
 
 # Put the agents in a place where they will be available to compute nodes.

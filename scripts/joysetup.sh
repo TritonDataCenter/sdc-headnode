@@ -506,7 +506,7 @@ setup_filesystems()
 
 install_agents()
 {
-    AGENTS_SHAR_URL=http://${ASSETS_IP}/extra/agents/latest
+    AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest
     cd /var/tmp
     bash ./agentsetup.sh $AGENTS_SHAR_URL
 }
