@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+# Convenience wrapper for calling the Image API.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
+
+
+# Arguments.
+verbose=0
+if [ "$1" == "-v" ]; then
+    shift
+    verbose=1
+fi
+path=$1
+if [[ -z "$path" ]]; then
+    echo "error: no PATH argument given"
+    echo ""
+    echo "Usage:"
+    echo "  sdc-imgapi [-v] PATH [EXTRA-CURL-ARGS]"
+    echo ""
+    echo "Environment Variables:"
+    echo "  IMGAPI_URL      Base URL for IMGAPI server. Typically this"
+    echo "                  is automatically determined."
+    exit 1
+fi
+shift;
+
+
+# Determine server URL.
+if [[ -z "$IMGAPI_URL" && -f /lib/sdc/config.sh ]]; then
+    source /lib/sdc/config.sh
+    load_sdc_config
+
+    if [[ -z ${CONFIG_imgapi_admin_ips} ]]; then
+        echo "error: Unable to find IP for amon. Is it installed?"
+        exit 1
+    fi
+
+    # Just use the first of the "imgapi_admin_ips".
+    IMGAPI_URL=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
+fi
+if [[ -z "$IMGAPI_URL" ]]; then
+    echo "error: IMGAPI_URL envvar is not set and could not be determined"
+    exit 1
+fi
+
+CURL_ARGS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
+
+# Note: the 'echo' doesn't show the real quoting of args.
+[ "$verbose" == "1" ] && echo "# curl $CURL_ARGS --url $IMGAPI_URL$path $@" >&2
+curl $CURL_ARGS --url "$IMGAPI_URL$path" "$@" | json -q
