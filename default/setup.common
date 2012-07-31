@@ -24,7 +24,7 @@ curl -o /var/svc/pkgsrc -s -S -f \
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc list from assets server"
 pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:lower:] [:upper:])
 [[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
-if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "\-64$") ]]; then
+if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "x86_64") ]]; then
     pkgsrc_version=${pkgsrc_version}_64
 fi
 pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
