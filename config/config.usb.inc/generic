@@ -54,6 +54,7 @@ moray_pkg=sdc_1024
 
 vmapi_pkg=sdc_128
 dapi_pkg=sdc_128
+imgapi_pkg=sdc_128
 cnapi_pkg=sdc_128
 napi_pkg=sdc_128
 dcapi_pkg=sdc_128

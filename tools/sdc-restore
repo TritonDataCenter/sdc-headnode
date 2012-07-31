@@ -37,7 +37,7 @@ echo "(debug log is /tmp/restorelog.$$)"
 
 HEADNODE_UUID=$(sysinfo | json UUID)
 
-core_zones="assets cnapi dapi dhcpd moray napi rabbitmq ufds workflow"
+core_zones="assets cnapi dapi dhcpd imgapi moray napi rabbitmq ufds workflow"
 core_zones="$core_zones vmapi zookeeper manatee"
 
 usage()

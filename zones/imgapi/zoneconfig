@@ -1,0 +1,5 @@
+DATACENTER_NAME=${datacenter_name}
+ASSETS_ADMIN_IPS=${assets_admin_ips}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}

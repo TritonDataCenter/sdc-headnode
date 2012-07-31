@@ -586,6 +586,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone napi
     create_zone workflow
     create_zone rabbitmq
+    create_zone imgapi
     create_zone cnapi
     create_zone dhcpd
     create_zone dapi

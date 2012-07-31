@@ -1068,6 +1068,9 @@ rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
 next_addr=$(expr $next_addr + 1)
+imgapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+next_addr=$(expr $next_addr + 1)
 cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 cnapi_client_url="http://${cnapi_admin_ip}:80"
 
@@ -1135,6 +1138,10 @@ echo >>$tmp_config
 
 echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
+echo >>$tmp_config
+
+echo "imgapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "imgapi_admin_ips=$imgapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1363,6 +1370,14 @@ fi
 echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_http_admin_user=admin" >>$tmp_config
 echo "dapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+
+if [ -z "$external_vlan_id" ]; then
+	echo "# imgapi_external_vlan=0" >>$tmp_config
+else
+	echo "imgapi_external_vlan=$external_vlan_id" >>$tmp_config
+fi
 echo >>$tmp_config
 
 

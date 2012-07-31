@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+set -o xtrace
+
+PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+echo "Creating IMGAPI config file"
+cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
+{
+  "port": 80,
+  "logLevel": "debug"
+}
+HERE
+
+echo "Updating SMF manifest"
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/imgapi/g" /opt/smartdc/imgapi/smf/manifests/imgapi.xml)
+
+echo "Importing imgapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/imgapi/smf/manifests/imgapi.xml
+
+exit 0

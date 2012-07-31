@@ -419,6 +419,9 @@ function cleanup_config
 	rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
+	imgapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
 	cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
@@ -451,6 +454,9 @@ function cleanup_config
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
+
+	imgapi_root_pw=$CONFIG_adminui_root_pw
+	imgapi_admin_ips=$imgapi_admin_ip
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
@@ -489,6 +495,8 @@ function cleanup_config
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_http_admin_user=admin
 	dapi_http_admin_pw=$CONFIG_adminui_admin_pw
+
+	# imgapi_external_vlan=0
 
 	# cnapi_external_vlan=0
 	cnapi_root_pw=$CONFIG_adminui_root_pw
@@ -590,6 +598,7 @@ function cleanup_config
 	dapi_pkg=${GENERIC_dapi_pkg}
 	dcapi_pkg=${GENERIC_dcapi_pkg}
 	dhcpd_pkg=${GENERIC_dhcpd_pkg}
+	imgapi_pkg=${GENERIC_imgapi_pkg}
 	manatee_pkg=${GENERIC_manatee_pkg}
 	moray_pkg=${GENERIC_moray_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
