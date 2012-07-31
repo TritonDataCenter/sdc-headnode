@@ -1,0 +1,33 @@
+# sdc-imgapi(1) -- call the Image API for this datacenter
+
+
+## SYNOPSIS
+
+`sdc-imgapi [-v] URLPATH [CURL-OPTIONS...]`
+
+
+## DESCRIPTION
+
+This is a light convenience wrapper around `curl` for calling the Image API
+for this datacenter.
+
+Formatting of the response is done via the `json` tool.
+
+
+## OPTIONS
+
+`-v`
+    Show the curl command that is being issued. If used this option must appear
+    before the URLPATH argument.
+
+Any additional options supported by `curl` may be used.
+
+
+## COPYRIGHT
+
+sdc-imgapi Copyright (c) 2011 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+curl (1), json (1)
