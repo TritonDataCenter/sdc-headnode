@@ -21,3 +21,4 @@ UFDS_ADMIN_IPS=${ufds_admin_ips}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
 REDIS_ADMIN_IPS=${redis_admin_ips}
+ASSETS_ADMIN_IPS=${assets_admin_ips}
