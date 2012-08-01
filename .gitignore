@@ -19,6 +19,7 @@
 /*.tar.bz2
 /answers.json
 /tools-man/man1/sdc-dsapi.1.roff
+/tools-man/man1/sdc-imgapi.1.roff
 /tools-man/man1/sdc-ldap.1.roff
 /tools-man/man1/sdc-oneachnode.1.roff
 /build
