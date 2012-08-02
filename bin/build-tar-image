@@ -285,6 +285,7 @@ function create_directories
     rm -rf ${STAGE}
     mkdir -p ${STAGE}
     mkdir -p ${STAGE}/extra/pkgsrc
+    mkdir -p ${STAGE}/extra/amon-agent
 }
 
 function copy_base
@@ -643,6 +644,33 @@ function copy_platform
     loops=
 }
 
+
+# Copy the latest amon-agent-*.tgz package (using the 'agent-shar' branch
+# setting in build.spec) into the staging area.
+#
+# Note: A separate extra/amon-agent dir is a placeholder until the amon-agent
+# is in pkgsrc.
+function copy_amon_agent
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download amon-agent, looping!"
+
+    # See if there's a specific amon-agent branch we're supposed to use.
+    local branch=$(build_spec agents-shar)
+    if [[ -z ${branch} ]]; then
+        branch="master"
+    fi
+
+    local amon_agent_path=$(get_bit "amon/amon-agent-${branch}-.*\.tgz")
+    echo "Copying $(basename $amon_agent_path) to stage."
+    mkdir -p ${STAGE}/extra/amon-agent
+    cp ${amon_agent_path} ${STAGE}/extra/amon-agent/amon-agent.tgz
+
+    loops=
+}
+
+
 function get_agentsshar
 {
     [[ -z "${loops}" ]] && loops=0
@@ -670,7 +698,7 @@ function get_agentsshar
         get_agentsshar ${agentsshar_branch}
     fi
 
-    echo "Copying $(basename agentsshar_path) to stage."
+    echo "Copying $(basename $agentsshar_path) to stage."
     mkdir -p ${STAGE}/ur-scripts
     cp ${agentsshar_path} ${STAGE}/ur-scripts/
 
@@ -978,6 +1006,7 @@ create_directories
 load_buildspec
 copy_base
 copy_pkgsrc
+copy_amon_agent
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_agentsshar
 copy_datasets

@@ -87,6 +87,16 @@ do
         || (yes | pkg_add -f ${pkgsrc_url}/${lower_case})
 done
 
+
+# Install and start the amon-agent.
+curl -o /var/svc/amon-agent.tgz -s -S -f \
+    http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz
+mkdir -p /opt/
+(cd /opt/ && gtar xzf /var/svc/amon-agent.tgz)
+(cd /opt/amon-agent && ./pkg/postinstall.sh)
+rm -f /var/svc/amon-agent.tgz
+
+
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import now. (we do this again after setup)
 for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
