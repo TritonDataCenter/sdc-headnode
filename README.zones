@@ -53,8 +53,7 @@ The rules are:
         pulled. When not specified, the first network specified will be primary.
 
     * 'user-script' - if for some reason your zone needs a different script than
-        the one in default/user-script.common, currently only assets (because
-        files are local)
+        the one in default/user-script.common
 
     * 'zoneconfig' - all config options for the zone that can be changed
         centrally (eg. ufds IPs) should be listed here see other zones for
@@ -94,4 +93,3 @@ The rules are:
       change
     * configure should be able to update all those changeable settings when
       given a new zoneconfig
-

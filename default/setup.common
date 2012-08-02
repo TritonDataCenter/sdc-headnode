@@ -1,64 +1,50 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011, Joyent Inc. All rights reserved.
+# Copyright (c) 2012, Joyent Inc. All rights reserved.
+#
+# Common setup script used by SDC zones.
+#
+# On boot of a zone, its user-script is run by the "mdata:execute" service.
+# See "user-script.common" used by SDC zones. This does some preparation
+# and then for *first* boot calls the zone-specific "setup" script in the
+# background. It is expected that SDC zones' "setup" script sources this
+# "setup.common" script.
 #
 
-fatal()
-{
-    echo $*
+set -o xtrace
+# Can't use `set -e errexit` because we are selective warning on some
+# failures below.
+
+
+
+function fatal() {
+    echo "error: $*" >&2
     exit 1
 }
 
-[[ -z ${ZONE_ROLE} ]] && fatal "FATAL: setup.common running but ZONE_ROLE not set"
-[[ -z ${ASSETS_IP} ]] && fatal "FATAL: setup.common running but ASSETS_IP not set"
 
+
+[[ -z ${ZONE_ROLE} ]] && fatal "FATAL: setup.common running but ZONE_ROLE not set"
+if [[ "${ZONE_ROLE}" != "assets" ]]; then
+    [[ -z ${ASSETS_IP} ]] && fatal "FATAL: setup.common running but ASSETS_IP not set"
+fi
+
+
+
+# Unpack the fs tarball.
 if [[ $(. /opt/smartdc/etc/zoneconfig ; echo ${NO_FS_TARBALL}) == "true" ]]; then
     NO_FS_TARBALL=1
 fi
-
-pkgsrc_lst=$(curl -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
-    | grep 'href="pkgsrc' | cut -d '"' -f2)
-
-curl -o /var/svc/pkgsrc -s -S -f \
-    http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc
-[[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc list from assets server"
-pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f5 | tr [:lower:] [:upper:])
-[[ $? != 0 ]] && fatal "FATAL: unable to get pkgsrc version"
-if [[ -n $(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6 | grep "x86_64") ]]; then
-    pkgsrc_version=${pkgsrc_version}_64
-fi
-pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
-
 if [[ -z ${NO_FS_TARBALL} ]]; then
-    curl -o /var/svc/fs.tar.bz2 -s -S -f \
-        http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2
-    [[ $? != 0 ]] && fatal "FATAL: unable to get root tarball from assets server"
+    if [[ "${ZONE_ROLE}" == "assets" ]]; then
+        cp /assets/extra/${ZONE_ROLE}/fs.tar.bz2 /var/svc/fs.tar.bz2 \
+            || fatal "FATAL: unable to get fs tarball from /assets"
+    else
+        curl -o /var/svc/fs.tar.bz2 -s -S -f \
+            http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2 \
+            || fatal "FATAL: unable to get fs tarball from assets server"
+    fi
 fi
-
-mkdir -p /opt/smartdc/bin
-for file in backup restore; do
-curl -o /opt/smartdc/bin/${file} -s -S -f \
-    http://${ASSETS_IP}/extra/${ZONE_ROLE}/${file}
-done
-chmod 755 /opt/smartdc/bin/*
-
-mkdir -p /opt/smartdc/etc
-curl -o /root/.bashrc -s -S -f \
-    http://${ASSETS_IP}/extra/${ZONE_ROLE}/bashrc
-
-# The /.dcinfo file contains info about the datacenter in which this zone runs.
-dc_name=$(mdata-get sdc:datacenter_name)
-if [[ $? == 0 && -z ${dc_name} ]]; then
-    dc_name="UNKNOWN"
-fi
-dc_headnode_id=$(mdata-get sdc:headnode_id)
-if [[ $? == 0 && -z ${dc_heanode_id} ]]; then
-    dc_heanode_id=0
-fi
-[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
-[[ -n ${dc_headnode_id} ]] \
-    && echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
-
 if [[ -z ${NO_FS_TARBALL} ]]; then
    # Unpack fs.tar and copy files into proper locations within the zone
    mkdir /.stage
@@ -77,20 +63,48 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
    rm -rf /.stage
 fi
 
-# Install using local pkg repo, we need to force lower case because the pkgsrc
-# packages get copied through pcfs which destroys their case.
-for i in $(cat /var/svc/pkgsrc)
-do
-    lower_case=$(echo ${i} | tr [:upper:] [:lower:])
-    echo "Installing $i"
-    pkg_info $i >/dev/null 2>&1 \
-        || (yes | pkg_add -f ${pkgsrc_url}/${lower_case})
+
+# Install pkgsrc packages for this zone.
+# Note: We need to force lower case because the pkgsrc packages get copied
+# through pcfs which destroys their case.
+pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf \
+    | cut -d '/' -f5 | tr [:lower:] [:upper:])
+if [[ -z "$pkgsrc_version" ]]; then
+    fatal "FATAL: unable to get pkgsrc version"
+fi
+pkgsrc_arch=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6)
+if [[ "$pkgsrc_arch" == "x86_64" ]]; then
+    pkgsrc_version=${pkgsrc_version}_64
+fi
+
+if [[ "${ZONE_ROLE}" == "assets" ]]; then
+    cp /assets/extra/${ZONE_ROLE}/pkgsrc /var/svc/pkgsrc \
+        || fatal "FATAL: unable to get pkgsrc list from /assets"
+    pkgsrc_url=/assets/extra/pkgsrc/${pkgsrc_version}
+else
+    touch /var/svc/pkgsrc   # If 'pkgsrc' file is empty, curl won't create it.
+    curl -o /var/svc/pkgsrc -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
+        || fatal "FATAL: unable to get pkgsrc list from assets server"
+    pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
+fi
+
+for name in $(cat /var/svc/pkgsrc); do
+    name_lower=$(echo ${name} | tr [:upper:] [:lower:])
+    echo "Installing pkgsrc package '$name'."
+    pkg_info $name >/dev/null 2>&1 \
+        || (yes | pkg_add -f ${pkgsrc_url}/${name_lower})
 done
 
 
 # Install and start the amon-agent.
-curl -o /var/svc/amon-agent.tgz -s -S -f \
-    http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz
+if [[ "${ZONE_ROLE}" == "assets" ]]; then
+    cp /assets/extra/amon-agent/amon-agent.tgz /var/svc/amon-agent.tgz \
+        || fatal "FATAL: unable to get amon-agent.tgz from /assets"
+else
+    curl -o /var/svc/amon-agent.tgz -s -S -f \
+        http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz \
+        || fatal "FATAL: unable to get amon-agent.tgz from assets server"
+fi
 mkdir -p /opt/
 (cd /opt/ && gtar xzf /var/svc/amon-agent.tgz)
 (cd /opt/amon-agent && ./pkg/postinstall.sh)
@@ -98,9 +112,10 @@ rm -f /var/svc/amon-agent.tgz
 
 
 # We can't add any site-specific manifests automatically, since we're running
-# after the manifest import, so import now. (we do this again after setup)
+# after the manifest import, so import now.
 for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
     svccfg import ${manifest}
 done
+
 
 ### Now the rest of setup runs

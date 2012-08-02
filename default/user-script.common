@@ -1,15 +1,31 @@
 #!/bin/bash
 #
-# Copyright (c) 2011, Joyent Inc. All rights reserved.
+# Copyright (c) 2012, Joyent Inc. All rights reserved.
 #
-# This script exists to bootstrap the setup script which does most of the
-# work of setting up the zone. Nothing very time-expensive should go in here.
-# Put that in setup instead.
+# The shared user-script for *core* SDC zones.
+#
+# This script exists to bootstrap the "setup" script (specific to each
+# zone, see usb-headnode.git/zones/$ZONE/setup) which does most of the
+# work of setting up the zone. Nothing time-expensive should go in here,
+# because the user-script is run synchronously by the "mdata:execute"
+# service which could then timeout and result in a failed provision.
+# Put expensive setup steps in "setup" instead (which is run in the
+# background at the end of this script).
 #
 
 set -o xtrace
+# Can't use `set -e errexit` because we are selective warning on some
+# failures below.
+
+
+function fatal() {
+    echo "error: $*" >&2
+    exit 1
+}
+
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
 
 zone_uuid=$(zonename)
 zone_role=$(mdata-get sdc:tags.smartdc_role)
@@ -17,86 +33,139 @@ if [[ -z ${zone_role} ]]; then
     echo "Unable to find zone role in metadata."
     exit 1
 fi
-assets_ip=$(mdata-get assets-ip)
-if [[ -z ${assets_ip} ]]; then
-    echo "Unable to find IP of assets server from metadata."
-    exit 1
+if [[ ${zone_role} != "assets" ]]; then
+    assets_ip=$(mdata-get assets-ip)
+    [[ -z ${assets_ip} ]] \
+        && fatal "Unable to find IP of assets server from metadata."
 fi
 
-fatal() {
-    echo $* >&2
-    exit 1
-}
 
+# Setup "/opt/smartdc/etc" from assets.
 if [[ ! -d /opt/smartdc/etc ]]; then
     mkdir -p /opt/smartdc/etc || fatal "unable to create /opt/smartdc/etc"
 fi
+if [[ ${zone_role} == "assets" ]]; then
+    if [[ -f /assets/extra/${zone_role}/zoneconfig ]]; then
+        cp /assets/extra/${zone_role}/zoneconfig /opt/smartdc/etc/zoneconfig \
+            || fatal "unable to copy zoneconfig file"
+    fi
+    touch /opt/smartdc/etc/zoneconfig
+else
+    touch /opt/smartdc/etc/zoneconfig.new # in case 'zoneconfig' is empty
+    curl -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
+        http://${assets_ip}/extra/${zone_role}/zoneconfig
+    if [[ $? != 0 ]]; then
+        echo "warning: Failed to get zoneconfig."
+        # For update, we carry on with old zoneconfig since we don't want to
+        # block other smartdc_role zones when assets is down. Setup should
+        # fail when zoneconfig doesn't exist.
+    else
+        cp /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig && \
+            rm -f /opt/smartdc/etc/zoneconfig.new
+        chmod 644 /opt/smartdc/etc/zoneconfig*
+    fi
+    if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
+        fatal "Missing zoneconfig"
+    fi
+fi
+
+# Setup "/opt/smartdc/bin" from assets.
 if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin || fatal "unable to create /opt/smartdc/bin"
 fi
-
-touch /opt/smartdc/etc/zoneconfig.new # in case 'zoneconfig' is empty
-curl -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
-    http://${assets_ip}/extra/${zone_role}/zoneconfig
-if [[ $? != 0 ]]; then
-    echo "Failed to get zoneconfig."
-    # For update, we carry on with old zoneconfig since we don't want to block
-    # of other smartdc_role zones when assets is down.  Setup should fail when
-    # zoneconfig doesn't exist.
+if [[ ${zone_role} == "assets" ]]; then
+    for file in configure backup restore; do
+        if [[ -f /assets/extra/${zone_role}/${file} ]]; then
+            cp /assets/extra/${zone_role}/${file} /opt/smartdc/bin/${file}
+        fi
+    done
+    chmod 755 /opt/smartdc/bin/*
 else
-    cp /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig && \
-        rm -f /opt/smartdc/etc/zoneconfig.new
-    chmod 644 /opt/smartdc/etc/zoneconfig*
-fi
-if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
-    fatal "Missing zoneconfig"
+    for file in configure backup restore; do
+        # Get the file from assets, but don't blow away an existing file
+        # if assets is down.
+        curl -k -o /opt/smartdc/bin/${file}.new -s -S -f \
+            http://${assets_ip}/extra/${zone_role}/${file}
+        if [[ $? != 0 ]]; then
+            echo "warning: Failed to get /opt/smartdc/bin/${file} from assets."
+            # For update, we carry on with old configure since we don't want
+            # to block of other smartdc_role zones when assets is down. Setup
+            # should fail when configure doesn't exist.
+        else
+            cp /opt/smartdc/bin/${file}.new /opt/smartdc/bin/${file} && \
+                rm -f /opt/smartdc/bin/${file}.new
+        fi
+    done
+    chmod 755 /opt/smartdc/bin/*
 fi
 
-curl -k -o /opt/smartdc/bin/configure.new -s -S -f \
-    http://${assets_ip}/extra/${zone_role}/configure
+# Setup "~/.bashrc" from assets.
+curl -o /root/.bashrc -s -S -f \
+    http://${assets_ip}/extra/${zone_role}/bashrc
 if [[ $? != 0 ]]; then
-    echo "Failed to get configure script."
-    # For update, we carry on with old configure since we don't want to block
-    # of other smartdc_role zones when assets is down.  Setup should fail when
-    # configure doesn't exist.
-else
-    cp /opt/smartdc/bin/configure.new /opt/smartdc/bin/configure && \
-        rm -f /opt/smartdc/bin/configure.new
-    chmod 755 /opt/smartdc/bin/configure*
+    echo "warning: Failed to get /root/.bashrc from assets."
 fi
 
-# Run the configure whenever we didn't do setup already
+# Setup "/.dcinfo": info about the datacenter in which this zone runs
+# (used for a more helpful PS1 prompt).
+dc_name=$(mdata-get sdc:datacenter_name)
+if [[ $? == 0 && -z ${dc_name} ]]; then
+    dc_name="UNKNOWN"
+fi
+dc_headnode_id=$(mdata-get sdc:headnode_id)
+if [[ $? == 0 && -z ${dc_heanode_id} ]]; then
+    dc_heanode_id=0
+fi
+[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
+[[ -n ${dc_headnode_id} ]] \
+    && echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
+
+
+# Re-configure if we've already setup.
 if [[ -f /var/svc/setup_complete ]]; then
-    # We already did setup (which ran configure last time), so just reconfigure
+    # We already did setup (which ran configure last time), so just reconfigure.
     /opt/smartdc/bin/configure || fatal "failed to configure zone."
 fi
 
-# Only want to run this initial user-script once
+
+# Only want to run this initial user-script once.
 if [[ -f /var/svc/.ran-user-script ]]; then
     echo "Initial user-script has already been run."
     exit 0
 fi
 touch /var/svc/.ran-user-script
 
-curl -k -o /var/svc/setup.common -s -S -f http://${assets_ip}/extra/${zone_role}/setup.common
-if [[ $? != 0 || ! -f /var/svc/setup.common ]]; then
-    echo "Failed to get common include for setup script."
-fi
 
-curl -k -o /var/svc/setup -s -S -f http://${assets_ip}/extra/${zone_role}/setup
-if [[ $? != 0 || ! -f /var/svc/setup ]]; then
-    echo "Failed to get setup script."
-fi
+# Get setup scripts from assets.
+for file in setup.common setup; do
+    if [[ ${zone_role} == "assets" ]]; then
+        cp /assets/extra/${zone_role}/${file} /var/svc/${file}
+    else
+        curl -k -o /var/svc/${file} -s -S -f \
+            http://${assets_ip}/extra/${zone_role}/${file}
+    fi
+    if [[ $? != 0 || ! -f /var/svc/${file} ]]; then
+        echo "warning: Failed to get /var/svc/${file} from assets."
+    fi
+done
 
+
+# Run setup in the background.
 export ASSETS_IP="${assets_ip}"
 export ZONE_ROLE="${zone_role}"
 
-# We can't add any site-specific manifests automatically, since we're running
-# after the manifest import, so import any new manifests that were added.
 (bash /var/svc/setup
-    for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
-        svccfg import ${manifest}
-    done
+    # TODO(trent, HEAD-1209): Get Josh to review this removal. Why run this
+    # again? Already done in setup.common.
+    #
+    ## We can't add any site-specific manifests automatically, since we're running
+    ## after the manifest import, so import any new manifests that were added.
+    #for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
+    #    svccfg import ${manifest}
+    #done
 ) >/var/svc/setup.log 2>&1 &
+if [[ $? != 0 ]]; then
+    fatal "Failed to setup ${zone_role} zone."
+fi
 
 exit 0
