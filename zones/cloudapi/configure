@@ -52,6 +52,9 @@ gsed -i -e "s|VMAPI_HTTP_ADMIN_PW|$VMAPI_HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
 
+echo "Updating SMF manifest"
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml)
+
 echo Importing SMF manifest
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
 
