@@ -1,31 +1,59 @@
 #!/usr/bin/bash
-#
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
-#
 
+unset LD_LIBRARY_PATH
 PATH=/usr/bin:/usr/sbin
 export PATH
 
 if [[ $# != 2 ]]; then
-    echo "Usage: $0 <zone_name> <target_directory>"
-    exit 1
+  echo "Usage: $0 <zone_name> <target_directory>"
+  exit 1
 fi
 
-ROLE=usageapi
-UUID=$1
+ZONE=$1
 TARGET_DIR=$2
-CFG_FILE=/zones/$UUID/root/opt/smartdc/usageapi/config/config.json
+ROLE="usageapi"
 
-if [[ ! -d "${TARGET_DIR}" ]]; then
-    echo "Invalid directory: '${TARGET_DIR}'"
-    exit 1
+STAMP=$(date +'%F-%H-%M-%S-%Z')
+BACKUP_VERSION="${ROLE}-${STAMP}"
+
+ZONE_DATASET=$(zfs list -H -o name|grep "${ZONE}$")
+
+# We cannot backup if cannot find zone's dataset:
+if [[ -z $ZONE_DATASET ]]; then
+  echo "FATAL: Cannot find '${ROLE}' dataset"
+  exit 103
 fi
 
-# Create the backup directory:
-mkdir -p ${TARGET_DIR}/${ROLE}
+# Create dataset backup
+echo "==> Creating snapshot of '${ROLE}' dataset"
+zfs snapshot zones/${ZONE}@${BACKUP_VERSION} 2>&1
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to snapshot dataset"
+    exit 104
+fi
 
-echo "==> Saving config file for zone '${ROLE}'"
-[ -f $CFG_FILE ] && cp $CFG_FILE ${TARGET_DIR}/${ROLE}
+# Just in case, create the backup directory:
+[[ ! -e "${TARGET_DIR}" ]] && mkdir -p ${TARGET_DIR}
 
-echo "==> Done!"
+# Create backup directory for the zone stuff:
+echo "==> Creating backup directory '${TARGET_DIR}/${ROLE}'"
+mkdir -p "${TARGET_DIR}/${ROLE}"
+
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var; \
+    tar cbfzE 512 ${TARGET_DIR}/${ROLE}/var.tar.gz pgsql)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup database"
+    exit 105
+fi
+(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/smartdc/usageapi/config; \
+    tar cbzfE 512 ${TARGET_DIR}/${ROLE}/config.tar.gz *)
+if [[ $? -ne 0 ]]; then
+    echo "FATAL: Unable to backup configuration"
+    exit 106
+fi
+
+echo "==> Removing temporary snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}/${ROLE}@${BACKUP_VERSION}"
+
+echo "All done!!!"
 exit 0
