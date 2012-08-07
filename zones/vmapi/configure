@@ -26,6 +26,9 @@ cat > /opt/smartdc/vmapi/config.json <<HERE
   "api": {
     "port": 80
   },
+  "redis": {
+    "host": "$REDIS_ADMIN_IPS"
+  },
   "wfapi": {
     "workflows": ["provision", "start", "stop", "reboot", "destroy", "update"],
     "url": "$WF_URL"
