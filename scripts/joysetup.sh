@@ -541,7 +541,9 @@ if [[ ${POOLS} == "no pools available" ]]; then
         mkdir -p /var/db/imgadm
         echo "https://datasets.joyent.com/datasets/" \
             > /var/db/imgadm/sources.list
-        imgadm update
+        if ! imgadm update; then
+            echo "Failed to update imgadm sources. (No Internet?)"
+        fi
     fi
 
     echo $(cat /etc/resolv.conf)
