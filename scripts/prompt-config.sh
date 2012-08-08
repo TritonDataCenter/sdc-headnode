@@ -1078,6 +1078,9 @@ next_addr=$(expr $next_addr + 1)
 redis_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
+amon_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+next_addr=$(expr $next_addr + 1)
 dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1254,6 +1257,7 @@ echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
 
+echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
 echo "amon_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
