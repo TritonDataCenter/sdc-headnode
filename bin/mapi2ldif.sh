@@ -85,7 +85,7 @@ function read_lines_sync(file) {
 
 // Real stuff goes here:
 
-// These function will read a table and create a mapping between
+// This function will read a table and create a mapping between
 // row ids and uuids like
 //
 // { '1': <uuid> }
@@ -118,6 +118,51 @@ function transform_uuids(table) {
 
 
 
+// This function will read the tags table and create a mapping between
+// machine ids and tag key/values like:
+//
+// {
+//   "zones": {'1': { key: value, foo: bar } },
+//   "vms": {'3': { bar: baz } }
+// }
+//
+// Since tags can belong to zones and vms, the hash is provided in this form.
+function transform_tags(table) {
+  var util = require('util'),
+      exec = require('child_process').exec,
+      child;
+
+  var file = directory + '/' + table + '.dump';
+  var lines = read_lines_sync(file);
+  var hash = { "Zone": {}, "VM": {} };
+  var total = lines.length;
+
+  var TAG_KEY = 1;
+  var TAG_VALUE = 2;
+  var TAGGABLE_ID = 3;
+  var TAGGABLE_TYPE = 4;
+  var columns = 7;
+
+  lines.forEach(function(line) {
+    var pieces = line.split('\t');
+    if (pieces.length < columns) {
+      return;
+    }
+
+    var obj = hash[ pieces[TAGGABLE_TYPE] ][ pieces[TAGGABLE_ID] ];
+
+    if (!obj)
+      obj = [];
+
+    obj.push( pieces[TAG_KEY] + '=' + pieces[TAG_VALUE] );
+    hash[ pieces[TAGGABLE_TYPE] ][ pieces[TAGGABLE_ID] ] = obj;
+  });
+
+  return hash;
+}
+
+
+
 function transform_packages(file, callback) {
 
   var util = require('util'),
@@ -138,7 +183,8 @@ function transform_packages(file, callback) {
         return;
       }
 
-      child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
+      child = exec('/opt/local/bin/uuid', function (error, stdout, stderr) {
+      // child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
         if (error !== null) {
           console.log('exec error: ' + error);
           return;
@@ -190,7 +236,6 @@ function transform_vms(file, callback) {
     //
     //     datasets
     //     nics
-    //     tags
     //     delegate_dataset
     lines.forEach(function(line) {
       var change;
@@ -259,6 +304,10 @@ function vm_from_vm(pieces) {
     objectclass: 'vm'
   };
 
+  var tags = TAGS['VM'][ pieces[0] ];
+  if (tags)
+    change.tags = tags;
+
   return change;
 }
 
@@ -308,6 +357,10 @@ function vm_from_zone(pieces) {
     objectclass: 'vm'
   };
 
+  var tags = TAGS['Zone'][ pieces[0] ];
+  if (tags)
+    change.tags = tags;
+
   return change;
 }
 
@@ -320,6 +373,8 @@ process_argv();
 SERVERS = transform_uuids('servers');
 IMAGES = transform_uuids('datasets');
 ZPOOLS = transform_uuids('zfs_storage_pools');
+TAGS = transform_tags('tags');
+
 
 fs.readdir(directory, function(err, files) {
   if(err)
