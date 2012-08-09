@@ -21,6 +21,9 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
+# Install Amon monitor and probes for IMGAPI.
+/opt/smartdc/imgapi/bin/imgapi-amon-install
+
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
