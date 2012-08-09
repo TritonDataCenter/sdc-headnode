@@ -141,6 +141,9 @@ async.series([
         }
         if (config.hasOwnProperty('ufds_admin_uuid')) {
             obj.owner_uuid = config['ufds_admin_uuid'];
+        } else {
+            console.error('build-payload: no ufds_admin_uuid in config, not '
+                + 'setting owner_uuid');
         }
         if (config.hasOwnProperty(zone + '_admin_ip')
             || config.hasOwnProperty(zone + '_admin_ips')) {
@@ -174,10 +177,19 @@ async.series([
                 newobj.dhcp_server = true;
             }
             obj.nics.push(newobj);
+        } else {
+            console.error('build-payload: no ' + zone + '_admin_ip in config, '
+                + 'not adding NIC');
         }
 
-        // make the last nic 'primary'
-        obj.nics.slice(-1)[0].primary = true;
+        if (!obj.hasOwnProperty('nics') || obj.nics.length < 1) {
+            console.error('build-payload: obj: ' + JSON.stringify(obj));
+            cb(new Error('obj has no NICs'));
+            return;
+        } else {
+            // make the last nic 'primary'
+            obj.nics.slice(-1)[0].primary = true;
+        }
 
         cb();
     }, function (cb) {
@@ -205,7 +217,7 @@ async.series([
         );
     }, function (cb) {
         // load the user-script into metadata (if we didn't find already)
-    if (!obj.customer_metadata.hasOwnProperty('user-script')) {
+        if (!obj.customer_metadata.hasOwnProperty('user-script')) {
             fs.readFile('/usbkey/default/user-script.common',
                 function (error, data)
                 {
@@ -220,14 +232,14 @@ async.series([
                     cb();
                 }
             );
-    } else {
-        cb();
-    }
+        } else {
+            cb();
+        }
     }, function(cb) {
-      obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
-      obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
-      obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
-      cb();
+        obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
+        obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
+        obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
+        cb();
     }
 ], function (err) {
     if (err) {
