@@ -12,7 +12,7 @@ var util = require('util');
 
 ///--- Globals
 
-var Types = ['packages', 'vms', 'zones'];
+var Types = ['packages', 'vms', 'zones', 'servers'];
 
 // position of the uuid - number of columns
 var UUID_POSITIONS = {
@@ -364,6 +364,89 @@ function vm_from_zone(pieces) {
   return change;
 }
 
+
+
+/**
+ * 0 -- id
+ * 1 -- hostname
+ * 2 -- rack_id
+ * 3 -- server_role_id
+ * 4 -- ram_in_megabytes
+ * 5 -- target_utilization_in_megabytes
+ * 6 -- reserved
+ * 7 -- setup_at
+ * 8 -- cpu_cores
+ * 9 -- public_interface
+ * 10 -- private_interface
+ * 11 -- admin_ssh_access_preferred
+ * 12 -- vendor_number
+ * 13 -- model
+ * 14 -- manufacturer
+ * 15 -- operating_system
+ * 16 -- uuid
+ * 17 -- is_headnode
+ * 18 -- latest_boot_at
+ * 19 -- target_image_set_at
+ * 20 -- created_at
+ * 21 -- updated_at
+ * 22 -- platform_image_id
+ * 23 -- swap_in_gigabytes
+ * 24 -- current_status
+ * 25 -- hardware_uuid
+ * 26 -- boot_args
+ * 27 -- vm_capable
+ * 28 -- setting_up_at
+ */
+
+function transform_servers(file, callback) {
+  read_lines(file, function (error, lines) {
+    if (error) {
+      err_and_exit('Error loading packages file: %s', err.toString());
+      return;
+    }
+
+    var total = lines.length;
+    var changes = [];
+    var done = 0;
+
+    try {
+      lines.forEach(function (line) {
+        if (line === '\\.')
+          throw 'break';
+
+
+        var pieces = line.split('\t').map(function(p) {
+            return p !== '\\N' ? p : '';
+        });
+
+        if (pieces.length !== 29)
+          return;
+
+        var uuid = pieces[16];
+        var change = {
+          dn: 'uuid=' + uuid + ', ou=servers, o=smartdc',
+          hostname: pieces[1],
+          reserved: pieces[6] === 't' ? 'true' : 'false',
+          uuid: pieces[16],
+          headnode: pieces[17] === 't' ? 'true' : 'false',
+          last_boot: pieces[18],
+          status: pieces[24],
+          hardware_uuid: pieces[25],
+          boot_args: pieces[26] || '{}'
+        };
+
+        changes.push(change);
+      });
+    } catch (e) {
+      if (e !== 'break') throw e;
+    }
+
+    callback(changes);
+  });
+}
+
+
+
 ///--- Mainline
 
 process_argv();
@@ -411,6 +494,10 @@ fs.readdir(directory, function(err, files) {
     case 'vms':
     case 'zones':
       transform_vms(file, callback);
+      break;
+    case 'servers':
+      transform_servers(file, callback);
+      break;
     default:
       console.error('Skipping %s', f);
     }
