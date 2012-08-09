@@ -23,6 +23,7 @@ mkdir -p /opt/smartdc/amon/cfg
 cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
 {
   "port": 80,
+  "adminUuid": "${UFDS_ADMIN_UUID}",
   "ufds": {
     "url": "ldaps://${UFDS_ADMIN_IP}",
     "rootDn": "${UFDS_LDAP_ROOT_DN}",
