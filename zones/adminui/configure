@@ -56,7 +56,7 @@ do
 done
 
 echo "Importing haproxy service SMF"
-svccfg import /opt/local/share/smf/manifest/haproxy.xml
+svccfg import /opt/local/share/smf/haproxy/manifest.xml
 
 echo "Updating adminui service manifest"
 $(/opt/local/bin/gsed -i"" \
