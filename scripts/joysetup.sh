@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
-PATH=/usr/bin:/usr/sbin:/sbin:/bin
+PATH=/usr/bin:/usr/sbin:/sbin
 export PATH
 
 MIN_SWAP=2
@@ -95,145 +95,41 @@ function swap_in_GiB
     return 0
 }
 
-#
-# The arguments to joysetup will specify the disks and RAID profile to use.  If
-# not specified, this script will create a single pool iff there is a single
-# disk available.  In that case, the assumption is a hardware RAID card is
-# managing the physical disks and has exposed only a single logical disk to the
-# filesystem.  If more than one disk is available when no storage configuration
-# is provided, then the number of disks determines the default profile.  A
-# mirrored pool is created with two disks.  A RAID-Z pool is created with three
-# or more disks.
-#
-# The arguments to joysetup specify the pool(s), disks for each pool, and 
-# the profile of each pool (RAID-Z, mirrored, etc.).  An example:
-#
-#     pools=zones,tank
-#     zones_disks=c0t0d0,c0t1d0
-#     zones_profile=mirror
-#     tank_disks=c1t0d0,c1t1d0,c1t2d0,c1t3d0,c1t4d0,c1t5d0,c1t6d0,c1t7d0
-#     tank_profile=raidz
-#
-# Those arguments to joysetup specify a mirrored pool 'zones' with two disks,
-# and a RAID-Z pool 'tank' with eight disks.
-#
-create_zpool()
+function create_zpool
 {
-    OLDIFS=$IFS
-    unset IFS
+	SYS_ZPOOL="$1"
+	POOL_JSON="$2"
 
-    pool=$1
+	if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
+		printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
+		if ! /usr/bin/mkzpool ${SYS_ZPOOL} ${POOL_JSON}; then
+			printf "%6s\n" "failed" >&4
+			fatal "failed to create pool"
+		fi
+	fi
 
-    if [[ -n $pool ]]; then
-        disks=$(eval echo \${arg_${pool}_disks})
-        disks=$(echo $disks | tr ',' ' ')
-        profile=$(eval echo \${arg_${pool}_profile})
-    fi
+	if ! zfs set atime=off ${SYS_ZPOOL}; then
+		printf "%6s\n" "failed" >&4
+		fatal "failed to set atime=off for pool ${SYS_ZPOOL}"
+	fi
 
-    # If the pool already exists, don't create it again.
-    if /usr/sbin/zpool list -H -o name $pool; then
-        return 0
-    fi
+	printf "%4s\n" "done" >&4
 
-    # If we're creating a pool for a headnode, or if a list of disks is not
-    # specified for a pool, include all disks in the default pool.
-    if /usr/bin/bootparams | grep "headnode=true" || [[ -z $disks ]]; then
-        disks=
-        for disk in `/usr/bin/disklist -n`; do
-            # Only include disks that aren't mounted (so we skip USB Key)
-            if ( ! grep ${disk} /etc/mnttab ); then
-                disks="${disks} ${disk}"
-            fi
-        done
-    fi
+	svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
+	svccfg -s svc:/system/smartdc/init:default refresh
 
-    disk_count=$(echo "${disks}" | wc -w | tr -d ' ')
-    printf "%-56s" "Creating pool $pool... " >&4
+	export CONFDS=${SYS_ZPOOL}/config
+	export COREDS=${SYS_ZPOOL}/cores
+	export OPTDS=${SYS_ZPOOL}/opt
+	export VARDS=${SYS_ZPOOL}/var
+	export USBKEYDS=${SYS_ZPOOL}/usbkey
+	export SWAPVOL=${SYS_ZPOOL}/swap
 
-    # If no pool profile was provided, use a default based on the number of
-    # devices in that pool.
-    if [[ -z ${profile} ]]; then
-        case ${disk_count} in
-        0)
-             fatal "no disks found, can't create zpool";;
-        1)
-             profile="";;
-        2)
-             profile=mirror;;
-        *)
-             profile=raidz;;
-        esac
-    fi
-
-    # The zpool command doesn't accept the 'striped' profile, but creates a
-    # striped pool when no profile is specified.
-    if [[ ${profile} == "striped" ]]; then
-        profile=""
-    fi
-
-    zpool_args=""
-
-    # When creating a mirrored pool, create a mirrored pair of devices out of
-    # every two disks.
-    if [[ ${profile} == "mirror" ]]; then
-        ii=0
-        for disk in ${disks}; do
-            if [[ $(( $ii % 2 )) -eq 0 ]]; then
-                  zpool_args="${zpool_args} ${profile}"
-            fi
-            zpool_args="${zpool_args} ${disk}"
-            ii=$(($ii + 1))
-        done
-    else
-        zpool_args="${profile} ${disks}"
-    fi
-
-    zpool create ${pool} ${zpool_args} || \
-        fatal "failed to create pool ${pool}"
-    zfs set atime=off ${pool} || \
-        fatal "failed to set atime=off for pool ${pool}"
-
-    printf "%4s\n" "done" >&4
-
-    IFS=$OLDIFS
-}
-
-create_zpools()
-{
-    if /usr/bin/bootparams | grep "headnode=true"; then
-        export SYS_ZPOOL=zones
-        create_zpool ${SYS_ZPOOL}
-    else
-        if [[ -z "${arg_pools}" ]]; then
-            export SYS_ZPOOL=zones
-            create_zpool ${SYS_ZPOOL}
-        else
-            IFS=,
-            for pool in ${arg_pools}; do
-                create_zpool $pool
-            done
-            unset IFS
-
-            export SYS_ZPOOL=$(echo $arg_pools | \
-                sed 's/^\([a-zA-Z0-9]*\),.*/\1/')
-        fi
-    fi
-
-    svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
-    svccfg -s svc:/system/smartdc/init:default refresh
-
-    export CONFDS=${SYS_ZPOOL}/config
-    export COREDS=${SYS_ZPOOL}/cores
-    export OPTDS=${SYS_ZPOOL}/opt
-    export VARDS=${SYS_ZPOOL}/var
-    export USBKEYDS=${SYS_ZPOOL}/usbkey
-    export SWAPVOL=${SYS_ZPOOL}/swap
-
-    #
-    # Since there may be more than one storage pool on the system, put a
-    # file with a certain name in the actual "system" pool.
-    #
-    touch /${SYS_ZPOOL}/.system_pool
+	#
+	# We don't support more than one storage pool on the system, but some
+	# software expects this for futureproofing reasons.
+	#
+	touch /${SYS_ZPOOL}/.system_pool
 }
 
 #
@@ -274,7 +170,7 @@ setup_datasets()
   fi
 
   if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
-    if [[ -n $(/bin/bootparams | grep "^headnode=true") ]]; then
+    if is_headnode; then
         printf "%-56s" "Creating usbkey dataset... " >&4
         zfs create -o mountpoint=legacy ${USBKEYDS} || \
           fatal "failed to create the usbkey dataset"
@@ -376,7 +272,7 @@ install_configs()
         return 0
     fi
 
-    if [[ -z $(/usr/bin/bootparams | grep "^headnode=true") ]]; then
+    if ! is_headnode; then
         printf "%-56s" "Compute node, installing config files... " >&4
         if [[ ! -d $TEMP_CONFIGS ]]; then
             fatal "config files not present in /var/tmp"
@@ -394,6 +290,19 @@ install_configs()
         SDC_CONFIG_FILENAME=
         load_sdc_config
     fi
+}
+
+is_headnode()
+{
+	if [[ -z "$__headnode_known" ]]; then
+		__headnode_bp="$(/usr/bin/bootparams | grep "^headnode=true")"
+		__headnode_known=true
+	fi
+	if [[ -z "$__headnode_bp" ]]; then
+		return 1	# "failure" == false == 1
+	else
+		return 0	# "success" == true == 0
+	fi
 }
 
 create_vg()
@@ -448,14 +357,17 @@ output_vg_info()
     echo "${results}	ONLINE	/${name}"
 }
 
-POOLS=`zpool list`
-if [[ ${POOLS} == "no pools available" ]]; then
-    create_zpools
+if [[ "$(zpool list)" == "no pools available" ]]; then
+    if ! /usr/bin/disklayout "${arg_disklayout}" > /tmp/pool.json; then
+	fatal "disk layout failed"
+    fi
+
+    create_zpool zones /tmp/pool.json
     setup_datasets
     install_configs
     create_swap
     output_zpool_info
-    if [[ -z $(/usr/bin/bootparams | grep "headnode=true") ]]; then
+    if ! is_headnode; then
         # If we're a non-headnode we exit with 113 which is a special code that tells ur-agent to:
         #
         #   1. pretend we exited with status 0
