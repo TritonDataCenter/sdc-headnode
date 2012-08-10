@@ -55,7 +55,7 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
        echo "install root"
        (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
    fi
-   if [[ -d /.stage/site ]]; then
+   if [[ -d /.stage/site && -n $(ls /.stage/site) ]]; then
        echo "install site"
        (cd /.stage/site && tar cbf 512 - *) | \
            (cd /lib/svc/manifest/site && tar xbf 512 -)
