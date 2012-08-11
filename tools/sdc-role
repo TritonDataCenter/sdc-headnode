@@ -27,13 +27,43 @@ Usage:
 
 Sub-commands:
 
-        create [server] <role> - create a sdc_role zone
-        destroy <alias>        - destroy an sdc_role zone by alias
-        list                   - list all sdc_role zones in this DC
+        create [-o option] [server] <role> - create a sdc_role zone
+        destroy <alias>                    - destroy an sdc_role zone by alias
+        list                               - list all sdc_role zones in this DC
 
 EOF
     exit 1
 }
+
+# -o is for special/advanced options (key=value pairs)
+args=`getopt ho: $*`
+# you should not use `getopt abo: "$@"` since that would parse
+# the arguments differently from what the set command below does.
+if [[ $? != 0 ]]; then
+    usage;
+fi
+
+set -- $args
+for opt; do
+   case "$opt" in
+       -h)
+            usage;
+            break;;
+       -o)
+           oarg="$2"; shift;
+           if [[ ${oarg##*=} == ${oarg} ]]; then
+               # stripping off everything before the equals doesn't change the
+               # string, so it's missing one.
+               echo "invalid -o option: ${oarg}" >&2
+               usage
+           fi
+           # since oarg is key=value, this sets OPTION_key=value
+           eval "OPTION_${oarg}"
+           shift;;
+       --)
+           shift; break;;
+   esac
+done
 
 add_config_ips()
 {
@@ -319,17 +349,25 @@ get_zone_parameters()
     local all_networks=$(napi /networks | json -H -a name uuid | tr ' ' ',')
     local networks=$( (json networks | json -a) < ${setup_json} | xargs)
     local primary_uuid=
-    local net_uuids=
+    local nets=
     local all_net=
     local net=
+    local ip_bit=
 
     for net in ${networks}; do
+        preset_ip=$(eval "echo \${OPTION_${net}_ip}")
         for all_net in ${all_networks}; do
             if [[ ${all_net%%,*} == ${net} ]]; then
-                if [[ -z ${net_uuids} ]]; then
-                    net_uuids="\"${all_net##*,}\""
+                ip_bit=
+                if [[ -n ${preset_ip} ]]; then
+                    # Add preset_ip
+                    # Find netmask
+                    ip_bit=",\"ip\": \"${preset_ip}\""
+                fi
+                if [[ -z ${nets} ]]; then
+                    nets="{\"uuid\": \"${all_net##*,}\"${ip_bit}}"
                 else
-                    net_uuids="${net_uuids},\"${all_net##*,}\""
+                    nets="${nets},{\"uuid\": \"${all_net##*,}\"${ip_bit}}"
                 fi
             fi
             if [[ ! -z {$primary_network} \
@@ -340,7 +378,7 @@ get_zone_parameters()
         done
     done
 
-    zone_parameters="${zone_parameters}, networks: [${net_uuids}]"
+    zone_parameters="${zone_parameters}, networks: [${nets}]"
 
     if [[ -n ${primary_uuid} ]]; then
         zone_parameters="${zone_parameters}, primary_network: '${primary_uuid}'"
