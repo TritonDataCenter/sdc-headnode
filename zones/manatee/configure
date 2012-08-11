@@ -23,9 +23,9 @@ DATASET=zones/$ZONE_UUID/data
 DATASET_DIR=/zones/$ZONE_UUID/data
 PG_DIR=$DATASET_DIR/pg
 ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
-MANATEE_CFG_FILE=/opt/smartdc/manatee/cfg/manatee.json
-SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/cfg/snapshotter.json
-BACKUP_CFG_FILE=/opt/smartdc/manatee/cfg/backupserver.json
+MANATEE_CFG_FILE=/opt/smartdc/manatee/etc/manatee.json
+SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/etc/snapshotter.json
+BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 
 # create postgres user
 echo "creating postgres user"
@@ -79,8 +79,8 @@ PG_URL=tcp://postgres@$ZONE_IP:5432/postgres
 SNAPSHOT_DIR=$DATASET_DIR/.zfs/snapshot/
 
 # update manatee cfg file
-echo "Updating /opt/smartdc/manatee/cfg/manatee.json"
-cp /opt/smartdc/manatee/cfg/manatee.json.in $MANATEE_CFG_FILE
+echo "Updating /opt/smartdc/manatee/etc/manatee.json"
+cp /opt/smartdc/manatee/etc/manatee.json.in $MANATEE_CFG_FILE
 gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $MANATEE_CFG_FILE
 gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $MANATEE_CFG_FILE
 gsed -i -e "s|SHARD_ID|$SHARD_ID|g" $MANATEE_CFG_FILE
@@ -98,8 +98,8 @@ gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $MANATEE_CFG_FILE
 gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $MANATEE_CFG_FILE
 
 # update snapshot cfg file
-echo "Updating /opt/smartdc/manatee/cfg/snapshotter.json"
-cp /opt/smartdc/manatee/cfg/snapshotter.json.in $SNAPSHOT_CFG_FILE
+echo "Updating /opt/smartdc/manatee/etc/snapshotter.json"
+cp /opt/smartdc/manatee/etc/snapshotter.json.in $SNAPSHOT_CFG_FILE
 gsed -i -e "s|DATASET|$DATASET|g" $SNAPSHOT_CFG_FILE
 gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SNAPSHOT_CFG_FILE
 gsed -i -e "s|SNAPSHOT_INTERVAL|$SNAPSHOT_INTERVAL|g" $SNAPSHOT_CFG_FILE
@@ -107,8 +107,8 @@ gsed -i -e "s|SNAPSHOT_NUMBER|$SNAPSHOT_NUMBER|g" $SNAPSHOT_CFG_FILE
 gsed -i -e "s|PG_URL|$PG_URL|g" $SNAPSHOT_CFG_FILE
 
 # update backupServer cfg file
-echo "Updating /opt/smartdc/manatee/cfg/backupserver.json"
-cp /opt/smartdc/manatee/cfg/backupserver.json.in $BACKUP_CFG_FILE
+echo "Updating /opt/smartdc/manatee/etc/backupserver.json"
+cp /opt/smartdc/manatee/etc/backupserver.json.in $BACKUP_CFG_FILE
 gsed -i -e "s|DATASET|$DATASET|g" $BACKUP_CFG_FILE
 gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $BACKUP_CFG_FILE
 gsed -i -e "s|BACKUP_SERVER_PORT|$BACKUP_SERVER_PORT|g" $BACKUP_CFG_FILE
