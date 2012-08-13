@@ -72,6 +72,11 @@ echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgs
 # enable slow query logging (anything beyond 200ms right now)
 echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
 
+# We don't need full_page_writes due to ZFS's transactional nature, and synchronous_commit is
+# unnecessary since consumer.js will correct any lost uncommitted data automatically in almost all cases
+echo "full_page_writes = off" >> /var/pgsql/data91/postgresql.conf
+echo "synchronous_commit = off" >> /var/pgsql/data91/postgresql.conf
+
 # set pool recordsize to the same size as Postgres' block size
 zfs set recordsize=8k `zfs list | sed -n 's/.*\/\(zones.*data\)/\1/p'`
 
