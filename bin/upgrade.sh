@@ -425,10 +425,22 @@ function cleanup_config
 	cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
+	redis_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	amon_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
 	dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	next_addr=$(expr $next_addr + 1)
 	vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
+	next_addr=$(expr $next_addr + 1)
+	portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 	cat <<-DONE >>/tmp/config.$$
 
@@ -439,6 +451,7 @@ function cleanup_config
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
+	portal_admin_ip=$portal_admin_ip
 
 	zookeeper_root_pw=$CONFIG_adminui_root_pw
 	zookeeper_admin_ips=$zookeeper_admin_ip
@@ -467,11 +480,27 @@ function cleanup_config
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
 
+	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
 	amon_admin_pw=$CONFIG_adminui_admin_pw
 
+	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
 	redis_admin_pw=$CONFIG_adminui_admin_pw
+
+	dnsapi_http_port=8000
+	dnsapi_http_user=admin
+	dnsapi_http_pass=$CONFIG_adminui_admin_pw
+
+	dsapi_url=https://datasets.joyent.com
+	dsapi_http_user=honeybadger
+	dsapi_http_pass=IEatSnakes4Fun
+
+	# usageapi_external_vlan=0
+	usageapi_root_pw=$CONFIG_capi_root_pw
+	usageapi_admin_pw=$CONFIG_capi_root_pw
+	usageapi_http_admin_user=admin
+	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
 	ufds_is_local=$CONFIG_capi_is_local
 	# ufds_external_vlan=0
@@ -520,6 +549,7 @@ function cleanup_config
 	dcapi_root_pw=$CONFIG_adminui_root_pw
 	dcapi_http_admin_user=admin
 	dcapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	dcapi_url=http://${dcapi_admin_ip}:80
 
 	show_setup_timers=true
 	serialize_setup=true
