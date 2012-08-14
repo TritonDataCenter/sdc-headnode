@@ -427,6 +427,11 @@ validate_archive()
         cleanup
         fatal "${bufile} checksum does not match, cannot proceed"
     fi
+
+    if [[ ! -f ${dest}/major.vers ]]; then
+        cleanup
+        fatal "${bufile} is a backup from SDC 6, cannot proceed"
+    fi
 }
 
 mount_usbkey()
