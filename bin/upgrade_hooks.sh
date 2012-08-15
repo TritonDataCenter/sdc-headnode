@@ -66,6 +66,7 @@ create_extra_zones()
     local ext_role=
     local ext_ip=
     local ext_ip_arg=
+    local res=
 
     for i in $EXTRA_ZONES
     do
@@ -83,13 +84,23 @@ create_extra_zones()
         ext_ip_arg=""
         [ -n "$ext_ip" ] && ext_ip_arg="-o external_ip=$ext_ip"
 
-        sdc-role create $ext_ip_arg $i 1>&4 2>&1
-        if [ $? != 0 ]; then
+        sdc-role create $ext_ip_arg $i 1>/tmp/role.out.$$ 2>&1
+        res=$?
+        cat /tmp/role.out.$$ 1>&4
+        if [ $res != 0 ]; then
             saw_err "Error creating $i zone"
             mv /tmp/payload.* ${SDC_UPGRADE_DIR}
             mv /tmp/provision.* ${SDC_UPGRADE_DIR}
+
+            # Capture the job info into the log
+            local job=`nawk '/Job is/{print $NF}' /tmp/role.out.$$`
+            rm -f /tmp/role.out.$$
+            curl -i -s -u admin:${CONFIG_vmapi_http_admin_pw} \
+                http://${CONFIG_vmapi_admin_ips}/${job} | json 1>&4 2>&1
+
             continue
         fi
+        rm -f /tmp/role.out.$$
 
         new_uuid=`sdc-role list | nawk -v role=$i '{if ($6 == role) print $3}'`
         if [[ -z "$new_uuid" ]]; then
@@ -193,6 +204,9 @@ post_tasks()
     fi
 
     echo "Upgrade: all svcs are ready, continuing..." >/dev/console
+
+    # load config to pick up latest settings
+    load_sdc_config
 
     create_extra_zones
 
