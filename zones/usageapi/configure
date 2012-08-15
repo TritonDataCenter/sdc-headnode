@@ -77,8 +77,13 @@ echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
 echo "full_page_writes = off" >> /var/pgsql/data91/postgresql.conf
 echo "synchronous_commit = off" >> /var/pgsql/data91/postgresql.conf
 
+DATASET=`zfs list | sed -n 's/.*\/\(zones.*data\)/\1/p'`
+
 # set pool recordsize to the same size as Postgres' block size
-zfs set recordsize=8k `zfs list | sed -n 's/.*\/\(zones.*data\)/\1/p'`
+zfs set recordsize=8k $DATASET
+
+# Postgres data typically compresses well, so enable lzjb compression
+zfs set compression=on $DATASET
 
 # Import postgres manifest straight from the pkgsrc file:
 if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
