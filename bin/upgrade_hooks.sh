@@ -63,6 +63,7 @@ create_extra_zones()
     local new_uuid=
     local loops=
     local zonepath=
+    local ext_role=
     local ext_ip=
     local ext_ip_arg=
 
@@ -72,12 +73,15 @@ create_extra_zones()
 
         echo "creating zone $i..." >/dev/console
 
-        ext_ip=`nawk -v role=$i '{
+        # 6.5.x billapi role is now usageapi role, lookup billapi external IP
+        ext_role=$i
+        [ "$i" == "usageapi" ] && ext_role="billapi"
+
+        ext_ip=`nawk -v role=$ext_role '{
             if ($1 == role) print $2
         }' ${SDC_UPGRADE_DIR}/ext_addrs.txt`
         ext_ip_arg=""
-        # XXX fix this to use the correct stuff for sdc-role
-        # [ -n "$ext_ip" ] && ext_ip_arg="-i $ext_ip"
+        [ -n "$ext_ip" ] && ext_ip_arg="-o external_ip=$ext_ip"
 
         sdc-role create $ext_ip_arg $i 1>&4 2>&1
         if [ $? != 0 ]; then
