@@ -1337,12 +1337,6 @@ echo "usageapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_local=true" >>$tmp_config
-if [ -z "$external_vlan_id" ]; then
-	echo "# ufds_external_vlan=0" >>$tmp_config
-else
-	echo "ufds_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
 echo "ufds_ldap_root_pw=secret" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
@@ -1355,53 +1349,21 @@ echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# vmapi_external_vlan=0" >>$tmp_config
-else
-	echo "vmapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_http_admin_user=admin" >>$tmp_config
 echo "vmapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-
-if [ -z "$external_vlan_id" ]; then
-	echo "# dapi_external_vlan=0" >>$tmp_config
-else
-	echo "dapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_http_admin_user=admin" >>$tmp_config
 echo "dapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# imgapi_external_vlan=0" >>$tmp_config
-else
-	echo "imgapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo >>$tmp_config
-
-
-if [ -z "$external_vlan_id" ]; then
-	echo "# cnapi_external_vlan=0" >>$tmp_config
-else
-	echo "cnapi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
-echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_http_admin_user=admin" >>$tmp_config
 echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# napi_external_vlan=0" >>$tmp_config
-else
-	echo "napi_external_vlan=$external_vlan_id" >>$tmp_config
-fi
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_http_admin_user=admin" >>$tmp_config
 echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
@@ -1410,7 +1372,6 @@ echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
 echo >>$tmp_config
 
-echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_http_admin_user=admin" >>$tmp_config
 echo "workflow_http_admin_pw=$http_admin_pw" >>$tmp_config

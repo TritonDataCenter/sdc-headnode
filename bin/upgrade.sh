@@ -442,6 +442,12 @@ function cleanup_config
 	next_addr=$(expr $next_addr + 1)
 	portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
+	   usage_ext_vlan="# usageapi_external_vlan=0"
+	else
+	   usage_ext_vlan="usageapi_external_vlan=$CONFIG_adminui_external_vlan"
+	fi
+
 	cat <<-DONE >>/tmp/config.$$
 
 	assets_admin_ip=$assets_admin_ip
@@ -462,7 +468,7 @@ function cleanup_config
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
 
-	ufds_root_pw=$CONFIG_adminui_root_pw
+	ufds_root_pw=$CONFIG_capi_root_pw
 	ufds_admin_ips=$ufds_admin_ip
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
@@ -496,15 +502,13 @@ function cleanup_config
 	dsapi_http_user=honeybadger
 	dsapi_http_pass=IEatSnakes4Fun
 
-	# usageapi_external_vlan=0
+	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
 	usageapi_admin_pw=$CONFIG_capi_root_pw
 	usageapi_http_admin_user=admin
 	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
 	ufds_is_local=$CONFIG_capi_is_local
-	# ufds_external_vlan=0
-	ufds_root_pw=$CONFIG_capi_root_pw
 	ufds_ldap_root_dn=cn=root
 	ufds_ldap_root_pw=secret
 	ufds_admin_login=$CONFIG_capi_admin_login
@@ -515,25 +519,16 @@ function cleanup_config
 	capi_http_admin_user=$CONFIG_capi_http_admin_user
 	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
 
-	# vmapi_external_vlan=0
-	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_http_admin_user=admin
 	vmapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
-	# dapi_external_vlan=0
-	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_http_admin_user=admin
 	dapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
-	# imgapi_external_vlan=0
-
-	# cnapi_external_vlan=0
-	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_http_admin_user=admin
 	cnapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	cnapi_client_url=http://${cnapi_admin_ip}:80
 
-	# napi_external_vlan=0
 	napi_root_pw=$CONFIG_adminui_root_pw
 	napi_http_admin_user=admin
 	napi_http_admin_pw=$CONFIG_adminui_admin_pw
@@ -541,7 +536,6 @@ function cleanup_config
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
 
-	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_pw=$CONFIG_adminui_admin_pw
 	workflow_http_admin_user=admin
 	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
