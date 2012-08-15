@@ -85,19 +85,14 @@ DATASET=`/usr/sbin/zfs list | /usr/bin/sed -n 's/.*\/\(zones.*data\)/\1/p'`
 # Postgres data typically compresses well, so enable lzjb compression
 /usr/sbin/zfs set compression=on $DATASET
 
+# move Postgres data into DATASET
+mv /var/pgsql /$DATASET
+ln -s /$DATASET/pgsql /var/pgsql
+
 # Import postgres manifest straight from the pkgsrc file:
-if [[ -z $(/usr/bin/svcs -a|grep postgresql) ]]; then
-  echo "Importing posgtresql service"
-  /usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/network/postgresql:pg91 refresh
-  /usr/sbin/svcadm enable -s postgresql:pg91
-else
-  echo "Restarting postgresql service"
-  /usr/sbin/svcadm disable -s postgresql:pg91
-  /usr/sbin/svcadm enable -s postgresql:pg91
-  sleep 2
-fi
+echo "Importing posgtresql service"
+/usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
+/usr/sbin/svcadm enable -s postgresql:pg91
 
 # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
 for i in 0 1 2 3 4 5 6 7 8 9
@@ -107,6 +102,7 @@ do
     [ "$state" == "online" ] && break
     sleep 5
 done
+
 # Move forward anyway
 # If we cannot get a db listing using our password, we need to set it:
 if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
