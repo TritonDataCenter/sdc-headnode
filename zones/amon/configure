@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o xtrace
@@ -23,6 +23,7 @@ mkdir -p /opt/smartdc/amon/cfg
 cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
 {
   "port": 80,
+  "logLevel": "debug",
   "adminUuid": "${UFDS_ADMIN_UUID}",
   "ufds": {
     "url": "ldaps://${UFDS_ADMIN_IP}",
