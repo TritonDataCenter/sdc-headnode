@@ -95,18 +95,20 @@ echo "Importing posgtresql service"
 /usr/sbin/svcadm enable -s postgresql:pg91
 
 # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
-for i in 0 1 2 3 4 5 6 7 8 9
+# Wait till Postgres is up and accepting connections.
+for i in {1..25}
 do
-    svc=$(/usr/bin/svcs -H network/postgresql)
-    state=${svc%% * *}
-    [ "$state" == "online" ] && break
-    sleep 5
+    if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
+       -h ${POSTGRES_HOST} -l 2>&1 | grep 'could not connect' > /dev/null ; then
+        break;
+    fi
+    sleep 2
 done
 
 # Move forward anyway
 # If we cannot get a db listing using our password, we need to set it:
 if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-  -h ${POSTGRES_HOST} -c "\l" 2>/dev/null; then
+  -h ${POSTGRES_HOST} -l 2> /dev/null; then
   if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
     -h ${POSTGRES_HOST} \
     -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
@@ -115,7 +117,7 @@ if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
 fi
 
 if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-  -h ${POSTGRES_HOST} -c "\l"|grep usageapi_production) ]]; then
+  -h ${POSTGRES_HOST} -l | grep usageapi_production) ]]; then
     echo "Creating usageapi_production database"
     PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
       -h ${POSTGRES_HOST} usageapi_production
