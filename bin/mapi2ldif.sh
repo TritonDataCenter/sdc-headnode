@@ -33,19 +33,20 @@ function err_and_exit() {
 }
 
 
-
+// The datacenter name is stored in the config file, not in mapi.
+// Pass in the datacenter name as an argument.
 function usage(msg, code) {
   if (typeof(msg) === 'string')
     console.error(msg);
 
-  console.error('%s <directory>', path.basename(process.argv[1]));
+  console.error('%s <directory> <dcname>', path.basename(process.argv[1]));
   process.exit(code || 0);
 }
 
 
 
 function process_argv() {
-  if (process.argv.length < 3)
+  if (process.argv.length < 4)
     usage(null, 1);
 
   try {
@@ -57,6 +58,7 @@ function process_argv() {
   }
 
   directory = process.argv[2];
+  datacenter = process.argv[3];
 }
 
 
@@ -255,7 +257,38 @@ function transform_vms(file, callback) {
   });
 }
 
-
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- alias
+ * 3 -- owner_uuid
+ * 4 -- dataset_id
+ * 5 -- server_id
+ * 6 -- deactivated_at
+ * 7 -- deactivated_by
+ * 8 -- destroyed_at
+ * 9 -- destroyed_by
+ * 10 -- created_at
+ * 11 -- updated_at
+ * 12 -- creation_state
+ * 13 -- swap
+ * 14 -- customer_metadata
+ * 15 -- internal_metadata
+ * 16 -- ram
+ * 17 -- customer_assigned_at
+ * 18 -- zfs_io_priority
+ * 19 -- cpu_cap
+ * 20 -- cpu_shares
+ * 21 -- lightweight_processes
+ * 22 -- disk
+ * 23 -- setup_at
+ * 24 -- setup_by
+ * 25 -- disks
+ * 26 -- zfs_storage_pool_id
+ * 27 -- primary_network_id
+ * 28 -- vcpus
+ * 29 -- latest_heartbeat_cache
+ */
 function vm_from_vm(pieces) {
   var change;
   var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
@@ -311,6 +344,53 @@ function vm_from_vm(pieces) {
 }
 
 
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- customer_id
+ * 3 -- reclaimed_at
+ * 4 -- setup_at
+ * 5 -- setup_by
+ * 6 -- cloned_at
+ * 7 -- deactivated_at
+ * 8 -- destroyed_at
+ * 9 -- id_in_ding
+ * 10 -- nfs_storage_path
+ * 11 -- successful_create_status
+ * 12 -- customer_assigned_at
+ * 13 -- creation_state
+ * 14 -- zfs_storage_pool_id
+ * 15 -- disk_used_in_gigabytes
+ * 16 -- in_use
+ * 17 -- synced_at
+ * 18 -- origin_id
+ * 19 -- server_id
+ * 20 -- ssh_dsa_fingerprint
+ * 21 -- ssh_rsa_fingerprint
+ * 22 -- authorized_keys
+ * 23 -- reserved
+ * 24 -- deactivated_by
+ * 25 -- destroyed_by
+ * 26 -- virtual_ip_id
+ * 27 -- cpu_cap
+ * 28 -- internal_ips_only
+ * 29 -- dataset_id
+ * 30 -- ram
+ * 31 -- disk
+ * 32 -- swap
+ * 33 -- lightweight_processes
+ * 34 -- cpu_shares
+ * 35 -- owner_uuid
+ * 36 -- created_at
+ * 37 -- updated_at
+ * 38 -- alias
+ * 39 -- zfs_io_priority
+ * 40 -- customer_metadata
+ * 41 -- internal_metadata
+ * 42 -- blocked_outgoing_ports
+ * 43 -- primary_network_id
+ * 44 -- latest_heartbeat_cache
+ */
 function vm_from_zone(pieces) {
   var change;
   var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
@@ -400,7 +480,7 @@ function vm_from_zone(pieces) {
 function transform_servers(file, callback) {
   read_lines(file, function (error, lines) {
     if (error) {
-      err_and_exit('Error loading packages file: %s', err.toString());
+      err_and_exit('Error loading servers file: %s', err.toString());
       return;
     }
 
@@ -423,7 +503,8 @@ function transform_servers(file, callback) {
 
         var uuid = pieces[16];
         var change = {
-          dn: 'uuid=' + uuid + ', ou=servers, o=smartdc',
+          dn: 'uuid=' + uuid + ', ou=servers, datacenter=' + datacenter +
+            ', o=smartdc',
           hostname: pieces[1],
           reserved: pieces[6] === 't' ? 'true' : 'false',
           uuid: pieces[16],
@@ -431,7 +512,10 @@ function transform_servers(file, callback) {
           last_boot: pieces[18],
           status: pieces[24],
           hardware_uuid: pieces[25],
-          boot_args: pieces[26] || '{}'
+          boot_args: pieces[26] || '{}',
+          datacenter: datacenter,
+          last_updated: pieces[21],
+          objectclass: 'server'
         };
 
         changes.push(change);
