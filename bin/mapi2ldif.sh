@@ -291,12 +291,14 @@ function transform_vms(file, callback) {
  */
 function vm_from_vm(pieces) {
   var change;
+  var create_at = (pieces[23] == '\\N' ? '' : pieces[23]);
   var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
+  var last_mod = (pieces[11] == '\\N' ? '' : pieces[11]);
+  var zone_state = (pieces[29] == '\\N' ? '' : pieces[29]);
   var brand = 'kvm';
   var uuid = pieces[1];
   var owner_uuid = pieces[3];
 
-  var zone_state = pieces[29];
   var state;
 
   if (destroyed != '') {
@@ -320,21 +322,24 @@ function vm_from_vm(pieces) {
     quota: pieces[22],
     cpu_shares: pieces[20],
     zfs_io_priority: pieces[18],
-    alias: pieces[2],
     ram: pieces[16],
     internal_metadata: pieces[15],
     customer_metadata: pieces[14],
     cpu_cap: pieces[19],
     zone_state: zone_state,
     state: state,
-    create_timestamp: pieces[23],
-    last_modified: pieces[23],
+    create_timestamp: create_at,
+    last_modified: last_mod,
     destroyed: destroyed,
     vcpus: pieces[28],
     disks: pieces[25],
     zpool: ZPOOLS[pieces[26]],
     objectclass: 'vm'
   };
+
+  // An empty alias is not supported
+  if (pieces[2] != '\\N')
+    change.alias = pieces[2];
 
   var tags = TAGS['VM'][ pieces[0] ];
   if (tags)
@@ -393,12 +398,14 @@ function vm_from_vm(pieces) {
  */
 function vm_from_zone(pieces) {
   var change;
+  var create_at = (pieces[4] == '\\N' ? '' : pieces[4]);
   var destroyed = (pieces[8] == '\\N' ? '' : pieces[8]);
+  var last_mod = (pieces[37] == '\\N' ? '' : pieces[37]);
+  var zone_state = (pieces[44] == '\\N' ? '' : pieces[44]);
   var brand = 'joyent';
   var uuid = pieces[1];
   var owner_uuid = pieces[35];
 
-  var zone_state = pieces[44];
   var state;
 
   if (destroyed != '') {
@@ -422,19 +429,22 @@ function vm_from_zone(pieces) {
     quota: pieces[31],
     cpu_shares: pieces[34],
     zfs_io_priority: pieces[39],
-    alias: pieces[38],
     ram: pieces[30],
     internal_metadata: pieces[41],
     customer_metadata: pieces[40],
     cpu_cap: pieces[27],
     zone_state: zone_state,
     state: state,
-    create_timestamp: pieces[4],
-    last_modified: pieces[4],
+    create_timestamp: create_at,
+    last_modified: last_mod,
     destroyed: destroyed,
     zpool: ZPOOLS[pieces[14]],
     objectclass: 'vm'
   };
+
+  // An empty alias is not supported
+  if (pieces[38] != '\\N')
+    change.alias = pieces[38];
 
   var tags = TAGS['Zone'][ pieces[0] ];
   if (tags)
