@@ -165,6 +165,21 @@ function dump_capi
     [ "$zstate" != "running" ] && fatal "the capi zone must be running"
 
     echo "Dump CAPI for database conversion"
+
+    local passfile=/zones/capi/root/root/.pgpass
+    local rmpass=0
+    if [ ! -f $passfile ]; then
+        local pgrespass=`nawk -F= '{
+            if ($1 == "POSTGRES_PW")
+                print substr($2, 2, length($2) - 2)
+        }' /zones/capi/root/opt/smartdc/etc/zoneconfig`
+        [ -z "$pgresspass" ] && \
+            fatal "Missing .pgpass file and no postgres password in zoneconfig"
+        echo "127.0.0.1:*:*:postgres:${pgrespass}" > $passfile
+        chmod 600 $passfile
+        rmpass=1
+    fi
+
     mkdir -p $SDC_UPGRADE_DIR/capi_dump
     tables=`zlogin capi /opt/local/bin/psql -h127.0.0.1 -Upostgres -w \
         -Atc '\\\dt' capi | cut -d '|' -f2`
@@ -176,6 +191,8 @@ function dump_capi
     done
 
     shutdown_zone capi
+
+    [ $rmpass == 1 ] && rm -f $passfile
 
     echo "Transforming CAPI postgres dumps to LDIF"
     $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump \
@@ -189,17 +206,43 @@ function dump_mapi
     [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
 
     echo "Dump MAPI for database conversion"
+
+    local passfile=/zones/mapi/root/root/.pgpass
+    local rmpass=0
+    if [ ! -f $passfile ]; then
+        local pgrespass=`nawk -F= '{
+            if ($1 == "POSTGRES_PW")
+                print substr($2, 2, length($2) - 2)
+        }' /zones/mapi/root/opt/smartdc/etc/zoneconfig`
+        [ -z "$pgresspass" ] && \
+            fatal "Missing .pgpass file and no postgres password in zoneconfig"
+        echo "localhost:*:*:postgres:${pgrespass}" > $passfile
+        chmod 600 $passfile
+        rmpass=1
+    fi
+
     mkdir -p $SDC_UPGRADE_DIR/mapi_dump
     tables=`zlogin mapi /opt/local/bin/psql -Upostgres -w -Atc '\\\dt' mapi | \
         cut -d '|' -f2`
     for i in $tables
     do
+        # Skip dumping these tables.  Some of them are very large, take a
+        # long time to dump, and we don't consume these anyway.
+        case "$i" in
+        "dataset_messages")		continue ;;
+        "provisioner_messages")		continue ;;
+        "ur_messages")			continue ;;
+        "zone_tracker_messages")	continue ;;
+        esac
+
         zlogin mapi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
             -t $i mapi \ >$SDC_UPGRADE_DIR/mapi_dump/$i.dump
         [ $? != 0 ] && fatal "dumping the MAPI database"
     done
 
     shutdown_zone mapi
+
+    [ $rmpass == 1 ] && rm -f $passfile
 
     echo "Transforming MAPI postgres dumps to LDIF"
     $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name \
@@ -756,7 +799,7 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
 fi
 
 # We might be re-running upgrade again after a rollback, so first cleanup
-rm -rf $SDC_UPGRADE_DIR
+rm -rf $SDC_UPGRADE_DIR /var/usb_rollback
 
 mkdir -p $SDC_UPGRADE_DIR
 
@@ -766,7 +809,7 @@ umount_usbkey
 
 # Make sure there are no svcs in maintenance. This will break checking later
 # in the upgrade process. Also, we don't want multiple users on the HN in
-# the middle of an upgrade.
+# the middle of an upgrade and we want to be sure the zpool is stable.
 maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
 [ $maint_svcs -gt 0 ] && \
     fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
@@ -774,6 +817,10 @@ maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
 nusers=`who | wc -l`
 [ $nusers -gt 1 ] && \
     fatal "there are multiple users logged in, unable to proceed with upgrade."
+
+zpool status zones >/dev/null
+[ $? -ne 0 ] && \
+    fatal "the 'zones' zpool has errors, unable to proceed with upgrade."
 
 # check that we have enough space
 mount_usbkey
@@ -803,16 +850,19 @@ bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 # Keep track of the core zone external addresses
 save_zone_addrs
 
-# We shutdown the zones whose databases we're dumping, as we go along, so that
-# the data provided by these zones won't change after the dump
-
 check_capi
-[ $CAPI_FOUND == 1 ] && dump_capi
 
+# Shutdown the mapi and capi svcs so that the data provided by these zones
+# won't change during the dump
+zlogin mapi svcadm disable -t mcp_api
+if [ $CAPI_FOUND == 1 ]; then
+    zlogin capi svcadm disable -t capi
+    dump_capi
+fi
 dump_mapi
 
-# Now we can shutdown the rest of the zones so we are in a more stable state
-# for the rest of this phase of the upgrade.
+# Now we can shutdown the rest of the zones so we are in an even more stable
+# state for the rest of this phase of the upgrade.
 shutdown_sdc_zones
 
 # shutdown the smartdc svcs too
@@ -831,6 +881,7 @@ upgrade_pools
 # Setup for rollback
 echo "saving data for rollback"
 $ROOT/setup_rb.sh
+[ $? != 0 ] && fatal "unable to setup for rollback"
 
 trap recover EXIT
 
