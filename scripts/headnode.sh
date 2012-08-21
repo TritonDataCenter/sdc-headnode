@@ -31,8 +31,8 @@ ZONE_SETUP_TIMEOUT=180
 
 function fatal
 {
-    printf "%-80s\r" " " >&${CONSOLE_FD}
-    echo "headnode configuration: fatal error: $*" >&${CONSOLE_FD}
+    printf_log "%-80s\r" " "
+    printf_log "headnode configuration: fatal error: $*\n"
     echo "headnode configuration: fatal error: $*"
     exit 1
 }
@@ -78,13 +78,30 @@ function printf_timer
 
         # This mess just runs printf again with the same args we were passed
         # adding the delta argument.
-        eval printf \
-            $(for arg in "$@"; do
-                echo "\"${arg}\""
-            done; echo \"${delta_t}\") \
-        >&${CONSOLE_FD}
+        if [[ $upgrading == 1 ]]; then
+            eval printf \
+                $(for arg in "$@"; do
+                    echo "\"${arg}\""
+                done; echo \"${delta_t}\") | \
+                tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
+        else
+            eval printf \
+                $(for arg in "$@"; do
+                    echo "\"${arg}\""
+                done; echo \"${delta_t}\") \
+            >&${CONSOLE_FD}
+        fi
     fi
     prev_t=${now}
+}
+
+function printf_log
+{
+    if [[ $upgrading == 1 ]]; then
+        printf "$@" | tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
+    else
+        printf "$@" >&${CONSOLE_FD}
+    fi
 }
 
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
@@ -120,6 +137,8 @@ svcadm disable inetd
 
 # Remove these default keys (that are again in the dataset!)
 rm -f /etc/ssh/ssh_*key*
+
+upgrading=0
 
 # networking is async, make sure it's up here before we
 # try to talk to pkgsrc.
@@ -283,13 +302,12 @@ fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 
-upgrading=0
 if [[ -x /var/upgrade_headnode/upgrade_hooks.sh ]]; then
     upgrading=1
-    printf "%-58s\n" "running pre-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf_log "%-58s\n" "running pre-setup upgrade tasks... "
     /var/upgrade_headnode/upgrade_hooks.sh "pre" \
         4>/var/upgrade_headnode/finish_pre.log
-    printf "%-58s" "completed pre-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf_log "%-58s" "completed pre-setup upgrade tasks... "
     printf_timer "%4s (%ss)\n" "done"
 fi
 
@@ -301,12 +319,10 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
         | grep -v -- '-hvm-' | head -1)
     if [[ -n ${which_agents} ]]; then
         if [ $restore == 0 ]; then
-            printf "%-58s" "installing $(basename ${which_agents})... " \
-                >&${CONSOLE_FD}
+            printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents})
         else
-            printf "%-58s" "installing $(basename ${which_agents})... " \
-                >&${CONSOLE_FD}
+            printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents} >&4 2>&1)
         fi
         printf_timer "%4s (%ss)\n" "done"
@@ -419,16 +435,14 @@ function create_zone {
         # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
         if [[ ! -d /zones/${ds_uuid} ]]; then
-            printf "%-58s" "importing SMI: ${ds_name}" \
-                >&${CONSOLE_FD}
+            printf_log "%-58s" "importing SMI: ${ds_name}"
             imgadm install -m ${ds_manifest} -f ${ds_filename}
             printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
     fi
 
     if [[ ${restore} == 0 ]]; then
-        printf "%-58s" "creating zone ${existing_uuid}${zone}... " \
-            >&${CONSOLE_FD}
+        printf_log "%-58s" "creating zone ${existing_uuid}${zone}... "
     else
         # alternate format for sdc-restore
         printf "%s" "creating zone ${existing_uuid}${zone}... " \
@@ -523,22 +537,22 @@ function create_zone {
 
         delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
         if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
-            echo "timeout" >&${CONSOLE_FD}
+            printf_log "timeout\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: setup timed out after ${delta_t} seconds."
         elif [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
             printf_timer "%4s (%ss)\n" "done"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
         elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
-            echo "failed" >&${CONSOLE_FD}
+            printf_log "failed\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
         elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
-            echo "svcs-fail" >&${CONSOLE_FD}
+            printf_log "svcs-fail\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
         else
-            echo "timeout" >&${CONSOLE_FD}
+            printf_log "timeout\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
             fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
         fi
@@ -548,7 +562,7 @@ function create_zone {
     CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
 
     if [[ $upgrading == 1 ]]; then
-        printf "%-58s" "upgrading zone $zone... " >&${CONSOLE_FD}
+        printf_log "%-58s" "upgrading zone $zone... "
         /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
             4>/var/upgrade_headnode/finish_${zone}.log
         printf_timer "%4s (%ss)\n" "done"
@@ -616,23 +630,22 @@ if [[ -n ${CREATEDZONES} ]]; then
                     break
             fi
             if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-                printf "%-58s%s\r" "${msg}" "${nstarting}" >&${CONSOLE_FD}
+                printf_log "%-58s%s\r" "${msg}" "${nstarting}"
             fi
             sleep 5
             i=`expr $i + 1`
         done
         if [[ ${restore} == 0 ]]; then
-            printf "%-58s%s\n" "${msg}" "done" >&${CONSOLE_FD}
+            printf_log "%-58s%s\n" "${msg}" "done"
         else
             # alternate formatting when restoring (sdc-restore)
             printf "%s%-20s\n" "${msg}" "done" >&${CONSOLE_FD}
         fi
 
         if [ $nstarting -gt 1 ]; then
-            echo "Warning: services in the following zones are still not running:" \
-                >&${CONSOLE_FD}
-            svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u \
-                >&${CONSOLE_FD}
+            printf_log "Warning: services in the following zones are still not running:\n"
+            svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u | \
+                tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
         fi
 
         # The SMF services should now be up, so we wait for the setup scripts
@@ -647,7 +660,7 @@ if [[ -n ${CREATEDZONES} ]]; then
                 msg="waiting for zones to finish setting up... "
             fi
             if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-                printf "%-58s%s\r" "${msg}" "${nsettingup}" >&${CONSOLE_FD}
+                printf_log "%-58s%s\r" "${msg}" "${nsettingup}"
             fi
             i=$((${i} + 1))
             sleep 5
@@ -655,11 +668,11 @@ if [[ -n ${CREATEDZONES} ]]; then
         done
 
         if [[ ${nsettingup} -gt 0 ]]; then
-            printf "%-58s%s\n" "${msg}" "failed"  >&${CONSOLE_FD}
-            fatal "Warning: some zones did not finish setup, installation has " \
-                "failed."
+            printf_log "%-58s%s\n" "${msg}" "failed"
+            fatal "Warning: some zones did not finish setup, installation " \
+                "has failed."
         elif [[ ${restore} == 0 ]]; then
-            printf "%-58s%s\n" "${msg}" "done"  >&${CONSOLE_FD}
+            printf_log "%-58s%s\n" "${msg}" "done"
         else
             # alternate formatting when restoring (sdc-restore)
             printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
@@ -680,9 +693,9 @@ if [[ -n ${CREATEDZONES} ]]; then
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
-        printf "%-58s" "Executing post-install script..." >&${CONSOLE_FD}
+        printf_log "%-58s" "Executing post-install script..."
         bash ${USB_COPY}/scripts/post-install.sh
-        echo "done" >&${CONSOLE_FD}
+        printf_log "done\n"
     fi
 
     printf_timer "%-58sdone (%ss)\n" "completing setup..."
@@ -719,10 +732,10 @@ else
 fi
 
 if [[ $upgrading == 1 ]]; then
-    printf "%-58s\n" "running post-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf_log "%-58s\n" "running post-setup upgrade tasks... "
     /var/upgrade_headnode/upgrade_hooks.sh "post" \
         4>/var/upgrade_headnode/finish_post.log
-    printf "%-58s" "completed post-setup upgrade tasks... " >&${CONSOLE_FD}
+    printf_log "%-58s" "completed post-setup upgrade tasks... "
     printf_timer "%4s (%ss)\n" "done"
 fi
 

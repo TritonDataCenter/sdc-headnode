@@ -985,5 +985,7 @@ chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 trap EXIT
 
 echo "Rebooting to finish the upgrade"
+echo "    Upgrade progress will be visible on the console or by watching"
+echo "    the file /tmp/upgrade_progress after the system reboots."
 reboot
 exit 0

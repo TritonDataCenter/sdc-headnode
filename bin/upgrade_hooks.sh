@@ -51,6 +51,11 @@ shutdown_zone()
 	[[ $cnt == 18 ]] && zoneadm -z $1 halt
 }
 
+print_log()
+{
+    echo "$@" | tee -a /tmp/upgrade_progress >/dev/console
+}
+
 create_extra_zones()
 {
     declare -A existing_zones=()
@@ -72,7 +77,7 @@ create_extra_zones()
     do
         [[ ${existing_zones[$i]} == 1 ]] && continue
 
-        echo "creating zone $i..." >/dev/console
+        print_log "creating zone $i..."
 
         # 6.5.x billapi role is now usageapi role, lookup billapi external IP
         ext_role=$i
@@ -143,7 +148,7 @@ create_extra_zones()
             saw_err "Error creating $i zone: svcs error"
         else
             # Zone is setup ok, run the post-setup hook
-            echo "upgrading zone $i..." >/dev/console
+            print_log "upgrading zone $i..."
             ${SDC_UPGRADE_DIR}/upgrade_hooks.sh $i ${new_uuid} \
               4>${SDC_UPGRADE_DIR}/finish_${i}.log
         fi
@@ -161,11 +166,11 @@ pre_tasks()
         imgadm update
     fi
 
-    echo "Installing images" >/dev/console
+    print_log "Installing images"
     for i in /usbkey/datasets/*.dsmanifest
     do
         bname=${i##*/}
-        echo "Import dataset $bname" >/dev/console
+        print_log "Import dataset $bname"
 
         bzname=`nawk '{
             if ($1 == "\"path\":") {
@@ -176,7 +181,7 @@ pre_tasks()
         }' $i`
 
         if [ ! -f /usbkey/datasets/$bzname ]; then
-            echo "Skipping $i, no image file in /usbkey/datasets" >/dev/console
+            print_log "Skipping $i, no image file in /usbkey/datasets"
             continue
         fi
 
@@ -189,7 +194,7 @@ post_tasks()
     # Need to wait for all svcs to be up before we can create additional zones
     # Give headnode.sh a second to emit all of its messages.
     sleep 1
-    echo "Upgrade: waiting for all svcs to be ready..." >/dev/console
+    print_log "Upgrade: waiting for all svcs to be ready..."
     loops=0
     while [[ -n $(svcs -x) && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]
     do
@@ -199,11 +204,11 @@ post_tasks()
 
     if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
         saw_err "Error global zone: svcs timed out"
-        echo "Upgrade: ERROR global zone: svcs timed out" >/dev/console
+        print_log "Upgrade: ERROR global zone: svcs timed out"
         exit 1
     fi
 
-    echo "Upgrade: all svcs are ready, continuing..." >/dev/console
+    print_log "Upgrade: all svcs are ready, continuing..."
 
     # load config to pick up latest settings
     load_sdc_config
@@ -215,14 +220,14 @@ post_tasks()
     # XXX Install old platforms used by CNs
 
     mv ${SDC_UPGRADE_DIR} $dname
-    echo "The upgrade is finished" >/dev/console
-    echo "The upgrade logs are in $dname" >/dev/console
+    print_log "The upgrade is finished"
+    print_log "The upgrade logs are in $dname"
 
     if [ -f $dname/error_finalize.txt ]; then
-        echo "ERRORS during upgrade:" >/dev/console
-        cat $dname/error_finalize.txt >/dev/console
-        echo "You must resolve these errors before the headnode is usable" \
+        print_log "ERRORS during upgrade:"
+        cat $dname/error_finalize.txt | tee -a /tmp/upgrade_progress \
             >/dev/console
+        print_log "You must resolve these errors before the headnode is usable"
         exit 1
     fi
 }
@@ -288,7 +293,7 @@ ufds_tasks()
 case "$1" in
 "pre") pre_tasks;;
 
-"post") echo "Finishing the upgrade in the background" >/dev/console
+"post") print_log "Finishing the upgrade in the background"
         ${SDC_UPGRADE_DIR}/upgrade_hooks.sh "post_bg" \
             4>${SDC_UPGRADE_DIR}/finish_post.log &
         ;;
