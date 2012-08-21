@@ -46,7 +46,14 @@ if [[ $COMMIT == 1 ]]; then
         zfs destroy $i
     done
 
+    for i in `zfs list -o name -H | egrep "_rollback$"`
+    do
+        zfs destroy -r $i
+    done
+
     rm -rf /var/usb_rollback
+
+    zpool upgrade zones
 fi
 
 exit 0
