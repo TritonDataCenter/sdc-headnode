@@ -74,7 +74,7 @@ echo "snapshotting the datasets"
 zfs list -H -o name -s name >/var/usb_rollback/ds_orig
 ls /zones >/var/usb_rollback/files_orig
 
-zfs snapshot -r zones@rollback
+zfs snapshot -r zones@rollback || fatal "failed to snapshot zones"
 zfs destroy zones@rollback
 zfs destroy zones/dump@rollback
 zfs destroy zones/swap@rollback

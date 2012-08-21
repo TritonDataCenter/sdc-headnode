@@ -177,6 +177,16 @@ do
     rm -rf $i
 done
 
+# If there are any customer zones installed on the HN, they will have been
+# snapshotted too.  We need to clean up those snapshots but we don't rollback
+# those zones.  At this point, that should be the only "rollback" snapshots
+# still around.
+for i in `zfs list -t snapshot -H -o name | \
+    nawk -F@ '{if ($2 == "rollback") print $0}'`
+do
+    zfs destroy $i
+done
+
 rm -rf /var/usb_rollback
 
 # If rolling back in the middle of a failed upgrade, grab the log files now
