@@ -485,6 +485,9 @@ function cleanup_config
 	next_addr=$(expr $next_addr + 1)
 	portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	next_addr=$(expr $next_addr + 1)
+	clortho_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
 	   usage_ext_vlan="# usageapi_external_vlan=0"
 	else
@@ -528,6 +531,9 @@ function cleanup_config
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
+
+	clortho_root_pw=$CONFIG_adminui_root_pw
+	clortho_admin_ips=$clortho_admin_ip
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
