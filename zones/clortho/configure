@@ -9,7 +9,7 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-echo "Creating CLORTHO config file"
+echo "Creating Clortho config file"
 cat > /opt/smartdc/clortho/config.json <<HERE
 {
   "logLevel": "debug",
@@ -29,6 +29,11 @@ cat > /opt/smartdc/clortho/config.json <<HERE
 }
 HERE
 
+echo "Creating Clortho encryption key"
+key=$(openssl enc -aes-128-cbc -P -k /dev/urandom | grep key | cut -f2 -d '=')
+cat > /opt/smartdc/clortho/keyfile <<DONE
+{ "latest" : "${key}" }
+DONE
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/clortho/g" /opt/smartdc/clortho/smf/manifests/clortho.xml)
