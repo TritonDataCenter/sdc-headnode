@@ -30,7 +30,8 @@ cat > /opt/smartdc/clortho/config.json <<HERE
 HERE
 
 echo "Creating Clortho encryption key"
-key=$(openssl enc -aes-128-cbc -P -k /dev/urandom | grep key | cut -f2 -d '=')
+rand=$(cat /dev/urandom | gtr -cd [:alnum:] | ghead -c ${1:-1024})
+key=$(openssl enc -aes-128-cbc -P -k ${rand} | grep key | cut -f2 -d '=')
 cat > /opt/smartdc/clortho/keyfile <<DONE
 { "latest" : "${key}" }
 DONE
