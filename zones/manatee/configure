@@ -129,7 +129,7 @@ svcadm enable cron
 
 # Add Log rotation
 echo "Adding log rotation"
-logadm -w manatee -C 48 -c -p 1h /var/svc/log/sds-application-manatee:default.log
+logadm -w manatee -C 48 -c -p 1h /var/svc/log/sds-application-manatee-sitter:default.log
 logadm -w manatee-postgres -C 48 /var/pg/postgresql*.log
 logadm -w manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log
 logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
