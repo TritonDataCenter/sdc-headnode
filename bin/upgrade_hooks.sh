@@ -72,6 +72,7 @@ create_extra_zones()
     local ext_ip=
     local ext_ip_arg=
     local res=
+    local hn_uuid=$(sysinfo | json UUID)
 
     for i in $EXTRA_ZONES
     do
@@ -89,7 +90,7 @@ create_extra_zones()
         ext_ip_arg=""
         [ -n "$ext_ip" ] && ext_ip_arg="-o external_ip=$ext_ip"
 
-        sdc-role create $ext_ip_arg $i 1>/tmp/role.out.$$ 2>&1
+        sdc-role create $ext_ip_arg $hn_uuid $i 1>/tmp/role.out.$$ 2>&1
         res=$?
         cat /tmp/role.out.$$ 1>&4
         if [ $res != 0 ]; then
@@ -99,10 +100,11 @@ create_extra_zones()
 
             # Capture the job info into the log
             local job=`nawk '/Job is/{print $NF}' /tmp/role.out.$$`
-            rm -f /tmp/role.out.$$
-            curl -i -s -u admin:${CONFIG_vmapi_http_admin_pw} \
-                http://${CONFIG_vmapi_admin_ips}/${job} | json 1>&4 2>&1
+            [ -n "$job" ] && \
+                curl -i -s -u admin:${CONFIG_vmapi_http_admin_pw} \
+                    http://${CONFIG_vmapi_admin_ips}/${job} | json 1>&4 2>&1
 
+            rm -f /tmp/role.out.$$
             continue
         fi
         rm -f /tmp/role.out.$$
