@@ -44,12 +44,16 @@ server_list()
         #  nic_UUID_<tag>=<IP>
         #
         # with uuid's dashes changed to underscore to meet bash's variable name requirements.
-        admin_ip_mappings=$(napi /nics?belongs_to_type=server | json -H -a \
-            -e "eval_line='nic_' + this.belongs_to_uuid.replace(/\-/g, '_') + '_' + nic_tag + '=' + ip;" \
-            eval_line)
-        if [[ -n ${admin_ip_mappings} ]]; then
-            eval ${admin_ip_mappings}
-        fi
+        for data in $(napi /nics?belongs_to_type=server | json -H -a nic_tag ip belongs_to_uuid | tr ' ' '|'); do
+            if [[ -n ${data} ]]; then
+                tag=$(echo "${data}" | cut -d '|' -f1)
+                ip=$(echo "${data}" | cut -d '|' -f2)
+                uuid=$(echo "${data}" | cut -d '|' -f3 | tr '-' '_')
+                if [[ -n ${tag} && -n ${ip} && -n ${uuid} ]]; then
+                    eval "nic_${uuid}_${tag}=${ip}"
+                fi
+            fi
+        done
 
         printf "%-20s %-36s  %-5s  %7s  %15s\n" \
             "HOSTNAME" "UUID" "SETUP" "RAM" "ADMIN_IP"
