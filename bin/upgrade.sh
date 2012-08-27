@@ -31,6 +31,8 @@ VERS_6_5_4=20120523
 
 ZONES6X="adminui assets billapi ca capi cloudapi dhcpd mapi portal rabbitmq riak"
 
+declare -A SERVER_IP=()
+
 mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
     svc:/system/filesystem/smartdc:default)"
@@ -323,6 +325,77 @@ function upgrade_usbkey
     [ $? != 0 ] && fatal_rb "syncing USB key to disk"
 }
 
+ip_to_num()
+{
+    IP=$1
+
+    OLDIFS=$IFS
+    IFS=.
+    set -- $IP
+    num_a=$(($1 << 24))
+    num_b=$(($2 << 16))
+    num_c=$(($3 << 8))
+    num_d=$4
+    IFS=$OLDIFS
+
+    num=$((num_a + $num_b + $num_c + $num_d))
+}
+
+num_to_ip()
+{
+    NUM=$1
+
+    fld_d=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_c=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_b=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_a=$NUM
+
+    ip_addr="$fld_a.$fld_b.$fld_c.$fld_d"
+}
+
+# Load the allocated server IP addrs so we can check for collisions when
+# allocating IPs for the new core zones.
+function load_server_addrs
+{
+    SERVER_ADDRS_IN_USE=0
+
+    for i in `curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
+        $CONFIG_mapi_client_url/servers | json | nawk '{
+            if ($1 == "\"ip_address\":") {
+                ip = substr($2, 2, length($2) - 3)
+                print ip
+            }
+        }'`
+    do
+        [ "$i" == "$CONFIG_admin_ip" ] && continue
+        SERVER_ADDRS_IN_USE=$(($SERVER_ADDRS_IN_USE + 1))
+        ip_to_num $i
+        SERVER_IP[$num]=1
+    done
+}
+
+# Allocate an unused IP addr from the dhcp range
+function allocate_ip_addr
+{
+    i=$dhcp_start
+    while [[ $i -le $dhcp_end ]]
+    do
+        if [ -z "${SERVER_IP[$i]}" ]; then
+            SERVER_IP[$i]=1
+            num_to_ip $i
+            return
+        fi
+        i=$(($i + 1))
+    done
+
+    # No free addrs - this shouldn't happen since we checked up front, but
+    # just in case...
+    fatal_rb "allocating an IP address, the DHCP range is exhausted"
+}
+
 # Save the external network IP addresses so we can re-use that info after the
 # upgrade.
 function save_zone_addrs
@@ -427,66 +500,111 @@ function cleanup_config
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config >/tmp/config.$$
 
-	# Calculate fixed addresses for some of the new zones
+	# Calculate fixed addresses for some of the new zones.
 	# Using the model from the 6.x prompt-config.sh we use the old
-	# assets_admin_ip address as the starting point for the zones and
+	# adminui_admin_ip address as the starting point for the zones and
 	# increment up.
-	# XXX should really start from the adminui_admin_ip address?
-	# This address is being removed from the config and not in the new one.
-	ip_netmask_to_haddr "$CONFIG_assets_admin_ip" "$CONFIG_admin_netmask"
+	#
+	# We first want to re-use the 11 addrs before we eat into the dhcp
+	# range for the additional addrs we need. We may have 4 additional
+	# addrs to use as well, if the customer has setup their config in the
+	# default manner.
+
+	# 1
+	ip_netmask_to_haddr "$CONFIG_adminui_admin_ip" "$CONFIG_admin_netmask"
 	next_addr=$host_addr
 	assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 2
 	next_addr=$(expr $next_addr + 1)
 	dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 3
 	next_addr=$(expr $next_addr + 1)
 	napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 4
 	next_addr=$(expr $next_addr + 1)
 	zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 5
 	next_addr=$(expr $next_addr + 1)
 	manatee_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 6
 	next_addr=$(expr $next_addr + 1)
 	moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 7
 	next_addr=$(expr $next_addr + 1)
 	ufds_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 8
 	next_addr=$(expr $next_addr + 1)
 	workflow_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 9
 	next_addr=$(expr $next_addr + 1)
 	rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 10
 	next_addr=$(expr $next_addr + 1)
 	imgapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+	# 11
 	next_addr=$(expr $next_addr + 1)
 	cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
-	next_addr=$(expr $next_addr + 1)
-	redis_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# We may have 4 more free fixed IP addrs to use or we may have to eat
+	# into the dhcp range for these next 4  new zones.
 
-	next_addr=$(expr $next_addr + 1)
-	amon_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 12
+	if [ $HAVE_FREE_RANGE -eq 1 ]; then
+	    next_addr=$(expr $next_addr + 1)
+	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	else
+	    allocate_ip_addr
+	fi
+	redis_admin_ip="$ip_addr"
 
-	next_addr=$(expr $next_addr + 1)
-	dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 13
+	if [ $HAVE_FREE_RANGE -eq 1 ]; then
+	    next_addr=$(expr $next_addr + 1)
+	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	else
+	    allocate_ip_addr
+	fi
+	amon_admin_ip="$ip_addr"
 
-	next_addr=$(expr $next_addr + 1)
-	vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 14
+	if [ $HAVE_FREE_RANGE -eq 1 ]; then
+	    next_addr=$(expr $next_addr + 1)
+	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	else
+	    allocate_ip_addr
+	fi
+	dapi_admin_ip="$ip_addr"
 
-	next_addr=$(expr $next_addr + 1)
-	dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 15
+	if [ $HAVE_FREE_RANGE -eq 1 ]; then
+	    next_addr=$(expr $next_addr + 1)
+	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	else
+	    allocate_ip_addr
+	fi
+	vmapi_admin_ip="$ip_addr"
 
-	next_addr=$(expr $next_addr + 1)
-	portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# We have now definitely re-allocated the fixed IP addrs so we have to
+	# eat into the dhcp range for the rest of the new zones.
 
-	next_addr=$(expr $next_addr + 1)
-	clortho_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	allocate_ip_addr
+	dcapi_admin_ip="$ip_addr"
+
+	allocate_ip_addr
+	portal_admin_ip="$ip_addr"
+
+	allocate_ip_addr
+	clortho_admin_ip="$ip_addr"
 
 	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
 	   usage_ext_vlan="# usageapi_external_vlan=0"
@@ -836,10 +954,52 @@ umount_usbkey
 [[ $fspace -lt 700000 ]] && \
     fatal "there is not enough free space on the USB key"
 fspace=`zfs list -o avail -Hp zones`
-# At least 1GB free on disk?
-[[ $fspace -lt 1000000000 ]] && \
+# At least 4GB free on disk?
+[[ $fspace -lt 4000000000 ]] && \
     fatal "there is not enough free space in the zpool"
 
+load_server_addrs
+
+# Verify there is enough free IP addrs in the dhcp range for the upgrade.
+#
+# In 6.x we allocated 10 IP addrs for the zones on the admin net, plus 1 IP
+# addr for the dhcp_next_server entry which was unused. This gives 11 available
+# IP addrs. We then allowed a block of 4 additional unused addrs before the
+# start of the dhcp range, but not all customer configs are setup with the 4
+# free addrs followed by the dhcp range.
+#
+# We need at least 7 or 11 free addresses to accomodate the new zones,
+# depending on how the user config is setup and if we can use the 4 free addrs.
+#
+# XXX each time another new core HN zone is added, we need to bump this up
+need_num_addrs=7
+
+ip_to_num $CONFIG_dhcp_next_server
+unused_addr=$num
+
+ip_to_num $CONFIG_dhcp_range_start
+dhcp_start=$num
+
+ip_to_num $CONFIG_dhcp_range_end
+dhcp_end=$num
+
+# the dhcp range is inclusive, so add 1
+dhcp_total=$(($dhcp_end - $dhcp_start + 1))
+dhcp_avail=$(($dhcp_total - $SERVER_ADDRS_IN_USE))
+
+# Check if we have the block of 4 free IP addrs to use
+# the dhcp range is inclusive, so we need to subtract 1
+free_range=$(($dhcp_start - $unused_addr - 1))
+HAVE_FREE_RANGE=1
+if [ $free_range -ne 4 ]; then
+     HAVE_FREE_RANGE=0
+     need_num_addrs=$(($need_num_addrs + 4))
+fi
+
+[[ $dhcp_avail -lt $need_num_addrs ]] && \
+    fatal "there are not enough free IP addresses in the DHCP range to upgrade"
+
+trap "" SIGINT
 trap cleanup EXIT
 
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
