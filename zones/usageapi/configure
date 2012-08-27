@@ -132,6 +132,7 @@ cat > /opt/smartdc/usageapi/config/config.json <<HERE
   "logLevel": 4,
   "user": "${HTTP_ADMIN_USER}",
   "password": "${HTTP_ADMIN_PW}",
+  "metering_granularity": 3600,
   "amqp": {
     "host": "${RABBIT_IP}",
     "login": "guest",
