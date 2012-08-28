@@ -21,7 +21,6 @@ function update_env {
 ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
 DATASET=zones/$ZONE_UUID/data
 DATASET_DIR=/zones/$ZONE_UUID/data
-#PG_DIR=$DATASET_DIR/pg
 PG_DIR=/manatee/pg/data
 ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
@@ -61,39 +60,29 @@ echo "make snapshot dir visible"
 zfs set snapdir=visible $DATASET
 
 # ZK configs
-REGISTRAR_PATH=/com/joyent/smartdc/pg
-REGISTRAR_PATH_PREFIX=/com/joyent/smartdc
-SHARD_PATH=/shard/sdc
-SHARD_ID=sdc
+ZK_TIMEOUT=200
+SHARD_PATH=/manatee/sdc
+
+# backup and snapshot configs
 BACKUP_SERVER_PORT=12345
 BACKUP_URL=http://$ZONE_IP:$BACKUP_SERVER_PORT
 SNAPSHOT_INTERVAL=3600000
 SNAPSHOT_NUMBER=5
-TTL=10
 
-# Append port 2181 to zookeeper admin ips
-ZK_URL=`echo $ZOOKEEPER_ADMIN_IPS | gsed "s/,/:2181,/g"`
-#ZK_URL=$ZK_URL:2181
-
-ZK_TIMEOUT=200
 ZFS_RECV_PATH=/opt/smartdc/manatee/bin/zfs_recv
 ZFS_RECV_PORT=1234
 ZFS_SEND_PATH=/opt/smartdc/manatee/bin/zfs_send
 PG_URL=tcp://postgres@$ZONE_IP:5432/postgres
-SNAPSHOT_DIR=/manatee/pg/.zfs/snapshot/
+SNAPSHOT_DIR=$DATASET_MOUNT_DIR/.zfs/snapshot/
 
 # update sitter cfg file
 echo "Updating /opt/smartdc/manatee/etc/sitter.json"
 cp /opt/smartdc/manatee/etc/sitter.json.in $SITTER_CFG_FILE
+
 gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $SITTER_CFG_FILE
 gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
-gsed -i -e "s|SHARD_ID|$SHARD_ID|g" $SITTER_CFG_FILE
-gsed -i -e "s|TTL|$TTL|g" $SITTER_CFG_FILE
-gsed -i -e "s|REGISTRAR_PATH|$REGISTRAR_PATH|g" $SITTER_CFG_FILE
-gsed -i -e "s|REGISTRAR_PREFIX_PATH|$REGISTRAR_PATH_PREFIX|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZK_URL|$ZK_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
 gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
@@ -101,6 +90,17 @@ gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZONE_IP|$ZONE_IP|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE
+
+# update zk config - stole from registrar
+echo "setting zk ips for sitter.cfg"
+echo $ZOOKEEPER_ADMIN_IPS
+for ip in $ZOOKEEPER_ADMIN_IPS
+do
+cat $SITTER_CFG_FILE| \
+    json -e "zkCfg.servers.push({ host: \"$ip\", port: 2181 });" \
+    > /tmp/.sitter.json
+mv /tmp/.sitter.json $SITTER_CFG_FILE
+done
 
 # update snapshot cfg file
 echo "Updating /opt/smartdc/manatee/etc/snapshotter.json"
@@ -145,6 +145,6 @@ echo "Starting backupserver"
 svccfg import /opt/smartdc/manatee/smf/manifests/backupserver.xml
 svcadm enable manatee-backupserver
 
-#echo "Starting sitter"
-#svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
-#svcadm enable sitter
+echo "Starting sitter"
+svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
+svcadm enable manatee-sitter
