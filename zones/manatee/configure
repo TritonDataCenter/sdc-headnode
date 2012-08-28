@@ -20,7 +20,7 @@ function update_env {
 
 ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
 DATASET=zones/$ZONE_UUID/data
-DATASET_DIR=/zones/$ZONE_UUID/data
+DATASET_MOUNT_DIR=/manatee/pg
 PG_DIR=/manatee/pg/data
 ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
