@@ -21,9 +21,10 @@ function update_env {
 ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
 DATASET=zones/$ZONE_UUID/data
 DATASET_DIR=/zones/$ZONE_UUID/data
-PG_DIR=$DATASET_DIR/pg
+#PG_DIR=$DATASET_DIR/pg
+PG_DIR=/manatee/pg/data
 ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
-MANATEE_CFG_FILE=/opt/smartdc/manatee/etc/manatee.json
+SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
 SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/etc/snapshotter.json
 BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 
@@ -40,7 +41,10 @@ echo "grant postgres user zfs perms"
 zfs allow -ld postgres create,destroy,snapshot,mount,send,receive $DATASET
 
 # change dataset perms such that manatee can access the dataset and mount/unmount
+mkdir -p /manatee/pg
 chmod 777 -R /zones/$ZONE_UUID/
+chmod 777 -R /manatee/pg
+zfs set mountpoint=/manatee/pg $DATASET
 
 # add pg log dir
 mkdir -p /var/pg
@@ -69,33 +73,34 @@ TTL=10
 
 # Append port 2181 to zookeeper admin ips
 ZK_URL=`echo $ZOOKEEPER_ADMIN_IPS | gsed "s/,/:2181,/g"`
-ZK_URL=$ZK_URL:2181
+#ZK_URL=$ZK_URL:2181
 
 ZK_TIMEOUT=200
 ZFS_RECV_PATH=/opt/smartdc/manatee/bin/zfs_recv
 ZFS_RECV_PORT=1234
 ZFS_SEND_PATH=/opt/smartdc/manatee/bin/zfs_send
 PG_URL=tcp://postgres@$ZONE_IP:5432/postgres
-SNAPSHOT_DIR=$DATASET_DIR/.zfs/snapshot/
+SNAPSHOT_DIR=/manatee/pg/.zfs/snapshot/
 
-# update manatee cfg file
-echo "Updating /opt/smartdc/manatee/etc/manatee.json"
-cp /opt/smartdc/manatee/etc/manatee.json.in $MANATEE_CFG_FILE
-gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $MANATEE_CFG_FILE
-gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $MANATEE_CFG_FILE
-gsed -i -e "s|SHARD_ID|$SHARD_ID|g" $MANATEE_CFG_FILE
-gsed -i -e "s|TTL|$TTL|g" $MANATEE_CFG_FILE
-gsed -i -e "s|REGISTRAR_PATH|$REGISTRAR_PATH|g" $MANATEE_CFG_FILE
-gsed -i -e "s|REGISTRAR_PREFIX_PATH|$REGISTRAR_PATH_PREFIX|g" $MANATEE_CFG_FILE
-gsed -i -e "s|PG_URL|$PG_URL|g" $MANATEE_CFG_FILE
-gsed -i -e "s|PG_DIR|$PG_DIR|g" $MANATEE_CFG_FILE
-gsed -i -e "s|ZK_URL|$ZK_URL|g" $MANATEE_CFG_FILE
-gsed -i -e "s|DATASET|$DATASET|g" $MANATEE_CFG_FILE
-gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $MANATEE_CFG_FILE
-gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $MANATEE_CFG_FILE
-gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $MANATEE_CFG_FILE
-gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $MANATEE_CFG_FILE
-gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $MANATEE_CFG_FILE
+# update sitter cfg file
+echo "Updating /opt/smartdc/manatee/etc/sitter.json"
+cp /opt/smartdc/manatee/etc/sitter.json.in $SITTER_CFG_FILE
+gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $SITTER_CFG_FILE
+gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
+gsed -i -e "s|SHARD_ID|$SHARD_ID|g" $SITTER_CFG_FILE
+gsed -i -e "s|TTL|$TTL|g" $SITTER_CFG_FILE
+gsed -i -e "s|REGISTRAR_PATH|$REGISTRAR_PATH|g" $SITTER_CFG_FILE
+gsed -i -e "s|REGISTRAR_PREFIX_PATH|$REGISTRAR_PATH_PREFIX|g" $SITTER_CFG_FILE
+gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
+gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZK_URL|$ZK_URL|g" $SITTER_CFG_FILE
+gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
+gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZONE_IP|$ZONE_IP|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE
 
 # update snapshot cfg file
 echo "Updating /opt/smartdc/manatee/etc/snapshotter.json"
@@ -124,7 +129,7 @@ svcadm enable cron
 
 # Add Log rotation
 echo "Adding log rotation"
-logadm -w manatee -C 48 -c -p 1h /var/svc/log/sds-application-manatee:default.log
+logadm -w manatee -C 48 -c -p 1h /var/svc/log/sds-application-manatee-sitter:default.log
 logadm -w manatee-postgres -C 48 /var/pg/postgresql*.log
 logadm -w manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log
 logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
@@ -140,6 +145,6 @@ echo "Starting backupserver"
 svccfg import /opt/smartdc/manatee/smf/manifests/backupserver.xml
 svcadm enable manatee-backupserver
 
-echo "Starting manatee"
-svccfg import /opt/smartdc/manatee/smf/manifests/manatee.xml
-svcadm enable manatee
+echo "Starting sitter"
+svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
+svcadm enable sitter
