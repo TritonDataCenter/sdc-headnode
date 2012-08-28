@@ -145,6 +145,6 @@ echo "Starting backupserver"
 svccfg import /opt/smartdc/manatee/smf/manifests/backupserver.xml
 svcadm enable manatee-backupserver
 
-echo "Starting sitter"
-svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
-svcadm enable sitter
+#echo "Starting sitter"
+#svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
+#svcadm enable sitter
