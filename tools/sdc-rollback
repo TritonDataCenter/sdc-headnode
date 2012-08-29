@@ -136,6 +136,11 @@ do
 	zfs set mountpoint=/zones/${z}/cores	zones/${z}/cores
 done
 
+# recreate old-style GZ cores dataset
+zfs destroy -r zones/cores
+zfs create -o quota=10g -o mountpoint=/zones/global/cores \
+    -o compression=gzip zones/cores
+
 # We need to re-enable the zoned attribute for the delegated datasets
 adminui_dds=`zfs list -o name -H | egrep "^zones/adminui/adminui-app"`
 mapi_dds=`zfs list -o name -H | egrep "^zones/mapi/mapi-app"`
@@ -156,8 +161,6 @@ fi
 
 zfs rollback zones/config@rollback
 zfs destroy  zones/config@rollback
-zfs rollback zones/cores@rollback
-zfs destroy  zones/cores@rollback
 zfs rollback zones/usbkey@rollback
 zfs destroy  zones/usbkey@rollback
 zfs rollback zones/opt@rollback

@@ -124,6 +124,11 @@ do
 	rmdir /zones/${z} 2>/dev/null
 done
 
+# convert to new-style GZ cores dataset
+zfs destroy -r zones/cores
+zfs create -o compression=gzip -o mountpoint=none zones/cores
+zfs create -o quota=10g -o mountpoint=/zones/global/cores zones/cores/global
+
 echo "done"
 
 exit 0

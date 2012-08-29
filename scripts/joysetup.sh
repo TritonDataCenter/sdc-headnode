@@ -267,7 +267,7 @@ setup_datasets()
 
   if ! echo $datasets | grep ${COREDS} > /dev/null; then
     printf "%-56s" "adding volume: cores" >&4
-    zfs create -o compression=gzip -o mountpoint=legacy ${COREDS} || \
+    zfs create -o compression=gzip -o mountpoint=none ${COREDS} || \
         fatal "failed to create the cores dataset"
     zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
         ${COREDS}/global || \
