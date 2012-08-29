@@ -26,7 +26,7 @@
   , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
   , "usageapi-tarball": "usageapi/usageapi-pkg-master-.*.tar.bz2"
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"
-  , "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2"
+  , "workflow-tarball": "https://stuff.joyent.us/stuff/builds/workflow/release-20120809-20120809T173325Z/workflow/workflow-pkg-release-20120809-20120809T173325Z-gea41bc8.tar.bz2"
   , "vmapi-tarball": "vmapi/vmapi-pkg-master-.*.tar.bz2"
   , "zookeeper-tarball": "none"
 

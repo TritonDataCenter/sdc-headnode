@@ -490,15 +490,38 @@ function cleanup_bit
 # re-downloaded.
 function get_bit
 {
-    # Presumption: This pattern is of the form
-    # "$single-level-dir/$file-regex-pattern".
+    # Presumption: This pattern is of the form:
+    # (a) "$single-level-dir/$file-regex-pattern", or
+    # (b) A complete URL.
     pattern=$1
 
     local get_bit_rv=
 
     local pattern_dir=$(dirname $pattern)
     local pattern_base="^$(basename $pattern)"
-    if [[ ! -z "$BITS_DIR" ]]; then
+    if [[ ${pattern:0:7} == "http://" || ${pattern:0:8} == "https://" ]]; then
+        # Bit "pattern" is a full URL, download that.
+        local url=$pattern
+        local file_name=$(basename $url)
+        local cache_path=${ROOT}/cache/${file_name}
+        local hostname=$(echo $url | cut -f3 -d "/" | cut -f1 -d ":")
+        if [[ "$hostname" == "stuff.joyent.us" ]]; then
+            echo "Adding auth info for stuff.joyent.us in bit URL." >&2
+            if [[ ! -f "$HOME/.sdcbuild.json" ]]; then
+                fatal "No '$HOME/.sdcbuild.json' with stuff.joyent.us auth info."
+            fi
+            local username=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json username)
+            local password=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json password)
+            url=$(echo $url | sed -e "s|://|://${username}:${password}@|")
+        fi
+        if [[ ! -f $cache_path ]]; then
+            echo "Downloading '${url}' bit to cache." >&2
+            (cd ${ROOT}/cache && curl ${CURL_OPTS} --fail \
+                --connect-timeout 10 --progress-bar -k -O ${url} \
+                || fatal "Unable to download '${url}'.")
+        fi
+        get_bit_rv=${cache_path}
+    elif [[ ! -z "$BITS_DIR" ]]; then
         # Local BITS_DIR example:
         #   /home/jill/joy/mountain-gorilla/bits
         # where pattern='agentsshar/agents-master-*' is at:
@@ -839,6 +862,10 @@ function copy_dataset
 #       it to cache/ca.tar.bz2 (where that "ca" is the basename of
 #       "zones/ca").
 #
+#   get_fs_tarball 'https://stuff.joyent.us/stuff/builds/workflow/release-20120809-20120809T173325Z/workflow/workflow-pkg-release-20120809-20120809T173325Z-gea41bc8.tar.bz2' cache/stage/zones/workflow
+#       Here we download the given URL, cache it to "cache/$basename" and
+#       copy it to the DST-DIR.
+#
 #   get_fs_tarball /var/tmp/ca-pkg-master-1234.tar.bz2 cache/stage/zones/ca
 #       The "TARGET" can be a path to an existing file to use.
 #
@@ -853,7 +880,7 @@ function get_fs_tarball
 
     [[ -z ${target} ]] && fatal "get_fs_tarball(): No target specified."
 
-    # First get its and cache to cache/$zone.tar.bz2. Then we'll copy
+    # First get it and cache to cache/$zone.tar.bz2. Then we'll copy
     # it to $dst_dir.
     zone=$(basename ${dst_dir})
     cache_path=${ROOT}/cache/${zone}.tar.bz2
@@ -863,7 +890,7 @@ function get_fs_tarball
             cp ${target} ${cache_path}
         fi
     else
-        # not a file so assume it's a pattern, find the latest
+        # not a file so assume it's a pattern (find the latest) or URL
         local bit_cache_path=$(get_bit ${target})
         rm -f ${cache_path}
         ln ${bit_cache_path} ${cache_path}
