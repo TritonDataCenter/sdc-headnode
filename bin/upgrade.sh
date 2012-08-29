@@ -103,6 +103,11 @@ function fatal
     msg=$1
 
     echo "ERROR: ${msg}" >/dev/stderr
+
+    if [ $CHECK_ONLY -eq 1 ]; then
+        FATAL_CNT=$(($FATAL_CNT + 1))
+        return
+    fi
     exit 1
 }
 
@@ -914,6 +919,17 @@ function wait_and_clear
 	done
 }
 
+CHECK_ONLY=0
+FATAL_CNT=0
+while getopts "c" opt
+do
+	case "$opt" in
+		c)	CHECK_ONLY=1;;
+		*)	echo "ERROR: invalid option" >/dev/stderr
+			exit 1;;
+	esac
+done
+
 # Ensure we're a SmartOS headnode
 if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     || $(uname -s) != "SunOS" \
@@ -923,9 +939,11 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
 fi
 
 # We might be re-running upgrade again after a rollback, so first cleanup
-rm -rf $SDC_UPGRADE_DIR /var/usb_rollback
+if [ $CHECK_ONLY -eq 0 ]; then
+    rm -rf $SDC_UPGRADE_DIR /var/usb_rollback
 
-mkdir -p $SDC_UPGRADE_DIR
+    mkdir -p $SDC_UPGRADE_DIR
+fi
 
 mount_usbkey
 check_versions
@@ -998,6 +1016,13 @@ fi
 
 [[ $dhcp_avail -lt $need_num_addrs ]] && \
     fatal "there are not enough free IP addresses in the DHCP range to upgrade"
+
+# End of validation checks, quit now if only validating
+if [ $CHECK_ONLY -eq 1 ]; then
+    [ $FATAL_CNT -gt 0 ] && exit 1
+    echo "No validation errors detected"
+    exit 0
+fi
 
 trap "" SIGINT
 trap cleanup EXIT
