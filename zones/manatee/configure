@@ -27,6 +27,10 @@ SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
 SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/etc/snapshotter.json
 BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 
+# extract the postgres binaries
+echo 'extracting postgres binaries'
+tar -xf /opt/smartdc/manatee/bin/postgres.tar.bz2 -C /
+
 # create postgres user
 echo "creating postgres user"
 useradd postgres
