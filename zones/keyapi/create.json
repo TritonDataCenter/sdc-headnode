@@ -1,8 +1,8 @@
 {
-  "alias": "clortho0",
+  "alias": "keyapi0",
   "brand": "joyent-minimal",
   "tags": {
-      "smartdc_role": "clortho",
+      "smartdc_role": "keyapi",
       "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones"

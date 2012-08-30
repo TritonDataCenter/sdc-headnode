@@ -609,7 +609,7 @@ function cleanup_config
 	portal_admin_ip="$ip_addr"
 
 	allocate_ip_addr
-	clortho_admin_ip="$ip_addr"
+	keyapi_admin_ip="$ip_addr"
 
 	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
 	   usage_ext_vlan="# usageapi_external_vlan=0"
@@ -655,8 +655,8 @@ function cleanup_config
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
 
-	clortho_root_pw=$CONFIG_adminui_root_pw
-	clortho_admin_ips=$clortho_admin_ip
+	keyapi_root_pw=$CONFIG_adminui_root_pw
+	keyapi_admin_ips=$keyapi_admin_ip
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw

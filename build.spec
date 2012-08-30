@@ -10,7 +10,7 @@
   , "amon-tarball": "amon/amon-pkg-master-.*.tar.bz2"
   , "assets-tarball": "assets/assets-pkg-master-.*.tar.bz2"
   , "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2"
-  , "clortho-tarball": "clortho/clortho-pkg-master-.*.tar.bz2"
+  , "keyapi-tarball": "keyapi/keyapi-pkg-master-.*.tar.bz2"
   , "cloudapi-tarball": "cloudapi/cloudapi-pkg-master-.*.tar.bz2"
   , "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2"
   , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"

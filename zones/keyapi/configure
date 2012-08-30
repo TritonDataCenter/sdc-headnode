@@ -9,8 +9,8 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-echo "Creating Clortho config file"
-cat > /opt/smartdc/clortho/config.json <<HERE
+echo "Creating KeyAPI config file"
+cat > /opt/smartdc/keyapi/config.json <<HERE
 {
   "logLevel": "debug",
   "maxSockets": 100,
@@ -19,8 +19,8 @@ cat > /opt/smartdc/clortho/config.json <<HERE
   },
   "ufds": {
     "url": "ldaps://localhost",
-    "bindDN": "$CLORTHO_LDAP_ROOT_DN",
-    "bindPassword": "$CLORTHO_LDAP_ROOT_PW",
+    "bindDN": "$KEYAPI_LDAP_ROOT_DN",
+    "bindPassword": "$KEYAPI_LDAP_ROOT_PW",
     "cache": {
       "size": 1000,
       "expiry": 300
@@ -29,18 +29,18 @@ cat > /opt/smartdc/clortho/config.json <<HERE
 }
 HERE
 
-echo "Creating Clortho encryption key"
+echo "Creating KeyAPI encryption key"
 rand=$(cat /dev/urandom | gtr -cd [:alnum:] | ghead -c ${1:-1024})
 key=$(openssl enc -aes-128-cbc -P -k ${rand} | grep key | cut -f2 -d '=')
-cat > /opt/smartdc/clortho/keyfile <<DONE
+cat > /opt/smartdc/keyapi/keyfile <<DONE
 { "latest" : "${key}" }
 DONE
 
 echo "Updating SMF manifest"
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/clortho/g" /opt/smartdc/clortho/smf/manifests/clortho.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/keyapi/g" /opt/smartdc/keyapi/smf/manifests/keyapi.xml)
 
 
-echo "Importing clortho.xml"
-/usr/sbin/svccfg import /opt/smartdc/clortho/smf/manifests/clortho.xml
+echo "Importing keyapi.xml"
+/usr/sbin/svccfg import /opt/smartdc/keyapi/smf/manifests/keyapi.xml
 
 exit 0

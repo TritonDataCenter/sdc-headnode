@@ -7,22 +7,22 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-role=clortho
+role=keyapi
 app_name=$role
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/clortho
+mkdir -p /var/smartdc/keyapi
 
-# Install CLORTHO
-mkdir -p /opt/smartdc/clortho
-chown -R nobody:nobody /opt/smartdc/clortho
+# Install KeyAPI 
+mkdir -p /opt/smartdc/keyapi
+chown -R nobody:nobody /opt/smartdc/keyapi
 
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/clortho/build/node/bin:/opt/smartdc/clortho/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/keyapi/build/node/bin:/opt/smartdc/keyapi/node_modules/.bin" >>/root/.bashrc
 
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
