@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+# Convenience wrapper for calling the Amon Relay Admin API.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
+
+AMON_RELAY_URL=localhost:4307
+
+
+# Arguments.
+verbose=0
+if [ "$1" == "-v" ]; then
+    shift
+    verbose=1
+fi
+path=$1
+if [[ -z "$path" ]]; then
+    echo "error: no PATH argument given"
+    echo ""
+    echo "Usage:"
+    echo "  sdc-amonrelay [-v] PATH [EXTRA-CURL-ARGS]"
+    exit 1
+fi
+shift;
+
+
+CURL_ARGS="-sS -i -H accept:application/json -H content-type:application/json"
+
+# Note: the 'echo' doesn't show the real quoting of args.
+[ "$verbose" == "1" ] && echo "# curl $CURL_ARGS --url $AMON_RELAY_URL$path $@" >&2
+curl $CURL_ARGS --url "$AMON_RELAY_URL$path" "$@" | json -q

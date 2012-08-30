@@ -1,0 +1,35 @@
+# sdc-amonrelay(1) -- call the Amon Relay Admin API for this node
+
+
+## SYNOPSIS
+
+`sdc-amonrelay [-v] URLPATH [CURL-OPTIONS...]`
+
+
+## DESCRIPTION
+
+This is a light convenience wrapper around `curl` for calling the 
+Amon Relay Admin API for this compute node. Each SDC node has
+an amon-relay agent running in the global zone. Each amon-relay
+provides an administrative HTTP REST API -- primarily for debugging.
+
+Formatting of the response is done via the `json` tool.
+
+
+## OPTIONS
+
+`-v`
+    Show the curl command that is being issued. If used this option must appear
+    before the URLPATH argument.
+
+Any additional options supported by `curl` may be used.
+
+
+## COPYRIGHT
+
+sdc-amonrelay Copyright (c) 2012 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+curl (1), json (1), sdc-amon (1)
