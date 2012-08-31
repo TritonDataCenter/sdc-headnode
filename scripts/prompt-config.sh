@@ -669,9 +669,9 @@ while IFS=: read -r link addr ; do
     nics[$nic_cnt]=$link
     macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
     # reformat the nic so that it's in the proper 00:00:ab... form not 0:0:ab...
-    macs[$nic_cnt]=$(printf "%s:%s:%s:%s:%s:%s" \
-        $(echo ":${macs[${nic_cnt}]}:" \
-        | sed -e "s/[:\"]\([0-9a-f]\)[\":]/:0\1:/g" | tr ':' ' '))
+    macs[$nic_cnt]=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" \
+        $(echo "${macs[${nic_cnt}]}" \
+        | tr ':' ' ' | sed -e "s/\([A-Fa-f0-9]*\)/0x\1/g"))
     assigned[$nic_cnt]="-"
 done < <(dladm show-phys -pmo link,address 2>/dev/null)
 
