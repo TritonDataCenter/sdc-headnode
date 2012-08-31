@@ -749,4 +749,6 @@ fi
 #
 #( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
 
+touch /var/svc/setup_complete
+
 exit 0
