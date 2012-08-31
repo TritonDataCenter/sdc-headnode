@@ -32,6 +32,11 @@ defaults
         timeout server 5m
 
 listen moray_proxy 127.0.0.1:81
+        mode http
+        option httplog
+        # Remove to log everything, including successful requests
+        option dontlog-normal
+        log global
 HERE
 
 # Add all Moray IPs
@@ -94,6 +99,22 @@ gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
 # Must replace right after NAPI ones
 gsed -i -e "s|HTTP_ADMIN_PW|$HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
+
+# HAProxy logging configuration with rsyslog
+# Create file to log haproxy:
+touch /var/log/haproxy.log
+# Set rsyslog config:
+cat >> /etc/rsyslog.conf <<HERE
+
+\$UDPServerRun 514
+\$UDPServerAddress *
+
+local0.*  /var/log/haproxy.log
+
+HERE
+
+# Restart syslog to make effective the changes before we start haproxy
+svcadm restart system-log
 
 echo "Enabling service haproxy"
 svcadm disable svc:/net/haproxy:default

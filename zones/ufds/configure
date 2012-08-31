@@ -51,6 +51,22 @@ gsed -i -e "s|ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|MORAY_URL|http://127.0.0.1:81|" $CFG_FILE
 
 
+# HAProxy logging configuration with rsyslog
+# Create file to log haproxy:
+touch /var/log/haproxy.log
+# Set rsyslog config:
+cat >> /etc/rsyslog.conf <<HERE
+
+\$UDPServerRun 514
+\$UDPServerAddress *
+
+local0.*  /var/log/haproxy.log
+
+HERE
+
+# Restart syslog to make effective the changes before we start haproxy
+svcadm restart system-log
+
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-master.xml)
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)

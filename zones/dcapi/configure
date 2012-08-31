@@ -112,7 +112,21 @@ do
     let U+=1
 done
 
+# HAProxy logging configuration with rsyslog
+# Create file to log haproxy:
+touch /var/log/haproxy.log
+# Set rsyslog config:
+cat >> /etc/rsyslog.conf <<HERE
 
+\$UDPServerRun 514
+\$UDPServerAddress *
+
+local0.*  /var/log/haproxy.log
+
+HERE
+
+# Restart syslog to make effective the changes before we start haproxy
+svcadm restart system-log
 
 echo "Importing haproxy service SMF"
 svccfg import /opt/local/share/smf/haproxy/manifest.xml
