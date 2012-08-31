@@ -712,6 +712,9 @@ if [[ -n ${CREATEDZONES} ]]; then
                 printf_timer "FROM_START" \
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
             fi
+            # Explicit marker file that headnode initial setup completed
+            # successfully.
+            touch /var/svc/setup_complete
         fi
         echo "" >&${CONSOLE_FD}
     fi
@@ -748,7 +751,5 @@ fi
 #fi
 #
 #( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
-
-touch /var/svc/setup_complete
 
 exit 0
