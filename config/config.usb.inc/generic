@@ -51,7 +51,7 @@ usageapi_pkg=sdc_128
 workflow_pkg=sdc_256
 manatee_pkg=sdc_1024
 moray_pkg=sdc_1024
-clortho_pkg=sdc_128
+keyapi_pkg=sdc_128
 
 vmapi_pkg=sdc_128
 dapi_pkg=sdc_128

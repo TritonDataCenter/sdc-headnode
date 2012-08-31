@@ -50,7 +50,7 @@ workflow_pkg=sdc_256
 manatee_pkg=sdc_128
 moray_pkg=sdc_128
 
-clortho_pkg=sdc_64
+keyapi_pkg=sdc_64
 
 vmapi_pkg=sdc_64
 dapi_pkg=sdc_64

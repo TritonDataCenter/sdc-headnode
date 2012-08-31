@@ -1094,7 +1094,7 @@ next_addr=$(expr $next_addr + 1)
 portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
-clortho_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+keyapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
@@ -1162,8 +1162,8 @@ echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
-echo "clortho_root_pw=$zone_admin_pw" >>$tmp_config
-echo "clortho_admin_ips=$clortho_admin_ip" >>$tmp_config
+echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "keyapi_admin_ips=$keyapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "# datacenter_name should be unique among your cloud," >>$tmp_config
