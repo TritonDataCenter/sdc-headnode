@@ -50,6 +50,7 @@ fi
 
 filename=$1
 hostname=$2
+bits_url=
 
 MD5_SUM=
 if [[ $(uname -s) == "SunOS" ]]; then
@@ -63,6 +64,11 @@ fi
 
 get_bits_url()
 {
+    if [[ -n ${bits_url} ]]; then
+        echo ${bits_url}
+        return 0
+    fi
+
     bits_url="https://stuff.smartdatacenter.org/"
 
     if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
@@ -76,10 +82,21 @@ get_bits_url()
 
     spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "bits-url")
     if [[ -n ${spec_bits_url} ]]; then
-        echo ${spec_bits_url}
-    else
-        echo ${bits_url}
+        bits_url=${spec_bits_url}
     fi
+
+    if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
+        echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
+        if [[ ! -f "${HOME}/.sdcbuild.json" ]]; then
+            echo "error: '~/.sdcbuild.json' does not exist" >&2
+            exit 1
+        fi
+        username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+        password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+        bits_url=$(echo ${bits_url} | sed -e "s/\/\//\/\/${username}:${password}@/g")
+    fi
+
+    echo ${bits_url}
 }
 
 get_latest()
@@ -96,16 +113,6 @@ get_latest()
             echo "${bits_url}/sdc/${release}-latest/usbheadnode/${file}"
         fi
     else
-        if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
-            echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
-            if [[ ! -f "$HOME/.sdcbuild.json" ]]; then
-                echo "error: '~/.sdcbuild.json' does not exist" >&2
-                exit 1
-            fi
-            username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
-            password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
-            bits_url=$(echo $bits_url | sed -e "s/\/\//\/\/${username}:${password}@/g")
-        fi
         file=$(curl -f -sS -k \
             ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
             | grep "href" | cut -d '"' -f2 | grep "^boot-")
