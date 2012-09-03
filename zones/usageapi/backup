@@ -17,6 +17,7 @@ STAMP=$(date +'%F-%H-%M-%S-%Z')
 BACKUP_VERSION="${ROLE}-${STAMP}"
 
 ZONE_DATASET=$(zfs list -H -o name|grep "${ZONE}$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
 
 # We cannot backup if cannot find zone's dataset:
 if [[ -z $ZONE_DATASET ]]; then
@@ -24,36 +25,58 @@ if [[ -z $ZONE_DATASET ]]; then
   exit 103
 fi
 
-# Create dataset backup
-echo "==> Creating snapshot of '${ROLE}' dataset"
-zfs snapshot zones/${ZONE}@${BACKUP_VERSION} 2>&1
-if [[ $? -gt 0 ]]; then
-    echo "FATAL: Unable to snapshot dataset"
-    exit 104
+# We cannot backup if cannot find data dataset:
+if [[ -z $DATA_DATASET ]]; then
+  echo "FATAL: Cannot find '${ROLE}' data dataset"
+  exit 104
 fi
 
-# Just in case, create the backup directory:
-[[ ! -e "${TARGET_DIR}" ]] && mkdir -p ${TARGET_DIR}
+# Create zone dataset backup
+echo "==> Creating snapshot of '${ZONE}' dataset"
+zfs snapshot "zones/${ZONE}@${BACKUP_VERSION}" 2>&1
+if [[ $? -gt 0 ]]; then
+    echo "FATAL: Unable to snapshot dataset"
+    exit 105
+fi
+
+# Create data dataset backup
+echo "==> Creating snapshot of '${ZONE}/data' dataset"
+zfs snapshot "zones/${ZONE}/data@${BACKUP_VERSION}" 2>&1
+if [[ $? -gt 0 ]]; then
+  echo "FATAL: Unable to snapshot data dataset"
+  exit 106
+fi
 
 # Create backup directory for the zone stuff:
 echo "==> Creating backup directory '${TARGET_DIR}/${ROLE}'"
+[[ ! -e "${TARGET_DIR}" ]] && mkdir -p "${TARGET_DIR}"
 mkdir -p "${TARGET_DIR}/${ROLE}"
 
-(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/var; \
-    tar cbfzE 512 ${TARGET_DIR}/${ROLE}/var.tar.gz pgsql)
-if [[ $? -ne 0 ]]; then
-    echo "FATAL: Unable to backup database"
-    exit 105
-fi
-(cd /zones/$ZONE/.zfs/snapshot/${BACKUP_VERSION}/root/opt/smartdc/usageapi/config; \
-    tar cbzfE 512 ${TARGET_DIR}/${ROLE}/config.tar.gz *)
-if [[ $? -ne 0 ]]; then
-    echo "FATAL: Unable to backup configuration"
-    exit 106
+echo "==> Saving data dataset"
+zfs send "zones/${ZONE}/data@${BACKUP_VERSION}" \
+    > "${TARGET_DIR}/${ROLE}/data.zfs" 2>&1
+if [[ $? -gt 0 ]]; then
+  echo "Unable to zfs send data dataset"
+  exit 107
 fi
 
-echo "==> Removing temporary snapshot of '${ZONE}'"
-/usr/sbin/zfs destroy "zones/${ZONE}/${ROLE}@${BACKUP_VERSION}"
+echo "==> Removing temporary data snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}/data@${BACKUP_VERSION}"
+
+echo "==> Saving configs"
+(cd "/zones/${ZONE}/.zfs/snapshot/${BACKUP_VERSION}/root/opt/smartdc/usageapi"; \
+    tar cbzfE 512 "${TARGET_DIR}/${ROLE}/config.tar.gz" config/*)
+if [[ $? -ne 0 ]]; then
+  echo "FATAL: Unable to backup configuration"
+  exit 108
+fi
+
+echo "==> Saving logs"
+(cd "/zones/${ZONE}/.zfs/snapshot/${BACKUP_VERSION}/root/var/svc"; \
+    tar cbzfE 512 "${TARGET_DIR}/${ROLE}/logs.tar.gz" log/*usageapi*)
+
+echo "==> Removing temporary zone snapshot of '${ZONE}'"
+/usr/sbin/zfs destroy "zones/${ZONE}@${BACKUP_VERSION}"
 
 echo "All done!!!"
 exit 0

@@ -13,33 +13,64 @@ ZONE=$1
 TARGET_DIR=$2
 ROLE="usageapi"
 
-if [[ ! -d "${TARGET_DIR}" || ! -d ${TARGET_DIR}/${ROLE} ]]; then
-    echo "Missing backup directory"
-    exit 107
+# Get existing data dataset.
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
+
+# Destroy previous dataset.
+if [[ -z "${DATA_DATASET}" ]]; then
+  echo "FATAL: Missing '${DATA_DATASET}' dataset"
+  exit 105
 fi
 
-if [[ ! -f ${TARGET_DIR}/${ROLE}/config.tar.gz ]]; then
-    echo "Incomplete backup directory"
-    exit 109
+echo "==> Destroying dataset '${DATA_DATASET}'"
+zfs destroy -r "${DATA_DATASET}"
+if [[ $? -gt 0 ]]; then
+  echo "FATAL: Unable to zfs destroy '${DATA_DATASET}' dataset"
+  exit 106
 fi
 
-if [[ ! -f ${TARGET_DIR}/${ROLE}/var.tar.gz ]]; then
-    echo "Incomplete backup directory"
-    exit 110
+# ZFS receive the dataset from the backup:
+echo "==> Receiving '${TARGET_DIR}/${ROLE}/data.zfs'"
+zfs receive -v "${DATA_DATASET}" < "${TARGET_DIR}/${ROLE}/data.zfs"
+if [[ $? -gt 0 ]]; then
+  echo "FATAL: Unable to zfs receive data dataset"
+  exit 108
 fi
 
-echo "==> Restoring $ROLE backup"
-(cd /zones/$ZONE/root/var; tar xzbfE 512 ${TARGET_DIR}/${ROLE}/var.tar.gz)
-if [[ $? -ne 0 ]]; then
-    echo "Error: restoring database"
-    exit 111
-fi
-(cd /zones/$ZONE/root/opt/smartdc/usageapi/config; \
-    tar xzbfE 512 ${TARGET_DIR}/${ROLE}/config.tar.gz)
-if [[ $? -ne 0 ]]; then
-    echo "Error: restoring configuration"
-    exit 112
+echo "==> Restoring configs"
+gzcat "${TARGET_DIR}/${ROLE}/config.tar.gz" | \
+  (cd "/zones/${ZONE}/root/opt/smartdc/usageapi"; tar xbf 512 -)
+if [[ $? -gt 0 ]]; then
+  echo "FATAL: Unable to restore configs"
+  exit 109
 fi
 
-echo "All done!!!"
+echo "==> Restoring logs"
+gzcat "${TARGET_DIR}/${ROLE}/logs.tar.gz" | \
+  (cd "/zones/${ZONE}/root/var/svc"; tar xbf 512 -)
+
+# Double check mountpoint for backup dataset:
+if [[ "$(zfs get -H -o value mountpoint ${DATA_DATASET})" != \
+    "/zones/${ZONE}/data"  ]]; then
+
+    # We need to boot the zone in order to be able to set mountpoint for the
+    # delegated dataset properly:
+    echo "==> Booting '${ZONE}' zone"
+    /usr/sbin/zoneadm -z "${ZONE}" boot
+
+    echo "==> Setting mountpoint for dataset '${DATA_DATASET}'"
+    zlogin ${ZONE} /usr/sbin/zfs set mountpoint="/zones/${ZONE}/data" \
+       "${DATA_DATASET}"
+    if [[ $? -gt 0 ]]; then
+        echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"
+        /usr/sbin/zoneadm -z "${ZONE}" halt
+        exit 112
+    fi
+
+    echo "==> Halting '${ZONE}' zone"
+    /usr/sbin/zoneadm -z "${ZONE}" halt
+fi
+
+echo "==> All done!!!"
 exit 0
+
