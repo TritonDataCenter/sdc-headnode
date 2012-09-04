@@ -31,9 +31,9 @@ defaults
         timeout client 1m
         timeout server 5m
 
-listen moray_proxy 127.0.0.1:81
-        mode http
-        option httplog
+listen moray_proxy 127.0.0.1:2021
+        mode tcp
+        option tcplog
         # Remove to log everything, including successful requests
         option dontlog-normal
         log global
@@ -43,8 +43,13 @@ HERE
 R=0
 for i in $(echo "${MORAY_ADMIN_IPS}" | tr ',' ' ')
 do
-    echo "        server moray$R $i:80 weight 1 minconn 5 maxconn 25 check" \
-        >> /opt/local/etc/haproxy.cfg
+    if [ $R == 0 ] ; then
+        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check" \
+            >> /opt/local/etc/haproxy.cfg
+    else
+        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check backup" \
+            >> /opt/local/etc/haproxy.cfg
+    fi
     let R+=1
 done
 
@@ -82,7 +87,7 @@ CFG_FILE=/opt/smartdc/workflow/etc/config.json
 
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|WF_MORAY_URL|http://127.0.0.1:81|" $CFG_FILE
+gsed -i -e "s|WF_MORAY_URL|http://127.0.0.1:2021|" $CFG_FILE
 gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
 gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
 gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE

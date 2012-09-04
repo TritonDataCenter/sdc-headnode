@@ -26,8 +26,8 @@ chown -R nobody:nobody /opt/smartdc/vmapi
 /usr/bin/passwd -N haproxy
 
 # Add build/node/bin and node_modules/.bin to PATH
-echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/vmapi/build/node/bin:/opt/smartdc/vmapi/node_modules/.bin" >>/root/.bashrc
+echo "" >>/root/.profile
+echo "export PATH=\$PATH:/opt/smartdc/vmapi/build/node/bin:/opt/smartdc/vmapi/node_modules/.bin" >>/root/.profile
 
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."

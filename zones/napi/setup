@@ -19,8 +19,8 @@ source /var/svc/setup.common
 mkdir -p /var/smartdc/napi
 
 # Add build/node/bin and node_modules/.bin to PATH
-echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/$role/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+echo "" >>/root/.profile
+echo "export PATH=\$PATH:/opt/smartdc/$role/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile
 
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."

@@ -32,8 +32,8 @@ echo "Generating SSL Certificate"
 /usr/bin/passwd -N haproxy
 
 # Add build/node/bin and node_modules/.bin to PATH
-echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+echo "" >>/root/.profile
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile
 
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure $role zone"

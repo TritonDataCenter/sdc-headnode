@@ -30,21 +30,23 @@ echo "Generating SSL Certificate"
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 # Add build/node/bin and node_modules/.bin to PATH
-echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+echo "" >>/root/.profile
+echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile
+
+UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)
 
 # Wait up to 50s for UFDS to come up to load bootstrap data.
 echo "Wait for ufds service to come online."
 for i in 0 1 2 3 4 5 6 7 8 9; do
     echo "Is ufds up? (i=$i)"
     LDAPTLS_REQCERT=allow ldapwhoami \
-        -H ldaps://127.0.0.1 -x \
+        -H ldaps://${UFDS_ADMIN_IP} -x \
         -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} \
         && break || true
     sleep 5
 done
 
-LDAPTLS_REQCERT=allow ldapwhoami -H ldaps://127.0.0.1 -x \
+LDAPTLS_REQCERT=allow ldapwhoami -H ldaps://${UFDS_ADMIN_IP} -x \
     -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW}
 if [ $? -ne 0 ]; then
     echo "Timeout waiting for ufds to come up."
@@ -67,7 +69,7 @@ gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $LDIF
 gsed -i -e "s|DATECENTER_COMPANY_NAME|$DATACENTER_COMPANY_NAME|" $LDIF
 gsed -i -e "s|DATACENTER_LOCATION|$DATACENTER_LOCATION|" $LDIF
 
-LDAPTLS_REQCERT=allow ldapadd -H ldaps://127.0.0.1 -x \
+LDAPTLS_REQCERT=allow ldapadd -H ldaps://${UFDS_ADMIN_IP} -x \
     -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} \
     -f $LDIF
 
