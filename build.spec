@@ -18,7 +18,7 @@
   , "dhcpd-tarball": "dhcpd/dhcpd-pkg-master-.*.tar.bz2"
   , "imgapi-tarball": "imgapi/imgapi-pkg-master-.*.tar.bz2"
   , "manatee-tarball": "manatee/manatee-pkg-master-.*.tar.bz2"
-  , "moray-tarball": "https://stuff.joyent.us/stuff/builds/moray/streaming-latest/moray/moray-pkg-streaming-20120903T075326Z-g07517f9.tar.bz2"
+  , "moray-tarball": "https://stuff.joyent.us/stuff/builds/moray/streaming-20120904T161630Z/moray/moray-pkg-streaming-20120904T161630Z-g0cfaab6.tar.bz2"
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
