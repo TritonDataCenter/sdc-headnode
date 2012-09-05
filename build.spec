@@ -23,7 +23,7 @@
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
   , "redis-tarball": "redis/redis-pkg-master-.*.tar.bz2"
-  , "ufds-tarball": "https://stuff.joyent.us/stuff/builds/ufds/streaming-latest/ufds/ufds-pkg-streaming-20120903T150033Z-g3693725.tar.bz2"
+  , "ufds-tarball": "https://stuff.joyent.us/stuff/builds/ufds/streaming-20120905T080522Z/ufds/ufds-pkg-streaming-20120905T080522Z-ge8313dc.tar.bz2"
   , "usageapi-tarball": "usageapi/usageapi-pkg-master-.*.tar.bz2"
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"
   , "workflow-tarball": "https://stuff.joyent.us/stuff/builds/workflow/streaming-latest/workflow/workflow-pkg-streaming-20120903T080011Z-g1b78efa.tar.bz2"
