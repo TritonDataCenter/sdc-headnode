@@ -139,11 +139,18 @@ filename=$(basename ${TAR_BUILD_FILENAME} .tgz).zvol.bz2
 zfs send -p ${DATASET}@sending | pbzip2 >${filename}
 #zfs destroy -r ${DATASET}
 
-now=$(date -u +%Y-%m-%dT%H:%MZ)
+now=$(date -u +%Y-%m-%dT%H:%M.000Z)
 shasum=$(/usr/bin/sum -x sha1 ${filename} | cut -d' ' -f1)
 filesize=$(ls -l ${filename} | awk '{ print $5 }')
 version=$(basename ${TAR_BUILD_FILENAME} .tgz | sed -e "s/^usb-.*-20/20/") # fix in 2099 ;)
 manifest=$(basename ${TAR_BUILD_FILENAME} .tgz).dsmanifest
+
+# MG's ${TIMESTAMP} is in the wrong format, we need:
+#
+# "2012-08-31T16:04:51.970Z"
+#
+mangled_timestamp=$(echo ${TIMESTAMP} | \
+    sed -e "s/^\([0-9][0-9][0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)T\([0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)Z/\1-\2-\3T\4:\5:\6.000Z/")
 
 cat >${manifest} <<EOF
 {
@@ -175,7 +182,11 @@ cat >${manifest} <<EOF
   "disk_driver": "ide",
   "nic_driver": "e1000",
   "uuid": "${NEW_UUID}",
-  "platform_type": "smartos"
+  "platform_type": "smartos",
+  "published_at": "${mangled_timestamp}",
+  "creator_uuid": "352971aa-31ba-496c-9ade-a379feaecd52",
+  "creator_name": "sdc",
+  "urn": "sdc:sdc:usbheadnode:${version}"
 }
 EOF
 
