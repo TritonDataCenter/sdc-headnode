@@ -20,6 +20,7 @@
   , "manatee-tarball": "manatee/manatee-pkg-master-.*.tar.bz2"
   , "moray-tarball": "moray/moray-pkg-master-.*.tar.bz2"
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
+  , "sdcsso-tarball": "sdcsso/sdcsso-pkg-master-.*.tar.bz2"
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
   , "redis-tarball": "redis/redis-pkg-master-.*.tar.bz2"

@@ -27,7 +27,7 @@ ZONE_SETUP_TIMEOUT=180
 SDC_UPGRADE_DIR=/var/upgrade_headnode
 
 # We have to install the extra zones in dependency order
-EXTRA_ZONES="keyapi usageapi ca dcapi adminui amon cloudapi portal"
+EXTRA_ZONES="keyapi sdcsso usageapi ca dcapi adminui amon cloudapi portal"
 
 saw_err()
 {

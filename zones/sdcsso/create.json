@@ -1,0 +1,9 @@
+{
+  "alias": "sdcsso0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "sdcsso",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones"
+}

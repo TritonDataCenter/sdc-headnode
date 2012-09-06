@@ -52,6 +52,7 @@ workflow_pkg=sdc_256
 manatee_pkg=sdc_1024
 moray_pkg=sdc_1024
 keyapi_pkg=sdc_128
+sdcsso_pkg=sdc_128
 
 vmapi_pkg=sdc_128
 dapi_pkg=sdc_128
