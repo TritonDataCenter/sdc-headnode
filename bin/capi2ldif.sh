@@ -94,11 +94,13 @@ function transform_customers(file, callback) {
       if (pieces[17] !== '\\N')
         customer.city = pieces[17];
       if (pieces[18] !== '\\N')
-        customer.postalcode = pieces[18];
+        customer.state = pieces[18];
       if (pieces[19] !== '\\N')
-        customer.country = pieces[19];
-      if (pieces[22] !== '\\N')
-        customer.phone = pieces[22];
+        customer.postalcode = pieces[19];
+      if (pieces[20] !== '\\N')
+        customer.country = pieces[20];
+      if (pieces[23] !== '\\N')
+        customer.phone = pieces[23];
 
       customer.objectclass = 'sdcperson';
       changes.push(customer);
