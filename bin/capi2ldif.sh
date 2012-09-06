@@ -84,10 +84,13 @@ function transform_customers(file, callback) {
         customer.cn = pieces[8];
       if (pieces[9] !== '\\N')
         customer.sn = pieces[9];
-      if (pieces[15] !== '\\N')
+      if (pieces[15] !== '\\N') {
         customer.address = [pieces[15]];
-      if (pieces[16] !== '\\N')
-        customer.address.push(pieces[16]);
+        if (pieces[16] !== '\\N')
+          customer.address.push(pieces[16]);
+      } else if (pieces[16] !== '\\N') {
+        customer.address = pieces[16];
+      }
       if (pieces[17] !== '\\N')
         customer.city = pieces[17];
       if (pieces[18] !== '\\N')
