@@ -1043,6 +1043,14 @@ fi
 trap "" SIGINT
 trap cleanup EXIT
 
+# Disable cron so scheduled jobs, such as backup, don't interfere with us and
+# we don't interfere with them.
+svcadm disable cron
+
+# If a backup is already in progress (e.g. from cron), quit
+[ -n "`pgrep pg_dump`" ] && \
+    fatal "a backup is in progress, upgrade when the backup is complete"
+
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
 # up, since 6.x backup depends on the zones running.
 
