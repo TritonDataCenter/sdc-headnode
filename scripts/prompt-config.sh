@@ -394,7 +394,7 @@ export TERM=sun-color
 export TERM=xterm-color
 stty erase ^H
 
-printheader "Copyright 2011, Joyent, Inc."
+printheader "Copyright 2012, Joyent, Inc."
 
 message="
 You must answer the following questions to configure the headnode.
