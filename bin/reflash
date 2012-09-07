@@ -11,19 +11,19 @@
 #
 # You can use:
 #
-# ./bin/reflash latest <host>
+# ./bin/reflash latest <host> [<identityfile>]
 #
 #    To install the latest master version from your build.spec.* bits-url
 #
-# ./bin/reflash release-XXXXX <host>
+# ./bin/reflash release-XXXXX <host> [<identityfile>]
 #
 #    To install the latest release-XXXXX version from your build.spec.* bits-url
 #
-# ./bin/reflash boot-master-20120530T021716Z-gaba5e72.tgz <host>
+# ./bin/reflash boot-master-20120530T021716Z-gaba5e72.tgz <host> [<identityfile>]
 #
 #    To install a specific tar image you created with './bin/build-image tar'
 #
-# ./bin/reflash https://foo.host.com/path/to/whatever.tgz <host>
+# ./bin/reflash https://foo.host.com/path/to/whatever.tgz <host> [<identityfile>]
 #
 #    To install an image from a remote URL
 #
@@ -50,7 +50,13 @@ fi
 
 filename=$1
 hostname=$2
+identityfile=$3
 bits_url=
+
+SSH_OPTS=
+if [[ -f "$identityfile" ]]; then
+  SSH_OPTS="-i $identityfile"
+fi
 
 MD5_SUM=
 if [[ $(uname -s) == "SunOS" ]]; then
@@ -146,7 +152,7 @@ get_md5()
     fi
 }
 
-if [[ -z ${filename} || -z ${hostname} || -n $3 ]]; then
+if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
     usage
 fi
 
@@ -210,7 +216,7 @@ done
 echo "Continuing!                                "
 fi
 
-ssh -T root@${hostname} <<EOF
+ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
 
 # Turn on DNS since we might need it
