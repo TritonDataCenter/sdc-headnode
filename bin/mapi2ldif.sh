@@ -95,9 +95,7 @@ function read_lines_sync(file) {
 // Then on a table like zones we are table to replace server_id with
 // the corresponding server_uuid
 function transform_uuids(table) {
-  var util = require('util'),
-      exec = require('child_process').exec,
-      child;
+  var util = require('util');
 
   var file = directory + '/' + table + '.dump';
   var lines = read_lines_sync(file);
@@ -130,9 +128,7 @@ function transform_uuids(table) {
 //
 // Since tags can belong to zones and vms, the hash is provided in this form.
 function transform_tags(table) {
-  var util = require('util'),
-      exec = require('child_process').exec,
-      child;
+  var util = require('util');
 
   var file = directory + '/' + table + '.dump';
   var lines = read_lines_sync(file);
@@ -222,9 +218,7 @@ function transform_packages(file, callback) {
 
 
 function transform_vms(file, callback) {
-  var util = require('util'),
-      exec = require('child_process').exec,
-      child;
+  var util = require('util');
 
   return read_lines(file, function(err, lines) {
     if (err)

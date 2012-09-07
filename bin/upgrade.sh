@@ -243,13 +243,15 @@ function dump_mapi
         esac
 
         zlogin mapi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
-            -t $i mapi \ >$SDC_UPGRADE_DIR/mapi_dump/$i.dump
+            -t $i mapi >$SDC_UPGRADE_DIR/mapi_dump/$i.dump
         [ $? != 0 ] && fatal "dumping the MAPI database"
     done
 
     shutdown_zone mapi
 
     [ $rmpass == 1 ] && rm -f $passfile
+
+    ulimit -Sn 8192
 
     echo "Transforming MAPI postgres dumps to LDIF"
     $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name \
@@ -369,7 +371,15 @@ function load_server_addrs
 
     for i in `curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
         $CONFIG_mapi_client_url/servers | json | nawk '{
+            if ($1 == "\"hostname\":")
+                hn = substr($2, 2, length($2) - 3)
+
             if ($1 == "\"ip_address\":") {
+		if ($2 == "null,") {
+                    printf("WARNING: server %s has no IP address\n", hn) \
+                        > "/dev/stderr"
+                    next
+                }
                 ip = substr($2, 2, length($2) - 3)
                 print ip
             }
