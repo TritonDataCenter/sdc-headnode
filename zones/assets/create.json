@@ -19,6 +19,15 @@
         "ro",
         "nodevices"
       ]
+    },
+    {
+      "source": "/usbkey/os",
+      "target": "/assets/os",
+      "type": "lofs",
+      "options": [
+        "ro",
+        "nodevices"
+      ]
     }
   ],
   "tags": {
