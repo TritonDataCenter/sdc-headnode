@@ -1,12 +1,16 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc. All rights reserved.
+# Copyright (c) 2012 Joyent Inc. All rights reserved.
 #
 
 set -o xtrace
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
+
+# Add booter's node and bunyan to the PATH.
+echo "" >>/root/.bashrc
+echo "export PATH=\$PATH:/opt/smartdc/booter/node/bin:/opt/smartdc/booter/node_modules/.bin" >>/root/.bashrc
 
 echo "Finishing setup of dhcpd zone"
 
