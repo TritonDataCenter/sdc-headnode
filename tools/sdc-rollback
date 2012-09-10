@@ -194,10 +194,9 @@ rm -rf /var/usb_rollback
 
 # If rolling back in the middle of a failed upgrade, grab the log files now
 # that the file systems have been rolled back.
-logfile=`ls /tmp/perform_upgrade.*.log 2>/dev/null`
-if [[ -n "$logfile" ]]; then
-    rm -rf /var/upgrade_failed /var/upgrade_headnode
-    mkdir -p /var/upgrade_failed
+if [[ -d /var/upgrade_in_progress ]]; then
+    rm -rf /var/upgrade_failed
+    mv /var/upgrade_in_progress /var/upgrade_failed
     cp -p /tmp/*log* /var/upgrade_failed
 fi
 

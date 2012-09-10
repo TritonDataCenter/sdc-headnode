@@ -22,7 +22,7 @@ BASH_XTRACEFD=4
 set -o xtrace
 
 ROOT=$(pwd)
-export SDC_UPGRADE_DIR=/var/upgrade_headnode
+export SDC_UPGRADE_DIR=/var/upgrade_in_progress
 
 # XXX fix this for oldest supported version
 # We use the 6.5.4 USB key image build date to check the minimum
@@ -52,15 +52,16 @@ function cleanup
 
 message_term="
 ERROR: The upgrade process terminated prematurely.  You can review the upgrade
-logs in /var/upgrade_headnode to determine how to correct the failure.
-The system should now be rebooted to restart all services.\n\n"
+logs in /var/upgrade_failed to determine how to correct the failure.
+The system must now be rebooted to restart all services.\n\n"
 
     printf "$message_term"
 
     cd /
     cp -p tmp/*log* $SDC_UPGRADE_DIR
     rm -rf /var/upgrade_failed
-    mv $SDC_UPGRADE_DIR /var/upgrade_failed
+    [ -d $SDC_UPGRADE_DIR ] && mv $SDC_UPGRADE_DIR /var/upgrade_failed
+    exit 1
 }
 
 function recover
@@ -81,7 +82,10 @@ the failure. Until the system reboots, don't do anything.\n\n"
     cd /
 
     # use the local copy of rollback since it didn't exist on the 6.5.x usbkey
+    # rollback handles the /var/upgrade_in_progress file cleanup
     $ROOT/sdc-rollback -F
+    # rollback reboots, but that is async, so quit now
+    exit 1
 }
 
 function mount_usbkey
@@ -954,13 +958,6 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     fatal "this can only be run on a SmartOS headnode."
 fi
 
-# We might be re-running upgrade again after a rollback, so first cleanup
-if [ $CHECK_ONLY -eq 0 ]; then
-    rm -rf $SDC_UPGRADE_DIR /var/usb_rollback
-
-    mkdir -p $SDC_UPGRADE_DIR
-fi
-
 mount_usbkey
 check_versions
 umount_usbkey
@@ -1050,6 +1047,10 @@ svcadm disable cron
 # If a backup is already in progress (e.g. from cron), quit
 [ -n "`pgrep pg_dump`" ] && \
     fatal "a backup is in progress, upgrade when the backup is complete"
+
+# We might be re-running upgrade again after a rollback, so first cleanup
+rm -rf /var/upgrade_failed /var/usb_rollback
+mkdir -p $SDC_UPGRADE_DIR
 
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
 # up, since 6.x backup depends on the zones running.
@@ -1190,6 +1191,8 @@ cp -pr *log* $SDC_UPGRADE_DIR
 
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
+
+mv $SDC_UPGRADE_DIR /var/upgrade_headnode
 
 trap EXIT
 
