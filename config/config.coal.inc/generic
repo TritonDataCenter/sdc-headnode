@@ -44,7 +44,7 @@ amon_pkg=sdc_64
 
 assets_pkg=sdc_64
 
-usageapi_pkg=sdc_128
+usageapi_pkg=sdc_256
 
 workflow_pkg=sdc_256
 manatee_pkg=sdc_128

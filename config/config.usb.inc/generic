@@ -46,7 +46,8 @@ amon_pkg=sdc_256
 
 assets_pkg=sdc_128
 
-usageapi_pkg=sdc_128
+# 768 MiB would be more appropriate though
+usageapi_pkg=sdc_1024
 
 workflow_pkg=sdc_256
 manatee_pkg=sdc_1024
