@@ -979,6 +979,13 @@ function copy_tools
         mkdir -p ${STAGE}/tools-man/$(dirname ${file})
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
+
+    target=$(build_spec sds-tools-tarball)
+    local bit_cache_path=$(get_bit ${target})
+    cp ${bit_cache_path} ${ROOT}/cache/sds-tools.tar.bz2
+
+    mkdir -p ${STAGE}/extra/sds-tools
+    cp ${ROOT}/cache/sds-tools.tar.bz2 ${STAGE}/extra/sds-tools
 }
 
 function copy_webinfo

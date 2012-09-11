@@ -24,6 +24,7 @@
   , "portal-tarball": "portal/portal-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
   , "redis-tarball": "redis/redis-pkg-master-.*.tar.bz2"
+  , "sds-tools-tarball": "sds-tools/sds-tools-pkg-master-.*.tar.bz2"
   , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
   , "usageapi-tarball": "usageapi/usageapi-pkg-master-.*.tar.bz2"
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"

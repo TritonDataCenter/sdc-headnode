@@ -298,6 +298,13 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/man
     cp -R /usbkey/tools-man/* /opt/smartdc/man/
     find /opt/smartdc/man/ -type f -exec chmod 444 {} \;
+
+    mkdir -p /opt/smartdc/sds-tools
+    (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/sds-tools/sds-tools.tar.bz2)
+    for file in $(ls /opt/smartdc/sds-tools/bin/sds*); do
+        tool=$(basename ${file})
+        ln -s /opt/smartdc/sds-tools/bin/${tool} /opt/smartdc/bin/${tool}
+    done
 fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
