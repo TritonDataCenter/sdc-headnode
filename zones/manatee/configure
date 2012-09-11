@@ -15,7 +15,7 @@ function fatal
 
 function update_env {
     echo "" >>/root/.bashrc
-    echo "export PATH=\$PATH:/opt/smartdc/registrar/build/node/bin:/opt/smartdc/registrar/node_modules/.bin" >>/root/.bashrc
+    echo "export PATH=\$PATH:/opt/smartdc/registrar/build/node/bin:/opt/smartdc/registrar/node_modules/.bin:/opt/smartdc/manatee/lib/tools" >>/root/.bashrc
 }
 
 ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
