@@ -302,8 +302,11 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/sds-tools
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/sds-tools/sds-tools.tar.bz2)
     for file in $(ls /opt/smartdc/sds-tools/bin/sds*); do
-        tool=$(basename ${file})
-        ln -s /opt/smartdc/sds-tools/bin/${tool} /opt/smartdc/bin/${tool}
+
+        # Strip trailing .js if present
+        tool=$(basename ${file} .js)
+
+        ln -s ${file} /opt/smartdc/bin/${tool}
     done
 fi
 
