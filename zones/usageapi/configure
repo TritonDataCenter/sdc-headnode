@@ -77,6 +77,10 @@ echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
 echo "full_page_writes = off" >> /var/pgsql/data91/postgresql.conf
 echo "synchronous_commit = off" >> /var/pgsql/data91/postgresql.conf
 
+# Set memory usage. These numbers assume a ~768MB usageapi zone.
+echo "shared_buffers = 192MB" >> /var/pgsql/data91/postgresql.conf
+echo "effective_cache_size = 512MB" /var/pgsql/data91/postgresql.conf
+
 DATASET=`/usr/sbin/zfs list | /usr/bin/sed -n 's/.*\/\(zones.*data\)/\1/p'`
 
 # set pool recordsize to the same size as Postgres' block size
