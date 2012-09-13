@@ -7,3 +7,5 @@ ADMIN_NETWORK=${admin_network}
 ADMIN_NETMASK=${admin_netmask}
 
 MORAY_ADMIN_IPS=${moray_admin_ips}
+ZOOKEPER_ADMIN_IPS=${zookeeper_admin_ips}
+MANATEE_ADMIN_IPS=${manatee_admin_ips}
