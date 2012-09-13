@@ -134,7 +134,8 @@ function check_disk_space
 		local Disk_GiB=$(( $Disk_MiB / 1024 ))
 		local Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
 
-		fatal "$(printf ${msg} $RAM_GiB $Disk_GiB $Min_Disk_GiB)"
+		msg=$(printf "${msg}" $RAM_GiB $Disk_GiB $Min_Disk_GiB)
+		fatal "${msg}"
 	fi
 }
 
