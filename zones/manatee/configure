@@ -31,6 +31,14 @@ BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 echo 'extracting postgres binaries'
 tar -xf /opt/smartdc/manatee/bin/postgres.tar.bz2 -C /
 
+# check that the dataset has been mounted
+echo "checking to see if dataset is mounted"
+mounted=`zfs get mounted $DATASET | tail -1 | cut -d ' ' -f6`
+if [ $mounted == no ]
+then
+        fatal "dataset $DATASET not mounted"
+fi
+
 # create postgres user
 echo "creating postgres user"
 useradd postgres
@@ -47,7 +55,9 @@ zfs allow -ld postgres create,destroy,snapshot,mount,send,receive $DATASET
 mkdir -p /manatee/pg
 chmod 777 -R /zones/$ZONE_UUID/
 chmod 777 -R /manatee/pg
-zfs set mountpoint=/manatee/pg $DATASET
+# set mountpoint
+zfs set mountpoint=$DATASET_MOUNT_DIR $DATASET
+[[ $? -eq 0 ]] || fatal "Unable to set mountpoint to /manatee/pg"
 
 # add pg log dir
 mkdir -p /var/pg
