@@ -6,17 +6,17 @@
 set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
-
 role=moray
+
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
+
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/$role
 mkdir -p /opt/smartdc/$role/ssl
 
-#echo "Installing local node.js"
 mkdir -p /opt/smartdc/$role/etc
 cd -
 /usr/bin/chown -R root:root /opt/smartdc
@@ -26,10 +26,24 @@ echo "Generating SSL Certificate"
     -keyout /opt/smartdc/$role/ssl/key.pem \
     -out /opt/smartdc/$role/ssl/cert.pem -days 3650
 
+
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin:/opt/smartdc/$role/node_modules/$role/bin" >>/root/.profile
 
+
+# Setup log rotation
+svccfg import /lib/svc/manifest/system/cron.xml
+svcadm enable cron
+
+logadm -w moray -C 48 -c -p 1h \
+    /var/svc/log/smartdc-application-moray:default.log
+
+echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
+crontab /etc/cron.d/logadm
+
+
+# Configure zone
 /opt/smartdc/bin/configure || fatal "Failed to configure zone."
 
 touch /var/svc/setup_complete
