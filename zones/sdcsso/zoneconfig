@@ -4,3 +4,6 @@ UFDS_ADMIN_IPS=${ufds_admin_ips}
 
 SDCSSO_KEYAPIHOST=${keyapi_admin_ips}
 SDCSSO_KEYAPIPORT=8080
+
+SDCSSO_SSLKEY=/opt/local/etc/openssl/private/selfsign.pem
+SDCSSO_SSLCERT=/opt/local/etc/openssl/private/selfsign.pem

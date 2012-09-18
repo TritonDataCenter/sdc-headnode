@@ -16,6 +16,8 @@ $(/opt/local/bin/gsed -i"" -e "s/@@UFDSROOTDN@@/${SDCSSO_LDAP_ROOT_DN}/g" /opt/s
 $(/opt/local/bin/gsed -i"" -e "s/@@UFDSPASSWORD@@/${SDCSSO_LDAP_BIND_PASSWORD}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@KEYAPIHOST@@/${SDCSSO_KEYAPIHOST}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@KEYAPIPORT@@/${SDCSSO_KEYAPIPORT}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@SSLKEY@@/${SDCSSO_SSLKEY}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s/@@SSLCERT@@/${SDCSSO_SSLCERT}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 
 echo "Importing sdcsso.xml"
 /usr/sbin/svccfg import /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml
