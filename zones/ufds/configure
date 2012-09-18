@@ -62,6 +62,15 @@ gsed -i -e "s|ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|MORAY_URL|http://127.0.0.1:2021|" $CFG_FILE
 
+# Replicator
+REP_FILE_IN=/opt/smartdc/$role/etc/replicator.json.in
+REP_FILE=/opt/smartdc/$role/etc/replicator.json
+
+cp $REP_FILE_IN $REP_FILE
+gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $REP_FILE
+gsed -i -e "s|LOCAL_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $REP_FILE
+gsed -i -e "s|LOCAL_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $REP_FILE
+
 
 # HAProxy logging configuration with rsyslog
 # Create file to log haproxy:
