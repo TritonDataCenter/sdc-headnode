@@ -33,7 +33,7 @@ $(/opt/local/bin/gsed -i"" -e "s/\$PGDATA stop/\$PGDATA stop -m fast/" /opt/loca
 /opt/smartdc/bin/configure || fatal "Failed to configure zone."
 
 # Install Amon monitor and probes
-TRACE=1 /opt/smartdc/usageapi/tools/usageapi-amon-install
+TRACE=1 /opt/smartdc/usageapi/script/usageapi-amon-install
 
 touch /var/svc/setup_complete
 echo "setup done"
