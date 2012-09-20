@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
 
 set -o errexit
@@ -50,5 +50,29 @@ cat ${usbmnt}/boot/grub/menu.lst.tmpl | sed \
     -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
     -e "s|^#PREV ||" \
     > ${usbmnt}/boot/grub/menu.lst
+
+echo "==> Updating cnapi"
+. /lib/sdc/config.sh
+load_sdc_config
+
+uuid=`curl -s -u admin:${CONFIG_cnapi_root_pw} \
+    http://${CONFIG_cnapi_admin_ips}//servers | json | nawk '{
+        if ($1 == "\"headnode\":" && $2 == "\"true\",")
+            found=1
+        if (found && $1 == "\"uuid\":") {
+            print substr($2, 2, length($2) - 3)
+            found=0
+        }
+    }'`
+
+echo $uuid
+if [[ -z "${uuid}" ]]; then
+    echo "==> FATAL unable to determine headnode UUID from cnapi."
+    exit 1
+fi
+
+curl -s -u admin:${CONFIG_cnapi_root_pw} \
+    http://${CONFIG_cnapi_admin_ips}//servers/${uuid} \
+    -X POST -d boot_platform=${version}
 
 exit 0
