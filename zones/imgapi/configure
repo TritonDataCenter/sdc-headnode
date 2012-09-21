@@ -13,7 +13,12 @@ echo "Creating IMGAPI config file"
 cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
 {
   "port": 80,
-  "logLevel": "debug"
+  "logLevel": "debug",
+  "ufds": {
+    "url": "ldaps://${UFDS_ADMIN_IP}",
+    "rootDn": "${UFDS_LDAP_ROOT_DN}",
+    "password": "${UFDS_LDAP_ROOT_PW}"
+  }
 }
 HERE
 
