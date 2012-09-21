@@ -301,7 +301,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
 
     mkdir -p /opt/smartdc/manta
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/manta/manta.tar.bz2)
-    for file in $(ls /opt/smartdc/manta/bin/sds*); do
+    for file in $(ls /opt/smartdc/manta/bin/manta*); do
 
         # Strip trailing .js if present
         tool=$(basename ${file} .js)
