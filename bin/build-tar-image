@@ -980,12 +980,12 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
-    target=$(build_spec sds-tools-tarball)
+    target=$(build_spec manta-tarball)
     local bit_cache_path=$(get_bit ${target})
-    cp ${bit_cache_path} ${ROOT}/cache/sds-tools.tar.bz2
+    cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2
 
-    mkdir -p ${STAGE}/extra/sds-tools
-    cp ${ROOT}/cache/sds-tools.tar.bz2 ${STAGE}/extra/sds-tools
+    mkdir -p ${STAGE}/extra/manta
+    cp ${ROOT}/cache/manta.tar.bz2 ${STAGE}/extra/manta
 }
 
 function copy_webinfo
