@@ -30,7 +30,7 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
     "port": 80
   },
   "wfapi": {
-    "workflows": [ "provision-cnapi" ],
+    "workflows": [ ],
     "url": "$WF_URL",
     "username": "$WFAPI_HTTP_ADMIN_USER",
     "password": "$WFAPI_HTTP_ADMIN_PW"
@@ -45,12 +45,6 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   },
   "cnapi": {
     "url": "$CNAPI_URL"
-  },
-  "vmapi": {
-    "url": "$VMAPI_URL"
-  },
-  "dapi": {
-    "url": "$DAPI_URL"
   },
   "redis": {
     "host": "$REDIS_ADMIN_IPS"
