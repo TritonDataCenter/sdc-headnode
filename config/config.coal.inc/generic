@@ -47,7 +47,7 @@ assets_pkg=sdc_64
 usageapi_pkg=sdc_256
 
 workflow_pkg=sdc_256
-manatee_pkg=sdc_128
+manatee_pkg=sdc_256
 moray_pkg=sdc_128
 
 keyapi_pkg=sdc_64

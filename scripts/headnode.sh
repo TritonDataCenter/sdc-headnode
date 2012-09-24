@@ -299,9 +299,9 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     cp -R /usbkey/tools-man/* /opt/smartdc/man/
     find /opt/smartdc/man/ -type f -exec chmod 444 {} \;
 
-    mkdir -p /opt/smartdc/sds-tools
-    (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/sds-tools/sds-tools.tar.bz2)
-    for file in $(ls /opt/smartdc/sds-tools/bin/sds*); do
+    mkdir -p /opt/smartdc/manta
+    (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/manta/manta.tar.bz2)
+    for file in $(ls /opt/smartdc/manta/bin/manta*); do
 
         # Strip trailing .js if present
         tool=$(basename ${file} .js)
