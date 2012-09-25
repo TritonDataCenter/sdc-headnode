@@ -18,3 +18,7 @@ EXTERNAL_IP=${external_ip}
 EXTERNAL_START_IP=${external_provisionable_start}
 EXTERNAL_END_IP=${external_provisionable_end}
 EXTERNAL_VLAN_ID=${external_vlan_id}
+
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+DATACENTER_NAME=${datacenter_name}
