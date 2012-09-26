@@ -9,6 +9,9 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+# for now just take the first IP
+UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+
 echo "Creating IMGAPI config file"
 cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
 {
