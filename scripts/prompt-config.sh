@@ -1099,7 +1099,12 @@ keyapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-dhcp_range_end="$max_host"
+
+dhcp_range_end=$(getanswer "dhcp_range_end")
+if [[ -z "${dhcp_range_end}" || \
+    ${dhcp_range_end} == "<default>" ]]; then
+    dhcp_range_end="$max_host"
+fi
 
 #
 # Calculate external network
