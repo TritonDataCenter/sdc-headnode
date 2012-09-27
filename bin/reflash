@@ -321,7 +321,9 @@ fi
 echo "Performing factoryreset..."
 SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)
 [[ -n \${SYS_ZPOOL} ]] || SYS_ZPOOL=zones
-zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
+if zfs list zones/var > /dev/null; then
+    zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
+fi
 
 # Good to go!
 echo "Rebooting..."
