@@ -28,7 +28,13 @@
 #    To install an image from a remote URL
 #
 
+if [[ -n "$TRACE" ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o errexit
+#set -o pipefail
+
 
 ROOT=$(cd $(dirname $0)/../; pwd)
 
@@ -216,6 +222,7 @@ done
 echo "Continuing!                                "
 fi
 
+set +o errexit
 ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
 
@@ -327,15 +334,17 @@ fi
 
 # Good to go!
 echo "Rebooting..."
-reboot -q
+(sleep 1; reboot -q)&
 
 exit 0
 EOF
+retval=$?
+set -o errexit
 
-if [[ $? == 0 ]]; then
+if [[ $retval == 0 ]]; then
     echo "Success! '${hostname}' should be running through setup shortly!"
     exit 0
 else
-    echo "Uh-oh! Something failed, good luck fixing it!" >&2
+    echo "Uh-oh! Something failed (retval=$retval), good luck fixing it!" >&2
     exit 2
 fi
