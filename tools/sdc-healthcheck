@@ -116,7 +116,7 @@ function check_agents() {
   fi
 
   for i in provisioner zonetracker heartbeat ur; do
-    ping-agent $SYSINFO_UUID $i timeout=10000 2>&1 | egrep -s "timestamp:"
+    ping-agent $SYSINFO_UUID $i timeout=10000 2>&1 | egrep -s "req_id:"
     if [ $? == 0 ]; then
       status="online"
     else
