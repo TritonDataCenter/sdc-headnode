@@ -5,7 +5,7 @@
 
 function usage()
 {
-    echo "Usage: $0 <platform URI>"
+    echo "Usage: $0 [-s] <platform URI>"
     echo "(URI can be file:///, http://, anything curl supports or a filename)"
     exit 1
 }
@@ -15,6 +15,15 @@ function fatal()
 	printf "Error: %s\n" "$1" >/dev/stderr
         exit 1
 }
+
+switch_platform=0
+while getopts "s" opt
+do
+	case "$opt" in
+		s)	switch_platform=1;;
+	esac
+done
+shift $(($OPTIND - 1))
 
 input=$1
 if [[ -z ${input} ]]; then
@@ -98,6 +107,12 @@ fi
 echo "==> Adding to list of available platforms"
 
 # XXX 
+
+if [ ${switch_platform} -eq 1 ]; then
+    echo "==> Switching boot image to ${version}"
+    /usbkey/scripts/switch-platform.sh ${version}
+    [ $? != 0 ] && fatal "switching boot image to ${version}"
+fi
 
 echo "==> Done!"
 
