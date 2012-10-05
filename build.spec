@@ -14,7 +14,6 @@
   , "cloudapi-tarball": "cloudapi/cloudapi-pkg-master-.*.tar.bz2"
   , "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2"
   , "dapi-tarball": "dapi/dapi-pkg-master-.*.tar.bz2"
-  , "dcapi-tarball": "dcapi/dcapi-pkg-master-.*.tar.bz2"
   , "dhcpd-tarball": "dhcpd/dhcpd-pkg-master-.*.tar.bz2"
   , "imgapi-tarball": "imgapi/imgapi-pkg-master-.*.tar.bz2"
   , "manatee-tarball": "manatee/manatee-pkg-master-.*.tar.bz2"

@@ -1087,10 +1087,6 @@ next_addr=$(expr $next_addr + 1)
 vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
-dcapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-dcapi_url="http://${dcapi_admin_ip}:80"
-
-next_addr=$(expr $next_addr + 1)
 portal_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1387,13 +1383,6 @@ echo >>$tmp_config
 echo "workflow_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_http_admin_user=admin" >>$tmp_config
 echo "workflow_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-
-echo "dcapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "dcapi_http_admin_user=admin" >>$tmp_config
-echo "dcapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo "dcapi_url=$dcapi_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

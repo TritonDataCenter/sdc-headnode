@@ -58,7 +58,6 @@ dapi_pkg=sdc_64
 imgapi_pkg=sdc_64
 cnapi_pkg=sdc_64
 napi_pkg=sdc_64
-dcapi_pkg=sdc_64
 
 ca_pkg=sdc_256
 

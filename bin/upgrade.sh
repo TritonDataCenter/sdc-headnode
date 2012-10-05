@@ -617,9 +617,6 @@ function cleanup_config
 	# eat into the dhcp range for the rest of the new zones.
 
 	allocate_ip_addr
-	dcapi_admin_ip="$ip_addr"
-
-	allocate_ip_addr
 	portal_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -732,11 +729,6 @@ function cleanup_config
 	workflow_http_admin_user=admin
 	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
 
-	dcapi_root_pw=$CONFIG_adminui_root_pw
-	dcapi_http_admin_user=admin
-	dcapi_http_admin_pw=$CONFIG_adminui_admin_pw
-	dcapi_url=http://${dcapi_admin_ip}:80
-
 	show_setup_timers=true
 	serialize_setup=true
 	DONE
@@ -812,7 +804,6 @@ function cleanup_config
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
 	cnapi_pkg=${GENERIC_cnapi_pkg}
 	dapi_pkg=${GENERIC_dapi_pkg}
-	dcapi_pkg=${GENERIC_dcapi_pkg}
 	dhcpd_pkg=${GENERIC_dhcpd_pkg}
 	imgapi_pkg=${GENERIC_imgapi_pkg}
 	manatee_pkg=${GENERIC_manatee_pkg}
