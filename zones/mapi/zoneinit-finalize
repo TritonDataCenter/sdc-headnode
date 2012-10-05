@@ -269,13 +269,6 @@ if [[ -z \$(/usr/bin/svcs -a|grep datasetmanager_client) ]]; then
   #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/datasetmanager_client:default refresh
 fi
 
-if [[ -z \$(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-  echo "Importing MCP API Heartbeater Client Manifest"
-  /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater_client.smf
-  sleep 10 # XXX
-  #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
-fi
-
 if [[ -z \$(/usr/bin/svcs -a|grep heartbeater-pool) ]]; then
   echo "Importing MCP API Heartbeater Client Pool Manifest"
   /usr/sbin/svccfg import /opt/smartdc/mapi/config/heartbeater_client_pool.smf
@@ -418,13 +411,6 @@ if [[ -n ${KEEP_DATA_DATASET} ]]; then
     /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/datasetmanager_client.smf
     sleep 10 # XXX
     #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/datasetmanager_client:default refresh
-  fi
-
-  if [[ -z $(/usr/bin/svcs -a|grep heartbeater_client) ]]; then
-    echo "Importing MCP API Heartbeater Client Manifest"
-    /usr/sbin/svccfg import /opt/smartdc/${app_name}/config/heartbeater_client.smf
-    sleep 10 # XXX
-    #/usr/sbin/svccfg -s svc:/network/smartdc/daemon/heartbeater_client:default refresh
   fi
 
   if [[ -z $(/usr/bin/svcs -a|grep heartbeater-pool) ]]; then
