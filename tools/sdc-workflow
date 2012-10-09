@@ -29,12 +29,6 @@ EOF
     exit 1
 fi
 
-workflow "$@" > /tmp/workflow.$$
-if grep "HTTP/1.1 204 No Content" /tmp/workflow.$$ >/dev/null 2>&1; then
-    # we have no content so no point feeding through json (it'll fail)
-    /bin/true
-else
-    json -q < /tmp/workflow.$$
-fi
+workflow "$@" | json -H -q
 
 exit 0
