@@ -50,7 +50,7 @@ assets_pkg=sdc_128
 usageapi_pkg=sdc_1024
 
 workflow_pkg=sdc_256
-manatee_pkg=sdc_1024
+manatee_pkg=sdc_db
 moray_pkg=sdc_1024
 keyapi_pkg=sdc_128
 sdcsso_pkg=sdc_128

@@ -11,6 +11,7 @@ pkg_1=sdc_128:128:256:10240:100:1000:10
 pkg_2=sdc_256:256:512:10240:100:1000:10
 pkg_3=sdc_db:384:768:15360:150:1000:20
 pkg_4=sdc_512:512:1024:10240:150:1000:20
+pkg_5=sdc_256_20g:256:512:20480:100:1000:10
 
 # You can configure other headnode nics here (to bring up but not be used for
 # provisioning), eg:
@@ -47,7 +48,7 @@ assets_pkg=sdc_64
 usageapi_pkg=sdc_256
 
 workflow_pkg=sdc_256
-manatee_pkg=sdc_256
+manatee_pkg=sdc_256_20g
 moray_pkg=sdc_128
 
 keyapi_pkg=sdc_64
