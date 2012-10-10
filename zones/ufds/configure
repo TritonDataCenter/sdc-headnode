@@ -96,16 +96,6 @@ $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)
 echo "Enabling service haproxy"
 svcadm disable svc:/net/haproxy:default
 svcadm enable svc:/net/haproxy:default
-
 sleep 1
-
-echo "Enabling service ufds"
-svcadm disable svc:/smartdc/application/ufds-master:default
-svcadm enable svc:/smartdc/application/ufds-master:default
-
-echo "Enabling service ufds-capi"
-svcadm disable svc:/smartdc/application/ufds-capi:default
-svcadm enable svc:/smartdc/application/ufds-capi:default
-
 
 exit 0

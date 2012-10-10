@@ -116,8 +116,4 @@ echo "Enabling service haproxy"
 /usr/sbin/svcadm disable haproxy
 /usr/sbin/svcadm enable haproxy
 
-echo "Enabling service cloudapi"
-/usr/sbin/svcadm disable smartdc/application/cloudapi
-/usr/sbin/svcadm enable smartdc/application/cloudapi
-
 exit 0
