@@ -13,43 +13,8 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)
 
-echo "Creating HAProxy config file"
-cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        log 127.0.0.1 local0
-        ulimit-n 65535
-        user haproxy
-        group haproxy
-        daemon
-defaults
-
-        balance roundrobin
-        timeout connect 400ms
-        timeout client 1m
-        timeout server 5m
-
-listen moray_proxy 127.0.0.1:2021
-        mode tcp
-        option tcplog
-        # Remove to log everything, including successful requests
-        option dontlog-normal
-        log global
-HERE
-
-# Add all Moray IPs
-R=0
-for i in $(echo "${MORAY_ADMIN_IPS}" | tr ',' ' ')
-do
-    if [ $R == 0 ] ; then
-        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-    let R+=1
-done
-
+# XXX for now use the first MORAY, soon we'll be switching to DNS
+MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 
 echo "Updating config file"
 CFG_FILE_IN=/opt/smartdc/$role/etc/config.json.in
@@ -60,7 +25,7 @@ cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|UFDS_ADMIN_IP|$UFDS_ADMIN_IP|" $CFG_FILE
 gsed -i -e "s|ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
-gsed -i -e "s|MORAY_URL|http://127.0.0.1:2021|" $CFG_FILE
+gsed -i -e "s|MORAY_URL|http://${MORAY_HOST}:2020|" $CFG_FILE
 
 # Replicator
 REP_FILE_IN=/opt/smartdc/$role/etc/replicator.json.in
@@ -73,29 +38,10 @@ gsed -i -e "s|LOCAL_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $REP_FILE
 gsed -i -e "s|LOCAL_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $REP_FILE
 
 
-# HAProxy logging configuration with rsyslog
-# Create file to log haproxy:
-touch /var/log/haproxy.log
-# Set rsyslog config:
-cat >> /etc/rsyslog.conf <<HERE
-
-\$UDPServerRun 514
-\$UDPServerAddress *
-
-local0.*  /var/log/haproxy.log
-
-HERE
-
-# Restart syslog to make effective the changes before we start haproxy
-svcadm restart system-log
-
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-master.xml)
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)
 
-echo "Enabling service haproxy"
-svcadm disable svc:/net/haproxy:default
-svcadm enable svc:/net/haproxy:default
 # We are intentionally giving UFDS service some room to create the required
 # moray buckets before it gets called to add bootstrap data.
 sleep 10

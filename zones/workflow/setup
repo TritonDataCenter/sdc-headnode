@@ -20,11 +20,6 @@ mkdir -p /opt/smartdc/$role/ssl
 mkdir -p /opt/smartdc/$role/etc
 /usr/bin/chown -R root:root /opt/smartdc
 
-# Setup HAProxy user/group
-/usr/sbin/groupadd haproxy
-/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
-/usr/bin/passwd -N haproxy
-
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/$role/ssl/key.pem -out /opt/smartdc/$role/ssl/cert.pem -days 365
 

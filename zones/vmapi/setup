@@ -20,11 +20,6 @@ mkdir -p /var/smartdc/vmapi
 mkdir -p /opt/smartdc/vmapi
 chown -R nobody:nobody /opt/smartdc/vmapi
 
-# Setup HAProxy user/group
-/usr/sbin/groupadd haproxy
-/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
-/usr/bin/passwd -N haproxy
-
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/vmapi/build/node/bin:/opt/smartdc/vmapi/node_modules/.bin" >>/root/.profile

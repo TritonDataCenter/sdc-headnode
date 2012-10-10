@@ -20,11 +20,6 @@ mkdir -p /var/smartdc/dapi
 mkdir -p /opt/smartdc/dapi
 chown -R nobody:nobody /opt/smartdc/dapi
 
-# Setup HAProxy user/group
-/usr/sbin/groupadd haproxy
-/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
-/usr/bin/passwd -N haproxy
-
 # Add node_modules/bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile

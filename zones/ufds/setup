@@ -17,11 +17,6 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 mkdir -p /opt/smartdc/ufds/ssl
 chown -R nobody:nobody /opt/smartdc/ufds
 
-# Setup HAProxy user/group
-/usr/sbin/groupadd haproxy
-/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
-/usr/bin/passwd -N haproxy
-
 echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
     -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem \

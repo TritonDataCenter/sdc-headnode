@@ -13,6 +13,9 @@ WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 
+# XXX for now use the first UFDS, soon we'll be switching to DNS
+UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+
 echo "Creating VMAPI config file"
 CFG_FILE_IN=/opt/smartdc/vmapi/config.json.in
 CFG_FILE=/opt/smartdc/vmapi/config.json
@@ -21,6 +24,7 @@ cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|RABBIT_ADMIN_IP|$RABBIT_ADMIN_IP|" $CFG_FILE
 gsed -i -e "s|REDIS_ADMIN_IPS|$REDIS_ADMIN_IPS|" $CFG_FILE
 gsed -i -e "s|WF_URL|$WF_URL|" $CFG_FILE
+gsed -i -e "s|ldaps://localhost|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
@@ -28,68 +32,6 @@ gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|VMAPI_LDAP_ROOT_DN|$VMAPI_LDAP_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|VMAPI_LDAP_ROOT_PW|$VMAPI_LDAP_ROOT_PW|" $CFG_FILE
 
-
-echo "Creating HAProxy config file"
-cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        log 127.0.0.1 local0
-        ulimit-n 4096
-        user haproxy
-        group haproxy
-        daemon
-
-defaults
-        option ssl-hello-chk
-        timeout connect 400ms
-        timeout client 1m
-        timeout server 5m
-
-listen ufds_proxy 127.0.0.1:636
-        mode tcp
-        option tcplog
-        log global
-HERE
-
-
-
-# Add all UFDS IPs to haproxy
-# Mark the first one as not backup and all the others as backup
-U=0
-for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-do
-    if [ $U == 0 ] ; then
-        echo "        server ufds$U $ip:636 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "        server ufds$U $ip:636 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-
-    let U+=1
-done
-
-# HAProxy logging configuration with rsyslog
-# Create file to log haproxy:
-touch /var/log/haproxy.log
-# Set rsyslog config:
-cat >> /etc/rsyslog.conf <<HERE
-
-\$UDPServerRun 514
-\$UDPServerAddress *
-
-local0.*  /var/log/haproxy.log
-
-HERE
-
-# Restart syslog to make effective the changes before we start haproxy
-svcadm restart system-log
-
-echo "Importing haproxy service SMF"
-svccfg import /opt/local/share/smf/haproxy/manifest.xml
-
-echo "Enabling service haproxy"
-/usr/sbin/svcadm disable haproxy
-/usr/sbin/svcadm enable haproxy
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/vmapi/g" /opt/smartdc/vmapi/smf/manifests/vmapi.xml)

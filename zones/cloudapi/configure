@@ -33,11 +33,15 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 
+# XXX for now use the first UFDS, soon we'll be switching to DNS
+UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|CA_URL|$CA_URL|" $CFG_FILE
 gsed -i -e "s|CLOUDAPI_EXTERNAL_URL|$CLOUDAPI_EXTERNAL_URL|" $CFG_FILE
 gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $CFG_FILE
+gsed -i -e "s|ldaps://127.0.0.1|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
@@ -57,63 +61,5 @@ $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/sma
 
 echo Importing SMF manifest
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
-
-echo "Creating HAProxy config file"
-cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        log 127.0.0.1 local0
-        ulimit-n 4096
-        user haproxy
-        group haproxy
-        daemon
-
-defaults
-        option ssl-hello-chk
-        timeout connect 400ms
-        timeout client 1m
-        timeout server 5m
-
-listen ufds_proxy 127.0.0.1:636
-        mode tcp
-        option tcplog
-        log global
-HERE
-
-# Add all UFDS IPs to haproxy
-# Mark the first one as not backup and all the others as backup
-U=0
-for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-do
-    if [ $U == 0 ] ; then
-        echo "        server ufds$U $ip:636 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "        server ufds$U $ip:636 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-
-    let U+=1
-done
-
-# HAProxy logging configuration with rsyslog
-# Create file to log haproxy:
-touch /var/log/haproxy.log
-# Set rsyslog config:
-cat >> /etc/rsyslog.conf <<HERE
-
-\$UDPServerRun 514
-\$UDPServerAddress *
-
-local0.*  /var/log/haproxy.log
-
-HERE
-
-# Restart syslog to make effective the changes before we start haproxy
-svcadm restart system-log
-
-
-echo "Enabling service haproxy"
-/usr/sbin/svcadm disable haproxy
-/usr/sbin/svcadm enable haproxy
 
 exit 0

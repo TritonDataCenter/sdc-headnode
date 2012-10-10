@@ -30,11 +30,6 @@ echo "Generating SSL Certificate"
 # Add node_modules/bin to PATH
 echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin:/opt/smartdc/adminui/build/node/bin" >> /root/.bashrc
 
-# Setup HAProxy user/group
-/usr/sbin/groupadd haproxy
-/usr/sbin/useradd -d /tmp -g haproxy -s /usr/bin/false haproxy
-/usr/bin/passwd -N haproxy
-
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure adminui zone"
 

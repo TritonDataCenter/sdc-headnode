@@ -23,6 +23,9 @@ for R in $RESOLVERS; do
     RESOLVER_LIST="${RESOLVER_LIST}${c} \"$R\""
 done
 
+# XXX for now use the first UFDS, soon we'll be switching to DNS
+UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+
 cat > ${CONF} <<ADMIN_CONFIG
 {
   "port": 80,
@@ -31,7 +34,7 @@ cat > ${CONF} <<ADMIN_CONFIG
   "user": "${ADMIN_USER}",
   "password": "${ADMIN_PW}",
   "ufds": {
-    "url": "ldaps://localhost",
+    "url": "ldaps://${UFDS_HOST}",
     "bindDN": "cn=root",
     "bindPassword": "$UFDS_LDAP_ROOT_PW",
     "cache": {
@@ -69,68 +72,6 @@ cat >> ${CONF} <<END_CONFIG
   }
 }
 END_CONFIG
-
-echo "Creating HAProxy config file"
-cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        log 127.0.0.1 local0
-        ulimit-n 4096
-        user haproxy
-        group haproxy
-        daemon
-
-defaults
-        option ssl-hello-chk
-        timeout connect 400ms
-        timeout client 1m
-        timeout server 5m
-
-listen ufds_proxy 127.0.0.1:636
-        mode tcp
-        option tcplog
-        log global
-HERE
-
-# Add all UFDS IPs to haproxy
-# Mark the first one as not backup and all the others as backup
-U=0
-for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-do
-    echo -n "Adding UFDS IP '$ip' to haproxy "
-    if [ $U == 0 ] ; then
-        echo "(primary)"
-        echo "        server ufds$U $ip:636 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "(backup)"
-        echo "        server ufds$U $ip:636 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-
-    let U+=1
-done
-
-# HAProxy logging configuration with rsyslog
-# Create file to log haproxy:
-touch /var/log/haproxy.log
-# Set rsyslog config:
-cat >> /etc/rsyslog.conf <<HERE
-
-\$UDPServerRun 514
-\$UDPServerAddress *
-
-local0.*  /var/log/haproxy.log
-
-HERE
-
-# Restart syslog to make effective the changes before we start haproxy
-svcadm restart system-log
-
-echo "Importing haproxy SMF manifest"
-svccfg import /opt/local/share/smf/haproxy/manifest.xml
-
-echo "Enabling haproxy service"
-/usr/sbin/svcadm enable haproxy
 
 echo "Importing napi SMF manifest"
 /usr/sbin/svccfg import ${INSTDIR}/smf/manifests/napi.xml

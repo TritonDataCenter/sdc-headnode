@@ -16,68 +16,11 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 
-echo "Creating HAProxy config file"
-cat > /opt/local/etc/haproxy.cfg <<HERE
-global
-        log 127.0.0.1 local0
-        ulimit-n 65535
-        user haproxy
-        group haproxy
-        daemon
-defaults
+# XXX for now use the first MORAY, soon we'll be switching to DNS
+MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 
-        balance roundrobin
-        timeout connect 400ms
-        timeout client 1m
-        timeout server 5m
-
-listen moray_proxy 127.0.0.1:2021
-        mode tcp
-        option tcplog
-        # Remove to log everything, including successful requests
-        option dontlog-normal
-        log global
-HERE
-
-# Add all Moray IPs
-R=0
-for i in $(echo "${MORAY_ADMIN_IPS}" | tr ',' ' ')
-do
-    if [ $R == 0 ] ; then
-        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "        server moray$R $i:2020 weight 1 minconn 5 maxconn 25 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-    let R+=1
-done
-
-
-cat >> /opt/local/etc/haproxy.cfg <<HERE
-
-listen ufds_proxy 127.0.0.1:636
-        mode tcp
-        option tcplog
-        log global
-HERE
-
-# Add all UFDS IPs to haproxy
-# Mark the first one as not backup and all the others as backup
-U=0
-for ip in $(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-do
-    if [ $U == 0 ] ; then
-        echo "        server ufds$U $ip:636 check" \
-            >> /opt/local/etc/haproxy.cfg
-    else
-        echo "        server ufds$U $ip:636 check backup" \
-            >> /opt/local/etc/haproxy.cfg
-    fi
-
-    let U+=1
-done
-
+# XXX for now use the first UFDS, soon we'll be switching to DNS
+UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 
 ZONE_UUID=`/usr/bin/zonename`
 
@@ -87,11 +30,11 @@ CFG_FILE=/opt/smartdc/workflow/etc/config.json
 
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|WF_MORAY_URL|http://127.0.0.1:2021|" $CFG_FILE
+gsed -i -e "s|WF_MORAY_URL|http://${MORAY_HOST}:2020|" $CFG_FILE
 gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
 gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
 gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE
-gsed -i -e "s|UFDS_URL|ldaps://localhost|" $CFG_FILE
+gsed -i -e "s|UFDS_URL|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|UFDS_LDAP_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_LDAP_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|DAPI_URL|$DAPI_URL|" $CFG_FILE
@@ -104,28 +47,6 @@ gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
 # Must replace right after NAPI ones
 gsed -i -e "s|HTTP_ADMIN_PW|$HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
-
-# HAProxy logging configuration with rsyslog
-# Create file to log haproxy:
-touch /var/log/haproxy.log
-# Set rsyslog config:
-cat >> /etc/rsyslog.conf <<HERE
-
-\$UDPServerRun 514
-\$UDPServerAddress *
-
-local0.*  /var/log/haproxy.log
-
-HERE
-
-# Restart syslog to make effective the changes before we start haproxy
-svcadm restart system-log
-
-echo "Enabling service haproxy"
-svcadm disable svc:/net/haproxy:default
-svcadm enable svc:/net/haproxy:default
-
-sleep 1
 
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-api.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/workflow/smf/manifests/wf-runner.xml)

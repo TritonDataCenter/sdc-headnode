@@ -1,1 +1,1 @@
-         --> SDC7! Now with 42% less rampant data corruption! <--
+--> also - there's a ton of race conditions right now in boot/reboot/setup. <--
