@@ -96,6 +96,8 @@ $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)
 echo "Enabling service haproxy"
 svcadm disable svc:/net/haproxy:default
 svcadm enable svc:/net/haproxy:default
-sleep 1
+# We are intentionally giving UFDS service some room to create the required
+# moray buckets before it gets called to add bootstrap data.
+sleep 10
 
 exit 0

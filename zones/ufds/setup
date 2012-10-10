@@ -81,7 +81,7 @@ rc=$?
 if [ $rc -ne 0 ] && [ $rc -ne 68 ]; then
     echo "Failed to load bootstrap data, exiting"
     echo "Marking ufds SMF service as in maintenance"
-    svcadm mark maintenance svc:/smartdc/site/ufds-master:default
+    svcadm mark maintenance svc:/smartdc/application/ufds-master:default
     exit 1
 fi
 
