@@ -607,9 +607,9 @@ if [[ -z ${skip_zones} ]]; then
     create_zone moray
     create_zone redis
     create_zone ufds
+    create_zone workflow
     create_zone amon
     create_zone napi
-    create_zone workflow
     create_zone rabbitmq
     create_zone imgapi
     create_zone cnapi
