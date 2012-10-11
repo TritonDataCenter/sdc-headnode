@@ -74,7 +74,7 @@ echo "make snapshot dir visible"
 zfs set snapdir=visible $DATASET
 
 # ZK configs
-ZK_TIMEOUT=200
+ZK_TIMEOUT=6000
 SHARD_PATH=/manatee/sdc
 
 # backup and snapshot configs
