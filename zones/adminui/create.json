@@ -1,0 +1,8 @@
+{
+  "alias": "adminui0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "adminui",
+      "smartdc_type": "core"
+  }
+}

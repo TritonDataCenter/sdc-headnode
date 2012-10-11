@@ -1,0 +1,10 @@
+{
+  "alias": "ca0",
+  "autoboot": false,
+  "brand": "joyent",
+  "delegate_dataset": true,
+  "tags": {
+      "smartdc_role": "ca",
+      "smartdc_type": "core"
+  }
+}

@@ -616,6 +616,8 @@ if [[ -z ${skip_zones} ]]; then
     create_zone dhcpd
     create_zone dapi
     create_zone vmapi
+    create_zone ca
+    create_zone adminui
 fi
 
 if [[ -n ${CREATEDZONES} ]]; then
