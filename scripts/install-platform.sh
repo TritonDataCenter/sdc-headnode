@@ -5,7 +5,7 @@
 
 function usage()
 {
-    echo "Usage: $0 [-s] <platform URI>"
+    echo "Usage: $0 [-crRs] <platform URI>"
     echo "(URI can be file:///, http://, anything curl supports or a filename)"
     exit 1
 }
@@ -16,11 +16,18 @@ function fatal()
         exit 1
 }
 
+cleanup_key=0
+do_reboot=0
 switch_platform=0
-while getopts "s" opt
+force_replace=0
+while getopts "cRrs" opt
 do
 	case "$opt" in
+		c)	cleanup_key=1;;
+		r)	do_reboot=1;;
+		R)	force_replace=1;;
 		s)	switch_platform=1;;
+		*)	usage;;
 	esac
 done
 shift $(($OPTIND - 1))
@@ -63,6 +70,11 @@ version=$(basename "${input}" .tgz | tr [:lower:] [:upper:] | sed -e "s/.*\-\(2.
 if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]]; then
     version="HVM-${version}"
     platform_type=hvm
+fi
+
+if [ ${force_replace} -eq 1 ]; then
+    rm -rf ${usbmnt}/os/${version}
+    rm -rf ${usbcpy}/os/${version}
 fi
 
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
@@ -112,6 +124,17 @@ if [ ${switch_platform} -eq 1 ]; then
     echo "==> Switching boot image to ${version}"
     /usbkey/scripts/switch-platform.sh ${version}
     [ $? != 0 ] && fatal "switching boot image to ${version}"
+fi
+
+if [ ${cleanup_key} -eq 1 ]; then
+    echo "==> Cleaning up key"
+    /usbkey/scripts/cleanup-key.sh -c
+    [ $? != 0 ] && fatal "cleaning key"
+fi
+
+if [ ${do_reboot} -eq 1 ]; then
+    echo "==> Rebooting"
+    reboot
 fi
 
 echo "==> Done!"

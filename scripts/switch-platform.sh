@@ -63,9 +63,8 @@ uuid=`curl -s -u admin:${CONFIG_cnapi_root_pw} \
             print substr($2, 2, length($2) - 3)
             found=0
         }
-    }'`
+    }' 2>/dev/null`
 
-echo $uuid
 if [[ -z "${uuid}" ]]; then
     echo "==> FATAL unable to determine headnode UUID from cnapi."
     exit 1
@@ -73,6 +72,6 @@ fi
 
 curl -s -u admin:${CONFIG_cnapi_root_pw} \
     http://${CONFIG_cnapi_admin_ips}//servers/${uuid} \
-    -X POST -d boot_platform=${version}
+    -X POST -d boot_platform=${version} >/dev/null 2>&1
 
 exit 0
