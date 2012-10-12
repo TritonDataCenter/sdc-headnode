@@ -269,8 +269,13 @@ echo 'This system is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
 echo "Mounting USB key..."
 /usbkey/scripts/mount-usb.sh
 
-# Remove these first so we only restore if they existed to start with
-rm -f /var/tmp/root.authorized_keys.flashing /var/tmp/answers.flashing
+# Move these first so we only restore if they existed to start with
+# keep them though in case there is a reflash failure.
+timestamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
+mv /var/tmp/root.authorized_keys.flashing /var/tmp/root.authorized_keys.${timestamp} \
+    || /bin/true
+mv /var/tmp/answers.flashing /var/tmp/answers.${timestamp} || /bin/true
+mv /var/tmp/devtools.flashing /var/tmp/devtools.${timestamp} || /bin/true
 
 # Keep the answers.json if it exists
 if [[ -f /mnt/usbkey/private/answers.json ]]; then
@@ -285,9 +290,19 @@ if [[ -f /mnt/usbkey/config.inc/root.authorized_keys ]]; then
         /var/tmp/root.authorized_keys.flashing
 fi
 
+# backup devtools
+if [[ -d /mnt/usbkey/devtools ]]; then
+     cp -RP /mnt/usbkey/devtools /var/tmp/devtools.flashing
+fi
+
 # Remove everything!
 echo "Wiping /mnt/usbkey..."
 rm -rf /mnt/usbkey/*
+
+# copy devtools back (we'll unpack new ones over old ones but keep custom ones)
+if [[ -d /var/tmp/devtools.flashing ]]; then
+    cp -RP /var/tmp/devtools.flashing /mnt/usbkey/devtools
+fi
 
 # Unpack the image
 # XXX there doesn't appear to be a way to disable these permission warnings on
