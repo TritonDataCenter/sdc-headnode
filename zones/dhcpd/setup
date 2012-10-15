@@ -9,8 +9,8 @@ set -o xtrace
 source /var/svc/setup.common
 
 # Add booter's node and bunyan to the PATH.
-echo "" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/booter/node/bin:/opt/smartdc/booter/node_modules/.bin" >>/root/.bashrc
+echo "" >>/root/.profile
+echo "export PATH=\$PATH:/opt/smartdc/booter/node/bin:/opt/smartdc/booter/node_modules/.bin:/opt/smartdc/booter/bin" >>/root/.profile
 
 echo "Finishing setup of dhcpd zone"
 
