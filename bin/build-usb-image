@@ -157,7 +157,7 @@ function copy_config {
     rm -f ${MNT_DIR}/config || true
     rm -rf ${MNT_DIR}/config.inc || true
 
-    cp -r config/config.usb.inc ${MNT_DIR}/config.inc
+    cp -r config/config.inc ${MNT_DIR}/config.inc
 
     ANSWER_FILE=$(build_spec answer-file)
     if [[ -n ${ANSWER_FILE} && -f ${ANSWER_FILE} ]]; then

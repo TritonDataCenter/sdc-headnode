@@ -84,7 +84,7 @@ function errexit
 }
 
 trap 'errexit $? $LINENO' EXIT
-    
+
 IMG_TMP_STAGE="$IMG_TMP_DIR/upgrade.$$"
 
 function create_upgrade
@@ -113,15 +113,7 @@ function create_upgrade
     cp ${ROOT}/tools/sdc-rollback ${STAGE}/upgrade/sdc-rollback
     chmod +x ${STAGE}/upgrade/sdc-rollback
 
-    local sconf=${ROOT}/config/config.usb.inc/generic
-
-    # XXX - NB: because our builds are all done as "usb" types it makes testing
-    # upgrades on COAL impossible. This is here only to allow for testing
-    # of upgrades within a COAL environment.
-    # (Do not remove without talking to Jerry)
-    if [[ -n ${IMG_TYPE} ]] && [[ "${IMG_TYPE}" == "coal" ]]; then
-        sconf=${ROOT}/config/config.coal.inc/generic
-    fi
+    local sconf=${ROOT}/config/config.inc/generic
     cp ${sconf} ${STAGE}/upgrade/conf.generic
 
     chmod 755 ${STAGE}/upgrade/upgrade.sh
@@ -145,7 +137,7 @@ function create_upgrade
     (cd $IMG_TMP_DIR && \
         ${TAR} -cvzf $IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz platform-$PLATFORM_STAMP)
     USING_PLATFORM="$IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz"
-    
+
     mkdir -p ${STAGE}/upgrade/platform
     cp ${USING_PLATFORM} ${STAGE}/upgrade/platform
 }
