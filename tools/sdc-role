@@ -223,14 +223,19 @@ add_pkg_zone_parameters()
     while [[ -n $(eval "echo \${CONFIG_pkg_${idx}}") ]]; do
         pkg=$(eval "echo \${CONFIG_pkg_${idx}}")
         if [[ ${pkg%%:*} == ${package} ]]; then
-            # name:ram:swap:disk:cap:nlwp:iopri
+            # name:ram:swap:disk:cap:nlwp:iopri:uuid
+            local pkgname=$(echo ${pkg} | cut -d ':' -f 1)
             local ram=$(echo ${pkg} | cut -d ':' -f 2)
             local swap=$(echo ${pkg} | cut -d ':' -f 3)
             local disk=$(echo ${pkg} | cut -d ':' -f 4)
             local cap=$(echo ${pkg} | cut -d ':' -f 5)
             local nlwp=$(echo ${pkg} | cut -d ':' -f 6)
             local iopri=$(echo ${pkg} | cut -d ':' -f 7)
+            local billid=$(echo ${pkg} | cut -d ':' -f 8)
 
+
+            [[ -n ${pkgname} ]] \
+                && zone_parameters="${zone_parameters}, package_name: ${pkgname}, package_version: 1.0.0"
             [[ -n ${ram} ]] \
                 && zone_parameters="${zone_parameters}, ram: ${ram}"
             [[ -n ${swap} ]] \
@@ -243,6 +248,8 @@ add_pkg_zone_parameters()
                 && zone_parameters="${zone_parameters}, max_lwps: ${nlwp}"
             [[ -n ${iopri} ]] \
                 && zone_parameters="${zone_parameters}, zfs_io_priority: ${iopri}"
+            [[ -n ${billid} ]] \
+                && zone_parameters="${zone_parameters}, billing_id: ${billid}"
         fi
         idx=$((${idx} + 1))
     done

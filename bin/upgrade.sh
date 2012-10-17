@@ -778,7 +778,7 @@ function cleanup_config
 	# add all pkg_ entries from upgrade generic file
 	echo "" >>/tmp/config.$$
 	echo "# Pkg entry format:" >>/tmp/config.$$
-	echo "#        name:ram:swap:disk:cap:nlwp:iopri" >>/tmp/config.$$
+	echo "#        name:ram:swap:disk:cap:nlwp:iopri:uuid" >>/tmp/config.$$
 	echo "#" >>/tmp/config.$$
 	echo "# These must start with 0 and increment by 1." >>/tmp/config.$$
 	cnt=0

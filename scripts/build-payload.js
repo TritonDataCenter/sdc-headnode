@@ -99,7 +99,7 @@ async.series([
         for (k in config) {
             v = config[k];
 
-            // fields: # name:ram:swap:disk:cap:nlwp:iopri
+            // fields: # name:ram:swap:disk:cap:nlwp:iopri:uuid
             if (k.match('^pkg_')) {
                 pkgdata = v.split(':');
                 if (pkgdata[0] === config[zone + '_pkg']) {
@@ -111,6 +111,7 @@ async.series([
                     pkg.cap = pkgdata[4];
                     pkg.nlwp = pkgdata[5];
                     pkg.iopri = pkgdata[6];
+                    pkg.uuid = pkgdata[7];
                     //console.log('pkg: ' + JSON.stringify(pkg, null, 2));
                     obj.cpu_shares = Number(pkg.ram); // what MAPI would do.
                     obj.cpu_cap = Number(pkg.cap);
@@ -121,10 +122,10 @@ async.series([
                     obj.max_swap = Number(pkg.swap);
                     obj.quota = Number(pkg.disk) / 1024; // we want GiB
                     obj.quota = obj.quota.toFixed(0); // force Integer
+                    obj.package_version = '1.0.0';
+                    obj.package_name = pkg.name;
+                    obj.billing_id = pkg.uuid;
                     obj.internal_metadata = {};
-                    obj.internal_metadata['package_version'] = '1.0.0';
-                    obj.internal_metadata['package_name'] = pkg.name;
-
                     return cb();
                 }
             }
@@ -240,6 +241,26 @@ async.series([
         obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
         obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
         cb();
+    }, function (cb) {
+        // save the package values to the ufds zone
+        var k, v;
+        var packages = [];
+
+        if (zone === 'ufds') {
+            packages = [];
+
+            for (k in config) {
+                v = config[k];
+
+                // fields: # name:ram:swap:disk:cap:nlwp:iopri:uuid
+                if (k.match('^pkg_')) {
+                    packages.push(v);
+                }
+            }
+
+            obj.customer_metadata.packages = packages.join("\n");
+        }
+        return cb();
     }
 ], function (err) {
     if (err) {
