@@ -1351,7 +1351,7 @@ echo "ufds_ldap_root_pw=secret" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
 echo "ufds_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_email=$mail_to" >>$tmp_config
-echo "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
+echo "ufds_admin_uuid=00000000-0000-0000-0000-000000000000" >>$tmp_config
 echo "# Legacy CAPI parameters" >>$tmp_config
 echo "capi_http_admin_user=admin" >>$tmp_config
 echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
