@@ -3,8 +3,9 @@
 #
 
 # Pkg entry format:
-#        name:ram:swap:disk:cap:nlwp:iopri
+#        name:ram:swap:disk:cap:nlwp:iopri:uuid
 #
+# If you add/change packages, please, generate a new, valid, UUID, do not reuse
 # These must start with 0 and increment by 1.  Do not skip numbers!
 pkg_0=sdc_64:64:256:10240:100:1000:10:0ea54d9d-8d4d-4959-a87e-bf47c0f61a47
 pkg_1=sdc_128:128:256:10240:100:1000:10:73a1ca34-1e30-48c7-8681-70314a9c67d3
