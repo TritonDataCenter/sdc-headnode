@@ -63,7 +63,7 @@ packages=$(/usr/sbin/mdata-get packages)
 # name:ram:swap:disk:cap:nlwp:iopri:uuid
 for pkg in $packages
 do
-  # Make sure we alwas have a new line before our stuff
+  # Make sure we always have a new line before our stuff
   echo "
 dn: uuid=$(echo ${pkg} | cut -d ':' -f 8), ou=packages, o=smartdc
 uuid: $(echo ${pkg} | cut -d ':' -f 8)
