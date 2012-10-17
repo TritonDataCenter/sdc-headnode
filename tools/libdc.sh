@@ -9,7 +9,7 @@
 source /lib/sdc/config.sh
 load_sdc_config
 
-CURL_OPTS="-m 10 -sS -i"
+CURL_OPTS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
 
 # CNAPI!
 CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
