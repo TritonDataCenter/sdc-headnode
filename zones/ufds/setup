@@ -54,8 +54,34 @@ echo "Loading bootstrap data"
 LDIF_IN=/opt/smartdc/$role/data/bootstrap.ldif.in
 LDIF=/tmp/.bootstrap.ldif
 
+
 # Update config file
 cp $LDIF_IN $LDIF
+
+echo "Getting package information"
+packages=$(/usr/sbin/mdata-get packages)
+# name:ram:swap:disk:cap:nlwp:iopri:uuid
+for pkg in $packages
+do
+  # Make sure we alwas have a new line before our stuff
+  echo "
+dn: uuid=$(echo ${pkg} | cut -d ':' -f 8), ou=packages, o=smartdc
+uuid: $(echo ${pkg} | cut -d ':' -f 8)
+active: true
+cpu_cap: $(echo ${pkg} | cut -d ':' -f 5)
+default: true
+max_lwps: $(echo ${pkg} | cut -d ':' -f 6)
+max_physical_memory: $(echo ${pkg} | cut -d ':' -f 2)
+max_swap: $(echo ${pkg} | cut -d ':' -f 3)
+name: $(echo ${pkg} | cut -d ':' -f 1)
+quota: $(echo ${pkg} | cut -d ':' -f 4)
+urn: sdc:UFDS_ADMIN_UUID:$(echo ${pkg} | cut -d ':' -f 1):1.0.0
+vcpus: 1
+version: 1.0.0
+zfs_io_priority: $(echo ${pkg} | cut -d ':' -f 7)
+objectclass: sdcpackage" >> $LDIF
+done
+
 gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $LDIF
 gsed -i -e "s|UFDS_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $LDIF
 gsed -i -e "s|UFDS_ADMIN_PW|$UFDS_ADMIN_PW|" $LDIF
