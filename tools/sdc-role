@@ -235,7 +235,7 @@ add_pkg_zone_parameters()
 
 
             [[ -n ${pkgname} ]] \
-                && zone_parameters="${zone_parameters}, package_name: ${pkgname}, package_version: '1.0.0'"
+                && zone_parameters="${zone_parameters}, package_name: '${pkgname}', package_version: '1.0.0'"
             [[ -n ${ram} ]] \
                 && zone_parameters="${zone_parameters}, ram: ${ram}"
             [[ -n ${swap} ]] \
