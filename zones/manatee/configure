@@ -29,7 +29,7 @@ BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 
 # extract the postgres binaries
 echo 'extracting postgres binaries'
-tar -xf /opt/smartdc/manatee/bin/postgres.tar.bz2 -C /
+tar -xf /opt/smartdc/manatee/bin/postgres.tar.bz2 -C /opt/local/
 
 # check that the dataset has been mounted
 echo "checking to see if dataset is mounted"
