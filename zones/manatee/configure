@@ -143,10 +143,18 @@ svcadm enable cron
 
 # Add Log rotation
 echo "Adding log rotation"
-logadm -w manatee -C 48 -c -p 1h /var/svc/log/sds-application-manatee-sitter:default.log
-logadm -w manatee-postgres -C 48 /var/pg/postgresql*.log
-logadm -w manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log
-logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
+tempLogConf=/tmp/`uuid`
+echo "manatee-sitter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-sitter:default.log" > $tempLogConf
+echo "manatee-postgres -C 48 /var/pg/postgresql*.log" >> $tempLogConf
+echo "manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log" >> $tempLogConf
+echo "manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log" >> $tempLogConf
+cat /etc/logadm.conf >> $tempLogConf
+rm /etc/logadm.conf
+mv $tempLogConf /etc/logadm.conf
+#logadm -w manatee-sitter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-sitter:default.log
+#logadm -w manatee-postgres -C 48 /var/pg/postgresql*.log
+#logadm -w manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log
+#logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
 echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
 crontab /etc/cron.d/logadm
 
