@@ -390,7 +390,9 @@ promptnet()
 		if [[ ${val} == "<default>" && -n ${def} ]]; then
 			val=${def}
 		fi
-		is_net "$val" || val=""
+		if [[ ${val} != "none" ]]; then
+			is_net "$val" || val=""
+		fi
 	fi
 
 	while [ -z "$val" ]; do
@@ -402,7 +404,9 @@ promptnet()
 		printf "$prmpt_str"
 		read val
 		[ -z "$val" ] && val="$def"
-		is_net "$val" || val=""
+		if [[ ${val} != "none" ]]; then
+			is_net "$val" || val=""
+		fi
 		[ -n "$val" ] && break
 		echo "A valid network number (n.n.n.n) must be provided."
 	done
@@ -825,8 +829,18 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 	promptnet "(admin) headnode netmask" "$admin_netmask" "admin_netmask"
 	admin_netmask="$val"
 
-	promptnet "(admin) gateway IP address" "$admin_gateway" "admin_gateway"
-	admin_gateway="$val"
+	val="none"
+	if [[ ${admin_gateway} ]]; then
+		# if they went back to change settings, enter should keep their
+		# current value.
+		val=${admin_gateway}
+	fi
+	promptnet "(admin) gateway IP address" "${val}" "admin_gateway"
+	if [[ ${val} != "none" ]]; then
+		admin_gateway="$val"
+	else
+		admin_gateway=
+	fi
 
 	if [[ -z "$admin_zone_ip" ]]; then
 		ip_netmask_to_network "$admin_ip" "$admin_netmask"
@@ -1006,7 +1020,7 @@ values will be configured below.\n\n"
 		printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
 			"IP addr." "Netmask" "Gateway" "VLAN"
 		printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
-			$admin_ip $admin_netmask $admin_gateway "none"
+			$admin_ip $admin_netmask "$admin_gateway" "none"
 		printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
 			$external_ip $external_netmask $external_gateway $ext_vlanid
 		echo
@@ -1206,7 +1220,9 @@ echo "admin_nic=$admin_nic" >>$tmp_config
 echo "admin_ip=$admin_ip" >>$tmp_config
 echo "admin_netmask=$admin_netmask" >>$tmp_config
 echo "admin_network=$admin_network" >>$tmp_config
-echo "admin_gateway=$admin_gateway" >>$tmp_config
+if [[ -n ${admin_gateway} ]]; then
+	echo "admin_gateway=$admin_gateway" >>$tmp_config
+fi
 echo >>$tmp_config
 
 echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
@@ -1226,7 +1242,9 @@ echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
 echo >>$tmp_config
 
 echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
-echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
+if [[ -n ${admin_gateway} ]]; then
+	echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
+fi
 echo >>$tmp_config
 
 echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config

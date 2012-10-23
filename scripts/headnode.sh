@@ -140,18 +140,6 @@ rm -f /etc/ssh/ssh_*key*
 
 upgrading=0
 
-# networking is async, make sure it's up here before we
-# try to talk to pkgsrc.
-count=0
-while ! ping pkgsrc.joyent.com; do
-    sleep 1
-    count=\$((\${count} + 1))
-    if [[ \${count} -gt 60 ]]; then
-        echo "timed out waiting for network" >&2
-        exit 1
-    fi
-done
-
 echo "PKG_PATH=\${PKGSRC_REPO}" > /opt/local/etc/pkg_install.conf
 echo "\${PKGSRC_REPO}" > /opt/local/etc/pkgin/repositories.conf
 pkgin -V -f -y update || true
