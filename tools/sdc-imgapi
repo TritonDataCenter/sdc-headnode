@@ -68,7 +68,7 @@ CURL_ARGS="--connect-timeout 10 -sS"
 if [[ "$IS_GETIMAGEFILE" == "no" ]]; then
     # Technically this 'content-type:application/json' isn't right
     # for the AddImageFile endpoint, but it doesn't hurt.
-    CURL_ARGS+="-i -H accept:application/json -H content-type:application/json"
+    CURL_ARGS+=" -i -H accept:application/json -H content-type:application/json"
 fi
 
 # Note: the 'echo' doesn't show the real quoting of args.
