@@ -63,23 +63,35 @@ packages=$(/usr/sbin/mdata-get packages)
 # name:ram:swap:disk:cap:nlwp:iopri:uuid
 for pkg in $packages
 do
+  name=$(echo ${pkg} | cut -d ':' -f 1)
+  uuid=$(echo ${pkg} | cut -d ':' -f 8)
+  # TBD: Decide if default package should be configurable
+  # (can be changed from adminui post setup).
+  if [ "${name}" == "sdc_128" ]; then
+    default='true'
+  else
+    default='false'
+  fi
   # Make sure we always have a new line before our stuff
   echo "
-dn: uuid=$(echo ${pkg} | cut -d ':' -f 8), ou=packages, o=smartdc
-uuid: $(echo ${pkg} | cut -d ':' -f 8)
+dn: uuid=${uuid}, ou=packages, o=smartdc
+uuid: ${uuid}
 active: true
 cpu_cap: $(echo ${pkg} | cut -d ':' -f 5)
-default: true
+default: $default
 max_lwps: $(echo ${pkg} | cut -d ':' -f 6)
 max_physical_memory: $(echo ${pkg} | cut -d ':' -f 2)
 max_swap: $(echo ${pkg} | cut -d ':' -f 3)
-name: $(echo ${pkg} | cut -d ':' -f 1)
+name: ${name}
 quota: $(echo ${pkg} | cut -d ':' -f 4)
-urn: sdc:UFDS_ADMIN_UUID:$(echo ${pkg} | cut -d ':' -f 1):1.0.0
+urn: sdc:UFDS_ADMIN_UUID:${name}:1.0.0
 vcpus: 1
 version: 1.0.0
 zfs_io_priority: $(echo ${pkg} | cut -d ':' -f 7)
 objectclass: sdcpackage" >> $LDIF
+  # Cleanup variables before next loop iteration
+  unset name
+  unset uuid
 done
 
 gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $LDIF
