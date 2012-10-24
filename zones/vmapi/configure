@@ -13,18 +13,18 @@ WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+# XXX for now use the first MORAY, soon we'll be switching to DNS
+MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 
 echo "Creating VMAPI config file"
 CFG_FILE_IN=/opt/smartdc/vmapi/config.json.in
 CFG_FILE=/opt/smartdc/vmapi/config.json
 
 cp $CFG_FILE_IN $CFG_FILE
+gsed -i -e "s|MORAY_HOST|$MORAY_HOST|" $CFG_FILE
 gsed -i -e "s|RABBIT_ADMIN_IP|$RABBIT_ADMIN_IP|" $CFG_FILE
 gsed -i -e "s|REDIS_ADMIN_IPS|$REDIS_ADMIN_IPS|" $CFG_FILE
 gsed -i -e "s|WF_URL|$WF_URL|" $CFG_FILE
-gsed -i -e "s|ldaps://localhost|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
