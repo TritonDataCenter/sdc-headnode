@@ -53,8 +53,29 @@ if [[ -z "$IMGAPI_URL" ]]; then
     exit 1
 fi
 
-CURL_ARGS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
+# Try to sniff out GetImageFile request and adjust
+# CURL_ARGS and JSON usage accordingly.
+IS_GETIMAGEFILE=no
+if [[ "${path:(-5)}" == "/file" ]]; then
+    if [[ -z $(echo "$@" | grep -- '-T') && -z $(echo "$@" | grep -- 'PUT') ]]; then
+        IS_GETIMAGEFILE=yes
+    fi
+fi
+CURL_ARGS="--connect-timeout 10 -sS"
+# 'application/json' are wrong for GetImageFile. We also drop '-i'
+# because otherwise the headers get in the way of doing this:
+#       sdc-imgapi /images/$uuid/file -o foo.zfs.bz2
+if [[ "$IS_GETIMAGEFILE" == "no" ]]; then
+    # Technically this 'content-type:application/json' isn't right
+    # for the AddImageFile endpoint, but it doesn't hurt.
+    CURL_ARGS+="-i -H accept:application/json -H content-type:application/json"
+fi
 
 # Note: the 'echo' doesn't show the real quoting of args.
 [ "$verbose" == "1" ] && echo "# curl $CURL_ARGS --url $IMGAPI_URL$path $@" >&2
-curl $CURL_ARGS --url "$IMGAPI_URL$path" "$@" | json -q
+if [[ "$IS_GETIMAGEFILE" == "no" ]]; then
+    curl $CURL_ARGS --url "$IMGAPI_URL$path" "$@" | json -q
+else
+    curl $CURL_ARGS --url "$IMGAPI_URL$path" "$@"
+fi
+
