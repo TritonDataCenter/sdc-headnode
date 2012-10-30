@@ -30,7 +30,7 @@
   , "vmapi-tarball": "vmapi/vmapi-pkg-master-.*.tar.bz2"
   , "webinfo-tarball": "webinfo/webinfo-pkg-master-.*.tar.bz2"
   , "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2"
-  , "zookeeper-tarball": "none"
+  , "zookeeper-tarball": "binder/binder-pkg-master-.*.tar.bz2"
 
   , "datasets": [
       { "name": "smartos-1.6.3"
