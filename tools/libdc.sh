@@ -42,6 +42,17 @@ if [[ -n ${CONFIG_napi_http_admin_user}
     NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
 fi
 
+# DAPI!
+DAPI_IP=$(echo "${CONFIG_dapi_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${CONFIG_dapi_http_admin_user}
+    && -n ${CONFIG_dapi_http_admin_pw} ]]; then
+
+    DAPI_CREDENTIALS="${CONFIG_dapi_http_admin_user}:${CONFIG_dapi_http_admin_pw}"
+fi
+if [[ -n ${DAPI_IP} ]]; then
+    DAPI_URL="http://${DAPI_IP}"
+fi
+
 # WORKFLOW!
 WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
 if [[ -n ${CONFIG_workflow_http_admin_user}
@@ -74,6 +85,16 @@ napi()
     path=$1
     shift
     (curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" \
+        "$@") || return $?
+    echo ""  # sometimes the result is not terminated with a newline
+    return 0
+}
+
+dapi()
+{
+    path=$1
+    shift
+    (curl ${CURL_OPTS} -u "${DAPI_CREDENTIALS}" --url "${DAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0

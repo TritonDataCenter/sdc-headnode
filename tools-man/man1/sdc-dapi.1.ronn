@@ -1,0 +1,31 @@
+# sdc-dapi(1) -- call the Smart Data Center Designation API (DAPI)
+
+
+## SYNOPSIS
+
+`sdc-dapi URLPATH [CURL-OPTIONS...]`
+
+
+## DESCRIPTION
+
+This is a light convenience wrapper around `curl` for calling the
+Designation API in this Smart Data Center. The Designation API is
+responsible for choosing the best server on which to provision a new VM.
+
+Formatting of the response is done via the `json` tool.
+
+
+## OPTIONS
+
+Any additional options supported by `curl` may be used after the `URLPATH`
+argument.
+
+
+## COPYRIGHT
+
+sdc-dapi Copyright (c) 2012 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+sdc-vmapi (1), curl (1), json (1)
