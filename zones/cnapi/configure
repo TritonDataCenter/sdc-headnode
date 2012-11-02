@@ -27,6 +27,10 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   "amqp": {
     "host": "$RABBIT_ADMIN_IP"
   },
+  "moray": {
+    "host": "$MORAY_ADMIN_IP",
+    "port": 2020
+  },
   "api": {
     "username": "$CNAPI_HTTP_ADMIN_USER",
     "password": "$CNAPI_HTTP_ADMIN_PW",
