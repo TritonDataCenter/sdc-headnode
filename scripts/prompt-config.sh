@@ -585,7 +585,7 @@ configure_standby()
 	printheader "Configuring Standby Headnode"
 	message="
 This standby headnode will be setup using the backup configuration, however
-you must select the new NICs for the admin and external networks.\n\n"
+you must select the new NICs for the admin and possibly external networks.\n\n"
 
 	printf "$message"
 
@@ -595,8 +595,17 @@ you must select the new NICs for the admin and external networks.\n\n"
 
 		echo
 
-		promptnic "'external'"
-		external_nic="$val"
+		# if we have external in original config, we'll need one here,
+		# otherwise we don't.
+		setup_external_network="n"
+		if grep "^external_nic=" ${USBMNT}/config >/dev/null; then
+			setup_external_network="y"
+		fi
+
+		if [[ ${setup_external_network} == "y" ]]; then
+			promptnic "'external'"
+			external_nic="$val"
+		fi
 
 		clear
 		printnics
@@ -607,8 +616,8 @@ you must select the new NICs for the admin and external networks.\n\n"
 
 	# update config
 	sed -e "s/admin_nic=.*/admin_nic=$admin_nic/" \
-            -e "s/external_nic=.*/external_nic=$external_nic/" \
-            $USBMNT/config >/tmp/config.$$
+		-e "s/external_nic=.*/external_nic=$external_nic/" \
+		$USBMNT/config >/tmp/config.$$
 
 	echo
 	echo "Your configuration is about to be applied."
@@ -622,20 +631,27 @@ nicsup() {
 	local vlan_opts=""
 	ifconfig $admin_iface inet $admin_ip netmask $admin_netmask up
 
-	if [ -n "$external_vlan_id" ]; then
-		vlan_opts="-v $external_vlan_id"
+	if [[ -n ${external_nic} ]]; then
+		if [ -n "$external_vlan_id" ]; then
+			vlan_opts="-v $external_vlan_id"
+		fi
+
+		dladm create-vnic -l $external_iface $vlan_opts external0
+		ifconfig external0 plumb
+		ifconfig external0 inet $external_ip netmask $external_netmask up
 	fi
 
-	dladm create-vnic -l $external_iface $vlan_opts external0
-	ifconfig external0 plumb
-	ifconfig external0 inet $external_ip netmask $external_netmask up
-	route add default $headnode_default_gateway >/dev/null
+	if [[ -n ${headnode_default_gateway} ]]; then
+		route add default $headnode_default_gateway >/dev/null
+	fi
 }
 
 nicsdown() {
 	ifconfig ${admin_iface} inet down unplumb
-	ifconfig external0 inet down unplumb
-	dladm delete-vnic external0
+	if [[ -n ${external_nic} ]]; then
+		ifconfig external0 inet down unplumb
+		dladm delete-vnic external0
+	fi
 }
 
 trap "" SIGINT
@@ -655,12 +671,12 @@ shift $(($OPTIND - 1))
 USBMNT=$1
 
 if [[ -n ${answer_file} ]]; then
-    if [[ ! -f ${answer_file} ]]; then
-        echo "ERROR: answer file '${answer_file}' does not exist!"
-        exit 1
-    fi
+	if [[ ! -f ${answer_file} ]]; then
+		echo "ERROR: answer file '${answer_file}' does not exist!"
+		exit 1
+	fi
 elif [[ -f ${USBMNT}/private/answers.json ]]; then
-    answer_file=${USBMNT}/private/answers.json
+	answer_file=${USBMNT}/private/answers.json
 fi
 
 #
@@ -669,14 +685,14 @@ fi
 nic_cnt=0
 
 while IFS=: read -r link addr ; do
-    ((nic_cnt++))
-    nics[$nic_cnt]=$link
-    macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
-    # reformat the nic so that it's in the proper 00:00:ab... form not 0:0:ab...
-    macs[$nic_cnt]=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" \
-        $(echo "${macs[${nic_cnt}]}" \
-        | tr ':' ' ' | sed -e "s/\([A-Fa-f0-9]*\)/0x\1/g"))
-    assigned[$nic_cnt]="-"
+	((nic_cnt++))
+	nics[$nic_cnt]=$link
+	macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
+	# reformat the nic so that it's in the proper 00:00:ab... form not 0:0:ab...
+	macs[$nic_cnt]=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" \
+	    $(echo "${macs[${nic_cnt}]}" \
+	    | tr ':' ' ' | sed -e "s/\([A-Fa-f0-9]*\)/0x\1/g"))
+	assigned[$nic_cnt]="-"
 done < <(dladm show-phys -pmo link,address 2>/dev/null)
 
 if [[ $nic_cnt -lt 1 ]]; then
@@ -687,7 +703,7 @@ fi
 # Don't do an 'ifconfig -a' - this causes some nics (bnx) to not
 # work when combined with the later dladm commands
 for iface in $(dladm show-phys -pmo link); do
-  ifconfig $iface plumb 2>/dev/null
+	ifconfig $iface plumb 2>/dev/null
 done
 updatenicstates
 
@@ -855,57 +871,76 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 	message="
 The external network is used by the headnode and its applications to connect to
 external networks. That is, it can be used to communicate with either the
-Internet, an intranet, or any other WAN.\n\n"
+Internet, an intranet, or any other WAN. This is optional when your system does
+not need access to an external network, or where you want to connect to an
+external network later.\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
 	fi
 
-	promptnic "'external'"
-	external_nic="$val"
-	external_iface="$nic_val"
-
-	promptnet "(external) headnode IP address" "$external_ip" "external_ip"
-	external_ip="$val"
-
-	[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
-
-	promptnet "(external) headnode netmask" "$external_netmask" "external_netmask"
-	external_netmask="$val"
-
-	promptnet "(external) gateway IP address" "$external_gateway" "external_gateway"
-	external_gateway="$val"
-
-	promptopt "(external) VLAN ID" "$external_vlan_id" "external_vlan_id"
-	external_vlan_id="$val"
-
-	if [[ -z "$external_provisionable_start" ]]; then
-		ip_netmask_to_network "$external_gateway" "$external_netmask" "external_netmask"
-		gw_host_addr=$host_addr
-
-		ip_netmask_to_network "$external_ip" "$external_netmask"
-
-		# Get use_lo and use_hi values for defaults
-		calc_ext_default_range $gw_host_addr $host_addr
-
-		gw_host_addr=$(expr $net_d + $gw_host_addr)
-
-		next_addr=$(expr $net_d + $use_lo)
-
-		# By default, start the provisionable range 5 addrs after the
-		# previous IP.
-		next_addr=$(expr $next_addr + 5)
-		external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
-		external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
+	if [[ -z ${setup_external_network} ]]; then
+		setup_external_network="Y/n"
 	fi
+	while [[ ${setup_external_network} != "y" && ${setup_external_network} != "n" ]]; do
+		promptopt "Add external network now?" "${setup_external_network}" "setup_external_network"
+		if [[ ${val} == 'y' || ${val} == 'Y' || ${val} == 'yes' || ${val} == 'true' || ${val} == 'Y/n' ]]; then
+			setup_external_network="y"
+		elif [[ ${val} == 'n' || ${val} == 'N' || ${val} == 'no' || ${val} == 'false' ]]; then
+			setup_external_network="n"
+		else
+			echo "Invalid value, please use 'y' for yes, 'n' for no."
+		fi
+	done
 
-	promptnet "Starting provisionable IP address" \
-	   "$external_provisionable_start" "external_provisionable_start"
-	external_provisionable_start="$val"
+	if [[ ${setup_external_network} == 'y' ]]; then
 
-	promptnet "  Ending provisionable IP address" \
-	   "$external_provisionable_end" "external_provisionable_end"
-	external_provisionable_end="$val"
+		promptnic "'external'"
+		external_nic="$val"
+		external_iface="$nic_val"
+
+		promptnet "(external) headnode IP address" "$external_ip" "external_ip"
+		external_ip="$val"
+
+		[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
+
+		promptnet "(external) headnode netmask" "$external_netmask" "external_netmask"
+		external_netmask="$val"
+
+		promptnet "(external) gateway IP address" "$external_gateway" "external_gateway"
+		external_gateway="$val"
+
+		promptopt "(external) VLAN ID" "$external_vlan_id" "external_vlan_id"
+		external_vlan_id="$val"
+
+		if [[ -z "$external_provisionable_start" ]]; then
+			ip_netmask_to_network "$external_gateway" "$external_netmask" "external_netmask"
+			gw_host_addr=$host_addr
+
+			ip_netmask_to_network "$external_ip" "$external_netmask"
+
+			# Get use_lo and use_hi values for defaults
+			calc_ext_default_range $gw_host_addr $host_addr
+
+			gw_host_addr=$(expr $net_d + $gw_host_addr)
+
+			next_addr=$(expr $net_d + $use_lo)
+
+			# By default, start the provisionable range 5 addrs after the
+			# previous IP.
+			next_addr=$(expr $next_addr + 5)
+			external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
+			external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
+		fi
+
+		promptnet "Starting provisionable IP address" \
+		    "$external_provisionable_start" "external_provisionable_start"
+		external_provisionable_start="$val"
+
+		promptnet "  Ending provisionable IP address" \
+		    "$external_provisionable_end" "external_provisionable_end"
+		external_provisionable_end="$val"
+	fi
 
 	printheader "Networking - Continued"
 	message=""
@@ -917,14 +952,20 @@ Internet, an intranet, or any other WAN.\n\n"
 	message="
 The default gateway will determine which router will be used to connect to
 other networks. This will almost certainly be the router connected to your
-'External' network.\n\n"
+'External' network. Use 'none' if you have no gateway.\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
 	fi
 
-	[[ -z "$headnode_default_gateway" ]] && \
+	# default to external_gateway if that's set, if not, admin_gateway, if
+	# that's also not set, use 'none'
+	[[ -z "$headnode_default_gateway" && -n ${external_gateway} ]] && \
 	    headnode_default_gateway="$external_gateway"
+	[[ -z "$headnode_default_gateway" && -n ${admin_gateway} ]] && \
+	    headnode_default_gateway="$admin_gateway"
+	[[ -z "$headnode_default_gateway" ]] && \
+	    headnode_default_gateway="none"
 
 	promptnet "Enter the default gateway IP" "$headnode_default_gateway" "headnode_default_gateway"
 	headnode_default_gateway="$val"
@@ -956,15 +997,18 @@ By default the headnode acts as an NTP server for the admin network. You can
 set the headnode to be an NTP client to synchronize to another NTP server.\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
-	    printf "$message"
+		printf "$message"
 	fi
 
 	prompt_host_ok_val \
 	    "Enter an NTP server IP address or hostname" "$ntp_hosts" "ntp_host"
 	ntp_hosts="$val"
 
-	ntpdate -b $ntp_hosts >/dev/null 2>&1
-	[ $? != 0 ] && print_warning "NTP failure setting date and time"
+skip_ntp=$(getanswer "skip_ntp_check")
+if [[ -z ${skip_ntp} || ${skip_ntp} != "true" ]]; then
+		ntpdate -b $ntp_hosts >/dev/null 2>&1
+		[ $? != 0 ] && print_warning "NTP failure setting date and time"
+fi
 
 	printheader "Account Information"
 	message="
@@ -1006,40 +1050,46 @@ values will be configured below.\n\n"
 	if [[ $(getanswer "skip_final_summary") != "true" ]]; then
 		printf "Company name: $datacenter_company_name\n"
 		printf "Datacenter Name: %s, Location: %s\n" \
-			"$datacenter_name" "$datacenter_location"
+		    "$datacenter_name" "$datacenter_location"
 		printf "Headnode ID: $datacenter_headnode_id\n"
 		printf "Email Admin Address: %s, From: %s\n" \
-			"$mail_to" "$mail_from"
+		    "$mail_to" "$mail_from"
 		printf "Domain name: %s, Gateway IP address: %s\n" \
-			$domainname $headnode_default_gateway
-		if [ -z "$external_vlan_id" ]; then
-			ext_vlanid="none"
-		else
-			ext_vlanid="$external_vlan_id"
+		    $domainname $headnode_default_gateway
+		if [[ -n ${external_nic} ]]; then
+			if [ -z "$external_vlan_id" ]; then
+				ext_vlanid="none"
+			else
+				ext_vlanid="$external_vlan_id"
+			fi
 		fi
 		printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
-			"IP addr." "Netmask" "Gateway" "VLAN"
+		    "IP addr." "Netmask" "Gateway" "VLAN"
 		printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
-			$admin_ip $admin_netmask "$admin_gateway" "none"
-		printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
-			$external_ip $external_netmask $external_gateway $ext_vlanid
+		    $admin_ip $admin_netmask "$admin_gateway" "none"
+		if [[ -n ${external_nic} ]]; then
+			printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
+			    $external_ip $external_netmask $external_gateway $ext_vlanid
+		fi
 		echo
 		printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
-		printf "Provisionable IP range: %s - %s\n" \
-			$external_provisionable_start $external_provisionable_end
+		if [[ -n ${external_nic} ]]; then
+			printf "Provisionable IP range: %s - %s\n" \
+			    $external_provisionable_start $external_provisionable_end
+		fi
 		printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
-			"$dns_resolver1" "$dns_resolver2" "$dns_domain"
+		    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
 		printf "NTP server: $ntp_hosts\n"
 		echo
 	fi
 
-    if [[ $(getanswer "skip_final_confirm") != "true" ]]; then
+	if [[ $(getanswer "skip_final_confirm") != "true" ]]; then
 		promptval "Is this correct?" "y"
 		[ "$val" == "y" ] && break
-	    clear
-    else
-        break
-    fi
+		clear
+	else
+		break
+	fi
 done
 
 #
@@ -1115,15 +1165,17 @@ dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 dhcp_range_end=$(getanswer "dhcp_range_end")
 if [[ -z "${dhcp_range_end}" || \
-    ${dhcp_range_end} == "<default>" ]]; then
-    dhcp_range_end="$max_host"
+	${dhcp_range_end} == "<default>" ]]; then
+	dhcp_range_end="$max_host"
 fi
 
 #
 # Calculate external network
 #
-ip_netmask_to_network "$external_ip" "$external_netmask"
-external_network="$net_a.$net_b.$net_c.$net_d"
+if [[ -n ${external_nic} ]]; then
+	ip_netmask_to_network "$external_ip" "$external_netmask"
+	external_network="$net_a.$net_b.$net_c.$net_d"
+fi
 
 #
 # Generate config file
@@ -1225,23 +1277,28 @@ if [[ -n ${admin_gateway} ]]; then
 fi
 echo >>$tmp_config
 
-echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
-    >>$tmp_config
-echo "external_nic=$external_nic" >>$tmp_config
-echo "external_ip=$external_ip" >>$tmp_config
-echo "external_gateway=$external_gateway" >>$tmp_config
-echo "external_netmask=$external_netmask" >>$tmp_config
-if [ -z "$external_vlan_id" ]; then
-	echo "# external_vlan_id=999" >>$tmp_config
-else
-	echo "external_vlan_id=$external_vlan_id" >>$tmp_config
+if [[ -n ${external_nic} ]]; then
+	echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
+	    >>$tmp_config
+	echo "external_nic=$external_nic" >>$tmp_config
+	echo "external_ip=$external_ip" >>$tmp_config
+	echo "external_gateway=$external_gateway" >>$tmp_config
+	echo "external_netmask=$external_netmask" >>$tmp_config
+	if [ -z "$external_vlan_id" ]; then
+		echo "# external_vlan_id=999" >>$tmp_config
+	else
+		echo "external_vlan_id=$external_vlan_id" >>$tmp_config
+	fi
+	echo "external_network=$external_network" >>$tmp_config
+	echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
+	echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
+	echo >>$tmp_config
 fi
-echo "external_network=$external_network" >>$tmp_config
-echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
-echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
-echo >>$tmp_config
 
-echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
+if [[ ${headnode_default_gateway} != "none" ]]; then
+	echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
+fi
+
 if [[ -n ${admin_gateway} ]]; then
 	echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
 fi
@@ -1284,10 +1341,12 @@ echo >>$tmp_config
 echo "# Zone-specific configs" >>$tmp_config
 echo >>$tmp_config
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# adminui_external_vlan=0" >>$tmp_config
-else
-	echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
+if [[ -n ${external_nic} ]]; then
+	if [ -z "$external_vlan_id" ]; then
+		echo "# adminui_external_vlan=0" >>$tmp_config
+	else
+		echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
+	fi
 fi
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
@@ -1334,10 +1393,12 @@ echo "dsapi_http_user=honeybadger" >>$tmp_config
 echo "dsapi_http_pass=IEatSnakes4Fun" >>$tmp_config
 echo >>$tmp_config
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# cloudapi_external_vlan=0" >>$tmp_config
-else
-	echo "cloudapi_external_vlan=$external_vlan_id" >>$tmp_config
+if [[ -n ${external_nic} ]]; then
+	if [ -z "$external_vlan_id" ]; then
+		echo "# cloudapi_external_vlan=0" >>$tmp_config
+	else
+		echo "cloudapi_external_vlan=$external_vlan_id" >>$tmp_config
+	fi
 fi
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
@@ -1352,10 +1413,12 @@ echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
-if [ -z "$external_vlan_id" ]; then
-	echo "# usageapi_external_vlan=0" >>$tmp_config
-else
-	echo "usageapi_external_vlan=$external_vlan_id" >>$tmp_config
+if [[ -n ${external_nic} ]]; then
+	if [ -z "$external_vlan_id" ]; then
+		echo "# usageapi_external_vlan=0" >>$tmp_config
+	else
+		echo "usageapi_external_vlan=$external_vlan_id" >>$tmp_config
+	fi
 fi
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_pw=$zone_admin_pw" >>$tmp_config
@@ -1410,7 +1473,7 @@ echo "phonehome_automatic=true" >>$tmp_config
 echo "show_setup_timers=true" >> $tmp_config
 echo "serialize_setup=true" >> $tmp_config
 if [[ $(getanswer "dtrace_zone_setup") == "true" ]]; then
-    echo "dtrace_zone_setup=true" >> $tmp_config
+	echo "dtrace_zone_setup=true" >> $tmp_config
 fi
 
 echo "" >> $tmp_config
@@ -1421,7 +1484,7 @@ if [[ $(getanswer "skip_edit_config") != "true" ]]; then
 	echo "Your configuration is about to be applied."
 	promptval "Would you like to edit the final configuration file?" "n"
 	[ "$val" == "y" ] && vi $tmp_config
-    clear
+	clear
 fi
 
 echo "The headnode will now finish configuration and reboot. Please wait..."
