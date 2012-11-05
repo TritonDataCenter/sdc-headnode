@@ -28,6 +28,10 @@ mkdir -p /opt/smartdc/etc
 
 /opt/smartdc/bin/configure || fatal "Unable to complete configuration of zookeeper zone."
 
+# import binder config
+/usr/sbin/svccfg import /opt/smartdc/binder/smf/manifests/binder.xml
+
+
 touch /var/svc/setup_complete
 
 echo "setup done"
