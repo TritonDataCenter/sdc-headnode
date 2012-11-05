@@ -1436,6 +1436,9 @@ echo "ufds_admin_uuid=00000000-0000-0000-0000-000000000000" >>$tmp_config
 echo "# Legacy CAPI parameters" >>$tmp_config
 echo "capi_http_admin_user=admin" >>$tmp_config
 echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
+# Do not remove. Required to work by smart-login.git agent:
+echo "# Required by SmartLogin:"
+echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
 echo >>$tmp_config
 
 
