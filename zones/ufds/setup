@@ -84,7 +84,6 @@ max_physical_memory: $(echo ${pkg} | cut -d ':' -f 2)
 max_swap: $(echo ${pkg} | cut -d ':' -f 3)
 name: ${name}
 quota: $(echo ${pkg} | cut -d ':' -f 4)
-urn: sdc:UFDS_ADMIN_UUID:${name}:1.0.0
 vcpus: 1
 version: 1.0.0
 zfs_io_priority: $(echo ${pkg} | cut -d ':' -f 7)
