@@ -72,10 +72,13 @@ function check_ntp
         TEMP_CONFIGS=/mnt/usbkey
     fi
 
-    if [[ -f ${TEMP_CONFIGS}/config ]]; then
-        servers=$(cat ${TEMP_CONFIGS}/config | grep "^ntp_hosts=" \
+    if [[ -f ${TEMP_CONFIGS}/node.config ]]; then
+        servers=$(cat ${TEMP_CONFIGS}/node.config | grep "^ntp_hosts=" \
             | cut -d'=' -f2- | tr ',' ' ')
+        # strip off quoting
+        eval servers="$servers"
     fi
+
 
     if [[ -z ${servers} ]]; then
         force_dns=
