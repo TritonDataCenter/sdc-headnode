@@ -224,8 +224,9 @@ root_authorized_keys_file
 assets_admin_ip
 dns_domain
 dns_resolvers
-ntp_hosts
-swap
+compute_node_ntp_conf_file
+compute_node_ntp_hosts
+compute_node_swap
 rabbitmq
 root_shadow
 ufds_admin_ips
@@ -240,9 +241,19 @@ ENDKEYS
 KEYS=$(echo $KEYS | tr -d '\n')
 
 read -r -d '' SUBSETJS <<ENDSUBSETJS || true
-newobj=[];
+var newobj = [];
 '$KEYS'.split(/\\s+/).forEach(function (k) {
-    newobj.push(k + "='" + this[k] + "'");
+    var v;
+    if (k.match(/^compute_node_/)) {
+        v = this[k];
+        k = k.split(/^compute_node_/)[1];
+    } else {
+        v = this[k];
+    }
+    if (!v) {
+        return;
+    }
+    newobj.push(k + "='" + v + "'");
 });
 newobj = newobj.join("\\n");
 ENDSUBSETJS
