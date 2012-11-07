@@ -931,6 +931,8 @@ echo "mapi_http_port=8080" >>$tmp_config
 echo "mapi_http_admin_user=admin" >>$tmp_config
 echo "mapi_http_admin_pw=tot@ls3crit" >>$tmp_config
 echo "mapi_datasets=\"smartos,nodejs\"" >>$tmp_config
+echo "mapi_heartbeater_pool_instances=3" >>$tmp_config
+echo "mapi_workers=12" >>$tmp_config
 echo >>$tmp_config
 
 # echo "portal_admin_ip=$portal_admin_ip" >>$tmp_config
