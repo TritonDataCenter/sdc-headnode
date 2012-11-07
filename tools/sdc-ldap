@@ -5,8 +5,10 @@
 # Convenience wrapper for calling some of the "ldap*" commands against UFDS.
 #
 
-#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -o xtrace
+if [[ -n "$TRACE" ]]; then
+    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o errexit
 set -o pipefail
 
@@ -43,14 +45,10 @@ if [[ -f "/lib/sdc/config.sh" ]]; then
     source /lib/sdc/config.sh
     load_sdc_config
     UFDS_CREDENTIALS="$CONFIG_ufds_ldap_root_dn:$CONFIG_ufds_ldap_root_pw"
-    UFDS_ADMIN_UUID="$CONFIG_ufds_admin_uuid"
     UFDS_HOST="${CONFIG_ufds_admin_ips%%,*}"
 else
     if [[ -z "$UFDS_CREDENTIALS" ]]; then
         UFDS_CREDENTIALS=cn=root:secret
-    fi
-    if [[ -z "$UFDS_ADMIN_UUID" ]]; then
-        UFDS_ADMIN_UUID=930896af-bf8c-48d4-885c-6573a94b1853
     fi
 fi
 if [[ -z "$UFDS_HOST" ]]; then
