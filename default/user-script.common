@@ -14,6 +14,7 @@
 #
 
 set -o xtrace
+
 # Can't use `set -e errexit` because we are selective warning on some
 # failures below.
 
@@ -100,10 +101,16 @@ else
 fi
 
 # Setup "~/.bashrc" from assets.
-curl -o /root/.bashrc -s -S -f \
-    http://${assets_ip}/extra/${zone_role}/bashrc
-if [[ $? != 0 ]]; then
-    echo "warning: Failed to get /root/.bashrc from assets."
+if [[ ${zone_role} == "assets" ]]; then
+    if [[ -f /assets/extra/${zone_role}/bashrc ]]; then
+        cp /assets/extra/${zone_role}/bashrc /root/.bashrc
+    fi
+else
+    curl -o /root/.bashrc -s -S -f \
+        http://${assets_ip}/extra/${zone_role}/bashrc
+    if [[ $? != 0 ]]; then
+        echo "warning: Failed to get /root/.bashrc from assets."
+    fi
 fi
 
 # Setup "/.dcinfo": info about the datacenter in which this zone runs
