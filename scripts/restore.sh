@@ -22,7 +22,7 @@ rm -f ${ERRORLOG}
 exec > >(tee -a ${ERRORLOG}) 2>&1
 exec 4>>${ERRORLOG}
 BASH_XTRACEFD=4
-export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o errexit
 set -o pipefail
 set -o xtrace
@@ -94,7 +94,7 @@ function restore_zones
     for zone in ${zones[@]}; do
         echo "==> Restoring backup of zone '${zone}'"
         if [[ -x /zones/${zone}/root/opt/smartdc/bin/restore ]]; then
-            cp /zones/${zone}/root/opt/smartdc/bin/restore /tmp/restore$$ 
+            cp /zones/${zone}/root/opt/smartdc/bin/restore /tmp/restore$$
             /tmp/restore$$ ${zone} ${backup_dir}/zones/${zone}/
             rm -f /tmp/restore$$
         elif [[ -x ${usbcpy}/zones/${zone}/restore ]]; then

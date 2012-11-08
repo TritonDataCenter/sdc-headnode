@@ -25,6 +25,7 @@ exec 2>&1
 
 set -o errexit
 set -o pipefail
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 # bump to line past console login prompt

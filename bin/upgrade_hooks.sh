@@ -17,6 +17,7 @@ PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
 BASH_XTRACEFD=4
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 . /lib/sdc/config.sh

@@ -121,6 +121,7 @@ function fake_zoneinit
     cat > ${zoneroot}/root/zoneinit <<EOF
 #!/usr/bin/bash
 
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
@@ -174,7 +175,7 @@ if [ $# == 0 ]; then
 else
     exec 4>>/dev/stdout
     restore=1
-    export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=2
     set -o xtrace
 fi

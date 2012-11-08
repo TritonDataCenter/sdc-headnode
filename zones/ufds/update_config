@@ -5,7 +5,7 @@
 
 LOGFD=4
 exec 4>/tmp/ufds-config-update.log.$$
-export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
 

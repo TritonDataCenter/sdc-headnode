@@ -5,7 +5,7 @@
 
 exec 4>>/var/log/prompt-config.log
 echo "=== Starting prompt-config on $(tty) at $(date) ===" >&4
-export PS4='$(tty):${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] $(tty): ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
 set -o xtrace
 

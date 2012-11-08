@@ -13,7 +13,7 @@ STANDBY_PATH="/mnt/usbkey/standby"
 # This writes xtrace output and anything redirected to LOGFD to the log file.
 LOGFD=4
 exec 4>/tmp/backuplog.$$
-export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
 
@@ -222,7 +222,7 @@ copy_usb()
 		print $1 * $5 * $6
 	}'`
 
-	[[ $nsect -lt 7800000 ]] && fatal "disk must be at least 4GB" 
+	[[ $nsect -lt 7800000 ]] && fatal "disk must be at least 4GB"
 
 	# fdisk input: 12 (id) is FAT32 Ext., 128 is active
 	printf "12 128 0 0 0 0 0 0 4096 %d\n" $nsect >/tmp/fdisk$$.in

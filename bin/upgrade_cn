@@ -19,7 +19,7 @@ export SDC_UPGRADE_DIR=/var/tmp/upgrade
 # This writes xtrace output and anything redirected to LOGFD to the log file.
 LOGFD=4
 exec 4>$SDC_UPGRADE_DIR/upgrade_log.$$
-export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
 

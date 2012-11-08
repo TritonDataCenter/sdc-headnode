@@ -3,6 +3,7 @@
 # Copyright (c) 2011 Joyent Inc., All rights reserved.
 #
 
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
@@ -16,7 +17,7 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/sdcsso
 
-# Install KeyAPI 
+# Install KeyAPI
 mkdir -p /opt/smartdc/sdcsso
 chown -R nobody:nobody /opt/smartdc/sdcsso
 
