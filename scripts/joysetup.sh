@@ -80,7 +80,6 @@ function check_ntp
         eval servers="$servers"
     fi
 
-
     if [[ -z ${servers} ]]; then
         force_dns=
         if [[ $(wc -l /etc/resolv.conf | awk '{ print $1 }') -eq 0 ]]; then
@@ -99,10 +98,30 @@ function check_ntp
     # going to reboot when everything is ok.
     /usr/sbin/svcadm disable svc:/network/ntp:default
 
-    output=$(ntpdate -b ${servers} 2>&1)
-    if [[ $? -ne 0 || -z ${output} ]]; then
-        fatal "Unable to set system clock: '${output}'"
-    fi
+    # Poll on headnode ntp availability.
+
+    ntp_wait_duration=600
+    ntp_wait_seconds=0
+    ntp_wait_interval=10
+
+    set +o errexit
+    while true; do
+        output=$(ntpdate -b ${servers} 2>&1)
+        if [[ $? -eq 0 && -n ${output} ]]; then
+            break;
+        fi
+
+        # Got an undesireable output/code, run again with debug enabled.
+        ntpdate -d ${servers}
+
+        sleep $ntp_wait_interval
+        ntp_wait_seconds=$((ntp_wait_seconds + ntp_wait_interval))
+
+        if [[ $ntp_wait_seconds -gt $ntp_wait_duration ]]; then
+            fatal "Unable to set system clock: '${output}'"
+        fi
+    done
+    set -o errexit
 
     # check absolute value of integer portion of offset is reasonable.
     offset=$(ntpdate -q ${servers} | grep "offset .* sec" | \
