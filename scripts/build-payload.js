@@ -146,6 +146,25 @@ async.series([
             console.error('build-payload: no ufds_admin_uuid in config, not '
                 + 'setting owner_uuid');
         }
+
+        if (config.hasOwnProperty('zk_resolver_ips')) {
+            if (!obj.hasOwnProperty('customer_metadata')) {
+                obj.customer_metadata = {};
+            }
+
+            var resolvers = config['zk_resolver_ips'].split(',');
+
+            if (config.hasOwnProperty('dns_resolvers')) {
+                resolvers.concat(config['dns_resolvers'].split(','));
+            }
+
+            resolvers = resolvers.map(function(e) { return e.trim(); })
+                .filter(function(e) { return e.length > 0 })
+                .join(' ');
+
+            obj.customer_metadata.resolvers = resolvers;
+        }
+
         if (config.hasOwnProperty(zone + '_admin_ip')
             || config.hasOwnProperty(zone + '_admin_ips')) {
 
@@ -190,6 +209,51 @@ async.series([
             obj.nics.slice(-1)[0].primary = true;
         }
 
+        cb();
+    }, function (cb) {
+        // create the registrar config and insert it into metadata.
+        // expect 'registration' to contain a service description
+        // for the zone per manta.
+        if (obj.hasOwnProperty('registration')) {
+
+            var svcName,
+                regConfig,
+                zkServers;
+
+            if (!obj.hasOwnProperty('alias'))
+                return cb(new Error("No alias provided for " + zone));
+
+            if (!config.hasOwnProperty('dns_domain'))
+                return cb(new Error("No dns_domain in config"));
+
+            if (!config.hasOwnProperty('zk_resolver_ips'))
+                return cb(new Erorr("No ZK resolver IPs in config"));
+
+            // by convention, the service name is the alphabetic part of the
+            // alias (i.e., 'moray0' -> 'moray') - this is slightly fragile.
+            svcName = obj.registration.domain + '.' + config.dns_domain;
+
+            regConfig = {};
+            regConfig.registration = obj.registration;
+            regConfig.registration.domain = svcName;
+
+            zkServers = config.zk_resolver_ips.split(',')
+                .map(function zkConfig(e) {
+                    return {
+                        host : e,
+                        port : 2181
+                    }
+                });
+            regConfig.zookeeper = {};
+            regConfig.zookeeper.servers = zkServers;
+            regConfig.zookeeper.timeout = 60000;
+
+            if (!obj.hasOwnProperty('customer_metadata'))
+                obj.customer_metadata = {};
+
+            obj.customer_metadata['registrar-config'] = JSON.stringify(regConfig);
+            delete obj.registration; // tidy up
+        }
         cb();
     }, function (cb) {
         // load the user-script into metadata

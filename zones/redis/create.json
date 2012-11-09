@@ -5,5 +5,20 @@
       "smartdc_role": "redis",
       "smartdc_type": "core"
   },
-  "zfs_storage_pool_name": "zones"
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "redis",
+    "type": "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_redis",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  }
+
 }

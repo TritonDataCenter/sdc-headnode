@@ -4,5 +4,19 @@
   "tags": {
       "smartdc_role": "adminui",
       "smartdc_type": "core"
+  },
+  "registration": {
+    "domain": "adminui",
+    "type":  "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_adminui",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
   }
 }

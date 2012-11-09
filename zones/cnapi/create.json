@@ -5,5 +5,19 @@
       "smartdc_role": "cnapi",
       "smartdc_type": "core"
   },
-  "zfs_storage_pool_name": "zones"
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "cnapi",
+    "type":  "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_cnapi",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  }
 }

@@ -34,5 +34,18 @@
       "smartdc_role": "assets",
       "smartdc_type": "core"
   },
-  "zfs_storage_pool_name": "zones"
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "assets",
+    "type": "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_assets",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    }
+  }
 }

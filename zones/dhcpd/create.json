@@ -16,5 +16,20 @@
       "smartdc_role": "dhcpd",
       "smartdc_type": "core"
   },
-  "zfs_storage_pool_name": "zones"
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "dhcpd",
+    "type": "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_dhcpd",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  }
+
 }

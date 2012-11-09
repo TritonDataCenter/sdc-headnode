@@ -109,12 +109,48 @@ mkdir -p /opt/
 (cd /opt/amon-agent && ./pkg/postinstall.sh)
 rm -f /var/svc/amon-agent.tgz
 
+# setup resolvers
+resolvers=$(mdata-get resolvers)
+if [[ -z ${resolvers} ]]; then
+  echo "Unable to find resolvers in metadata."
+  exit 1
+else
+  echo "Writing resolv.conf: $resolvers"
+  sed -i'' '/nameserver/d' /etc/resolv.conf
+  for HOST in $resolvers; do
+    echo "nameserver ${HOST}" >> /etc/resolv.conf
+  done
+fi
+
+# Install registrar for the zone.
+if [[ "${ZONE_ROLE}" == "assets" ]]; then
+    cp /assets/extra/registrar/registrar.bz2 /var/svc/registrar.bz2 \
+        || fatal "FATAL: unable to get registrar.bz2 from /assets"
+else
+    curl -o /var/svc/registrar.bz2 -s -S -f \
+        http://${ASSETS_IP}/extra/registrar/registrar.bz2 \
+        || fatal "FATAL: unable to get registrar.bz2 from assets server"
+fi
+gtar --strip-components=1 -xjf /var/svc/registrar.bz2
+rm -f /var/svc/registrar.bz2
+
+# get registrar config from metadata and start the service.
+registrar_config=$(mdata-get registrar-config)
+if [[ -z ${registrar_config} ]]; then
+  echo "No registrar config in metadata, skipping."
+else
+  echo "Writing registrar config."
+  echo $registrar_config | json > /opt/smartdc/registrar/etc/config.json \
+    || fatal "FATAL: unable to write registrar config"
+  svccfg import /opt/smartdc/registrar/smf/manifests/registrar.xml \
+    || fatal "FATAL: unable to import registrar manifest"
+  svcadm enable registrar
+fi
 
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import now.
 for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
     svccfg import ${manifest}
 done
-
 
 ### Now the rest of setup runs

@@ -1080,6 +1080,31 @@ function copy_zones
 
 }
 
+# Copy in the appropriate version of registrar using (if applicable) the
+# registrar branch specified in build.spec.
+function copy_registrar
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download registrar, looping!"
+
+    # See if there's a specific amon-agent branch we're supposed to use.
+    local branch=$(build_spec registrar)
+    if [[ -z ${branch} ]]; then
+        branch="master"
+    fi
+
+    local registrar_path=$(get_bit "registrar/registrar-pkg-${branch}-.*\.bz2")
+    echo "Copying $(basename $registrar_path) to stage."
+    mkdir -p ${STAGE}/extra/registrar
+    cp ${registrar_path} ${STAGE}/extra/registrar/registrar.bz2
+
+    loops=
+}
+
+
+
+
 function copy_tools
 {
     if [[ -d ${ROOT}/tools ]]; then
@@ -1175,6 +1200,7 @@ copy_agentsshar
 copy_agents65
 copy_datasets
 copy_zones
+copy_registrar
 copy_tools
 copy_webinfo
 copy_config

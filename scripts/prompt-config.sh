@@ -49,7 +49,7 @@ sig_doshell()
 }
 
 ip_to_num()
-{ 
+{
     IP=$1
 
     OLDIFS=$IFS
@@ -62,10 +62,10 @@ ip_to_num()
     IFS=$OLDIFS
 
     num=$((num_a + $num_b + $num_c + $num_d))
-} 
+}
 
 num_to_ip()
-{ 
+{
     NUM=$1
 
     fld_d=$(($NUM & 255))
@@ -1064,90 +1064,119 @@ ip_netmask_to_network "$admin_zone_ip" "$admin_netmask"
 next_addr=$IP_NUM
 num_to_ip $next_addr
 assets_admin_ip="$ip_addr"
+assets_svcname="assets.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 dhcpd_admin_ip="$ip_addr"
+dhcpd_svcname="dhcpd.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 napi_admin_ip="$ip_addr"
 napi_client_url="http://${napi_admin_ip}:80"
+napi_svcname="napi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 zookeeper_admin_ip="$ip_addr"
+zookeeper_svcname="zookeeper.${dns_domain}"
+
+# we reserve four more (thus five total) ips for resolvers
+zk_resolver_ips="$zookeeper_admin_ip"
+for i in {0..3}; do
+	next_addr=$(($next_addr + 1))
+	num_to_ip $next_addr
+	zk_resolver_ips="$zk_resolver_ips,$ip_addr"
+done
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 manatee_admin_ip="$ip_addr"
+manatee_svcname="moray.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 moray_admin_ip="$ip_addr"
+moray_svcname="moray.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 ufds_admin_ip="$ip_addr"
+ufds_svcname="ufds.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 workflow_admin_ip="$ip_addr"
+workflow_svcname="workflow.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 rabbitmq_admin_ip="$ip_addr"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
+rabbitmq_svcname="rabbitmq.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 imgapi_admin_ip="$ip_addr"
+imgapi_svcname="imgapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 cnapi_admin_ip="$ip_addr"
 cnapi_client_url="http://${cnapi_admin_ip}:80"
+cnapi_svcname="cnapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 redis_admin_ip="$ip_addr"
+redis_svcname="redis.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 amon_admin_ip="$ip_addr"
+amon_svcname="amon.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 dapi_admin_ip="$ip_addr"
+dapi_svcname="dapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 fwapi_admin_ip="$ip_addr"
 fwapi_client_url="http://${fwapi_admin_ip}:80"
+fwapi_svcname="fwapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 vmapi_admin_ip="$ip_addr"
+vmapi_svcname="vmapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 keyapi_admin_ip="$ip_addr"
+keyapi_svcname="keyapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 ca_admin_ip="$ip_addr"
+ca_svcname="ca.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 adminui_admin_ip="$ip_addr"
+adminui_svcname="adminui.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 usageapi_admin_ip="$ip_addr"
+usageapi_svcname="usageapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 sapi_admin_ip="$ip_addr"
+sapi_svcname="sapi.${dns_domain}"
 
 # Add 5 to leave some room
 next_addr=$(($next_addr + 5))
@@ -1191,54 +1220,67 @@ echo >>$tmp_config
 
 echo "zookeeper_root_pw=$zone_admin_pw" >>$tmp_config
 echo "zookeeper_admin_ips=$zookeeper_admin_ip" >>$tmp_config
+echo "zookeeper_svcname=$zookeeper_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "manatee_root_pw=$zone_admin_pw" >>$tmp_config
 echo "manatee_admin_ips=$manatee_admin_ip" >>$tmp_config
+echo "manatee_svcname=$manatee_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
 echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
+echo "moray_svcname=$moray_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
+echo "ufds_svcname=$ufds_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
+echo "workflow_svcname=$workflow_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "imgapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "imgapi_admin_ips=$imgapi_admin_ip" >>$tmp_config
+echo "imgapi_svcname=$imgapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
+echo "cnapi_svcname=$cnapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
+echo "dapi_svcname=$dapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "fwapi_admin_ips=$fwapi_admin_ip" >>$tmp_config
+echo "fwapi_svcname=$fwapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
+echo "vmapi_svcname=$vmapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "keyapi_admin_ips=$keyapi_admin_ip" >>$tmp_config
+echo "keyapi_svcname=$keyapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
+echo "ca_svcname=$ca_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
+echo "adminui_svcname=$adminui_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1296,6 +1338,10 @@ if [[ ${headnode_default_gateway} != "none" ]]; then
 	echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
 fi
 
+echo >>$tmp_config
+
+echo "# Reserved IPs for ZK/binder instances"
+echo "zk_resolver_ips=$zk_resolver_ips" >>$tmp_config
 echo >>$tmp_config
 
 echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config
