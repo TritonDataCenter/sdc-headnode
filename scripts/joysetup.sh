@@ -2,6 +2,12 @@
 #
 # Copyright (c) 2012 Joyent Inc., All rights reserved.
 #
+# The first script to setup a node (aka server) for SDC. For CNs this is
+# run via the ur agent.
+#
+# WARNING: YOU DO NOT HAVE INTERNET ACCESS IN THIS ENVIRONMENT! DO NOT RELY
+# ON IT!
+#
 
 PATH=/usr/bin:/usr/sbin:/sbin
 export PATH
