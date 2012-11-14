@@ -13,16 +13,29 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # for now just take the first IP
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 
+# Note: Usage of "local" storage is not intended for production.
+LOCAL_DB_DIR=/var/db/imgapi
+if [[ ! -d $LOCAL_DB_DIR ]]; then
+    echo "Create local db dir, $LOCAL_DB_DIR."
+    mkdir -p $LOCAL_DB_DIR
+    chown nobody:nobody $LOCAL_DB_DIR
+fi
+
 echo "Creating IMGAPI config file"
 cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
 {
-  "port": 80,
-  "logLevel": "debug",
-  "ufds": {
-    "url": "ldaps://${UFDS_ADMIN_IP}",
-    "rootDn": "${UFDS_LDAP_ROOT_DN}",
-    "password": "${UFDS_LDAP_ROOT_PW}"
-  }
+    "port": 80,
+    "logLevel": "debug",
+    "ufds": {
+        "url": "ldaps://${UFDS_ADMIN_IP}",
+        "rootDn": "${UFDS_LDAP_ROOT_DN}",
+        "password": "${UFDS_LDAP_ROOT_PW}"
+    },
+    "storage": {
+        "local": {
+            "dir": "${LOCAL_DB_DIR}"
+        }
+    }
 }
 HERE
 
