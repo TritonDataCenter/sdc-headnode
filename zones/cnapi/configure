@@ -6,7 +6,10 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/smartdc/cnapi/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
@@ -20,6 +23,11 @@ WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 # XXX for now use the first UFDS, soon we'll be switching to DNS
 UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 
+# XXX for now use the first MORAY, soon we'll be switching to DNS
+MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
+
+REDIS_HOST=$(echo "${REDIS_ADMIN_IPS}" | cut -d ',' -f1)
+
 echo "Creating CNAPI config file"
 cat > /opt/smartdc/cnapi/config/config.json <<HERE
 {
@@ -29,7 +37,7 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
     "host": "$RABBIT_ADMIN_IP"
   },
   "moray": {
-    "host": "$MORAY_ADMIN_IP",
+    "host": "$MORAY_HOST",
     "port": 2020
   },
   "api": {
@@ -55,7 +63,7 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
     "url": "$CNAPI_URL"
   },
   "redis": {
-    "host": "$REDIS_ADMIN_IPS"
+    "host": "$REDIS_HOST"
   },
   "ufds": {
     "url": "ldaps://${UFDS_HOST}",
@@ -71,6 +79,11 @@ HERE
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cnapi/g" /opt/smartdc/cnapi/smf/manifests/cnapi.xml)
+
+# This function comes from configure.common
+echo "Checking Moray status"
+sdc_ensure_moray $MORAY_ADMIN_IPS \
+  /opt/smartdc/cnapi/node_modules/moray/bin/sql
 
 
 echo "Importing cnapi.xml"

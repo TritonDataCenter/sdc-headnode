@@ -63,17 +63,4 @@ $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/sma
 echo Importing SMF manifest
 /usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
 
-
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
-echo "Adding log rotation"
-logadm -w cloudapi -C 48 -s 100m -p 1h \
-    /var/svc/log/smartdc-application-cloudapi:default.log
-
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
-
 exit 0

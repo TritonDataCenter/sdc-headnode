@@ -6,7 +6,10 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/smartdc/vmapi/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
@@ -37,6 +40,10 @@ gsed -i -e "s|VMAPI_LDAP_ROOT_PW|$VMAPI_LDAP_ROOT_PW|" $CFG_FILE
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/vmapi/g" /opt/smartdc/vmapi/smf/manifests/vmapi.xml)
 
+# This function comes from configure.common
+echo "Checking Moray status"
+sdc_ensure_moray $MORAY_ADMIN_IPS \
+  /opt/smartdc/vmapi/node_modules/moray/bin/sql
 
 echo "Importing vmapi.xml"
 /usr/sbin/svccfg import /opt/smartdc/vmapi/smf/manifests/vmapi.xml

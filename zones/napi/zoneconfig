@@ -21,4 +21,5 @@ EXTERNAL_VLAN_ID=${external_vlan_id}
 
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 DATACENTER_NAME=${datacenter_name}

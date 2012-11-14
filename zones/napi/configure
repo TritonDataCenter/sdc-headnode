@@ -6,6 +6,9 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
+
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
 INSTDIR=/opt/smartdc/napi
@@ -36,7 +39,7 @@ cat > ${CONF} <<ADMIN_CONFIG
   "password": "${ADMIN_PW}",
   "ufds": {
     "url": "ldaps://${UFDS_HOST}",
-    "bindDN": "cn=root",
+    "bindDN": "${UFDS_LDAP_ROOT_DN}",
     "bindPassword": "$UFDS_LDAP_ROOT_PW",
     "cache": {
       "size": 1000,
@@ -73,6 +76,11 @@ cat >> ${CONF} <<END_CONFIG
   }
 }
 END_CONFIG
+
+
+# This function comes from configure.common
+echo "Checking UFDS status"
+sdc_ensure_ufds $UFDS_HOST $UFDS_LDAP_ROOT_DN $UFDS_LDAP_ROOT_PW
 
 echo "Importing napi SMF manifest"
 /usr/sbin/svccfg import ${INSTDIR}/smf/manifests/napi.xml

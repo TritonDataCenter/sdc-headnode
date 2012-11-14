@@ -477,6 +477,11 @@ function create_zone {
         rm -f ${dir}/setup.common
         ln ${USB_COPY}/default/setup.common ${dir}/setup.common
     fi
+    if [[ -f ${USB_COPY}/default/configure.common ]]; then
+        # extra include file for core zones.
+        rm -f ${dir}/configure.common
+        ln ${USB_COPY}/default/configure.common ${dir}/configure.common
+    fi
     if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
         rm -f ${dir}/bashrc
         ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc

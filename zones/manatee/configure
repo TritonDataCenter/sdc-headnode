@@ -8,11 +8,8 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 PATH=/opt/smartdc/manatee/build/node/bin:/opt/local/bin:/usr/sbin/:/usr/bin:$PATH
 REGISTRAR_CFG=/opt/smartdc/registrar/etc/config.json
 
-function fatal
-{
-  echo "$(basename $0): fatal error: $*"
-  exit 1
-}
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
 
 function update_env {
     echo "" >>/root/.bashrc
@@ -158,6 +155,10 @@ mv $tempLogConf /etc/logadm.conf
 #logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
 echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
 crontab /etc/cron.d/logadm
+
+# This function comes from configure.common
+echo "Checking ZooKeeper status"
+sdc_ensure_zk $ZOOKEEPER_ADMIN_IPS
 
 # import services
 echo "Starting snapshotter"

@@ -8,7 +8,10 @@ set -o xtrace
 
 role=ufds
 LDAPTLS_REQCERT=allow
-PATH=/opt/nodejs/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
@@ -38,6 +41,15 @@ gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $REP_FILE
 gsed -i -e "s|LOCAL_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $REP_FILE
 gsed -i -e "s|LOCAL_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $REP_FILE
 
+# Enable Cron
+echo "Starting Cron"
+svccfg import /lib/svc/manifest/system/cron.xml
+svcadm enable cron
+
+# This function comes from configure.common
+echo "Checking Moray status"
+sdc_ensure_moray $MORAY_ADMIN_IPS \
+  /opt/smartdc/ufds/node_modules/moray/bin/sql
 
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-master.xml)
@@ -46,19 +58,5 @@ $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)
 # We are intentionally giving UFDS service some room to create the required
 # moray buckets before it gets called to add bootstrap data.
 sleep 10
-
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
-echo "Adding log rotation"
-logadm -w ufds-master -C 48 -s 100m -p 1h \
-    /var/svc/log/smartdc-application-ufds-master:default.log
-logadm -w ufds-capi -C 48 -s 100m -p 1h \
-    /var/svc/log/smartdc-application-ufds-capi:default.log
-
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
 
 exit 0

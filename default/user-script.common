@@ -144,7 +144,7 @@ touch /var/svc/.ran-user-script
 
 
 # Get setup scripts from assets.
-for file in setup.common setup; do
+for file in setup.common configure.common setup; do
     if [[ ${zone_role} == "assets" ]]; then
         cp /assets/extra/${zone_role}/${file} /var/svc/${file}
     else

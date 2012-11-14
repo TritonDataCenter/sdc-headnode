@@ -6,7 +6,10 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/smartdc/moray/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
@@ -80,6 +83,46 @@ CFG_FILE=/opt/smartdc/$role/etc/config.json
 cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|ZK_IP|$ZK_MAIN_ADMIN_IP|" $CFG_FILE
 
+# Before we try to import services, we'll check if Zookeeper is up:
+# This function expects the list of ZK IPs as its single argument.
+function sdc_ensure_manatee {
+
+    [[ $# -ge 1 ]] || \
+      (echo "sdc_ensure_manatee requires at least one argument" >&2 & exit 1)
+
+    local attempt=0
+    local isok=0
+    local pgok
+    local zkok
+
+    local zk_ips=$1
+
+    while [[ $attempt -lt 90 ]]
+    do
+	    for ip in $zk_ips
+	    do
+	      zkok=$(echo "ruok" | nc -w 1 $ip 2181)
+	      if [[ $? -eq 0 ]] && [[ "$zkok" == "imok" ]]; then
+		      pgok=$(/opt/smartdc/moray/bin/manatee_stat -s sdc $ip | json primary.pgUrl)
+		      if [[ $? -eq 0 ]] && [[ $pgok == tcp* ]]; then
+		        isok=1
+		        break
+		      fi
+        fi
+      done
+
+      if [[ $isok -eq 1 ]]; then
+	      break
+	    fi
+
+	    let attempt=attempt+1
+	    sleep 1
+    done
+    [[ $isok -eq 1 ]] || fatal "manatee is not up"
+}
+
+echo "Checking ZooKeeper and Manatee status"
+sdc_ensure_manatee $ZOOKEPER_ADMIN_IPS
 
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role.xml)
