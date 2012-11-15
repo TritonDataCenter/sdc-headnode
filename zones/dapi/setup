@@ -28,6 +28,8 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
+# Install Amon monitor and probes
+TRACE=1 /opt/smartdc/dapi/bin/install-amon-probes
 
 touch /var/svc/setup_complete
 echo "setup done"
