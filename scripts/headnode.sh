@@ -620,6 +620,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone cnapi
     create_zone dhcpd
     create_zone dapi
+    create_zone fwapi
     create_zone vmapi
     create_zone ca
     create_zone adminui

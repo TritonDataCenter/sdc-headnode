@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+set -o xtrace
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+INSTDIR=/opt/smartdc/fwapi
+CONF=${INSTDIR}/config.json
+
+# XXX for now use the first UFDS, soon we'll be switching to DNS
+UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+
+cat > ${CONF} <<CONFIG
+{
+  "port": 80,
+  "datacenter": "${DATACENTER_NAME}",
+  "ufds": {
+    "url": "ldaps://${UFDS_HOST}",
+    "bindDN": "${UFDS_LDAP_ROOT_DN}",
+    "bindPassword": "$UFDS_LDAP_ROOT_PW",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  }
+}
+CONFIG
+
+# This function comes from configure.common
+echo "Checking UFDS status"
+sdc_ensure_ufds $UFDS_HOST $UFDS_LDAP_ROOT_DN $UFDS_LDAP_ROOT_PW
+
+echo "Importing fwapi SMF manifest"
+/usr/sbin/svccfg import ${INSTDIR}/smf/manifests/fwapi.xml
+
+echo "Enabling fwapi service"
+/usr/sbin/svcadm enable smartdc/site/fwapi
+
+exit 0

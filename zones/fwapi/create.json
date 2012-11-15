@@ -1,0 +1,10 @@
+{
+  "alias": "fwapi0",
+  "brand": "joyent-minimal",
+  "delegate_dataset": true,
+  "tags": {
+      "smartdc_role": "fwapi",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones"
+}

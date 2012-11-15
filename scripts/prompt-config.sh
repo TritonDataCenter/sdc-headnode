@@ -1148,6 +1148,10 @@ next_addr=$(expr $next_addr + 1)
 dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
+fwapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+fwapi_client_url="http://${fwapi_admin_ip}:80"
+
+next_addr=$(expr $next_addr + 1)
 vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1226,6 +1230,10 @@ echo >>$tmp_config
 
 echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
+echo >>$tmp_config
+
+echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "fwapi_admin_ips=$fwapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1456,6 +1464,10 @@ echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
+echo "fwapi_http_admin_user=admin" >>$tmp_config
+echo "fwapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "fwapi_client_url=$fwapi_client_url" >>$tmp_config
+echo >>$tmp_config
 
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_http_admin_user=admin" >>$tmp_config
