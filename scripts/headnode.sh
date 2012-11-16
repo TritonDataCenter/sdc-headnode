@@ -633,14 +633,15 @@ function import_core_datasets {
     local manifests=$(ls /usbkey/datasets/*.*manifest)
     for manifest in $manifests; do
         local uuid=$(json uuid < $manifest)
-        local status=$(sdc-imgapi /images/$uuid | head -1 | awk '{print $2}')
+        local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
+            | head -1 | awk '{print $2}')
         if [[ "$status" == "404" ]]; then
             local file=${manifest%\.*}.zfs.bz2
             echo "Importing image $uuid ($manifest, $file) into IMGAPI."
             [[ -f $file ]] || fatal "Image $uuid file $file not found."
-            sdc-imgapi /images/$uuid?action=import -d @$manifest
-            sdc-imgapi /images/$uuid/file -T $file
-            sdc-imgapi /images/$uuid?action=activate -X POST
+            /opt/smartdc/bin/sdc-imgapi /images/$uuid?action=import -d @$manifest
+            /opt/smartdc/bin/sdc-imgapi /images/$uuid/file -T $file
+            /opt/smartdc/bin/sdc-imgapi /images/$uuid?action=activate -X POST
         elif [[ "$status" == "200" ]]; then
             echo "Skipping import of image $uuid: already in IMGAPI."
         else
