@@ -434,7 +434,7 @@ function create_zone {
     # If zone has specified dataset_uuid, we need to ensure that's imported.
     if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
         ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
-        [[ -z ${ds_name} ]] && fatal "No dataset specfied in ${USB_COPY}/zones/${zone}/dataset"
+        [[ -z ${ds_name} ]] && fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
         ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name}.dsmanifest)
         [[ -z ${ds_manifest} ]] && fatal "No manifest found for ${ds_name}"
         ds_filename=$(ls ${USB_COPY}/datasets/${ds_name}.zfs.bz2)
@@ -601,6 +601,7 @@ function num_not_setup {
     echo ${remain}
 }
 
+
 if [[ -z ${skip_zones} ]]; then
     printf_timer "%-58s%s (%ss)\n" "standby/restore check..." "done"
     # Create assets first since others will download stuff from here.
@@ -625,6 +626,34 @@ if [[ -z ${skip_zones} ]]; then
     create_zone ca
     create_zone adminui
 fi
+
+
+
+function import_core_datasets {
+    local manifests=$(ls /usbkey/datasets/*.*manifest)
+    for manifest in $manifests; do
+        local uuid=$(json uuid < $manifest)
+        local status=$(sdc-imgapi /images/$uuid | head -1 | awk '{print $2}')
+        if [[ "$status" == "404" ]]; then
+            local file=${manifest%\.*}.zfs.bz2
+            echo "Importing image $uuid ($manifest, $file) into IMGAPI."
+            [[ -f $file ]] || fatal "Image $uuid file $file not found."
+            sdc-imgapi /images/$uuid?action=import -d @$manifest
+            sdc-imgapi /images/$uuid/file -T $file
+            sdc-imgapi /images/$uuid?action=activate -X POST
+        elif [[ "$status" == "200" ]]; then
+            echo "Skipping import of image $uuid: already in IMGAPI."
+        else
+            echo "Error checking if image $uuid is in IMGAPI: HTTP $status"
+        fi
+    done
+}
+
+
+# Import bootstrapped core images into IMGAPI.
+import_core_datasets
+
+
 
 if [[ -n ${CREATEDZONES} ]]; then
     if [[ ${CONFIG_serialize_setup} != "true" ]]; then
