@@ -8,11 +8,25 @@ set -o pipefail
 #export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -o xtrace
 
+if [[ "$1" = "-n" ]]; then
+	dryrun=true
+	shift
+fi
+
+version="${1^^}"
+if [[ -z "${version}" ]]; then
+    echo "Usage: $0 <platform buildstamp>"
+    echo "(eg. '$0 20110318T170209Z')"
+    exit 1
+fi
+
 current_version=$(uname -v | cut -d '_' -f 2)
 
 mounted="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+hashfile="/platform/i86pc/amd64/boot_archive.hash"
+menulst="${usbmnt}/boot/grub/menu.lst"
 
 function onexit
 {
@@ -58,12 +72,29 @@ if [[ ! -d ${usbmnt}/os/${version} ]]; then
 fi
 
 echo "==> Creating new menu.lst"
-cat ${usbmnt}/boot/grub/menu.lst.tmpl | sed \
-    -e "s|/PLATFORM/|/os/${version}/platform/|" \
-    -e "s|/PREV_PLATFORM/|/os/${current_version}/platform/|" \
-    -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
-    -e "s|^#PREV ||" \
-    > ${usbmnt}/boot/grub/menu.lst
+if [[ -z "${dryrun}" ]]; then
+	rm -f ${usbmnt}/boot/grub/menu.lst
+	tomenulst=">> ${menulst}"
+fi
+while read input; do
+	set -- $input
+	if [[ "$1" = "#PREV" ]]; then
+		_thisversion="${current_version}"
+	else
+		_thisversion="${version}"
+	fi
+	output=$(echo "$input" | sed \
+	    -e "s|/PLATFORM/|/os/${version}/platform/|" \
+	    -e "s|/PREV_PLATFORM/|/os/${current_version}/platform/|" \
+	    -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
+	    -e "s|^#PREV ||")
+	set -- $output
+	if [[ "$1" = "module" ]] && [[ "${2##*.}" = "hash" ]] && \
+	    [[ ! -f "${usbcpy}/os/${_thisversion}${hashfile}" ]]; then
+		continue
+	fi
+	eval echo '${output}' "${tomenulst}"
+done < "${menulst}.tmpl"
 
 # If upgrading, skip cnapi update, we're done now.
 [ $UPGRADE -eq 1 ] && exit 0
@@ -87,7 +118,11 @@ if [[ -z "${uuid}" ]]; then
     exit 1
 fi
 
-curl -s -u admin:${CONFIG_cnapi_root_pw} \
+if [[ -n "${dryrun}" ]]; then
+	doit="echo"
+fi
+
+${doit} curl -s -u admin:${CONFIG_cnapi_root_pw} \
     http://${CONFIG_cnapi_admin_ips}//servers/${uuid} \
     -X POST -d boot_platform=${version} >/dev/null 2>&1
 
