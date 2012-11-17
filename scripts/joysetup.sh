@@ -494,7 +494,11 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 		fi
 	fi
 
-	echo $(cat /etc/resolv.conf)
+	if [[ ! -f /etc/imgadm.conf ]]; then
+		imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
+		echo '{}' | /usr/bin/json -e "this.sources=[\"$imgapi_url\"]" \
+		    > /etc/imgadm.conf
+	fi
 
 	# We're the headnode
 	if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then

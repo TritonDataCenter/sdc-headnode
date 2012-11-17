@@ -237,6 +237,7 @@ capi_client_url
 capi_http_admin_user
 capi_http_admin_pw
 zonetracker_database_path
+imgapi_admin_ips
 ENDKEYS
 
 KEYS=$(echo $KEYS | tr -d '\n')
