@@ -217,56 +217,46 @@ if [[ ${CONFIG_stop_before_setup} == "true" || \
     exit 0
 fi
 
-# Create a subset of the headnode config which will be downloaded by compute
-# nodes when they are setting up for the first time.
-read -r -d '' KEYS <<ENDKEYS || true
-datacenter_name
-root_authorized_keys_file
-assets_admin_ip
-dns_domain
-dns_resolvers
-compute_node_ntp_conf_file
-compute_node_ntp_hosts
-compute_node_swap
-rabbitmq
-root_shadow
-ufds_admin_ips
-ufds_admin_uuid
-dhcp_lease_time
-capi_client_url
-capi_http_admin_user
-capi_http_admin_pw
-zonetracker_database_path
-imgapi_admin_ips
-ENDKEYS
-
-KEYS=$(echo $KEYS | tr -d '\n')
-
-read -r -d '' SUBSETJS <<ENDSUBSETJS || true
-var newobj = [];
-'$KEYS'.split(/\\s+/).forEach(function (k) {
-    var v;
-    if (k.match(/^compute_node_/)) {
-        v = this[k];
-        k = k.split(/^compute_node_/)[1];
-    } else {
-        v = this[k];
-    }
-    if (!v) {
-        return;
-    }
-    newobj.push(k + "='" + v + "'");
-});
-newobj = newobj.join("\\n");
-ENDSUBSETJS
-
 if [[ ! -d /usbkey/extra/joysetup ]]; then
     mkdir -p /usbkey/extra/joysetup
-    bash /lib/sdc/config.sh -json \
-        | json -e "$SUBSETJS" newobj \
-        > /usbkey/extra/joysetup/node.config
     cp /usbkey/scripts/joysetup.sh /usbkey/extra/joysetup
     cp /usbkey/scripts/agentsetup.sh /usbkey/extra/joysetup
+
+    # Create a subset of the headnode config which will be downloaded by
+    # compute nodes when they are setting up for the first time.
+    NODE_CONFIG_KEYS='
+        datacenter_name
+        root_authorized_keys_file
+        assets_admin_ip
+        dns_domain
+        dns_resolvers
+        ntp_conf_file
+        ntp_hosts
+        swap
+        rabbitmq
+        root_shadow
+        ufds_admin_ips
+        ufds_admin_uuid
+        dhcp_lease_time
+        capi_client_url
+        capi_http_admin_user
+        capi_http_admin_pw
+        zonetracker_database_path
+        imgapi_admin_ips
+        '
+    bash /lib/sdc/config.sh -json \
+        | json -e '// compute_node_FOO -> FOO
+            Object.keys(this).forEach(function (k) {
+                var m = /^compute_node_(.*?)$/.exec(k);
+                if (m) {
+                    this[m[1]] = this[k]
+                }
+            });' $NODE_CONFIG_KEYS -j \
+        | json -e "// Format as key='value'
+            this.formatted = Object.keys(this).map(function (k) {
+                return k + '=\\'' + this[k] + '\\'';
+            }).join('\\n');" formatted \
+        > /usbkey/extra/joysetup/node.config
 fi
 
 # Put the agents in a place where they will be available to compute nodes.
