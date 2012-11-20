@@ -199,6 +199,7 @@ if [[ ! -e /opt/smartdc/mapi/tmp/pids ]]; then
 fi
 
 echo "Creating MCP API Heartbeater Pool Manifest."
+if [ -z $HEARTBEATER_INSTANCES ] ; then HEARTBEATER_INSTANCES=3 ; fi
 RACK_ENV=production USER=jill GROUP=jill INSTANCES=$HEARTBEATER_INSTANCES /opt/local/bin/rake smf:heartbeater_pool -f /opt/smartdc/mapi/Rakefile
 chown jill:jill /opt/smartdc/mapi/config/heartbeater_client_pool.smf
 
