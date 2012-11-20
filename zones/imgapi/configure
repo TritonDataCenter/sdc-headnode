@@ -14,7 +14,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 
 # Note: Usage of "local" storage is not intended for production.
-LOCAL_DB_DIR=/var/db/imgapi
+LOCAL_DB_DIR=/var/db/imgapi/images
 if [[ ! -d $LOCAL_DB_DIR ]]; then
     echo "Create local db dir, $LOCAL_DB_DIR."
     mkdir -p $LOCAL_DB_DIR
