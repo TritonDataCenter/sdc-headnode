@@ -26,6 +26,7 @@ cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
 {
     "port": 80,
     "logLevel": "debug",
+    "mode": "dc",
     "database": {
         "type": "ufds",
         "url": "ldaps://${UFDS_ADMIN_IP}",
