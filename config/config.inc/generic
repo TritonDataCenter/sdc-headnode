@@ -11,9 +11,10 @@ pkg_0=sdc_64:64:256:10240:100:1000:10:0ea54d9d-8d4d-4959-a87e-bf47c0f61a47
 pkg_1=sdc_128:128:256:10240:100:1000:10:73a1ca34-1e30-48c7-8681-70314a9c67d3
 pkg_2=sdc_256:256:512:10240:150:1000:10:78aa629d-04fc-4ee5-881b-0b4a914e0c52
 pkg_3=sdc_512:512:1024:10240:200:1000:10:5dd022c8-5388-43e3-9fdd-536df4ea4f9f
-pkg_4=sdc_1024:1024:2048:10240:300:1000:10:4769a8f9-de51-4c1e-885f-c3920cc68137
-pkg_5=sdc_2048:2048:4096:10240:400:1000:20:8d205d81-3672-4297-b80f-7822eb6c998b
-pkg_6=sdc_db:2048:4096:51200:400:1000:20:b2cd4ca7-ad7f-4a98-adeb-7adc9978a875
+pkg_4=sdc_768:768:1536:10240:250:1000:10:1ee2a2ab-2138-8542-b563-a67bb03792f7
+pkg_5=sdc_1024:1024:2048:10240:300:1000:10:4769a8f9-de51-4c1e-885f-c3920cc68137
+pkg_6=sdc_2048:2048:4096:10240:400:1000:20:8d205d81-3672-4297-b80f-7822eb6c998b
+pkg_7=sdc_db:2048:4096:51200:400:1000:20:b2cd4ca7-ad7f-4a98-adeb-7adc9978a875
 
 # You can configure other headnode nics here (to bring up but not be used for
 # provisioning), eg:
@@ -47,8 +48,7 @@ amon_pkg=sdc_256
 
 assets_pkg=sdc_128
 
-# 768 MiB would be more appropriate though
-usageapi_pkg=sdc_1024
+usageapi_pkg=sdc_768
 
 workflow_pkg=sdc_256
 manatee_pkg=sdc_db
@@ -58,7 +58,7 @@ sdcsso_pkg=sdc_128
 
 vmapi_pkg=sdc_128
 dapi_pkg=sdc_128
-imgapi_pkg=sdc_128
+imgapi_pkg=sdc_768
 cnapi_pkg=sdc_128
 napi_pkg=sdc_128
 fwapi_pkg=sdc_128
