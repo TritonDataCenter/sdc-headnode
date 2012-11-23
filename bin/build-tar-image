@@ -979,12 +979,17 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
-    target=$(build_spec manta-tarball)
+    local target=$(build_spec manta-tarball)
     local bit_cache_path=$(get_bit ${target})
     cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2
-
     mkdir -p ${STAGE}/extra/manta
     cp ${ROOT}/cache/manta.tar.bz2 ${STAGE}/extra/manta
+
+    target=$(build_spec imgapi-cli-tarball)
+    bit_cache_path=$(get_bit ${target})
+    cp ${bit_cache_path} ${ROOT}/cache/imgapi-cli.tar.bz2
+    mkdir -p ${STAGE}/extra/imgapi-cli
+    cp ${ROOT}/cache/imgapi-cli.tar.bz2 ${STAGE}/extra/imgapi-cli
 }
 
 function copy_webinfo

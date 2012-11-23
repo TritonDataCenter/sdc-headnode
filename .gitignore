@@ -5,7 +5,7 @@
 /upgrade-*.tgz
 /boot-*.tgz
 /config/*.local
-/config/*.inc/root.authorized_keys
+/config/root.authorized_keys
 /build.spec.local
 /*.vmwarevm
 /*.img

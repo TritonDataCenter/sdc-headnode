@@ -293,12 +293,13 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/manta
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/manta/manta.tar.bz2)
     for file in $(ls /opt/smartdc/manta/bin/manta*); do
-
         # Strip trailing .js if present
         tool=$(basename ${file} .js)
-
         ln -s ${file} /opt/smartdc/bin/${tool}
     done
+
+    mkdir -p /opt/smartdc/imgapi-cli
+    (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
 fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."

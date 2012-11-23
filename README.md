@@ -105,7 +105,7 @@ This is optional. Without any configuration of your usb-headnode build you'll
 get a reasonable build, but there are a number of knobs you can turn. The
 most interesting/helpful ones are:
 
-- Add your public ssh key to "config/config.coal.inc/root.authorized_keys".
+- Add your public ssh key to "config/root.authorized_keys".
   This file will get used for the root user so you can ssh into your running
   VM.
 

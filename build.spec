@@ -17,6 +17,7 @@
   , "dhcpd-tarball": "dhcpd/dhcpd-pkg-master-.*.tar.bz2"
   , "fwapi-tarball": "fwapi/fwapi-pkg-master-.*.tar.bz2"
   , "imgapi-tarball": "imgapi/imgapi-pkg-master-.*.tar.bz2"
+  , "imgapi-cli-tarball": "imgapi-cli/imgapi-cli-pkg-master-.*.tar.bz2"
   , "keyapi-tarball": "keyapi/keyapi-pkg-master-.*.tar.bz2"
   , "manatee-tarball": "manatee/manatee-pkg-master-.*.tar.bz2"
   , "manta-tarball": "manta/manta-pkg-master-.*.tar.bz2"
