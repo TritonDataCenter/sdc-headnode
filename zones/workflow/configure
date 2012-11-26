@@ -21,6 +21,7 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
+FWAPI_URL=http://$(echo "${FWAPI_ADMIN_IPS}" | cut -d',' -f1)
 
 # XXX for now use the first MORAY, soon we'll be switching to DNS
 MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
@@ -47,6 +48,7 @@ gsed -i -e "s|DAPI_URL|$DAPI_URL|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
 gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
 gsed -i -e "s|IMGAPI_URL|$IMGAPI_URL|" $CFG_FILE
+gsed -i -e "s|FWAPI_URL|$FWAPI_URL|" $CFG_FILE
 # Must replace NAPI at the very end, or it will also replace CNAPI.
 gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
