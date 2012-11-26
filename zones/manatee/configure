@@ -76,6 +76,7 @@ ZK_TIMEOUT=30000
 SHARD_PATH=/manatee/sdc
 
 # backup and snapshot configs
+PG_CONF=/opt/smartdc/manatee/etc/postgresql.sdc.conf
 BACKUP_SERVER_PORT=12345
 BACKUP_URL=http://$ZONE_IP:$BACKUP_SERVER_PORT
 SNAPSHOT_INTERVAL=3600000
@@ -95,6 +96,7 @@ gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $SITTER_CFG_FILE
 gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
+gsed -i -e "s|PG_CONF|$PG_CONF|g" $SITTER_CFG_FILE
 gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
 gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
