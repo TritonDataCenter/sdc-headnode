@@ -115,7 +115,7 @@ function fake_zoneinit
         fatal "fake_zoneinit(): bad zoneroot: ${zoneroot}"
     fi
 
-    rm ${zoneroot}/var/adm/utmpx ${zoneroot}/var/adm/wtmpx ; touch ${zoneroot}/var/adm/wtmpx
+    rm -f ${zoneroot}/var/adm/utmpx ${zoneroot}/var/adm/wtmpx ; touch ${zoneroot}/var/adm/wtmpx
     rm -rf ${zoneroot}/var/svc/log/*
     rm -rf ${zoneroot}/root/zone*
     cat > ${zoneroot}/root/zoneinit <<EOF
