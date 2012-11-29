@@ -300,6 +300,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
 
     mkdir -p /opt/smartdc/imgapi-cli
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
+    ln -s /opt/smartdc/imgapi-cli/bin/sdc-imgadm /opt/smartdc/bin/sdc-imgadm
 fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
