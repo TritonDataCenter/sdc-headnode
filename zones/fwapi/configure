@@ -16,6 +16,7 @@ CONF=${INSTDIR}/config.json
 
 # XXX for now use the first UFDS, soon we'll be switching to DNS
 UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
 cat > ${CONF} <<CONFIG
 {
@@ -29,6 +30,9 @@ cat > ${CONF} <<CONFIG
       "size": 1000,
       "expiry": 300
     }
+  },
+  "wfapi": {
+    "url": "${WF_URL}"
   }
 }
 CONFIG
