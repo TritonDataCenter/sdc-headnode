@@ -318,6 +318,13 @@ setup_datasets()
       fatal "failed to create the var dataset"
     chmod 755 /${VARDS}
     cd /var
+
+    # since we created /var, we setup so that we keep a copy of the joysetup log
+    # as log messages written after this will otherwise not be logged due to
+    # the cpio moving them to the new /var
+    mkdir -p /var/log
+    trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
+
     if ( ! find . -print | cpio -pdm /${VARDS} 2>/dev/null ); then
         fatal "failed to initialize the var directory"
     fi
