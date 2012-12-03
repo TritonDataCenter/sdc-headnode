@@ -23,7 +23,7 @@ if [[ -z ${path} ]]; then
 error: no PATH argument given
 
 Usage:
-        $0 PATH [EXTRA-CURL-ARGS]
+        $0 [--no-headers] PATH [EXTRA-CURL-ARGS]
 
 EOF
     exit 1

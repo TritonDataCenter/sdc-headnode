@@ -9,7 +9,12 @@
 source /lib/sdc/config.sh
 load_sdc_config
 
-CURL_OPTS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
+if [[ $1 == "--no-headers" ]]; then
+    CURL_OPTS="-m 10 -sS -i -H accept:application/json"
+    shift
+else
+    CURL_OPTS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
+fi
 
 # CNAPI!
 CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
