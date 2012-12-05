@@ -632,9 +632,7 @@ function import_core_datasets {
             local file=${manifest%\.*}.zfs.bz2
             echo "Importing image $uuid ($manifest, $file) into IMGAPI."
             [[ -f $file ]] || fatal "Image $uuid file $file not found."
-            /opt/smartdc/bin/sdc-imgapi /images/$uuid?action=import -d @$manifest
-            /opt/smartdc/bin/sdc-imgapi /images/$uuid/file -T $file
-            /opt/smartdc/bin/sdc-imgapi /images/$uuid?action=activate -X POST
+            /opt/smartdc/bin/sdc-imgadm import -m $manifest -f $file
         elif [[ "$status" == "200" ]]; then
             echo "Skipping import of image $uuid: already in IMGAPI."
         else
