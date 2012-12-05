@@ -33,6 +33,7 @@ CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
+IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
 
 # XXX for now use the first UFDS, soon we'll be switching to DNS
 UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
@@ -50,15 +51,7 @@ gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
 gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
-gsed -i -e "s|IMGAPI_URL|$DSAPI_URL|" $CFG_FILE
-gsed -i -e "s|IMGAPI_HTTP_ADMIN_USER|$DSAPI_HTTP_USER|" $CFG_FILE
-gsed -i -e "s|IMGAPI_HTTP_ADMIN_PW|$DSAPI_HTTP_PW|" $CFG_FILE
-gsed -i -e "s|VMAPI_HTTP_ADMIN_USER|$VMAPI_HTTP_ADMIN_USER|" $CFG_FILE
-gsed -i -e "s|VMAPI_HTTP_ADMIN_PW|$VMAPI_HTTP_ADMIN_PW|" $CFG_FILE
-gsed -i -e "s|CNAPI_HTTP_ADMIN_USER|$CNAPI_HTTP_ADMIN_USER|" $CFG_FILE
-gsed -i -e "s|CNAPI_HTTP_ADMIN_PW|$CNAPI_HTTP_ADMIN_PW|" $CFG_FILE
-gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
-gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
+gsed -i -e "s|IMGAPI_URL|$IMGAPI_URL|" $CFG_FILE
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml)
