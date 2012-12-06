@@ -34,7 +34,7 @@ resource=$(echo ${path}|cut -d'/' -f2)
 case "$resource" in
   "jobs" | "workflows") workflow "$@" | json -H -q
     ;;
-  "vms") vmapi "$@" | json -q
+  "vms" | "ping") vmapi "$@" | json -q
     ;;
   "servers") cnapi "$@" | json -q
     ;;
