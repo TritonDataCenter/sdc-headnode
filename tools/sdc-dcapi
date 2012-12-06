@@ -40,6 +40,8 @@ case "$resource" in
     ;;
   "nics" | "nic_tags" | "networks") napi "$@" | json -q
     ;;
+  "rules") fwapi "$@" | json -q
+    ;;
   *) echo "Unknown request PATH"
     ;;
 esac
