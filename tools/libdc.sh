@@ -58,6 +58,15 @@ if [[ -n ${DAPI_IP} ]]; then
     DAPI_URL="http://${DAPI_IP}"
 fi
 
+# FWAPI!
+FWAPI_URL=${CONFIG_fwapi_client_url}
+
+if [[ -n ${CONFIG_fwapi_http_admin_user}
+    && -n ${CONFIG_fwapi_http_admin_pw} ]]; then
+
+    FWAPI_CREDENTIALS="${CONFIG_fwapi_http_admin_user}:${CONFIG_fwapi_http_admin_pw}"
+fi
+
 # WORKFLOW!
 WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
 if [[ -n ${CONFIG_workflow_http_admin_user}
@@ -100,6 +109,16 @@ dapi()
     path=$1
     shift
     (curl ${CURL_OPTS} -u "${DAPI_CREDENTIALS}" --url "${DAPI_URL}${path}" \
+        "$@") || return $?
+    echo ""  # sometimes the result is not terminated with a newline
+    return 0
+}
+
+fwapi()
+{
+    path=$1
+    shift
+    (curl ${CURL_OPTS} -u "${FWAPI_CREDENTIALS}" --url "${FWAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
