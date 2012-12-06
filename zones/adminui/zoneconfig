@@ -45,3 +45,4 @@ DSAPI_HTTP_PW=${dsapi_http_pass}
 REDIS_ADMIN_IPS=${redis_admin_ips}
 REDIS_PORT=6379
 AMON_ADMIN_IPS=${amon_admin_ips}
+IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
