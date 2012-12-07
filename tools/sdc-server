@@ -44,14 +44,18 @@ server_list()
         #  nic_UUID_<tag>=<IP>
         #
         # with uuid's dashes changed to underscore to meet bash's variable name requirements.
-        for data in $(napi /nics?belongs_to_type=server | json -H -a nic_tag ip belongs_to_uuid | tr ' ' '|'); do
+        for data in $(napi /nics?belongs_to_type=server | json -H -e \
+            'this.nicy = this.nic_tags_provided ? this.nic_tags_provided.join(",") : ""' \
+            -d '|' -a nicy ip belongs_to_uuid); do
             if [[ -n ${data} ]]; then
-                tag=$(echo "${data}" | cut -d '|' -f1)
+                tags=$(echo "${data}" | cut -d '|' -f1)
                 ip=$(echo "${data}" | cut -d '|' -f2)
                 uuid=$(echo "${data}" | cut -d '|' -f3 | tr '-' '_')
-                if [[ -n ${tag} && -n ${ip} && -n ${uuid} ]]; then
-                    eval "nic_${uuid}_${tag}=${ip}"
-                fi
+                for tag in $(echo ${tags} | sed -e 's/,/ /g'); do
+                    if [[ -n ${tag} && -n ${ip} && -n ${uuid} ]]; then
+                        eval "nic_${uuid}_${tag}=${ip}"
+                    fi
+                done
             fi
         done
 
