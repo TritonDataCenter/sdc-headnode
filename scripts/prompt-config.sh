@@ -1256,7 +1256,7 @@ echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
-echo "sdcsso_admin_ips=$adminui_admin_ip" >>$tmp_config
+echo "sdcsso_admin_ips=$sdcsso_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "# datacenter_name should be unique among your cloud," >>$tmp_config
