@@ -8,13 +8,6 @@ set -o pipefail
 #export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -o xtrace
 
-version=$1
-if [[ -z ${version} ]]; then
-    echo "Usage: $0 <platform buildstamp>"
-    echo "(eg. '$0 20110318T170209Z')"
-    exit 1
-fi
-
 current_version=$(uname -v | cut -d '_' -f 2)
 
 mounted="false"
@@ -30,6 +23,26 @@ function onexit
 
     echo "==> Done!"
 }
+
+# -U is a private option to bypass cnapi update during upgrade.
+UPGRADE=0
+while getopts "U" opt
+do
+	case "$opt" in
+		U)	UPGRADE=1;;
+		*)	echo "invalid option"
+			exit 1
+			;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+version=$1
+if [[ -z ${version} ]]; then
+    echo "Usage: $0 <platform buildstamp>"
+    echo "(eg. '$0 20110318T170209Z')"
+    exit 1
+fi
 
 if [[ -z $(mount | grep ^${usbmnt}) ]]; then
     echo "==> Mounting USB key"
@@ -51,6 +64,9 @@ cat ${usbmnt}/boot/grub/menu.lst.tmpl | sed \
     -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
     -e "s|^#PREV ||" \
     > ${usbmnt}/boot/grub/menu.lst
+
+# If upgrading, skip cnapi update, we're done now.
+[ $UPGRADE -eq 1 ] && exit 0
 
 echo "==> Updating cnapi"
 . /lib/sdc/config.sh
