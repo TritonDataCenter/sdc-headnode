@@ -2,5 +2,4 @@ SDCSSO_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 SDCSSO_LDAP_BIND_PASSWORD=${ufds_ldap_root_pw}
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 
-SDCSSO_KEYAPIHOST=${keyapi_admin_ips}
-SDCSSO_KEYAPIPORT=8080
+SDCSSO_KEYAPI=${keyapi_admin_ips}

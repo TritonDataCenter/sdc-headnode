@@ -11,6 +11,12 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 role=sdcsso
 app_name=$role
 
+echo "Generating SSL Certificate"
+mkdir -p /opt/smartdc/$role/ssl/
+/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
+    -keyout /opt/smartdc/$role/ssl/key.pem \
+    -out /opt/smartdc/$role/ssl/cert.pem -days 365
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 

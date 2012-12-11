@@ -674,7 +674,7 @@ function cleanup_config
 	keyapi_admin_ips=$keyapi_admin_ip
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
-	sdcsso_admin_ips=$keyapi_admin_ip
+	sdcsso_admin_ips=$sdcsso_admin_ip
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw

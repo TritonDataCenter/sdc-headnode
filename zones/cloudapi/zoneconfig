@@ -12,3 +12,4 @@ DAPI_ADMIN_IPS=${dapi_admin_ips}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 CNAPI_ADMIN_IPS=${cnapi_admin_ips}
 IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
+KEYAPI_ADMIN_IPS=${keyapi_admin_ips}

@@ -10,13 +10,16 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+KEYAPI_URL=$(echo "${SDCSSO_KEYAPI}" | cut -d',' -f1)
+UFDS_URL=$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)
 echo "Updating SMF manifest"
-$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/sdcsso/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@UFDSURL@@/${UFDS_ADMIN_IPS}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@UFDSROOTDN@@/${SDCSSO_LDAP_ROOT_DN}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@UFDSPASSWORD@@/${SDCSSO_LDAP_BIND_PASSWORD}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@KEYAPIHOST@@/${SDCSSO_KEYAPIHOST}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
-$(/opt/local/bin/gsed -i"" -e "s/@@KEYAPIPORT@@/${SDCSSO_KEYAPIPORT}/g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@PREFIX@@|/opt/smartdc/sdcsso|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@UFDSURL@@|${UFDS_URL}|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@UFDSROOTDN@@|${SDCSSO_LDAP_ROOT_DN}|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@UFDSPASSWORD@@|${SDCSSO_LDAP_BIND_PASSWORD}|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@KEYAPI@@|http://${KEYAPI_URL}:8080|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@SSLCERT@@|/opt/smartdc/sdcsso/ssl/cert.pem|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
+$(/opt/local/bin/gsed -i"" -e "s|@@SSLKEY@@|/opt/smartdc/sdcsso/ssl/key.pem|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 
 echo "Importing sdcsso.xml"
 /usr/sbin/svccfg import /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml
