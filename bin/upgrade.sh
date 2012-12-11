@@ -82,11 +82,13 @@ the failure. Until the system reboots, don't do anything.\n\n"
     printf "$message_term"
     cd /
 
-    # use the local copy of rollback since it didn't exist on the 6.5.x usbkey
-    # rollback handles the /var/upgrade_in_progress file cleanup
-    $ROOT/sdc-rollback -F
-    # rollback reboots, but that is async, so quit now
-    exit 1
+    trap EXIT
+
+    # Use the local copy of rollback since it didn't exist on the 6.5.x usbkey.
+    # sdc-rollback handles the /var/upgrade_in_progress file cleanup.
+    # Overlay this process with sdc-rollback so that perform-upgrade doesn't
+    # think we're done yet.
+    . $ROOT/sdc-rollback -F
 }
 
 function mount_usbkey
@@ -612,16 +614,22 @@ function cleanup_config
 	else
 	    allocate_ip_addr
 	fi
-	vmapi_admin_ip="$ip_addr"
+	fwapi_admin_ip="$ip_addr"
 
 	# We have now definitely re-allocated the fixed IP addrs so we have to
 	# eat into the dhcp range for the rest of the new zones.
 
 	allocate_ip_addr
-	portal_admin_ip="$ip_addr"
+	vmapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
 	keyapi_admin_ip="$ip_addr"
+
+	allocate_ip_addr
+	ca_admin_ip="$ip_addr"
+
+	allocate_ip_addr
+	adminui_admin_ip="$ip_addr"
 
 	allocate_ip_addr
 	sdcsso_admin_ip="$ip_addr"
@@ -667,11 +675,20 @@ function cleanup_config
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
 
+	fwapi_root_pw=$CONFIG_adminui_root_pw
+	fwapi_admin_ips=$fwapi_admin_ip
+
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
+
+	ca_root_pw=$CONFIG_adminui_root_pw
+	ca_admin_ips=$ca_admin_ip
+
+	adminui_root_pw=$CONFIG_adminui_root_pw
+	adminui_admin_ips=$adminui_admin_ip
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
 	sdcsso_admin_ips=$sdcsso_admin_ip
@@ -729,6 +746,15 @@ function cleanup_config
 	workflow_admin_pw=$CONFIG_adminui_admin_pw
 	workflow_http_admin_user=admin
 	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
+
+	fwapi_http_admin_user=admin
+	fwapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	fwapi_client_url=http://${fwapi_admin_ip}:80
+
+	ca_admin_pw=$CONFIG_adminui_admin_pw
+
+	adminui_admin_pw=$CONFIG_adminui_admin_pw
+	adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter
 
 	show_setup_timers=true
 	serialize_setup=true
@@ -810,6 +836,7 @@ function cleanup_config
 	manatee_pkg=${GENERIC_manatee_pkg}
 	moray_pkg=${GENERIC_moray_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
+	fwapi_pkg=${GENERIC_fwapi_pkg}
 	portal_pkg=${GENERIC_portal_pkg}
 	rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
 	redis_pkg=${GENERIC_redis_pkg}
@@ -817,6 +844,8 @@ function cleanup_config
 	workflow_pkg=${GENERIC_workflow_pkg}
 	vmapi_pkg=${GENERIC_vmapi_pkg}
 	zookeeper_pkg=${GENERIC_zookeeper_pkg}
+	dbconn_retry_after=10
+	dbconn_num_attempts=10
 	DONE
 
 	cp /tmp/config.$$ /mnt/usbkey/config.inc/generic
@@ -989,13 +1018,15 @@ load_server_addrs
 # addr for the dhcp_next_server entry which was unused. This gives 11 available
 # IP addrs. We then allowed a block of 4 additional unused addrs before the
 # start of the dhcp range, but not all customer configs are setup with the 4
-# free addrs followed by the dhcp range.
+# free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
+# to re-use.
 #
-# We need at least 7 or 11 free addresses to accomodate the new zones,
-# depending on how the user config is setup and if we can use the 4 free addrs.
+# In 7.0 we have 20 cores zones so we need at least 5, and maybe 9, additional
+# addresses out of the dhcp range to accomodate the new zones, depending on how
+# the user config is setup and if we can use the 4 free addrs from 6.x.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=7
+need_num_addrs=5
 
 ip_to_num $CONFIG_dhcp_next_server
 unused_addr=$num
@@ -1107,7 +1138,7 @@ delete_sdc_zones
 cleanup_config
 load_sdc_config
 
-/usbkey/scripts/switch-platform.sh ${platformversion} 1>&4 2>&1
+/usbkey/scripts/switch-platform.sh -U ${platformversion} 1>&4 2>&1
 [ $? != 0 ] && fatal_rb "switching platform"
 
 # Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
@@ -1177,6 +1208,7 @@ rm -rf $AGENTS_DIR/smf/*
 
 # Fix up /var
 mkdir -m755 -p /var/db/imgadm
+mkdir -m755 -p /var/log/vm
 
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
