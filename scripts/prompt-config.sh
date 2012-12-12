@@ -1249,6 +1249,7 @@ echo >>$tmp_config
 
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
+echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1363,7 +1364,6 @@ if [[ -n ${external_nic} ]]; then
 		echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
 	fi
 fi
-echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
@@ -1384,10 +1384,6 @@ echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
 echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
-echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
