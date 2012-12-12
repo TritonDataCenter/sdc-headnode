@@ -29,6 +29,11 @@ CONSOLE_FD=4 ; export CONSOLE_FD
 # time to wait for each zone to setup (in seconds)
 ZONE_SETUP_TIMEOUT=180
 
+declare -A DS_UUID=()
+declare -A DS_MANIFEST=()
+declare -A DS_FILE=()
+DS_CNT=0
+
 function fatal
 {
     printf_log "%-80s\r" " "
@@ -393,6 +398,19 @@ create_latest_link
 # The setup script usually does some initial setup and then runs through the
 # configuration.
 
+function add_dataset {
+    local i=0
+
+    while [ $i -lt $DS_CNT ]; do
+        [ "${DS_UUID[$i]}" == "$1" ] && return
+        i=$(($i + 1))
+    done    
+
+    DS_UUID[$DS_CNT]=$1
+    DS_MANIFEST[$DS_CNT]=$2
+    DS_FILE[$DS_CNT]=$3
+    DS_CNT=$(($DS_CNT + 1))
+}
 
 # Install the core headnode zones
 
@@ -435,6 +453,8 @@ function create_zone {
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
+
+	add_dataset ${ds_uuid} ${ds_manifest} ${ds_filename}
 
         # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
@@ -624,13 +644,14 @@ fi
 
 
 function import_core_datasets {
-    local manifests=$(ls /usbkey/datasets/*.*manifest)
-    for manifest in $manifests; do
-        local uuid=$(json uuid < $manifest)
+    local i=0
+    while [ $i -lt $DS_CNT ]; do
+        local uuid=${DS_UUID[$i]}
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
             | head -1 | awk '{print $2}')
         if [[ "$status" == "404" ]]; then
-            local file=${manifest%\.*}.zfs.bz2
+            local manifest=${DS_MANIFEST[$i]}
+            local file=${DS_FILE[$i]}
             echo "Importing image $uuid ($manifest, $file) into IMGAPI."
             [[ -f $file ]] || fatal "Image $uuid file $file not found."
             /opt/smartdc/bin/sdc-imgadm import -m $manifest -f $file
@@ -639,6 +660,7 @@ function import_core_datasets {
         else
             echo "Error checking if image $uuid is in IMGAPI: HTTP $status"
         fi
+        i=$(($i + 1))
     done
 }
 
