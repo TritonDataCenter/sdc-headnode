@@ -6,7 +6,10 @@
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
-ZONES6X="adminui assets billapi ca cloudapi dhcpd mapi portal rabbitmq riak"
+SS="zones/var zones/opt zones/usbkey zones/config"
+SKIP="$SS zones zones/swap zones/dump zones/cores zones/pre-upgrade"
+
+declare -A SKIP_DS=()
 
 function fatal
 {
@@ -22,6 +25,11 @@ function fatal
 [[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
     fatal "this command can only be run on the headnode"
 
+for i in $SKIP
+do
+	SKIP_DS[$i]=1
+done
+
 # -F is a private option to disable the prompt - used when rolling back
 # in the middle of a failed upgrade.
 FORCE=0
@@ -32,13 +40,12 @@ do
 		*)	fatal "invalid option";;
 	esac
 done
+shift $(($OPTIND - 1))
 
-[ ! -d /var/usb_rollback ] && \
-    fatal "rollback is not possible: data does not exist"
+exists=`zfs list -o name -H zones/pre-upgrade 2>/dev/null`
+[ -z "$exists" ] && fatal "rollback is not possible: data does not exist"
 
 dname=${0%/*}
-bname=${0##*/}
-
 [[ "$dname" == "/tmp" ]] && FORCE=1
 
 if [[ $FORCE == 0 ]]; then
@@ -53,11 +60,12 @@ if [[ $FORCE == 0 ]]; then
 fi
 
 if [ "$dname" != "/tmp" ]; then
-    # move the cmd tp /tmp and rerun it there since /tmp doesn't rollback
-    cp $0 /tmp
+    # move the cmd to /tmp and rerun it there since /tmp doesn't rollback
+    cp $dname/sdc-rollback /tmp
     cp /var/usb_rollback/ds_orig /tmp
     cp /var/usb_rollback/files_orig /tmp
-    /tmp/$bname $@ &
+    cd /tmp
+    /tmp/sdc-rollback $@
     exit 0
 fi
 
@@ -73,13 +81,6 @@ done
 
 echo "transitioning to single-user mode"
 svcadm milestone single-user
-
-CAPI_FOUND=0
-zfs list -o name -H zones/capi_rollback >/dev/null 2>&1
-if [[ $? == 0 ]]; then
-	CAPI_FOUND=1
-	ZONES6X="$ZONES6X capi"
-fi
 
 # in an unknown state, so first try to clean up the USB key mount
 umount /mnt/usbkey >/dev/null 2>&1
@@ -128,12 +129,16 @@ done
 
 echo "rolling back datasets"
 
-for z in $ZONES6X
+# Start by deleting all of the new top-level datasets
+for i in `zfs list -o name -H`
 do
-	zfs rename zones/${z}_rollback zones/${z}
+    # only want to check the ones directly under zones
+    levels=`echo $i | nawk '{cnt=gsub("/", "/"); print cnt}'`
+    [ $levels -ne 1 ] && continue
 
-	zfs set mountpoint=/zones/${z}		zones/${z}
-	zfs set mountpoint=/zones/${z}/cores	zones/${z}/cores
+    [ -n "${SKIP_DS[$i]}" ] && continue
+
+    zfs destroy -Rf $i >/dev/null 2>&1
 done
 
 # recreate old-style GZ cores dataset
@@ -141,66 +146,53 @@ zfs destroy -r zones/cores
 zfs create -o quota=10g -o mountpoint=/zones/global/cores \
     -o compression=gzip zones/cores
 
-# We need to re-enable the zoned attribute for the delegated datasets
-adminui_dds=`zfs list -o name -H | egrep "^zones/adminui/adminui-app"`
-mapi_dds=`zfs list -o name -H | egrep "^zones/mapi/mapi-app"`
-
-zfs set zoned=on $adminui_dds
-zfs set zoned=on zones/adminui/adminui-data
-zfs set zoned=on zones/ca/ca-data
-zfs set zoned=on $mapi_dds
-zfs set zoned=on zones/mapi/mapi-data
-
-if [[ $CAPI_FOUND == 1 ]]; then
-	capi_dds=`zfs list -o name -H | egrep "^zones/capi/capi-app"`
-	zfs set zoned=on $capi_dds
-	zfs set zoned=on zones/capi/capi-data
-fi
-
-# Restore the rest of the datasets
-
-zfs rollback zones/config@rollback
-zfs destroy  zones/config@rollback
-zfs rollback zones/usbkey@rollback
-zfs destroy  zones/usbkey@rollback
-zfs rollback zones/opt@rollback
-zfs destroy  zones/opt@rollback
-zfs rollback zones/var@rollback
-zfs destroy  zones/var@rollback
-
-zfs list -H -o name -s name >/tmp/ds_new
-for i in `comm -13 /tmp/ds_orig /tmp/ds_new`
+# Rollback the ones we snapshotted.
+for d in $SS
 do
-    zfs destroy -Rf $i >/dev/null 2>&1
+	zfs rollback ${d}@rollback
+	zfs destroy  ${d}@rollback
 done
 
-ls /zones >/tmp/files_new
-for i in `comm -13 /tmp/files_orig /tmp/files_new`
+# Rename back the ones we originally renamed.
+LIST=`zfs list -o name -H | grep pre-upgrade`
+
+# Do the following work in two separate loops so that the rename doesn't screw
+# up setting the canmount property on sub-datasets.
+for i in $LIST
 do
-    rm -rf $i
+	[ -n "${SKIP_DS[$i]}" ] && continue
+	zfs set canmount=on $i
 done
 
-# If there are any customer zones installed on the HN, they will have been
-# snapshotted too.  We need to clean up those snapshots but we don't rollback
-# those zones.  At this point, that should be the only "rollback" snapshots
-# still around.
-for i in `zfs list -t snapshot -H -o name | \
-    nawk -F@ '{if ($2 == "rollback") print $0}'`
+for i in $LIST
 do
-    zfs destroy $i
+	[ -n "${SKIP_DS[$i]}" ] && continue
+
+	# only need to rename the top-level
+	levels=`echo $i | nawk '{cnt=gsub("/", "/"); print cnt}'`
+	[ $levels -ne 2 ] && continue
+
+	bname=${i##*/}
+	zfs rename zones/pre-upgrade/$bname zones/$bname
 done
+
+zfs destroy zones/pre-upgrade
 
 rm -rf /var/usb_rollback
 
+echo "rolling back manifests"
+(cd /zones/manifests; rm -rf *)
+(cd /zones/manifests; cpio -idm </tmp/files_orig)
+ 
 # If rolling back in the middle of a failed upgrade, grab the log files now
 # that the file systems have been rolled back.
 if [[ -d /var/upgrade_in_progress ]]; then
     rm -rf /var/upgrade_failed
     mv /var/upgrade_in_progress /var/upgrade_failed
-    cp -p /tmp/*log* /var/upgrade_failed
+    logs=`ls /tmp/*log* 2>/dev/null`
+    [ -n "$logs" ] && cp -p /tmp/*log* /var/upgrade_failed
 fi
 
 echo "rebooting"
 reboot
-
-exit 0
+sleep 120

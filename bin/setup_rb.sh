@@ -6,7 +6,16 @@
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
-ZONES6X="adminui assets billapi ca cloudapi dhcpd mapi portal rabbitmq riak"
+# Snapshot these datasets instead of renaming
+SS="zones/var zones/opt zones/usbkey zones/config"
+# Skip renaming these datasets
+SKIP="$SS zones zones/swap zones/dump zones/cores zones/pre-upgrade"
+
+declare -A SKIP_DS=()
+for i in $SKIP
+do
+        SKIP_DS[$i]=1
+done
 
 fatal()
 {
@@ -39,17 +48,10 @@ mount_usb()
         fatal "/mnt/usbkey is not mounted"
 }
 
-[ -d /var/usb_rollback ] && fatal "rollback is already in place"
+exists=`zfs list -o name -H zones/pre-upgrade 2>/dev/null`
+[ -n "$exists" ] && fatal "rollback is already in place"
 
-CAPI_FOUND=0
-for z in `zoneadm list -cp | cut -f2 -d:`
-do
-	if [[ "$z" == "capi" ]]; then
-		CAPI_FOUND=1
-		ZONES6X="$ZONES6X capi"
-		capi_dds=`zfs list -o name -H | egrep "^zones/capi/capi-app"`
-	fi
-done
+zfs create -o mountpoint=legacy zones/pre-upgrade
 
 # Backup usbkey to local disk
 # The 6.5.x sdc-backup doesn't support '-U -' so we have to do this ourselves
@@ -64,64 +66,45 @@ if [ $? != 0 -o ! -f /var/usb_rollback/version ]; then
 fi
 umount /mnt/usbkey
 
-echo "snapshotting the datasets"
-
-# snapshot existing datasets
-
 # We can't rollback the top-level ds on a live system.
-# Save a list of the datasets and files so we could remove the new ones on
-# rollback.
+# Save a list of existing datasets and manifest files so we can remove any new
+# ones on rollback. There can be lots of extra stuff that sysadmins have put
+# into /zones so we just worry about /zones/manifests.
 zfs list -H -o name -s name >/var/usb_rollback/ds_orig
-ls /zones >/var/usb_rollback/files_orig
+(cd /zones/manifests; find . -mount | cpio -o -O /var/usb_rollback/files_orig)
 
-zfs snapshot -r zones@rollback || fatal "failed to snapshot zones"
-zfs destroy zones@rollback
-zfs destroy zones/dump@rollback
-zfs destroy zones/swap@rollback
+echo "snapshotting datasets"
 
-# For the core zone datasets, delete snapshot, clear the mountpoint and
-# rename the ds so it won't conflict with the upgrade
-
-# The delegated datasets need some special handling
-# We need to disable the zoned attribute before we can rename.
-# We'll delete the snapshots for these at the same time.
-adminui_dds=`zfs list -o name -H | egrep "^zones/adminui/adminui-app"`
-mapi_dds=`zfs list -o name -H | egrep "^zones/mapi/mapi-app"`
-
-zfs set zoned=off $adminui_dds
-zfs set zoned=off zones/adminui/adminui-data
-zfs set zoned=off zones/ca/ca-data
-zfs set zoned=off $mapi_dds
-zfs set zoned=off zones/mapi/mapi-data
-
-zfs destroy $adminui_dds@rollback
-zfs destroy zones/adminui/adminui-data@rollback
-zfs destroy zones/ca/ca-data@rollback
-zfs destroy $mapi_dds@rollback
-zfs destroy zones/mapi/mapi-data@rollback
-
-# delete snapshot on the origin dataset for all of the core zones
-origin_ds=`zfs list -o origin -H zones/mapi | \
-    nawk '{split($1, a, "@"); print a[1]}'`
-zfs destroy ${origin_ds}@rollback
-
-if [[ $CAPI_FOUND == 1 ]]; then
-	zfs set zoned=off $capi_dds
-	zfs set zoned=off zones/capi/capi-data
-	zfs destroy $capi_dds@rollback
-	zfs destroy zones/capi/capi-data@rollback
-fi
-
-for z in $ZONES6X
+# snapshot SS datasets
+for d in $SS
 do
-	zfs destroy zones/${z}@rollback
-	zfs destroy zones/${z}/cores@rollback
+	zfs snapshot ${d}@rollback
+done
 
-	zfs set mountpoint=none zones/${z}/cores
-	zfs set mountpoint=none zones/${z}
+echo "renaming datasets"
 
-	zfs rename zones/${z} zones/${z}_rollback
-	rmdir /zones/${z} 2>/dev/null
+LIST=`zfs list -o name -H`
+
+for i in $LIST
+do
+        [ -n "${SKIP_DS[$i]}" ] && continue
+        zfs set canmount=off $i
+        # Don't need to remember zoned attr since gets set automatically on
+        # delegated datasets if we have to rollback.
+        zoned=`zfs get -o value -H zoned $i`
+        [ "$zoned" == "on" ] && zfs set zoned=off $i
+done
+
+for i in $LIST
+do
+        [ -n "${SKIP_DS[$i]}" ] && continue
+
+        # only need to rename top-level datasets
+        levels=`echo $i | nawk '{cnt=gsub("/", "/"); print cnt}'`
+        [ $levels -ne 1 ] && continue
+
+        bname=${i##*/}
+        zfs rename $i zones/pre-upgrade/$bname
 done
 
 # convert to new-style GZ cores dataset
