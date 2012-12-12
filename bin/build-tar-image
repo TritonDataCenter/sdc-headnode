@@ -887,12 +887,15 @@ function get_fs_tarball
     if [[ -f ${target} ]]; then
         # if this is the filename of an existing file, we'll use that
         if [[ ${target} != "${cache_path}" ]]; then
+
+            echo "$(basename ${target} .tar.bz2)" > ${dst_dir}/stamp
             cp ${target} ${cache_path}
         fi
     else
         # not a file so assume it's a pattern (find the latest) or URL
         local bit_cache_path=$(get_bit ${target})
         rm -f ${cache_path}
+        echo "$(basename ${bit_cache_path} .tar.bz2)" > ${dst_dir}/stamp
         ln ${bit_cache_path} ${cache_path}
     fi
 
