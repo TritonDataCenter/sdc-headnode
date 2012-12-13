@@ -32,7 +32,7 @@ echo "==> Saving config file for zone '${ZONE}'"
 if [ -d $PLUG_DIR ]; then
     echo "==> Saving plugins for zone '${ROLE}'"
     mkdir -p ${TARGET_DIR}/${ROLE}/plugins
-    (cd ${PLUG_DIR} && cp -p * ${TARGET_DIR}/${ROLE}/plugins)
+    (cd ${PLUG_DIR} && cp -pr * ${TARGET_DIR}/${ROLE}/plugins)
 fi
 
 if [ -d $SSL_DIR ]; then

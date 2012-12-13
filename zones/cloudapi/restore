@@ -37,7 +37,11 @@ mkdir -p /zones/${UUID}/root/opt/smartdc/cloudapi/plugins
 if [[ -d "${SRC_DIR}/${ROLE}/plugins" ]]; then
     for i in `ls ${SRC_DIR}/${ROLE}/plugins`
     do
-        if [ ! -f /zones/${UUID}/root/opt/smartdc/cloudapi/plugins/$i ]; then
+        if [ -d ${SRC_DIR}/${ROLE}/plugins/$i ]; then
+            echo "==> Restoring plugin directory $i for zone '${ROLE}'"
+            cp -pr ${SRC_DIR}/${ROLE}/plugins/$i \
+                /zones/${UUID}/root/opt/smartdc/cloudapi/plugins
+	elif [ ! -f /zones/${UUID}/root/opt/smartdc/cloudapi/plugins/$i ]; then
             echo "==> Restoring plugin $i for zone '${ROLE}'"
             cp -p ${SRC_DIR}/${ROLE}/plugins/$i \
                 /zones/${UUID}/root/opt/smartdc/cloudapi/plugins

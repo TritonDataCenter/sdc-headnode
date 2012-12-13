@@ -1114,6 +1114,13 @@ done
 mkdir $SDC_UPGRADE_DIR/bu.tmp
 (cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
 
+# Capture data missed by 6.5.x backup
+PLUG_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/plugins
+if [ -d $PLUG_DIR ]; then
+    mkdir -p ${SDC_UPGRADE_DIR}/bu.tmp/cloudapi/plugins
+    (cd ${PLUG_DIR} && cp -pr * ${SDC_UPGRADE_DIR}/bu.tmp/cloudapi/plugins)
+fi
+
 upgrade_zfs_datasets
 upgrade_pools
 
