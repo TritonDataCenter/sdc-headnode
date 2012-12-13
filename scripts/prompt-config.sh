@@ -30,6 +30,8 @@ declare -a nics
 declare -a assigned
 declare prmpt_str
 
+nicsup_done=0
+
 sig_doshell()
 {
 	echo
@@ -628,6 +630,8 @@ you must select the new NICs for the admin and possibly external networks.\n\n"
 }
 
 nicsup() {
+	[ $nicsup_done -eq 1 ] && return
+
 	local vlan_opts=""
 	ifconfig $admin_iface inet $admin_ip netmask $admin_netmask up
 
@@ -644,6 +648,8 @@ nicsup() {
 	if [[ -n ${headnode_default_gateway} ]]; then
 		route add default $headnode_default_gateway >/dev/null
 	fi
+
+	nicsup_done=1
 }
 
 nicsdown() {
