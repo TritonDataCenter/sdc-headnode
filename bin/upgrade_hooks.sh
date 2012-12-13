@@ -28,7 +28,7 @@ ZONE_SETUP_TIMEOUT=180
 SDC_UPGRADE_DIR=/var/upgrade_headnode
 
 # We have to install the extra zones in dependency order
-EXTRA_ZONES="keyapi sdcsso usageapi ca adminui amon cloudapi portal"
+EXTRA_ZONES="keyapi sdcsso usageapi cloudapi portal"
 
 saw_err()
 {
@@ -60,6 +60,16 @@ print_log()
 create_extra_zones()
 {
     declare -A existing_zones=()
+
+    # We have to wait until ufds is really ready
+    loops=0
+    while [ $loops -lt 20 ]; do
+        up=`sdc-role list 2>/dev/null | grep ufds`
+        [ -n "$up" ] && break
+        print_log "Waiting for UFDS to be ready..."
+        sleep 30
+        loops=$((${loops} + 1))
+    done
 
     for i in `sdc-role list | nawk '{if ($6 != "ROLE") print $6}'`
     do

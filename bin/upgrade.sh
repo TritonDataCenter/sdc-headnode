@@ -835,6 +835,8 @@ function cleanup_config
 	imgapi_pkg=${GENERIC_imgapi_pkg}
 	manatee_pkg=${GENERIC_manatee_pkg}
 	moray_pkg=${GENERIC_moray_pkg}
+	keyapi_pkg=${GENERIC_keyapi_pkg}
+	sdcsso_pkg=${GENERIC_sdcsso_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
 	fwapi_pkg=${GENERIC_fwapi_pkg}
 	portal_pkg=${GENERIC_portal_pkg}
