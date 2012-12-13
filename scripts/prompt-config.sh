@@ -334,12 +334,12 @@ prompt_host_ok_val()
 			trap "" SIGINT
 			printf "Checking connectivity..."
 			ping $val >/dev/null 2>&1
-			trap sig_doshell SIGINT
 			if [ $? != 0 ]; then
 				printf "UNREACHABLE\n"
 			else
 				printf "OK\n"
 			fi
+			trap sig_doshell SIGINT
 			break
 		else
 			echo "A value must be provided."
