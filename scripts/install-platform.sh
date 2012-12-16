@@ -72,6 +72,13 @@ if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]
     platform_type=hvm
 fi
 
+echo "${version}" | grep "^2[0-9]*T[0-9]*Z$" > /dev/null
+if [[ $? != 0 ]]; then
+    echo "Invalid platform version format: ${version}" >&2
+    echo "Please ensure this is a valid SmartOS platform image." >&2
+    exit 1
+fi
+
 if [ ${force_replace} -eq 1 ]; then
     rm -rf ${usbmnt}/os/${version}
     rm -rf ${usbcpy}/os/${version}
