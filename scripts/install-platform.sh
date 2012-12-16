@@ -12,8 +12,8 @@ function usage()
 
 function fatal()
 {
-	printf "Error: %s\n" "$1" >/dev/stderr
-        exit 1
+    printf "Error: %s\n" "$1" >/dev/stderr
+    exit 1
 }
 
 cleanup_key=0
@@ -22,13 +22,13 @@ switch_platform=0
 force_replace=0
 while getopts "cRrs" opt
 do
-	case "$opt" in
-		c)	cleanup_key=1;;
-		r)	do_reboot=1;;
-		R)	force_replace=1;;
-		s)	switch_platform=1;;
-		*)	usage;;
-	esac
+    case "$opt" in
+        c) cleanup_key=1;;
+        r) do_reboot=1;;
+        R) force_replace=1;;
+        s) switch_platform=1;;
+        *) usage;;
+    esac
 done
 shift $(($OPTIND - 1))
 
@@ -83,7 +83,7 @@ if [[ ! -d ${usbmnt}/os/${version} ]]; then
     [ $? != 0 ] && fatal "retrieving $input"
 
     [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]] && fatal "file: '${input}' not found."
-    
+
     echo "==> Unpacking ${version} to ${usbmnt}/os"
     echo "==> This may take a while..."
     mkdir -p ${usbmnt}/os/${version}
@@ -117,8 +117,6 @@ if [[ ${mounted} == "true" ]]; then
 fi
 
 echo "==> Adding to list of available platforms"
-
-# XXX 
 
 if [ ${switch_platform} -eq 1 ]; then
     echo "==> Switching boot image to ${version}"

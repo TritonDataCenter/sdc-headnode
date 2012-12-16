@@ -9,8 +9,8 @@ set -o pipefail
 #set -o xtrace
 
 if [[ "$1" = "-n" ]]; then
-	dryrun=true
-	shift
+    dryrun=true
+    shift
 fi
 
 version="${1^^}"
@@ -42,12 +42,12 @@ function onexit
 UPGRADE=0
 while getopts "U" opt
 do
-	case "$opt" in
-		U)	UPGRADE=1;;
-		*)	echo "invalid option"
-			exit 1
-			;;
-	esac
+    case "$opt" in
+        U) UPGRADE=1;;
+        *) echo "invalid option"
+           exit 1
+           ;;
+    esac
 done
 shift $(($OPTIND - 1))
 
@@ -73,27 +73,27 @@ fi
 
 echo "==> Creating new menu.lst"
 if [[ -z "${dryrun}" ]]; then
-	rm -f ${usbmnt}/boot/grub/menu.lst
-	tomenulst=">> ${menulst}"
+    rm -f ${usbmnt}/boot/grub/menu.lst
+    tomenulst=">> ${menulst}"
 fi
 while read input; do
-	set -- $input
-	if [[ "$1" = "#PREV" ]]; then
-		_thisversion="${current_version}"
-	else
-		_thisversion="${version}"
-	fi
-	output=$(echo "$input" | sed \
-	    -e "s|/PLATFORM/|/os/${version}/platform/|" \
-	    -e "s|/PREV_PLATFORM/|/os/${current_version}/platform/|" \
-	    -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
-	    -e "s|^#PREV ||")
-	set -- $output
-	if [[ "$1" = "module" ]] && [[ "${2##*.}" = "hash" ]] && \
-	    [[ ! -f "${usbcpy}/os/${_thisversion}${hashfile}" ]]; then
-		continue
-	fi
-	eval echo '${output}' "${tomenulst}"
+    set -- $input
+    if [[ "$1" = "#PREV" ]]; then
+        _thisversion="${current_version}"
+    else
+        _thisversion="${version}"
+    fi
+    output=$(echo "$input" | sed \
+        -e "s|/PLATFORM/|/os/${version}/platform/|" \
+        -e "s|/PREV_PLATFORM/|/os/${current_version}/platform/|" \
+        -e "s|PREV_PLATFORM_VERSION|${current_version}|" \
+        -e "s|^#PREV ||")
+    set -- $output
+    if [[ "$1" = "module" ]] && [[ "${2##*.}" = "hash" ]] && \
+        [[ ! -f "${usbcpy}/os/${_thisversion}${hashfile}" ]]; then
+        continue
+    fi
+    eval echo '${output}' "${tomenulst}"
 done < "${menulst}.tmpl"
 
 # If upgrading, skip cnapi update, we're done now.
