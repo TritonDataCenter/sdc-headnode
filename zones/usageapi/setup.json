@@ -1,7 +1,6 @@
 {
     "brand": "joyent-minimal",
-    "networks": [ "admin", "external" ],
-    "primary_network": "external",
+    "networks": [ "admin" ],
     "dependencies": [ "amon" ],
     "delegate_dataset": true
 }
