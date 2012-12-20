@@ -1,0 +1,9 @@
+{
+  "alias": "usageapi0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "usageapi",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones"
+}

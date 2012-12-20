@@ -639,6 +639,8 @@ if [[ -z ${skip_zones} ]]; then
     create_zone vmapi
     create_zone ca
     create_zone adminui
+    create_zone keyapi
+    create_zone usageapi
 fi
 
 

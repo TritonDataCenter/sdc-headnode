@@ -634,6 +634,9 @@ function cleanup_config
 	allocate_ip_addr
 	sdcsso_admin_ip="$ip_addr"
 
+	allocate_ip_addr
+	usageapi_admin_ip="$ip_addr"
+
 	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
 	   usage_ext_vlan="# usageapi_external_vlan=0"
 	else

@@ -1172,6 +1172,9 @@ adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 sdcsso_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+next_addr=$(expr $next_addr + 1)
+usageapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1430,17 +1433,11 @@ echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
-if [[ -n ${external_nic} ]]; then
-	if [ -z "$external_vlan_id" ]; then
-		echo "# usageapi_external_vlan=0" >>$tmp_config
-	else
-		echo "usageapi_external_vlan=$external_vlan_id" >>$tmp_config
-	fi
-fi
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_http_admin_user=admin" >>$tmp_config
 echo "usageapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_local=true" >>$tmp_config
