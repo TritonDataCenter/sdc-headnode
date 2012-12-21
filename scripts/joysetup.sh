@@ -223,13 +223,6 @@ function create_zpool
 			printf "%6s\n" "failed" >&4
 			fatal "failed to create pool"
 		fi
-
-		#
-		# XXX Workaround for OS-1745.  Setting this property causes
-		# all labels to be updated, syncing up the txg numbers for
-		# each vdev and ensuring we can later import.
-		#
-		zpool set comment="Joyent persistent store" $SYS_ZPOOL
 	fi
 
 	if ! zfs set atime=off ${SYS_ZPOOL}; then
@@ -523,6 +516,13 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 		# finish setting up standby after reboot
 		touch /zones/.standby
 	fi
+
+	#
+	# XXX Workaround for OS-1745.  Setting this property causes
+	# all labels to be updated, syncing up the txg numbers for
+	# each vdev and ensuring we can later import.
+	#
+	zpool set comment="Joyent persistent store" $SYS_ZPOOL
 else
 	output_zpool_info
 fi
