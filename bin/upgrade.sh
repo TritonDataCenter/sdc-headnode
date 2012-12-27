@@ -724,7 +724,7 @@ function cleanup_config
 	ufds_admin_login=$CONFIG_capi_admin_login
 	ufds_admin_pw=$CONFIG_capi_admin_pw
 	ufds_admin_email=$CONFIG_capi_admin_email
-	ufds_admin_uuid=$CONFIG_capi_admin_uuid
+	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
 	# Legacy CAPI parameters
 	capi_http_admin_user=$CONFIG_capi_http_admin_user
 	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
