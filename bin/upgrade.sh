@@ -511,13 +511,12 @@ function cleanup_config
 	/^cloudapi_external_url=/d
 	/^rabbitmq_admin_ip=/d
 	/^rabbitmq=/d
-	/^riak_admin_ip=/d
-	/^billapi_admin_ip=/d
-	/^billapi_external_ip=/d
-	/^billapi_external_url=/d
-	/^mapi_datasets=/d
+	/^riak_/d
+	/^billapi_/d
 	/^# This should not be changed/d
 	/^initial_script=/d
+	/^# capi/d
+	/^# billapi/d
 	SED_DONE
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config >/tmp/config.$$
@@ -533,61 +532,53 @@ function cleanup_config
 	# default manner.
 
 	# 1
-	ip_netmask_to_haddr "$CONFIG_adminui_admin_ip" "$CONFIG_admin_netmask"
-	next_addr=$host_addr
-	assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	adminui_admin_ip="$CONFIG_adminui_admin_ip"
 
 	# 2
-	next_addr=$(expr $next_addr + 1)
-	dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	assets_admin_ip="$CONFIG_assets_admin_ip"
 
 	# 3
-	next_addr=$(expr $next_addr + 1)
-	napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	ca_admin_ip="$CONFIG_ca_admin_ip"
 
-	# 4
-	next_addr=$(expr $next_addr + 1)
-	zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 4 - was capi, re-use for ufds
+	ufds_admin_ip="$CONFIG_capi_admin_ip"
 
 	# 5
-	next_addr=$(expr $next_addr + 1)
-	manatee_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	dhcpd_admin_ip="$CONFIG_dhcpd_admin_ip"
 
-	# 6
-	next_addr=$(expr $next_addr + 1)
-	moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 6 - was mapi, use for napi
+	napi_admin_ip="$CONFIG_mapi_admin_ip"
 
-	# 7
-	next_addr=$(expr $next_addr + 1)
-	ufds_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 7 - was cloudapi, use for zookeeper
+	zookeeper_admin_ip="$CONFIG_cloudapi_admin_ip"
 
 	# 8
-	next_addr=$(expr $next_addr + 1)
-	workflow_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	rabbitmq_admin_ip="$CONFIG_rabbitmq_admin_ip"
 
-	# 9
-	next_addr=$(expr $next_addr + 1)
-	rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 9 - was billapi, use for moray
+	moray_admin_ip="$CONFIG_billapi_admin_ip"
 
-	# 10
-	next_addr=$(expr $next_addr + 1)
-	imgapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 10 - was riak, use for workflow
+	workflow_admin_ip="$CONFIG_riak_admin_ip"
 
-	# 11
-	next_addr=$(expr $next_addr + 1)
-	cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+	# 11 - was dhcp_next_server, use for manatee
+	manatee_admin_ip="$CONFIG_dhcp_next_server"
 
 	# We may have 4 more free fixed IP addrs to use or we may have to eat
 	# into the dhcp range for these next 4  new zones.
 
 	# 12
 	if [ $HAVE_FREE_RANGE -eq 1 ]; then
+	    ip_netmask_to_haddr "$CONFIG_dhcp_next_server" \
+	        "$CONFIG_admin_netmask"
+	    next_addr=$host_addr
+
 	    next_addr=$(expr $next_addr + 1)
 	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 	else
 	    allocate_ip_addr
 	fi
-	redis_admin_ip="$ip_addr"
+	imgapi_admin_ip="$ip_addr"
 
 	# 13
 	if [ $HAVE_FREE_RANGE -eq 1 ]; then
@@ -596,7 +587,7 @@ function cleanup_config
 	else
 	    allocate_ip_addr
 	fi
-	amon_admin_ip="$ip_addr"
+	cnapi_admin_ip="$ip_addr"
 
 	# 14
 	if [ $HAVE_FREE_RANGE -eq 1 ]; then
@@ -605,7 +596,7 @@ function cleanup_config
 	else
 	    allocate_ip_addr
 	fi
-	dapi_admin_ip="$ip_addr"
+	redis_admin_ip="$ip_addr"
 
 	# 15
 	if [ $HAVE_FREE_RANGE -eq 1 ]; then
@@ -614,22 +605,22 @@ function cleanup_config
 	else
 	    allocate_ip_addr
 	fi
-	fwapi_admin_ip="$ip_addr"
+	amon_admin_ip="$ip_addr"
 
 	# We have now definitely re-allocated the fixed IP addrs so we have to
 	# eat into the dhcp range for the rest of the new zones.
+
+	allocate_ip_addr
+	dapi_admin_ip="$ip_addr"
+
+	allocate_ip_addr
+	fwapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
 	vmapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
 	keyapi_admin_ip="$ip_addr"
-
-	allocate_ip_addr
-	ca_admin_ip="$ip_addr"
-
-	allocate_ip_addr
-	adminui_admin_ip="$ip_addr"
 
 	allocate_ip_addr
 	sdcsso_admin_ip="$ip_addr"
@@ -645,6 +636,7 @@ function cleanup_config
 
 	cat <<-DONE >>/tmp/config.$$
 
+	adminui_admin_ips=$adminui_admin_ip
 	assets_admin_ip=$assets_admin_ip
 	assets_admin_ips=$assets_admin_ip
 	dhcpd_admin_ip=$dhcpd_admin_ip
@@ -652,7 +644,7 @@ function cleanup_config
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
-	portal_admin_ip=$portal_admin_ip
+	ca_admin_ips=$ca_admin_ip
 
 	zookeeper_root_pw=$CONFIG_adminui_root_pw
 	zookeeper_admin_ips=$zookeeper_admin_ip
@@ -663,35 +655,17 @@ function cleanup_config
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
 
-	ufds_root_pw=$CONFIG_capi_root_pw
-	ufds_admin_ips=$ufds_admin_ip
-
-	workflow_root_pw=$CONFIG_adminui_root_pw
-	workflow_admin_ips=$workflow_admin_ip
-
 	imgapi_root_pw=$CONFIG_adminui_root_pw
 	imgapi_admin_ips=$imgapi_admin_ip
 
-	cnapi_root_pw=$CONFIG_adminui_root_pw
-	cnapi_admin_ips=$cnapi_admin_ip
-
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
-
-	fwapi_root_pw=$CONFIG_adminui_root_pw
-	fwapi_admin_ips=$fwapi_admin_ip
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
-
-	ca_root_pw=$CONFIG_adminui_root_pw
-	ca_admin_ips=$ca_admin_ip
-
-	adminui_root_pw=$CONFIG_adminui_root_pw
-	adminui_admin_ips=$adminui_admin_ip
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
 	sdcsso_admin_ips=$sdcsso_admin_ip
@@ -719,6 +693,8 @@ function cleanup_config
 	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	usageapi_admin_ips=$usageapi_admin_ip
 
+	ufds_root_pw=$CONFIG_capi_root_pw
+	ufds_admin_ips=$ufds_admin_ip
 	ufds_is_local=$CONFIG_capi_is_local
 	ufds_ldap_root_dn=cn=root
 	ufds_ldap_root_pw=secret
@@ -736,6 +712,8 @@ function cleanup_config
 	dapi_http_admin_user=admin
 	dapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
+	cnapi_root_pw=$CONFIG_adminui_root_pw
+	cnapi_admin_ips=$cnapi_admin_ip
 	cnapi_http_admin_user=admin
 	cnapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	cnapi_client_url=http://${cnapi_admin_ip}:80
@@ -747,18 +725,17 @@ function cleanup_config
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
 
+	workflow_root_pw=$CONFIG_adminui_root_pw
+	workflow_admin_ips=$workflow_admin_ip
 	workflow_admin_pw=$CONFIG_adminui_admin_pw
 	workflow_http_admin_user=admin
 	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
 
+	fwapi_root_pw=$CONFIG_adminui_root_pw
+	fwapi_admin_ips=$fwapi_admin_ip
 	fwapi_http_admin_user=admin
 	fwapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	fwapi_client_url=http://${fwapi_admin_ip}:80
-
-	ca_admin_pw=$CONFIG_adminui_admin_pw
-
-	adminui_admin_pw=$CONFIG_adminui_admin_pw
-	adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter
 
 	show_setup_timers=true
 	serialize_setup=true
