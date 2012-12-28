@@ -717,6 +717,7 @@ function cleanup_config
 	usageapi_admin_pw=$CONFIG_capi_root_pw
 	usageapi_http_admin_user=admin
 	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	usageapi_admin_ips=$usageapi_admin_ip
 
 	ufds_is_local=$CONFIG_capi_is_local
 	ufds_ldap_root_dn=cn=root
