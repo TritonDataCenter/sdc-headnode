@@ -173,6 +173,36 @@ function check_capi
     done
 }
 
+function trim_db
+{
+    zstate=`zoneadm -z mapi list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
+
+    echo "Trimming database"
+
+    local passfile=/zones/mapi/root/root/.pgpass
+    local rmpass=0
+    if [ ! -f $passfile ]; then
+        local pgrespass=`nawk -F= '{
+            if ($1 == "POSTGRES_PW")
+                print substr($2, 2, length($2) - 2)
+        }' /zones/mapi/root/opt/smartdc/etc/zoneconfig`
+        [ -z "$pgresspass" ] && \
+            fatal "Missing .pgpass file and no postgres password in zoneconfig"
+        echo "localhost:*:*:postgres:${pgrespass}" > $passfile
+        chmod 600 $passfile
+        rmpass=1
+    fi
+
+
+    echo \
+ "delete from dataset_messages where created_at < now() - interval  '1 hour';" \
+        | zlogin mapi /opt/local/bin/psql -Upostgres mapi
+    echo "vacuum ANALYZE" | zlogin mapi /opt/local/bin/psql -Upostgres mapi
+
+    [ $rmpass == 1 ] && rm -f $passfile
+}
+
 function dump_capi
 {
     zstate=`zoneadm -z capi list -p | cut -d: -f3`
@@ -1057,6 +1087,9 @@ svcadm disable cron
 # We might be re-running upgrade again after a rollback, so first cleanup
 rm -rf /var/upgrade_failed /var/usb_rollback
 mkdir -p $SDC_UPGRADE_DIR
+
+# First trim down dataset_messages since it gets huge
+trim_db
 
 # Since we're upgrading from 6.x we cannot shutdown the zones before backing
 # up, since 6.x backup depends on the zones running.
