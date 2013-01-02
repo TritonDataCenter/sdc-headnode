@@ -163,10 +163,6 @@ crontab /etc/cron.d/logadm
 # prevent local postgres core dumps. MANTA-600
 ulimit -c 0
 
-# This function comes from configure.common
-echo "Checking ZooKeeper status"
-sdc_ensure_zk $ZOOKEEPER_ADMIN_IPS
-
 # import services
 echo "Starting snapshotter"
 svccfg import /opt/smartdc/manatee/smf/manifests/snapshotter.xml

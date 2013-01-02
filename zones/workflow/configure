@@ -60,11 +60,6 @@ gsed -i -e "s|HTTP_ADMIN_USER|$HTTP_ADMIN_USER|" $CFG_FILE
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/$role/smf/manifests/wf-api.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/$role/smf/manifests/wf-runner.xml)
 
-# This function comes from configure.common
-echo "Checking Moray status"
-sdc_ensure_moray $MORAY_ADMIN_IPS \
- /opt/smartdc/workflow/node_modules/wf-moray-backend/node_modules/moray/bin/sql
-
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/wf-runner.xml)
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/wf-api.xml)

@@ -53,7 +53,7 @@ if [[ ${zone_role} == "assets" ]]; then
     touch /opt/smartdc/etc/zoneconfig
 else
     touch /opt/smartdc/etc/zoneconfig.new # in case 'zoneconfig' is empty
-    curl -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
+    curl -m 10 -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
         http://${assets_ip}/extra/${zone_role}/zoneconfig
     if [[ $? != 0 ]]; then
         echo "warning: Failed to get zoneconfig."
@@ -85,7 +85,7 @@ else
     for file in configure backup restore; do
         # Get the file from assets, but don't blow away an existing file
         # if assets is down.
-        curl -k -o /opt/smartdc/bin/${file}.new -s -S -f \
+        curl -m 10 -k -o /opt/smartdc/bin/${file}.new -s -S -f \
             http://${assets_ip}/extra/${zone_role}/${file}
         if [[ $? != 0 ]]; then
             echo "warning: Failed to get /opt/smartdc/bin/${file} from assets."
@@ -106,7 +106,7 @@ if [[ ${zone_role} == "assets" ]]; then
         cp /assets/extra/${zone_role}/bashrc /root/.bashrc
     fi
 else
-    curl -o /root/.bashrc -s -S -f \
+    curl -m 10 -o /root/.bashrc -s -S -f \
         http://${assets_ip}/extra/${zone_role}/bashrc
     if [[ $? != 0 ]]; then
         echo "warning: Failed to get /root/.bashrc from assets."
@@ -148,7 +148,7 @@ for file in setup.common configure.common setup; do
     if [[ ${zone_role} == "assets" ]]; then
         cp /assets/extra/${zone_role}/${file} /var/svc/${file}
     else
-        curl -k -o /var/svc/${file} -s -S -f \
+        curl -m 10 -k -o /var/svc/${file} -s -S -f \
             http://${assets_ip}/extra/${zone_role}/${file}
     fi
     if [[ $? != 0 || ! -f /var/svc/${file} ]]; then

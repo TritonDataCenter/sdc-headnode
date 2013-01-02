@@ -77,11 +77,6 @@ cat >> ${CONF} <<END_CONFIG
 }
 END_CONFIG
 
-
-# This function comes from configure.common
-echo "Checking UFDS status"
-sdc_ensure_ufds $UFDS_HOST $UFDS_LDAP_ROOT_DN $UFDS_LDAP_ROOT_PW
-
 echo "Importing napi SMF manifest"
 /usr/sbin/svccfg import ${INSTDIR}/smf/manifests/napi.xml
 

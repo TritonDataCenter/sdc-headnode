@@ -40,11 +40,6 @@ gsed -i -e "s|VMAPI_LDAP_ROOT_PW|$VMAPI_LDAP_ROOT_PW|" $CFG_FILE
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/vmapi/g" /opt/smartdc/vmapi/smf/manifests/vmapi.xml)
 
-# This function comes from configure.common
-echo "Checking Moray status"
-sdc_ensure_moray $MORAY_ADMIN_IPS \
-  /opt/smartdc/vmapi/node_modules/moray/bin/sql
-
 echo "Importing vmapi.xml"
 /usr/sbin/svccfg import /opt/smartdc/vmapi/smf/manifests/vmapi.xml
 

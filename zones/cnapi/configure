@@ -80,12 +80,6 @@ HERE
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cnapi/g" /opt/smartdc/cnapi/smf/manifests/cnapi.xml)
 
-# This function comes from configure.common
-echo "Checking Moray status"
-sdc_ensure_moray $MORAY_ADMIN_IPS \
-  /opt/smartdc/cnapi/node_modules/moray/bin/sql
-
-
 echo "Importing cnapi.xml"
 /usr/sbin/svccfg import /opt/smartdc/cnapi/smf/manifests/cnapi.xml
 
