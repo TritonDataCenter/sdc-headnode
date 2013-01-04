@@ -329,7 +329,12 @@ setup_datasets()
         fatal "failed to initialize the var directory"
     fi
 
-    zfs set mountpoint=legacy ${VARDS}
+    zfs set mountpoint=legacy ${VARDS} || \
+      fatal "failed to set the mountpoint for ${VARDS}"
+
+    zfs set atime=on ${VARDS} || \
+      fatal "failed to set atime=on for ${VARDS}"
+
     printf "%4s\n" "done" >&4
   fi
 }
