@@ -165,12 +165,7 @@ function upgrade_zfs_datasets
 function check_capi
 {
     CAPI_FOUND=0
-
-    for zone in `zoneadm list -cp | cut -f2 -d:`
-    do
-        # Remember we saw the capi zone so we can convert to ufds later.
-        [[ "$zone" == "capi" ]] && CAPI_FOUND=1
-    done
+    [[ "$CONFIG_capi_is_local" == "true" ]] && CAPI_FOUND=1
 }
 
 function trim_db
@@ -570,8 +565,13 @@ function cleanup_config
 	# 3
 	ca_admin_ip="$CONFIG_ca_admin_ip"
 
-	# 4 - was capi, re-use for ufds
-	ufds_admin_ip="$CONFIG_capi_admin_ip"
+	# 4 - was capi, re-use for ufds if local, otherwise alloc new IP
+	if [ $CAPI_FOUND == 1 ]; then
+	    ufds_admin_ip="$CONFIG_capi_admin_ip"
+	else
+	    allocate_ip_addr
+	    ufds_admin_ip="$ip_addr"
+	fi
 
 	# 5
 	dhcpd_admin_ip="$CONFIG_dhcpd_admin_ip"
@@ -723,19 +723,6 @@ function cleanup_config
 	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	usageapi_admin_ips=$usageapi_admin_ip
 
-	ufds_root_pw=$CONFIG_capi_root_pw
-	ufds_admin_ips=$ufds_admin_ip
-	ufds_is_local=$CONFIG_capi_is_local
-	ufds_ldap_root_dn=cn=root
-	ufds_ldap_root_pw=secret
-	ufds_admin_login=$CONFIG_capi_admin_login
-	ufds_admin_pw=$CONFIG_capi_admin_pw
-	ufds_admin_email=$CONFIG_capi_admin_email
-	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
-	# Legacy CAPI parameters
-	capi_http_admin_user=$CONFIG_capi_http_admin_user
-	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
-
 	vmapi_http_admin_user=admin
 	vmapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
@@ -769,7 +756,34 @@ function cleanup_config
 
 	show_setup_timers=true
 	serialize_setup=true
+
+	ufds_is_local=$CONFIG_capi_is_local
+	ufds_admin_ips=$ufds_admin_ip
+	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
+	ufds_ldap_root_dn=cn=root
+	ufds_ldap_root_pw=secret
+	# Legacy CAPI parameters
+	capi_http_admin_user=$CONFIG_capi_http_admin_user
+	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
+	# Required by SmartLogin:
+	capi_client_url=http://$ufds_admin_ip:8080
 	DONE
+
+	if [[ $CAPI_FOUND == 1 ]]; then
+		cat <<-UDONE1 >>/tmp/config.$$
+		ufds_admin_login=$CONFIG_capi_admin_login
+		ufds_admin_pw=$CONFIG_capi_admin_pw
+		ufds_admin_email=$CONFIG_capi_admin_email
+		UDONE1
+	else
+		# Since no capi-specific values, we re-use the mapi values 
+		cat <<-UDONE2 >>/tmp/config.$$
+		ufds_admin_login=$CONFIG_mapi_http_admin_user
+		ufds_admin_pw=$CONFIG_mapi_admin_pw
+		ufds_admin_email=$CONFIG_mail_to
+		ufds_remote_ip=$MASTER_UFDS_IP
+		UDONE2
+	fi
 
 	cp /tmp/config.$$ /mnt/usbkey/config
  	cp /mnt/usbkey/config /usbkey/config
@@ -1066,6 +1080,24 @@ fi
 [[ $dhcp_avail -lt $need_num_addrs ]] && \
     fatal "there are not enough free IP addresses in the DHCP range to upgrade"
 
+load_sdc_config
+check_capi
+if [[ $CAPI_FOUND == 0 ]]; then
+    MASTER_UFDS_IP=`echo $CONFIG_capi_external_url | nawk -F/ '{
+        split($3, a, ":")
+        print a[1]
+    }'`
+
+    echo -n "Checking connectivity to remote UFDS..."
+    ping $MASTER_UFDS_IP >/dev/null 2>&1
+    if [ $? != 0 ]; then
+        echo
+        fatal "remote UFDS unreachable"
+    else
+        printf "OK\n"
+    fi
+fi
+
 # End of validation checks, quit now if only validating
 if [ $CHECK_ONLY -eq 1 ]; then
     [ $FATAL_CNT -gt 0 ] && exit 1
@@ -1104,8 +1136,6 @@ bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 
 # Keep track of the core zone external addresses
 save_zone_addrs
-
-check_capi
 
 # Shutdown the mapi and capi svcs so that the data provided by these zones
 # won't change during the dump

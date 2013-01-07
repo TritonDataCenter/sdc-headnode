@@ -28,7 +28,7 @@ ZONE_SETUP_TIMEOUT=180
 SDC_UPGRADE_DIR=/var/upgrade_headnode
 
 # We have to install the extra zones in dependency order
-EXTRA_ZONES="keyapi sdcsso usageapi cloudapi portal"
+EXTRA_ZONES="sdcsso cloudapi portal"
 
 saw_err()
 {
@@ -61,15 +61,19 @@ create_extra_zones()
 {
     declare -A existing_zones=()
 
-    # We have to wait until ufds is really ready
+    # We have to wait until moray, wf, cnapi, etc. are responding
     loops=0
     while [ $loops -lt 20 ]; do
         up=`sdc-role list 2>/dev/null | grep ufds`
         [ -n "$up" ] && break
-        print_log "Waiting for UFDS to be ready..."
+        print_log "Waiting for the core zones to be ready..."
         sleep 30
         loops=$((${loops} + 1))
     done
+
+    [ $loops -eq 20 ] && \
+        print_log "Core zones are still not ready, continuing but errors" \
+	"are likely"
 
     for i in `sdc-role list | nawk '{if ($6 != "ROLE") print $6}'`
     do
@@ -268,7 +272,27 @@ ufds_tasks()
     # load config to pick up settings for newly created ufds zone
     load_sdc_config
 
-    [[ $CONFIG_ufds_is_local != "true" ]] && return
+    if [[ $CONFIG_ufds_is_local != "true" ]]; then
+	local zpath=/zones/$1/root/opt/smartdc/ufds
+
+        sed -e "s/REMOTE_UFDS_IP/$CONFIG_ufds_remote_ip/" \
+            -e "s/REMOTE_QUERY/\/ou=users, o=smartdc??sub?/" \
+            -e "s/REMOTE_ROOT_DN/$CONFIG_ufds_ldap_root_dn/" \
+            -e "s/REMOTE_ROOT_PW/$CONFIG_ufds_ldap_root_pw/" \
+            -I .bak $zpath/etc/replicator.json.in
+
+	# Update the main json file. configure will do this again on reboot
+	cp $zpath/etc/replicator.json.in $zpath/etc/replicator.json
+
+	# import and restart the replicator service
+	cp $zpath/smf/manifests/ufds-replicator.xml.in \
+	    $zpath/smf/manifests/ufds-replicator.xml
+	zlogin $1 svccfg import \
+	    /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
+	zlogin $1 svcadm refresh ufds-replicator
+
+        return
+    fi
 
     ufds_ip=`vmadm list -o nics.0.ip -H uuid=$1`
     client_url="ldaps://${ufds_ip}"
