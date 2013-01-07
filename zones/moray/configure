@@ -32,6 +32,11 @@ cp $CFG_FILE_IN $CFG_FILE
 gsed -i -e "s|ZK_IP|$ZK_MAIN_ADMIN_IP|" $CFG_FILE
 
 echo "Importing SMF Manifests"
+sed -e "s#@@MORAY_PORT@@#2020#g" \
+    -e "s#@@MORAY_INSTANCE_NAME@@#default#g" \
+    /opt/smartdc/$role/smf/manifests/$role.xml.in  \
+    > /opt/smartdc/$role/smf/manifests/$role.xml || \
+    fatal "could not process /opt/smartdc/$role/smf/manifests/$role.xml.in"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role.xml)
 
 exit 0
