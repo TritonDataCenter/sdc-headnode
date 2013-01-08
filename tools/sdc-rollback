@@ -149,8 +149,25 @@ zfs create -o quota=10g -o mountpoint=/zones/global/cores \
 # Rollback the ones we snapshotted.
 for d in $SS
 do
+	# If rolling back after upgrade is done, save the old log files
+	if [ $d == "zones/var" ]; then
+		mkdir /zones/up_logs
+		for l in `ls -d /var/upgrade.* 2>/dev/null`
+		do
+			mv $l /zones/up_logs
+		done
+	fi 
+
 	zfs rollback ${d}@rollback
 	zfs destroy  ${d}@rollback
+
+	if [ $d == "zones/var" ]; then
+		for l in `ls -d /zones/up_logs/upgrade.* 2>/dev/null`
+		do
+			mv $l /var
+		done
+		rmdir /zones/up_logs
+	fi 
 done
 
 # Rename back the ones we originally renamed.
