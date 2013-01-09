@@ -7,6 +7,10 @@ UFDS_ADMIN_LOGIN=${ufds_admin_login}
 UFDS_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_ROOT_PW=${ufds_ldap_root_pw}
 
+USAGEAPI_USERNAME=${usageapi_http_admin_user}
+USAGEAPI_PASSWORD=${usageapi_http_admin_pw}
+USAGEAPI_ADMIN_IPS=${usageapi_admin_ips}
+
 NAPI_ADMIN_IPS=${napi_admin_ips}
 DAPI_ADMIN_IPS=${dapi_admin_ips}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}

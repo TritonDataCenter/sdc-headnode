@@ -34,6 +34,7 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
+USAGEAPI_URL=https://$(echo "${USAGEAPI_ADMIN_IPS}" | cut -d',' -f1)
 KEYAPI=http://$(echo "${KEYAPI_ADMIN_IPS}" | cut -d',' -f1):8080
 
 # XXX for now use the first UFDS, soon we'll be switching to DNS
@@ -49,6 +50,10 @@ gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
 
+gsed -i -e "s|USAGEAPI_USERNAME|$USAGEAPI_USERNAME|" $CFG_FILE
+gsed -i -e "s|USAGEAPI_PASSWORD|$USAGEAPI_PASSWORD|" $CFG_FILE
+
+gsed -i -e "s|USAGEAPI_URL|$USAGEAPI_URL|" $CFG_FILE
 gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
 gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
