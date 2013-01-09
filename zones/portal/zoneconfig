@@ -1,0 +1,4 @@
+CLOUDAPI_EXTERNAL_IPS=${cloudapi_external_ips}
+
+UFDS_LDAP_ROOT_PS=${ufds_ldap_root_pw}
+UFDS_ADMIN_IPS=${ufds_admin_ips}

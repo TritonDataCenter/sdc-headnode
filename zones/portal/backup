@@ -1,0 +1,63 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2011 Joyent Inc., All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <target_directory>"
+    exit 1
+fi
+
+ZONE=$1
+TARGET_DIR=$2
+ROLE="portal"
+CFG_TAGS="
+	extensionLocation
+	viewExtensionLocation
+	siteCopyFile"
+
+ZONEPATH=`zonecfg -z $ZONE info zonepath | cut -d " " -f2`
+
+BASE_DIR=$ZONEPATH/root/opt/smartdc/portal
+CFG_FILE=cfg/config.js
+
+if [[ ! -d "${TARGET_DIR}" ]]; then
+    echo "Invalid directory: '${TARGET_DIR}'"
+    exit 1
+fi
+
+# Create the backup directory:
+mkdir -p ${TARGET_DIR}/${ROLE}
+
+echo "==> Saving configuration files for zone '${ZONE}'"
+if [ -f $BASE_DIR/$CFG_FILE ]; then
+	cd $BASE_DIR
+
+	FILES=$CFG_FILE
+
+	for tag in $CFG_TAGS
+	do
+		cpath=`cat $CFG_FILE | nawk -v tag=$tag '{
+			if ($1 == tag) {
+				# strip quotes and comma
+				print substr($3, 2, length($3) - 3)
+			}
+		}'`
+
+		if [[ $tag == "siteCopyFile" ]]; then
+			cp $cpath $cpath.backup
+			cpath="$cpath.backup"
+		fi
+
+		[ -n "$cpath" ] && FILES="$FILES $cpath"
+	done
+
+
+	tar cbf 512 ${TARGET_DIR}/${ROLE}/config.tar $FILES
+fi
+
+echo "==> Done!"
+exit 0
