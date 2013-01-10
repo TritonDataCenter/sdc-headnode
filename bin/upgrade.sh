@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+# Copyright (c) 2013, Joyent, Inc., All rights reserved.
 #
 # SUMMARY
 #
@@ -475,6 +475,7 @@ function delete_sdc_zones
 	for zone in $ZONES6X
 	do
 		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
+		[[ "$zone" == "portal" ]] && continue
 
 		echo "Deleting zone: $zone"
 		zoneadm -z $zone mark -F configured
@@ -529,8 +530,7 @@ function cleanup_config
 	/^dhcpd_admin_ip=/d
 	/^dhcp_next_server=/d
 	/^mapi_/d
-	/^portal_external_ip=/d
-	/^portal_external_url=/d
+	/^portal_/d
 	/^cloudapi_admin_ip=/d
 	/^cloudapi_external_ip=/d
 	/^cloudapi_external_url=/d
@@ -542,6 +542,7 @@ function cleanup_config
 	/^initial_script=/d
 	/^# capi/d
 	/^# billapi/d
+	/^# portal/d
 	SED_DONE
 
 	sed -f /tmp/upg.$$ </mnt/usbkey/config >/tmp/config.$$
@@ -864,7 +865,6 @@ function cleanup_config
 	sdcsso_pkg=${GENERIC_sdcsso_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
 	fwapi_pkg=${GENERIC_fwapi_pkg}
-	portal_pkg=${GENERIC_portal_pkg}
 	rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
 	redis_pkg=${GENERIC_redis_pkg}
 	ufds_pkg=${GENERIC_ufds_pkg}

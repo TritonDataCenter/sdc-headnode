@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+# Copyright (c) 2013, Joyent, Inc., All rights reserved.
 #
 
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
 # Snapshot these datasets instead of renaming
-SS="zones/var zones/opt zones/usbkey zones/config"
+SS="zones/var zones/opt zones/usbkey zones/config zones/portal"
 # Skip renaming these datasets
 SKIP="$SS zones zones/swap zones/dump zones/cores zones/pre-upgrade"
 

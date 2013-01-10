@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+# Copyright (c) 2013, Joyent, Inc., All rights reserved.
 #
 # These upgrade hooks are called from headnode.sh during the first boot
 # after we initiated the upgrade in order to complete the upgrade steps.
@@ -12,7 +12,6 @@
 #
 
 unset LD_LIBRARY_PATH
-# /image/usr/sbin is here so we pickup vmadm on 6.5
 PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
@@ -28,7 +27,7 @@ ZONE_SETUP_TIMEOUT=180
 SDC_UPGRADE_DIR=/var/upgrade_headnode
 
 # We have to install the extra zones in dependency order
-EXTRA_ZONES="sdcsso cloudapi portal"
+EXTRA_ZONES="sdcsso cloudapi"
 
 saw_err()
 {
@@ -343,14 +342,6 @@ case "$1" in
     # the 6.5.x backup data, we should split out a separate cloudapi_tasks
     # function.
     compatible_restore_task "cloudapi" $2
-    ;;
-
-"portal")
-    # Currently a simple restore is fine for portal and the 7.0 restore is
-    # compatible with the 6.5.x backup, but if we need to do any transforms on
-    # the 6.5.x backup data, we should split out a separate portal_tasks
-    # function.
-    compatible_restore_task "portal" $2
     ;;
 
 "ufds") ufds_tasks $2;;

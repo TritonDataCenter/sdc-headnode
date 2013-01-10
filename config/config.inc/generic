@@ -76,8 +76,6 @@ zookeeper_pkg=sdc_512
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
-portal_pkg=sdc_256
-
 rabbitmq_pkg=sdc_1024
 
 redis_pkg=sdc_1024

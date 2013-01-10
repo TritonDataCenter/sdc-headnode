@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+# Copyright (c) 2013, Joyent, Inc., All rights reserved.
 #
 
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
-SS="zones/var zones/opt zones/usbkey zones/config"
+SS="zones/var zones/opt zones/usbkey zones/config zones/portal"
 SKIP="$SS zones zones/swap zones/dump zones/cores zones/pre-upgrade"
 
 declare -A SKIP_DS=()
@@ -149,7 +149,7 @@ zfs create -o quota=10g -o mountpoint=/zones/global/cores \
 # Rollback the ones we snapshotted.
 for d in $SS
 do
-	# If rolling back after upgrade is done, save the old log files
+	# If rolling back after upgrade is done, save the upgrade log files
 	if [ $d == "zones/var" ]; then
 		mkdir /zones/up_logs
 		for l in `ls -d /var/upgrade.* 2>/dev/null`
