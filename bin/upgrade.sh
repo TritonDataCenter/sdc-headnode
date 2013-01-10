@@ -882,44 +882,6 @@ function cleanup_config
 	umount_usbkey
 }
 
-# Transform CAPI pg_dumps into LDIF, then load into UFDS
-# capi dump files are in $SDC_UPGRADE_DIR/capi_dump
-function convert_capi_ufds
-{
-	echo "Transforming CAPI postgres dumps to LDIF."
-	${usbcpy}/scripts/capi2ldif.sh ${SDC_UPGRADE_DIR}/capi_dump \
-	    > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif
-	[ $? != 0 ] && fatal_rb "converting CAPI dump"
-
-	# We're on the headnode, so we know the zonepath is in /zones.
-	cp $SDC_UPGRADE_DIR/capi_dump/ufds.ldif /zones/$1/root
-
-	# Wait up to 2 minutes for ufds zone to be ready
-	echo "Waiting for ufds zone to finish booting"
-	local cnt=0
-	while [ $cnt -lt 12 ]; do
-		sleep 10
-		local scnt=`svcs -z $1 -x 2>/dev/null | wc -l`
-		[ $scnt == 0 ] && break
-		cnt=$(($cnt + 1))
-	done
-	[ $cnt == 12 ] && \
-	    fatal_rb "some ufds svcs still not ready after 2 minutes"
-
-	# re-load config to pick up settings for newly created ufds zone
-	load_sdc_config
-
-	echo "Running ldapadd on transformed CAPI data"
-	zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
-	    -H ${CONFIG_ufds_client_url} \
-	    -D ${CONFIG_ufds_ldap_root_dn} \
-	    -w ${CONFIG_ufds_ldap_root_pw} \
-	    -f /ufds.ldif 1>&4 2>&1
-	[ $? != 0 ] && fatal_rb "loading UFDS"
-
-	rm -f /zones/$1/root/ufds.ldif
-}
-
 # We expect the usbkey to already be mounted when we run this
 function install_platform
 {

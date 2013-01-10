@@ -311,6 +311,7 @@ ufds_tasks()
         -H ${client_url} \
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
+        -M \
         -f /ufds.ldif 1>&4 2>&1
     # err 68 means it already exists - allow this in case we're re-running
     local res=$?
@@ -321,6 +322,7 @@ ufds_tasks()
         -H ${client_url} \
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
+        -M \
         -f /mapi-ufds.ldif 1>&4 2>&1
     res=$?
     [[ $res != 0 && $res != 68 ]] && saw_err "Error loading MAPI data into UFDS"
