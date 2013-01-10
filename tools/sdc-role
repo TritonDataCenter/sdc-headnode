@@ -528,10 +528,6 @@ sdc_create()
         local external=
         local result=$(napi /nics?belongs_to_uuid=${provisioned_uuid} | json -H -a nic_tag ip | tr ' ' '=')
         eval "${result}"
-        # portal is the only special case where we have no admin IP
-        if [[ -z ${admin} && ${zrole} != "portal" ]]; then
-            fatal "unable to find Admin IP for ${provisioned_uuid}"
-        fi
         add_config_ips "${zrole}" "${admin}" "${external}"
         return 0
     fi
