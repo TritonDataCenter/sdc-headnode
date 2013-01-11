@@ -69,6 +69,8 @@ ufds_pkg=sdc_256
 
 cloudapi_pkg=sdc_256
 
+sapi_pkg=sdc_128
+
 dhcpd_pkg=sdc_128
 dhcpd_dhcp_server=1
 

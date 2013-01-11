@@ -1175,6 +1175,9 @@ sdcsso_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 next_addr=$(expr $next_addr + 1)
 usageapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
+next_addr=$(expr $next_addr + 1)
+sapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+
 # Add 5 to leave some room
 next_addr=$(expr $next_addr + 5)
 dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
@@ -1486,6 +1489,11 @@ echo >>$tmp_config
 echo "workflow_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_http_admin_user=admin" >>$tmp_config
 echo "workflow_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo >>$tmp_config
+
+echo "sapi_http_admin_user=admin" >>$tmp_config
+echo "sapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

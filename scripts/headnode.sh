@@ -404,7 +404,7 @@ function add_dataset {
     while [ $i -lt $DS_CNT ]; do
         [ "${DS_UUID[$i]}" == "$1" ] && return
         i=$(($i + 1))
-    done    
+    done
 
     DS_UUID[$DS_CNT]=$1
     DS_MANIFEST[$DS_CNT]=$2
@@ -641,6 +641,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
     create_zone keyapi
     create_zone usageapi
+    create_zone sapi
 fi
 
 

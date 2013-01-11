@@ -25,6 +25,7 @@
   , "napi-tarball": "napi/napi-pkg-master-.*.tar.bz2"
   , "rabbitmq-tarball": "rabbitmq/rabbitmq-pkg-master-.*.tar.bz2"
   , "redis-tarball": "redis/redis-pkg-master-.*.tar.bz2"
+  , "sapi-tarball": "sapi/sapi-pkg-master-.*.tar.bz2"
   , "sdcsso-tarball": "sdcsso/sdcsso-pkg-master-.*.tar.bz2"
   , "ufds-tarball": "ufds/ufds-pkg-master-.*.tar.bz2"
   , "usageapi-tarball": "usageapi/usageapi-pkg-master-.*.tar.bz2"

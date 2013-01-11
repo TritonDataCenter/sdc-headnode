@@ -1,0 +1,14 @@
+DATACENTER_NAME=${datacenter_name}
+
+IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
+MORAY_ADMIN_IPS=${moray_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
+WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
+
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+
+WFAPI_HTTP_ADMIN_USER=${workflow_http_admin_user}
+WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
