@@ -49,3 +49,5 @@ AMON_ADMIN_IPS=${amon_admin_ips}
 IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
 KEYAPI_ADMIN_IPS=${keyapi_admin_ips}
 SDCSSO_ADMIN_IPS=${sdcsso_admin_ips}
+
+MORAY_ADMIN_IPS=${moray_admin_ips}
