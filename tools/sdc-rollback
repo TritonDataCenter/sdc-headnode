@@ -125,6 +125,14 @@ done
 
 [[ $cnt -ge 36 ]] && echo "multi-user not disabled \($st\) after 3 minutes"
 
+# Fix up portal zone. On 6.5.x vmadm list won't report anything for portal.
+pzone=`vmadm list | nawk '/portal/{print $1}'`
+if [ -n "$pzone" ]; then
+    echo "restoring portal zone"
+    zoneadm -z $pzone move /zones/portal
+    zonecfg -z $pzone set zonename=portal
+fi
+
 # Put the old zone datasets back where they belong
 
 echo "rolling back datasets"

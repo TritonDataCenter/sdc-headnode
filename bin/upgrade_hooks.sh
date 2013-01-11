@@ -171,8 +171,29 @@ create_extra_zones()
     done
 }
 
+convert_portal_zone()
+{
+    zoneadm -z portal list -p >/dev/null 2>&1
+    [ $? -ne 0 ] && return
+
+    local uuid=`zonecfg -z portal info uuid | cut -d' ' -f2`
+
+    if [ -z "$uuid" ]; then
+        saw_err "Error: portal zone is missing a UUID"
+        return
+    fi
+
+    zoneadm -z portal move /zones/$uuid
+    zonecfg -z portal set zonename=$uuid
+    vmadm update $uuid alias=portal0
+    zoneadm -z $uuid boot
+}
+
 pre_tasks()
 {
+    # If pre-existing portal zone, shut it down for now.
+    zoneadm -z portal halt >/dev/null 2>&1
+
     if [[ ! -f /var/db/imgadm/sources.list ]]; then
         # For now we initialize with the global one since we don't have a local
         # imgapi yet.
@@ -230,6 +251,8 @@ post_tasks()
     load_sdc_config
 
     create_extra_zones
+
+    convert_portal_zone
 
     dname="/var/upgrade.$(date -u "+%Y%m%dT%H%M%S")"
 
