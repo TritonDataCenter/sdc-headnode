@@ -131,9 +131,7 @@ fi
 cat > /opt/smartdc/usageapi/config/config.json <<HERE
 {
   "siteName": "${usageapi_EXTERNAL_URL}",
-  "port": 443,
-  "cert": "/opt/smartdc/usageapi/ssl/cert.pem",
-  "key": "/opt/smartdc/usageapi/ssl/key.pem",
+  "port": 80,
   "logLevel": 4,
   "user": "${HTTP_ADMIN_USER}",
   "password": "${HTTP_ADMIN_PW}",

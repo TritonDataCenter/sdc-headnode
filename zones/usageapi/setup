@@ -23,9 +23,6 @@ mkdir -p /opt/smartdc/usageapi/config
 cd -
 /usr/bin/chown -R root:root /opt/smartdc
 
-echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/usageapi/ssl/key.pem -out /opt/smartdc/usageapi/ssl/cert.pem -days 365
-
 # Before we enable postgresql, we'll make a little change on the way we stop
 # the service, so we can stop it without having to stop all the agents:
 echo "Updating postgresql stop method"
