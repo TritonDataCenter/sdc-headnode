@@ -34,7 +34,7 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
-USAGEAPI_URL=https://$(echo "${USAGEAPI_ADMIN_IPS}" | cut -d',' -f1)
+USAGEAPI_URL=http://$(echo "${USAGEAPI_ADMIN_IPS}" | cut -d',' -f1)
 KEYAPI=http://$(echo "${KEYAPI_ADMIN_IPS}" | cut -d',' -f1):8080
 
 # XXX for now use the first UFDS, soon we'll be switching to DNS
