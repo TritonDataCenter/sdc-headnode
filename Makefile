@@ -25,12 +25,15 @@ coal:
 	bin/build-image coal
 usb:
 	bin/build-image usb
-tar:
-	bin/build-image -c tar
+boot:
+	bin/build-image tar
+tar: boot
+upgrade:
+	bin/build-upgrade-image $(shell ls boot-*.tgz | sort | tail -1)
 sandwich:
 	@open http://xkcd.com/149/
 
-.PHONY: all coal usb tar sandwich
+.PHONY: all coal usb boot tar upgrade sandwich
 
 
 #
