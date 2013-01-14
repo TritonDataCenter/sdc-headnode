@@ -22,6 +22,27 @@ fatal()
 }
 
 
+SETUP_FILE=/var/lib/setup.json
+function update_setup_state
+{
+    STATE=$1
+
+    cat "$SETUP_FILE" | json -e \
+        "this.current_state = '$STATE';
+         this.last_updated = new Date().toISOString();
+         this.seen_states.push('$STATE');" \
+        | tee $SETUP_FILE
+}
+
+function mark_as_setup
+{
+    # Update the setup state file with the new value
+    cat "$SETUP_FILE" | json -e "this.complete = true;
+         this.last_updated = new Date().toISOString();
+         this.current_state = null;" \
+        | tee $SETUP_FILE
+}
+
 setup_agents()
 {
     AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest
@@ -45,6 +66,8 @@ fi
 
 if [[ ! -d /opt/smartdc/agents/bin ]]; then
     setup_agents
+    update_setup_state "agents_installed"
+    mark_as_setup
 fi
 
 # Return SmartDC services statuses on STDOUT:

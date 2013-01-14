@@ -146,6 +146,34 @@ function check_ntp
     set -o pipefail
 }
 
+SETUP_FILE=/var/lib/setup.json
+
+function create_setup_file
+{
+    TYPE=$1
+
+    if [[ ! -e "$SETUP_FILE" ]]; then
+        echo "{ \"node_type\": \"$TYPE\", " \
+            '"start_time":' \
+            "\"$(date "+%Y-%m-%dT%H:%M:%SZ")\", " \
+            '"current_state": "", ' \
+            '"seen_states": [], ' \
+            '"complete": false }' \
+            > $SETUP_FILE
+    fi
+}
+
+function update_setup_state
+{
+    STATE=$1
+
+    cat "$SETUP_FILE" | json -e \
+        "this.current_state = '$STATE';
+         this.last_updated = new Date().toISOString();
+         this.seen_states.push('$STATE');" \
+        | tee $SETUP_FILE
+}
+
 function check_disk_space
 {
 	local pool_json="$1"
@@ -469,11 +497,28 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 
 	check_disk_space /tmp/pool.json
 	create_zpool zones /tmp/pool.json
+
+        if is_headnode; then
+            create_setup_file headnode
+        else
+            create_setup_file computenode
+        fi
+
+	update_setup_state "zpool_created"
+
 	setup_datasets
+	update_setup_state "datasets_setup"
+
 	install_configs
+	update_setup_state "configs_installed"
+
 	create_swap
+	update_setup_state "swap_created"
+
 	output_zpool_info
+
 	setup_filesystems
+	update_setup_state "filesystems_setup"
 
 	if ! is_headnode; then
 		# On a CN we're not rebooting, so we want the following
@@ -514,6 +559,8 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 		echo '{}' | /usr/bin/json -e "this.sources=[\"$imgapi_url\"]" \
 			> /var/imgadm/imgadm.conf
 	fi
+
+	update_setup_state "imgadm_setup"
 
 	# We're the headnode
 	if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then

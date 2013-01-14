@@ -109,6 +109,27 @@ function printf_log
     fi
 }
 
+SETUP_FILE=/var/lib/setup.json
+
+function update_setup_state
+{
+    STATE=$1
+
+    cat "$SETUP_FILE" | json -e \
+        "this.current_state = '$STATE';
+         this.last_updated = new Date().toISOString();
+         this.seen_states.push('$STATE');" \
+        | tee $SETUP_FILE
+}
+
+function mark_as_setup
+{
+    # Update the setup state file with the new value
+    cat "$SETUP_FILE" | json -e "this.complete = true;
+         this.last_updated = new Date().toISOString(); this.current_state = null;" \
+        | tee $SETUP_FILE
+}
+
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
 # entirely well still getting all the things done that it would have done that
 # we care about.
@@ -330,6 +351,7 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
         if [ $restore == 0 ]; then
             printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents})
+            update_setup_state "agents_installed"
         else
             printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents} >&4 2>&1)
@@ -644,6 +666,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone sapi
 fi
 
+update_setup_state "sdczones_created"
 
 
 function import_core_datasets {
@@ -806,6 +829,8 @@ if [[ $upgrading == 1 ]]; then
     printf_log "%-58s" "completed post-setup upgrade tasks... "
     printf_timer "%4s (%ss)\n" "done"
 fi
+
+mark_as_setup
 
 #
 # XXX this was commented out for HEAD-1048 as it depends on MAPI.  See HEAD-1051
