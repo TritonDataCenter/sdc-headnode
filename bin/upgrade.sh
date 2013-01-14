@@ -291,6 +291,23 @@ function dump_mapi
     [ $? != 0 ] && fatal "transforming the MAPI dumps"
 }
 
+convert_portal_zone()
+{
+    zoneadm -z portal list -p >/dev/null 2>&1
+    [ $? -ne 0 ] && return
+
+    zonecfg -z portal \ "select net physical=portal1; " \
+        "set physical=net1; " \
+        "add property (name=netmask,value=\"$CONFIG_external_netmask\"); end"
+
+    mv /zones/portal/root/etc/hostname.portal1 \
+       /zones/portal/root/etc/hostname.net1
+
+    # switch to new hostname.net1 file format
+    local old=`cat /zones/portal/root/etc/hostname.net1`
+    echo "$old up" >/zones/portal/root/etc/hostname.net1
+}
+
 function shutdown_zone
 {
 	echo "Shutting down zone: $1"
@@ -317,14 +334,9 @@ function shutdown_zone
 # Shutdown all core zones.
 function shutdown_sdc_zones
 {
-	for zone in $ZONES6X
+	for zone in `zoneadm list`
 	do
-		[[ "$zone" == "capi" && $CAPI_FOUND == 0 ]] && continue
-
-		# skip zone that is already shutdown
-    		zstate=`zoneadm -z $zone list -p | cut -d: -f3`
-		[ "$zstate" == "installed" ] && continue
-
+		[[ "$zone" == "global" ]] && continue
 		shutdown_zone $zone
 	done
 }
@@ -1146,6 +1158,8 @@ mount_usbkey
 install_platform
 upgrade_usbkey
 umount_usbkey
+
+convert_portal_zone
 
 echo "Deleting existing zones"
 delete_sdc_zones
