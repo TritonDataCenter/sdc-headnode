@@ -671,6 +671,9 @@ function cleanup_config
 	allocate_ip_addr
 	usageapi_admin_ip="$ip_addr"
 
+	allocate_ip_addr
+	sapi_admin_ip="$ip_addr"
+
 	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
 	   usage_ext_vlan="# usageapi_external_vlan=0"
 	else
@@ -766,6 +769,10 @@ function cleanup_config
 	fwapi_http_admin_user=admin
 	fwapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	fwapi_client_url=http://${fwapi_admin_ip}:80
+
+	sapi_http_admin_user=admin
+	sapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	sapi_admin_ips=$sapi_admin_ip
 
 	show_setup_timers=true
 	serialize_setup=true
@@ -883,6 +890,7 @@ function cleanup_config
 	workflow_pkg=${GENERIC_workflow_pkg}
 	vmapi_pkg=${GENERIC_vmapi_pkg}
 	zookeeper_pkg=${GENERIC_zookeeper_pkg}
+	sapi_pkg=${GENERIC_sapi_pkg}
 	dbconn_retry_after=10
 	dbconn_num_attempts=10
 	DONE
@@ -1022,12 +1030,12 @@ load_server_addrs
 # free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
 # to re-use.
 #
-# In 7.0 we have 20 cores zones so we need at least 5, and maybe 9, additional
+# In 7.0 we have 21 cores zones so we need at least 6, and maybe 10, additional
 # addresses out of the dhcp range to accomodate the new zones, depending on how
 # the user config is setup and if we can use the 4 free addrs from 6.x.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=5
+need_num_addrs=6
 
 ip_to_num $CONFIG_dhcp_next_server
 unused_addr=$num
