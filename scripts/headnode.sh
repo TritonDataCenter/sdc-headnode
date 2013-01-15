@@ -115,21 +115,27 @@ function update_setup_state
 {
     STATE=$1
 
+    chmod 600 $SETUP_FILE
     cat "$SETUP_FILE" | json -e \
         "this.current_state = '$STATE';
          this.last_updated = new Date().toISOString();
          this.seen_states.push('$STATE');" \
         | tee ${SETUP_FILE}.new
     mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
 }
 
 function mark_as_setup
 {
+    chmod 600 $SETUP_FILE
     # Update the setup state file with the new value
     cat "$SETUP_FILE" | json -e "this.complete = true;
-         this.last_updated = new Date().toISOString(); this.current_state = null;" \
+         this.current_state = 'setup_complete';
+         this.seen_states.push('setup_complete');
+         this.last_updated = new Date().toISOString();" \
         | tee ${SETUP_FILE}.new
     mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
 }
 
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it

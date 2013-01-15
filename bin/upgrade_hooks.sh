@@ -220,6 +220,9 @@ pre_tasks()
     # Now create the install progress status file that is required by
     # headnode.sh. This is normally done in joysetup.sh, but again, we don't
     # run that on upgrade.
+    if [[ -e /var/lib/setup.json ]]; then
+        chmod +w /var/lib/setup.json
+    fi
     echo "{" \
         "\"node_type\": \"headnode\"," \
         "\"start_time\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"," \
@@ -232,6 +235,7 @@ pre_tasks()
         "\"complete\": false," \
         "\"last_updated\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"" \
         "}" >/var/lib/setup.json
+    chmod 400 /var/lib/setup.json
 
     print_log \
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
