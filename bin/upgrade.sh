@@ -1030,12 +1030,12 @@ load_server_addrs
 # free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
 # to re-use.
 #
-# In 7.0 we have 21 cores zones so we need at least 6, and maybe 10, additional
+# In 7.0 we have 23 admin zones so we need at least 8, and maybe 12, additional
 # addresses out of the dhcp range to accomodate the new zones, depending on how
 # the user config is setup and if we can use the 4 free addrs from 6.x.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=6
+need_num_addrs=8
 
 ip_to_num $CONFIG_dhcp_next_server
 unused_addr=$num
