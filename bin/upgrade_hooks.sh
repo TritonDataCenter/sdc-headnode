@@ -194,6 +194,10 @@ pre_tasks()
     # If pre-existing portal zone, shut it down for now.
     zoneadm -z portal halt >/dev/null 2>&1
 
+    # The following img setup code duplicates the imgadm setup behavior from
+    # joysetup.sh. That work is done on initial install of the HN, but
+    # joysetup.sh is not run when we upgrade a installed HN.
+
     if [[ ! -f /var/db/imgadm/sources.list ]]; then
         # For now we initialize with the global one since we don't have a local
         # imgapi yet.
@@ -202,6 +206,32 @@ pre_tasks()
             > /var/db/imgadm/sources.list
         imgadm update
     fi
+
+    if [[ ! -f /var/imgadm/imgadm.conf ]]; then
+        # pickup config
+        load_sdc_config
+
+        mkdir -p /var/imgadm
+        imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
+        echo '{}' | /usr/bin/json -e "this.sources=[\"$imgapi_url\"]" \
+            > /var/imgadm/imgadm.conf
+    fi
+
+    # Now create the install progress status file that is required by
+    # headnode.sh. This is normally done in joysetup.sh, but again, we don't
+    # run that on upgrade.
+    echo "{" \
+        "\"node_type\": \"headnode\"," \
+        "\"start_time\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"," \
+        "\"current_state\": \"imgadm_setup\"," \
+        "\"seen_states\": [" \
+        "\"zpool_created\"," \
+        "\"filesystems_setup\"," \
+        "\"imgadm_setup\"" \
+        "]," \
+        "\"complete\": false," \
+        "\"last_updated\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"" \
+        "}" >/var/lib/setup.json
 
     print_log \
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
