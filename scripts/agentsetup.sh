@@ -31,7 +31,8 @@ function update_setup_state
         "this.current_state = '$STATE';
          this.last_updated = new Date().toISOString();
          this.seen_states.push('$STATE');" \
-        | tee $SETUP_FILE
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
 }
 
 function mark_as_setup
@@ -40,7 +41,8 @@ function mark_as_setup
     cat "$SETUP_FILE" | json -e "this.complete = true;
          this.last_updated = new Date().toISOString();
          this.current_state = null;" \
-        | tee $SETUP_FILE
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
 }
 
 setup_agents()

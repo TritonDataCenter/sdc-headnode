@@ -171,7 +171,8 @@ function update_setup_state
         "this.current_state = '$STATE';
          this.last_updated = new Date().toISOString();
          this.seen_states.push('$STATE');" \
-        | tee $SETUP_FILE
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
 }
 
 function check_disk_space
