@@ -203,6 +203,9 @@ pre_tasks()
         imgadm update
     fi
 
+    print_log \
+        "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
+
     print_log "Installing images"
     for i in /usbkey/datasets/*.dsmanifest
     do
@@ -260,6 +263,8 @@ post_tasks()
 
     mv ${SDC_UPGRADE_DIR} $dname
     print_log "The upgrade is finished"
+    print_log "CloudAPI is currently in read-only mode"
+    print_log "When ready, enable read-write using sdc-post-upgrade -w"
     print_log "The upgrade logs are in $dname"
 
     if [ -f $dname/error_finalize.txt ]; then
@@ -269,23 +274,6 @@ post_tasks()
         print_log "You must resolve these errors before the headnode is usable"
         exit 1
     fi
-}
-
-# This function is used to restore a zone role when the 6.5.x backup is
-# compatible with the 7.0 role configuration.
-#
-# arg1 is role
-# arg2 is zonename
-compatible_restore_task()
-{
-    # We're going to replace the config files, so halt the zone
-    shutdown_zone $2
-
-    /usbkey/zones/$1/restore $2 ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
-    [ $? != 0 ] && saw_err "Error restoring $1 zone $2"
-
-    # Boot the zone with the new config data
-    zoneadm -z $2 boot
 }
 
 # arg1 is zonename
@@ -351,6 +339,33 @@ ufds_tasks()
     [[ $res != 0 && $res != 68 ]] && saw_err "Error loading MAPI data into UFDS"
 }
 
+# arg1 is zonename
+cloudapi_tasks()
+{
+    # We're going to replace the config files, so halt the zone
+    shutdown_zone $1
+
+    # The 6.5.x backup is compatible with the 7.0 cloudapi configuration.
+    /usbkey/zones/cloudapi/restore $1 ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
+    [ $? != 0 ] && saw_err "Error restoring cloudapi zone $1"
+
+    local cfgfile=/zones/$1/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
+
+    # setup cloudapi to start out read-only for now
+    nawk '{
+        if ($1 == "\"read_only\":")
+             printf("    \"read_only\": true,\n")
+        else
+            print $0
+    }' $cfgfile >$cfgfile.new
+    cp $cfgfile $cfgfile.bak
+    cp $cfgfile.new $cfgfile
+    rm -f $cfgfile.new
+
+    # Boot the zone with the new config data
+    zoneadm -z $1 boot
+}
+
 case "$1" in
 "pre") pre_tasks;;
 
@@ -361,13 +376,7 @@ case "$1" in
 
 "post_bg") post_tasks;;
 
-"cloudapi")
-    # Currently a simple restore is fine for cloudapi and the 7.0 restore is
-    # compatible with the 6.5.x backup, but if we need to do any transforms on
-    # the 6.5.x backup data, we should split out a separate cloudapi_tasks
-    # function.
-    compatible_restore_task "cloudapi" $2
-    ;;
+"cloudapi") cloudapi_tasks $2;;
 
 "ufds") ufds_tasks $2;;
 esac

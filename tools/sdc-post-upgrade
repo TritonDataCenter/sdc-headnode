@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc., All rights reserved.
+# Copyright (c) 2013, Joyent, Inc., All rights reserved.
 #
 
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
@@ -21,13 +21,38 @@ function fatal
     fatal "this command can only be run on the headnode"
 
 COMMIT=0
-while getopts "c" opt
+WRITABLE=0
+while getopts "cw" opt
 do
 	case "$opt" in
+		w)	WRITABLE=1;;
 		c)	COMMIT=1;;
 		*)	fatal "invalid option";;
 	esac
 done
+
+if [[ $WRITABLE == 1 ]]; then
+    zonename=`vmadm list -H -o uuid,tags.smartdc_role | \
+        nawk '/cloudapi/{print $1}'`
+
+    [[ -z "$zonename" ]] && fatal "no cloudapi zone"
+
+    echo "Enabling read-write mode in cloudapi"
+
+    cfgfile=/zones/$zonename/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
+
+    nawk '{
+        if ($1 == "\"read_only\":")
+             printf("    \"read_only\": false,\n")
+        else
+            print $0
+    }' $cfgfile >$cfgfile.new
+    cp $cfgfile $cfgfile.bak
+    cp $cfgfile.new $cfgfile
+    rm -f $cfgfile.new
+
+    zlogin $zonename svcadm restart cloudapi
+fi
 
 if [[ $COMMIT == 1 ]]; then
     [ ! -d /var/usb_rollback ] && \
