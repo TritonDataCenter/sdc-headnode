@@ -239,6 +239,65 @@ function dump_capi
     [ $? != 0 ] && fatal "transforming the CAPI dumps"
 }
 
+function dump_mapi_live
+{
+    echo "Dump MAPI (live responses) for data conversion"
+    mkdir -p $SDC_UPGRADE_DIR/mapi_dump
+    sdc-mapi /datasets | json -H >$SDC_UPGRADE_DIR/mapi_dump/datasets.json
+    [ $? != 0 ] && fatal "getting MAPI datasets failed"
+
+    echo "Transforming MAPI datasets to IMGAPI manifest format"
+    DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
+        var fs = require("fs");
+        var dumpDir = process.env.DUMP_DIR;
+        var d = JSON.parse(fs.readFileSync(dumpDir + "/datasets.json"));
+        d.forEach(function (image) {
+            image._local_path = "/usbkey/datasets/" + image.files[0].path;
+            delete image.id;
+            delete image.uri;
+            delete image.default;
+            delete image.imported_at;
+
+            // Leave image.creator_uuid instead of image.owner. This is
+            // the signifier to IMGAPI that this is a legacy dsmanifest
+            // to normalize.
+
+            // Drop MAPI null value.
+            if (!image.restricted_to_uuid) delete image.restricted_to_uuid;
+            if (!image.owner_uuid) delete image.owner_uuid;
+            if (!image.cpu_type) delete image.cpu_type;
+            if (!image.nic_driver) delete image.nic_driver;
+            if (!image.disk_driver) delete image.disk_driver;
+            if (!image.image_size) delete image.image_size;
+
+            // Drop MAPI null value.
+            if (!image.inherited_directories)
+                delete image.inherited_directories;
+            // Default is true and MAPI did not bother with the
+            // null-as-default subtlety.
+            if (image.generate_passwords)
+                delete image.generate_passwords;
+            // MAPI had {} as (guessing) the null data-mapper value.
+            if (!Array.isArray(image.users))
+                delete image.users;
+            // IMGAPI wants published_at as "YYYY-MM-DDTHH:MM:SS(.SSS)Z"
+            // but MAPI gives, e.g. "2011-11-18T01:41:40+00:00".
+            image.published_at = image.published_at.replace(/\+00:00$/, "Z");
+            image.files.forEach(function (file) {
+                delete file.path;
+                delete file.url;
+            });
+
+            // DSAPI did not have disabled support, but MAPI does.
+            image.disabled = (image.disabled_at !== null);
+            delete image.disabled_at;
+        });
+        fs.writeFileSync(dumpDir + "/images.json",
+            JSON.stringify(d, null, 2) + "\n");
+        '
+    [ $? != 0 ] && fatal "transforming MAPI datasets failed"
+}
+
 function dump_mapi
 {
     zstate=`zoneadm -z mapi list -p | cut -d: -f3`
@@ -796,7 +855,7 @@ function cleanup_config
 		ufds_admin_email=$CONFIG_capi_admin_email
 		UDONE1
 	else
-		# Since no capi-specific values, we re-use the mapi values 
+		# Since no capi-specific values, we re-use the mapi values
 		cat <<-UDONE2 >>/tmp/config.$$
 		ufds_admin_login=$CONFIG_mapi_http_admin_user
 		ufds_admin_pw=$CONFIG_mapi_admin_pw
@@ -1119,6 +1178,7 @@ bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 # Keep track of the core zone external addresses
 save_zone_addrs
 
+dump_mapi_live
 # Shutdown the mapi and capi svcs so that the data provided by these zones
 # won't change during the dump
 zlogin mapi svcadm disable -t mcp_api

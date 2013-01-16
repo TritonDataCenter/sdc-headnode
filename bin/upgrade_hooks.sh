@@ -239,28 +239,6 @@ pre_tasks()
 
     print_log \
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
-
-    print_log "Installing images"
-    for i in /usbkey/datasets/*.dsmanifest
-    do
-        bname=${i##*/}
-        print_log "Import dataset $bname"
-
-        bzname=`nawk '{
-            if ($1 == "\"path\":") {
-                # strip quotes and colon
-                print substr($2, 2, length($2) - 3)
-                exit 0
-            }
-        }' $i`
-
-        if [ ! -f /usbkey/datasets/$bzname ]; then
-            print_log "Skipping $i, no image file in /usbkey/datasets"
-            continue
-        fi
-
-        imgadm install -m $i -f /usbkey/datasets/$bzname
-    done
 }
 
 post_tasks()
@@ -374,6 +352,42 @@ ufds_tasks()
 }
 
 # arg1 is zonename
+imgapi_tasks()
+{
+    # Load all the images in SDC_UPGRADE_DIR/mapi_dump/images.json.
+    local images=$(cat $SDC_UPGRADE_DIR/mapi_dump/images.json)
+    local numImages=$(echo "$images" | json length)
+    local i=0
+    while [ $i -lt $numImages ]; do
+        local imageFile=$(echo "$images" | json $i._local_path)
+        local image=$(echo "$images" | json -e 'this._local_path = undefined' $i)
+        local uuid=$(echo "$image" | json uuid)
+        local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
+            | head -1 | awk '{print $2}')
+        if [[ "$status" == "404" ]]; then
+            echo "Importing image $uuid ($file) into IMGAPI."
+            if [[ -f $imageFile ]]; then
+                echo "$image" | /opt/smartdc/bin/sdc-imgadm import -f $imageFile
+                local res=$?
+                if [[ $res == 0 ]]; then
+                    rm $imageFile
+                else
+                    saw_err "Error importing image $uuid $(file) into IMGAPI"
+                fi
+            else
+                saw_err "Image $uuid file $imageFile not found."
+            fi
+        elif [[ "$status" == "200" ]]; then
+            echo "Skipping import of image $uuid: already in IMGAPI."
+        else
+            saw_err "Error checking if image $uuid is in IMGAPI: HTTP $status"
+        fi
+        i=$(($i + 1))
+    done
+}
+
+
+# arg1 is zonename
 cloudapi_tasks()
 {
     # We're going to replace the config files, so halt the zone
@@ -413,6 +427,8 @@ case "$1" in
 "cloudapi") cloudapi_tasks $2;;
 
 "ufds") ufds_tasks $2;;
+
+"imgapi") imgapi_tasks $2;;
 esac
 
 exit 0
