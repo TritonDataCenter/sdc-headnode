@@ -184,7 +184,7 @@ elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
     FILENAME=$(basename ${URL})
     MD5_SUM=$(get_md5 "${filename}" "${FILENAME}")
     echo "Latest ${filename} is ${URL}..."
-elif [[ ${filename} =~ "^http" ]]; then
+elif [[ "${filename:0:4}" == "http" ]]; then
     URL=${filename}
     echo "Using URL ${URL}..."
     FILENAME=$(basename ${URL})
