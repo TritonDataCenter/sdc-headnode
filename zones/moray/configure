@@ -23,6 +23,49 @@ ZK_MAIN_ADMIN_IP=$(echo "${ZOOKEPER_ADMIN_IPS}" | cut -d',' -f1)
 
 ZONE_UUID=`/usr/bin/zonename`
 
+
+echo "Updating /etc/rsyslog.conf"
+mkdir -p /var/tmp/rsyslog/work
+chmod 777 /var/tmp/rsyslog/work
+
+cat > /etc/rsyslog.conf <<"HERE"
+$MaxMessageSize 64k
+
+$ModLoad immark
+$ModLoad imsolaris
+$ModLoad imudp
+
+$template bunyan,"%msg:R,ERE,1,FIELD:(\{.*\})--end%\n"
+
+*.err;kern.notice;auth.notice                   /dev/sysmsg
+*.err;kern.debug;daemon.notice;mail.crit        /var/adm/messages
+
+*.alert;kern.err;daemon.err                     operator
+*.alert                                         root
+
+*.emerg                                         *
+
+mail.debug                                      /var/log/syslog
+
+auth.info                                       /var/log/auth.log
+mail.info                                       /var/log/postfix.log
+
+$WorkDirectory /var/tmp/rsyslog/work
+$ActionQueueType LinkedList
+$ActionQueueFileName mantafwd
+$ActionResumeRetryCount -1
+$ActionQueueSaveOnShutdown on
+
+# Support node bunyan logs going to local0
+local0.* /var/log/moray.log;bunyan
+
+$UDPServerAddress 127.0.0.1
+$UDPServerRun 514
+HERE
+
+svcadm restart system-log
+[[ $? -eq 0 ]] || fatal "Unable to restart rsyslog"
+
 echo "Updating config file"
 CFG_FILE_IN=/opt/smartdc/$role/etc/config.json.in
 CFG_FILE=/opt/smartdc/$role/etc/config.json
