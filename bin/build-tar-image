@@ -757,6 +757,8 @@ function copy_datasets
     while [[ ${index} -lt ${num_datasets} ]]; do
         name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
         uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
+        manifest_url=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.manifest_url)
+        file_url=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.file_url)
         headnode_zones=$(echo "${datasets_json}" \
             | ${ROOT}/bin/json ${index}.headnode_zones)
         manifest="${ROOT}/cache/${name}.dsmanifest"
@@ -767,9 +769,11 @@ function copy_datasets
             elif [[ ${HAVE_INTERNET} == "true" ]]; then
                 echo "==> Downloading ${name} manifest"
 
-                DATASET_URL="${DSAPI_URL}/datasets/${uuid}"
+                if [[ -z ${manifest_url} ]]; then
+                    manifest_url="${DSAPI_URL}/datasets/${uuid}"
+                fi
                 (curl ${CURL_OPTS} \
-                    -k -o ${manifest} ${DATASET_URL}) \
+                    -k -o ${manifest} ${manifest_url}) \
                     || fatal "Unable to download ${name} manifest"
             else
                 fatal "Don't have required '${name}' manifest" \
@@ -777,18 +781,20 @@ function copy_datasets
             fi
         fi
 
-        local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
-        local uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
-        if [[ -n $(echo "${uri}" | grep "datasets.joyent.com" 2>/dev/null) ]]; then
-            # use proper credentials when talking to datasets.joyent.com
-            uri="${DSAPI_URL}/datasets/${uuid}/${path}"
+        if [[ -z ${file_url} ]]; then
+            local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
+            local uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
+            if [[ -n $(echo "${uri}" | grep "datasets.joyent.com" 2>/dev/null) ]]; then
+                # use proper credentials when talking to datasets.joyent.com
+                file_url="${DSAPI_URL}/datasets/${uuid}/${path}"
+            fi
         fi
-        if [[ -z ${uri} ]]; then
-            fatal "Download uri for dataset ${name} not present in manifest"
+        if [[ -z ${file_url} ]]; then
+            fatal "Unable to find URL for ${name}"
         fi
 
         local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
-        copy_dataset ${name} ${uri} ${sha1}
+        copy_dataset ${name} ${file_url} ${sha1}
         echo "==> Copying ${name} manifest"
         cp ${manifest} ${STAGE}/datasets/
 
