@@ -249,6 +249,8 @@ function dump_mapi_live
     echo "Transforming MAPI datasets to IMGAPI manifest format"
     DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
         var fs = require("fs");
+        var OLD_ADMIN_UUID = "930896af-bf8c-48d4-885c-6573a94b1853";
+        var NEW_ADMIN_UUID = "00000000-0000-0000-0000-000000000000";
         var dumpDir = process.env.DUMP_DIR;
         var d = JSON.parse(fs.readFileSync(dumpDir + "/datasets.json"));
         d.forEach(function (image) {
@@ -264,15 +266,20 @@ function dump_mapi_live
 
             // Drop MAPI null value.
             if (!image.restricted_to_uuid) delete image.restricted_to_uuid;
+            if (!image.inherited_directories)
+                delete image.inherited_directories;
             if (!image.owner_uuid) delete image.owner_uuid;
             if (!image.cpu_type) delete image.cpu_type;
             if (!image.nic_driver) delete image.nic_driver;
             if (!image.disk_driver) delete image.disk_driver;
             if (!image.image_size) delete image.image_size;
 
-            // Drop MAPI null value.
-            if (!image.inherited_directories)
-                delete image.inherited_directories;
+            // Possible admin UUID change.
+            if (image.creator_uuid === OLD_ADMIN_UUID)
+                image.creator_uuid = NEW_ADMIN_UUID;
+            if (image.restricted_to_uuid === OLD_ADMIN_UUID)
+                image.restricted_to_uuid = NEW_ADMIN_UUID;
+
             // Default is true and MAPI did not bother with the
             // null-as-default subtlety.
             if (image.generate_passwords)
