@@ -13,8 +13,12 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # for now just take the first IP
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
 
-# Note: Usage of "local" storage is not intended for production.
-LOCAL_DB_DIR=/var/db/imgapi/images
+# Mount our delegate dataset at '/data'.
+zfs set mountpoint=/data zones/$(zonename)/data
+
+# Note: Usage of "local" storage is only intended for bootstrapping.
+# Manta and/or DCLS will be required for full functionality.
+LOCAL_DB_DIR=/data/imgapi/images
 if [[ ! -d $LOCAL_DB_DIR ]]; then
     echo "Create local db dir, $LOCAL_DB_DIR."
     mkdir -p $LOCAL_DB_DIR
