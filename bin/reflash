@@ -234,7 +234,9 @@ set +o errexit
 if [[ ${FILENAME} =~ "release-20110901" || ${FORCE_65} == 1 ]]; then
 echo "This looks like 6.5. Attempting to create config."
 ssh $SSH_OPTS -T root@${hostname} <<EOF65
-set -o xtrace
+if [[ -n "${TRACE}" ]]; then
+    set -o xtrace
+fi
 
 rm -f /var/tmp/config.flashing
 
@@ -622,7 +624,9 @@ fi
 
 ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
-set -o xtrace
+if [[ -n "${TRACE}" ]]; then
+    set -o xtrace
+fi
 
 # Turn on DNS since we might need it
 echo "Enabling DNS..."
@@ -669,11 +673,11 @@ echo "Mounting USB key..."
 
 # Move these first so we only restore if they existed to start with
 # keep them though in case there is a reflash failure.
-timestamp=$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
-mv /var/tmp/root.authorized_keys.flashing /var/tmp/root.authorized_keys.${timestamp} \
+timestamp=\$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
+mv /var/tmp/root.authorized_keys.flashing /var/tmp/root.authorized_keys.\${timestamp} \
     || /bin/true
-mv /var/tmp/answers.flashing /var/tmp/answers.${timestamp} || /bin/true
-mv /var/tmp/devtools.flashing /var/tmp/devtools.${timestamp} || /bin/true
+mv /var/tmp/answers.flashing /var/tmp/answers.\${timestamp} || /bin/true
+mv /var/tmp/devtools.flashing /var/tmp/devtools.\${timestamp} || /bin/true
 
 # Keep the answers.json if it exists
 if [[ -f /mnt/usbkey/private/answers.json ]]; then
