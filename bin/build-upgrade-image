@@ -123,6 +123,7 @@ function create_upgrade
         boot/grub/menu.lst.tmpl \
         extra \
         datasets/smartos* \
+        datasets/multiarch* \
         rc \
         scripts \
         tools \
