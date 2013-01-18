@@ -321,14 +321,14 @@ recreate_extra_zones()
 {
     echo "==> Recreating extra zones"
 
-    local hn_uuid=`curl -i -sS -u ${CNAPI_CREDENTIALS} \
+    local hn_uuid=`curl -i -sS \
         --url "${CNAPI_URL}/servers?hostname=headnode" | json -H -a uuid`
     [ -z "$hn_uuid" ] && fatal "unable to determine headnode UUID"
 
     local url="${VMAPI_URL}/vms"
     url="$url?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active"
 
-    curl -i -sS -u ${VMAPI_CREDENTIALS} --url "$url" | json -H \
+    curl -i -sS --url "$url" | json -H \
         -e 'role=(tags.smartdc_role || "-")' \
         -e 'ztype=(tags.smartdc_type || "-")' \
         -a role server_uuid ztype uuid | \
@@ -535,7 +535,7 @@ update_headnode_uuid()
     echo -n "updating headnode UUID in the DB... "
 
     # XXX fix this once CNAPI-47 is fixed, currently there is no PUT support
-    curl -s -f -u ${CNAPI_CREDENTIALS} \
+    curl -s -f \
         --url "${CNAPI_URL}/servers?hostname=headnode" \
         -d uuid="${HEADNODE_UUID}" -X PUT
 
@@ -554,7 +554,7 @@ get_net_ip()
 {
     local url="${VMAPI_URL}/vms/$1"
 
-    IP=`curl -sS -u ${VMAPI_CREDENTIALS} --url "$url" | json -H -a nics | \
+    IP=`curl -sS --url "$url" | json -H -a nics | \
         | nawk -v tag=$2 '{
         if ($1 == "\"nic_tag\":") {
             # strip quotes and comma
@@ -755,21 +755,19 @@ main()
             load_sdc_config
         fi
 
-	[[ -z ${CONFIG_vmapi_http_admin_user} ]] && fatal "missing vmapi config"
-	[[ -z ${CONFIG_vmapi_http_admin_pw} ]] && fatal "missing vmapi config"
-	[[ -z ${CONFIG_vmapi_admin_ips} ]] && fatal "missing vmapi config"
+        [[ -z ${CONFIG_vmapi_http_admin_user} ]] && fatal "missing vmapi config"
+        [[ -z ${CONFIG_vmapi_http_admin_pw} ]] && fatal "missing vmapi config"
+        [[ -z ${CONFIG_vmapi_admin_ips} ]] && fatal "missing vmapi config"
 
-	[[ -z ${CONFIG_cnapi_http_admin_user} ]] && fatal "missing cnapi config"
-	[[ -z ${CONFIG_cnapi_http_admin_pw} ]] && fatal "missing cnapi config"
-	[[ -z ${CONFIG_cnapi_admin_ips} ]] && fatal "missing cnapi config"
+        [[ -z ${CONFIG_cnapi_http_admin_user} ]] && fatal "missing cnapi config"
+        [[ -z ${CONFIG_cnapi_http_admin_pw} ]] && fatal "missing cnapi config"
+        [[ -z ${CONFIG_cnapi_admin_ips} ]] && fatal "missing cnapi config"
 
-	CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
-	CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
-	CNAPI_URL="http://${CNAPI_IP}"
+        CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
+        CNAPI_URL="http://${CNAPI_IP}"
 
-	VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
-	VMAPI_CREDENTIALS="${CONFIG_vmapi_http_admin_user}:${CONFIG_vmapi_http_admin_pw}"
-	VMAPI_URL="http://${VMAPI_IP}"
+        VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
+        VMAPI_URL="http://${VMAPI_IP}"
 
         if [[ ${standby} == 1 ]]; then
             # we're restoring a standby headnode, use our UUID now instead.

@@ -18,22 +18,12 @@ fi
 
 # CNAPI!
 CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_cnapi_http_admin_user}
-    && -n ${CONFIG_cnapi_http_admin_pw} ]]; then
-
-    CNAPI_CREDENTIALS="${CONFIG_cnapi_http_admin_user}:${CONFIG_cnapi_http_admin_pw}"
-fi
 if [[ -n ${CNAPI_IP} ]]; then
     CNAPI_URL="http://${CNAPI_IP}"
 fi
 
 # VMAPI!
 VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_vmapi_http_admin_user}
-    && -n ${CONFIG_vmapi_http_admin_pw} ]]; then
-
-    VMAPI_CREDENTIALS="${CONFIG_vmapi_http_admin_user}:${CONFIG_vmapi_http_admin_pw}"
-fi
 if [[ -n ${VMAPI_IP} ]]; then
     VMAPI_URL="http://${VMAPI_IP}"
 fi
@@ -41,19 +31,8 @@ fi
 # NAPI!
 NAPI_URL=${CONFIG_napi_client_url}
 
-if [[ -n ${CONFIG_napi_http_admin_user}
-    && -n ${CONFIG_napi_http_admin_pw} ]]; then
-
-    NAPI_CREDENTIALS="${CONFIG_napi_http_admin_user}:${CONFIG_napi_http_admin_pw}"
-fi
-
 # DAPI!
 DAPI_IP=$(echo "${CONFIG_dapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_dapi_http_admin_user}
-    && -n ${CONFIG_dapi_http_admin_pw} ]]; then
-
-    DAPI_CREDENTIALS="${CONFIG_dapi_http_admin_user}:${CONFIG_dapi_http_admin_pw}"
-fi
 if [[ -n ${DAPI_IP} ]]; then
     DAPI_URL="http://${DAPI_IP}"
 fi
@@ -61,19 +40,8 @@ fi
 # FWAPI!
 FWAPI_URL=${CONFIG_fwapi_client_url}
 
-if [[ -n ${CONFIG_fwapi_http_admin_user}
-    && -n ${CONFIG_fwapi_http_admin_pw} ]]; then
-
-    FWAPI_CREDENTIALS="${CONFIG_fwapi_http_admin_user}:${CONFIG_fwapi_http_admin_pw}"
-fi
-
 # WORKFLOW!
 WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CONFIG_workflow_http_admin_user}
-    && -n ${CONFIG_workflow_http_admin_pw} ]]; then
-
-    WORKFLOW_CREDENTIALS="${CONFIG_workflow_http_admin_user}:${CONFIG_workflow_http_admin_pw}"
-fi
 if [[ -n ${WORKFLOW_IP} ]]; then
     WORKFLOW_URL="http://${WORKFLOW_IP}"
 fi
@@ -88,7 +56,7 @@ cnapi()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${CNAPI_CREDENTIALS}" --url "${CNAPI_URL}${path}" \
+    (curl ${CURL_OPTS} --url "${CNAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -98,7 +66,7 @@ napi()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${NAPI_CREDENTIALS}" --url "${NAPI_URL}${path}" \
+    (curl ${CURL_OPTS} --url "${NAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -108,7 +76,7 @@ dapi()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${DAPI_CREDENTIALS}" --url "${DAPI_URL}${path}" \
+    (curl ${CURL_OPTS} --url "${DAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -118,7 +86,7 @@ fwapi()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${FWAPI_CREDENTIALS}" --url "${FWAPI_URL}${path}" \
+    (curl ${CURL_OPTS} --url "${FWAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -128,7 +96,7 @@ workflow()
 {
     path=$1
     shift
-    (curl ${CURL_OPTS} -u "${WORKFLOW_CREDENTIALS}" --url \
+    (curl ${CURL_OPTS} --url \
         "${WORKFLOW_URL}${path}" "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
@@ -138,7 +106,7 @@ vmapi()
 {
     path=$1
     shift
-    curl ${CURL_OPTS} -u "${VMAPI_CREDENTIALS}" --url "${VMAPI_URL}${path}" \
+    curl ${CURL_OPTS} --url "${VMAPI_URL}${path}" \
         "$@" || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0

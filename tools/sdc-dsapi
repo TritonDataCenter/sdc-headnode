@@ -36,16 +36,9 @@ if [[ -f /lib/sdc/config.sh ]]; then
     if [[ -z "$DSAPI_URL" ]]; then
         DSAPI_URL=$CONFIG_dsapi_url
     fi
-    if [[ -z "$DSAPI_CREDENTIALS" ]]; then
-        DSAPI_CREDENTIALS="$CONFIG_dsapi_http_user:$CONFIG_dsapi_http_pass"
-    fi
 fi
 if [[ -z "$DSAPI_URL" ]]; then
     DSAPI_URL=https://datasets.joyent.com
-fi
-if [[ -z "$DSAPI_CREDENTIALS" ]]; then
-    echo "error: DSAPI_CREDENTIALS envvar is not set: set it to 'username:password'"
-    exit 1
 fi
 
 # Need an IP for datasets hostname.
@@ -57,11 +50,10 @@ fi
 
 
 # Note: the 'echo' doesn't show the real quoting of args.
-MASKED_CREDENTIALS=$(echo "$DSAPI_CREDENTIALS" | sed 's/:.*$/:***/')
-[ "$verbose" == "1" ] && echo "# curl -k -sS -i -u $MASKED_CREDENTIALS --url $DSAPI_URL$path $@" >&2
+[ "$verbose" == "1" ] && echo "# curl -k -sS -i --url $DSAPI_URL$path $@" >&2
 if [[ ! -x "$JSON" ]]; then
-    curl -k -sS -i -u $DSAPI_CREDENTIALS --url "$DSAPI_URL$path" "$@"
+    curl -k -sS -i --url "$DSAPI_URL$path" "$@"
     echo ""
 else
-    curl -k -sS -i -u $DSAPI_CREDENTIALS --url "$DSAPI_URL$path" "$@" | json -q
+    curl -k -sS -i --url "$DSAPI_URL$path" "$@" | json -q
 fi
