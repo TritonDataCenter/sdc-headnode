@@ -1019,12 +1019,11 @@ fi
 	printheader "Account Information"
 	message="
 There are two primary accounts for managing a Smart Data Center.  These are
-'admin', and 'root'. Each user can have a unique password. Most of the
+'admin', and 'root'. Each account can have a unique password. Most of the
 interaction you will have with SDC will be using the 'admin' user, unless
-otherwise specified.  There is also an internal HTTP API password used by
-various services to communicate with each other.  In addition, SDC has the
-ability to send notification emails to a specific address. Each of these
-values will be configured below.\n\n"
+otherwise specified.  In addition, SDC has the ability to send notification
+emails to a specific address. Each of these values will be configured below.
+\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
@@ -1035,9 +1034,6 @@ values will be configured below.\n\n"
 
 	promptpw "Enter admin password" "chklen" "$zone_admin_pw" "admin_password"
 	zone_admin_pw="$val"
-
-	promptpw "Enter HTTP API svc password" "chklen" "$http_admin_pw" "api_password"
-	http_admin_pw="$val"
 
 	promptemail "Administrator email goes to" "$mail_to" "mail_to"
 	mail_to="$val"
@@ -1261,7 +1257,6 @@ echo >>$tmp_config
 
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
-echo "ca_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1376,18 +1371,15 @@ if [[ -n ${external_nic} ]]; then
 		echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
 	fi
 fi
-echo "adminui_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
-echo "amon_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
-echo "redis_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1395,7 +1387,6 @@ echo >>$tmp_config
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
-echo "assets_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1403,12 +1394,6 @@ echo >>$tmp_config
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
-echo "dhcpd_admin_pw=$zone_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-echo "dnsapi_http_port=8000" >>$tmp_config
-echo "dnsapi_http_user=admin" >>$tmp_config
-echo "dnsapi_http_pass=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
@@ -1424,7 +1409,6 @@ if [[ -n ${external_nic} ]]; then
 	fi
 fi
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "cloudapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1432,14 +1416,12 @@ echo >>$tmp_config
 echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
-echo "rabbitmq_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "usageapi_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_http_admin_user=admin" >>$tmp_config
-echo "usageapi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "usageapi_http_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
@@ -1452,47 +1434,24 @@ echo "ufds_admin_email=$mail_to" >>$tmp_config
 echo "ufds_admin_uuid=00000000-0000-0000-0000-000000000000" >>$tmp_config
 echo "# Legacy CAPI parameters" >>$tmp_config
 echo "capi_http_admin_user=admin" >>$tmp_config
-echo "capi_http_admin_pw=$http_admin_pw" >>$tmp_config
+echo "capi_http_admin_pw=$zone_admin_pw" >>$tmp_config
 # Do not remove. Required to work by smart-login.git agent:
 echo "# Required by SmartLogin:" >>$tmp_config
 echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
 echo >>$tmp_config
 
-
-echo "vmapi_http_admin_user=admin" >>$tmp_config
-echo "vmapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-echo "dapi_http_admin_user=admin" >>$tmp_config
-echo "dapi_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-
-echo "cnapi_http_admin_user=admin" >>$tmp_config
-echo "cnapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
-echo "fwapi_http_admin_user=admin" >>$tmp_config
-echo "fwapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "fwapi_client_url=$fwapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "napi_http_admin_user=admin" >>$tmp_config
-echo "napi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
 echo >>$tmp_config
 
-echo "workflow_admin_pw=$zone_admin_pw" >>$tmp_config
-echo "workflow_http_admin_user=admin" >>$tmp_config
-echo "workflow_http_admin_pw=$http_admin_pw" >>$tmp_config
-echo >>$tmp_config
-
-echo "sapi_http_admin_user=admin" >>$tmp_config
-echo "sapi_http_admin_pw=$http_admin_pw" >>$tmp_config
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 

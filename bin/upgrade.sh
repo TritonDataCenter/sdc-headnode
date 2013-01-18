@@ -601,19 +601,26 @@ function cleanup_config
 	cat <<-SED_DONE >/tmp/upg.$$
 	/^adminui_admin_ip=/d
 	/^adminui_external_ip=/d
+	/^adminui_admin_pw=/d
 	/^assets_admin_ip=/d
+	/^assets_admin_pw=/d
 	/^ca_admin_ip=/d
 	/^ca_client_url=/d
+	/^ca_admin_pw=/d
 	/^capi_/d
+	/^dnsapi_/d
 	/^dhcpd_admin_ip=/d
 	/^dhcp_next_server=/d
+	/^dhcpd_admin_pw=/d
 	/^mapi_/d
 	/^portal_/d
 	/^cloudapi_admin_ip=/d
 	/^cloudapi_external_ip=/d
 	/^cloudapi_external_url=/d
+	/^cloudapi_admin_pw=/d
 	/^rabbitmq_admin_ip=/d
 	/^rabbitmq=/d
+	/^rabbitmq_admin_pw=/d
 	/^riak_/d
 	/^billapi_/d
 	/^# This should not be changed/d
@@ -784,15 +791,9 @@ function cleanup_config
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
-	amon_admin_pw=$CONFIG_adminui_admin_pw
 
 	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
-	redis_admin_pw=$CONFIG_adminui_admin_pw
-
-	dnsapi_http_port=8000
-	dnsapi_http_user=admin
-	dnsapi_http_pass=$CONFIG_adminui_admin_pw
 
 	dsapi_url=https://datasets.joyent.com
 	dsapi_http_user=honeybadger
@@ -800,44 +801,26 @@ function cleanup_config
 
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
-	usageapi_admin_pw=$CONFIG_capi_root_pw
-	usageapi_http_admin_user=admin
-	usageapi_http_admin_pw=$CONFIG_adminui_admin_pw
+	usageapi_http_admin_user=$CONFIG_billapi_http_admin_user
+	usageapi_http_admin_pw=$CONFIG_billapi_http_admin_pw
 	usageapi_admin_ips=$usageapi_admin_ip
-
-	vmapi_http_admin_user=admin
-	vmapi_http_admin_pw=$CONFIG_adminui_admin_pw
-
-	dapi_http_admin_user=admin
-	dapi_http_admin_pw=$CONFIG_adminui_admin_pw
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
-	cnapi_http_admin_user=admin
-	cnapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	cnapi_client_url=http://${cnapi_admin_ip}:80
 
 	napi_root_pw=$CONFIG_adminui_root_pw
-	napi_http_admin_user=admin
-	napi_http_admin_pw=$CONFIG_adminui_admin_pw
 	napi_admin_ips=$napi_admin_ip
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
-	workflow_admin_pw=$CONFIG_adminui_admin_pw
-	workflow_http_admin_user=admin
-	workflow_http_admin_pw=$CONFIG_adminui_admin_pw
 
 	fwapi_root_pw=$CONFIG_adminui_root_pw
 	fwapi_admin_ips=$fwapi_admin_ip
-	fwapi_http_admin_user=admin
-	fwapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	fwapi_client_url=http://${fwapi_admin_ip}:80
 
-	sapi_http_admin_user=admin
-	sapi_http_admin_pw=$CONFIG_adminui_admin_pw
 	sapi_admin_ips=$sapi_admin_ip
 
 	show_setup_timers=true
@@ -1061,7 +1044,9 @@ umount_usbkey
 # Make sure there are no svcs in maintenance. This will break checking later
 # in the upgrade process. Also, we don't want multiple users on the HN in
 # the middle of an upgrade and we want to be sure the zpool is stable.
-maint_svcs=`svcs -x | nawk '/^svc:/ BEGIN {cnt=0} {cnt++} END {print cnt}'`
+maint_svcs=`svcs -x | nawk 'BEGIN {cnt=0} {
+   if (substr($0, 1, 4) == "svc:") cnt++
+   } END {print cnt}'`
 [ $maint_svcs -gt 0 ] && \
     fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
 
