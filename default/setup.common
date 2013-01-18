@@ -67,13 +67,12 @@ fi
 # Install pkgsrc packages for this zone.
 # Note: We need to force lower case because the pkgsrc packages get copied
 # through pcfs which destroys their case.
-pkgsrc_version=$(cat /opt/local/etc/pkgin/repositories.conf \
-    | cut -d '/' -f5 | tr [:lower:] [:upper:])
+pkgsrc_version=$(tail -1 /opt/local/etc/pkgin/repositories.conf \
+     | sed -e "s/^.*\/201/201/" | cut -d '/' -f1 | tr [:lower:] [:upper:])
 if [[ -z "$pkgsrc_version" ]]; then
     fatal "FATAL: unable to get pkgsrc version"
 fi
-pkgsrc_arch=$(cat /opt/local/etc/pkgin/repositories.conf | cut -d '/' -f6)
-if [[ "$pkgsrc_arch" == "x86_64" ]]; then
+if tail -1 /opt/local/etc/pkgin/repositories.conf | grep "/x86_64/" >/dev/null; then
     pkgsrc_version=${pkgsrc_version}_64
 fi
 
