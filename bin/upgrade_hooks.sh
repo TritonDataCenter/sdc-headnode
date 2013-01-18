@@ -115,7 +115,7 @@ create_extra_zones()
             # Capture the job info into the log
             local job=`nawk '/Job is/{print $NF}' /tmp/role.out.$$`
             [ -n "$job" ] && \
-                curl -i -s -u admin:${CONFIG_vmapi_http_admin_pw} \
+                curl -i -s \
                     http://${CONFIG_vmapi_admin_ips}/${job} | json 1>&4 2>&1
 
             rm -f /tmp/role.out.$$
@@ -393,19 +393,104 @@ cloudapi_tasks()
     # We're going to replace the config files, so halt the zone
     shutdown_zone $1
 
-    # The 6.5.x backup is compatible with the 7.0 cloudapi configuration.
-    /usbkey/zones/cloudapi/restore $1 ${SDC_UPGRADE_DIR}/bu.tmp 1>&4 2>&1
-    [ $? != 0 ] && saw_err "Error restoring cloudapi zone $1"
+    # Parts of the 6.5.x backup are compatible with the 7.0 cloudapi
+    # configuration, but not all, so restore what we can and convert the rest.
 
+    local bdir=${SDC_UPGRADE_DIR}/bu.tmp/cloudapi
+
+    # The plugin and ssl config is compatible
+    mkdir -p /zones/$1/root/opt/smartdc/cloudapi/plugins
+    if [[ -d "$bdir/plugins" ]]; then
+        for i in `ls $bdir/plugins`
+        do
+            if [ -d $bdir/plugins/$i ]; then
+                cp -pr $bdir/plugins/$i \
+                    /zones/$1/root/opt/smartdc/cloudapi/plugins
+            elif [ ! -f /zones/$1/root/opt/smartdc/cloudapi/plugins/$i ]; then
+                cp -p $bdir/plugins/$i \
+                    /zones/$1/root/opt/smartdc/cloudapi/plugins
+            fi
+        done
+    fi
+
+    if [[ -d "$bdir/ssl" ]]; then
+        mkdir -p $SSL_DIR
+        cp -p $bdir/ssl/* $SSL_DIR
+    fi
+
+    # The config file needs conversion
+    local ocfg=$bdir/config.json
     local cfgfile=/zones/$1/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
 
-    # setup cloudapi to start out read-only for now
-    nawk '{
-        if ($1 == "\"read_only\":")
-             printf("    \"read_only\": true,\n")
-        else
-            print $0
-    }' $cfgfile >$cfgfile.new
+    /usr/node/bin/node -e '
+        var fs = require("fs");
+        var path = require("path");
+        var oldPath = process.argv[1];
+        var cfgPath = process.argv[2];
+
+        var old = JSON.parse(fs.readFileSync(oldPath));
+        var cfg = JSON.parse(fs.readFileSync(cfgPath));
+    
+        cfg.read_only = true;
+        cfg.datacenters = old.datacenters;
+        cfg.userThrottles = old.userThrottles;
+    
+        // Get old plugins.
+        var oldExtraPlugins = [];
+        var oldCapiLimits = null;
+        var oldMachineEmail = null;
+
+        if (old.preProvisionHook instanceof Array) {
+            old.preProvisionHook.forEach(function (oldPlugin) {
+                if (oldPlugin.plugin === "./plugins/capi_limits") {
+                    oldCapiLimits = oldPlugin;
+                } else {
+                    oldExtraPlugins.push(oldPlugin);
+                }
+            });
+        } else {
+            oldCapiLimits = old.preProvisionHook;
+        }
+
+        if (old.postProvisionHook instanceof Array) {
+            old.postProvisionHook.forEach(function (oldPlugin) {
+                if (oldPlugin.plugin === "./plugins/machine_email") {
+                    oldMachineEmail = oldPlugin;
+                } else {
+                    oldExtraPlugins.push(oldPlugin);
+                }
+            });
+        } else {
+            oldMachineEmail = old.postProvisionHook;
+        }
+
+        // update existing plugins
+        cfg.plugins.forEach(function (p) {
+            if (p.name === "capi_limits") {
+                if (oldCapiLimits != null) {
+                    p.enabled = oldCapiLimits.enabled;
+                    p.config = oldCapiLimits.config;
+                }
+            } else if (p.name === "machine_email") {
+                if (oldMachineEmail != null) {
+                    p.enabled = oldMachineEmail.enabled;
+                    p.config.from = oldMachineEmail.config.from;
+                    p.config.subject = oldMachineEmail.config.subject;
+                    p.config.body = oldMachineEmail.config.body;
+                }
+            }
+        });
+    
+        // add extra plugins
+        oldExtraPlugins.forEach(function (p) {
+            p.name = path.basename(p.plugin);
+            delete p.plugin;
+            cfg.plugins.push(p);
+        });
+    
+        console.log(JSON.stringify(cfg, null, 2));
+    ' $ocfg $cfgfile >$cfgfile.new
+
     cp $cfgfile $cfgfile.bak
     cp $cfgfile.new $cfgfile
     rm -f $cfgfile.new
