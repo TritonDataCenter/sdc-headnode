@@ -12,11 +12,11 @@ This is the main repo for building USB headnode images for SmartDataCenter.
 
 There are four main build outputs from this repo:
 
-- `./bin/build-image <tar|usb|coal>`: wrapper around other tools 
+- `./bin/build-image <tar|usb|coal>`: wrapper around other tools
 - `./bin/build-tar-image`: outputs a tarball boot-<branch/buildstamp>.tgz
-- `./bin/build-usb-image boot-*.tgz`: outputs a usb tarball 
+- `./bin/build-usb-image boot-*.tgz`: outputs a usb tarball
   usb-<branch/buildstamp>-4gb.tgz
-- `./bin/build-upgrade-image boot-*.tgz`: outputs an upgrade tarball 
+- `./bin/build-upgrade-image boot-*.tgz`: outputs an upgrade tarball
   upgrade-<branch/buildstamp>.tgz
 - `./bin/build-coal-image usb-*.tgz`: outputs a coal tarball
   coal-<branch/buildstamp>.tgz
@@ -54,7 +54,7 @@ Mac setup:
         cd node
         ./configure --prefix=$HOME/opt/node-0.4.11 && make && make install
         export PATH=$HOME/opt/node-0.4.11:$PATH  # <--- put this in ~/.bashrc
-    
+
         # npm install
         curl http://npmjs.org/install.sh | sh
 
@@ -122,8 +122,8 @@ most interesting/helpful ones are:
           "coal-memsize": 3400
         }
 
-# Re-building a single zone
 
+# Re-building a single zone
 
 1.  Build the filesystem tarball for the zone:
 
@@ -149,3 +149,29 @@ Warning: In general this requires your changes to be locally commited
 (tho not pushed). HEAD-465 added support for uncommited changes for
 MAPI_DIR, but not for the others.
 
+
+# Testing upgrade
+
+1. Download 6.5.5: <https://stuff.joyent.us/releases/6.5.5/>
+   You want the coal-*.tgz package if it wasn't obvious.
+
+2. Open that in VMWare. Let is setup. Create a VMWare snapshot of that
+   to fallback to.
+
+3. Make an upgrade package.  Get the latest usb-headnode ("master"
+   branch). Then run `make boot upgrade` to build an upgrade-*.tgz.
+
+4. Get that to your coal:   scp upgrade-*.tgz coal:/var/tmp
+
+5. Upgrade:
+
+        ssh coal
+        /usbkey/scripts/perform-upgrade.sh /var/tmp/upgrade-*.tgz
+
+6. Watch progress in (a) the console and (b) files in /var/upgrade_*
+   (This is a directory with all the logs and dump files. The dir name
+   changes depending on the upgrade phase.)
+
+If you are working on the upgrade process, the main relevant files on
+bin/upgrade.sh, bin/upgrade_hooks.sh, bin/\* (a number of othre files)
+in usb-headnode.git.
