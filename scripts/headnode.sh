@@ -136,6 +136,7 @@ function mark_as_setup
         | tee ${SETUP_FILE}.new
     mv ${SETUP_FILE}.new $SETUP_FILE
     chmod 400 $SETUP_FILE
+    sysinfo -u
 }
 
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
