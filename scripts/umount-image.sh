@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2010-2013 Joyent Inc., All rights reserved.
 #
 
 function fatal
@@ -15,8 +15,9 @@ usb="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:
 usbcopy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 image_subdir="/os/${current_image}/platform/i86pc/amd64"
 image="${usb}${image_subdir}/boot_archive"
+writable_usr=0
 
-if ! mount | grep ^"${mnt} " > /dev/null ; then 
+if ! mount | grep ^"${mnt} " > /dev/null ; then
 	fatal "cannot find image mounted at $mnt"
 fi
 
@@ -24,8 +25,22 @@ file=$(mount | grep ^"${mnt} " | nawk '{ print $3 }')
 
 echo -n "Unmounting $mnt ... "
 
+if mount | grep ^/image/usr | grep /var/tmp/usr.lgz > /dev/null; then
+    writable_usr=1
+fi
+
 if ! umount $mnt/usr ; then
 	fatal "could not unmount $mnt/usr"
+fi
+
+if [[ ${writable_usr} == 1 ]]; then
+	lofiadm -C /var/tmp/usr.lgz || fatal "could not recompress /usr"
+	rm -f $mnt/usr.lgz || fatal "could not remove old ${mnt}/usr.lgz"
+	sync
+	cp /var/tmp/usr.lgz $mnt/usr.lgz || fatal "could not copy usr.lgz to $mnt"
+	rm -f /var/tmp/usr.lgz \
+	    || echo "Warning: could not remove /var/tmp/usr.lgz" >&2
+	sync
 fi
 
 if ! umount $mnt ; then
