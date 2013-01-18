@@ -739,9 +739,6 @@ function cleanup_config
 	keyapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
-	sdcsso_admin_ip="$ip_addr"
-
-	allocate_ip_addr
 	usageapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -787,7 +784,6 @@ function cleanup_config
 	keyapi_admin_ips=$keyapi_admin_ip
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
-	sdcsso_admin_ips=$sdcsso_admin_ip
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw

@@ -1166,9 +1166,6 @@ next_addr=$(expr $next_addr + 1)
 adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
-sdcsso_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-
-next_addr=$(expr $next_addr + 1)
 usageapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
 
 next_addr=$(expr $next_addr + 1)
@@ -1264,7 +1261,6 @@ echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
-echo "sdcsso_admin_ips=$sdcsso_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
 echo "# datacenter_name should be unique among your cloud," >>$tmp_config
