@@ -80,6 +80,24 @@ else
     exit 2
 fi
 
+add_bits_creds()
+{
+    bits_url=$1
+
+    if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
+        echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
+        if [[ ! -f "${HOME}/.sdcbuild.json" ]]; then
+            echo "error: '~/.sdcbuild.json' does not exist" >&2
+            exit 1
+        fi
+        username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+        password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+        bits_url=$(echo ${bits_url} | sed -e "s/\/\//\/\/${username}:${password}@/g")
+    fi
+
+    echo ${bits_url}
+}
+
 get_bits_url()
 {
     if [[ -n ${bits_url} ]]; then
@@ -103,16 +121,7 @@ get_bits_url()
         bits_url=${spec_bits_url}
     fi
 
-    if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
-        echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
-        if [[ ! -f "${HOME}/.sdcbuild.json" ]]; then
-            echo "error: '~/.sdcbuild.json' does not exist" >&2
-            exit 1
-        fi
-        username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
-        password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
-        bits_url=$(echo ${bits_url} | sed -e "s/\/\//\/\/${username}:${password}@/g")
-    fi
+    bits_url=$(add_bits_creds ${bits_url})
 
     echo ${bits_url}
 }
@@ -191,7 +200,7 @@ elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
     MD5_SUM=$(get_md5 "${filename}" "${FILENAME}")
     echo "Latest ${filename} is ${URL}..."
 elif [[ "${filename:0:4}" == "http" ]]; then
-    URL=${filename}
+    URL=$(add_bits_creds ${filename})
     echo "Using URL ${URL}..."
     FILENAME=$(basename ${URL})
 elif [[ ! -f ${filename} ]]; then
@@ -465,6 +474,10 @@ next_addr=\$(expr \$next_addr + 1)
 riak_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 next_addr=\$(expr \$next_addr + 1)
 rabbitmq_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
+next_addr=\$(expr \$next_addr + 1)
+dhcp_next_server="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
+next_addr=\$(expr \$next_addr + 5)
+dhcp_range_start="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 dhcp_range_end="\$max_host"
 
 ip_netmask_to_network "\$external_provisionable_start" "\$external_netmask"
@@ -518,10 +531,10 @@ compute_node_default_gateway=\${admin_ip}
 dns_resolvers=\${dns_resolver1},\${dns_resolver2}
 dns_domain=\${dns_domain}
 
-dhcp_range_start=\${admin_provisionable_start}
+dhcp_range_start=\${dhcp_range_start}
 dhcp_range_end=\${dhcp_range_end}
 dhcp_lease_time=86400
-dhcp_next_server=\${dhcpd_admin_ip}
+dhcp_next_server=\${dhcp_next_server}
 
 initial_script=scripts/headnode.sh
 
