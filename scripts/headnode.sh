@@ -334,9 +334,15 @@ if [[ ! -d /opt/smartdc/bin ]]; then
         ln -s ${file} /opt/smartdc/bin/${tool}
     done
 
+    # Setup 'sdc-imgadm' and 'joyent-imgadm' tools.
     mkdir -p /opt/smartdc/imgapi-cli
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
     ln -s /opt/smartdc/imgapi-cli/bin/sdc-imgadm /opt/smartdc/bin/sdc-imgadm
+    cat > /opt/smartdc/bin/joyent-imgadm << JOYENT_IMGADM_EOF
+#!/usr/bin/bash
+/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/joyent-imgadm "$@"
+JOYENT_IMGADM_EOF
+    chmod 755 /opt/smartdc/bin/joyent-imgadm
 fi
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
