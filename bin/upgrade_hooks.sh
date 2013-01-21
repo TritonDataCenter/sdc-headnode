@@ -414,8 +414,8 @@ cloudapi_tasks()
     fi
 
     if [[ -d "$bdir/ssl" ]]; then
-        mkdir -p $SSL_DIR
-        cp -p $bdir/ssl/* $SSL_DIR
+        mkdir -p /zones/$1/root/opt/smartdc/cloudapi/ssl
+        cp -p $bdir/ssl/* /zones/$1/root/opt/smartdc/cloudapi/ssl
     fi
 
     # The config file needs conversion
