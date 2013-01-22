@@ -156,7 +156,7 @@ function fake_zoneinit
     cat > ${zoneroot}/root/zoneinit <<EOF
 #!/usr/bin/bash
 
-export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
 set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
@@ -340,7 +340,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     ln -s /opt/smartdc/imgapi-cli/bin/sdc-imgadm /opt/smartdc/bin/sdc-imgadm
     cat > /opt/smartdc/bin/joyent-imgadm << JOYENT_IMGADM_EOF
 #!/usr/bin/bash
-/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/joyent-imgadm "$@"
+/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/joyent-imgadm "\$@"
 JOYENT_IMGADM_EOF
     chmod 755 /opt/smartdc/bin/joyent-imgadm
 fi
