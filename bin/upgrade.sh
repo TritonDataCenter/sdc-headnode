@@ -1308,5 +1308,5 @@ trap EXIT
 echo "Rebooting to finish the upgrade"
 echo "    Upgrade progress will be visible on the console or by watching"
 echo "    the file /tmp/upgrade_progress after the system reboots."
-reboot
+(sleep 1 && reboot)&
 exit 0

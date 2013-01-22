@@ -34,6 +34,47 @@ declare -A DS_MANIFEST=()
 declare -A DS_FILE=()
 DS_CNT=0
 
+
+
+#---- setup state support
+# "/var/lib/setup.json" support is duplicated in headnode.sh and
+# upgrade_hooks.sh. These must be kept in sync.
+# TODO: share these somewhere
+
+SETUP_FILE=/var/lib/setup.json
+
+function update_setup_state
+{
+    STATE=$1
+
+    chmod 600 $SETUP_FILE
+    cat "$SETUP_FILE" | json -e \
+        "this.current_state = '$STATE';
+         this.last_updated = new Date().toISOString();
+         this.seen_states.push('$STATE');" \
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
+}
+
+function mark_as_setup
+{
+    chmod 600 $SETUP_FILE
+    # Update the setup state file with the new value
+    cat "$SETUP_FILE" | json -e "this.complete = true;
+         this.current_state = 'setup_complete';
+         this.seen_states.push('setup_complete');
+         this.last_updated = new Date().toISOString();" \
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
+    sysinfo -u
+}
+
+
+
+#---- support functions
+
 function fatal
 {
     printf_log "%-80s\r" " "
@@ -107,36 +148,6 @@ function printf_log
     else
         printf "$@" >&${CONSOLE_FD}
     fi
-}
-
-SETUP_FILE=/var/lib/setup.json
-
-function update_setup_state
-{
-    STATE=$1
-
-    chmod 600 $SETUP_FILE
-    cat "$SETUP_FILE" | json -e \
-        "this.current_state = '$STATE';
-         this.last_updated = new Date().toISOString();
-         this.seen_states.push('$STATE');" \
-        | tee ${SETUP_FILE}.new
-    mv ${SETUP_FILE}.new $SETUP_FILE
-    chmod 400 $SETUP_FILE
-}
-
-function mark_as_setup
-{
-    chmod 600 $SETUP_FILE
-    # Update the setup state file with the new value
-    cat "$SETUP_FILE" | json -e "this.complete = true;
-         this.current_state = 'setup_complete';
-         this.seen_states.push('setup_complete');
-         this.last_updated = new Date().toISOString();" \
-        | tee ${SETUP_FILE}.new
-    mv ${SETUP_FILE}.new $SETUP_FILE
-    chmod 400 $SETUP_FILE
-    sysinfo -u
 }
 
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
@@ -843,9 +854,13 @@ if [[ $upgrading == 1 ]]; then
         4>/var/upgrade_headnode/finish_post.log
     printf_log "%-58s" "completed post-setup upgrade tasks... "
     printf_timer "%4s (%ss)\n" "done"
+
+    # Note: It is 'upgrade_hooks.sh's responsibility to do
+    # the equivalent of 'mark_as_setup' when it is done.
+else
+    mark_as_setup
 fi
 
-mark_as_setup
 
 #
 # XXX this was commented out for HEAD-1048 as it depends on MAPI.  See HEAD-1051

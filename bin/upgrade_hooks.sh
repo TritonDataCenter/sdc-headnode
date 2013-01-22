@@ -5,6 +5,9 @@
 # These upgrade hooks are called from headnode.sh during the first boot
 # after we initiated the upgrade in order to complete the upgrade steps.
 #
+# Usage:
+#       ${SDC_UPGRADE_DIR}/upgrade_hooks.sh HOOK [ZONENAME]
+#
 # The "pre" and "post" hooks are called before headnode does any setup
 # and after the setup is complete.
 #
@@ -21,6 +24,10 @@ set -o xtrace
 
 . /lib/sdc/config.sh
 
+
+
+#---- globals
+
 # time to wait for each zone to setup (in seconds)
 ZONE_SETUP_TIMEOUT=180
 
@@ -28,6 +35,46 @@ SDC_UPGRADE_DIR=/var/upgrade_headnode
 
 # We have to install the extra zones in dependency order
 EXTRA_ZONES="sdcsso cloudapi"
+
+
+
+#---- setup state support
+# "/var/lib/setup.json" support is duplicated in headnode.sh and
+# upgrade_hooks.sh. These must be kept in sync.
+# TODO: share these somewhere
+
+SETUP_FILE=/var/lib/setup.json
+
+function update_setup_state
+{
+    STATE=$1
+
+    chmod 600 $SETUP_FILE
+    cat "$SETUP_FILE" | json -e \
+        "this.current_state = '$STATE';
+         this.last_updated = new Date().toISOString();
+         this.seen_states.push('$STATE');" \
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
+}
+
+function mark_as_setup
+{
+    chmod 600 $SETUP_FILE
+    # Update the setup state file with the new value
+    cat "$SETUP_FILE" | json -e "this.complete = true;
+         this.current_state = 'setup_complete';
+         this.seen_states.push('setup_complete');
+         this.last_updated = new Date().toISOString();" \
+        | tee ${SETUP_FILE}.new
+    mv ${SETUP_FILE}.new $SETUP_FILE
+    chmod 400 $SETUP_FILE
+    sysinfo -u
+}
+
+
+#---- support functions
 
 saw_err()
 {
@@ -278,6 +325,7 @@ post_tasks()
     print_log "CloudAPI is currently in read-only mode"
     print_log "When ready, enable read-write using sdc-post-upgrade -w"
     print_log "The upgrade logs are in $dname"
+    update_setup_state "upgrade_complete"
 
     if [ -f $dname/error_finalize.txt ]; then
         print_log "ERRORS during upgrade:"
@@ -285,8 +333,11 @@ post_tasks()
             >/dev/console
         print_log "You must resolve these errors before the headnode is usable"
         exit 1
+    else
+        mark_as_setup
     fi
 }
+
 
 # arg1 is zonename
 ufds_tasks()
@@ -498,6 +549,10 @@ cloudapi_tasks()
     # Boot the zone with the new config data
     zoneadm -z $1 boot
 }
+
+
+
+#---- mainline
 
 case "$1" in
 "pre") pre_tasks;;
