@@ -80,9 +80,9 @@ BACKUP_URL=http://$ZONE_IP:$BACKUP_SERVER_PORT
 SNAPSHOT_INTERVAL=3600000
 SNAPSHOT_NUMBER=5
 
-ZFS_RECV_PATH=/opt/smartdc/manatee/bin/zfs_recv
+ZFS_RECV_PATH=/usr/vm/sbin/zfs_recv
 ZFS_RECV_PORT=1234
-ZFS_SEND_PATH=/opt/smartdc/manatee/bin/zfs_send
+ZFS_SEND_PATH=/usr/vm/sbin/zfs_send
 PG_URL=tcp://postgres@$ZONE_IP:5432/postgres
 SNAPSHOT_DIR=$DATASET_MOUNT_DIR/.zfs/snapshot/
 
