@@ -322,8 +322,16 @@ post_tasks()
 
     mv ${SDC_UPGRADE_DIR} $dname
     print_log "The upgrade is finished"
-    print_log "CloudAPI is currently in read-only mode"
-    print_log "When ready, enable read-write using sdc-post-upgrade -w"
+    # If no error setting up cloudapi, print read-only msg
+    local cloudapi_failed=0
+    if [ -f $dname/error_finalize.txt ]; then
+        egrep -s cloudapi $dname/error_finalize.txt
+        [ $? == 0 ] && cloudapi_failed=1
+    fi
+    if [ $cloudapi_failed == 0 ]; then
+        print_log "CloudAPI is currently in read-only mode"
+        print_log "When ready, enable read-write using sdc-post-upgrade -w"
+    fi
     print_log "The upgrade logs are in $dname"
     update_setup_state "upgrade_complete"
 
