@@ -272,6 +272,21 @@ function create_output
         echo "done."
     fi
 
+    coal_enable_serial=$(build_spec coal-enable-serial)
+    sed -i "" -e "/^serial[0-1]\./d" \
+        ${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx
+    if [[ "${coal_enable_serial}" == "true" ]]; then
+        echo -n "==> Adding serial ports to VMware configuration..."
+        for i in 0 1; do
+            echo "serial${i}.present = \"TRUE\""
+            echo "serial${i}.fileType = \"pipe\""
+            echo "serial${i}.yieldOnMsrRead = \"TRUE\""
+            echo "serial${i}.startConnected = \"TRUE\""
+            echo "serial${i}.fileName = \"/tmp/.coal.com$(( i + 1 ))\""
+            echo
+        done >> ${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx
+    fi
+
     echo -n "==> Copying in ${OUTPUT_IMG}... "
     mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
         $STAGE/USB-headnode.vmwarevm/${OUTPUT_IMG}

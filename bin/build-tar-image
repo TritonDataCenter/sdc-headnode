@@ -288,16 +288,65 @@ function create_directories
     mkdir -p ${STAGE}/extra/amon-agent
 }
 
+function generate_grub_menu
+{
+    local unit=
+    local speed=$(build_spec serial-speed)
+    local console=$(build_spec console)
+    local console_desc=
+    local console_opts=
+    local terminal_order=
+    local serial_string=
+
+    echo "==> Generating grub menu"
+
+    [[ -z "${speed}" ]] && speed=115200
+    [[ -z "${console}" ]] && console=text
+
+    case "${console}" in
+    ttya)
+        console_desc="Serial (ttya)"
+        console_opts="console=ttya,ttya-mode=\"${speed},8,n,1,-\""
+        terminal_order="serial console"
+        unit=0
+        ;;
+    ttyb)
+        console_desc="Serial (ttyb)"
+        console_opts="console=ttyb,ttyb-mode=\"${speed},8,n,1,-\""
+        terminal_order="serial console"
+        unit=1
+        ;;
+    text)
+        console_desc="VGA (text)"
+        console_opts="console=text"
+        terminal_order="console serial"
+        unit=1 # default to ttyb with VGA primary
+        ;;
+    *)
+        fatal "Unknown console type: ${console}"
+        ;;
+    esac
+
+    serial_string="--speed=${speed} --unit=${unit} --word=8 --parity=no"
+    serial_string="${serial_string} --stop=1"
+
+    sed \
+        -e "s/^#SERIAL/serial ${serial_string}/" \
+        -e "s/^#TERMINAL/terminal --timeout=8 ${terminal_order}/" \
+        -e "s/DEFAULT_CONSOLE_DESC/${console_desc}/g" \
+        -e "s/DEFAULT_CONSOLE/${console_opts}/g" \
+        boot/grub/menu.lst.tmpl \
+        > ${STAGE}/boot/grub/menu.lst.tmpl
+}
+
 function copy_base
 {
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
 
-    echo "==> Copying in grub menu"
+    echo "==> Copying in grub"
     mkdir -p ${STAGE}/boot/grub
-    cp boot/grub/menu.lst.tmpl ${STAGE}/boot/grub/menu.lst.tmpl
     cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
-    cp boot/splash.xpm.gz ${STAGE}/boot/splash.xpm.gz
 
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
@@ -1052,6 +1101,7 @@ test_rootperms
 create_directories
 load_buildspec
 copy_base
+generate_grub_menu
 copy_pkgsrc
 copy_amon_agent
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"

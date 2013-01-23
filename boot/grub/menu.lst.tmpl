@@ -1,18 +1,23 @@
 default=0
 timeout=5
 min_mem64 1024
-splashimage=/boot/splash.xpm.gz
-color light-gray/black black/light-gray
+#SERIAL
+#TERMINAL
 
-title Live 64-bit
-   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true
+title Live 64-bit DEFAULT_CONSOLE_DESC
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B DEFAULT_CONSOLE,headnode=true
    module /PLATFORM/i86pc/amd64/boot_archive
    module /PLATFORM/i86pc/amd64/boot_archive.hash
 
-#PREV title Live 64-bit (rollback to PREV_PLATFORM_VERSION)
-#PREV    kernel /PREV_PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true
+#PREV title Live 64-bit DEFAULT_CONSOLE_DESC (rollback to PREV_PLATFORM_VERSION)
+#PREV    kernel /PREV_PLATFORM/i86pc/kernel/amd64/unix -B DEFAULT_CONSOLE,headnode=true
 #PREV    module /PREV_PLATFORM/i86pc/amd64/boot_archive
 #PREV    module /PREV_PLATFORM/i86pc/amd64/boot_archive.hash
+
+title Live 64-bit VGA (text)
+   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true
+   module /PLATFORM/i86pc/amd64/boot_archive
+   module /PLATFORM/i86pc/amd64/boot_archive.hash
 
 title Live 64-bit Serial (ttyb)
    kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true
