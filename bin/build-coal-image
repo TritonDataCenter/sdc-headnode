@@ -255,6 +255,8 @@ function cleanup
 
 function create_output
 {
+    local vmxfile="${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx"
+
     echo "==> Unpacking VMWare image... "
     rm -rf $STAGE/USB-headnode.vmwarevm || true
     (cd $STAGE && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
@@ -267,14 +269,15 @@ function create_output
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
         echo -n "==> Setting COAL HN memory to: ${coal_memsize} MiB... "
-        sed -i "" -e "s/^memsize.*$/memsize = \"${coal_memsize}\"/" \
-            ${STAGE}/USB-headnode.vmwarevm/*.vmx
+        sed -e "s/^memsize.*$/memsize = \"${coal_memsize}\"/" \
+            "${vmxfile}" > "${vmxfile}.new"
+        mv "${vmxfile}.new" "${vmxfile}"
         echo "done."
     fi
 
     coal_enable_serial=$(build_spec coal-enable-serial)
-    sed -i "" -e "/^serial[0-1]\./d" \
-        ${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx
+    sed -e "/^serial[0-1]\./d" "${vmxfile}" > "${vmxfile}.new"
+    mv "${vmxfile}.new" "${vmxfile}"
     if [[ "${coal_enable_serial}" == "true" ]]; then
         echo -n "==> Adding serial ports to VMware configuration..."
         for i in 0 1; do
@@ -284,7 +287,7 @@ function create_output
             echo "serial${i}.startConnected = \"TRUE\""
             echo "serial${i}.fileName = \"/tmp/.coal.com$(( i + 1 ))\""
             echo
-        done >> ${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx
+        done >> "${vmxfile}"
     fi
 
     echo -n "==> Copying in ${OUTPUT_IMG}... "
