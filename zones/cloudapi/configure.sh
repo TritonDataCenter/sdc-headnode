@@ -40,6 +40,9 @@ cat > /opt/smartdc/cloudapi/cfg/config.json <<HERE
     "password": "guest",
     "vhost": "/"
   },
+  "portal": {
+    "host": "${PORTAL_IP}"
+  },
   "datacenters": {
     "${DATACENTER_NAME}": "${CLOUDAPI_EXTERNAL_URL}"
   },
