@@ -433,6 +433,7 @@ function copy_pkgsrc
     for pkgsrc in ${PKGSRC_LIST[@]} ; do
         local name=${pkgsrc%%|*}
         local url=${pkgsrc##*|}
+        local do_download=0
 
         local pkglist=$(find ${ROOT}/cache -type f -iname ${name}.lst)
         [[ -z ${pkglist} ]] && continue
@@ -440,14 +441,29 @@ function copy_pkgsrc
         local cache_dir=${ROOT}/cache/${name}
         mkdir -p ${cache_dir}
 
+        # XXX:
+        #
+        # We used to always have md5sums.txt in pkgsrc, since DATASET-27. For
+        # the new "multiarch" pkgsrc we no longer have these.  Instead per
+        # DATASET-647 we're supposed to use a new SHA512.bz2 file.  For now
+        # we need to support both with a preference for SHA512.bz2 when it
+        # exists.  When we no longer support old pkgsrc repos with md5sum.txt
+        # we can remove the MD5 checks below.
+        #
+
         if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
             (cd ${cache_dir} \
-                && rm -f md5sums.txt \
-                && pkgin_get ${url} md5sums.txt ./ ) \
-                || fatal "Failed to download md5sums.txt"
-        elif [[ ! -f ${cache_dir}/md5sums.txt ]]; then
-            fatal "Don't have cached ${cache_dir}/md5sums.txt file, " \
-                "can't build. You need to find some Internet."
+                && rm -f md5sums.txt SHA512.bz2;
+                if ! pkgin_get ${url}/../ SHA512.bz2 ./; then
+                    if ! pkgin_get ${url} md5sums.txt ./; then
+                        fatal "Failed to download either SHA512.bz2 or md5sums.txt"
+                    fi
+                fi
+            )
+        elif [[ ! -f ${cache_dir}/md5sums.txt && ! -f ${cache_dir}/SHA512.bz2 ]]; then
+            fatal "Don't have cached ${cache_dir}/md5sums.txt or" \
+                "${cache_dir}/SHA512.bz2 files, can't build." \
+                "You need to find some Internet."
         fi
 
         pkgs=$(cat ${pkglist} \
@@ -456,19 +472,42 @@ function copy_pkgsrc
             | uniq \
             | sed -e "s/$/.tgz/")
         for pkgfile in $pkgs; do
-            MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
-            if [[ -z ${MD5} ]]; then
-                fatal "Unable to find md5sum for ${pkgfile}, " \
+            if [[ -f ${cache_dir}/md5sums.txt ]]; then
+                MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
+            else
+                MD5=
+            fi
+            if [[ -f ${cache_dir}/SHA512.bz2 ]]; then
+                SHA512=$(bzcat ${cache_dir}/SHA512.bz2 | ${GREP} "/${pkgfile})" | cut -d' ' -f4 || true)
+            else
+                SHA512=
+            fi
+            if [[ -z ${SHA512} && -z ${MD5} ]]; then
+                fatal "Unable to find md5sum or SHA512 for ${pkgfile}, " \
                     "must be fixed before we can continue."
             fi
 
-            [[ -f ${cache_dir}/${pkgfile} ]] \
-                && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
+            if [[ -f ${cache_dir}/${pkgfile} ]]; then
+                [[ -n ${MD5} ]] && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
+                [[ -n ${SHA512} ]] && ACTUAL_SHA512=$(openssl dgst -sha512 ${cache_dir}/${pkgfile} | awk '{print $NF}')
+            fi
 
-            if [[ ! -f ${cache_dir}/${pkgfile} ]] \
-                || [[ -z ${ACTUAL_MD5} ]] \
-                || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
+            if [[ ! -f ${cache_dir}/${pkgfile} ]]; then
+                # don't have it at all, download
+                do_download=1
+            elif [[ -n ${SHA512} ]]; then
+                if [[ -z ${ACTUAL_SHA512} || ${SHA512} != ${ACTUAL_SHA512} ]]; then
+                    # don't have a good file, download now
+                    do_download=1
+                fi
+            elif [[ -n ${MD5} ]]; then
+                if [[ -z ${ACTUAL_MD5} || ${MD5} != ${ACTUAL_MD5} ]]; then
+                    # don't have a good file, download now
+                    do_download=1
+                fi
+            fi
 
+            if [[ ${do_download} == 1 ]]; then
                 echo "==> Downloading ${pkgfile}"
                 # if this exists, it's corrupt
                 rm -f ${cache_dir}/${pkgfile}
@@ -476,6 +515,10 @@ function copy_pkgsrc
                     (cd ${cache_dir} \
                         && pkgin_get ${url} ${pkgfile} ./) \
                         || fatal "could not download ${url}/${pkgfile}"
+                    [[ -n ${MD5} ]] && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
+                    [[ -n ${SHA512} ]] && ACTUAL_SHA512=$(openssl dgst -sha512 ${cache_dir}/${pkgfile} | awk '{print $NF}')
+                    [[ -n ${SHA512} && ${SHA512} != ${ACTUAL_SHA512} ]] && fatal "corrupt download of ${pkgfile}"
+                    [[ -n ${MD5} && ${MD5} != ${ACTUAL_MD5} ]] && fatal "corrupt download of ${pkgfile}"
                 else
                     fatal "Need Internet to download ${pkgfile}"
                 fi
