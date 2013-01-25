@@ -13,11 +13,14 @@ case "$PLATFORM" in
     SUCMD=''
     TAR=gnutar
     TAR_ROOT=""
+    PING="/sbin/ping -c 1"
     ;;
   SunOS)
     SUCMD='pfexec'
     TAR=gtar
     TAR_ROOT="--owner=root --group=root"
+    unset MACHINE_THAT_GOES_PING
+    PING="/usr/sbin/ping"
     ;;
   *)
     echo "Platform $PLATFORM not supported."
@@ -27,9 +30,10 @@ USER=$(whoami)
 
 function can_has_internets
 {
-    if ping -c 1 8.8.8.8 >/dev/null 2>&1 || ping -c 1 4.2.2.1 >/dev/null 2>&1; then
-        return 0
-    fi
+    IP_LIST="8.8.8.8 4.2.2.1"
+    for ip in $IP_LIST; do
+        $PING $ip >/dev/null 2>&1 && return 0
+    done
     return 1
 }
 
