@@ -385,7 +385,12 @@ function pkgin_get
     local ver=$(echo ${url} | cut -d '/' -f5-7)
 
     if [[ -n $PKGSRC_DIR ]]; then
-        cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
+        if [[ ${file} == "SHA512.bz2" ]]; then
+            # special case, since this file is in a weird spot
+            cp ${PKGSRC_DIR}/${ver}/../${file} ${dest}
+        else
+            cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
+        fi
     else
         (cd ${dest} && curl -k -f0 ${CURL_OPTS} -O ${url}/${file})
     fi
