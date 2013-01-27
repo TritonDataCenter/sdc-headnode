@@ -27,24 +27,17 @@ for R in $RESOLVERS; do
     RESOLVER_LIST="${RESOLVER_LIST}${c} \"$R\""
 done
 
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+# XXX for now use the first MORAY, soon we'll be switching to DNS
+MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 
 cat > ${CONF} <<ADMIN_CONFIG
 {
   "port": 80,
   "datacenter": "${DATACENTER_NAME}",
   "macOUI": "${MAC_OUI}",
-  "user": "${ADMIN_USER}",
-  "password": "${ADMIN_PW}",
-  "ufds": {
-    "url": "ldaps://${UFDS_HOST}",
-    "bindDN": "${UFDS_LDAP_ROOT_DN}",
-    "bindPassword": "$UFDS_LDAP_ROOT_PW",
-    "cache": {
-      "size": 1000,
-      "expiry": 300
-    }
+  "moray": {
+    "host": "$MORAY_HOST",
+    "port": 2020
   },
   "initialNetworks": {
     "admin": {

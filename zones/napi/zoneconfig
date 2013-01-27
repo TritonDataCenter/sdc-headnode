@@ -1,5 +1,3 @@
-ADMIN_USER=${napi_http_admin_user}
-ADMIN_PW=${napi_http_admin_pw}
 RESOLVERS=${dns_resolvers/,/ }
 MAC_OUI="${napi_mac_prefix}"
 
@@ -19,7 +17,5 @@ EXTERNAL_START_IP=${external_provisionable_start}
 EXTERNAL_END_IP=${external_provisionable_end}
 EXTERNAL_VLAN_ID=${external_vlan_id}
 
-UFDS_ADMIN_IPS=${ufds_admin_ips}
-UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
-UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+MORAY_ADMIN_IPS=${moray_admin_ips}
 DATACENTER_NAME=${datacenter_name}
