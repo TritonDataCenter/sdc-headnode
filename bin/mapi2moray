@@ -2,7 +2,7 @@
 // -*- mode: js -*-
 
 // Copyright (c) 2012, Joyent, Inc., All rights reserved.
-// Export data from MAPI PostgreSQL dump to be imported by UFDS into LDAP.
+// Export data from MAPI PostgreSQL dump to be imported by moray
 
 var fs = require('fs');
 var path = require('path');
@@ -12,20 +12,34 @@ var util = require('util');
 
 ///--- Globals
 
+var ADMIN_UUID = '00000000-0000-0000-0000-000000000000';
+
 var Types = ['vms', 'zones', 'servers'];
 
-// position of the uuid - number of columns
+var NULL = '\\N';
+
+// position of the uuid - number of columns - position of owner_uuid (if
+// applicable)
 var UUID_POSITIONS = {
     'servers': [16, 29],
+    'zones': [1, 45, 35],
+    'vms': [1, 30, 3],
     'datasets': [4, 28],
     'zfs_storage_pools': [1, 11]
 };
 
-var SERVERS, IMAGES, ZPOOLS;
+var IMAGES, NETWORKS, NETWORK_POOL_NETWORKS, NICS, NIC_NIC_TAGS, NIC_TAGS,
+    SERVERS, SUBNETS, VMS, ZONES, ZPOOLS;
+
+var IPS_NEEDED = {};
+
+// Write streams for files that are too big to write all at once
+var IP_FILES = {};
+var NIC_FILE;
 
 
 ///--- Helpers
-// NOTE: Seamlessly copying from capi2lidf.sh, maybe should consider sharing?.
+// NOTE: Shamelessly copying from capi2lidf.sh, maybe should consider sharing?.
 
 function err_and_exit() {
     console.error.apply(arguments);
@@ -67,6 +81,20 @@ function process_argv() {
 
 
 
+function close_files() {
+    if (NIC_FILE) {
+        NIC_FILE.end();
+    }
+
+    if (Object.keys(IP_FILES).length !== 0) {
+        for (var f in IP_FILES) {
+            IP_FILES[f].end();
+        }
+    }
+}
+
+
+
 function read_lines(file, callback) {
     return fs.readFile(file, 'utf8', function(err, data) {
         if (err) {
@@ -86,6 +114,77 @@ function read_lines_sync(file) {
     } catch (err) {
         return err_and_exit('Error loading '+ file + ': %s', err.toString());
     }
+}
+
+
+
+function read_lines_chunked(file, dataCallback, doneCallback) {
+    var leftover = '';
+    var rs = fs.createReadStream(file, { flags: 'r', encoding: 'utf8' });
+
+    rs.on('data', function (data) {
+        var pieces = data.toString().split(/\n/g);
+        if (leftover.length !== 0) {
+            pieces[0] = leftover + pieces[0];
+            leftover = pieces.pop();
+        }
+
+        return dataCallback(pieces);
+    });
+
+    rs.on('end', function () {
+        if (leftover.length !== 0) {
+            dataCallback(leftover);
+        }
+        return doneCallback();
+    });
+}
+
+
+
+function generate_uuid(callback) {
+    var exec = require('child_process').exec;
+    //var child = exec("uuidgen | tr '[A-Z]' '[a-z]'", function (error, stdout, stderr) {
+    var child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
+        if (error) {
+            return callback(error);
+        }
+
+        return callback(null, stdout.replace(/^\s+|\s+$/g, ''));
+    });
+}
+
+
+
+function macToNum(addr) {
+    return parseInt(addr.replace(/[-:]/g, ''), 16);
+}
+
+
+
+function get_addressable(id, type) {
+    var belongs_to = {};
+    switch (type) {
+    case 'VM':
+        belongs_to.type = 'zone';
+        belongs_to.uuid = VMS[id].uuid;
+        belongs_to.owner_uuid = VMS[id].owner_uuid;
+        break;
+    case 'Zone':
+        belongs_to.type = 'zone';
+        belongs_to.uuid = ZONES[id].uuid;
+        belongs_to.owner_uuid = ZONES[id].owner_uuid;
+        break;
+    case 'Server':
+        belongs_to.type = 'server';
+        belongs_to.uuid = SERVERS[id];
+        belongs_to.owner_uuid = ADMIN_UUID;
+        break;
+    default:
+        belongs_to = null;
+    }
+
+    return belongs_to;
 }
 
 
@@ -121,7 +220,602 @@ function transform_uuids(table) {
     return hash;
 }
 
+// This function will read a table and create a mapping between
+// row ids and uuids and owner uuids like
+//
+// { '1': { uuid: <uuid>, owner_uuid: <uuid> } }
+//
+function transform_vm_uuids(table) {
+    var util = require('util');
 
+    var file = directory + '/' + table + '.dump';
+    var lines = read_lines_sync(file);
+    var hash = {};
+    var total = lines.length;
+    var uuid = UUID_POSITIONS[table][0];
+    var columns = UUID_POSITIONS[table][1];
+    var owner_uuid = UUID_POSITIONS[table][2];
+
+    lines.forEach(function(line) {
+        var pieces = line.split('\t');
+        if (pieces.length < columns) {
+            return;
+        }
+
+        hash[pieces[0]] = {
+            owner_uuid: pieces[owner_uuid],
+            uuid: pieces[uuid]
+        };
+    });
+
+    return hash;
+}
+
+/**
+ * 0 -- id
+ * 1 -- number
+ * 2 -- subnet_id
+ * 3 -- held_for_server_id
+ * 4 -- reserved
+ * 5 -- addressable_type
+ * 6 -- addressable_id
+ * 7 -- created_at
+ * 8 -- updated_at
+ * 9 -- last_seen_at
+ */
+function transform_ips(file, callback) {
+    var errs = [];
+    var subnetErrs = {};
+
+    return read_lines_chunked(file, function (lines) {
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 10) {
+                return;
+            }
+
+            var reserved = (pieces[4] === 't');
+            var subnet_id = pieces[2];
+
+            //console.log('IP: %d', pieces[0]);
+            if (IPS_NEEDED.hasOwnProperty(pieces[0])) {
+                //console.log('  needed IP: %d=%d', pieces[0], pieces[1]);
+                IPS_NEEDED[pieces[0]] = {
+                  ip: pieces[1],
+                  network: SUBNETS[subnet_id]
+                };
+            }
+
+            // Don't add the IP if it's not reserved and doesn't belong to
+            // anything
+            if (!reserved && pieces[6] === null) {
+                return;
+            }
+
+            var ip = {
+                ip: pieces[1],
+                reserved: reserved
+            };
+
+            if (pieces[6] !== null) {
+                var belongs_to = get_addressable(pieces[6], pieces[5]);
+                if (!belongs_to) {
+                    errs.push(new Error('IP "' + pieces[1] +
+                        '" has unknown owner ' + pieces[3] + '/' +
+                        pieces[7]));
+                    return;
+                }
+
+                ip.belongs_to_type = belongs_to.type;
+                ip.belongs_to_uuid = belongs_to.uuid;
+                ip.owner_uuid = belongs_to.owner_uuid;
+            }
+
+
+            if (!SUBNETS.hasOwnProperty(subnet_id) &&
+                !subnetErrs.hasOwnProperty(subnet_id)) {
+                subnetErrs[subnet_id] = new Error(
+                    'IP "' + pieces[1] + '" has invalid subnet ID "' +
+                    subnet_id + '"');
+                return;
+            }
+
+            if (!IP_FILES.hasOwnProperty(subnet_id)) {
+                IP_FILES[subnet_id] = fs.createWriteStream(
+                    directory + '/napi_ips_' +
+                    SUBNETS[subnet_id].replace(/-/g, '_') + '.moray',
+                    { flags: 'w', encoding: 'utf8' });
+            }
+
+            IP_FILES[subnet_id].write(JSON.stringify(ip, 'utf8') + '\n');
+
+            //console.log(JSON.stringify(ip, null, 2));
+        });
+
+    }, function () {
+        for (var e in subnetErrs) {
+            errs.push(subnetErrs[e]);
+        }
+
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        // We now have the IP data necessary in IPS_NEEDED to write out the
+        // networks and nics
+        return finish_networks(function (err) {
+            if (err) {
+                return callback(err);
+            }
+
+            return finish_nics(callback);
+        });
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- description
+ * 3 -- vlan_id
+ * 4 -- subnet_id
+ * 5 -- admin
+ * 6 -- created_at
+ * 7 -- updated_at
+ * 8 -- nic_tag_id
+ */
+function transform_networks(file, callback) {
+    NETWORKS = {};
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var errs = [];
+        var done = 0;
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 9) {
+                done++;
+                return;
+            }
+
+            generate_uuid(function (err, uuid) {
+                if (err) {
+                    errs.push(err);
+                } else {
+                    process_network_line(uuid, pieces, errs);
+                }
+
+                done++;
+
+                if (done === lines.length) {
+                    if (errs.length !== 0) {
+                        return callback(errs);
+                    }
+
+                    return callback();
+                }
+            });
+        });
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- created_at
+ * 3 -- updated_at
+ */
+function transform_network_pools(file, callback) {
+    var errs = [];
+    var pools = [];
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var done = 0;
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 4) {
+                done++;
+                return;
+            }
+
+            if (!NETWORK_POOL_NETWORKS.hasOwnProperty(pieces[0])) {
+                done++;
+                errs.push(new Error('network pool ' + pieces[1] +
+                    ' (' + pieces[0] + ') has no networks'));
+                    return;
+            }
+
+            generate_uuid(function (err, uuid) {
+                if (err) {
+                    errs.push(err);
+                } else {
+                    var pool = {
+                        name: pieces[1],
+                        networks: NETWORK_POOL_NETWORKS[pieces[0]],
+                        uuid : uuid,
+                    };
+
+                    pools.push(JSON.stringify(pool));
+                    //console.log(JSON.stringify(pool));
+                }
+
+                done++;
+
+                if (done === lines.length) {
+                    if (errs.length !== 0) {
+                        return callback(errs);
+                    }
+
+                    return fs.writeFile(directory
+                        + '/napi_network_pools.moray', pools.join('\n'),
+                        'utf8', callback);
+
+                }
+            });
+        });
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- network_id
+ * 2 -- network_pool_id
+ * 3 -- created_at
+ * 4 -- updated_at
+ */
+function transform_network_pool_networks(file, callback) {
+    var errs = [];
+    NETWORK_POOL_NETWORKS = {};
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 5) {
+                return;
+            }
+
+            var network_id = pieces[1];
+            var pool_id = pieces[2];
+
+            if (!NETWORKS.hasOwnProperty(network_id)) {
+                errs.push(new Error('network pool ' + pieces[2] +
+                    ' contains non-existant network "' + pieces[1] + '"'));
+                    return;
+            }
+
+            if (!NETWORK_POOL_NETWORKS.hasOwnProperty(pool_id)) {
+                NETWORK_POOL_NETWORKS[pool_id] = [];
+            }
+
+            NETWORK_POOL_NETWORKS[pool_id].push(NETWORKS[network_id].uuid);
+
+            //console.log(JSON.stringify(NETWORK_POOL_NETWORKS[pool_id]));
+        });
+
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        return callback();
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- network_id
+ * 2 -- ip_id
+ * 3 -- created_at
+ * 4 -- updated_at
+ */
+function transform_network_ips(file, callback) {
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 5) {
+                return;
+            }
+
+            var network_id = pieces[1];
+
+            if (!NETWORKS.hasOwnProperty(network_id)) {
+                //console.error(
+                //    '  network_ips table refers to non-existant network "%d"',
+                //    network_id);
+                return;
+            }
+
+            if (!NETWORKS[network_id].hasOwnProperty('resolver_ids')) {
+                NETWORKS[network_id].resolver_ids = [];
+            }
+
+            NETWORKS[network_id].resolver_ids.push(pieces[2]);
+            IPS_NEEDED[pieces[2]] = true;
+
+            //console.log(JSON.stringify(NETWORKS[network_id], null, 2));
+        });
+
+        return callback();
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- address
+ * 2 -- interface
+ * 3 -- addressable_id
+ * 4 -- ip_id
+ * 5 -- created_at
+ * 6 -- updated_at
+ * 7 -- addressable_type
+ * 8 -- type
+ */
+function transform_nics(file, callback) {
+    NICS = [];
+
+    NIC_FILE = fs.createWriteStream(directory + '/napi_nics.moray',
+        { flags: 'w', encoding: 'utf8' });
+
+    return read_lines_chunked(file, function (lines) {
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 9) {
+                return;
+            }
+
+            var belongs_to = get_addressable(pieces[3], pieces[7]);
+            if (!belongs_to) {
+                errs.push(new Error('Nic "' + pieces[1] +
+                    '" has unknown owner ' + pieces[7] + '/' + pieces[3]));
+                return;
+            }
+
+            var nic = {
+                mac: macToNum(pieces[1]),
+                belongs_to_type: belongs_to.type,
+                belongs_to_uuid: belongs_to.uuid,
+                owner_uuid: belongs_to.owner_uuid
+            };
+
+            if (NIC_NIC_TAGS.hasOwnProperty(pieces[0])) {
+                // Physical nics only can provide nic tags.  Anything else
+                // is a vnic that is over a nic tag.
+                if (nic.belongs_to_type === 'server'
+                    && pieces[8] === 'physical') {
+                    nic.nic_tags_provided = NIC_NIC_TAGS[pieces[0]];
+                } else {
+                    nic.nic_tag = NIC_NIC_TAGS[pieces[0]][0];
+                }
+            }
+
+            if (pieces[4] !== null) {
+                IPS_NEEDED[pieces[4]] = true;
+                nic.ip_id = pieces[4];
+            } else {
+                // nic does not have an IP, so we can write it now
+                NIC_FILE.write(JSON.stringify(nic, 'utf8') + '\n');
+                //console.log('Writing nic %s (%d) now', pieces[1], nic.mac);
+                return;
+            }
+
+            nic.mac_str = pieces[1];
+            //console.log(JSON.stringify(nic, null, 2));
+            NICS.push(nic);
+        });
+
+    }, function () {
+        return callback();
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- nic_id
+ * 2 -- nic_tag_id
+ * 3 -- created_at
+ * 4 -- updated_at
+ */
+function transform_nic_nic_tags(file, callback) {
+    NIC_NIC_TAGS = {};
+    var errs = [];
+
+    return read_lines_chunked(file, function (lines) {
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 5) {
+                return;
+            }
+
+
+            if (!NIC_NIC_TAGS.hasOwnProperty(pieces[1])) {
+                NIC_NIC_TAGS[pieces[1]] = [];
+            }
+
+
+            if (!NIC_TAGS.hasOwnProperty(pieces[2])) {
+                errs.push(new Error('nic_nic_tag ' + pieces[0] +
+                    ' (nic ' + pieces[1] + '%d): unknown nic tag ID '
+                    + pieces[2]));
+            }
+
+            NIC_NIC_TAGS[pieces[1]].push(NIC_TAGS[pieces[2]].name);
+
+            //console.log('nic %d: %s', pieces[1],
+            //    JSON.stringify(NIC_NIC_TAGS[pieces[1]]));
+        });
+
+    }, function () {
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        return callback();
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- created_at
+ * 3 -- updated_at
+ */
+function transform_nic_tags(file, callback) {
+    NIC_TAGS = {};
+    var tags = [];
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var changes = [];
+        var errs = [];
+        var done = 0;
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t');
+
+            if (pieces.length !== 4) {
+                done++;
+                return;
+            }
+
+            generate_uuid(function (err, uuid) {
+                if (err) {
+                    errs.push(err);
+                } else {
+                    var tag = { uuid: uuid, name: pieces[1] };
+                    NIC_TAGS[pieces[0]] = tag;
+                    tags.push(JSON.stringify(tag));
+                    //console.log(JSON.stringify(tag));
+                }
+
+                done++;
+
+                if (done === lines.length) {
+                    if (errs.length !== 0) {
+                        return callback(errs[0]);
+                    }
+
+                    fs.writeFile(directory + '/napi_nic_tags.moray',
+                        tags.join('\n'), 'utf8', callback);
+                }
+            });
+        });
+    });
+}
+
+/**
+ * 0 -- id
+ * 1 -- bit_count
+ * 2 -- description
+ * 3 -- start_ip_id
+ * 4 -- default_gateway_ip_id
+ * 5 -- router_id
+ * 6 -- role
+ * 7 -- start_provisionable_ip_id
+ * 8 -- end_provisionable_ip_id
+ * 9 -- network_id
+ * 10 -- created_at
+ * 11 -- updated_at
+ */
+function transform_subnets(file, callback) {
+    SUBNETS = {};
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var errs = [];
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 12) {
+                return;
+            }
+
+            var network_id = pieces[9];
+
+            if (!NETWORKS.hasOwnProperty(network_id)) {
+                errs.push(new Error('subnet "' + pieces[2] + '" (id=' +
+                    pieces[0] + ') refers to missing network ID '
+                    + network_id));
+                return;
+            }
+
+            var subnet = {
+                subnet_bits: pieces[1],
+                subnet_start_ip_id: pieces[3],
+                provision_start_ip_id: pieces[7],
+                provision_end_ip_id: pieces[8],
+            };
+
+            if (pieces[4]) {
+                subnet.gateway_id = pieces[4];
+                IPS_NEEDED[pieces[4]] = true;
+            }
+
+            IPS_NEEDED[subnet.subnet_start_ip_id] = true;
+            IPS_NEEDED[subnet.provision_start_ip_id] = true;
+            IPS_NEEDED[subnet.provision_end_ip_id] = true;
+
+            for (var p in subnet) {
+                NETWORKS[network_id][p] = subnet[p];
+            }
+
+            SUBNETS[pieces[0]] = NETWORKS[network_id].uuid;
+
+            //console.log(JSON.stringify(NETWORKS[network_id], null, 2));
+        });
+
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        return callback();
+    });
+}
 
 // This function will read the tags table and create a mapping between
 // machine ids and tag key/values like:
@@ -164,8 +858,6 @@ function transform_tags(table) {
 
     return hash;
 }
-
-
 
 function transform_vms(file, callback) {
     var util = require('util');
@@ -293,7 +985,6 @@ function vm_from_vm(pieces) {
     return change;
 }
 
-
 /**
  * 0 -- id
  * 1 -- name
@@ -398,7 +1089,115 @@ function vm_from_zone(pieces) {
     return change;
 }
 
+function process_network_line(uuid, pieces, errs) {
+    var id = pieces[0];
+    var name = pieces[1];
+    var subnet_id = pieces[4];
+    var nic_tag_id = pieces[8];
 
+    if (!NIC_TAGS.hasOwnProperty(nic_tag_id)) {
+        errs.push(new Error('network "' + name + '" (id=' + id +
+              ') refers to missing nic tag ID ' + nic_tag_id));
+        return;
+    }
+
+    var net = {
+        name: name,
+        nic_tag: NIC_TAGS[nic_tag_id].name,
+        uuid: uuid,
+        vlan_id: pieces[3]
+    };
+
+    NETWORKS[id] = net;
+    //console.log(JSON.stringify(net, null, 2));
+}
+
+function finish_networks(callback) {
+    var errs = [];
+    var nets = [];
+
+    for (var n in NETWORKS) {
+        var net = NETWORKS[n];
+
+        net.provision_start_ip = IPS_NEEDED[net.provision_start_ip_id] ?
+            IPS_NEEDED[net.provision_start_ip_id].ip : null;
+        net.provision_end_ip = IPS_NEEDED[net.provision_end_ip_id] ?
+            IPS_NEEDED[net.provision_end_ip_id].ip : null;
+        net.subnet_start_ip = IPS_NEEDED[net.subnet_start_ip_id] ?
+            IPS_NEEDED[net.subnet_start_ip_id].ip : null;
+
+        if (net.hasOwnProperty('gateway_id')) {
+            net.gateway = IPS_NEEDED[net.gateway_id] ?
+                IPS_NEEDED[net.gateway_id].ip : null;
+        }
+
+        ['provision_start_ip', 'provision_end_ip', 'subnet_start_ip',
+            'gateway'].forEach(function (ipKey) {
+            if (net.hasOwnProperty(ipKey) && (!net[ipKey] ||
+                net[ipKey] === true)) {
+                var idKey = ipKey + '_id';
+                errs.push(new Error('network ' + n + ' has invalid ',
+                    idKey + ' ' + net[idKey]));
+            }
+        });
+
+        delete net.subnet_start_ip_id;
+        delete net.provision_start_ip_id;
+        delete net.provision_end_ip_id;
+        delete net.gateway_id;
+
+        if (net.hasOwnProperty('resolver_ids')) {
+            net.resolvers = [];
+            net.resolver_ids.forEach(function (id) {
+                if (!IPS_NEEDED.hasOwnProperty(id)
+                    || IPS_NEEDED[id] === true) {
+                    errs.push(new Error('network ' + n +
+                        ' has invalid resolver IP ID ' + id));
+                    return;
+                }
+                net.resolvers.push(IPS_NEEDED[id].ip);
+            });
+            delete net.resolver_ids;
+        }
+
+        nets.push(JSON.stringify(net));
+        //console.log(JSON.stringify(net, null, 2));
+    }
+
+    if (errs.length !== 0) {
+        return callback(errs);
+    }
+
+    fs.writeFile(directory + '/napi_networks.moray',
+        nets.join('\n'), 'utf8', callback);
+}
+
+function finish_nics(callback) {
+    var err = false;
+
+    NICS.forEach(function (nic) {
+        if (!IPS_NEEDED.hasOwnProperty(nic.ip_id)) {
+            err = true;
+            console.error('nic %s has invalid IP ID %d', nic.mac_str,
+                nic.ip_id);
+            return;
+        }
+
+        nic.ip = IPS_NEEDED[nic.ip_id].ip;
+        nic.network_uuid = IPS_NEEDED[nic.ip_id].network;
+        delete nic.ip_id;
+        delete nic.mac_str;
+
+        //console.log(JSON.stringify(nic));
+        NIC_FILE.write(JSON.stringify(nic, 'utf8') + '\n');
+    });
+
+    if (err) {
+        return callback(new Error('Nics have invalid IP IDs'));
+    }
+
+    return callback();
+}
 
 /**
  * 0 -- id
@@ -494,6 +1293,9 @@ SERVERS = transform_uuids('servers');
 IMAGES = transform_uuids('datasets');
 ZPOOLS = transform_uuids('zfs_storage_pools');
 TAGS = transform_tags('tags');
+VMS = transform_vm_uuids('vms');
+ZONES = transform_vm_uuids('zones');
+
 
 function printLines(changes) {
     changes.forEach(printChange);
@@ -505,28 +1307,55 @@ function printLines(changes) {
 }
 
 
-fs.readdir(directory, function(err, files) {
-    if(err) {
-        return err_and_exit('Unable to read %s: %s', directory, err.toString());
+
+var cur;
+var types = [
+    ['nic_tags', transform_nic_tags ],
+    ['networks', transform_networks ],
+    ['subnets', transform_subnets ],
+    ['network_ips', transform_network_ips ],
+    ['nic_nic_tags', transform_nic_nic_tags ],
+    ['nics', transform_nics ],
+    ['ips', transform_ips ],
+    ['network_pool_networks', transform_network_pool_networks ],
+    ['network_pools', transform_network_pools ]
+];
+
+function processNextDump(err) {
+    if (err) {
+        if (err.length) {
+            console.error('Errors importing "%s":', cur[0]);
+            err.forEach(function (e) {
+                console.error('  ' + e.message);
+            });
+        } else {
+            console.error('Error importing "%s": %s', cur[0], err.message);
+        }
+        close_files();
+        process.exit(1);
     }
 
-    files.forEach(function(f) {
-        var type = path.basename(f, '.dump');
-        if (!/\w+\.dump$/.test(f) || Types.indexOf(type) === -1) {
-            return;
+    cur = types.shift();
+    if (!cur) {
+        console.log('== done');
+        close_files();
+        return;
+    }
+    var file = directory + '/' + cur[0] + '.dump';
+
+    //if (!fs.existsSync(file)) {
+    path.exists(file, function (exists) {
+        if (!exists) {
+            console.error('Dump file does not exist: %s', file);
+            close_files();
+            process.exit(1);
         }
 
-        var file = directory + '/' + f;
-        switch (type) {
-        case 'vms':
-        case 'zones':
-            transform_vms(file, printLines);
-            break;
-        case 'servers':
-            transform_servers(file, printLines);
-            break;
-        default:
-            console.error('Skipping %s', f);
-        }
+        process.nextTick(function () {
+            console.log('== ' + cur[0]);
+            cur[1](file, processNextDump);
+        });
     });
-});
+}
+
+processNextDump();

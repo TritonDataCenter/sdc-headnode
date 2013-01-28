@@ -445,6 +445,25 @@ imgapi_tasks()
     done
 }
 
+# arg1 is zonename
+napi_tasks()
+{
+    # Delete any networks and nic tags, since we're going to replace them
+    # anyway
+    zlogin $1 '\
+        for N in $(/opt/smartdc/napi/bin/napictl network-list | json -a uuid); \
+        do \
+           /opt/smartdc/napi/bin/napictl network-delete $N; \
+        done'
+    zlogin $1 '\
+        for N in $(/opt/smartdc/napi/bin/napictl nictag-list | json -a name); \
+        do \
+           /opt/smartdc/napi/bin/napictl nictag-delete $N; \
+        done'
+    cp ${SDC_UPGRADE_DIR}/mapi_dump/napi*.moray /zones/$1/root/root
+
+    zlogin $1 /opt/smartdc/napi/sbin/import-data /root
+}
 
 # arg1 is zonename
 cloudapi_tasks()
@@ -577,6 +596,8 @@ case "$1" in
 "ufds") ufds_tasks $2;;
 
 "imgapi") imgapi_tasks $2;;
+
+"napi") napi_tasks $2;;
 esac
 
 exit 0
