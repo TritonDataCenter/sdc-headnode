@@ -13,6 +13,8 @@ var util = require('util');
 ///--- Globals
 
 var ADMIN_UUID = '00000000-0000-0000-0000-000000000000';
+var NICS_READ = 0;
+var NICS_WRITTEN = 0;
 
 var Types = ['vms', 'zones', 'servers'];
 
@@ -123,11 +125,8 @@ function read_lines_chunked(file, dataCallback, doneCallback) {
     var rs = fs.createReadStream(file, { flags: 'r', encoding: 'utf8' });
 
     rs.on('data', function (data) {
-        var pieces = data.toString().split(/\n/g);
-        if (leftover.length !== 0) {
-            pieces[0] = leftover + pieces[0];
-            leftover = pieces.pop();
-        }
+        var pieces = (leftover + data.toString()).split(/\n/g);
+        leftover = pieces.pop();
 
         return dataCallback(pieces);
     });
@@ -180,6 +179,11 @@ function get_addressable(id, type) {
     case 'Server':
         belongs_to.type = 'server';
         belongs_to.uuid = SERVERS[id];
+        belongs_to.owner_uuid = ADMIN_UUID;
+        break;
+    case 'Nic':
+        belongs_to.type = 'other';
+        belongs_to.uuid = ADMIN_UUID;
         belongs_to.owner_uuid = ADMIN_UUID;
         break;
     default:
@@ -270,6 +274,8 @@ function transform_vm_uuids(table) {
 function transform_ips(file, callback) {
     var errs = [];
     var subnetErrs = {};
+    var num = 0;
+    var written = 0;
 
     return read_lines_chunked(file, function (lines) {
         lines.forEach(function (line) {
@@ -284,7 +290,8 @@ function transform_ips(file, callback) {
             var reserved = (pieces[4] === 't');
             var subnet_id = pieces[2];
 
-            //console.log('IP: %d', pieces[0]);
+            num++;
+
             if (IPS_NEEDED.hasOwnProperty(pieces[0])) {
                 //console.log('  needed IP: %d=%d', pieces[0], pieces[1]);
                 IPS_NEEDED[pieces[0]] = {
@@ -304,20 +311,22 @@ function transform_ips(file, callback) {
                 reserved: reserved
             };
 
-            if (!SUBNETS.hasOwnProperty(subnet_id) &&
-                !subnetErrs.hasOwnProperty(subnet_id)) {
-                subnetErrs[subnet_id] = new Error(
-                    'IP "' + pieces[1] + '" has invalid subnet ID "' +
-                    subnet_id + '"');
+            if (!SUBNETS.hasOwnProperty(subnet_id)) {
                 return;
+                // Should maybe warn here instead?
+                // if (!subnetErrs.hasOwnProperty(subnet_id)) {
+                //     subnetErrs[subnet_id] = new Error(
+                //         'IP "' + pieces[1] + '" has invalid subnet ID "' +
+                //         subnet_id + '"');
+                // }
             }
 
-            if (pieces[6] !== null) {
+            if (pieces[6] !== null && pieces[5] !== null) {
                 var belongs_to = get_addressable(pieces[6], pieces[5]);
                 if (!belongs_to) {
                     errs.push(new Error('IP "' + pieces[1] +
-                        '" has unknown owner ' + pieces[3] + '/' +
-                        pieces[7]));
+                        '" has unknown owner ' + pieces[5] + '/' +
+                        pieces[6]));
                     return;
                 }
 
@@ -336,12 +345,14 @@ function transform_ips(file, callback) {
                     { flags: 'w', encoding: 'utf8' });
             }
 
+            written++;
             IP_FILES[subnet_id].write(JSON.stringify(ip) + '\n', 'utf8');
 
             //console.log(JSON.stringify(ip, null, 2));
         });
 
     }, function () {
+        console.log('   IPs read: %d, written: %d', num, written);
         for (var e in subnetErrs) {
             errs.push(subnetErrs[e]);
         }
@@ -411,13 +422,17 @@ function transform_networks(file, callback) {
                     // We now have UUIDs to transform primary_network_id in
                     // the VMS and ZONES tables
                     for (var zid in ZONES) {
-                      ZONES[zid].primary_network =
-                          NETWORKS[ZONES[zid].primary_network_id].uuid;
+                      var prim_net = NETWORKS[ZONES[zid].primary_network_id];
+                      if (prim_net) {
+                        ZONES[zid].primary_network = prim_net.uuid;
+                      }
                     }
 
                     for (var vid in VMS) {
-                      VMS[vid].primary_network =
-                          NETWORKS[VMS[vid].primary_network_id].uuid;
+                      var prim_net = NETWORKS[VMS[vid].primary_network_id];
+                      if (prim_net) {
+                        VMS[vid].primary_network = prim_net.uuid;
+                      }
                     }
 
                     return callback();
@@ -601,6 +616,7 @@ function transform_network_ips(file, callback) {
  */
 function transform_nics(file, callback) {
     NICS = {};
+    var err = false;
 
     NIC_FILE = fs.createWriteStream(directory + '/napi_nics.moray',
         { flags: 'w', encoding: 'utf8' });
@@ -615,10 +631,13 @@ function transform_nics(file, callback) {
                 return;
             }
 
+            NICS_READ++;
             var belongs_to = get_addressable(pieces[3], pieces[7]);
+            // An unknown belongs_to just means that the nic was destroyed in
+            // MAPI but the record was left around to prevent reusing that MAC
             if (!belongs_to) {
-                errs.push(new Error('Nic "' + pieces[1] +
-                    '" has unknown owner ' + pieces[7] + '/' + pieces[3]));
+                //console.error('Nic "' + pieces[1] + '" has unknown owner '
+                //    + pieces[7] + '/' + pieces[3]);
                 return;
             }
 
@@ -648,6 +667,7 @@ function transform_nics(file, callback) {
                 // nic does not have an IP, so we can write it now
                 delete nic.interface;
                 NIC_FILE.write(JSON.stringify(nic, 'utf8') + '\n');
+                NICS_WRITTEN++;
                 //console.log('Writing nic %s (%d) now', pieces[1], nic.mac);
                 return;
             }
@@ -663,6 +683,10 @@ function transform_nics(file, callback) {
         });
 
     }, function () {
+        if (err) {
+          return callback(new Error('Error transforming nics'));
+        }
+
         return callback();
     });
 }
@@ -1235,11 +1259,13 @@ function finish_nics(callback) {
           vmNics[0].primary = true;
         }
 
+        NICS_WRITTEN += vmNics.length;
         NIC_FILE.write(vmNics.map(function (n) {
           return JSON.stringify(n);
         }).join('\n') + '\n', 'utf8');
     }
 
+    console.log('   Nics read: %d, written: %d', NICS_READ, NICS_WRITTEN);
     if (err) {
         return callback(new Error('Nics have invalid IP IDs'));
     }
@@ -1338,9 +1364,10 @@ process_argv();
 // We do this here because many other transform function might need these
 // values
 SERVERS = transform_uuids('servers');
-IMAGES = transform_uuids('datasets');
-ZPOOLS = transform_uuids('zfs_storage_pools');
-TAGS = transform_tags('tags');
+// Uncomment these if using transform_vms again:
+// IMAGES = transform_uuids('datasets');
+// ZPOOLS = transform_uuids('zfs_storage_pools');
+// TAGS = transform_tags('tags');
 VMS = transform_vm_uuids('vms');
 ZONES = transform_vm_uuids('zones');
 
@@ -1391,7 +1418,6 @@ function processNextDump(err) {
     }
     var file = directory + '/' + cur[0] + '.dump';
 
-    //if (!fs.existsSync(file)) {
     path.exists(file, function (exists) {
         if (!exists) {
             console.error('Dump file does not exist: %s', file);
