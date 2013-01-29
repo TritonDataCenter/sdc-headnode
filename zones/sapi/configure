@@ -46,6 +46,9 @@ cat > /opt/smartdc/sapi/etc/config.json <<HERE
   "imgapi": {
     "url": "$IMGAPI_URL"
   },
+  "remote_imgapi": {
+    "url": "https://10.2.172.75"
+  },
   "ufds": {
     "url": "$UFDS_URL",
     "bindDN": "$UFDS_LDAP_ROOT_DN",
