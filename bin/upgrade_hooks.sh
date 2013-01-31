@@ -260,7 +260,7 @@ pre_tasks()
 
         mkdir -p /var/imgadm
         imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-        echo '{}' | /usr/bin/json -e "this.sources=[\"$imgapi_url\"]" \
+        echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
             > /var/imgadm/imgadm.conf
     fi
 
@@ -508,11 +508,11 @@ cloudapi_tasks()
 
         var old = JSON.parse(fs.readFileSync(oldPath));
         var cfg = JSON.parse(fs.readFileSync(cfgPath));
-    
+
         cfg.read_only = true;
         cfg.datacenters = old.datacenters;
         cfg.userThrottles = old.userThrottles;
-    
+
         // Get old plugins.
         var oldExtraPlugins = [];
         var oldCapiLimits = null;
@@ -558,14 +558,14 @@ cloudapi_tasks()
                 }
             }
         });
-    
+
         // add extra plugins
         oldExtraPlugins.forEach(function (p) {
             p.name = path.basename(p.plugin);
             delete p.plugin;
             cfg.plugins.push(p);
         });
-    
+
         console.log(JSON.stringify(cfg, null, 2));
     ' $ocfg $cfgfile >$cfgfile.new
 

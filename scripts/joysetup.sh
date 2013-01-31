@@ -560,7 +560,7 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 	if [[ ! -f /var/imgadm/imgadm.conf ]]; then
 		mkdir -p /var/imgadm
 		imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-		echo '{}' | /usr/bin/json -e "this.sources=[\"$imgapi_url\"]" \
+		echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
 			> /var/imgadm/imgadm.conf
 	fi
 
