@@ -41,9 +41,9 @@ echo "" >&4
 # Load command line arguments in the form key=value (eg. swap=4g)
 #
 for p in $*; do
-  k=$(echo "${p}" | cut -d'=' -f1)
-  v=$(echo "${p}" | cut -d'=' -f2-)
-  export arg_${k}=${v}
+    k=$(echo "${p}" | cut -d'=' -f1)
+    v=$(echo "${p}" | cut -d'=' -f2-)
+    export arg_${k}=${v}
 done
 
 # Load SYSINFO_* and CONFIG_* values
@@ -180,24 +180,24 @@ function update_setup_state
 
 function check_disk_space
 {
-	local pool_json="$1"
-	local RAM_MiB=${SYSINFO_MiB_of_Memory}
-	local space=$(/usr/bin/json capacity < ${pool_json})
-	local Disk_MiB=$(( $space / 1024 / 1024 ))
-	local msg
+    local pool_json="$1"
+    local RAM_MiB=${SYSINFO_MiB_of_Memory}
+    local space=$(/usr/bin/json capacity < ${pool_json})
+    local Disk_MiB=$(( $space / 1024 / 1024 ))
+    local msg
 
-	msg='Cannot setup: system has %dG memory but %dG disk (>= %dG expected)'
+    msg='Cannot setup: system has %dG memory but %dG disk (>= %dG expected)'
 
-	Min_Disk_MiB=$(( $RAM_MiB * $MIN_DISK_TO_RAM ))
+    Min_Disk_MiB=$(( $RAM_MiB * $MIN_DISK_TO_RAM ))
 
-	if [[ ${Disk_MiB} -lt ${Min_Disk_MiB} ]]; then
-		local RAM_GiB=$(( $RAM_MiB / 1024 ))
-		local Disk_GiB=$(( $Disk_MiB / 1024 ))
-		local Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
+    if [[ ${Disk_MiB} -lt ${Min_Disk_MiB} ]]; then
+        local RAM_GiB=$(( $RAM_MiB / 1024 ))
+        local Disk_GiB=$(( $Disk_MiB / 1024 ))
+        local Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
 
-		msg=$(printf "${msg}" $RAM_GiB $Disk_GiB $Min_Disk_GiB)
-		fatal "${msg}"
-	fi
+        msg=$(printf "${msg}" $RAM_GiB $Disk_GiB $Min_Disk_GiB)
+        fatal "${msg}"
+    fi
 }
 
 #
@@ -246,39 +246,39 @@ function swap_in_GiB
 
 function create_zpool
 {
-	SYS_ZPOOL="$1"
-	POOL_JSON="$2"
+    SYS_ZPOOL="$1"
+    POOL_JSON="$2"
 
-	if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
-		printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
-		if ! /usr/bin/mkzpool ${SYS_ZPOOL} ${POOL_JSON}; then
-			printf "%6s\n" "failed" >&4
-			fatal "failed to create pool"
-		fi
-	fi
+    if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
+        printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
+        if ! /usr/bin/mkzpool ${SYS_ZPOOL} ${POOL_JSON}; then
+            printf "%6s\n" "failed" >&4
+            fatal "failed to create pool"
+        fi
+    fi
 
-	if ! zfs set atime=off ${SYS_ZPOOL}; then
-		printf "%6s\n" "failed" >&4
-		fatal "failed to set atime=off for pool ${SYS_ZPOOL}"
-	fi
+    if ! zfs set atime=off ${SYS_ZPOOL}; then
+        printf "%6s\n" "failed" >&4
+        fatal "failed to set atime=off for pool ${SYS_ZPOOL}"
+    fi
 
-	printf "%4s\n" "done" >&4
+    printf "%4s\n" "done" >&4
 
-	svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
-	svccfg -s svc:/system/smartdc/init:default refresh
+    svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
+    svccfg -s svc:/system/smartdc/init:default refresh
 
-	export CONFDS=${SYS_ZPOOL}/config
-	export COREDS=${SYS_ZPOOL}/cores
-	export OPTDS=${SYS_ZPOOL}/opt
-	export VARDS=${SYS_ZPOOL}/var
-	export USBKEYDS=${SYS_ZPOOL}/usbkey
-	export SWAPVOL=${SYS_ZPOOL}/swap
+    export CONFDS=${SYS_ZPOOL}/config
+    export COREDS=${SYS_ZPOOL}/cores
+    export OPTDS=${SYS_ZPOOL}/opt
+    export VARDS=${SYS_ZPOOL}/var
+    export USBKEYDS=${SYS_ZPOOL}/usbkey
+    export SWAPVOL=${SYS_ZPOOL}/swap
 
-	#
-	# We don't support more than one storage pool on the system, but some
-	# software expects this for futureproofing reasons.
-	#
-	touch /${SYS_ZPOOL}/.system_pool
+    #
+    # We don't support more than one storage pool on the system, but some
+    # software expects this for futureproofing reasons.
+    #
+    touch /${SYS_ZPOOL}/.system_pool
 }
 
 #
@@ -293,7 +293,7 @@ create_dump()
 
     # Create the dump zvol
     zfs create -V ${dumpsize}mb -o checksum=noparity ${SYS_ZPOOL}/dump || \
-      fatal "failed to create the dump zvol"
+        fatal "failed to create the dump zvol"
 }
 
 #
@@ -301,74 +301,73 @@ create_dump()
 #
 setup_datasets()
 {
-  datasets=$(zfs list -H -o name | xargs)
+    datasets=$(zfs list -H -o name | xargs)
 
-  if ! echo $datasets | grep dump > /dev/null; then
-    printf "%-56s" "adding volume: dump" >&4
-    create_dump
-    printf "%4s\n" "done" >&4
-  fi
-
-  if ! echo $datasets | grep ${CONFDS} > /dev/null; then
-    printf "%-56s" "adding volume: config" >&4
-    zfs create ${CONFDS} || fatal "failed to create the config dataset"
-    chmod 755 /${CONFDS}
-    cp -p /etc/zones/* /${CONFDS}
-    zfs set mountpoint=legacy ${CONFDS}
-    printf "%4s\n" "done" >&4
-  fi
-
-  if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
-    if is_headnode; then
-        printf "%-56s" "adding volume: usbkey" >&4
-        zfs create -o mountpoint=legacy ${USBKEYDS} || \
-          fatal "failed to create the usbkey dataset"
+    if ! echo $datasets | grep dump > /dev/null; then
+        printf "%-56s" "adding volume: dump" >&4
+        create_dump
         printf "%4s\n" "done" >&4
     fi
-  fi
 
-  if ! echo $datasets | grep ${COREDS} > /dev/null; then
-    printf "%-56s" "adding volume: cores" >&4
-    zfs create -o compression=gzip -o mountpoint=none ${COREDS} || \
-        fatal "failed to create the cores dataset"
-    zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
-        ${COREDS}/global || \
-        fatal "failed to create the global zone cores dataset"
-    printf "%4s\n" "done" >&4
-  fi
-
-  if ! echo $datasets | grep ${OPTDS} > /dev/null; then
-    printf "%-56s" "adding volume: opt" >&4
-    zfs create -o mountpoint=legacy ${OPTDS} || \
-      fatal "failed to create the opt dataset"
-    printf "%4s\n" "done" >&4
-  fi
-
-  if ! echo $datasets | grep ${VARDS} > /dev/null; then
-    printf "%-56s" "adding volume: var" >&4
-    zfs create ${VARDS} || \
-      fatal "failed to create the var dataset"
-    chmod 755 /${VARDS}
-    cd /var
-
-    # since we created /var, we setup so that we keep a copy of the joysetup log
-    # as log messages written after this will otherwise not be logged due to
-    # the cpio moving them to the new /var
-    mkdir -p /var/log
-    trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
-
-    if ( ! find . -print | cpio -pdm /${VARDS} 2>/dev/null ); then
-        fatal "failed to initialize the var directory"
+    if ! echo $datasets | grep ${CONFDS} > /dev/null; then
+        printf "%-56s" "adding volume: config" >&4
+        zfs create ${CONFDS} || fatal "failed to create the config dataset"
+        chmod 755 /${CONFDS}
+        cp -p /etc/zones/* /${CONFDS}
+        zfs set mountpoint=legacy ${CONFDS}
+        printf "%4s\n" "done" >&4
     fi
 
-    zfs set mountpoint=legacy ${VARDS} || \
-      fatal "failed to set the mountpoint for ${VARDS}"
+    if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
+        if is_headnode; then
+            printf "%-56s" "adding volume: usbkey" >&4
+            zfs create -o mountpoint=legacy ${USBKEYDS} || \
+                fatal "failed to create the usbkey dataset"
+            printf "%4s\n" "done" >&4
+        fi
+    fi
 
-    zfs set atime=on ${VARDS} || \
-      fatal "failed to set atime=on for ${VARDS}"
+    if ! echo $datasets | grep ${COREDS} > /dev/null; then
+        printf "%-56s" "adding volume: cores" >&4
+        zfs create -o compression=gzip -o mountpoint=none ${COREDS} || \
+            fatal "failed to create the cores dataset"
+        zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
+            ${COREDS}/global || \
+            fatal "failed to create the global zone cores dataset"
+        printf "%4s\n" "done" >&4
+    fi
 
-    printf "%4s\n" "done" >&4
-  fi
+    if ! echo $datasets | grep ${OPTDS} > /dev/null; then
+        printf "%-56s" "adding volume: opt" >&4
+        zfs create -o mountpoint=legacy ${OPTDS} || \
+            fatal "failed to create the opt dataset"
+        printf "%4s\n" "done" >&4
+    fi
+
+    if ! echo $datasets | grep ${VARDS} > /dev/null; then
+        printf "%-56s" "adding volume: var" >&4
+        zfs create ${VARDS} || fatal "failed to create the var dataset"
+        chmod 755 /${VARDS}
+        cd /var
+
+        # since we created /var, we setup so that we keep a copy of the joysetup log
+        # as log messages written after this will otherwise not be logged due to
+        # the cpio moving them to the new /var
+        mkdir -p /var/log
+        trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
+
+        if ( ! find . -print | cpio -pdm /${VARDS} 2>/dev/null ); then
+            fatal "failed to initialize the var directory"
+        fi
+
+        zfs set mountpoint=legacy ${VARDS} || \
+            fatal "failed to set the mountpoint for ${VARDS}"
+
+        zfs set atime=on ${VARDS} || \
+            fatal "failed to set atime=on for ${VARDS}"
+
+        printf "%4s\n" "done" >&4
+    fi
 }
 
 create_swap()
@@ -388,14 +387,14 @@ create_swap()
         printf "%-56s" "adding volume: swap" >&4
 
         #
-	# We cannot allow the swap size to be less than the size of DRAM, lest
-	# we run into the availrmem double accounting issue for locked
-	# anonymous memory that is backed by in-memory swap (which will
-	# severely and artificially limit VM tenancy).  We will therfore not
-	# create a swap device smaller than DRAM -- but we still allow for the
-	# configuration variable to account for actual consumed space by using
-	# it to set the refreservation on the swap volume if/when the
-	# specified size is smaller than DRAM.
+        # We cannot allow the swap size to be less than the size of DRAM, lest
+        # we run into the availrmem double accounting issue for locked
+        # anonymous memory that is backed by in-memory swap (which will
+        # severely and artificially limit VM tenancy).  We will therfore not
+        # create a swap device smaller than DRAM -- but we still allow for the
+        # configuration variable to account for actual consumed space by using
+        # it to set the refreservation on the swap volume if/when the
+        # specified size is smaller than DRAM.
         #
         minsize=$(swap_in_GiB 1x)
 
@@ -467,7 +466,7 @@ setup_filesystems()
     svcadm enable -s filesystem/smartdc
     svcadm disable -s filesystem/minimal
     svcadm enable -s filesystem/minimal
-	if ! is_headnode; then
+    if ! is_headnode; then
         # Only restart smartdc/config on CN, on HN we're rebooting.
         svcadm disable -s smartdc/config
         svcadm enable -s smartdc/config
@@ -476,111 +475,111 @@ setup_filesystems()
 
 is_headnode()
 {
-	if [[ -z "$__headnode_known" ]]; then
-		__headnode_bp="$(/usr/bin/bootparams | grep "^headnode=true")"
-		__headnode_known=true
-	fi
-	if [[ -z "$__headnode_bp" ]]; then
-		return 1	# "failure" == false == 1
-	else
-		return 0	# "success" == true == 0
-	fi
+    if [[ -z "$__headnode_known" ]]; then
+        __headnode_bp="$(/usr/bin/bootparams | grep "^headnode=true")"
+        __headnode_known=true
+    fi
+    if [[ -z "$__headnode_bp" ]]; then
+        return 1    # "failure" == false == 1
+    else
+        return 0    # "success" == true == 0
+    fi
 }
 
 if [[ "$(zpool list)" == "no pools available" ]]; then
-	if ! is_headnode; then
-		# On headnodes we assume prompt-config already worked out a
-		# valid ntp config, on compute nodes we make sure that it is
-		# set before setup starts.
-		check_ntp
-	fi
+    if ! is_headnode; then
+        # On headnodes we assume prompt-config already worked out a
+        # valid ntp config, on compute nodes we make sure that it is
+        # set before setup starts.
+        check_ntp
+    fi
 
-	if ! /usr/bin/disklayout "${arg_disklayout}" > /tmp/pool.json; then
-		fatal "disk layout failed"
-	fi
+    if ! /usr/bin/disklayout "${arg_disklayout}" > /tmp/pool.json; then
+        fatal "disk layout failed"
+    fi
 
-	check_disk_space /tmp/pool.json
-	create_zpool zones /tmp/pool.json
+    check_disk_space /tmp/pool.json
+    create_zpool zones /tmp/pool.json
 
-        if is_headnode; then
-            create_setup_file headnode
-        else
-            create_setup_file computenode
+    if is_headnode; then
+        create_setup_file headnode
+    else
+        create_setup_file computenode
+    fi
+
+    update_setup_state "zpool_created"
+
+    setup_datasets
+    update_setup_state "datasets_setup"
+
+    install_configs
+    update_setup_state "configs_installed"
+
+    create_swap
+    update_setup_state "swap_created"
+
+    output_zpool_info
+
+    setup_filesystems
+    update_setup_state "filesystems_setup"
+
+    if ! is_headnode; then
+        # On a CN we're not rebooting, so we want the following
+        # reloaded.  Restarting zones causes /zones/manifests/ to be
+        # populated.
+        svcadm restart svc:/system/zones:default
+    fi
+
+    # Restarting network/physical causes /etc/resolv.conf to be written out.
+    # We do disable/enable so we can use -s.  We need this to finish here so
+    # that resolv.conf is updated, since node (imgadm) needs resolv.conf to
+    # be populated before it starts, as it does not notice changes.  We
+    # also restart routing-setup here to pick up defaultrouter, also
+    # written by network/physical.
+    svcadm disable -s svc:/network/physical:default
+    svcadm enable -s svc:/network/physical:default
+    svcadm disable -s svc:/network/routing-setup:default
+    svcadm enable -s svc:/network/routing-setup:default
+
+    echo $(cat /etc/resolv.conf)
+
+    # The old imgadm.
+    if [[ ! -f /var/db/imgadm/sources.list ]]; then
+        # For now we initialize with the global one since we don't
+        # have a local imgapi yet.
+        mkdir -p /var/db/imgadm
+        echo "https://datasets.joyent.com/datasets/" \
+            > /var/db/imgadm/sources.list
+        if ! imgadm update; then
+            echo "Failed to update imgadm sources. (No Internet?)"
         fi
+    fi
 
-	update_setup_state "zpool_created"
+    # The new imgadm.
+    if [[ ! -f /var/imgadm/imgadm.conf ]]; then
+        mkdir -p /var/imgadm
+        imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
+        echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
+            > /var/imgadm/imgadm.conf
+    fi
 
-	setup_datasets
-	update_setup_state "datasets_setup"
+    update_setup_state "imgadm_setup"
 
-	install_configs
-	update_setup_state "configs_installed"
+    # We're the headnode
+    if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
+        # We're booting up a standby headnode, leave a cookie so we can
+        # finish setting up standby after reboot
+        touch /zones/.standby
+    fi
 
-	create_swap
-	update_setup_state "swap_created"
-
-	output_zpool_info
-
-	setup_filesystems
-	update_setup_state "filesystems_setup"
-
-	if ! is_headnode; then
-		# On a CN we're not rebooting, so we want the following
-		# reloaded.  Restarting zones causes /zones/manifests/ to be
-		# populated.
-		svcadm restart svc:/system/zones:default
-	fi
-
-	# Restarting network/physical causes /etc/resolv.conf to be written out.
-	# We do disable/enable so we can use -s.  We need this to finish here so
-	# that resolv.conf is updated, since node (imgadm) needs resolv.conf to
-	# be populated before it starts, as it does not notice changes.  We
-	# also restart routing-setup here to pick up defaultrouter, also
-	# written by network/physical.
-	svcadm disable -s svc:/network/physical:default
-	svcadm enable -s svc:/network/physical:default
-	svcadm disable -s svc:/network/routing-setup:default
-	svcadm enable -s svc:/network/routing-setup:default
-
-	echo $(cat /etc/resolv.conf)
-
-	# The old imgadm.
-	if [[ ! -f /var/db/imgadm/sources.list ]]; then
-		# For now we initialize with the global one since we don't
-		# have a local imgapi yet.
-		mkdir -p /var/db/imgadm
-		echo "https://datasets.joyent.com/datasets/" \
-			> /var/db/imgadm/sources.list
-		if ! imgadm update; then
-			echo "Failed to update imgadm sources. (No Internet?)"
-		fi
-	fi
-
-	# The new imgadm.
-	if [[ ! -f /var/imgadm/imgadm.conf ]]; then
-		mkdir -p /var/imgadm
-		imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-		echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
-			> /var/imgadm/imgadm.conf
-	fi
-
-	update_setup_state "imgadm_setup"
-
-	# We're the headnode
-	if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
-		# We're booting up a standby headnode, leave a cookie so we can
-		# finish setting up standby after reboot
-		touch /zones/.standby
-	fi
-
-	#
-	# XXX Workaround for OS-1745.  Setting this property causes
-	# all labels to be updated, syncing up the txg numbers for
-	# each vdev and ensuring we can later import.
-	#
-	zpool set comment="Joyent persistent store" $SYS_ZPOOL
+    #
+    # XXX Workaround for OS-1745.  Setting this property causes
+    # all labels to be updated, syncing up the txg numbers for
+    # each vdev and ensuring we can later import.
+    #
+    zpool set comment="Joyent persistent store" $SYS_ZPOOL
 else
-	output_zpool_info
+    output_zpool_info
 fi
 
 exit 0
