@@ -249,7 +249,7 @@ function dump_mapi_live
     echo "Transforming MAPI datasets to IMGAPI manifest format"
     DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
         var fs = require("fs");
-        var OLD_ADMIN_UUID = "930896af-bf8c-48d4-885c-6573a94b1853";
+        var OLD_ADMIN_UUID = process.env.CONFIG_capi_admin_uuid;
         var NEW_ADMIN_UUID = "00000000-0000-0000-0000-000000000000";
         var dumpDir = process.env.DUMP_DIR;
         var d = JSON.parse(fs.readFileSync(dumpDir + "/datasets.json"));
@@ -301,6 +301,7 @@ function dump_mapi_live
         });
         fs.writeFileSync(dumpDir + "/images.json",
             JSON.stringify(d, null, 2) + "\n");
+        "Done transforming MAPI datasets."
         '
     [ $? != 0 ] && fatal "transforming MAPI datasets failed"
 }
