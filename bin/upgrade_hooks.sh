@@ -463,6 +463,8 @@ napi_tasks()
     cp ${SDC_UPGRADE_DIR}/mapi_dump/napi*.moray /zones/$1/root/root
 
     zlogin $1 /opt/smartdc/napi/sbin/import-data /root
+    [ $? != 0 ] && \
+        saw_err "Error loading NAPI data into moray"
 }
 
 # arg1 is zonename
