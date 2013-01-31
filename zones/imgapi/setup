@@ -16,14 +16,24 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/$role
 
+# Reload zoneconfig variables
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin:\$PATH" >>/root/.profile
+LOGNAME=root . /root/.profile
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 # Install Amon monitor and probes for IMGAPI.
 TRACE=1 /opt/smartdc/imgapi/bin/imgapi-amon-install
+
+# Add imgapi SSH key to UFDS
+# for now just take the first IP
+UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+UFDS_ADMIN_IP=$UFDS_ADMIN_IP UFDS_LDAP_ROOT_DN=$UFDS_LDAP_ROOT_DN \
+UFDS_LDAP_ROOT_PW=$UFDS_LDAP_ROOT_PW /opt/smartdc/imgapi/bin/imgapi-add-ssh-keys
 
 touch /var/svc/setup_complete
 echo "setup done"
