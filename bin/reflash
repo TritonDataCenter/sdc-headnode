@@ -449,6 +449,12 @@ dns_resolver2=\$(json dns_resolver2 < /mnt/usbkey/private/answers.json)
 dns_domain=\$(json dns_domain < /mnt/usbkey/private/answers.json)
 [[ -z \${dns_domain} || \${dns_domain} == "<default>" ]] && dns_domain="joyent.us"
 
+ntp_hosts=\$(json ntp_host < /mnt/usbkey/private/answers.json)
+compute_node_ntp_hosts=\$(json compute_node_ntp_host < /mnt/usbkey/private/answers.json)
+[[ \${ntp_hosts} == "<default>" ]] && ntp_hosts=
+[[ \${compute_node_ntp_hosts} == "<default>" ]] && compute_node_ntp_hosts=
+[[ -z \${ntp_hosts} ]] && ntp_hosts="68.0.14.76"
+[[ -z \${compute_node_ntp_hosts} ]] && compute_node_ntp_hosts=\${admin_ip}
 
 #
 # Calculate admin network IP address for each core zone
@@ -541,8 +547,8 @@ initial_script=scripts/headnode.sh
 root_shadow='\\\$5\\\$2HOHRnK3\\\$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
 admin_shadow='\\\$5\\\$f1mBmj6p\\\$oDDuYhLZzQIAZ5.QAAyr37lTN.K5FtLECvngsTLhWh5'
 
-ntp_hosts=pool.ntp.org
-compute_node_ntp_hosts=\${admin_ip}
+ntp_hosts=\${ntp_hosts}
+compute_node_ntp_hosts=\${compute_node_ntp_hosts}
 
 adminui_admin_ip=\${adminui_admin_ip}
 adminui_external_ip=\${adminui_external_ip}
