@@ -826,9 +826,6 @@ if [[ -n ${CREATEDZONES} ]]; then
                 printf_timer "FROM_START" \
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
             fi
-            # Explicit marker file that headnode initial setup completed
-            # successfully.
-            touch /var/svc/setup_complete
         fi
         echo "" >&${CONSOLE_FD}
     fi
