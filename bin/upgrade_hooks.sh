@@ -332,6 +332,8 @@ post_tasks()
         print_log "CloudAPI is currently in read-only mode"
         print_log "When ready, enable read-write using sdc-post-upgrade -w"
     fi
+    [ -s $dname/capi_conversion_issues.txt ] && \
+        echo "Review CAPI issues in capi_conversion_issues.txt"
     print_log "The upgrade logs are in $dname"
     update_setup_state "upgrade_complete"
 
@@ -394,10 +396,9 @@ ufds_tasks()
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
         -M \
-        -f /ufds.ldif 1>&4 2>&1
-    # err 68 means it already exists - allow this in case we're re-running
+        -f /ufds.ldif >${SDC_UPGRADE_DIR}/ufds_capi_load.txt 2>&4
     local res=$?
-    [[ $res != 0 && $res != 68 ]] && saw_err "Error loading CAPI data into UFDS"
+    [[ $res != 0 ]] && saw_err "Error loading CAPI data into UFDS"
 
     cp ${SDC_UPGRADE_DIR}/mapi_dump/mapi-ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
@@ -405,9 +406,9 @@ ufds_tasks()
         -D ${CONFIG_ufds_ldap_root_dn} \
         -w ${CONFIG_ufds_ldap_root_pw} \
         -M \
-        -f /mapi-ufds.ldif 1>&4 2>&1
+        -f /mapi-ufds.ldif >${SDC_UPGRADE_DIR}/ufds_mapi_load.txt 2>&4
     res=$?
-    [[ $res != 0 && $res != 68 ]] && saw_err "Error loading MAPI data into UFDS"
+    [[ $res != 0 ]] && saw_err "Error loading MAPI data into UFDS"
 }
 
 # arg1 is zonename

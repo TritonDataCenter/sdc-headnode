@@ -235,8 +235,12 @@ function dump_capi
 
     echo "Transforming CAPI postgres dumps to LDIF"
     $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump $CONFIG_capi_admin_uuid \
-        > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif
+        > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif \
+        2>$SDC_UPGRADE_DIR/capi_conversion_issues.txt
     [ $? != 0 ] && fatal "transforming the CAPI dumps"
+    [ -s $SDC_UPGRADE_DIR/capi_conversion_issues.txt ] && \
+        echo "After the upgrade, " \
+            "review CAPI issues in capi_conversion_issues.txt"
 }
 
 function dump_mapi_live

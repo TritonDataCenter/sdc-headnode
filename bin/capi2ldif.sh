@@ -10,6 +10,11 @@ var path = require('path');
 
 var Types = ['customers', 'keys', 'blacklists', 'limits', 'metadatum'];
 var CustomerIdMap = {};
+var blacklist_email = {};
+var email_addrs = {};
+var cust_uuids = {};
+var cust_logins = {};
+var key_fingerprints = {};
 
 
 ///--- Helpers
@@ -70,6 +75,12 @@ function transform_customers(file, callback) {
       if (pieces[26] !== '\\N')
         return console.error('%s was a deleted user, skipping.', pieces[6]);
 
+      // skip customers with blacklisted email addresses
+      if (pieces[13] in blacklist_email) {
+         console.error('%s was a blacklisted user, skipping', pieces[6]);
+         return;
+      }
+
       CustomerIdMap[pieces[4]] = pieces[5];
 
       if (pieces[5] === admin_uuid) {
@@ -78,11 +89,36 @@ function transform_customers(file, callback) {
         uuid = pieces[5];
       }
 
+      // duplicate uuids is a fatal error
+      if (uuid in cust_uuids) {
+         return err_and_exit('ERROR: %s duplicate uuid', uuid);
+      }
+      cust_uuids[uuid] = 1;
+
+      // duplicate login is a fatal error
+      if (pieces[6] in cust_logins) {
+         return err_and_exit('ERROR: %s duplicate login', pieces[6]);
+      }
+      cust_logins[pieces[6]] = 1;
+
+      // handle duplicate email addresses
+      if (pieces[13] in email_addrs) {
+         var ecomp = pieces[13].split('@');
+         if (ecomp.length != 2)
+             return console.error('%s invalid email address, skipping',
+                pieces[13]);
+         eaddr = ecomp[0] + '+' + pieces[6] + '@' + ecomp[1];
+         console.error('%s duplicate email, new addr %s', pieces[13], eaddr);
+      } else {
+         eaddr = pieces[13];
+      }
+      email_addrs[eaddr] = 1;
+
       var customer = {
         dn: 'uuid=' + uuid + ', ou=users, o=smartdc',
         uuid: uuid,
         login: pieces[6],
-        email: pieces[13],
+        email: eaddr,
         userpassword: pieces[0],
         _salt: pieces[1]
       };
@@ -139,6 +175,22 @@ function transform_keys(file, callback) {
       if (pieces.length < 8)
         return;
 
+      // skip blacklisted customers
+      if (!(pieces[1] in CustomerIdMap))
+        return;
+
+      // handle duplicate key fingerprints
+      if (pieces[5] in key_fingerprints) {
+         console.error('%s duplicate key fingerprint for customer %s',
+            pieces[5], CustomerIdMap[pieces[1]]);
+         return;
+      }
+      key_fingerprints[pieces[5]] = 1;
+
+      // some keys are invalid due to extra spaces, clean those up
+      if (/\s{2,}/.test(pieces[3]))
+         pieces[3] = pieces[3].replace(/(\s){2,}/, '$1');
+
       changes.push({
         dn: 'fingerprint=' + pieces[5] +
           ', uuid=' + CustomerIdMap[pieces[1]] +
@@ -173,6 +225,10 @@ function transform_limits(file, callback) {
     lines.forEach(function(line) {
       var pieces = line.split('\t');
       if (pieces.length < 7)
+        return;
+
+      // skip blacklisted customers
+      if (!(pieces[6] in CustomerIdMap))
         return;
 
       var customer_uuid = CustomerIdMap[pieces[6]];
@@ -221,6 +277,10 @@ function transform_metadata(file, callback) {
       if (pieces.length < 4)
         return;
 
+      // skip blacklisted customers
+      if (!(pieces[0] in CustomerIdMap))
+        return;
+
       var customer_uuid = CustomerIdMap[pieces[0]];
       var appkey = pieces[1];
       if (!metadata[customer_uuid])
@@ -265,6 +325,7 @@ function transform_blacklist(file, callback) {
         return;
 
       change.email.push(pieces[1]);
+      blacklist_email[pieces[1]] = 1;
     });
 
     return callback(change.email.length ? [change] : []);
@@ -296,34 +357,38 @@ fs.readdir(directory, function(err, files) {
     });
   }
 
-  // Load customers first, so we can map id -> uuid
-  transform_customers(directory + '/customers.dump', function(changes) {
-    callback(changes); // Still print these out
+  // Load blacklist first, so we can find out which customers to skip
+  transform_blacklist(directory + '/blacklists.dump', function(changes) {
+    callback(changes); // print these out
 
-    files.forEach(function(f) {
-      var type = path.basename(f, '.dump');
-      if (!/\w+\.dump$/.test(f) || Types.indexOf(type) === -1)
-        return;
+    // Load customers second, so we can map id -> uuid
+    transform_customers(directory + '/customers.dump', function(changes) {
+      callback(changes); // Still print these out
 
-      var file = directory + '/' + f;
-      switch (type) {
-      case 'keys':
-        transform_keys(file, callback);
-        break;
-      case 'customers':
-        break;
-      case 'limits':
-        transform_limits(file, callback);
-        break;
-      case 'metadatum':
-        transform_metadata(file, callback);
-        break;
-      case 'blacklists':
-        transform_blacklist(file, callback);
-        break;
-      default:
-        console.error('Skipping %s', f);
-      }
+      files.forEach(function(f) {
+        var type = path.basename(f, '.dump');
+        if (!/\w+\.dump$/.test(f) || Types.indexOf(type) === -1)
+          return;
+
+        var file = directory + '/' + f;
+        switch (type) {
+        case 'keys':
+          transform_keys(file, callback);
+          break;
+        case 'customers':
+          break;
+        case 'limits':
+          transform_limits(file, callback);
+          break;
+        case 'metadatum':
+          transform_metadata(file, callback);
+          break;
+        case 'blacklists':
+          break;
+        default:
+          console.error('Skipping %s', f);
+        }
+      });
     });
   });
 });
