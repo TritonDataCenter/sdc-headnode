@@ -455,15 +455,15 @@ napi_tasks()
         for N in $(/opt/smartdc/napi/bin/napictl network-list | json -a uuid); \
         do \
            /opt/smartdc/napi/bin/napictl network-delete $N; \
-        done'
+        done' 2>&4
     zlogin $1 '\
         for N in $(/opt/smartdc/napi/bin/napictl nictag-list | json -a name); \
         do \
            /opt/smartdc/napi/bin/napictl nictag-delete $N; \
-        done'
+        done' 2>&4
     cp ${SDC_UPGRADE_DIR}/mapi_dump/napi*.moray /zones/$1/root/root
 
-    zlogin $1 /opt/smartdc/napi/sbin/import-data /root
+    zlogin $1 /opt/smartdc/napi/sbin/import-data /root 1>&4 2>&1
     [ $? != 0 ] && \
         saw_err "Error loading NAPI data into moray"
 }
