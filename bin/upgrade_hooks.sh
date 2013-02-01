@@ -107,20 +107,6 @@ create_extra_zones()
 {
     declare -A existing_zones=()
 
-    # We have to wait until moray, wf, cnapi, etc. are responding
-    loops=0
-    while [ $loops -lt 20 ]; do
-        up=`sdc-role list 2>/dev/null | grep ufds`
-        [ -n "$up" ] && break
-        print_log "Waiting for the core zones to be ready..."
-        sleep 30
-        loops=$((${loops} + 1))
-    done
-
-    [ $loops -eq 20 ] && \
-        print_log "Core zones are still not ready, continuing but errors" \
-	"are likely"
-
     for i in `sdc-role list | nawk '{if ($6 != "ROLE") print $6}'`
     do
         existing_zones[$i]=1
@@ -311,6 +297,23 @@ post_tasks()
 
     # load config to pick up latest settings
     load_sdc_config
+
+    # We have to wait until moray, wf, cnapi, etc. are responding
+    local loops=0
+    while [ $loops -lt 20 ]; do
+        up=`sdc-role list 2>/dev/null | grep ufds`
+        [ -n "$up" ] && break
+        print_log "Waiting for the core zones to be ready..."
+        sleep 30
+        loops=$((${loops} + 1))
+    done
+
+    [ $loops -eq 20 ] && \
+        print_log "Core zones are still not ready, continuing but errors" \
+	"are likely"
+
+    print_log "upgrading napi data..."
+    napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
     create_extra_zones
 
@@ -600,7 +603,7 @@ case "$1" in
 
 "imgapi") imgapi_tasks $2;;
 
-"napi") napi_tasks $2;;
+"napi") echo "$2" >${SDC_UPGRADE_DIR}/napi_zonename.txt;;
 esac
 
 exit 0
