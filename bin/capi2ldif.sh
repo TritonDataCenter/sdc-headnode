@@ -179,13 +179,19 @@ function transform_keys(file, callback) {
       if (!(pieces[1] in CustomerIdMap))
         return;
 
-      // handle duplicate key fingerprints
-      if (pieces[5] in key_fingerprints) {
-         console.error('%s duplicate key fingerprint for customer %s',
-            pieces[5], CustomerIdMap[pieces[1]]);
-         return;
+      cuuid = CustomerIdMap[pieces[1]];
+
+      // skip duplicate key fingerprints
+      if (pieces[1] in key_fingerprints) {
+         if (key_fingerprints[pieces[1]].indexOf(pieces[5]) != -1) {
+            console.error('%s duplicate key fingerprint for customer %s',
+               pieces[5], cuuid);
+            return;
+         }
+      } else {
+         key_fingerprints[pieces[1]] = [];
       }
-      key_fingerprints[pieces[5]] = 1;
+      key_fingerprints[pieces[1]].push(pieces[5]);
 
       // some keys are invalid due to extra spaces, clean those up
       if (/\s{2,}/.test(pieces[3]))
@@ -193,7 +199,7 @@ function transform_keys(file, callback) {
 
       changes.push({
         dn: 'fingerprint=' + pieces[5] +
-          ', uuid=' + CustomerIdMap[pieces[1]] +
+          ', uuid=' + cuuid +
           ', ou=users, o=smartdc',
         fingerprint: pieces[5],
         name: pieces[2],
