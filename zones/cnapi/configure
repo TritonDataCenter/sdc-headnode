@@ -31,7 +31,7 @@ REDIS_HOST=$(echo "${REDIS_ADMIN_IPS}" | cut -d ',' -f1)
 echo "Creating CNAPI config file"
 cat > /opt/smartdc/cnapi/config/config.json <<HERE
 {
-  "logLevel": "debug",
+  "logLevel": "info",
   "datacenter_name": "$DATACENTER_NAME",
   "amqp": {
     "host": "$RABBIT_ADMIN_IP"
