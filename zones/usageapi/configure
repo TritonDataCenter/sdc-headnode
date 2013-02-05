@@ -13,27 +13,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # The user-script is downloaded and executed on every zone boot. We take
 # advantage of this to maintain the cached config values post-setup.
 if [ -e /var/svc/setup_complete ]; then
-	oldpw=`nawk '{
-	    if (! done && $1 == "\"password\":") {
-		print substr($2, 2, length($2) - 3)
-		done = 1
-	    }
-	}' /opt/smartdc/usageapi/config/config.json`
-	[ "$usageapi_http_admin_pw" == "$oldpw" ] && exit 0
-
-	echo "Updating usageapi configuration"
-	nawk -v p=$usageapi_http_admin_pw '{
-	    if (! done && $1 == "\"password\":") {
-		printf("  \"password\": \"%s\",\n", p)
-		done = 1
-	    } else {
-		print $0
-	    }
-	}' /opt/smartdc/usageapi/config/config.json \
-	 > /opt/smartdc/usageapi/config/config.json.new
-	mv /opt/smartdc/usageapi/config/config.json.new \
-	   /opt/smartdc/usageapi/config/config.json
-	svcadm restart usageapi
+	exit 0
 fi
 
 # XXX is net1 external nic?
@@ -133,8 +113,6 @@ cat > /opt/smartdc/usageapi/config/config.json <<HERE
   "siteName": "${usageapi_EXTERNAL_URL}",
   "port": 80,
   "logLevel": 4,
-  "user": "${HTTP_ADMIN_USER}",
-  "password": "${HTTP_ADMIN_PW}",
   "metering_granularity": 3600,
   "amqp": {
     "host": "${RABBIT_IP}",
