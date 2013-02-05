@@ -14,7 +14,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 echo "Creating DAPI config file"
 cat > /opt/smartdc/dapi/config.json <<HERE
 {
-  "logLevel": "debug",
+  "logLevel": "info",
   "api": {
     "port": 80
   }
