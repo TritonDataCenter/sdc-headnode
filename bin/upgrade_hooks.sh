@@ -452,18 +452,6 @@ imgapi_tasks()
 # arg1 is zonename
 napi_tasks()
 {
-    # Delete any networks and nic tags, since we're going to replace them
-    # anyway
-    zlogin $1 '\
-        for N in $(/opt/smartdc/napi/bin/napictl network-list | json -a uuid); \
-        do \
-           /opt/smartdc/napi/bin/napictl network-delete $N; \
-        done' 2>&4
-    zlogin $1 '\
-        for N in $(/opt/smartdc/napi/bin/napictl nictag-list | json -a name); \
-        do \
-           /opt/smartdc/napi/bin/napictl nictag-delete $N; \
-        done' 2>&4
     cp ${SDC_UPGRADE_DIR}/mapi_dump/napi*.moray /zones/$1/root/root
 
     zlogin $1 /opt/smartdc/napi/sbin/import-data /root 1>&4 2>&1
