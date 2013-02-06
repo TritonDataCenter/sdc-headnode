@@ -812,8 +812,6 @@ function cleanup_config
 
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
-	usageapi_http_admin_user=$CONFIG_billapi_http_admin_user
-	usageapi_http_admin_pw=$CONFIG_billapi_http_admin_pw
 	usageapi_admin_ips=$usageapi_admin_ip
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw

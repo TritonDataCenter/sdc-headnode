@@ -718,7 +718,7 @@ stty erase ^H
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2012, Joyent, Inc."
+printheader "Copyright 2013, Joyent, Inc."
 
 message="
 You must answer the following questions to configure the headnode.
@@ -1416,8 +1416,6 @@ echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo >>$tmp_config
 
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "usageapi_http_admin_user=admin" >>$tmp_config
-echo "usageapi_http_admin_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
