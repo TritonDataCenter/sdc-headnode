@@ -289,11 +289,10 @@ post_tasks()
 
     if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
         saw_err "Error global zone: svcs timed out"
-        print_log "Upgrade: ERROR global zone: svcs timed out"
-        exit 1
+        print_log "Upgrade: ERROR global zone: svcs check timed out"
+    else
+        print_log "Upgrade: all svcs are ready, continuing..."
     fi
-
-    print_log "Upgrade: all svcs are ready, continuing..."
 
     # load config to pick up latest settings
     load_sdc_config
@@ -312,6 +311,12 @@ post_tasks()
         print_log "Core zones are still not ready, continuing but errors" \
 	"are likely"
 
+    # XXX
+    sleep 30
+
+    print_log "configuring fwapi..."
+    fwapi_tasks
+
     print_log "upgrading napi data..."
     napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
@@ -321,10 +326,37 @@ post_tasks()
 
     dname="/var/upgrade.$(date -u "+%Y%m%dT%H%M%S")"
 
+    local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+    if [ $? -ne 0 ]; then
+        saw_err "Error, missing uuid for ufds zone"
+    else
+        # Add external net
+        cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/ufds_extnic.json
+	{
+	    "add_nics": [
+	        {
+	            "interface": "net1",
+	            "nic_tag": "external",
+	            "ip": "$CONFIG_ufds_external_ips",
+	            "netmask": "$CONFIG_external_netmask",
+	            "gateway": "$CONFIG_external_gateway"
+	        }
+	    ]
+	}
+	EXT_DONE
+
+        vmadm update -f ${SDC_UPGRADE_DIR}/ufds_extnic.json $ufds_uuid
+        vmadm update $ufds_uuid firewall_enabled=true
+        reboot_ufds $ufds_uuid
+    fi
+
     # XXX Install old platforms used by CNs
 
-    mv ${SDC_UPGRADE_DIR} $dname
+    print_log ""
     print_log "The upgrade is finished"
+    print_log "Note the following items:"
+
+    mv ${SDC_UPGRADE_DIR} $dname
     # If no error setting up cloudapi, print read-only msg
     local cloudapi_failed=0
     if [ -f $dname/error_finalize.txt ]; then
@@ -332,16 +364,23 @@ post_tasks()
         [ $? == 0 ] && cloudapi_failed=1
     fi
     if [ $cloudapi_failed == 0 ]; then
-        print_log "CloudAPI is currently in read-only mode"
-        print_log "When ready, enable read-write using sdc-post-upgrade -w"
+        print_log "- CloudAPI is currently in read-only mode"
+        print_log "  When ready, enable read-write using sdc-post-upgrade -w"
     fi
     [ -s $dname/capi_conversion_issues.txt ] && \
-        echo "Review CAPI issues in capi_conversion_issues.txt"
-    print_log "The upgrade logs are in $dname"
+        echo "- Review CAPI issues in capi_conversion_issues.txt"
+
+    if [[ $CONFIG_ufds_is_local == "true" ]]; then
+        print_log "- If remote sites were accessing CAPI, you must"
+        print_log "  update the UFDS firewall rule $FW_UUID"
+        print_log "  $FW_RULE"
+    fi
+
+    print_log "- The upgrade logs are in $dname"
     update_setup_state "upgrade_complete"
 
     if [ -f $dname/error_finalize.txt ]; then
-        print_log "ERRORS during upgrade:"
+        print_log "- ERRORS during upgrade:"
         cat $dname/error_finalize.txt | tee -a /tmp/upgrade_progress \
             >/dev/console
         print_log "You must resolve these errors before the headnode is usable"
@@ -349,8 +388,26 @@ post_tasks()
     else
         mark_as_setup
     fi
+    print_log "DONE"
 }
 
+reboot_ufds()
+{
+    vmadm reboot $1
+    sleep 10
+
+    # Wait for the zone to fully come back up
+    loops=0
+    # Got here and complete, now just wait for services.
+    while [[ -n $(svcs -xz $1) && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]
+    do
+        sleep 1
+        loops=$((${loops} + 1))
+    done
+
+    [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]] && \
+        saw_err "Error restarting ufds zone: svcs did not completely restart"
+}
 
 # arg1 is zonename
 ufds_tasks()
@@ -457,6 +514,74 @@ napi_tasks()
     zlogin $1 /opt/smartdc/napi/sbin/import-data /root 1>&4 2>&1
     [ $? != 0 ] && \
         saw_err "Error loading NAPI data into moray"
+
+    # reserve the IP addrs we stole out of the dhcp range for the new zones
+    local admin_uuid=`zlogin $1 /opt/smartdc/napi/bin/napictl network-list | \
+        json -a name uuid | nawk '{if ($1 == "admin") print $2}'`
+    if [ -z "$admin_uuid" ]; then
+        saw_err "Error, missing uuid for admin network"
+        return
+    fi
+
+    for a in `cat ${SDC_UPGRADE_DIR}/allocated_addrs.txt`
+    do
+        local z_uuid=`vmadm list -o uuid nics.0.ip=$a -H`
+        [ -z "$z_uuid" ] && saw_err "Error, missing zone for $a"
+
+        zlogin $1 /opt/smartdc/napi/bin/napictl ip-update $admin_uuid $a \
+            owner_uuid="00000000-0000-0000-0000-000000000000" \
+            belongs_to_uuid="$z_uuid" belongs_to_type=zone reserved=true \
+            1>&4 2>&1
+        [ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
+    done
+}
+
+netmask_to_cidr()
+{
+    cidr=`echo "$1" | nawk '
+        BEGIN {
+            bits = 8
+            for (i = 255; i >=0; i -= 2^i++)
+                cidr[i] = bits--
+        }
+        {
+            split($1, a, "[.]")
+            for (i = 1; i <= 4; i++)
+                tot += cidr[a[i]]
+
+            print tot
+        }'`
+}
+
+fwapi_tasks()
+{
+    local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+    if [ $? -ne 0 ]; then
+        saw_err "Error, missing uuid for ufds zone"
+        return
+    fi
+
+    local fwapi_uuid=`vmadm lookup -1 tags.smartdc_role=fwapi`
+    if [ $? -ne 0 ]; then
+        saw_err "Error, missing uuid for fwapi zone"
+        return
+    fi
+
+    local portal_ip=`nawk '{if ($1 == "portal") print $2}' \
+        ${SDC_UPGRADE_DIR}/ext_addrs.txt`
+
+    netmask_to_cidr $CONFIG_admin_netmask
+    cat <<-FW_DONE >/zones/$fwapi_uuid/root/root/fwrules.json
+	{ "enabled": true,
+	  "owner_uuid": "00000000-0000-0000-0000-000000000000",
+	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR ip $portal_ip) TO machine $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
+	}
+	FW_DONE
+    zlogin $fwapi_uuid /opt/smartdc/fwapi/bin/fwapi add -f /root/fwrules.json \
+        >${SDC_UPGRADE_DIR}/fw_setup.txt 2>&1
+    [ $? -ne 0 ] && saw_err "Error, setting up firewall rules for ufds zone"
+    FW_UUID=`json uuid <${SDC_UPGRADE_DIR}/fw_setup.txt 2>/dev/null`
+    FW_RULE=`json rule <${SDC_UPGRADE_DIR}/fw_setup.txt 2>/dev/null`
 }
 
 # arg1 is zonename
