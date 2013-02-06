@@ -179,13 +179,8 @@ function copy_to_mount
             || fatal "Unable to copy files to mount"
     fi
 
-    # Get build details
-    BUILD_BRANCH=$(cat $MNT_DIR/release.json | $ROOT/bin/json branch)
-    BUILD_TIMESTAMP=$(cat $MNT_DIR/release.json | $ROOT/bin/json timestamp)
-    BUILD_DESCRIBE=$(cat $MNT_DIR/release.json | $ROOT/bin/json describe)
-    THIS_BUILDSTAMP=${BUILD_BRANCH}-${BUILD_TIMESTAMP}-${BUILD_DESCRIBE}
-
     THIS_VERSION=$(cat ${MNT_DIR}/version)
+    THIS_BUILDSTAMP=$THIS_VERSION
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
     cp ${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest $STAGE

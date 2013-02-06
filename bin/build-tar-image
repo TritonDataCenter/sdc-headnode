@@ -1110,17 +1110,6 @@ function copy_to_mount
 {
     echo "${THIS_BUILDSTAMP}" > ${STAGE}/version
 
-    # We now want to ensure that we have some build information contained within the build
-    # artifact so that we can reuse the information for downstream artifacts.
-cat > $STAGE/release.json <<EORELINFO
-{
-    "version": "${SDC_VERSION}",
-    "branch": "${THIS_BRANCH}",
-    "describe": "${THIS_GITDESCRIBE}",
-    "timestamp": "${THIS_TIMESTAMP}"
-}
-EORELINFO
-
     (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
         | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"

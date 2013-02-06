@@ -95,11 +95,7 @@ function create_upgrade
         ${TAR} -xzf $TAR_BUILD_FILENAME) \
         || fatal "Could not extract tarball image"
 
-    # Get build details
-    BUILD_BRANCH=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json branch)
-    BUILD_TIMESTAMP=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json timestamp)
-    BUILD_DESCRIBE=$(cat $IMG_TMP_STAGE/release.json | $ROOT/bin/json describe)
-    THIS_BUILDSTAMP=${BUILD_BRANCH}-${BUILD_TIMESTAMP}-${BUILD_DESCRIBE}
+    THIS_BUILDSTAMP=$(cat $IMG_TMP_STAGE/version)
 
     mkdir -p ${STAGE}/upgrade/usbkey
     cp ${ROOT}/bin/upgrade.sh ${STAGE}/upgrade/upgrade.sh
