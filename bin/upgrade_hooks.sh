@@ -115,7 +115,6 @@ create_extra_zones()
     local new_uuid=
     local loops=
     local zonepath=
-    local ext_role=
     local ext_ip=
     local ext_ip_arg=
     local res=
@@ -127,13 +126,8 @@ create_extra_zones()
 
         print_log "creating zone $i..."
 
-        # 6.5.x billapi role is now usageapi role, lookup billapi external IP
-        ext_role=$i
-        [ "$i" == "usageapi" ] && ext_role="billapi"
-
-        ext_ip=`nawk -v role=$ext_role '{
-            if ($1 == role) print $2
-        }' ${SDC_UPGRADE_DIR}/ext_addrs.txt`
+        ext_ip=`nawk -v role=$i '{if ($1 == role) print $2 }' \
+            ${SDC_UPGRADE_DIR}/ext_addrs.txt`
         ext_ip_arg=""
         [ -n "$ext_ip" ] && ext_ip_arg="-o external_ip=$ext_ip"
 
@@ -350,8 +344,6 @@ post_tasks()
         reboot_ufds $ufds_uuid
     fi
 
-    # XXX Install old platforms used by CNs
-
     print_log ""
     print_log "The upgrade is finished"
     print_log "Note the following items:"
@@ -364,11 +356,16 @@ post_tasks()
         [ $? == 0 ] && cloudapi_failed=1
     fi
     if [ $cloudapi_failed == 0 ]; then
-        print_log "- CloudAPI is currently in read-only mode"
+        print_log "- CloudAPI is currently in read-only mode."
         print_log "  When ready, enable read-write using sdc-post-upgrade -w"
     fi
+
+    print_log "- Once the upgrade has been verified, run sdc-post-upgrade -c"
+    print_log "  to commit to this release and reclaim the space in use for"
+    print_log "  sdc-rollback. This must be done before the next upgrade."
+
     [ -s $dname/capi_conversion_issues.txt ] && \
-        echo "- Review CAPI issues in capi_conversion_issues.txt"
+        print_log "- Review CAPI issues in capi_conversion_issues.txt"
 
     if [[ $CONFIG_ufds_is_local == "true" ]]; then
         print_log "- If remote sites were accessing CAPI, you must"
@@ -383,7 +380,8 @@ post_tasks()
         print_log "- ERRORS during upgrade:"
         cat $dname/error_finalize.txt | tee -a /tmp/upgrade_progress \
             >/dev/console
-        print_log "You must resolve these errors before the headnode is usable"
+        print_log "You must resolve these errors before the upgrade is complete"
+        print_log "Use sdc-rollback if necessary"
         exit 1
     else
         mark_as_setup
