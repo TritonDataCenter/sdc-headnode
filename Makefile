@@ -35,6 +35,11 @@ sandwich:
 
 .PHONY: all coal usb boot tar upgrade sandwich
 
+.PHONY: update-tools-modules
+update-tools-modules:
+	./bin/mk-sdc-clients-light.sh 75e1af8 tools-modules/sdc-clients
+
+
 
 #
 # Includes

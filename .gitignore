@@ -1,9 +1,9 @@
 /mnt
 /cache
-/coal-*.tgz
-/usb-*.tgz
+/coal-*-*-*
+/usb-*-*-*
+/boot-*-*-*
 /upgrade-*.tgz
-/boot-*.tgz
 /config/*.local
 /config/root.authorized_keys
 /build.spec.local

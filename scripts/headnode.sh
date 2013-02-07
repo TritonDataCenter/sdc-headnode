@@ -336,6 +336,8 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/man
     cp -R /usbkey/tools-man/* /opt/smartdc/man/
     find /opt/smartdc/man/ -type f -exec chmod 444 {} \;
+    mkdir -p /opt/smartdc/node_modules
+    (cd /opt/smartdc/node_modules && tar -xf /usbkey/tools-modules.tar)
 
     mkdir -p /opt/smartdc/manta
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/manta/manta.tar.bz2)

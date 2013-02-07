@@ -1071,6 +1071,10 @@ function copy_tools
         cp -r ${ROOT}/tools ${STAGE}/tools
     fi
 
+    if [[ -d ${ROOT}/tools-modules ]]; then
+        (cd ${ROOT}/tools-modules && ${TAR} -cf ${STAGE}/tools-modules.tar ./)
+    fi
+
     if [[ -x ${RONNJS} ]]; then
         for file in $(find ${ROOT}/tools-man/ -name "*.ronn"); do
             ${RONNJS} --roff --build ${file} --date `git log -1 --date=short --pretty=format:'%cd' ${file}` `date +%Y`
