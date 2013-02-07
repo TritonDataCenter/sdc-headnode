@@ -26,11 +26,13 @@ if [[ ! -d $LOCAL_DB_DIR ]]; then
 fi
 
 echo "Generating public key for imgapi"
-if [[ ! -f /root/.ssh/id_rsa ]]; then
+if [[ ! -f /opt/smartdc/imgapi/etc/id_rsa ]]; then
     # Generate key only the first time
-    /usr/bin/ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""
+    /usr/bin/ssh-keygen -t rsa -f /opt/smartdc/imgapi/etc/id_rsa -N ""
+    chown nobody:nobody /opt/smartdc/imgapi/etc/id_rsa
+    chown nobody:nobody /opt/smartdc/imgapi/etc/id_rsa.pub
 fi
-MANTA_KEY_ID=`ssh-keygen -l -f /root/.ssh/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
+MANTA_KEY_ID=`ssh-keygen -l -f /opt/smartdc/imgapi/etc/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
 
 
 echo "Creating IMGAPI config file"
