@@ -218,6 +218,9 @@ if [[ -d /var/upgrade_in_progress ]]; then
     [ -n "$logs" ] && cp -p /tmp/*log* /var/upgrade_failed
 fi
 
+# Cleanup old perform-upgrade tmp dir
+rm -rf /var/tmp/upgrade*
+
 echo "rebooting"
 reboot
 sleep 120
