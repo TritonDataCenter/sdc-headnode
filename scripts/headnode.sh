@@ -306,13 +306,6 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         > /usbkey/extra/joysetup/node.config
 fi
 
-# Put the agents in a place where they will be available to compute nodes.
-if [[ ! -d /usbkey/extra/agents ]]; then
-    mkdir -p /usbkey/extra/agents
-    cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
-    ln -s `ls /usbkey/extra/agents | tail -n 1` /usbkey/extra/agents/latest
-fi
-
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
 # into one with the correct name.  Thanks PCFS!
@@ -387,6 +380,13 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
         printf_timer "%4s (%ss)\n" "done"
     else
         fatal "No agents-*.sh found!"
+    fi
+
+    # Put the agents in a place where they will be available to compute nodes.
+    if [[ ! -d /usbkey/extra/agents ]]; then
+        mkdir -p /usbkey/extra/agents
+        cp -Pr /usbkey/ur-scripts/agents-*.sh /usbkey/extra/agents/
+        ln -s $(basename ${which_agents}) /usbkey/extra/agents/latest
     fi
 fi
 

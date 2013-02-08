@@ -1172,7 +1172,7 @@ trim_db
 # Run full backup with the old sdc-backup code, then unpack the backup archive.
 # Double check the existence of backup file.
 echo "Creating a backup"
-sdc-backup -s datasets -d $SDC_UPGRADE_DIR
+sdc-backup -s datasets -s billapi -s riak -d $SDC_UPGRADE_DIR
 [[ $? != 0 ]] && fatal "unable to make a backup"
 bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
