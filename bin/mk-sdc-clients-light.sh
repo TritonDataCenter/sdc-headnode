@@ -138,7 +138,7 @@ npm install vasync@$VER
 VER=$(json -f node_modules/vasync/package.json dependencies.jsprim)
 npm install jsprim@$VER
 (cd node_modules/jsprim \
-    && rm -rf .[a-z]* node_modules README.md Makefile* jsl.node.conf)
+    && rm -rf .[a-z]* node_modules README.md Makefile* test jsl.node.conf)
 
 # json-schema (used by jsprim, but not by our code path, so we no-op it)
 touch node_modules/json-schema.js
