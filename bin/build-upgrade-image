@@ -126,6 +126,7 @@ function create_upgrade
         scripts \
         tools \
         tools-man \
+        tools-modules.tar \
         default \
         ur-scripts \
         zones \
