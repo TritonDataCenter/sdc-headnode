@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 #
-# Copyright (c) 2011, Joyent Inc. All rights reserved.
+# Copyright (c) 2013, Joyent Inc. All rights reserved.
 #
 
 unset LD_LIBRARY_PATH
@@ -13,7 +13,6 @@ export PATH
 usage()
 {
 	echo "   Head Node Usage: sdc-upgrade <upgrade file>"
-	echo "Compute Node Usage: sdc-upgrade"
 	exit 1
 }
 
@@ -99,28 +98,6 @@ if [[ $headnode == "true" ]]; then
 	# unset trap
 	trap - EXIT
 	cleanup
-
-else
-	[ $# -gt 0 ] && usage
-
-	rm -rf /var/tmp/upgrade
-	mkdir -p /var/tmp/upgrade
-
-	cd /var/tmp/upgrade
-	curl -k -o upgrade_cn \
-	    -s $CONFIG_assets_admin_ip:/extra/upgrade/upgrade_cn
-
-	hd=$(dd if=/var/tmp/upgrade/upgrade_cn bs=1 count=6 2>/dev/null)
-	if [ "$hd" == "<html>" ]; then
-		echo \
-	"The headnode must be upgraded before compute nodes can be upgraded."
-		cd /
-		rm -rf /var/tmp/upgrade
-		exit 1
-	fi
-
-	chmod +x /var/tmp/upgrade/upgrade_cn
-	/var/tmp/upgrade/upgrade_cn
 fi
 
 exit 0
