@@ -48,71 +48,68 @@ sig_doshell()
 	printf "$prmpt_str"
 }
 
-#
-# Get the max. IP addr for the given field, based in the netmask.
-# That is, if netmask is 255, then its just the input field, otherwise its
-# the host portion of the netmask (e.g. netmask 224 -> 31).
-# Param 1 is the field and param 2 the mask for that field.
-#
-max_fld()
-{
-	comp=$((255 & ~$2))
-	fmax=$(($comp | $1))
+ip_to_num()
+{ 
+    IP=$1
+
+    OLDIFS=$IFS
+    IFS=.
+    set -- $IP
+    num_a=$(($1 << 24))
+    num_b=$(($2 << 16))
+    num_c=$(($3 << 8))
+    num_d=$4
+    IFS=$OLDIFS
+
+    num=$((num_a + $num_b + $num_c + $num_d))
+} 
+
+num_to_ip()
+{ 
+    NUM=$1
+
+    fld_d=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_c=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_b=$(($NUM & 255))
+    NUM=$(($NUM >> 8))
+    fld_a=$NUM
+
+    ip_addr="$fld_a.$fld_b.$fld_c.$fld_d"
 }
 
 #
-# Converts an IP and netmask to a network
-# For example: 10.99.99.7 + 255.255.255.0 -> 10.99.99.0
-# Each field is in the net_a, net_b, net_c and net_d variables.
-# Also, host_addr stores the address of the host w/o the network number (e.g.
-# 7 in the 10.99.99.7 example above).  Also, max_host stores the max. host
-# number (e.g. 10.99.99.254 in the example above).
+# Converts an IP and netmask to their numeric representation.
+# Sets the global variables IP_NUM, NET_NUM, NM_NUM and BCAST_ADDR to their
+# respective numeric values.
 #
 ip_netmask_to_network()
 {
-	IP=$1
-	NETMASK=$2
+	ip_to_num $1
+	IP_NUM=$num
 
-	OLDIFS=$IFS
-	IFS=.
-	set -- $IP
-	net_a=$1
-	net_b=$2
-	net_c=$3
-	net_d=$4
-	addr_d=$net_d
+	ip_to_num $2
+	NM_NUM=$num
 
-	set -- $NETMASK
+	NET_NUM=$(($NM_NUM & $IP_NUM))
 
-	# Calculate the maximum host address
-	max_fld "$net_a" "$1"
-	max_a=$fmax
-	max_fld "$net_b" "$2"
-	max_b=$fmax
-	max_fld "$net_c" "$3"
-	max_c=$fmax
-	max_fld "$net_d" "$4"
-	max_d=$(expr $fmax - 1)
-	max_host="$max_a.$max_b.$max_c.$max_d"
-
-	net_a=$(($net_a & $1))
-	net_b=$(($net_b & $2))
-	net_c=$(($net_c & $3))
-	net_d=$(($net_d & $4))
-
-	host_addr=$(($addr_d & ~$4))
-	IFS=$OLDIFS
+	ip_to_num "255.255.255.255"
+	local bcasthost=$((~$NM_NUM & $num))
+	BCAST_ADDR=$(($NET_NUM + $bcasthost))
 }
 
-# Sets two variables, use_lo and use_hi, which are the usable IP addrs for the
+# Sets two variables, USE_LO and USE_HI, which are the usable IP addrs for the
 # largest block of available host addresses on the subnet, based on the two
 # addrs the user has chosen for the GW and External Host IP.
 # We look at the three ranges (upper, middle, lower) defined by the two addrs.
 calc_ext_default_range()
 {
-	a1=$1
-	a2=$2
+	local a1=$1
+	local a2=$2
 
+	local lo=
+	local hi=
 	if [ $a1 -lt $a2 ]; then
 		lo=$a1
 		hi=$a2
@@ -121,32 +118,31 @@ calc_ext_default_range()
 		hi=$a1
 	fi
 
-	u_start=`expr $hi + 1`
-	m_start=`expr $lo + 1`
-	l_start=1
+	u_start=$(($hi + 1))
+	m_start=$(($lo + 1))
+	l_start=$(($NET_NUM + 1))
 
-	u_max=$max_d
-	m_max=`expr $hi - 1`
-	l_max=`expr $lo - 1`
+	u_max=$(($BCAST_ADDR - 1))
+	m_max=$(($hi - 1))
+	l_max=$(($lo - 1))
 
-	up_range=`expr $max_d - $hi`
-	mid_range=`expr $hi - $lo`
-	lo_range=`expr $lo - 2`
-	[ $lo_range -lt 1 ] && lo_range=0
+	up_range=$(($u_max - $u_start))
+	mid_range=$(($m_max - $m_start))
+	lo_range=$(($l_max - $l_start))
 
 	if [ $up_range -gt $mid_range ]; then
-		use_lo=$u_start
-		use_hi=$u_max
+		USE_LO=$u_start
+		USE_HI=$u_max
 		range=$up_range
 	else
-		use_lo=$m_start
-		use_hi=$m_max
+		USE_LO=$m_start
+		USE_HI=$m_max
 		range=$mid_range
 	fi
 
 	if [ $range -lt $lo_range ]; then
-		use_lo=$l_start
-		use_hi=$l_max
+		USE_LO=$l_start
+		USE_HI=$l_max
 	fi
 }
 
@@ -192,8 +188,6 @@ is_net()
 	[ $c -lt 0 ] && return 1
 	[ $c -gt 255 ] && return 1
 	[ $d -lt 0 ] && return 1
-	# Make sure the last field isn't the broadcast addr.
-	[ $d -ge 255 ] && return 1
 	return 0
 }
 
@@ -843,13 +837,19 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 	admin_nic="$val"
 	admin_iface="$nic_val"
 
-	promptnet "(admin) headnode IP address" "$admin_ip" "admin_ip"
-	admin_ip="$val"
+	valid=0
+	while [ $valid -ne 1 ]; do
+		promptnet "(admin) headnode IP address" "$admin_ip" "admin_ip"
+		admin_ip="$val"
 
-	[[ -z "$admin_netmask" ]] && admin_netmask="255.255.255.0"
+		[[ -z "$admin_netmask" ]] && admin_netmask="255.255.255.0"
 
-	promptnet "(admin) headnode netmask" "$admin_netmask" "admin_netmask"
-	admin_netmask="$val"
+		promptnet "(admin) headnode netmask" "$admin_netmask" \
+		    "admin_netmask"
+		admin_netmask="$val"
+		ip_netmask_to_network "$admin_ip" "$admin_netmask"
+		[ $IP_NUM -ne $BCAST_ADDR ] && valid=1
+	done
 
 	val="none"
 	if [[ ${admin_gateway} ]]; then
@@ -866,11 +866,13 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 
 	if [[ -z "$admin_zone_ip" ]]; then
 		ip_netmask_to_network "$admin_ip" "$admin_netmask"
-		next_addr=$(expr $host_addr + 1)
-		admin_zone_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+		next_addr=$(($IP_NUM + 1))
+		num_to_ip $next_addr
+		admin_zone_ip="$ip_addr"
 	fi
 
-	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip" "admin_provisionable_start"
+	promptnet "(admin) Zone's starting IP address" "$admin_zone_ip" \
+	    "admin_provisionable_start"
 	admin_zone_ip="$val"
 
 	printheader "Networking - External"
@@ -888,14 +890,18 @@ external network later.\n\n"
 	if [[ -z ${setup_external_network} ]]; then
 		setup_external_network="Y/n"
 	fi
-	while [[ ${setup_external_network} != "y" && ${setup_external_network} != "n" ]]; do
-		promptopt "Add external network now?" "${setup_external_network}" "setup_external_network"
-		if [[ ${val} == 'y' || ${val} == 'Y' || ${val} == 'yes' || ${val} == 'true' || ${val} == 'Y/n' ]]; then
+	while [[ ${setup_external_network} != "y" && \
+	    ${setup_external_network} != "n" ]]; do
+		promptopt "Add external network now?" \
+		    "${setup_external_network}" "setup_external_network"
+		if [[ ${val} == 'y' || ${val} == 'Y' || ${val} == 'yes' || \
+		    ${val} == 'true' || ${val} == 'Y/n' ]]; then
 			setup_external_network="y"
-		elif [[ ${val} == 'n' || ${val} == 'N' || ${val} == 'no' || ${val} == 'false' ]]; then
+		elif [[ ${val} == 'n' || ${val} == 'N' || ${val} == 'no' || \
+		    ${val} == 'false' ]]; then
 			setup_external_network="n"
 		else
-			echo "Invalid value, please use 'y' for yes, 'n' for no."
+			echo "Invalid value, use 'y' for yes, 'n' for no."
 		fi
 	done
 
@@ -905,47 +911,70 @@ external network later.\n\n"
 		external_nic="$val"
 		external_iface="$nic_val"
 
-		promptnet "(external) headnode IP address" "$external_ip" "external_ip"
-		external_ip="$val"
+		valid=0
+		while [ $valid -ne 1 ]; do
+			promptnet "(external) headnode IP address" \
+			    "$external_ip" "external_ip"
+			external_ip="$val"
 
-		[[ -z "$external_netmask" ]] && external_netmask="255.255.255.0"
+			[[ -z "$external_netmask" ]] && \
+			    external_netmask="255.255.255.0"
 
-		promptnet "(external) headnode netmask" "$external_netmask" "external_netmask"
-		external_netmask="$val"
+			promptnet "(external) headnode netmask" \
+			    "$external_netmask" "external_netmask"
+			external_netmask="$val"
 
-		promptnet "(external) gateway IP address" "$external_gateway" "external_gateway"
+			ip_netmask_to_network "$external_ip" \
+			    "$external_netmask"
+			[ $IP_NUM -ne $BCAST_ADDR ] && valid=1
+		done
+
+		promptnet "(external) gateway IP address" "$external_gateway" \
+		    "external_gateway"
 		external_gateway="$val"
 
-		promptopt "(external) VLAN ID" "$external_vlan_id" "external_vlan_id"
+		promptopt "(external) VLAN ID" "$external_vlan_id" \
+		    "external_vlan_id"
 		external_vlan_id="$val"
 
 		if [[ -z "$external_provisionable_start" ]]; then
-			ip_netmask_to_network "$external_gateway" "$external_netmask" "external_netmask"
-			gw_host_addr=$host_addr
+			ip_netmask_to_network "$external_gateway" \
+			    "$external_netmask"
+			gw_host_addr=$IP_NUM
 
 			ip_netmask_to_network "$external_ip" "$external_netmask"
 
-			# Get use_lo and use_hi values for defaults
-			calc_ext_default_range $gw_host_addr $host_addr
+			# Get USE_LO and USE_HI values for defaults
+			calc_ext_default_range $gw_host_addr $IP_NUM
 
-			gw_host_addr=$(expr $net_d + $gw_host_addr)
-
-			next_addr=$(expr $net_d + $use_lo)
-
-			# By default, start the provisionable range 5 addrs after the
-			# previous IP.
-			next_addr=$(expr $next_addr + 5)
-			external_provisionable_start="$net_a.$net_b.$net_c.$next_addr"
-			external_provisionable_end="$max_a.$max_b.$max_c.$use_hi"
+			next_addr=$USE_LO
+			num_to_ip $next_addr
+			external_provisionable_start="$ip_addr"
+			num_to_ip $USE_HI
+			external_provisionable_end="$ip_addr"
 		fi
 
-		promptnet "Starting provisionable IP address" \
-		    "$external_provisionable_start" "external_provisionable_start"
-		external_provisionable_start="$val"
+		valid=0
+		while [ $valid -ne 1 ]; do
+			promptnet "Starting provisionable IP address" \
+			    "$external_provisionable_start" \
+			    "external_provisionable_start"
+			external_provisionable_start="$val"
+			ip_netmask_to_network "$external_provisionable_start" \
+			    "$external_netmask"
+			[ $IP_NUM -ne $BCAST_ADDR ] && valid=1
+		done
 
-		promptnet "  Ending provisionable IP address" \
-		    "$external_provisionable_end" "external_provisionable_end"
-		external_provisionable_end="$val"
+		valid=0
+		while [ $valid -ne 1 ]; do
+			promptnet "  Ending provisionable IP address" \
+			    "$external_provisionable_end" \
+			    "external_provisionable_end"
+			external_provisionable_end="$val"
+			ip_netmask_to_network "$external_provisionable_end" \
+			    "$external_netmask"
+			[ $IP_NUM -ne $BCAST_ADDR ] && valid=1
+		done
 	fi
 
 	printheader "Networking - Continued"
@@ -1098,87 +1127,111 @@ done
 # Calculate admin and external network
 #
 ip_netmask_to_network "$admin_ip" "$admin_netmask"
-admin_network="$net_a.$net_b.$net_c.$net_d"
+num_to_ip $NET_NUM
+admin_network="$ip_addr"
 
 #
 # Calculate admin network IP address for each core zone
 #
 ip_netmask_to_network "$admin_zone_ip" "$admin_netmask"
-next_addr=$host_addr
-assets_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$IP_NUM
+num_to_ip $next_addr
+assets_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-dhcpd_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+dhcpd_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-napi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+napi_admin_ip="$ip_addr"
 napi_client_url="http://${napi_admin_ip}:80"
 
-next_addr=$(expr $next_addr + 1)
-zookeeper_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+zookeeper_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-manatee_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+manatee_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-moray_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+moray_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-ufds_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+ufds_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-workflow_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+workflow_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-rabbitmq_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+rabbitmq_admin_ip="$ip_addr"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
 
-next_addr=$(expr $next_addr + 1)
-imgapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+imgapi_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-cnapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+cnapi_admin_ip="$ip_addr"
 cnapi_client_url="http://${cnapi_admin_ip}:80"
 
-next_addr=$(expr $next_addr + 1)
-redis_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+redis_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-amon_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+amon_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-dapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+dapi_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-fwapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+fwapi_admin_ip="$ip_addr"
 fwapi_client_url="http://${fwapi_admin_ip}:80"
 
-next_addr=$(expr $next_addr + 1)
-vmapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+vmapi_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-keyapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+keyapi_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-ca_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+ca_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-adminui_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+adminui_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-usageapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+usageapi_admin_ip="$ip_addr"
 
-next_addr=$(expr $next_addr + 1)
-sapi_admin_ip="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+sapi_admin_ip="$ip_addr"
 
 # Add 5 to leave some room
-next_addr=$(expr $next_addr + 5)
-dhcp_range_start="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
+next_addr=$(($next_addr + 5))
+num_to_ip $next_addr
+dhcp_range_start="$ip_addr"
 
 dhcp_range_end=$(getanswer "dhcp_range_end")
-if [[ -z "${dhcp_range_end}" || \
-	${dhcp_range_end} == "<default>" ]]; then
-	dhcp_range_end="$max_host"
+if [[ -z "${dhcp_range_end}" || ${dhcp_range_end} == "<default>" ]]; then
+	next_addr=$(($BCAST_ADDR - 1))
+	num_to_ip $next_addr
+	dhcp_range_end="$ip_addr"
 fi
 
 #
@@ -1186,7 +1239,8 @@ fi
 #
 if [[ -n ${external_nic} ]]; then
 	ip_netmask_to_network "$external_ip" "$external_netmask"
-	external_network="$net_a.$net_b.$net_c.$net_d"
+	num_to_ip $NET_NUM
+	external_network="$ip_addr"
 fi
 
 #
