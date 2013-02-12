@@ -1,41 +1,14 @@
 #!/bin/bash
 
 #
-# Copyright (c) 2012, Joyent Inc. All rights reserved.
+# Copyright (c) 2013, Joyent Inc. All rights reserved.
 #
 
 set -o errexit
 set -o pipefail
 
-PATH=/usr/bin:/usr/sbin:/smartdc/bin
+PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
-
-BIN=$(cd $(dirname $0); pwd)
-
-function mapi
-{
-	local label=`echo $1 | cut -d/ -f2-`
-	local cred=$CONFIG_mapi_http_admin_user:$CONFIG_mapi_http_admin_pw
-	local url=http://${CONFIG_mapi_admin_ip}$1
-
-	#
-	# Before we set this to be the array that is the result, check to
-	# see that the number of resources is non-zero; if it's zero, set
-	# it to an empty array.
-	#
-	local count=$(curl -fsIu "$cred" --url "$url" | tr '\r' '\n' | \
-	    grep X-Joyent-Resource-Count | nawk '{ print $2 }')
-
-	echo '"'$label'": '
-
-	if [[ "$count" == "0" ]]; then
-		echo "[],"
-		return
-	fi
-
-	curl -fsu "$cred" --url "$url"
-	echo ','
-}
 
 function config
 {
@@ -45,19 +18,22 @@ function config
 
 function gather
 {
-	echo '{ "config": {'
+	/usr/bin/echo '{\n"config": {'
 	config datacenter_name
 	config datacenter_company_name
 	config datacenter_location
 	config datacenter_headnode_id
-	echo '"UUID": "'${uuid}'" }',
+	/usr/bin/echo '"UUID": "'${uuid}'"\n}',
 
-	mapi /servers
-	mapi /networks
-	mapi /zones
-	echo '"nodes":'
-	${BIN}/sdc-oneachnode -jT 10 -t 10 kstat -pn system_misc
-	echo '}'
+	/usr/bin/echo '"servers": '
+	sdc-cnapi --no-headers /servers
+	/usr/bin/echo ',\n"networks": '
+	sdc-napi --no-headers /networks
+	/usr/bin/echo ',\n"vms": '
+	sdc-vmapi --no-headers /vms
+	/usr/bin/echo ',\n"nodes": '
+	sdc-oneachnode -jT 10 -t 10 kstat -pn system_misc
+	/usr/bin/echo '}'
 }
 
 source /lib/sdc/config.sh
