@@ -12,65 +12,17 @@ fi
 ZONE=$1
 TARGET_DIR=$2
 ROLE="usageapi"
+CFG_FILE=/zones/${UUID}/root/opt/smartdc/usageapi/config/config.json
 
-# Get existing data dataset.
-DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
-
-# Destroy previous dataset.
-if [[ -z "${DATA_DATASET}" ]]; then
-  echo "FATAL: Missing '${DATA_DATASET}' dataset"
-  exit 105
+if [[ ! -f "${SRC_DIR}/${ROLE}/config.json" ]]; then
+	echo "Warning, backup missing config file for $ROLE"
+	echo "==> Done"
+	exit 0
 fi
 
-echo "==> Destroying dataset '${DATA_DATASET}'"
-zfs destroy -r "${DATA_DATASET}"
-if [[ $? -gt 0 ]]; then
-  echo "FATAL: Unable to zfs destroy '${DATA_DATASET}' dataset"
-  exit 106
-fi
+echo "==> Restoring config file for zone '${ROLE}'"
+cp ${SRC_DIR}/${ROLE}/config.json $CFG_FILE
 
-# ZFS receive the dataset from the backup:
-echo "==> Receiving '${TARGET_DIR}/${ROLE}/data.zfs'"
-zfs receive -v "${DATA_DATASET}" < "${TARGET_DIR}/${ROLE}/data.zfs"
-if [[ $? -gt 0 ]]; then
-  echo "FATAL: Unable to zfs receive data dataset"
-  exit 108
-fi
-
-echo "==> Restoring configs"
-gzcat "${TARGET_DIR}/${ROLE}/config.tar.gz" | \
-  (cd "/zones/${ZONE}/root/opt/smartdc/usageapi"; tar xbf 512 -)
-if [[ $? -gt 0 ]]; then
-  echo "FATAL: Unable to restore configs"
-  exit 109
-fi
-
-echo "==> Restoring logs"
-gzcat "${TARGET_DIR}/${ROLE}/logs.tar.gz" | \
-  (cd "/zones/${ZONE}/root/var/svc"; tar xbf 512 -)
-
-# Double check mountpoint for backup dataset:
-if [[ "$(zfs get -H -o value mountpoint ${DATA_DATASET})" != \
-    "/zones/${ZONE}/data"  ]]; then
-
-    # We need to boot the zone in order to be able to set mountpoint for the
-    # delegated dataset properly:
-    echo "==> Booting '${ZONE}' zone"
-    /usr/sbin/zoneadm -z "${ZONE}" boot
-
-    echo "==> Setting mountpoint for dataset '${DATA_DATASET}'"
-    zlogin ${ZONE} /usr/sbin/zfs set mountpoint="/zones/${ZONE}/data" \
-       "${DATA_DATASET}"
-    if [[ $? -gt 0 ]]; then
-        echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"
-        /usr/sbin/zoneadm -z "${ZONE}" halt
-        exit 112
-    fi
-
-    echo "==> Halting '${ZONE}' zone"
-    /usr/sbin/zoneadm -z "${ZONE}" halt
-fi
-
-echo "==> All done!!!"
+echo "==> Done"
 exit 0
 
