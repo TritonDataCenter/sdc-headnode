@@ -213,6 +213,7 @@ convert_portal_zone()
     zoneadm -z portal move /zones/$uuid
     zonecfg -z portal set zonename=$uuid
     vmadm update $uuid alias=portal0
+    echo '{"set_tags": {"smartdc_role": "portal"}}' | vmadm update $uuid
     zoneadm -z $uuid boot
 }
 
