@@ -19,7 +19,8 @@ function update_env {
 }
 
 ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
-DATASET=zones/$ZONE_UUID/data
+DATASET=zones/$ZONE_UUID/data/manatee
+PARENT_DATASET=zones/$ZONE_UUID/data
 DATASET_MOUNT_DIR=/manatee/pg
 PG_DIR=/manatee/pg/data
 ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
@@ -35,6 +36,10 @@ then
         fatal "dataset $DATASET not mounted"
 fi
 
+# create manatee dataset
+echo "creating manatee dataset"
+zfs create $DATASET
+
 # create postgres user
 echo "creating postgres user"
 useradd postgres
@@ -45,7 +50,7 @@ usermod -P'Primary Administrator' postgres
 
 # give postgres user zfs permmissions.
 echo "grant postgres user zfs perms"
-zfs allow -ld postgres create,destroy,snapshot,mount,send,receive $DATASET
+zfs allow -ld postgres create,destroy,diff,hold,release,rename,setuid,rollback,share,snapshot,mount,promote,send,receive,clone,mountpoint,canmount $PARENT_DATASET
 
 # change dataset perms such that manatee can access the dataset and mount/unmount
 mkdir -p /manatee/pg
@@ -95,6 +100,7 @@ gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
 gsed -i -e "s|PG_CONF|$PG_CONF|g" $SITTER_CFG_FILE
+gsed -i -e "s|PARENT_DATASET|$PARENT_DATASET|g" $SITTER_CFG_FILE
 gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
 gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
