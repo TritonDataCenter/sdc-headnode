@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2012, Joyent Inc. All rights reserved.
+# Copyright (c) 2013, Joyent Inc. All rights reserved.
 #
 # Note:
 #
@@ -37,8 +37,9 @@ echo "(debug log is /tmp/restorelog.$$)"
 
 HEADNODE_UUID=$(sysinfo | json UUID)
 
-core_zones="assets cnapi dapi dhcpd imgapi moray napi rabbitmq ufds workflow"
-core_zones="$core_zones vmapi zookeeper manatee"
+core_zones="assets zookeeper manatee moray redis ufds workflow amon napi"
+core_zones="$core_zones rabbitmq imgapi cnapi dhcpd dapi fwapi vmapi ca"
+core_zones="$core_zones adminui keyapi usageapi sapi"
 
 usage()
 {
@@ -755,12 +756,7 @@ main()
             load_sdc_config
         fi
 
-        [[ -z ${CONFIG_vmapi_http_admin_user} ]] && fatal "missing vmapi config"
-        [[ -z ${CONFIG_vmapi_http_admin_pw} ]] && fatal "missing vmapi config"
         [[ -z ${CONFIG_vmapi_admin_ips} ]] && fatal "missing vmapi config"
-
-        [[ -z ${CONFIG_cnapi_http_admin_user} ]] && fatal "missing cnapi config"
-        [[ -z ${CONFIG_cnapi_http_admin_pw} ]] && fatal "missing cnapi config"
         [[ -z ${CONFIG_cnapi_admin_ips} ]] && fatal "missing cnapi config"
 
         CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
