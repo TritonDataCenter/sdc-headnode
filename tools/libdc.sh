@@ -10,7 +10,7 @@ source /lib/sdc/config.sh
 load_sdc_config
 
 if [[ $1 == "--no-headers" ]]; then
-    CURL_OPTS="-m 10 -sS -i -H accept:application/json"
+    CURL_OPTS="-m 10 -sS -H accept:application/json"
     shift
 else
     CURL_OPTS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
