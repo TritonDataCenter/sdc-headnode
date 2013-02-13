@@ -1,7 +1,7 @@
 {
     "brand": "joyent-minimal",
-	"networks": [ "admin", "external" ],
-	"primary_network": "external",
+    "networks": [ "admin", "external" ],
+    "primary_network": "external",
     "dependencies": [ "ufds", "amon" ],
     "delegate_dataset": true
 }
