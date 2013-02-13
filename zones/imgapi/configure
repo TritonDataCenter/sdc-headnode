@@ -12,6 +12,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # for now just take the first IP
 UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
+WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
 # Mount our delegate dataset at '/data'.
 zfs set mountpoint=/data zones/$(zonename)/data
@@ -51,6 +52,10 @@ cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
         "local": {
             "dir": "${LOCAL_DB_DIR}"
         }
+    },
+    "wfapi": {
+        "workflows": [ "publish" ],
+        "url": "${WF_URL}"
     }
 }
 HERE
