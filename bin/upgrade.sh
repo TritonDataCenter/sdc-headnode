@@ -992,7 +992,12 @@ function install_platform
 	fi
 
 	echo "Unpacking ${platformversion} to ${usbmnt}/os"
-	curl --progress -k file://${platformupdate} | \
+	local CURLOPTS=
+	test -t 0
+	if [[ $? == 0 ]]; then
+		CURLOPTS=--progress
+	fi
+	curl $CURLOPTS -k file://${platformupdate} | \
 	    (mkdir -p ${usbmnt}/os/${platformversion} \
 	    && cd ${usbmnt}/os/${platformversion} \
 	    && gunzip | tar -xf - 2>/tmp/install_platform.log \
