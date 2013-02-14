@@ -842,8 +842,6 @@ function cleanup_config
 	ufds_ldap_root_dn=cn=root
 	ufds_ldap_root_pw=secret
 	# Legacy CAPI parameters
-	capi_http_admin_user=$CONFIG_capi_http_admin_user
-	capi_http_admin_pw=$CONFIG_capi_http_admin_pw
 	# Required by SmartLogin:
 	capi_client_url=http://$ufds_admin_ip:8080
 	DONE
