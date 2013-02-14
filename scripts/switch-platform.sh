@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
 
 set -o errexit
@@ -103,15 +103,8 @@ echo "==> Updating cnapi"
 . /lib/sdc/config.sh
 load_sdc_config
 
-uuid=`curl -s -u admin:${CONFIG_cnapi_root_pw} \
-    http://${CONFIG_cnapi_admin_ips}//servers | json | nawk '{
-        if ($1 == "\"headnode\":" && $2 == "\"true\",")
-            found=1
-        if (found && $1 == "\"uuid\":") {
-            print substr($2, 2, length($2) - 3)
-            found=0
-        }
-    }' 2>/dev/null`
+uuid=`curl -s http://${CONFIG_cnapi_admin_ips}/servers | \
+    json -a headnode uuid | nawk '{if ($1 == "true") print $2}' 2>/dev/null`
 
 if [[ -z "${uuid}" ]]; then
     echo "==> FATAL unable to determine headnode UUID from cnapi."
@@ -122,8 +115,7 @@ if [[ -n "${dryrun}" ]]; then
 	doit="echo"
 fi
 
-${doit} curl -s -u admin:${CONFIG_cnapi_root_pw} \
-    http://${CONFIG_cnapi_admin_ips}//servers/${uuid} \
+${doit} curl -s http://${CONFIG_cnapi_admin_ips}/servers/${uuid} \
     -X POST -d boot_platform=${version} >/dev/null 2>&1
 
 exit 0
