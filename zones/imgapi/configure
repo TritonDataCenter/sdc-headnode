@@ -54,7 +54,7 @@ cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
         }
     },
     "wfapi": {
-        "workflows": [ "publish" ],
+        "workflows": [ "create-from-snapshot" ],
         "url": "${WF_URL}"
     }
 }
