@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+# Copyright (c) 2013, Joyent, Inc. All rights reserved.
 #
 
 # This script is intended to copy any changes that a sysadmin might legitimately
@@ -14,13 +14,11 @@
 # There are two kinds of changes to copy, actual files which need to go into
 # the image, and updates that need to be made to the config files.
 
-export PATH="/usr/bin:/usr/sbin"
+export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
 
 declare -A SDC_PKGS=()
 # The cnt is the next number to use when adding a new pkg_ entry
-PKG_CNT=1
-
-UPDATED=0
+PKG_CNT=0
 
 load_config_pkgs()
 {
@@ -28,58 +26,54 @@ load_config_pkgs()
 	for p in $pkgs
 	do
 		# Pkg entry format:
-		# name:ram:swap:disk:cap:nlwp:iopri
+		# name:ram:swap:disk:cap:nlwp:iopri:uuid
 		nm=${p%%:*}
 
 		SDC_PKGS[$nm]=1
-		PKG_CNT=$((PKG_CNT + 1))
+		PKG_CNT=$(($PKG_CNT + 1))
 	done
 }
 
 add_pkg()
 {
-	UPDATED=1
-
 	echo "add '$1' package for '$2' to the generic config file"
 
-	# XXX fix the code below once we have pkgs
-	return
+	# Make sure we haven't already added it once before
+	egrep -s "^pkg_[0-9]*=${1}:" /mnt/usbkey/config.inc/generic
+	if [ $? -ne 0 ]; then
+	    sdc-ldap search objectclass=sdcpackage | \
+	        nawk -v pnm=$1 -v cnt=$PKG_CNT '{
+                    if (length($0) == 0 && pnm == nm) {
+                        # Pkg entry format:
+                        # name:ram:swap:disk:cap:nlwp:iopri:uuid
+                        printf("pkg_%d=%s:%s:%s:%s:%s:%s:%s:%s\n", cnt,
+                            pnm, ram, swap, disk, cap, nlwp, iopri, uuid);
+                    }
 
-	curl -i -s -u $creds \
-	    http://${mapi}/customers/${admin_uuid}/packages | \
-	    json | nawk -v pnm=$1 -v cnt=$PKG_CNT '{
-		if ($1 == "\"name\":")
-		    # strip quotes and comma
-		    if (pnm == substr($2, 2, length($2) - 3)) found = 1
+                    if ($1 == "name:") {
+                        nm = $2
+                    } else if ($1 == "max_physical_memory:") {
+                        ram = $2
+                    } else if ($1 == "quota:") {
+                        disk = $2
+                    } else if ($1 == "max_swap:") {
+                        swap = $2
+                    } else if ($1 == "cpu_cap:") {
+                        cap = $2
+                    } else if ($1 == "max_lwps:") {
+                        nlwp = $2
+                    } else if ($1 == "zfs_io_priority:") {
+                        iopri = $2
+                    } else if ($1 == "uuid:") {
+                        uuid = $2
+                    }
+                }' >> /mnt/usbkey/config.inc/generic
 
-		if (found) {
-		    if ($1 == "\"ram\":") {
-		        # strip comma
-		        ram = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "\"disk\":") {
-		        disk = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "\"swap\":") {
-		        swap = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "\"cpu_cap\":") {
-		        cap = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "\"lightweight_processes\":") {
-		        nlwp = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "\"zfs_io_priority\":") {
-		        iopri = substr($2, 1, length($2) - 1)
-		    } else if ($1 == "}," || $1 == "}") {
-			# Pkg entry format:
-			# name:ram:swap:disk:cap:nlwp:iopri
-			printf("pkg_%d=%s:%s:%s:%s:%s:%s:%s\n", cnt,
-			    pnm, ram, swap, disk, cap, nlwp, iopri);
-			found=0
-		    }
-		}
-	    }' >> /mnt/usbkey/config.inc/generic
+	    # Just added an entry, so increment the cnt
+	    PKG_CNT=$((PKG_CNT + 1))
+	fi
 
-	# Just added an entry, so increment the cnt
-	PKG_CNT=$((PKG_CNT + 1))
-
-	# Change role pkg entry to use new pkg
+	# Change "role" pkg entry to use new pkg
 	nawk -F= -v entry="${2}_pkg" -v val=$1 '{
 	    if ($1 == entry)
 		printf("%s=%s\n", $1, val)
@@ -91,20 +85,16 @@ add_pkg()
 
 update_sdc_zone_pkgs()
 {
-	[[ -z ${CONFIG_vmapi_http_admin_user} ]] && return
-	[[ -z ${CONFIG_vmapi_http_admin_pw} ]] && return
 	[[ -z ${CONFIG_vmapi_admin_ips} ]] && return
 
-	local vmcreds="$CONFIG_vmapi_http_admin_user:$CONFIG_vmapi_http_admin_pw"
 	local vmapi_ip=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
 	local vmurl="http://${vmapi_ip}"
 
-	curl -i -sS -u ${vmcreds} \
+	curl -sS \
     --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'smartdc_role=(tags.smartdc_role || "-")' \
-	    -e 'pkg=(internal_metadata.package_name || "-")' \
-	    -a smartdc_role pkg | \
+	    -a smartdc_role package_name | \
 	    while read role pkg
 	    do
 		# If this pkg is not in the config file, add it.
@@ -119,7 +109,6 @@ save_root_password() {
     [ "$CONFIG_root_shadow" == "$enc_password" ] && return
 
     echo "Updating root password in the config file"
-    UPDATED=1
 
     sed -e "s|^root_shadow=.*$|root_shadow='${enc_password}'|" \
       /mnt/usbkey/config > /mnt/usbkey/config.new \
@@ -152,11 +141,9 @@ save_root_password
 load_config_pkgs
 update_sdc_zone_pkgs
 
-if [[ $UPDATED == 1 ]]; then
-    # update the cached copy so compute nodes get the same data
-    cp /mnt/usbkey/config /usbkey/config
-    cp /mnt/usbkey/config.inc/generic /usbkey/config.inc/generic
-fi
+# update the cached copy so compute nodes get the same data
+cp -p /mnt/usbkey/config /usbkey/config
+cp -p /mnt/usbkey/config.inc/generic /usbkey/config.inc/generic
 
 umount /mnt/usbkey
 
