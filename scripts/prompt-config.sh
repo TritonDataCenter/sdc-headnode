@@ -576,53 +576,6 @@ print_warning()
 	read continue
 }
 
-configure_standby()
-{
-	printheader "Configuring Standby Headnode"
-	message="
-This standby headnode will be setup using the backup configuration, however
-you must select the new NICs for the admin and possibly external networks.\n\n"
-
-	printf "$message"
-
-	while [ /usr/bin/true ]; do
-		promptnic "'admin'"
-		admin_nic="$val"
-
-		echo
-
-		# if we have external in original config, we'll need one here,
-		# otherwise we don't.
-		setup_external_network="n"
-		if grep "^external_nic=" ${USBMNT}/config >/dev/null; then
-			setup_external_network="y"
-		fi
-
-		if [[ ${setup_external_network} == "y" ]]; then
-			promptnic "'external'"
-			external_nic="$val"
-		fi
-
-		clear
-		printnics
-		promptval "Is this correct?" "y"
-		[ "$val" == "y" ] && break
-		clear
-	done
-
-	# update config
-	sed -e "s/admin_nic=.*/admin_nic=$admin_nic/" \
-		-e "s/external_nic=.*/external_nic=$external_nic/" \
-		$USBMNT/config >/tmp/config.$$
-
-	echo
-	echo "Your configuration is about to be applied."
-	promptval "Would you like to edit the final configuration file?" "n"
-	[ "$val" == "y" ] && vi /tmp/config.$$
-
-	mv /tmp/config.$$ $USBMNT/config
-}
-
 nicsup() {
 	[ $nicsup_done -eq 1 ] && return
 
@@ -656,13 +609,10 @@ nicsdown() {
 
 trap "" SIGINT
 
-standby=0
-
-while getopts "f:S" opt
+while getopts "f:" opt
 do
 	case "$opt" in
 		f)	answer_file=${OPTARG};;
-		S)	standby=1;;
 	esac
 done
 
@@ -755,13 +705,6 @@ This session can no longer perform system configuration.\n"
 
 fi
 touch /tmp/config_in_progress
-
-# Branch down a different path when configuring a standby headnode which will
-# already have a config file.
-if [ $standby == 1 ]; then
-	configure_standby
-	exit 0
-fi
 
 #
 # Main loop to prompt for user input

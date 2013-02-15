@@ -1,12 +1,10 @@
-.TH "sdc\-backup" "1" "August 2011" "" ""
+.TH "sdc\-backup" "1" "February 2013" "" ""
 .
 .SH "NAME"
 \fBsdc-backup\fR \-\- backup a node running SmartDC zones
 .
 .SH "SYNOPSIS"
-\fBsdc\-backup\fR [\-d directory] [\-s zone]*
-.br
-\fBsdc\-backup\fR \-S
+\fBsdc\-backup\fR [\-d directory] [\-s role]*
 .br
 \fBsdc\-backup\fR \-l
 .br
@@ -44,15 +42,9 @@ option will be the non\-master USB device.
                  to use with the \-U option.
 .
 .br
-\fB\-S\fR               Backup for standby headnode.  This saves
-                 the backup onto the master USB key to allow
-                 for easy re-creation of the headnode on a
-                 standby system.
-.
-.br
-\fB\-s zone\fR          Skip the specified zone. More than one
-                 -s option may be used to skip multiple
-                 zones.
+\fB\-s role\fR          Skip the specified SDC zone role. More than
+                 one -s option may be used to skip multiple
+                 roles.
 .
 .br
 \fB\-U\fR device        Create a bootable USB image on the
@@ -69,11 +61,11 @@ This example creates a backup file in /zones.
 .br
 # sdc-backup
 .br
-Backing up the ca zone
+Skipping zone zookeeper (f76eaf78-f5b5-4aa6-ab1f-c2a8de5007b7), stateless
 .br
-Backing up the capi zone
+Backing up the ca zone b7ee3111-99cb-4e9b-9c0d-add0577abb0e
 .br
-Backing up the mapi zone
+    ...
 .br
 The backup file (size 20M) is /zones/backup-2011-08-23-16-12-34.tgz
 .br
@@ -84,13 +76,13 @@ Copy or move this file to your backup medium.
 
 .br
 This example creates a backup file in /backups and skips backing up the
-adminui and redis zones.
+datasets and redis role.
 .br
 
 .br
-# sdc-backup -d /backups -s adminui -s redis
+# sdc-backup -d /backups -s datasets -s redis
 .br
- . . .
+    ...
 .br
 The backup file (size 20M) is /backups/backup-2011-08-23-16-12-34.tgz
 .br
@@ -110,13 +102,9 @@ name of your memory stick for this procedure.
 .br
 # sdc-backup -d /usb_backup
 .br
-Backing up the adminui zone
+Backing up the ca zone b7ee3111-99cb-4e9b-9c0d-add0577abb0e
 .br
-Backing up the ca zone
-.br
-Backing up the capi zone
-.br
-Backing up the mapi zone
+    ...
 .br
 The backup file (size 20M) is /usb_backup/backup-2011-08-23-16-08-01.tgz
 .br
@@ -157,4 +145,4 @@ This example creates a backup file of the USB key.
 .br
 
 .SH "COPYRIGHT"
-sdc\-backup Copyright (c) 2011 Joyent Inc\., All rights reserved\.
+sdc\-backup Copyright (c) 2013 Joyent Inc\., All rights reserved\.

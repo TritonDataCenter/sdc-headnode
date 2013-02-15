@@ -566,11 +566,6 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
     update_setup_state "imgadm_setup"
 
     # We're the headnode
-    if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
-        # We're booting up a standby headnode, leave a cookie so we can
-        # finish setting up standby after reboot
-        touch /zones/.standby
-    fi
 
     #
     # XXX Workaround for OS-1745.  Setting this property causes

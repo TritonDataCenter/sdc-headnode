@@ -34,21 +34,6 @@ title Live 64-bit Rescue (no importing zpool)
    module /PLATFORM/i86pc/amd64/boot_archive
    module /PLATFORM/i86pc/amd64/boot_archive.hash
 
-title Install Standby Headnode
-   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=text,headnode=true,standby=true
-   module /PLATFORM/i86pc/amd64/boot_archive
-   module /PLATFORM/i86pc/amd64/boot_archive.hash
-
-title Install Standby Headnode (ttyb)
-   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",headnode=true,standby=true
-   module /PLATFORM/i86pc/amd64/boot_archive
-   module /PLATFORM/i86pc/amd64/boot_archive.hash
-
-title Install Standby Headnode (ttya)
-   kernel /PLATFORM/i86pc/kernel/amd64/unix -B console=ttya,ttya-mode="115200,8,n,1,-",headnode=true,standby=true
-   module /PLATFORM/i86pc/amd64/boot_archive
-   module /PLATFORM/i86pc/amd64/boot_archive.hash
-
 title Live 64-bit +kmdb
    kernel /PLATFORM/i86pc/kernel/amd64/unix -kd -B console=text,headnode=true
    module /PLATFORM/i86pc/amd64/boot_archive

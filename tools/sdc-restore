@@ -9,11 +9,7 @@
 #     that all core zones will get deleted and recreated in addition to
 #     restoring the data.
 #
-#  "standby" (-S) means:
-#
-#     to do a restore, but take the current running GZ's network info and uuid.
-#
-#  without either of those options means:
+#  without this option means:
 #
 #     only restore the data into those zones that exist both in the backup
 #     and on the system being restored to.
@@ -43,7 +39,7 @@ core_zones="$core_zones adminui keyapi usageapi sapi"
 
 usage()
 {
-    printf "usage: $(basename $0) [-F ] [-S] [-U] backup_file\n"
+    printf "usage: $(basename $0) [-F ] [-U] backup_file\n"
     exit 1
 }
 
@@ -385,9 +381,6 @@ validate_options()
 {
     [[ $headnode == 0 && $full == 1 ]] && \
     fatal "-F is only valid on the headnode"
-
-    [[ $headnode == 0 && $standby == 1 ]] && \
-    fatal "-S is only valid on the headnode"
 }
 
 unpack_archive()
@@ -441,16 +434,6 @@ restore_usbkey_config()
     echo -n "restoring configuration files... "
     cp -pr $dest/config* /mnt/usbkey || \
         fatal "unable to restore configuration, all zones will remain shutdown"
-
-    # If restoring a standby headnode, use the current *_nic values from
-    # the config instead of what we had in the backup.
-    if [[ $standby == 1 ]]; then
-        sed -e "s/admin_nic=.*/admin_nic=$CONFIG_admin_nic/" \
-            -e "s/external_nic=.*/external_nic=$CONFIG_external_nic/" \
-            /mnt/usbkey/config >/tmp/config.$$
-        cp /tmp/config.$$ /mnt/usbkey/config
-        rm -f /tmp/config.$$
-    fi
 
     cp -pr /mnt/usbkey/config* /usbkey || \
         fatal "unable to restore configuration copy, all zones will " \
@@ -521,23 +504,6 @@ wait_for_vmapi()
         let cnt=$cnt+1
     done
     echo " done"
-}
-
-update_headnode_uuid()
-{
-    echo -n "updating headnode UUID in the DB... "
-
-    # XXX fix this once CNAPI-47 is fixed, currently there is no PUT support
-    curl -s -f \
-        --url "${CNAPI_URL}/servers?hostname=headnode" \
-        -d uuid="${HEADNODE_UUID}" -X PUT
-
-    if [[ $? != 0 ]]; then
-        printf "failed to restore headnode UUID %s\n" ${HEADNODE_UUID} \
-            >/dev/stderr
-    else
-        echo "done"
-    fi
 }
 
 # Get the VMAPI network IP addr for the given tag (admin or external)
@@ -740,11 +706,9 @@ main()
         # Wait up to 2 minutes for vmapi to boot back up
         wait_for_vmapi
 
-        if [[ ${standby} == 1 || ${full} == 1 ]]; then
+        if [[ ${full} == 1 ]]; then
             # This will reload the config vars again (with the config we
-            # restored) in case we're restoring a standby headnode with a
-            # manual run of the sdc-restore -S command and not as part of a
-            # standby boot.
+            # restored).
             load_sdc_config
         fi
 
@@ -757,13 +721,8 @@ main()
         VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
         VMAPI_URL="http://${VMAPI_IP}"
 
-        if [[ ${standby} == 1 ]]; then
-            # we're restoring a standby headnode, use our UUID now instead.
-            update_headnode_uuid
-        fi
-
-        if [[ ${standby} == 1 || ${full} == 1 ]]; then
-            # re-create the extra zones that were on the old headnode
+        if [[ ${full} == 1 ]]; then
+            # re-create the extra zones that were on the headnode
             recreate_extra_zones
         fi
     fi
@@ -841,14 +800,12 @@ headnode=1
 
 tmpdir=/zones
 full=0
-standby=0
 dousb=0
 
-while getopts "FSU" opt
+while getopts "FU" opt
 do
     case "$opt" in
         F)  full=1;;
-        S)  standby=1;;
 	U)  dousb=1;;
         *)  usage;;
     esac
@@ -863,7 +820,6 @@ if [[ $bufile != "-" ]]; then
 fi
 
 [ $full == 1 -a $dousb == 1 ] && usage
-[ $standby == 1 -a $dousb == 1 ] && usage
 
 [ $dousb == 1 ] && restore_usb
 

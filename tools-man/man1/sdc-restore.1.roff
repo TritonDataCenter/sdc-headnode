@@ -1,10 +1,10 @@
-.TH "sdc\-restore" "1" "August 2011" "" ""
+.TH "sdc\-restore" "1" "February 2013" "" ""
 .
 .SH "NAME"
 \fBsdc-restore\fR \-\- restore a node from a backup
 .
 .SH "SYNOPSIS"
-\fBsdc\-restore\fR [\-F] [\-S] [\-U] backup_file
+\fBsdc\-restore\fR [\-F] [\-U] backup_file
 .
 .SH "DESCRIPTION"
 This utility restores the node using a backup file created by the
@@ -20,20 +20,11 @@ the headnode configuration (if run on the headnode).
 The \-F option is only valid on the headnode.
 With this option, all of the core headnode zones will be recreated,
 and then any other stateful zones contained in the backup will be restored.
-The \-S option is only valid on the headnode.
-Use this option when restoring a headnode backup onto a standby headnode
-system.  In this case, certain system-specific configuration settings will
-not be restored.  Instead, the values from the standby system will remain
-in place.
 The \-U option restores the USB key from a backup made using sdc-backup \-U.
 None of the running zones will be effected.
 .
 .SH "OPTIONS"
 \fB\-F\fR             full restore - recreate core zones
-
-.
-\fB\-S\fR             standby headnode - restore onto a standby
-               headnode
 
 .
 \fB\-U\fR             restore USB key - restore backup made
@@ -68,4 +59,4 @@ sdc-backup \-U.
 .br
 
 .SH "COPYRIGHT"
-sdc\-restore Copyright (c) 2011 Joyent Inc\., All rights reserved\.
+sdc\-restore Copyright (c) 2013 Joyent Inc\., All rights reserved\.

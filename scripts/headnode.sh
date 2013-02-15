@@ -391,35 +391,10 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
 fi
 
 # headnode.sh normally does the initial setup of the headnode when it first
-# boots.  This creates the core zones, installs agents, etc.  However, when
-# we are booting with the standby option, if there is a backup file on the
-# USB key, then we want to create plus restore things in this case.
-#
-# If we're setting up a standby headnode, we might have rebooted from the
-# joysetup in the block above.  In that case, joysetup left a cookie named
-# /zones/.standby.  So we have two conditions to setup a standby headnode,
-# otherwise we setup normally.
-#
-# XXX what if boot standby and things are already setup?  Delete first?
+# boots.  This creates the core zones, installs agents, etc.
 #
 # We want to be careful here since, sdc-restore -F will also run this
-# headnode.sh script (with the restore parameter) and we want that to work
-# even if the system was initially booted as a standby.
-standby=0
-if [ $restore == 0 ]; then
-    if /bin/bootparams | grep "^standby=true" >/dev/null 2>&1; then
-        standby=1
-    elif [ -e /zones/.standby ]; then
-        standby=1
-    fi
-fi
-
-if [ $standby == 1 ]; then
-    # See if there is a backup on the USB key
-    [ -d ${USB_COPY}/standby ] && \
-        bufile=${USB_COPY}/standby/`ls -t ${USB_COPY}/standby 2>/dev/null | head -1`
-fi
-[[ $standby == 1 && -z "$bufile" ]] && skip_zones=true
+# headnode.sh script (with the restore parameter).
 
 CREATEDZONES=
 CREATEDUUIDS=
@@ -667,7 +642,6 @@ function num_not_setup {
 
 
 if [[ -z ${skip_zones} ]]; then
-    printf_timer "%-58s%s (%ss)\n" "standby/restore check..." "done"
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
@@ -795,18 +769,6 @@ if [[ -n ${CREATEDZONES} ]]; then
         fi
     fi
 
-    if [ $standby == 1 ]; then
-        if [ -n "$bufile" ]; then
-             # We have to do the restore in the background since svcs the
-             # restore will depend on are blocked waiting for the init svc
-             # to complete.
-             sdc-restore -S $bufile >&${CONSOLE_FD} 2>&1 &
-        fi
-
-        # Cleanup the cookie that joysetup might have left around.
-        rm -f /zones/.standby
-    fi
-
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
         printf_log "%-58s" "Executing post-install script..."
@@ -818,32 +780,14 @@ if [[ -n ${CREATEDZONES} ]]; then
 
     if [ $restore == 0 ]; then
         echo "" >&${CONSOLE_FD}
-        if [ $standby == 1 ]; then
-            echo "Restoring standby headnode" >&${CONSOLE_FD}
+        if [[ $upgrading == 1 ]]; then
+            printf_timer "FROM_START" \
+                "initial setup complete (in %s seconds).\n"
         else
-            if [[ $upgrading == 1 ]]; then
-                printf_timer "FROM_START" \
-                    "initial setup complete (in %s seconds).\n"
-            else
-                printf_timer "FROM_START" \
+            printf_timer "FROM_START" \
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
-            fi
         fi
         echo "" >&${CONSOLE_FD}
-    fi
-else
-    if [ $restore == 0 ]; then
-        if [[ $standby == 1 && -z "$bufile" ]]; then
-            # clear the screen
-            #echo "[H[J" >&${CONSOLE_FD}
-
-            echo "" >&${CONSOLE_FD}
-            echo "==> Use sdc-restore to perform setup.  Press [enter] to get" \
-                " login prompt." >&${CONSOLE_FD}
-            echo "" >&${CONSOLE_FD}
-            # Cleanup the cookie that joysetup might have left around.
-            rm -f /zones/.standby
-        fi
     fi
 fi
 
