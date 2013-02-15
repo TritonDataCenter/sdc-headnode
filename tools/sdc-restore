@@ -354,20 +354,12 @@ recreate_extra_zones()
             echo -n "creating ${role} zone... "
 
             # Specify original IP address(es)
-            ip_addrs=
-            reuse_ip_addrs=
-            [[ -n ${admin_ip} ]] && ip_addrs=${admin_ip}
-            if [[ -n ${external_ip} ]]; then
-                if [[ -n ${ip_addrs} ]]; then
-                    ip_addrs="${ip_addrs},${external_ip}"
-                else
-                    ip_addrs="${external_ip}"
-                fi
-            fi
-            [[ -n ${ip_addrs} ]] && reuse_ip_cmd="-I ${ip_addrs}"
+            set_ip_arg=""
+            [[ -n ${admin_ip} ]] && set_ip_arg="-o admin_ip=${admin_ip}"
+            [[ -n ${external_ip} ]] && \
+                set_ip_arg="$set_ip_arg -o external_ip=${external_ip}"
 
-	    # XXX need a way to specify IP
-            local zname=$(sdc-role create ${reuse_ip_cmd} ${role} \
+            local zname=$(sdc-role create ${set_ip_arg} ${role} \
                 2>/tmp/setuperr.$$ 4>&${LOGFD} | \
                 nawk '/Sent provision to VMAPI for/{print $NF}')
 
