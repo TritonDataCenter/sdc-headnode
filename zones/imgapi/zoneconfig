@@ -6,3 +6,5 @@ UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 AMON_ADMIN_IPS=${amon_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
