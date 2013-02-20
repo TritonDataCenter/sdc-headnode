@@ -573,7 +573,7 @@ fwapi_tasks()
     cat <<-FW_DONE >/zones/$fwapi_uuid/root/root/fwrules.json
 	{ "enabled": true,
 	  "owner_uuid": "00000000-0000-0000-0000-000000000000",
-	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR ip $portal_ip) TO machine $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
+	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR ip $portal_ip) TO vm $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
 	}
 	FW_DONE
     zlogin $fwapi_uuid /opt/smartdc/fwapi/bin/fwapi add -f /root/fwrules.json \
