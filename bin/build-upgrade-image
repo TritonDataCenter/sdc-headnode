@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
 
 #
@@ -131,6 +131,11 @@ function create_upgrade
         ur-scripts \
         zones \
     )
+
+    cp ${IMG_TMP_STAGE}/agents65/heartbeater-65.tgz \
+        ${STAGE}/upgrade/heartbeater-65.tgz
+    cp ${IMG_TMP_STAGE}/agents65/provisioner-v2-65.tgz \
+        ${STAGE}/upgrade/provisioner-v2-65.tgz
 
     PLATFORM_STAMP=$(ls -t $IMG_TMP_DIR/upgrade.$$/os/ | head -1)
     cp -R $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP

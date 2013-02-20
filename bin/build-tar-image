@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+# Copyright (c) 2013, Joyent, Inc. All rights reserved.
 #
 
 #
@@ -700,6 +700,79 @@ function get_bit
     echo "${get_bit_rv}"
 }
 
+# Get a bit (from BIT_URL/BIT_DIR/BIT_BRANCH) to the local "cache/" dir.
+# If the file already exists in the cache dir, then it is not re-downloaded.
+# This is based on the get_bit function but does not assume that the agents
+# are on the master branch.
+function get_agents65_bit
+{
+    local get_bit_rv=
+
+    local agent65_dir=agents-upgrade/release-20110901-upgrade-latest
+    local agent65_ldir=$agent65_dir/agents-upgrade
+    local pattern=$1
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        # BITS_URL URL example:
+        #   https://user:pass@stuff.joyent.us/stuff/builds
+        # where pattern='heartbeater-*' is at:
+        #   https://user:pass@stuff.joyent.us/stuff/builds/agents-upgrade/release-20110901-upgrade-latest/agents-upgrade/heartbeater-release-*
+        local url_dir="${BITS_URL}/${agent65_ldir}/"
+        local md5_url="${BITS_URL}/${agent65_dir}/md5sums.txt"
+        local latest_name=$(curl ${CURL_OPTS} --fail -k -sS ${url_dir}/ \
+            | grep "href=\"" \
+            | cut -d'"' -f2 \
+            | grep "${pattern}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "Could not find '${pattern}' in '${url_dir}'."
+        fi
+        local correct_md5=$(curl --fail -k -sS ${md5_url} \
+            | grep "./${latest_name}$" | cut -d ' ' -f1)
+        local cache_path=${ROOT}/cache/${latest_name}
+        local ok=0
+        local retries=0
+        while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
+            if [[ ! -f $cache_path ]]; then
+                echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
+                (cd ${ROOT}/cache \
+                    && curl ${CURL_OPTS} --fail --connect-timeout 10 \
+			--progress-bar -k \
+                        -O ${url_dir}/${latest_name} \
+                    || fatal "Unable to download '${url_dir}/${latest_name}'.")
+            fi
+
+            local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
+            if [[ ${my_md5} == ${correct_md5} ]]; then
+                ok=1
+                continue
+            else
+                rm -f ${cache_path}
+                retries=$((${retries} + 1))
+                echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
+            fi
+        done
+        if [[ ${ok} -ne 1 ]]; then
+            fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
+        fi
+        get_bit_rv=${cache_path}
+        cleanup_bit "${pattern}"
+    else
+        local latest_name=$(ls -1 ${ROOT}/cache/ \
+            | grep "${pattern}" \
+            | sort \
+            | tail -1)
+        if [[ -z "${latest_name}" ]]; then
+            fatal "'${ROOT}/cache/${pattern}' did not match any files (and we have no Internet)."
+        fi
+        local latest_path=${ROOT}/cache/${latest_name}
+        echo "Use '${latest_path}' bit already in cache (no Internet)." >&2
+        get_bit_rv=${latest_path}
+        cleanup_bit "${pattern}"
+    fi
+    echo "${get_bit_rv}"
+}
+
 function copy_platform
 {
     [[ -z "${loops}" ]] && loops=0
@@ -1119,6 +1192,17 @@ function copy_to_mount
         || fatal "Unable to copy files to mount"
 }
 
+function copy_65_agents
+{
+    mkdir -p ${STAGE}/agents65
+    get_agents65_bit "heartbeater-*"
+    cp `ls -t ${ROOT}/cache/heartbeater-* | head -1` \
+        ${STAGE}/agents65/heartbeater-65.tgz
+    get_agents65_bit "provisioner-v2-*"
+    cp `ls -t ${ROOT}/cache/provisioner-v2-* | head -1` \
+        ${STAGE}/agents65/provisioner-v2-65.tgz
+}
+
 function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
@@ -1147,6 +1231,7 @@ copy_pkgsrc
 copy_amon_agent
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_agentsshar
+copy_65_agents
 copy_datasets
 copy_zones
 copy_tools

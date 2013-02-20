@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2010,2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
 
 #
@@ -178,6 +178,8 @@ function copy_to_mount
         (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $TAR_BUILD_FILENAME) \
             || fatal "Unable to copy files to mount"
     fi
+
+    rm -rf $MNT_DIR/agents65 || true
 
     THIS_VERSION=$(cat ${MNT_DIR}/version)
     THIS_BUILDSTAMP=$THIS_VERSION

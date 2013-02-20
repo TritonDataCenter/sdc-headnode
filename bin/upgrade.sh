@@ -1032,10 +1032,12 @@ function wait_and_clear
 }
 
 CHECK_ONLY=0
+AGENTS_ONLY=0
 FATAL_CNT=0
-while getopts "c" opt
+while getopts "ac" opt
 do
 	case "$opt" in
+		a)	AGENTS_ONLY=1;;
 		c)	CHECK_ONLY=1;;
 		*)	echo "ERROR: invalid option" >/dev/stderr
 			exit 1;;
@@ -1048,6 +1050,35 @@ if [[ ${SYSINFO_Bootparam_headnode} != "true" \
     || -z ${SYSINFO_Live_Image} ]]; then
 
     fatal "this can only be run on a SmartOS headnode."
+fi
+
+[[ $CHECK_ONLY == 1 && $AGENTS_ONLY == 1 ]] && fatal "incompatible options"
+
+if [[ $AGENTS_ONLY == 1 ]]; then
+    echo "Upgrade compute node agents"
+
+    assetdir=/zones/assets/root/assets/agents
+    mkdir -p $assetdir
+    cp $ROOT/heartbeater-65.tgz $assetdir
+    cp $ROOT/provisioner-v2-65.tgz $assetdir
+
+    sdc-oneachnode -c "cd /var/tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/agents/heartbeater-65.tgz;
+       /opt/smartdc/agents/bin/agents-npm \
+       install /var/tmp/heartbeater-65.tgz \
+       >/var/tmp/heartbeater65_install.log 2>&1 &"
+    [ $? != 0 ] && \
+        fatal "installing new heartbeater agents"
+
+    sdc-oneachnode -c "cd /var/tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/agents/provisioner-v2-65.tgz;
+       /opt/smartdc/agents/bin/agents-npm install \
+       /var/tmp/provisioner-v2-65.tgz \
+       >/var/tmp/provisioner-v2-65_install.log 2>&1 &"
+    [ $? != 0 ] && \
+        fatal "installing new provisioner agents"
+
+    exit 0
 fi
 
 mount_usbkey
@@ -1142,6 +1173,19 @@ if [[ $CAPI_FOUND == 0 ]]; then
     else
         printf "OK\n"
     fi
+fi
+
+echo -n "Checking each compute node for correct agents..."
+num_cn=`sdc-oneachnode -c hostname | egrep -v "^HOST" | wc -l`
+num_hb=`sdc-oneachnode -c /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+       egrep heartbeater@1.0.1 | wc -l`
+num_prov=`sdc-oneachnode -c /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+       egrep provisioner-v2@1.0.11 | wc -l`
+if [[ $num_hb != $num_cn || $num_prov != $num_cn ]]; then
+    echo
+    fatal "The correct agents are not installed on each compute node"
+else
+    printf "OK\n"
 fi
 
 # End of validation checks, quit now if only validating
