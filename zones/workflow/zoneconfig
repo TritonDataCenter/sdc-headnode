@@ -14,8 +14,5 @@ NAPI_ADMIN_IPS=${napi_admin_ips}
 IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
 FWAPI_ADMIN_IPS=${fwapi_admin_ips}
 
-NAPI_HTTP_ADMIN_USER=${napi_http_admin_user}
-NAPI_HTTP_ADMIN_PW=${napi_http_admin_pw}
-
 UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
