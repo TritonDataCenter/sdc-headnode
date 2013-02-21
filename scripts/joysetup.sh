@@ -543,24 +543,14 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 
     echo $(cat /etc/resolv.conf)
 
-    # The old imgadm.
-    if [[ ! -f /var/db/imgadm/sources.list ]]; then
-        # For now we initialize with the global one since we don't
-        # have a local imgapi yet.
-        mkdir -p /var/db/imgadm
-        echo "https://datasets.joyent.com/datasets/" \
-            > /var/db/imgadm/sources.list
-        if ! imgadm update; then
-            echo "Failed to update imgadm sources. (No Internet?)"
-        fi
-    fi
-
-    # The new imgadm.
+    # imgadm setup to use the IMGAPI in this DC.
     if [[ ! -f /var/imgadm/imgadm.conf ]]; then
         mkdir -p /var/imgadm
+        echo '{}' > /var/imgadm/imgadm.conf
+    fi
+    if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
         imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-        echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
-            > /var/imgadm/imgadm.conf
+        imgadm sources -f -a $imgapi_url
     fi
 
     update_setup_state "imgadm_setup"
