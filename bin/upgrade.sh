@@ -610,6 +610,8 @@ function cleanup_config
 	mount_usbkey
 
 	cat <<-SED_DONE >/tmp/upg.$$
+	/^admin_gateway=/d
+	/^compute_node_default_gateway=/d
 	/^adminui_admin_ip=/d
 	/^adminui_external_ip=/d
 	/^adminui_admin_pw=/d
