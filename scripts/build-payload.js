@@ -163,9 +163,6 @@ async.series([
             } else {
                 newobj.netmask = '255.255.255.0';
             }
-            if (config.hasOwnProperty('admin_gateway')) {
-                newobj.gateway = config['admin_gateway'];
-            }
             newobj.nic_tag = 'admin';
             newobj.vlan_id = 0;
             newobj.interface = 'net' + obj.nics.length;

@@ -794,19 +794,6 @@ the installation and that this network is connected in VLAN ACCESS mode only.\n\
 		[ $IP_NUM -ne $BCAST_ADDR ] && valid=1
 	done
 
-	val="none"
-	if [[ ${admin_gateway} ]]; then
-		# if they went back to change settings, enter should keep their
-		# current value.
-		val=${admin_gateway}
-	fi
-	promptnet "(admin) gateway IP address" "${val}" "admin_gateway"
-	if [[ ${val} != "none" ]]; then
-		admin_gateway="$val"
-	else
-		admin_gateway=
-	fi
-
 	if [[ -z "$admin_zone_ip" ]]; then
 		ip_netmask_to_network "$admin_ip" "$admin_netmask"
 		next_addr=$(($IP_NUM + 1))
@@ -936,12 +923,9 @@ other networks. This will almost certainly be the router connected to your
 		printf "$message"
 	fi
 
-	# default to external_gateway if that's set, if not, admin_gateway, if
-	# that's also not set, use 'none'
+	# default to external_gateway if that's set, if not, use 'none'
 	[[ -z "$headnode_default_gateway" && -n ${external_gateway} ]] && \
 	    headnode_default_gateway="$external_gateway"
-	[[ -z "$headnode_default_gateway" && -n ${admin_gateway} ]] && \
-	    headnode_default_gateway="$admin_gateway"
 	[[ -z "$headnode_default_gateway" ]] && \
 	    headnode_default_gateway="none"
 
@@ -1040,7 +1024,7 @@ emails to a specific address. Each of these values will be configured below.
 		printf "%8s %17s %15s %15s %15s %4s\n" "Net" "MAC" \
 		    "IP addr." "Netmask" "Gateway" "VLAN"
 		printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
-		    $admin_ip $admin_netmask "$admin_gateway" "none"
+		    $admin_ip $admin_netmask "none" "none"
 		if [[ -n ${external_nic} ]]; then
 			printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
 			    $external_ip $external_netmask $external_gateway $ext_vlanid
@@ -1288,9 +1272,6 @@ echo "admin_nic=$admin_nic" >>$tmp_config
 echo "admin_ip=$admin_ip" >>$tmp_config
 echo "admin_netmask=$admin_netmask" >>$tmp_config
 echo "admin_network=$admin_network" >>$tmp_config
-if [[ -n ${admin_gateway} ]]; then
-	echo "admin_gateway=$admin_gateway" >>$tmp_config
-fi
 echo >>$tmp_config
 
 if [[ -n ${external_nic} ]]; then
@@ -1315,9 +1296,6 @@ if [[ ${headnode_default_gateway} != "none" ]]; then
 	echo "headnode_default_gateway=$headnode_default_gateway" >>$tmp_config
 fi
 
-if [[ -n ${admin_gateway} ]]; then
-	echo "compute_node_default_gateway=$admin_gateway" >>$tmp_config
-fi
 echo >>$tmp_config
 
 echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config

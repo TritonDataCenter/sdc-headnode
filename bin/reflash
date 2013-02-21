@@ -374,9 +374,6 @@ mail_from=\$(json mail_from < /mnt/usbkey/private/answers.json)
 [[ -z \${mail_from} || \${mail_from} == "<default>" ]] && mail_from="devs@joyent.com"
 admin_nic=\$(json admin_nic < /mnt/usbkey/private/answers.json)
 admin_ip=\$(json admin_ip < /mnt/usbkey/private/answers.json)
-admin_gateway=\$(json admin_gateway < /mnt/usbkey/private/answers.json)
-[[ -z \${admin_gateway} || \${admin_gateway} == "none" ]] \
-    && admin_gateway=\${admin_ip}
 admin_netmask=\$(json admin_netmask < /mnt/usbkey/private/answers.json)
 admin_network=\$(json admin_network < /mnt/usbkey/private/answers.json)
 if [[ -z \${admin_network} ]]; then
@@ -520,7 +517,6 @@ admin_nic=\${admin_nic}
 admin_ip=\${admin_ip}
 admin_netmask=\${admin_netmask}
 admin_network=\${admin_network}
-admin_gateway=\${admin_gateway}
 
 external_nic=\${external_nic}
 external_ip=\${external_ip}
