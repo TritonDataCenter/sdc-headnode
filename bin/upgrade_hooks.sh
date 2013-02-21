@@ -306,8 +306,8 @@ post_tasks()
         print_log "Core zones are still not ready, continuing but errors" \
 	"are likely"
 
-    # XXX
-    sleep 30
+    # Can still see timeouts in coal when things are spinning up
+    [[ "$CONFIG_coal" == "true" ]] && sleep 120
 
     print_log "configuring fwapi..."
     fwapi_tasks
