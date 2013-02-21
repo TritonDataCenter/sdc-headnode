@@ -7,6 +7,7 @@ UFDS_ADMIN_LOGIN=${ufds_admin_login}
 UFDS_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_ROOT_PW=${ufds_ldap_root_pw}
 
+WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
 USAGEAPI_ADMIN_IPS=${usageapi_admin_ips}
 NAPI_ADMIN_IPS=${napi_admin_ips}
 DAPI_ADMIN_IPS=${dapi_admin_ips}
@@ -14,3 +15,4 @@ VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 CNAPI_ADMIN_IPS=${cnapi_admin_ips}
 IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
 KEYAPI_ADMIN_IPS=${keyapi_admin_ips}
+FWAPI_ADMIN_IPS=${fwapi_admin_ips}
