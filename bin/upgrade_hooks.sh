@@ -226,23 +226,17 @@ pre_tasks()
     # joysetup.sh. That work is done on initial install of the HN, but
     # joysetup.sh is not run when we upgrade a installed HN.
 
-    if [[ ! -f /var/db/imgadm/sources.list ]]; then
-        # For now we initialize with the global one since we don't have a local
-        # imgapi yet.
-        mkdir -p /var/db/imgadm
-        echo "https://datasets.joyent.com/datasets/" \
-            > /var/db/imgadm/sources.list
-        imgadm update
-    fi
-
+    # imgadm setup to use the IMGAPI in this DC.
     if [[ ! -f /var/imgadm/imgadm.conf ]]; then
+        mkdir -p /var/imgadm
+        echo '{}' > /var/imgadm/imgadm.conf
+    fi
+    if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
         # pickup config
         load_sdc_config
 
-        mkdir -p /var/imgadm
         imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-        echo '{}' | /usr/bin/json -e "this.sources=[{\"url\": \"$imgapi_url\", \"type\": \"imgapi\"}]" \
-            > /var/imgadm/imgadm.conf
+        imgadm sources -f -a $imgapi_url
     fi
 
     # Now create the install progress status file that is required by
@@ -264,6 +258,8 @@ pre_tasks()
         "\"last_updated\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"" \
         "}" >/var/lib/setup.json
     chmod 400 /var/lib/setup.json
+
+    update_setup_state "imgadm_setup"
 
     print_log \
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
