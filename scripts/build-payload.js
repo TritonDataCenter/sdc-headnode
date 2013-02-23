@@ -153,10 +153,11 @@ async.series([
                 obj.nics = [];
             }
             newobj = {};
+            // when there is more than one IP, we take the first one here.
             if (config.hasOwnProperty(zone + '_admin_ip')) {
-                newobj.ip = config[zone + '_admin_ip'];
+                newobj.ip = config[zone + '_admin_ip'].split(',')[0];
             } else {
-                newobj.ip = config[zone + '_admin_ips'];
+                newobj.ip = config[zone + '_admin_ips'].split(',')[0];
             }
             if (config.hasOwnProperty('admin_netmask')) {
                 newobj.netmask = config['admin_netmask'];
