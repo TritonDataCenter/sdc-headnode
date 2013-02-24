@@ -383,6 +383,7 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
         #   2. send back the response to rabbitmq for this job
         #   3. reboot
         #
+        printf "rebooting system...\n"
         exit 113
     fi
 else
