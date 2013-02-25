@@ -1389,14 +1389,17 @@ if [[ -n ${external_nic} ]]; then
 	fi
 fi
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
+echo "adminui_svcname=$adminui_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amon_svcname=$amon_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
+echo "redis_svcname=$redis_svcname" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1404,6 +1407,7 @@ echo >>$tmp_config
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
+echo "assets_svcname=$assets_svcname" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1411,6 +1415,7 @@ echo >>$tmp_config
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
+echo "dhcpd_svcname=$dhcpd_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
@@ -1434,10 +1439,12 @@ echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
+echo "rabbitmq_svcname=$rabbitmq_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
+echo "usageapi_svcname=$usageapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_local=true" >>$tmp_config
@@ -1451,21 +1458,26 @@ echo "# Legacy CAPI parameters" >>$tmp_config
 # Do not remove. Required to work by smart-login.git agent:
 echo "# Required by SmartLogin:" >>$tmp_config
 echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
+echo "ufds_svcname=$ufds_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
+echo "cnapi_svcname=$cnapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_client_url=$fwapi_client_url" >>$tmp_config
+echo "fwapi_svcname=$fwapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
+echo "napi_svcname=$napi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
+echo "sapi_svcname=$sapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

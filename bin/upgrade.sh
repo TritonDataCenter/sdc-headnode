@@ -781,13 +781,16 @@ function cleanup_config
 
 	assets_admin_ip=$assets_admin_ip
 	assets_admin_ips=$assets_admin_ip
+	assets_svcname=assets.$CONFIG_dns_domain
 
 	dhcpd_admin_ip=$dhcpd_admin_ip
 	dhcpd_admin_ips=$dhcpd_admin_ip
+	dhcpd_svcname=$dhcpd.$CONFIG_dns_domain
 
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
+	rabbitmap_svcname=$rabbitmq.$CONFIG_dns_domain
 
 	ca_admin_ips=$ca_admin_ip
 	ca_svcname=ca.$CONFIG_dns_domain
@@ -827,9 +830,11 @@ function cleanup_config
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
+	amon_svcname=amon.$CONFIG_dns_domain
 
 	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
+	redis_svcname=redis.$CONFIG_dns_domain
 
 	dsapi_url=https://datasets.joyent.com
 	dsapi_http_user=honeybadger
@@ -838,6 +843,7 @@ function cleanup_config
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
 	usageapi_admin_ips=$usageapi_admin_ip
+	usageapi_svcname=usageapi.$CONFIG_dns_domain
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
@@ -848,6 +854,7 @@ function cleanup_config
 	napi_admin_ips=$napi_admin_ip
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
+	napi_svcname=napi.$CONFIG_dns_domain
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
@@ -859,6 +866,7 @@ function cleanup_config
 	fwapi_client_url=http://${fwapi_admin_ip}:80
 
 	sapi_admin_ips=$sapi_admin_ip
+	sapi_svcname=sapi.$CONFIG_dns_domain
 
 	show_setup_timers=true
 	serialize_setup=true
