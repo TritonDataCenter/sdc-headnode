@@ -237,6 +237,7 @@ pre_tasks()
 
         imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
         imgadm sources -f -a $imgapi_url
+        imgadm sources -f -d https://images.joyent.com  # remove the default
     fi
 
     # Now create the install progress status file that is required by
