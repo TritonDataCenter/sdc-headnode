@@ -1093,7 +1093,7 @@ done
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 manatee_admin_ip="$ip_addr"
-manatee_svcname="moray.${dns_domain}"
+manatee_svcname="manatee.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
@@ -1340,7 +1340,7 @@ fi
 
 echo >>$tmp_config
 
-echo "# Reserved IPs for ZK/binder instances"
+echo "# Reserved IPs for ZK/binder instances" >>$tmp_config
 echo "zk_resolver_ips=$zk_resolver_ips" >>$tmp_config
 echo >>$tmp_config
 

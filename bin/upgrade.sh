@@ -767,38 +767,61 @@ function cleanup_config
 	   usage_ext_vlan="usageapi_external_vlan=$CONFIG_adminui_external_vlan"
 	fi
 
+	# Allocate 4 more IP addrs for zookeeper instances
+	zk_resolver_ips=$zookeeper_admin_ip
+	for i in {0..3}; do
+	    allocate_ip_addr
+	    zk_resolver_ips="$zk_resolver_ips,$ip_addr"
+	done
+
 	cat <<-DONE >>/tmp/config.$$
 
 	adminui_admin_ips=$adminui_admin_ip
+	adminui_svcname=adminui.$CONFIG_dns_domain
+
 	assets_admin_ip=$assets_admin_ip
 	assets_admin_ips=$assets_admin_ip
+
 	dhcpd_admin_ip=$dhcpd_admin_ip
 	dhcpd_admin_ips=$dhcpd_admin_ip
+
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
+
 	ca_admin_ips=$ca_admin_ip
+	ca_svcname=ca.$CONFIG_dns_domain
 
 	zookeeper_root_pw=$CONFIG_adminui_root_pw
 	zookeeper_admin_ips=$zookeeper_admin_ip
+	zookeeper_svcname=zookeeper.$CONFIG_dns_domain
+
+	# Reserved IPs for ZK/binder instances
+	zk_resolver_ips=$zk_resolver_ips
 
 	manatee_root_pw=$CONFIG_adminui_root_pw
 	manatee_admin_ips=$manatee_admin_ip
+	manatee_svcname=manatee.$CONFIG_dns_domain
 
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
+	moray_svcname=moray.$CONFIG_dns_domain
 
 	imgapi_root_pw=$CONFIG_adminui_root_pw
 	imgapi_admin_ips=$imgapi_admin_ip
+	imgapi_svcname=imgapi.$CONFIG_dns_domain
 
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
+	dapi_svcname=dapi.$CONFIG_dns_domain
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
+	vmapi_svcname=vmapi.$CONFIG_dns_domain
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
+	keyapi_svcname=keyapi.$CONFIG_dns_domain
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
 
@@ -818,6 +841,7 @@ function cleanup_config
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
+	cnapi_svcname=cnapi.$CONFIG_dns_domain
 	cnapi_client_url=http://${cnapi_admin_ip}:80
 
 	napi_root_pw=$CONFIG_adminui_root_pw
@@ -827,9 +851,11 @@ function cleanup_config
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
+	workflow_svcname=workflow.$CONFIG_dns_domain
 
 	fwapi_root_pw=$CONFIG_adminui_root_pw
 	fwapi_admin_ips=$fwapi_admin_ip
+	fwapi_svcname=fwapi.$CONFIG_dns_domain
 	fwapi_client_url=http://${fwapi_admin_ip}:80
 
 	sapi_admin_ips=$sapi_admin_ip
@@ -839,6 +865,7 @@ function cleanup_config
 
 	ufds_is_local=$CONFIG_capi_is_local
 	ufds_admin_ips=$ufds_admin_ip
+	ufds_svcname=ufds.$CONFIG_dns_domain
 	ufds_external_ips=$ufds_external_ip
 	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
 	ufds_ldap_root_dn=cn=root
@@ -1127,12 +1154,13 @@ load_server_addrs
 # free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
 # to re-use.
 #
-# In 7.0 we have 23 admin zones so we need at least 8, and maybe 12, additional
+# In 7.0 we have 23 admin zones plus 4 reserved IPs for additional zookeeper
+# instances,  so we need at least 12, and maybe 16, additional
 # addresses out of the dhcp range to accomodate the new zones, depending on how
 # the user config is setup and if we can use the 4 free addrs from 6.x.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=8
+need_num_addrs=12
 
 ip_to_num $CONFIG_dhcp_next_server
 unused_addr=$num

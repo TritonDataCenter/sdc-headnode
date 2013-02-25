@@ -227,7 +227,7 @@ async.series([
                 return cb(new Error("No dns_domain in config"));
 
             if (!config.hasOwnProperty('zk_resolver_ips'))
-                return cb(new Erorr("No ZK resolver IPs in config"));
+                return cb(new Error("No ZK resolver IPs in config"));
 
             // by convention, the service name is the alphabetic part of the
             // alias (i.e., 'moray0' -> 'moray') - this is slightly fragile.
