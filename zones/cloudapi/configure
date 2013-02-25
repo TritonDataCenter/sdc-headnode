@@ -50,7 +50,7 @@ gsed -i -e "s|ldaps://127.0.0.1|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
 gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
-gsed -i -e "s|WORKFLOW_URL|$WORKFLOW_URL|" $CFG_FILE
+gsed -i -e "s|WFAPI_URL|$WORKFLOW_URL|" $CFG_FILE
 gsed -i -e "s|USAGEAPI_URL|$USAGEAPI_URL|" $CFG_FILE
 gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
 gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
