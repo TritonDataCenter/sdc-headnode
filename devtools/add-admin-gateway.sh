@@ -51,7 +51,7 @@ for line in $(vmadm lookup -j ${vmadm_filter} | json -e '
         ]
     }
 EOF
-    zlogin ${uuid} /usr/sbin/route add default $1
+    zlogin ${uuid} /usr/sbin/route add default $1 || /bin/true
 done
 
 exit 0
