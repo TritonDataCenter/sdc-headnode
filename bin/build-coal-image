@@ -251,10 +251,16 @@ function cleanup
 function create_output
 {
     local vmxfile="${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx"
+    local vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.tbz2"
+    local vmware_ver=$(build_spec vmware_version)
+
+    if [[ -n ${vmware_ver} && ${vmware_ver} -ge 5 ]]; then
+        vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.5.tbz2"
+    fi
 
     echo "==> Unpacking VMWare image... "
     rm -rf $STAGE/USB-headnode.vmwarevm || true
-    (cd $STAGE && ${TAR} -jxvf ${ROOT}/vmware/USB-headnode.vmwarevm.tbz2) \
+    (cd $STAGE && ${TAR} -jxvf ${vmwarevm_tarball}) \
         || fatal "Unable to unpack image"
     (cd $STAGE/USB-headnode.vmwarevm \
         && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
