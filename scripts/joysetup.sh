@@ -558,12 +558,6 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 
     # We're the headnode
 
-    #
-    # XXX Workaround for OS-1745.  Setting this property causes
-    # all labels to be updated, syncing up the txg numbers for
-    # each vdev and ensuring we can later import.
-    #
-    zpool set comment="Joyent persistent store" $SYS_ZPOOL
 else
     output_zpool_info
 fi
