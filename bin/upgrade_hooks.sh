@@ -521,13 +521,18 @@ napi_tasks()
 
     for a in `cat ${SDC_UPGRADE_DIR}/allocated_addrs.txt`
     do
+        local belong=""
         local z_uuid=`vmadm list -o uuid nics.0.ip=$a -H`
-        [ -z "$z_uuid" ] && saw_err "Error, missing zone for $a"
+        # If no zone, it must be one of the zk IPs we set aside
+        if [ -n "$z_uuid" ]; then
+            belong="belongs_to_uuid=\"$z_uuid\" belongs_to_type=zone"
+        else
+            z_uuid="zookeeper"
+        fi
 
         zlogin $1 /opt/smartdc/napi/bin/napictl ip-update $admin_uuid $a \
             owner_uuid="00000000-0000-0000-0000-000000000000" \
-            belongs_to_uuid="$z_uuid" belongs_to_type=zone reserved=true \
-            1>&4 2>&1
+	    $belong reserved=true 1>&4 2>&1
         [ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
     done
 }
