@@ -636,6 +636,9 @@ function cleanup_config
 	/^rabbitmq_admin_pw=/d
 	/^riak_/d
 	/^billapi_/d
+	/^# datacenter_headnode_id/d
+	/^# for this headnode within that datacenter/d
+	/^datacenter_headnode_id=/d
 	/^# This should not be changed/d
 	/^initial_script=/d
 	/^# capi/d

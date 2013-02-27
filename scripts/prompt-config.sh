@@ -18,7 +18,6 @@ EBADJSON=2
 EUNKNOWN=3
 
 # Defaults
-datacenter_headnode_id=0
 mail_to="root@localhost"
 ntp_hosts="68.0.14.76"
 dns_resolver1="8.8.8.8"
@@ -715,9 +714,7 @@ while [ /usr/bin/true ]; do
 	message="
 The following questions will be used to configure your headnode identity.
 This identity information is used to uniquely identify your headnode as well
-as help with management of distributed systems. If you are setting up a second
-headnode at a datacenter, then please have the ID of the previous headnode
-handy.\n\n"
+as help with management of distributed systems.\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
@@ -741,10 +738,6 @@ handy.\n\n"
 	promptval "Enter the City and State for this datacenter" \
 	    "$datacenter_location" "datacenter_location"
 	datacenter_location="$val"
-
-	promptval "Enter your headnode ID or press enter to accept the default"\
-	    "$datacenter_headnode_id" "datacenter_headnode_id"
-	datacenter_headnode_id="$val"
 
 	printheader "Networking"
 	message="
@@ -1009,7 +1002,6 @@ emails to a specific address. Each of these values will be configured below.
 		printf "Company name: $datacenter_company_name\n"
 		printf "Datacenter Name: %s, Location: %s\n" \
 		    "$datacenter_name" "$datacenter_location"
-		printf "Headnode ID: $datacenter_headnode_id\n"
 		printf "Email Admin Address: %s, From: %s\n" \
 		    "$mail_to" "$mail_from"
 		printf "Domain name: %s, Gateway IP address: %s\n" \
@@ -1286,14 +1278,10 @@ echo >>$tmp_config
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
-echo "# datacenter_name should be unique among your cloud," >>$tmp_config
-echo "# datacenter_headnode_id should be a positive integer that is unique" \
-     >>$tmp_config
-echo "# for this headnode within that datacenter" >>$tmp_config
+echo "# datacenter_name should be unique in your cloud" >>$tmp_config
 echo "datacenter_name=\"$datacenter_name\"" >>$tmp_config
 echo "datacenter_company_name=\"$datacenter_company_name\"" >>$tmp_config
 echo "datacenter_location=\"$datacenter_location\"" >>$tmp_config
-echo "datacenter_headnode_id=$datacenter_headnode_id" >>$tmp_config
 echo >>$tmp_config
 
 echo "default_rack_name=RACK1" >>$tmp_config
