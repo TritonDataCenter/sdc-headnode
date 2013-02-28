@@ -9,6 +9,9 @@ set -o xtrace
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/dhcpd
+
 # Add booter's node and bunyan to the PATH.
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/booter/node/bin:/opt/smartdc/booter/node_modules/.bin:/opt/smartdc/booter/bin" >>/root/.profile

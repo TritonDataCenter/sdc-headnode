@@ -15,6 +15,9 @@ app_name=$role
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/amon
+
 # Add node_modules/bin to PATH
 echo "" >>/root/.bashrc
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc

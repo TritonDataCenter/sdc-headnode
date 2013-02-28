@@ -11,6 +11,9 @@ echo "Finishing setup of assets zone"
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
+# Cookie to identify this as a SmartDC zone and its role
+mkdir -p /var/smartdc/assets
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure
 
