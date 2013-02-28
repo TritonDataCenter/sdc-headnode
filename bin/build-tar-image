@@ -650,7 +650,7 @@ function get_bit
         #   https://user:pass@stuff.joyent.us/stuff/builds
         # where pattern='agentsshar/agents-master-*' is at:
         #   https://user:pass@stuff.joyent.us/stuff/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
-        # where the "master" in "master-latest" is "BITS_BRANCH" 
+        # where the "master" in "master-latest" is "BITS_BRANCH"
         # (or $branch_override).
         local branch=${BITS_BRANCH}
         local have_branch_override=$(dirname $pattern_dir)
@@ -1142,14 +1142,6 @@ function copy_tools
     cp ${ROOT}/cache/imgapi-cli.tar.bz2 ${STAGE}/extra/imgapi-cli
 }
 
-function copy_webinfo
-{
-    target=$(build_spec webinfo-tarball)
-    local bit_cache_path=$(get_bit ${target})
-    cp ${bit_cache_path} ${ROOT}/cache/webinfo.tar.bz2
-    bzcat ${ROOT}/cache/webinfo.tar.bz2 > ${STAGE}/webinfo.tar
-}
-
 function copy_to_mount
 {
     echo "${THIS_BUILDSTAMP}" > ${STAGE}/version
@@ -1202,7 +1194,6 @@ copy_datasets
 copy_zones
 copy_registrar
 copy_tools
-copy_webinfo
 copy_config
 
 unpack_image

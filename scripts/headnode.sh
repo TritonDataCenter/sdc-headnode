@@ -816,15 +816,4 @@ else
     mark_as_setup
 fi
 
-
-#
-# XXX this was commented out for HEAD-1048 as it depends on MAPI.  See HEAD-1051
-#
-#if [[ -f ${USB_COPY}/webinfo.tar && ! -d /opt/smartdc/webinfo ]]; then
-#    ( mkdir -p /opt/smartdc && cd /opt/smartdc  && cat ${USB_COPY}/webinfo.tar \
-#        | tar -xf - )
-#fi
-#
-#( svccfg import /opt/smartdc/webinfo/smf/smartdc-webinfo.xml || /usr/bin/true )
-
 exit 0
