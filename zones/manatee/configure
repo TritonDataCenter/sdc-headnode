@@ -106,6 +106,7 @@ gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZONE_IP|$ZONE_IP|g" $SITTER_CFG_FILE
+gsed -i -e "s|ZONE_ID|$ZONE_UUID|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $SITTER_CFG_FILE
 gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE
 # enable one node write mode for coal, since there is only one manatee
