@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -17,6 +17,7 @@ CONF=${INSTDIR}/config.json
 # XXX for now use the first UFDS, soon we'll be switching to DNS
 UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
+VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 
 cat > ${CONF} <<CONFIG
 {
@@ -29,6 +30,13 @@ cat > ${CONF} <<CONFIG
     "cache": {
       "size": 1000,
       "expiry": 300
+    }
+  },
+  "vmapi": {
+    "url": "${VMAPI_URL}",
+    "connectTimeout": 1000,
+    "retry": {
+      "retries": 2
     }
   },
   "wfapi": {
