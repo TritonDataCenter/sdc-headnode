@@ -339,6 +339,22 @@ post_tasks()
 
         vmadm update -f ${SDC_UPGRADE_DIR}/ufds_extnic.json $ufds_uuid
         vmadm update $ufds_uuid firewall_enabled=true
+
+	# Reserve the external IP for ufds
+    	local ext_uuid=`sdc-login napi /opt/smartdc/napi/bin/napictl \
+	    network-list | \
+	    json -a name uuid | nawk '{if ($1 == "external") print $2}'`
+	if [ -z "$ext_uuid" ]; then
+	    saw_err "Error, missing uuid for external network"
+	else
+	    sdc-login napi /opt/smartdc/napi/bin/napictl ip-update \
+		$ext_uuid $CONFIG_ufds_external_ips \
+		owner_uuid="00000000-0000-0000-0000-000000000000" \
+		belongs_to_uuid=\"$ufds_uuid\" belongs_to_type=zone \
+		reserved=true  1>&4 2>&1
+		[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
+	fi
+
         reboot_ufds $ufds_uuid
     fi
 
