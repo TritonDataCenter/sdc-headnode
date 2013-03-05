@@ -13,6 +13,9 @@ touch /opt/local/.dli_license_accepted
 
 role=manatee
 
+# hack/fix for MANATEE-77, force upgrade of openssl to a version that postgresql needs
+pkg_add -u openssl-1.0.1dnb2
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
