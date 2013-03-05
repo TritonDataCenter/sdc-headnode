@@ -1,0 +1,138 @@
+#!/usr/node/bin/node
+//
+// Copyright (c) 2013 Joyent Inc.
+//
+// Run with no arguments, this will output a stream of log lines giving you
+// an easy-to-look-at overview of heartbeater activity.
+//
+
+var amqp = require('/smartdc/node_modules/amqp');
+var VM = require('/usr/vm/node_modules/VM.js');
+
+var VMS = {};
+
+function vmCompare(before, after)
+{
+    var member;
+    var prop;
+    var result = {'added': [], 'removed': [], 'changed': []};
+
+    if (!before) {
+        before = {};
+    }
+    if (!after) {
+        after = {};
+    }
+
+    for (prop in before) {
+        if (!after.hasOwnProperty(prop)) {
+            result['removed'].push({'prop': prop, 'oldvalue': before[prop]});
+        } else if (before[prop] !== after[prop]) {
+            result['changed'].push({'prop': prop, 'oldvalue': before[prop], 'newvalue': after[prop]});
+        }
+    }
+    for (prop in after) {
+        if (!before.hasOwnProperty(prop)) {
+            result['added'].push({'prop': prop, 'newvalue': after[prop]});
+        }
+    }
+
+    return (result);
+}
+
+function watchHeartbeats(rabbitmq_ip, handler, callback)
+{
+    var buffer = '';
+    var chunks;
+    var watcher;
+    var watcher_pid;
+
+    var aq_broker = { host: rabbit_ip };
+    var aq_handle;
+    var aq_queuename = 'heartbeatsnoop.' + Math.random() * 10000000;
+
+    aq_handle = amqp.createConnection(aq_broker);
+
+    routekey = 'heartbeat.#'
+
+    aq_handle.on('ready', function () {
+        aq_queue = aq_handle.queue(aq_queuename, { exclusive: true }, function () {
+            aq_queue.bind('amq.topic', 'heartbeat.#');
+            aq_queue.subscribe(function (msg, headers, deliveryInfo) {
+                var obj;
+
+                obj = msg;
+                obj.server_uuid = deliveryInfo.routingKey.split('.')[1];
+                handler(obj);
+            });
+        });
+    });
+}
+
+VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true}, function (err, vmobjs) {
+    if (err) {
+        console.dir(err);
+        return;
+    }
+    if (vmobjs.length !== 1) {
+        console.log('incorrect number of rabbit VMs [' + vmobjs.length + ']');
+        return;
+    }
+
+    rabbit_ip = vmobjs[0].nics[0].ip;
+
+    watchHeartbeats(rabbit_ip,
+    function (obj) {
+        var all_keys;
+        var cmp;
+        var count;
+        var server_uuid = obj.server_uuid;
+        var vms = obj.vms;
+
+        count = 0;
+        for (vm in vms) {
+            delete vms[vm].uuid; // don't need to display this.
+            delete vms[vm].owner_uuid; // don't need to display this.
+            count++;
+        }
+
+        console.log('[heartbeat -- ' + server_uuid + ' -- ' + (new Date).toISOString()
+            + ' -- ' + count + ' vms]');
+
+        if (!VMS[server_uuid]) {
+            VMS[server_uuid] = {};
+        }
+
+        all_keys = {};
+        for (vm in VMS[server_uuid]) {
+            all_keys[vm] = true;
+        }
+        for (vm in vms) {
+            all_keys[vm] = true;
+        }
+
+        for (vm in all_keys) {
+            if (!vms.hasOwnProperty(vm)) {
+                console.log('  DELETED VM for [' + server_uuid + ']: ' + vm);
+                delete VMS[server_uuid][vm];
+            } else if (!VMS[server_uuid].hasOwnProperty(vm)) {
+                console.log('  ADDED VM for [' + server_uuid + ']: ' + vm + ': '
+                    + JSON.stringify(vms[vm]));
+                VMS[server_uuid][vm] = vms[vm];
+            } else {
+                cmp = vmCompare(VMS[server_uuid][vm], vms[vm]);
+                if (cmp['added'].length === 0 && cmp['removed'].length === 0 && cmp['changed'].length === 0) {
+                    ;
+                    //console.log('UNCHANGED: ' + vm);
+                } else {
+                    console.log('  CHANGED VM [' + server_uuid + ']: ' + vm
+                        + ': ' + JSON.stringify(vms[vm]));
+                    VMS[server_uuid][vm] = vms[vm];
+                }
+            }
+        }
+    }, function () {
+        console.log('[done]');
+    });
+});
+
