@@ -90,8 +90,10 @@ fi
 for name in $(cat /var/svc/pkgsrc); do
     name_lower=$(echo ${name} | tr [:upper:] [:lower:])
     echo "Installing pkgsrc package '$name'."
+    # MANATEE-77 we add the -u flag to pkg_add so that we can upgrade old
+    # version already pre-installed in the dataset
     pkg_info $name >/dev/null 2>&1 \
-        || (yes | pkg_add -f ${pkgsrc_url}/${name_lower})
+        || (yes | pkg_add -u -f ${pkgsrc_url}/${name_lower})
 done
 
 
