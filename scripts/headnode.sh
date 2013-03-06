@@ -340,6 +340,18 @@ if [[ ! -d /opt/smartdc/bin ]]; then
         ln -s ${file} /opt/smartdc/bin/${tool}
     done
 
+    # Setup 'sdc-manatee-*' tools.
+    mkdir -p /opt/smartdc/manatee
+    (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/extra/manatee/fs.tar.bz2 \
+            root/opt/smartdc/manatee/bin/sdc)
+    (cd /opt/smartdc/manatee && mkdir bin && \
+            mv root/opt/smartdc/manatee/bin/sdc/* ./bin && rm -rf root)
+    for file in $(ls /opt/smartdc/manatee/bin/*); do
+        # Strip trailing .js if present
+        tool=$(basename ${file} .js)
+        ln -s ${file} /opt/smartdc/bin/${tool}
+    done
+
     # Setup 'sdc-imgadm' and 'joyent-imgadm' tools.
     mkdir -p /opt/smartdc/imgapi-cli
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
