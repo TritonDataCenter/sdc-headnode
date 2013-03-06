@@ -342,7 +342,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
 
     # Setup 'sdc-manatee-*' tools.
     mkdir -p /opt/smartdc/manatee
-    (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/extra/manatee/fs.tar.bz2 \
+    (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/sdc)
     (cd /opt/smartdc/manatee && mkdir bin && \
             mv root/opt/smartdc/manatee/bin/sdc/* ./bin && rm -rf root)
