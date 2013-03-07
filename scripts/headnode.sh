@@ -353,7 +353,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     done
     (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/manta)
-    (cd /opt/smartdc/manatee && mkdir -p bin && \
+    (cd /opt/smartdc/manatee && rm -rf bin && mkdir -p bin && \
             mv root/opt/smartdc/manatee/bin/manta/* ./bin && rm -rf root)
     for file in $(ls /opt/smartdc/manatee/bin/*); do
         # Strip trailing .js if present
