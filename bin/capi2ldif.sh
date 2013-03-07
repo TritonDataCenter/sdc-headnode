@@ -81,13 +81,13 @@ function transform_customers(file, callback) {
          return;
       }
 
-      CustomerIdMap[pieces[4]] = pieces[5];
-
       if (pieces[5] === admin_uuid) {
         uuid = '00000000-0000-0000-0000-000000000000';
       } else {
         uuid = pieces[5];
       }
+
+      CustomerIdMap[pieces[4]] = uuid;
 
       // duplicate uuids is a fatal error
       if (uuid in cust_uuids) {
