@@ -32,7 +32,7 @@ VERS_6_5_4=20120523
 
 ZONES6X="adminui assets billapi ca capi cloudapi dhcpd mapi portal rabbitmq riak"
 
-declare -A SERVER_IP=()
+declare -A ADMIN_IP=()
 
 mounted_usb="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' \
@@ -175,27 +175,14 @@ function trim_db
 
     echo "Trimming database"
 
-    local passfile=/zones/mapi/root/root/.pgpass
-    local rmpass=0
-    if [ ! -f $passfile ]; then
-        local pgrespass=`nawk -F= '{
-            if ($1 == "POSTGRES_PW")
-                print substr($2, 2, length($2) - 2)
-        }' /zones/mapi/root/opt/smartdc/etc/zoneconfig`
-        [ -z "$pgresspass" ] && \
-            fatal "Missing .pgpass file and no postgres password in zoneconfig"
-        echo "localhost:*:*:postgres:${pgrespass}" > $passfile
-        chmod 600 $passfile
-        rmpass=1
-    fi
-
+    setup_pgpass_file
 
     echo \
  "delete from dataset_messages where created_at < now() - interval  '1 hour';" \
         | zlogin mapi /opt/local/bin/psql -Upostgres mapi
     echo "vacuum ANALYZE" | zlogin mapi /opt/local/bin/psql -Upostgres mapi
 
-    [ $rmpass == 1 ] && rm -f $passfile
+    [ $RM_PG_PASSFILE == 1 ] && rm -f $RM_PG_PASSFILE
 }
 
 function dump_capi
@@ -212,7 +199,7 @@ function dump_capi
             if ($1 == "POSTGRES_PW")
                 print substr($2, 2, length($2) - 2)
         }' /zones/capi/root/opt/smartdc/etc/zoneconfig`
-        [ -z "$pgresspass" ] && \
+        [ -z "$pgrespass" ] && \
             fatal "Missing .pgpass file and no postgres password in zoneconfig"
         echo "127.0.0.1:*:*:postgres:${pgrespass}" > $passfile
         chmod 600 $passfile
@@ -310,31 +297,28 @@ function dump_mapi_live
     [ $? != 0 ] && fatal "transforming MAPI datasets failed"
 }
 
-function dump_mapi
+function setup_pgpass_file
 {
-    zstate=`zoneadm -z mapi list -p | cut -d: -f3`
-    [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
-
-    echo "Dump MAPI for database conversion"
-
-    local passfile=/zones/mapi/root/root/.pgpass
-    local rmpass=0
-    if [ ! -f $passfile ]; then
+    PG_PASSFILE=/zones/mapi/root/root/.pgpass
+    RM_PG_PASSFILE=0
+    if [ ! -f $PG_PASSFILE ]; then
         local pgrespass=`nawk -F= '{
             if ($1 == "POSTGRES_PW")
                 print substr($2, 2, length($2) - 2)
         }' /zones/mapi/root/opt/smartdc/etc/zoneconfig`
-        [ -z "$pgresspass" ] && \
+        [ -z "$pgrespass" ] && \
             fatal "Missing .pgpass file and no postgres password in zoneconfig"
-        echo "localhost:*:*:postgres:${pgrespass}" > $passfile
-        chmod 600 $passfile
-        rmpass=1
+        echo "localhost:*:*:postgres:${pgrespass}" > $PG_PASSFILE
+        chmod 600 $PG_PASSFILE
+        RM_PG_PASSFILE=1
     fi
+}
 
-    mkdir -p $SDC_UPGRADE_DIR/mapi_dump
-    tables=`zlogin mapi /opt/local/bin/psql -Upostgres -w -Atc '\\\dt' mapi | \
-        cut -d '|' -f2`
-    for i in $tables
+function dump_mapi_tables
+{
+    mkdir -p $1
+
+    for i in $MTABLES
     do
         # Skip dumping these tables.  Some of them are very large, take a
         # long time to dump, and we don't consume these anyway.
@@ -346,13 +330,27 @@ function dump_mapi
         esac
 
         zlogin mapi /opt/local/bin/pg_dump -Fp -w -a -EUTF-8 -Upostgres \
-            -t $i mapi >$SDC_UPGRADE_DIR/mapi_dump/$i.dump
+            -t $i mapi >$1/$i.dump
         [ $? != 0 ] && fatal "dumping the MAPI database"
     done
+}
 
+function dump_mapi
+{
+    zstate=`zoneadm -z mapi list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
+
+    echo "Dump MAPI for database conversion"
+
+    setup_pgpass_file
+
+    MTABLES=`zlogin mapi /opt/local/bin/psql -Upostgres -w -Atc '\\\dt' mapi | \
+        cut -d '|' -f2`
+
+    dump_mapi_tables $SDC_UPGRADE_DIR/mapi_dump
     shutdown_zone mapi
 
-    [ $rmpass == 1 ] && rm -f $passfile
+    [ $RM_PG_PASSFILE == 1 ] && rm -f $RM_PG_PASSFILE
 
     ulimit -Sn 8192
 
@@ -364,6 +362,48 @@ function dump_mapi
     echo "Transforming MAPI postgres dumps to moray"
     $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name
     [ $? != 0 ] && fatal "transforming the MAPI dumps to moray"
+}
+
+# Use a subset of the table dump from mapi to find all zones with IP addresses
+# on the admin network. We do this dump before we start the upgrade, so we
+# will re-dump later to be sure we have the latest data.
+function dump_mapi_netinfo
+{
+    zstate=`zoneadm -z mapi list -p | cut -d: -f3`
+    [ "$zstate" != "running" ] && fatal "the mapi zone must be running"
+
+    echo "Checking MAPI network configuration"
+
+    setup_pgpass_file
+
+    MTABLES="nic_tags networks subnets network_ips nic_nic_tags nics ips"
+    MTABLES="$MTABLES network_pool_networks network_pools vms zones servers"
+
+    dump_mapi_tables /tmp/mapi_dump
+
+    [ $RM_PG_PASSFILE == 1 ] && rm -f $RM_PG_PASSFILE
+
+    ulimit -Sn 8192
+
+    $ROOT/mapi2moray /tmp/mapi_dump $CONFIG_datacenter_name >/dev/null 2>&1
+    [ $? != 0 ] && fatal "transforming the MAPI net dumps to moray"
+
+    for i in `
+    nawk '/\"nic_tag\":\"admin\"/{
+        p = index($0, "\"ip\":\"")
+        if (p) {
+            p += 6
+            s = substr($0, p)
+            p = index(s, "\"") - 1
+            printf("%s\n", substr(s, 1, p))
+        }
+    }' < /tmp/mapi_dump/napi_nics.moray`
+    do
+        num_to_ip $i
+        echo $ip_addr >> /tmp/admin_ips.txt
+    done
+
+    rm -rf /tmp/mapi_dump
 }
 
 convert_portal_zone()
@@ -482,19 +522,16 @@ num_to_ip()
     ip_addr="$fld_a.$fld_b.$fld_c.$fld_d"
 }
 
-# Load the allocated server IP addrs so we can check for collisions when
-# allocating IPs for the new core zones.
-function load_server_addrs
+# Save the allocated CN IP addrs.
+function dump_server_addrs
 {
-    SERVER_ADDRS_IN_USE=0
-
     for i in `curl -i -s -u admin:$CONFIG_mapi_http_admin_pw \
         $CONFIG_mapi_client_url/servers | json | nawk '{
             if ($1 == "\"hostname\":")
                 hn = substr($2, 2, length($2) - 3)
 
             if ($1 == "\"ip_address\":") {
-		if ($2 == "null,") {
+                if ($2 == "null,") {
                     printf("WARNING: server %s has no IP address\n", hn) \
                         > "/dev/stderr"
                     next
@@ -505,9 +542,23 @@ function load_server_addrs
         }'`
     do
         [ "$i" == "$CONFIG_admin_ip" ] && continue
-        SERVER_ADDRS_IN_USE=$(($SERVER_ADDRS_IN_USE + 1))
+        echo $i >> /tmp/admin_ips.txt
+    done
+}
+
+# Load the allocated admin net IP addrs so we can check for collisions when
+# allocating IPs for the new core zones.
+function load_admin_ip_addrs
+{
+    sort -u -o /tmp/admin_ips.txt /tmp/admin_ips.txt
+
+    ADMIN_ADDRS_IN_USE=0
+
+    for i in `cat /tmp/admin_ips.txt`
+    do
+        ADMIN_ADDRS_IN_USE=$(($ADMIN_ADDRS_IN_USE + 1))
         ip_to_num $i
-        SERVER_IP[$num]=1
+        ADMIN_IP[$num]=1
     done
 }
 
@@ -517,8 +568,8 @@ function allocate_ip_addr
     i=$dhcp_start
     while [[ $i -le $dhcp_end ]]
     do
-        if [ -z "${SERVER_IP[$i]}" ]; then
-            SERVER_IP[$i]=1
+        if [ -z "${ADMIN_IP[$i]}" ]; then
+            ADMIN_IP[$i]=1
             num_to_ip $i
             # keep track of these so we can reserve them later
             echo "$ip_addr" >>$SDC_UPGRADE_DIR/allocated_addrs.txt
@@ -1154,7 +1205,10 @@ fspace=`zfs list -o avail -Hp zones`
 [[ $fspace -lt 4000000000 ]] && \
     fatal "there is not enough free space in the zpool"
 
-load_server_addrs
+rm -rf /tmp/admin_ips.txt /tmp/mapi_dump
+dump_server_addrs
+dump_mapi_netinfo
+load_admin_ip_addrs
 
 # Verify there is enough free IP addrs in the dhcp range for the upgrade.
 #
@@ -1184,7 +1238,7 @@ dhcp_end=$num
 
 # the dhcp range is inclusive, so add 1
 dhcp_total=$(($dhcp_end - $dhcp_start + 1))
-dhcp_avail=$(($dhcp_total - $SERVER_ADDRS_IN_USE))
+dhcp_avail=$(($dhcp_total - $ADMIN_ADDRS_IN_USE))
 
 # Check if we have the block of 4 free IP addrs to use
 # the dhcp range is inclusive, so we need to subtract 1
@@ -1250,6 +1304,7 @@ svcadm disable cron
 # We might be re-running upgrade again after a rollback, so first cleanup
 rm -rf /var/upgrade_failed /var/usb_rollback
 mkdir -p $SDC_UPGRADE_DIR
+mv /tmp/admin_ips.txt $SDC_UPGRADE_DIR
 
 # First trim down dataset_messages since it gets huge
 trim_db
