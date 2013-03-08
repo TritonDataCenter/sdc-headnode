@@ -33,10 +33,8 @@ ZONE_SETUP_TIMEOUT=180
 
 SDC_UPGRADE_DIR=/var/upgrade_headnode
 
-# We have to install the extra zones in dependency order
-EXTRA_ZONES="sdcsso cloudapi"
-
-
+# Install cloudapi first so sdcsso doesn't steal cloudapi's external IP addr.
+EXTRA_ZONES="cloudapi sdcsso"
 
 #---- setup state support
 # "/var/lib/setup.json" support is duplicated in headnode.sh and
