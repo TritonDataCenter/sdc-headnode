@@ -8,7 +8,7 @@ set -o xtrace
 
 PATH=/opt/smartdc/cnapi/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+# This includes the fatal and sdc_[zk|manatee|moray]_check functions
 source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
@@ -19,9 +19,6 @@ DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 
 # XXX for now use the first MORAY, soon we'll be switching to DNS
 MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
@@ -64,15 +61,6 @@ cat > /opt/smartdc/cnapi/config/config.json <<HERE
   },
   "redis": {
     "host": "$REDIS_HOST"
-  },
-  "ufds": {
-    "url": "ldaps://${UFDS_HOST}",
-    "bindDN": "$CNAPI_LDAP_ROOT_DN",
-    "bindPassword": "$CNAPI_LDAP_ROOT_PW",
-    "cache": {
-      "size": 1000,
-      "expiry": 300
-    }
   }
 }
 HERE
