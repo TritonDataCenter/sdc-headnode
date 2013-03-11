@@ -591,7 +591,9 @@ nicsup() {
 		ifconfig external0 inet $external_ip netmask $external_netmask up
 	fi
 
-	if [[ -n ${headnode_default_gateway} ]]; then
+	if [[ -n ${headnode_default_gateway}
+	    && ${headnode_default_gateway} != "none" ]]; then
+
 		route add default $headnode_default_gateway >/dev/null
 	fi
 
