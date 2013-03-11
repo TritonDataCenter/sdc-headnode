@@ -16,13 +16,9 @@ source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/$role
-mkdir -p /opt/smartdc/$role/ssl
 
 mkdir -p /opt/smartdc/$role/etc
 /usr/bin/chown -R root:root /opt/smartdc
-
-echo "Generating SSL Certificate"
-/opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 -keyout /opt/smartdc/$role/ssl/key.pem -out /opt/smartdc/$role/ssl/cert.pem -days 365
 
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
