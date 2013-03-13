@@ -119,6 +119,11 @@ function create_upgrade
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
         boot/grub/menu.lst.tmpl \
+	boot/grub/stage2 \
+	boot/freedos.img \
+	boot/ipxe.lkrn \
+	boot/memdisk \
+	dos \
         extra \
         datasets/smartos* \
         datasets/multiarch* \

@@ -291,56 +291,94 @@ function create_directories
 function generate_grub_menu
 {
     local unit=
-    local speed=$(build_spec serial-speed)
+    local serial_dev=$(build_spec serial-dev)
     local console=$(build_spec console)
-    local console_desc=
-    local console_opts=
-    local terminal_order=
-    local serial_string=
 
     echo "==> Generating grub menu"
 
-    [[ -z "${speed}" ]] && speed=115200
-    [[ -z "${console}" ]] && console=text
+    [[ -z "${serial_dev}" ]] && serial_dev=ttyb
+    [[ -z "${console}" ]] && console="serial"
 
-    case "${console}" in
+    #
+    # This section describes the serial-dev and console parameters.  These
+    # values may be overridden in build.spec{,.local}.
+    #
+    # serial-dev is the serial console device on the target system.  It
+    # defaults to ttyb (illumos) aka COM2 (FreeDOS), which is legacy I/O
+    # port 2f8 interrupt 3.
+    #
+    # console is used to set the default value of the GRUB variable
+    # "os_console", which selects the post-boot console device.  It may
+    # be one of "serial", in which case the serial device specified by
+    # serial-dev is used, or "text" in which case an attached keyboard
+    # and VGA device is used.  For backward compatibility, "graphics"
+    # and "vga" are aliases for "text".  In addition, an explicit serial
+    # device may be specified, in which case its value will override
+    # serial-dev.  This is almost certainly not what you want, since it
+    # will mean that post-boot I/O will be to/from a different device
+    # than was used during boot.  Note that the operator can change the
+    # post-boot console by modifying the os_console GRUB variable before
+    # booting.
+    #
+    # When the system boots, GRUB will display its output to the VGA
+    # device, if one is present, and the device specified by serial-dev,
+    # if it exists.  It will also accept input from either an attached
+    # keyboard or serial-dev.  Once a boot selection is made, the value
+    # of the os_console GRUB variable is passed to the operating system
+    # and used as the system console, unless a network boot is
+    # performed.  In that case, the parameters received from the HN will
+    # override all console selection made here or in the GRUB
+    # environment; this may be modified for each CN using CNAPI.
+    #
+    # By default, serial-dev is "ttyb" and console is "serial".
+    #
+    case "${serial_dev}" in
     ttya)
-        console_desc="Serial (ttya)"
-        console_opts="console=ttya,ttya-mode=\"${speed},8,n,1,-\""
-        terminal_order="serial console"
         unit=0
         ;;
     ttyb)
-        console_desc="Serial (ttyb)"
-        console_opts="console=ttyb,ttyb-mode=\"${speed},8,n,1,-\""
-        terminal_order="serial console"
         unit=1
         ;;
-    text)
-        console_desc="VGA (text)"
-        console_opts="console=text"
-        terminal_order="console serial"
-        unit=1 # default to ttyb with VGA primary
+    ttyc)
+	unit=2
+	;;
+    ttyd)
+	unit=3
         ;;
     *)
-        fatal "Unknown console type: ${console}"
+	fatal "Unknown serial device: ${serial_dev}"
         ;;
     esac
 
-    serial_string="--speed=${speed} --unit=${unit} --word=8 --parity=no"
-    serial_string="${serial_string} --stop=1"
+    case "${console}" in
+    serial)
+	console=${serial_dev}
+	;;
+    ttya|ttyb|ttyc|ttyd)
+	;;
+    text|graphics|vga)
+	console=text
+	;;
+    *)
+	fatal "Unknown default console device: ${console}"
+	;;
+    esac
+
+    serial_string="--speed=115200 --unit=${unit} --word=8 --parity=no --stop=1"
 
     sed \
         -e "s/^#SERIAL/serial ${serial_string}/" \
-        -e "s/^#TERMINAL/terminal --timeout=8 ${terminal_order}/" \
-        -e "s/DEFAULT_CONSOLE_DESC/${console_desc}/g" \
-        -e "s/DEFAULT_CONSOLE/${console_opts}/g" \
+	-e "s/DEFAULT_CONSOLE/${console}/g" \
         boot/grub/menu.lst.tmpl \
         > ${STAGE}/boot/grub/menu.lst.tmpl
 }
 
 function copy_base
 {
+    local branch=$(build_spec sdcboot-release)
+    [[ -z ${branch} ]] && branch="master"
+    local sdcboot_path=$(get_bit sdcboot/sdcboot-${branch}-.*\.tgz)
+
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
 
@@ -362,6 +400,9 @@ function copy_base
 
     echo "==> Copying in EULA"
     cp -r EULA ${STAGE}/EULA
+
+    echo "==> Extracting sdcboot bundle"
+    (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})
 }
 
 function copy_config {

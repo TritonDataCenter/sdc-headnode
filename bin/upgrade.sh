@@ -478,6 +478,8 @@ function check_versions
 
 function upgrade_usbkey
 {
+    local console=
+
     echo "Upgrading the USB key"
 
     # Remove obsolete system-zone info
@@ -486,6 +488,20 @@ function upgrade_usbkey
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
     [ $? != 0 ] && fatal_rb "upgrading USB key"
+
+    #
+    # Save the current console device as the default.  Also, since we know
+    # this to be a HN, set the default boot option to Live instead of PXE.
+    # We only modify the template because we are going to call switch-platform
+    # soon which will regenerate the actual menu.
+    #
+    console=$(bootparams | grep ^console= | cut -d= -f2)
+    [[ -z "${console}" ]] && console=text
+    sed -e "s/^variable os_console.*/variable os_console ${console}/" \
+	-e "s/^default.*/default 1/" \
+	< ${usbmnt}/boot/grub/menu.lst.tmpl \
+	> /tmp/menu.lst.tmpl.new
+    mv -f /tmp/menu.lst.tmpl.new ${usbmnt}/boot/grub/menu.lst.tmpl
 
     (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
     [ $? != 0 ] && fatal_rb "syncing USB key to disk"

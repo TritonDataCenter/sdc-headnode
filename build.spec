@@ -5,6 +5,7 @@
   , "bits-branch": "master"
   , "platform-release": "master"
   , "agents-shar": "master"
+  , "sdcboot-release": "master"
 
   , "// *-tarball": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly"
   , "adminui-tarball": "adminui/adminui-pkg-master-.*.tar.bz2"

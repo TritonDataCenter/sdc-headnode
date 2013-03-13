@@ -86,6 +86,10 @@ BUILD_TGZ=$(build_spec build-tgz)
 # Tools.
 TAR=tar
 
+if [[ $(uname) = "SunOS" ]]; then
+    TAR=gtar
+fi
+
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"

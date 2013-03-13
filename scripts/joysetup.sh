@@ -146,6 +146,35 @@ function check_ntp
     set -o pipefail
 }
 
+function boot_setup
+{
+    local console=
+
+    set +o pipefail
+    console=$(bootparams | grep ^console= | cut -d= -f2)
+    set -o pipefail
+
+    [[ -z "${console}" ]] && console=text
+
+    if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
+	fatal "No GRUB menu found."
+    else
+	sed -e "s/^default.*/default 1/" \
+	    -e "s/^variable os_console.*/variable os_console ${console}/" \
+	    < /mnt/usbkey/boot/grub/menu.lst.tmpl \
+	    > /tmp/menu.lst.tmpl
+	mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
+    fi
+
+    if [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+	sed -e "s/^default.*/default 1/" \
+	    -e "s/^variable os_console.*/variable os_console ${console}/" \
+	    < /mnt/usbkey/boot/grub/menu.lst \
+	    > /tmp/menu.lst
+	mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
+    fi
+}
+
 SETUP_FILE=/var/lib/setup.json
 
 function create_setup_file
@@ -500,6 +529,10 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 
     check_disk_space /tmp/pool.json
     create_zpool zones /tmp/pool.json
+
+    if is_headnode; then
+	boot_setup
+    fi
 
     if is_headnode; then
         create_setup_file headnode
