@@ -160,7 +160,7 @@ do
 	# If rolling back after upgrade is done, save the upgrade log files
 	if [ $d == "zones/var" ]; then
 		mkdir /zones/up_logs
-		for l in `ls -d /var/upgrade.* 2>/dev/null`
+		for l in `ls -d /var/upgrade* 2>/dev/null`
 		do
 			mv $l /zones/up_logs
 		done
@@ -170,7 +170,7 @@ do
 	zfs destroy  ${d}@rollback
 
 	if [ $d == "zones/var" ]; then
-		for l in `ls -d /zones/up_logs/upgrade.* 2>/dev/null`
+		for l in `ls -d /zones/up_logs/upgrade* 2>/dev/null`
 		do
 			mv $l /var
 		done
@@ -200,10 +200,6 @@ do
 	bname=${i##*/}
 	zfs rename zones/pre-upgrade/$bname zones/$bname
 done
-
-zfs destroy zones/pre-upgrade
-
-rm -rf /var/usb_rollback
 
 echo "rolling back manifests"
 (cd /zones/manifests; rm -rf *)

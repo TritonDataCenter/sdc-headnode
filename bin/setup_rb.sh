@@ -48,8 +48,19 @@ mount_usb()
         fatal "/mnt/usbkey is not mounted"
 }
 
+# Cleanup to a known state, but only if we're fresh or have rolled back.
+# We don't do all of this cleanup when we rollback, in case something goes
+# wrong during that process, but now we are ready to try again.
+# Anything in the rollback dir implies we haven't rolled back or commited.
 exists=`zfs list -o name -H zones/pre-upgrade 2>/dev/null`
-[ -n "$exists" ] && fatal "rollback is already in place"
+if [ -n "$exists" ]; then
+    # This dataset is normally not present but we have rolled back
+
+    nsubs=`zfs list -o name -H 2>/dev/null | egrep "^zones/pre-upgrade" | wc -l`
+    [ $nsubs -gt 1 ] && fatal "rollback is already in place"
+    zfs destroy zones/pre-upgrade 2>/dev/null 2>&1
+fi
+rm -rf /var/usb_rollback
 
 zfs create -o mountpoint=legacy zones/pre-upgrade
 

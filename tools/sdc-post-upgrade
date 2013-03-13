@@ -83,6 +83,8 @@ if [[ $COMMIT == 1 ]]; then
         zfs destroy -r $i
     done
 
+    zfs destroy -r zones/pre-upgrade
+
     rm -rf /var/usb_rollback
 
     zpool upgrade zones
