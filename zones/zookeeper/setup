@@ -27,11 +27,15 @@ app_name=${zone_role}
 mkdir -p /var/smartdc/zookeeper
 mkdir -p /opt/smartdc/etc
 
+echo "Importing ZK SMF manifest."
+[[ -z $(/usr/bin/svcs -a | grep zookeeper) ]] && \
+  /usr/sbin/svccfg import /opt/local/share/smf/zookeeper-server/manifest.xml
+
+echo "Importing binder SMF manifest."
+[[ -z $(/usr/bin/svcs -a | grep binder) ]] && \
+  /usr/sbin/svccfg import /opt/smartdc/binder/smf/manifests/binder.xml
+
 /opt/smartdc/bin/configure || fatal "Unable to complete configuration of zookeeper zone."
-
-# import binder config
-/usr/sbin/svccfg import /opt/smartdc/binder/smf/manifests/binder.xml
-
 
 touch /var/svc/setup_complete
 

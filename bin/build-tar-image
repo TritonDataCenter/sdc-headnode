@@ -15,6 +15,8 @@
 set -o errexit
 set -o pipefail
 
+shopt -s extglob
+
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 # Write output to log file.
@@ -32,8 +34,8 @@ exec > >(tee ${LOGFILE}) 2>&1
 if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
     BASH_IS_NOT_ANCIENT='true'
 fi
-#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -x
+# export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+# set -x
 if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
@@ -266,6 +268,10 @@ function load_buildspec
     PLATFORM_RELEASE=$(build_spec platform-release)
     BUILD_TGZ=$(build_spec build-tgz)
 
+    # HEAD-1507 cleanup.
+    USE_IMAGES=$(build_spec use-images)
+    [[ ${USE_IMAGES} == "false" ]] && USE_IMAGES=''
+
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -437,8 +443,11 @@ function pkgin_get
     fi
 }
 
+# HEAD-1507 obsolete.
 function copy_pkgsrc
 {
+    [[ -z ${USE_IMAGES} ]] || return 0
+
     echo "==> Copying in pkgsrc"
 
     # move old cache to new name so everyone doesn't have to download again.
@@ -464,7 +473,7 @@ function copy_pkgsrc
 
         for zone in $(ls ${ROOT}/zones); do
             zoneds=$(cat ${ROOT}/zones/${zone}/dataset)
-            if [[ ${zoneds} == ${ds_name} ]]; then
+            if [[ ${zoneds} =~ ${ds_name} ]]; then
                 cat ${ROOT}/zones/${zone}/pkgsrc >> ${ROOT}/cache/${ds_pkgsrc}.lst
                 mkdir -p ${STAGE}/zones/${zone}
             fi
@@ -596,6 +605,47 @@ function valid_archive
         return 0
     else
         return 1
+    fi
+}
+
+## Review. Re-do.
+# Cat all the manifests.
+# Any image not in the list is deleted.
+# Any corrupt image is deleted.
+# Of remaining images, keep the most recent N.
+function clean_image_cache
+{
+    local cache_dir=$1
+    local keep_bits=$(build_spec keep-bits)
+    local kept=0
+    local basename filename cached_manifest
+
+    if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
+        echo "Cleaning image cache for ${cache_dir##*/}"
+        for file in $(ls -1t ${cache_dir}/*.zfs.+(gz|bz2)); do
+            # keep the most recent N images that have corresponding manifests.
+            basename=${file##*/}
+            filename=${basename%%.*}
+            if [[ ${kept} -lt ${keep_bits} && -f ${cache_dir}/${filename}.imgmanifest ]]; then
+                echo "...KEEPING: ${file}" >&2
+                kept=$((${kept} + 1))
+            else
+                echo "...DELETING: ${cache_dir}/${filename}*" >&2
+                cached_manifest=$(${ROOT}/bin/json -H uuid < ${cache_dir}/${filename}.zfs.imgmanifest)
+                rm ${cache_dir}/${filename}*
+                rm ${cached_manifest}
+            fi
+        done
+
+        # there might be orphan manifests
+        for file in $(ls -1 ${cache_dir}/*.imgmanifest); do
+            basename=${file##*/}
+            uuid=${basename%%.*}
+            if [[ -z $(ls -1 ${cache_dir}/${uuid}.zfs*) ]]; then
+                echo "...DELETING: ${file}"
+                rm ${file}
+            fi
+        done
     fi
 }
 
@@ -753,6 +803,267 @@ function get_bit
         cleanup_bit "${pattern}"
     fi
     echo "${get_bit_rv}"
+}
+
+# Fetches the list of available images for a given name from an IMGAPI endpoint,
+# nominally https://updates.joyent.us. If the internet is unavailable, falls
+# back to the most-recently cached list.
+#
+# the list is a space-delimited file of image manifest properties:
+# published_at uuid version name
+function get_avail_images # zone, name
+{
+    local zone=$1
+    [[ -n ${zone} ]] || fatal "get_avail_images() no zone specified"
+
+    local name=$2
+    [[ -n ${name} ]] || fatal "get_avail_images() no image name specified"
+
+    local cache_file=${ROOT}/cache/images/${zone}/${zone}_images.txt
+    local updates_url tmp_file prev_file
+
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        echo "Fetching available images for ${zone}"
+        updates_url=$(build_spec updates_url)
+        mkdir -p ${ROOT}/cache/images/${zone}
+        tmp_file=${ROOT}/cache/images/${zone}/${zone}_images.txt.tmp
+
+        curl ${CURL_OPTS} --fail -ksS "${updates_url}/images?name=${name}" \
+            | ${ROOT}/bin/json -Ha published_at uuid version name \
+            > ${tmp_file}
+
+        if [[ $? -eq 0 ]]; then
+            mv ${tmp_file} ${cache_file}
+        else
+            echo "Unable to download list of images for ${zone} from ${updates_url}" >&2
+            echo "Falling back to cache." >&2
+            rm ${tmp_file}
+        fi
+    fi
+
+    if [[ ! -f ${cache_file} ]]; then
+        fatal "Unable to find or download list of images for ${name}"
+    fi
+
+    cat ${cache_file}
+}
+
+function validate_image # manifest, file
+{
+    local manifest=$1
+    local file=$2
+    local expect=1
+    local calc=2
+
+    if [[ -f ${manifest} ]] && [[ -f ${file} ]]; then
+        expect=$(${ROOT}/bin/json files[0].sha1 < ${manifest})
+        calc=$(${SUM} ${file} | cut -f1 -d' ')
+    fi
+
+    [[ ${calc} == ${expect} ]]
+}
+
+function stage_image # zone, manifest, file
+{
+    local zone=$1
+    [[ -n ${zone} ]] || fatal "stage_image(): no name provided."
+
+    local manifest=$2
+    [[ -n ${manifest} ]] || fatal "stage_image(): no manifest provided."
+
+    local file=$3
+    [[ -n ${file} ]] || fatal "stage_image(): no image file provided."
+
+
+    local image_cache="${ROOT}/cache/images/${zone}"
+    local image_stage="${STAGE}/datasets"
+
+    echo "Staging image ${file}"
+    mkdir -p ${image_stage}
+    cp ${manifest} "${image_stage}/${manifest##*/}"
+    cp ${file} "${image_stage}/${file##*/}"
+}
+
+# given an image manifest, return the appropraite file extension for the
+# corresponding image.
+function _image_file_ext # manifest_file
+{
+    local manifest=$1
+    local ext=$(${ROOT}/bin/json -H files[0].compression < ${manifest})
+    if [[ -z ${ext} ]]; then
+        ext=$(${ROOT}/bin/json -H files[0].path < ${manifest})
+        [[ ${ext} =~ gz ]] && ext="zfs.gz"
+        [[ ${ext} =~ bz2 ]] && ext="zfs.gz2"
+    fi
+    [[ ${ext} == "gzip" ]] && ext="zfs.gz"
+    [[ ${ext} == "bzip2" ]] && ext="zfs.bz2"
+    [[ ${ext} == "none" ]] && ext="zfs"
+
+    echo ${ext}
+}
+
+function _image_version
+{
+    local manifet=$1
+    local version=$(${ROOT}/bin/json -H version < ${manifest})
+    echo ${version}
+}
+
+# Downloads and caches (or fetches from the cache) an SDC image.
+# outputs the downloaded file name (which is dependent on the manifest)
+#
+# REVIEW - should change this to take manifest file as param.
+function download_image # uuid, zone
+{
+    local uuid=$1
+    [[ -n ${uuid} ]] || fatal "download_image(): no UUID provided."
+
+    local zone=$2
+    [[ -n ${zone} ]] || fatal "download_image(): no name provided."
+
+    local image_cache=${ROOT}/cache/images/${zone}
+    local cached_manifest="${image_cache}/${uuid}.imgmanifest"
+    local image_file manifest ext version updates_url
+
+    if [[ -f ${cached_manifest} ]]; then
+        ext=$(_image_file_ext ${cached_manifest})
+        version=$(_image_version ${cached_manifest})
+        image_file=${image_cache}/${zone}-zfs-${version}.${ext}
+        manifest=${image_cache}/${zone}-zfs-${version}.zfs.imgmanifest
+
+        # file="${image_cache}/${uuid}.${ext}"
+
+        if [[ -n $(validate_image ${cached_manifest} ${image_file}) ]]; then
+            echo "Corrupt image file ${image_file}, deleting and re-downloading." >&2
+        fi
+
+        # unset & attempt to re-download
+        [[ ! -f ${file} ]] && file=""
+    fi
+
+    if [[ -z ${file} ]]; then
+        if [[ ${HAVE_INTERNET} == "true" ]]; then
+            mkdir -p ${image_cache}
+            updates_url=$(build_spec updates_url)
+
+            echo "Downloading manifest for ${uuid}" >&2
+            curl ${CURL_OPTS} --fail -k ${updates_url}/images/${uuid} \
+                -o ${cached_manifest}
+            [[ $? -eq 0 ]] || fatal "Error downloading image manifest for ${uuid}"
+
+            # link cache-able UUID to named manifest.
+            ext=$(_image_file_ext ${cached_manifest})
+            version=$(_image_version ${cached_manifest})
+            manifest=${image_cache}/${zone}-zfs-${version}.zfs.imgmanifest
+            ln -s ${cached_manifest} ${manifest}
+
+            echo "Downloading image file for ${uuid}" >&2
+            image_file=${image_cache}/${zone}-zfs-${version}.${ext}
+            curl ${CURL_OPTS} --fail -k ${updates_url}/images/${uuid}/file \
+                -o ${image_file}
+            [[ $? -eq 0 ]] || fatal "Error downloading image file for ${uuid}"
+        fi
+    fi
+
+    if [[ -z ${image_file} ]] || [[ ! -f ${image_file} ]]; then
+        fatal "Can't find or download image ${uuid}"
+    fi
+
+    echo "${image_file}"
+}
+
+# Get a smartdc zone's pre-built image and manifest.
+#
+# Usage:
+#   copy_sdc_image ZONE
+#
+# Which image to apply to a zone is derived from build.spec's ${zone}-image
+# key which takes the following structure:
+#
+# "napi-image": {
+#   "name": "napi"
+#   "pattern": "master"
+# }
+#
+# name - defaults to ${zone}
+#   the IMGAPI sense of name, i.e., https://IMGAPI/images?name=NAME
+#
+# pattern - default 'master'
+#   can be one of:
+#     - grep-style pattern on the version
+#     - specific image UUID
+#         In these first two cases, we will query IMGAPI and select the most-
+#         most-recently-published image that matches the pattern criteria.
+#         That is, it is not possible to specify a UUID that does not match the
+#         name.
+#     - local file name or glob of a manifest
+#         Assumes the image file differs only by the extension, i.e., the
+#         same directory and same file name as the specified manifest. ls-style
+#         globs will be expanded, but should specify a single file.
+#     - URL of a manifest
+#         Assume IMGAPI semantics, and will download the image from URL/file.
+#
+function copy_sdc_image
+{
+    local zone=$1
+    [[ -n ${zone} ]] || fatal "copy_sdc_image(): no zone specified."
+
+    local uuid pattern ls_pattern file manifest img_name img_path img_ext
+
+    echo "Determining image for ${zone}"
+
+    ### XXX determine image name and version pattern.
+    pattern=$(build_spec ${zone}-image.pattern)
+    ls_pattern=${pattern}
+    [[ -n ${pattern} ]] || pattern="master"
+
+    name=$(build_spec ${zone}-image.name)
+    [[ -n ${name} ]] || name=${zone}
+
+    [[ -f ${ls_pattern} ]] || ls_pattern=$(ls ${pattern}) || echo "No file match"
+    if [[ -f ${ls_pattern} ]]; then
+        manifest=${ls_pattern}
+        img_name=${manifest##*/}
+        img_name=${img_name%%.*}
+        img_path=$(dirname ${manifest})
+        ext=$(_image_file_ext ${manifest})
+        uuid=$(json uuid < ${manifest})
+
+        file=${img_path}/${img_name}.${ext}
+        [[ -f ${file} ]] || fatal "No image file corresponding to ${manifest}"
+    else
+        if [[ ${pattern:0:7} == "http://" || ${pattern:0:8} == "https://" ]]; then
+            # it's an IMGAPI URL, we assume the basename is the UUID.
+            uuid=$(basename ${pattern})
+        else
+            uuid=$(get_avail_images ${zone} ${name} \
+                | grep "${pattern}" \
+                | sort \
+                | tail -1 \
+                | cut -f2 -d' ')
+        fi
+
+        [[ -n ${uuid} ]] || fatal "Unable to determine image UUID for ${zone}"
+
+        file=$(download_image ${uuid} ${zone})
+        img_name=${file##*/}
+        img_name=${img_name%%.*}
+        manifest=${ROOT}/cache/images/${zone}/${img_name}.zfs.imgmanifest
+    fi
+
+    validate_image ${manifest} ${file}
+    [[ $? -eq 0 ]] || fatal "copy_sdc_image(): ${file} is corrupt, can't build."
+
+    stage_image ${zone} ${manifest} ${file}
+
+    clean_image_cache ${ROOT}/cache/images/${zone}
+
+    # HEAD-1507 - this should be temporary until we get proto-SAPI returning
+    # a payload for vmadm. This should allow headnode.sh:create_zone()
+    # and build_payload to handle the sdc images with less trouble until
+    # then.
+    echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
+    echo ${img_name} > ${STAGE}/zones/${zone}/dataset
 }
 
 
@@ -1009,7 +1320,6 @@ function copy_dataset
   ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 
-
 # Get a smartdc zone's FS tarball.
 #
 # Usage:
@@ -1046,7 +1356,6 @@ function get_fs_tarball
     if [[ -f ${target} ]]; then
         # if this is the filename of an existing file, we'll use that
         if [[ ${target} != "${cache_path}" ]]; then
-
             echo "$(basename ${target} .tar.bz2)" > ${dst_dir}/stamp
             cp ${target} ${cache_path}
         fi
@@ -1089,9 +1398,6 @@ function copy_zones
     fi
 
     for zone in $(ls ${STAGE}/zones); do
-        mkdir -p ${STAGE}/zones/${zone}
-
-        tarball_pattern=$(build_spec ${zone}-tarball)
 
         # Symlinks aren't supported on pcfs, so we copy the files
         if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
@@ -1103,33 +1409,33 @@ function copy_zones
             cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
-        if [[ ${tarball_pattern} != "none" ]]; then
+        if [[ -n ${USE_IMAGES} ]]; then
+            copy_sdc_image ${zone}
+        else
+            local tarball_pattern=$(build_spec ${zone}-tarball)
             if [[ -n ${tarball_pattern} ]]; then
                 # Find latest that matches tarball_pattern.
                 get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
             fi
-
-            if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]];then
-                fatal "Unable to find or build fs.tar.bz2 for ${zone}"
-            else
-                # Keep a copy in cache so we can build next time with no Internet
-                cp ${STAGE}/zones/${zone}/fs.tar.bz2 \
-                    ${ROOT}/cache/${zone}.tar.bz2
+            if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]]; then
+                fatal "Unable to find fs.tar.bz2 for ${zone}"
             fi
         fi
     done
-
 }
 
 # Copy in the appropriate version of registrar using (if applicable) the
 # registrar branch specified in build.spec.
+# HEAD-1507 obsolete function.
 function copy_registrar
 {
+    [[ -z ${USE_IMAGES} ]] || return 0
+
     [[ -z "${loops}" ]] && loops=0
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download registrar, looping!"
 
-    # See if there's a specific amon-agent branch we're supposed to use.
+    # See if there's a specific registrar branch we're supposed to use.
     local branch=$(build_spec registrar)
     if [[ -z ${branch} ]]; then
         branch="master"
@@ -1142,8 +1448,6 @@ function copy_registrar
 
     loops=
 }
-
-
 
 
 function copy_tools

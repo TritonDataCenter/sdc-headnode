@@ -64,7 +64,7 @@ async.series([
                 }
                 obj.dataset_name = data.toString().split('\n')[0];
                 fs.readFile('/usbkey/datasets/' + obj.dataset_name
-                    + '.dsmanifest', function (err, data) {
+                , function (err, data) {
 
                     var dsmanifest;
 
