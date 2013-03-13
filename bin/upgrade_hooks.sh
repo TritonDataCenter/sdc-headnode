@@ -304,6 +304,9 @@ post_tasks()
     # Can still see timeouts in coal when things are spinning up
     [[ "$CONFIG_coal" == "true" ]] && sleep 120
 
+    print_log "upgrading imgapi..."
+    imgapi_tasks
+
     print_log "configuring fwapi..."
     fwapi_tasks
 
@@ -495,14 +498,15 @@ imgapi_tasks()
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
             | head -1 | awk '{print $2}')
         if [[ "$status" == "404" ]]; then
-            echo "Importing image $uuid ($file) into IMGAPI."
+            echo "Importing image $uuid ($imageFile) into IMGAPI."
             if [[ -f $imageFile ]]; then
                 echo "$image" | /opt/smartdc/bin/sdc-imgadm import -f $imageFile
                 local res=$?
                 if [[ $res == 0 ]]; then
+                    echo "Removing image file $imageFile (no longer needed)."
                     rm $imageFile
                 else
-                    saw_err "Error importing image $uuid $(file) into IMGAPI"
+                    saw_err "Error importing image $uuid $(file) into IMGAPI."
                 fi
             else
                 saw_err "Image $uuid file $imageFile not found."
@@ -728,8 +732,6 @@ case "$1" in
 "cloudapi") cloudapi_tasks $2;;
 
 "ufds") ufds_tasks $2;;
-
-"imgapi") imgapi_tasks $2;;
 
 "napi") echo "$2" >${SDC_UPGRADE_DIR}/napi_zonename.txt;;
 esac
