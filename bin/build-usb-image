@@ -139,6 +139,7 @@ function mount_image
 {
     echo -n "==> Mounting new USB image... "
     if [[ "$PLATFORM" == "Darwin" ]]; then
+        # REVIEW - [ blah ] ?
         [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
         hdiutil attach $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
             >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
@@ -152,6 +153,7 @@ function mount_image
         LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/$$.${OUTPUT_IMG})
         ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
     fi
+    # REVIEW - IMG_DEV not defined?
     echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
 }
 

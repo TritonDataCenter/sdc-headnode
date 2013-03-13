@@ -30,7 +30,7 @@ if [[ "${ZONE_ROLE}" != "assets" ]]; then
 fi
 
 
-
+# HEAD-1507 scheduled for deletion.
 # Unpack the fs tarball.
 if [[ $(. /opt/smartdc/etc/zoneconfig ; echo ${NO_FS_TARBALL}) == "true" ]]; then
     NO_FS_TARBALL=1
@@ -64,53 +64,59 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
 fi
 
 
+# HEAD-1507 scheduled for deletion.
 # Install pkgsrc packages for this zone.
 # Note: We need to force lower case because the pkgsrc packages get copied
 # through pcfs which destroys their case.
-pkgsrc_version=$(tail -1 /opt/local/etc/pkgin/repositories.conf \
-     | sed -e "s/^.*\/201/201/" | cut -d '/' -f1 | tr [:lower:] [:upper:])
-if [[ -z "$pkgsrc_version" ]]; then
-    fatal "FATAL: unable to get pkgsrc version"
+if [[ -z ${NO_FS_TARBALL} ]]; then
+  pkgsrc_version=$(tail -1 /opt/local/etc/pkgin/repositories.conf \
+       | sed -e "s/^.*\/201/201/" | cut -d '/' -f1 | tr [:lower:] [:upper:])
+  if [[ -z "$pkgsrc_version" ]]; then
+      fatal "FATAL: unable to get pkgsrc version"
+  fi
+  if tail -1 /opt/local/etc/pkgin/repositories.conf | grep "/x86_64/" >/dev/null; then
+      pkgsrc_version=${pkgsrc_version}_64
+  fi
+
+  if [[ "${ZONE_ROLE}" == "assets" ]]; then
+      cp /assets/extra/${ZONE_ROLE}/pkgsrc /var/svc/pkgsrc \
+          || fatal "FATAL: unable to get pkgsrc list from /assets"
+      pkgsrc_url=/assets/extra/pkgsrc/${pkgsrc_version}
+  else
+      touch /var/svc/pkgsrc   # If 'pkgsrc' file is empty, curl won't create it.
+      curl -o /var/svc/pkgsrc -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
+          || fatal "FATAL: unable to get pkgsrc list from assets server"
+      pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
+  fi
+
+  for name in $(cat /var/svc/pkgsrc); do
+      name_lower=$(echo ${name} | tr [:upper:] [:lower:])
+      echo "Installing pkgsrc package '$name'."
+      # MANATEE-77 we add the -u flag to pkg_add so that we can upgrade old
+      # version already pre-installed in the dataset
+      pkg_info $name >/dev/null 2>&1 \
+          || (yes | pkg_add -u -f ${pkgsrc_url}/${name_lower})
+  done
 fi
-if tail -1 /opt/local/etc/pkgin/repositories.conf | grep "/x86_64/" >/dev/null; then
-    pkgsrc_version=${pkgsrc_version}_64
-fi
 
-if [[ "${ZONE_ROLE}" == "assets" ]]; then
-    cp /assets/extra/${ZONE_ROLE}/pkgsrc /var/svc/pkgsrc \
-        || fatal "FATAL: unable to get pkgsrc list from /assets"
-    pkgsrc_url=/assets/extra/pkgsrc/${pkgsrc_version}
-else
-    touch /var/svc/pkgsrc   # If 'pkgsrc' file is empty, curl won't create it.
-    curl -o /var/svc/pkgsrc -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
-        || fatal "FATAL: unable to get pkgsrc list from assets server"
-    pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
-fi
-
-for name in $(cat /var/svc/pkgsrc); do
-    name_lower=$(echo ${name} | tr [:upper:] [:lower:])
-    echo "Installing pkgsrc package '$name'."
-    # MANATEE-77 we add the -u flag to pkg_add so that we can upgrade old
-    # version already pre-installed in the dataset
-    pkg_info $name >/dev/null 2>&1 \
-        || (yes | pkg_add -u -f ${pkgsrc_url}/${name_lower})
-done
-
-
+# HEAD-1507 only need to run postinstall.
 # Install and start the amon-agent.
-if [[ "${ZONE_ROLE}" == "assets" ]]; then
-    cp /assets/extra/amon-agent/amon-agent.tgz /var/svc/amon-agent.tgz \
-        || fatal "FATAL: unable to get amon-agent.tgz from /assets"
-else
-    curl -o /var/svc/amon-agent.tgz -s -S -f \
-        http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz \
-        || fatal "FATAL: unable to get amon-agent.tgz from assets server"
+if [[ -z ${NO_FS_TARBALL} ]]; then
+  if [[ "${ZONE_ROLE}" == "assets" ]]; then
+      cp /assets/extra/amon-agent/amon-agent.tgz /var/svc/amon-agent.tgz \
+          || fatal "FATAL: unable to get amon-agent.tgz from /assets"
+  else
+      curl -o /var/svc/amon-agent.tgz -s -S -f \
+          http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz \
+          || fatal "FATAL: unable to get amon-agent.tgz from assets server"
+  fi
+  mkdir -p /opt/
+  (cd /opt/ && gtar xzf /var/svc/amon-agent.tgz)
 fi
-mkdir -p /opt/
-(cd /opt/ && gtar xzf /var/svc/amon-agent.tgz)
 (cd /opt/amon-agent && ./pkg/postinstall.sh)
 rm -f /var/svc/amon-agent.tgz
 
+# XXX move to vmadm parameters.
 # setup resolvers
 resolvers=$(mdata-get resolvers)
 if [[ -z ${resolvers} ]]; then
@@ -124,17 +130,20 @@ else
   done
 fi
 
+# HEAD-1507 scheduled for deletion
 # Install registrar for the zone.
-if [[ "${ZONE_ROLE}" == "assets" ]]; then
-    cp /assets/extra/registrar/registrar.bz2 /var/svc/registrar.bz2 \
-        || fatal "FATAL: unable to get registrar.bz2 from /assets"
-else
-    curl -o /var/svc/registrar.bz2 -s -S -f \
-        http://${ASSETS_IP}/extra/registrar/registrar.bz2 \
-        || fatal "FATAL: unable to get registrar.bz2 from assets server"
+if [[ -z ${NO_FS_TARBALL} ]]; then
+  if [[ "${ZONE_ROLE}" == "assets" ]]; then
+      cp /assets/extra/registrar/registrar.bz2 /var/svc/registrar.bz2 \
+          || fatal "FATAL: unable to get registrar.bz2 from /assets"
+  else
+      curl -o /var/svc/registrar.bz2 -s -S -f \
+          http://${ASSETS_IP}/extra/registrar/registrar.bz2 \
+          || fatal "FATAL: unable to get registrar.bz2 from assets server"
+  fi
+  gtar --strip-components=1 -xjf /var/svc/registrar.bz2
+  rm -f /var/svc/registrar.bz2
 fi
-gtar --strip-components=1 -xjf /var/svc/registrar.bz2
-rm -f /var/svc/registrar.bz2
 
 # get registrar config from metadata and start the service.
 registrar_config=$(mdata-get registrar-config)
@@ -149,8 +158,10 @@ else
   svcadm enable registrar
 fi
 
+# HEAD-1507 - what is this intended to do? No such file in zones.
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import now.
+# HEAD-1507 remove this.
 for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
     svccfg import ${manifest}
 done

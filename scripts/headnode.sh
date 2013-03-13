@@ -34,7 +34,7 @@ declare -A DS_MANIFEST=()
 declare -A DS_FILE=()
 DS_CNT=0
 
-
+shopt -s extglob
 
 #---- setup state support
 # "/var/lib/setup.json" support is duplicated in headnode.sh and
@@ -341,25 +341,28 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     done
 
     # Setup 'sdc-manatee-*' tools.
-    mkdir -p /opt/smartdc/manatee
-    (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
+    # MANATEE-86 - for image setup, this tarball won't exist.
+    if [[ -f ${USB_COPY}/zones/manatee/fs.tar.bz2 ]]; then
+        mkdir -p /opt/smartdc/manatee
+        (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/sdc)
-    (cd /opt/smartdc/manatee && mkdir -p bin/sdc && \
+        (cd /opt/smartdc/manatee && mkdir -p bin/sdc && \
             mv root/opt/smartdc/manatee/bin/sdc/* ./bin/sdc && rm -rf root)
-    for file in $(ls /opt/smartdc/manatee/bin/sdc/*); do
-        # Strip trailing .js if present
-        tool=$(basename ${file} .js)
-        ln -s ${file} /opt/smartdc/bin/${tool}
-    done
-    (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
+        for file in $(ls /opt/smartdc/manatee/bin/sdc/*); do
+            # Strip trailing .js if present
+            tool=$(basename ${file} .js)
+            ln -s ${file} /opt/smartdc/bin/${tool}
+        done
+        (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/manta)
-    (cd /opt/smartdc/manatee && mkdir -p bin/manta && \
+        (cd /opt/smartdc/manatee && mkdir -p bin/manta && \
             mv root/opt/smartdc/manatee/bin/manta/* ./bin/manta && rm -rf root)
-    for file in $(ls /opt/smartdc/manatee/bin/manta/*); do
-        # Strip trailing .js if present
-        tool=$(basename ${file} .js)
-        ln -s ${file} /opt/smartdc/bin/${tool}
-    done
+        for file in $(ls /opt/smartdc/manatee/bin/manta/*); do
+            # Strip trailing .js if present
+            tool=$(basename ${file} .js)
+            ln -s ${file} /opt/smartdc/bin/${tool}
+        done
+    fi
 
     # Setup 'sdc-imgadm' and 'joyent-imgadm' tools.
     mkdir -p /opt/smartdc/imgapi-cli
@@ -493,14 +496,14 @@ function create_zone {
     if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
         ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
         [[ -z ${ds_name} ]] && fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
-        ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name}.dsmanifest)
+        ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name})
         [[ -z ${ds_manifest} ]] && fatal "No manifest found for ${ds_name}"
-        ds_filename=$(ls ${USB_COPY}/datasets/${ds_name}.zfs.bz2)
+        ds_filename=$(ls ${USB_COPY}/datasets/${ds_name%%\.@(ds|zfs\.img)manifest}.zfs+(.bz2|.gz))
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
 
-	add_dataset ${ds_uuid} ${ds_manifest} ${ds_filename}
+        add_dataset ${ds_uuid} ${ds_manifest} ${ds_filename}
 
         # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
