@@ -344,18 +344,18 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/manatee
     (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/sdc)
-    (cd /opt/smartdc/manatee && mkdir -p bin && \
-            mv root/opt/smartdc/manatee/bin/sdc/* ./bin && rm -rf root)
-    for file in $(ls /opt/smartdc/manatee/bin/*); do
+    (cd /opt/smartdc/manatee && mkdir -p bin/sdc && \
+            mv root/opt/smartdc/manatee/bin/sdc/* ./bin/sdc && rm -rf root)
+    for file in $(ls /opt/smartdc/manatee/bin/sdc/*); do
         # Strip trailing .js if present
         tool=$(basename ${file} .js)
         ln -s ${file} /opt/smartdc/bin/${tool}
     done
     (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
             root/opt/smartdc/manatee/bin/manta)
-    (cd /opt/smartdc/manatee && rm -rf bin && mkdir -p bin && \
-            mv root/opt/smartdc/manatee/bin/manta/* ./bin && rm -rf root)
-    for file in $(ls /opt/smartdc/manatee/bin/*); do
+    (cd /opt/smartdc/manatee && mkdir -p bin/manta && \
+            mv root/opt/smartdc/manatee/bin/manta/* ./bin/manta && rm -rf root)
+    for file in $(ls /opt/smartdc/manatee/bin/manta/*); do
         # Strip trailing .js if present
         tool=$(basename ${file} .js)
         ln -s ${file} /opt/smartdc/bin/${tool}
