@@ -725,9 +725,8 @@ function cleanup_config
 	else
 	    allocate_ip_addr
 	    ufds_admin_ip="$ip_addr"
-	    # re-use adminui external IP for ufds since adminui is not on the
-	    # the external net in 7.0
-	    ufds_external_ip="$CONFIG_adminui_external_ip"
+	    # re-use billapi external IP for ufds since billapi no longer exists
+	    ufds_external_ip="$CONFIG_billapi_external_ip"
 	fi
 
 	# 5
@@ -831,6 +830,7 @@ function cleanup_config
 	cat <<-DONE >>/tmp/config.$$
 
 	adminui_admin_ips=$adminui_admin_ip
+	adminui_external_ips=$CONFIG_adminui_external_ip
 	adminui_svcname=adminui.$CONFIG_dns_domain
 
 	assets_admin_ip=$assets_admin_ip
@@ -1169,6 +1169,15 @@ if [[ $AGENTS_ONLY == 1 ]]; then
     [ $? != 0 ] && \
         fatal "installing new provisioner agents"
 
+    echo "Compute node agent install is complete"
+
+    if [[ "$CONFIG_capi_is_local" == "true" ]]; then
+        echo
+        echo "If you have other datacenters accessing this CAPI master, then"
+        echo "list the remote ADMINUI, CloudAPI, MAPI and Portal IP addresses"
+        echo "in /var/tmp/capi_access before you run the upgrade."
+    fi
+
     exit 0
 fi
 
@@ -1455,6 +1464,7 @@ mkdir -m755 -p /var/log/vm
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
 
+cp /var/tmp/capi_access $SDC_UPGRADE_DIR
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 

@@ -264,6 +264,53 @@ pre_tasks()
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
 }
 
+# arg1 role
+add_ext_net()
+{
+    local role=$1
+
+    role_uuid=`vmadm lookup -1 tags.smartdc_role=${role}`
+    if [ $? -ne 0 ]; then
+        saw_err "Error, missing uuid for ${role} zone"
+        return
+    fi
+
+    local key="${role}_external_ips"
+    local ext_ip=$(eval "echo \${CONFIG_${key}}")
+
+    # Add external net
+    cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/${role}_extnic.json
+	{
+	    "add_nics": [
+	        {
+	            "interface": "net1",
+	            "nic_tag": "external",
+	            "ip": "${ext_ip}",
+	            "netmask": "$CONFIG_external_netmask",
+	            "gateway": "$CONFIG_external_gateway"
+	        }
+	    ]
+	}
+	EXT_DONE
+
+    vmadm update -f ${SDC_UPGRADE_DIR}/${role}_extnic.json $role_uuid
+
+    # Reserve the external IP for the zone
+    local ext_uuid=`sdc-login napi /opt/smartdc/napi/bin/napictl \
+        network-list | \
+        json -a name uuid | nawk '{if ($1 == "external") print $2}'`
+    if [ -z "$ext_uuid" ]; then
+        saw_err "Error, missing uuid for external network"
+        return
+    fi
+
+    sdc-login napi /opt/smartdc/napi/bin/napictl ip-update $ext_uuid $ext_ip \
+	owner_uuid="00000000-0000-0000-0000-000000000000" \
+	belongs_to_uuid=\"$role_uuid\" belongs_to_type=zone \
+	reserved=true  1>&4 2>&1
+	[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
+}
+
 post_tasks()
 {
     # Need to wait for all svcs to be up before we can create additional zones
@@ -317,52 +364,18 @@ post_tasks()
 
     convert_portal_zone
 
-    dname="/var/upgrade.$(date -u "+%Y%m%dT%H%M%S")"
+    add_ext_net adminui
+    reboot_zone $role_uuid
 
-    local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
-    if [ $? -ne 0 ]; then
-        saw_err "Error, missing uuid for ufds zone"
-    else
-        # Add external net
-        cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/ufds_extnic.json
-	{
-	    "add_nics": [
-	        {
-	            "interface": "net1",
-	            "nic_tag": "external",
-	            "ip": "$CONFIG_ufds_external_ips",
-	            "netmask": "$CONFIG_external_netmask",
-	            "gateway": "$CONFIG_external_gateway"
-	        }
-	    ]
-	}
-	EXT_DONE
-
-        vmadm update -f ${SDC_UPGRADE_DIR}/ufds_extnic.json $ufds_uuid
-        vmadm update $ufds_uuid firewall_enabled=true
-
-	# Reserve the external IP for ufds
-    	local ext_uuid=`sdc-login napi /opt/smartdc/napi/bin/napictl \
-	    network-list | \
-	    json -a name uuid | nawk '{if ($1 == "external") print $2}'`
-	if [ -z "$ext_uuid" ]; then
-	    saw_err "Error, missing uuid for external network"
-	else
-	    sdc-login napi /opt/smartdc/napi/bin/napictl ip-update \
-		$ext_uuid $CONFIG_ufds_external_ips \
-		owner_uuid="00000000-0000-0000-0000-000000000000" \
-		belongs_to_uuid=\"$ufds_uuid\" belongs_to_type=zone \
-		reserved=true  1>&4 2>&1
-		[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
-	fi
-
-        reboot_ufds $ufds_uuid
-    fi
+    add_ext_net ufds
+    vmadm update $role_uuid firewall_enabled=true
+    reboot_zone $role_uuid
 
     print_log ""
     print_log "The upgrade is finished"
     print_log "Note the following items:"
 
+    dname="/var/upgrade.$(date -u "+%Y%m%dT%H%M%S")"
     mv ${SDC_UPGRADE_DIR} $dname
     # If no error setting up cloudapi, print read-only msg
     local cloudapi_failed=0
@@ -383,9 +396,9 @@ post_tasks()
         print_log "- Review CAPI issues in capi_conversion_issues.txt"
 
     if [[ $CONFIG_ufds_is_local == "true" ]]; then
-        print_log "- If remote sites were accessing CAPI, you must"
-        print_log "  update the UFDS firewall rule $FW_UUID"
-        print_log "  $FW_RULE"
+        print_log "- If remote sites were accessing CAPI and the remote IP"
+        print_log "  addresses were not listed in the capi_access file, then"
+        print_log "  you must update the UFDS firewall rule $FW_UUID"
     fi
 
     print_log "- The upgrade logs are in $dname"
@@ -404,7 +417,7 @@ post_tasks()
     print_log "DONE"
 }
 
-reboot_ufds()
+reboot_zone()
 {
     vmadm reboot $1
     sleep 10
@@ -419,7 +432,7 @@ reboot_ufds()
     done
 
     [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]] && \
-        saw_err "Error restarting ufds zone: svcs did not completely restart"
+        saw_err "Error restarting $1 zone: svcs did not completely restart"
 }
 
 # arg1 is zonename
@@ -589,11 +602,19 @@ fwapi_tasks()
     local portal_ip=`nawk '{if ($1 == "portal") print $2}' \
         ${SDC_UPGRADE_DIR}/ext_addrs.txt`
 
+    local ips="ip $portal_ip"
+    if [ -f ${SDC_UPGRADE_DIR}/capi_access ]; then
+        for i in `cat ${SDC_UPGRADE_DIR}/capi_access`
+        do
+            ips="$ips OR ip $i"
+        done
+    fi
+
     netmask_to_cidr $CONFIG_admin_netmask
     cat <<-FW_DONE >/zones/$fwapi_uuid/root/root/fwrules.json
 	{ "enabled": true,
 	  "owner_uuid": "00000000-0000-0000-0000-000000000000",
-	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR ip $portal_ip) TO vm $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
+	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR $ips) TO vm $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
 	}
 	FW_DONE
     zlogin $fwapi_uuid /opt/smartdc/fwapi/bin/fwapi add -f /root/fwrules.json \
