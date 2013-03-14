@@ -36,11 +36,13 @@ EOF
 network_list()
 {
     printf "%-12s %-36s  %-4s %16s %16s\n" \
-        "NAME" "UUID" "VLAN" "NETWORK" "GATEWAY"
+        "NAME" "UUID" "VLAN" "SUBNET" "GATEWAY"
     printf "%-12s %36s  %4s %16s %16s\n" \
         $(napi /networks \
             | json -H \
-            -a name uuid vlan network gateway)
+            -e 'gateway = (this.hasOwnProperty("gateway") ? gateway : "-")' \
+            -e 'vlan_id = (this.hasOwnProperty("vlan_id") ? vlan_id : "-")' \
+            -a name uuid vlan_id subnet gateway)
 }
 
 if [[ -z ${command} ]]; then
