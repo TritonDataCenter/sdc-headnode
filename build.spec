@@ -39,11 +39,6 @@
       , "pkgsrc": "2011Q4"
       , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
       }
-    , { "name": "smartos64-1.6.3"
-      , "uuid": "f9e4be48-9466-11e1-bc41-9f993f5dff36"
-      , "pkgsrc": "2011Q4_64"
-      , "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46-64/All/"
-      }
     , { "name": "multiarch-12.4.1"
       , "uuid": "ee1fb198-5fe1-11e2-9cce-e319fd47df7b"
       , "manifest_url": "http://pkgsrc.smartos.org/datasets/multiarch-12.4.1.dsmanifest"
