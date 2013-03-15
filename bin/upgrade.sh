@@ -722,11 +722,18 @@ function cleanup_config
 	if [ $CAPI_FOUND == 1 ]; then
 	    ufds_admin_ip="$CONFIG_capi_admin_ip"
 	    ufds_external_ip="$CONFIG_capi_external_ip"
+	    ufds_external_vlan="$CONFIG_capi_external_vlan"
 	else
 	    allocate_ip_addr
 	    ufds_admin_ip="$ip_addr"
 	    # re-use billapi external IP for ufds since billapi no longer exists
 	    ufds_external_ip="$CONFIG_billapi_external_ip"
+	    ufds_external_vlan="$CONFIG_external_vlan_id"
+	fi
+	if [ -z "$ufds_external_vlan" ]; then
+	    ufds_ext_vlan="# ufds_external_vlan=0"
+	else
+	    ufds_ext_vlan="ufds_external_vlan=$ufds_external_vlan"
 	fi
 
 	# 5
@@ -929,6 +936,7 @@ function cleanup_config
 	ufds_admin_ips=$ufds_admin_ip
 	ufds_svcname=ufds.$CONFIG_dns_domain
 	ufds_external_ips=$ufds_external_ip
+	$ufds_ext_vlan
 	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
 	ufds_ldap_root_dn=cn=root
 	ufds_ldap_root_pw=secret
