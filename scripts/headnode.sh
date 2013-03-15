@@ -789,6 +789,19 @@ if [[ -n ${CREATEDZONES} ]]; then
             printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
         fi
     fi
+    printf_log "%-58s" "importing instance token developer key..."
+    fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | cut -f 2 -d ' ')
+    cat << EOF >> /tmp/admin.ldif
+dn: fingerprint=${fingerprint}, uuid=00000000-0000-0000-0000-000000000000, ou=users, o=smartdc
+changetype: add
+name: id_rsa
+fingerprint: ${fingerprint}
+openssh: $(cat /var/ssh/ssh_host_rsa_key.pub)
+objectclass: sdckey
+EOF
+    /opt/smartdc/bin/sdc-ldap add < /tmp/admin.ldif
+    rm /tmp/admin.ldif
+    printf_timer "done (%ss)\n" >&${CONSOLE_FD}
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
