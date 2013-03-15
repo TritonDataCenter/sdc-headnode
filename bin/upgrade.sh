@@ -1122,6 +1122,8 @@ function wait_and_clear
 	done
 }
 
+echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
+
 CHECK_ONLY=0
 AGENTS_ONLY=0
 FATAL_CNT=0
@@ -1314,6 +1316,7 @@ svcadm disable cron
 rm -rf /var/upgrade_failed /var/usb_rollback
 mkdir -p $SDC_UPGRADE_DIR
 mv /tmp/admin_ips.txt $SDC_UPGRADE_DIR
+mv /tmp/upgrade_time $SDC_UPGRADE_DIR
 
 # First trim down dataset_messages since it gets huge
 trim_db
@@ -1323,11 +1326,13 @@ trim_db
 
 # Run full backup with the old sdc-backup code, then unpack the backup archive.
 # Double check the existence of backup file.
+echo "$(date -u "+%Y%m%dT%H%M%S") backup start" >>$SDC_UPGRADE_DIR/upgrade_time
 echo "Creating a backup"
 sdc-backup -s datasets -s billapi -s riak -d $SDC_UPGRADE_DIR
 [[ $? != 0 ]] && fatal "unable to make a backup"
 bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
+echo "$(date -u "+%Y%m%dT%H%M%S") backup end" >>$SDC_UPGRADE_DIR/upgrade_time
 
 # Keep track of the core zone external addresses
 save_zone_addrs
@@ -1341,6 +1346,7 @@ if [ $CAPI_FOUND == 1 ]; then
     dump_capi
 fi
 dump_mapi
+echo "$(date -u "+%Y%m%dT%H%M%S") dumps done" >>$SDC_UPGRADE_DIR/upgrade_time
 
 # Now we can shutdown the rest of the zones so we are in an even more stable
 # state for the rest of this phase of the upgrade.
@@ -1367,9 +1373,11 @@ upgrade_zfs_datasets
 upgrade_pools
 
 # Setup for rollback
+echo "$(date -u "+%Y%m%dT%H%M%S") start rb" >>$SDC_UPGRADE_DIR/upgrade_time
 echo "saving data for rollback"
 $ROOT/setup_rb.sh
 [ $? != 0 ] && fatal "unable to setup for rollback"
+echo "$(date -u "+%Y%m%dT%H%M%S") end rb" >>$SDC_UPGRADE_DIR/upgrade_time
 
 trap recover EXIT
 
@@ -1389,8 +1397,10 @@ delete_sdc_zones
 cleanup_config
 load_sdc_config
 
+echo "$(date -u "+%Y%m%dT%H%M%S") start plat" >>$SDC_UPGRADE_DIR/upgrade_time
 /usbkey/scripts/switch-platform.sh -U ${platformversion} 1>&4 2>&1
 [ $? != 0 ] && fatal_rb "switching platform"
+echo "$(date -u "+%Y%m%dT%H%M%S") end plat" >>$SDC_UPGRADE_DIR/upgrade_time
 
 # Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
 #
@@ -1468,6 +1478,7 @@ cp /var/tmp/capi_access $SDC_UPGRADE_DIR
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 
+echo "$(date -u "+%Y%m%dT%H%M%S") 6.5 done" >>$SDC_UPGRADE_DIR/upgrade_time
 mv $SDC_UPGRADE_DIR /var/upgrade_headnode
 
 trap EXIT

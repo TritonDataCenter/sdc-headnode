@@ -212,11 +212,33 @@ convert_portal_zone()
     zonecfg -z portal set zonename=$uuid
     vmadm update $uuid alias=portal0
     echo '{"set_tags": {"smartdc_role": "portal"}}' | vmadm update $uuid
+
+    local mac=`vmadm get $uuid | json nics | json -a mac`
+    if [ -z "$mac" ]; then
+        saw_err "Error: portal zone is missing the mac address"
+        return
+    fi
+
+    # set primary on external net
+    cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/portal_extnic.json
+	{
+	    "update_nics": [
+	        {
+	            "mac": "$mac",
+	            "primary": true
+	        }
+	    ]
+	}
+	EXT_DONE
+
+    vmadm update -f ${SDC_UPGRADE_DIR}/portal_extnic.json $uuid
     zoneadm -z $uuid boot
 }
 
 pre_tasks()
 {
+    echo "$(date -u "+%Y%m%dT%H%M%S") 7.0 start" >>$SDC_UPGRADE_DIR/upgrade_time
+
     # If pre-existing portal zone, shut it down for now.
     zoneadm -z portal halt >/dev/null 2>&1
 
@@ -277,6 +299,9 @@ add_ext_net()
 
     local key="${role}_external_ips"
     local ext_ip=$(eval "echo \${CONFIG_${key}}")
+    key="${role}_external_vlan"
+    local ext_vlan=$(eval "echo \${CONFIG_${key}}")
+    [ -z "$ext_vlan" ] && ext_vlan=0
 
     # Add external net
     cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/${role}_extnic.json
@@ -286,6 +311,8 @@ add_ext_net()
 	            "interface": "net1",
 	            "nic_tag": "external",
 	            "ip": "${ext_ip}",
+	            "vlan_id": ${ext_vlan},
+	            "primary": true,
 	            "netmask": "$CONFIG_external_netmask",
 	            "gateway": "$CONFIG_external_gateway"
 	        }
@@ -313,6 +340,9 @@ add_ext_net()
 
 post_tasks()
 {
+    echo "$(date -u "+%Y%m%dT%H%M%S") post start" \
+        >>$SDC_UPGRADE_DIR/upgrade_time
+
     # Need to wait for all svcs to be up before we can create additional zones
     # Give headnode.sh a second to emit all of its messages.
     sleep 1
@@ -371,6 +401,9 @@ post_tasks()
     vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
 
+    echo "$(date -u "+%Y%m%dT%H%M%S") post done" \
+        >>$SDC_UPGRADE_DIR/upgrade_time
+
     print_log ""
     print_log "The upgrade is finished"
     print_log "Note the following items:"
@@ -415,6 +448,7 @@ post_tasks()
         mark_as_setup
     fi
     print_log "DONE"
+    cp /tmp/upgrade_progress $dname
 }
 
 reboot_zone()
