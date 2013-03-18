@@ -69,6 +69,14 @@ if [ "$dname" != "/tmp" ]; then
     exit 0
 fi
 
+trap "" SIGHUP
+trap "" SIGINT
+trap "" SIGQUIT
+trap "" SIGABRT
+trap "" SIGPIPE
+trap "" SIGALRM
+trap "" SIGTERM
+
 # quiesce the system
 
 echo
