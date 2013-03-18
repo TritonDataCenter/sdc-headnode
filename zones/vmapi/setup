@@ -25,8 +25,10 @@ chown -R nobody:nobody /opt/smartdc/vmapi
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/vmapi/build/node/bin:/opt/smartdc/vmapi/node_modules/.bin" >>/root/.profile
 
-
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
+
+# Install Amon monitor and probes for VMAPI.
+TRACE=1 /opt/smartdc/vmapi/bin/vmapi-amon-install
 
 # Enable Cron
 echo "Starting Cron"
