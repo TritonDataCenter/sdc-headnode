@@ -185,7 +185,7 @@ svcadm enable manatee-sitter
 
 #functions
 echo "mbunyan() { bunyan -c \"this.component !== 'ZKPlus'\"  -c 'level >= 30'; }" >> $PROFILE
-echo "manatee-history(){ /opt/smartdc/manatee/bin/manatee-history '$SHARD' '$ZK_IPS'; }" >> $PROFILE
+echo "manatee-history(){ /opt/smartdc/manatee/bin/manatee-history '$SHARD' '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
 echo "manatee-stat() { /opt/smartdc/manatee/bin/manatee-stat -p '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
 echo "manatee-clear(){ /opt/smartdc/manatee/bin/manatee-clear '$SHARD' '$ZONE_IP' '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
 echo "manatee-snapshots(){ /opt/smartdc/manatee/bin/manatee-snapshots '$DATASET'; }" >> $PROFILE
