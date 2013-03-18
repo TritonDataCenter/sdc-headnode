@@ -59,8 +59,8 @@ if [[ $COMMIT == 1 ]]; then
         fatal "nothing to commit: data does not exist"
 
     echo "-----------------------------------------------------------------"
-    echo "Warning:
-    echo "This command will commit the upgrade and prevent future rollback.
+    echo "Warning:"
+    echo "This command will commit the upgrade and prevent future rollback."
     echo "-----------------------------------------------------------------"
     echo -n "Enter 'y' to continue: "
     read val
