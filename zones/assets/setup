@@ -3,9 +3,6 @@
 # Copyright (c) 2011 Joyent Inc. All rights reserved.
 #
 
-# set -o errexit
-# set -o pipefail
-
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
@@ -20,23 +17,15 @@ mkdir -p /var/smartdc/assets
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure
 
-nginx_manifest="/opt/local/share/smf/nginx/manifest.xml"
-# HEAD-1507 clean up tarball branch.
-[[ -z ${NO_FS_TARBALL} ]] \
-  && nginx_manifest="/opt/local/share/smf/manifest/nginx.xml"
-
-# Import nginx (config is already setup by configure above)
+# Import nginx (config is already setup)
 if [[ -z $(/usr/bin/svcs -a | grep nginx) ]]; then
   echo "Importing nginx service"
-  /usr/sbin/svccfg import ${nginx_manifest}
+  /usr/sbin/svccfg import /opt/local/share/smf/manifest/nginx.xml
   /usr/sbin/svcadm enable -s nginx
 elif [[ -z $(/usr/bin/svcs -a | grep online.*nginx) ]]; then
   # have manifest, but not enabled, do that now
-  echo "Enabling nginx service"
   /usr/sbin/svcadm disable -s nginx
   /usr/sbin/svcadm enable -s nginx
-else
-  fatal "Can't start nginx service in assets."
 fi
 
 touch /var/svc/setup_complete
