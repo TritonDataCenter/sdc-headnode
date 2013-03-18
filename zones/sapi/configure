@@ -25,17 +25,15 @@ mkdir -p /opt/smartdc/sapi/etc
 
 cat > /opt/smartdc/sapi/etc/config.json <<HERE
 {
-  "logLevel": "debug",
+  "log_options": {
+    "name": "sapi",
+    "level": "debug"
+  },
+  "mode": "proto",
   "datacenter_name": "$DATACENTER_NAME",
   "moray": {
     "host": "$MORAY_HOST",
     "port": 2020
-  },
-  "wfapi": {
-    "workflows": [ ],
-    "url": "$WFAPI_URL",
-    "username": "$WFAPI_HTTP_ADMIN_USER",
-    "password": "$WFAPI_HTTP_ADMIN_PW"
   },
   "vmapi": {
     "url": "$VMAPI_URL"

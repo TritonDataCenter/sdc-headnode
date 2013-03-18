@@ -667,6 +667,7 @@ if [[ -z ${skip_zones} ]]; then
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
     create_zone assets
+    create_zone sapi
     create_zone zookeeper
     create_zone manatee
     create_zone moray
@@ -686,7 +687,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
     create_zone keyapi
     create_zone usageapi
-    create_zone sapi
 fi
 
 update_setup_state "sdczones_created"
