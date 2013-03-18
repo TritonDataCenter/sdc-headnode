@@ -1309,7 +1309,13 @@ if [ $CHECK_ONLY -eq 1 ]; then
     exit 0
 fi
 
+trap "" SIGHUP
 trap "" SIGINT
+trap "" SIGQUIT
+trap "" SIGABRT
+trap "" SIGPIPE
+trap "" SIGALRM
+trap "" SIGTERM
 trap cleanup EXIT
 
 # Disable cron so scheduled jobs, such as backup, don't interfere with us and
