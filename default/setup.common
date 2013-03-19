@@ -118,17 +118,17 @@ rm -f /var/svc/amon-agent.tgz
 
 # XXX move to vmadm parameters.
 # setup resolvers
-resolvers=$(mdata-get resolvers)
-if [[ -z ${resolvers} ]]; then
-  echo "Unable to find resolvers in metadata."
-  exit 1
-else
-  echo "Writing resolv.conf: $resolvers"
-  sed -i'' '/nameserver/d' /etc/resolv.conf
-  for HOST in $resolvers; do
-    echo "nameserver ${HOST}" >> /etc/resolv.conf
-  done
-fi
+# resolvers=$(mdata-get resolvers)
+# if [[ -z ${resolvers} ]]; then
+#   echo "Unable to find resolvers in metadata."
+#   exit 1
+# else
+#   echo "Writing resolv.conf: $resolvers"
+#   sed -i'' '/nameserver/d' /etc/resolv.conf
+#   for HOST in $resolvers; do
+#     echo "nameserver ${HOST}" >> /etc/resolv.conf
+#   done
+# fi
 
 # HEAD-1507 scheduled for deletion
 # Install registrar for the zone.
