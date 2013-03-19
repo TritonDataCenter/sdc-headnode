@@ -123,6 +123,39 @@ most interesting/helpful ones are:
         }
 
 
+# image-based builds (experimental)
+
+To enable HEAD-1396-style image-based builds, ensure you're on the VPN
+(necessary at the moment to reach https://updates.joyent.us) and add the
+following to your copy of build.spec.local:
+
+    "use-images": true
+
+Optionally, may specify which images to use with the following structure:
+
+    "$zone-image": {
+      "name": "NAME",
+      "pattern": "PATTERN"
+    }
+
+Be advised that mistakes in this section can render your build useless if, for
+instance, you specify a pattern that resolves to no available images.
+
+Where NAME is the IMGAPI sense of 'name', defaults to $zone. See:
+https://mo.joyent.com/docs/imgapi/master/#ListImages
+
+PATTERN may be one of several things, and defaults to 'master':
+  1. a grep-style regex on the image version (again the IMGAPI sense
+     of version). The IMGAPI instance specified in "updates-url" will be
+     searched for this name, then filtered by the version pattern, and
+     will choose the most-recently published image that matches.
+  2. The IMGAPI UUID of the image you want.
+  3. A URL pointing at an image manifest. Again this assume IMGAPI behaviour,
+     the corresponding image should be at URL/file
+  4. The local file name of an image manifest, the corresponding image file
+     should be in the same directory.
+  5. an ls-style glob that resolves to 4.
+
 # Re-building a single zone
 
 1.  Build the filesystem tarball for the zone:

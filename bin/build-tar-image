@@ -621,7 +621,7 @@ function clean_image_cache
     local cache_dir=$1
     local keep_bits=$(build_spec keep-bits)
     local kept=0
-    local basename filename cached_manifest
+    local basename filename cached_manifest ext
 
     if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
         echo "Cleaning image cache for ${cache_dir##*/}"
@@ -629,23 +629,22 @@ function clean_image_cache
             # keep the most recent N images that have corresponding manifests.
             basename=${file##*/}
             filename=${basename%%.*}
-            if [[ ${kept} -lt ${keep_bits} && -f ${cache_dir}/${filename}.imgmanifest ]]; then
-                echo "...KEEPING: ${file}" >&2
+            if [[ ${kept} -lt ${keep_bits} && -f ${cache_dir}/${filename}.zfs.imgmanifest ]]; then
+                echo "...KEEPING: ${file}"
                 kept=$((${kept} + 1))
             else
-                echo "...DELETING: ${cache_dir}/${filename}*" >&2
+                echo "...DELETING: ${cache_dir}/${filename}*"
                 cached_manifest=$(${ROOT}/bin/json -H uuid < ${cache_dir}/${filename}.zfs.imgmanifest)
                 rm ${cache_dir}/${filename}*
-                rm ${cached_manifest}
             fi
         done
 
         # there might be orphan manifests
         for file in $(ls -1 ${cache_dir}/*.imgmanifest); do
             basename=${file##*/}
-            uuid=${basename%%.*}
-            if [[ -z $(ls -1 ${cache_dir}/${uuid}.zfs*) ]]; then
-                echo "...DELETING: ${file}"
+            filename=${basename%%.*}
+            ext=$(_image_file_ext ${file})
+            if [[ ! -f ${cache_dir}/${filename}.${ext} ]]; then
                 rm ${file}
             fi
         done
@@ -808,6 +807,19 @@ function get_bit
     echo "${get_bit_rv}"
 }
 
+function _check_vpn
+{
+    if [[ ${HAVE_INTERNET} == "true" ]]; then
+        local host=${1##*//}
+        ping -o -t 3 ${host} &> /dev/null
+        local result=$?
+        if [[ ${result} -ne 0 ]]; then
+            echo "Can't ping ${host} (are you on the VPN?)"
+            exit ${result}
+        fi
+    fi
+}
+
 # Fetches the list of available images for a given name from an IMGAPI endpoint,
 # nominally https://updates.joyent.us. If the internet is unavailable, falls
 # back to the most-recently cached list.
@@ -828,6 +840,7 @@ function get_avail_images # zone, name
     if [[ ${HAVE_INTERNET} == "true" ]]; then
         echo "Fetching available images for ${zone}"
         updates_url=$(build_spec updates_url)
+        _check_vpn ${updates_url}
         mkdir -p ${ROOT}/cache/images/${zone}
         tmp_file=${ROOT}/cache/images/${zone}/${zone}_images.txt.tmp
 
@@ -857,13 +870,15 @@ function validate_image # manifest, file
     local file=$2
     local expect=1
     local calc=2
+    local result
 
     if [[ -f ${manifest} ]] && [[ -f ${file} ]]; then
         expect=$(${ROOT}/bin/json files[0].sha1 < ${manifest})
         calc=$(${SUM} ${file} | cut -f1 -d' ')
     fi
 
-    [[ ${calc} == ${expect} ]]
+    [[ ${calc} != ${expect} ]] && result="false"
+    echo ${result}
 }
 
 function stage_image # zone, manifest, file
@@ -892,9 +907,10 @@ function stage_image # zone, manifest, file
 function _image_file_ext # manifest_file
 {
     local manifest=$1
-    local ext=$(${ROOT}/bin/json -H files[0].compression < ${manifest})
+    [[ -f ${manifest} ]] || fatal "_image_file_ext() called with bad manifest: $1"
+    local ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].compression)
     if [[ -z ${ext} ]]; then
-        ext=$(${ROOT}/bin/json -H files[0].path < ${manifest})
+        ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].path)
         [[ ${ext} =~ gz ]] && ext="zfs.gz"
         [[ ${ext} =~ bz2 ]] && ext="zfs.bz2"
     fi
@@ -907,8 +923,8 @@ function _image_file_ext # manifest_file
 
 function _image_version
 {
-    local manifet=$1
-    local version=$(${ROOT}/bin/json -H version < ${manifest})
+    local manifest=$1
+    local version=$(cat ${manifest} | ${ROOT}/bin/json -H version)
     echo ${version}
 }
 
@@ -925,51 +941,62 @@ function download_image # uuid, zone
     [[ -n ${zone} ]] || fatal "download_image(): no name provided."
 
     local image_cache=${ROOT}/cache/images/${zone}
-    local cached_manifest="${image_cache}/${uuid}.imgmanifest"
-    local image_file manifest ext version updates_url
+    # local cached_manifest="${image_cache}/${uuid}.zfs.imgmanifest"
+    # local image_file manifest_url manifest ext version updates_url
 
-    if [[ -f ${cached_manifest} ]]; then
-        ext=$(_image_file_ext ${cached_manifest})
-        version=$(_image_version ${cached_manifest})
-        image_file=${image_cache}/${zone}-zfs-${version}.${ext}
-        manifest=${image_cache}/${zone}-zfs-${version}.zfs.imgmanifest
+    local image_file version filename manifest
 
-        # file="${image_cache}/${uuid}.${ext}"
+    # see if we can map the uuid to a name.
+    [[ -f ${image_cache}/${zone}_images.txt ]] \
+        || fatal "No image list for ${zone}, expected ${image_cache}/${zone}_images.txt"
 
-        if [[ -n $(validate_image ${cached_manifest} ${image_file}) ]]; then
+    version=$(cat ${image_cache}/${zone}_images.txt | grep ${uuid} | cut -d' ' -f3)
+    [[ -n ${version} ]] \
+        || fatal "Can't find ${uuid} in available images for ${zone}"
+
+    filename=${zone}-zfs-${version}
+    manifest=${image_cache}/${filename}.zfs.imgmanifest
+
+    if [[ -f ${manifest} ]]; then
+        ext=$(_image_file_ext ${manifest})
+        version=$(_image_version ${manifest})
+        image_file=${image_cache}/${filename}.${ext}
+
+        if [[ -n $(validate_image ${manifest} ${image_file}) ]]; then
             echo "Corrupt image file ${image_file}, deleting and re-downloading." >&2
+            [[ -f ${image_file} ]] && rm ${image_file}
+            [[ -f ${manifest} ]] && rm ${manifest}
+        else
+            echo "Using cached ${zone} image: ${image_file}" >&2
         fi
-
-        # unset & attempt to re-download
-        [[ ! -f ${file} ]] && file=""
     fi
 
-    if [[ -z ${file} ]]; then
+    if [[ ! -f ${image_file} ]]; then
         if [[ ${HAVE_INTERNET} == "true" ]]; then
             mkdir -p ${image_cache}
             updates_url=$(build_spec updates_url)
+            manifest_url=${updates_url}/images/${uuid}
+            _check_vpn ${updates_url}
 
-            echo "Downloading manifest for ${uuid}" >&2
-            curl ${CURL_OPTS} --fail -k ${updates_url}/images/${uuid} \
-                -o ${cached_manifest}
-            [[ $? -eq 0 ]] || fatal "Error downloading image manifest for ${uuid}"
+            echo "Downloading manifest for ${zone} from: ${manifest_url}" >&2
+            curl ${CURL_OPTS} --fail -k ${manifest_url} \
+                -o ${manifest}
+            [[ $? -eq 0 ]] || fatal "Error downloading ${zone} image manifest from ${manifest_url}"
 
-            # link cache-able UUID to named manifest.
-            ext=$(_image_file_ext ${cached_manifest})
-            version=$(_image_version ${cached_manifest})
-            manifest=${image_cache}/${zone}-zfs-${version}.zfs.imgmanifest
-            ln -s ${cached_manifest} ${manifest}
+            ext=$(_image_file_ext ${manifest})
+            version=$(_image_version ${manifest})
 
-            echo "Downloading image file for ${uuid}" >&2
-            image_file=${image_cache}/${zone}-zfs-${version}.${ext}
-            curl ${CURL_OPTS} --fail -k ${updates_url}/images/${uuid}/file \
+            echo "Downloading image file for ${zone}: ${manifest_url}/file" >&2
+            image_file=${image_cache}/${filename}.${ext}
+
+            curl ${CURL_OPTS} --fail -k ${manifest_url}/file \
                 -o ${image_file}
-            [[ $? -eq 0 ]] || fatal "Error downloading image file for ${uuid}"
+            [[ $? -eq 0 ]] || fatal "Error downloading ${zone} image file from ${manifest_url}/file"
         fi
     fi
 
     if [[ -z ${image_file} ]] || [[ ! -f ${image_file} ]]; then
-        fatal "Can't find or download image ${uuid}"
+        fatal "Can't find or download ${zone} image - ${uuid}"
     fi
 
     echo "${image_file}"
@@ -1023,7 +1050,8 @@ function copy_sdc_image
     name=$(build_spec ${zone}-image.name)
     [[ -n ${name} ]] || name=${zone}
 
-    [[ -f ${ls_pattern} ]] || ls_pattern=$(ls ${pattern}) || echo "No file match"
+    [[ -f ${ls_pattern} ]] || ls_pattern=$(ls ${pattern} 2&>/dev/null) \
+        || echo "No local file match for '${pattern}'"
     if [[ -f ${ls_pattern} ]]; then
         manifest=${ls_pattern}
         img_name=${manifest##*/}
@@ -1037,8 +1065,10 @@ function copy_sdc_image
     else
         if [[ ${pattern:0:7} == "http://" || ${pattern:0:8} == "https://" ]]; then
             # it's an IMGAPI URL, we assume the basename is the UUID.
+            echo "Fetching image from ${pattern}"
             uuid=$(basename ${pattern})
         else
+            echo "Finding ${name} image matching ${pattern}"
             uuid=$(get_avail_images ${zone} ${name} \
                 | grep "${pattern}" \
                 | sort \
@@ -1054,8 +1084,8 @@ function copy_sdc_image
         manifest=${ROOT}/cache/images/${zone}/${img_name}.zfs.imgmanifest
     fi
 
-    validate_image ${manifest} ${file}
-    [[ $? -eq 0 ]] || fatal "copy_sdc_image(): ${file} is corrupt, can't build."
+    [[ -n $(validate_image ${manifest} ${file}) ]] \
+        && fatal "copy_sdc_image(): ${file} is corrupt, can't build."
 
     stage_image ${zone} ${manifest} ${file}
 
@@ -1066,7 +1096,8 @@ function copy_sdc_image
     # and build_payload to handle the sdc images with less trouble until
     # then.
     echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
-    echo ${img_name} > ${STAGE}/zones/${zone}/dataset
+    # PCFS, sigh.
+    echo ${img_name}.zfs.imgmanifest | tr [:upper:] [:lower:] > ${STAGE}/zones/${zone}/dataset
 }
 
 
@@ -1413,6 +1444,10 @@ function copy_zones
         fi
 
         if [[ -n ${USE_IMAGES} ]]; then
+            if [[ ${zone} == "manta" ]]; then
+                echo "Skipping manta tools zone - MANTA-1071"
+                continue
+            fi
             copy_sdc_image ${zone}
         else
             local tarball_pattern=$(build_spec ${zone}-tarball)
@@ -1477,6 +1512,7 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
+    # HEAD-1057/MANTA-1071 to be cleaned up.
     local target=$(build_spec manta-tools)
     local bit_cache_path=$(get_bit ${target})
     cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2

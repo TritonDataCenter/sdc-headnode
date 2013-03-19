@@ -494,10 +494,11 @@ function create_zone {
 
     # If zone has specified dataset_uuid, we need to ensure that's imported.
     if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
+        # PCFS casing. sigh.
         ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
         [[ -z ${ds_name} ]] && fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
         ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name})
-        [[ -z ${ds_manifest} ]] && fatal "No manifest found for ${ds_name}"
+        [[ -z ${ds_manifest} ]] && fatal "No manifest found at ${ds_manifest}"
         ds_filename=$(ls ${USB_COPY}/datasets/${ds_name%%\.@(ds|zfs\.img)manifest}.zfs+(.bz2|.gz))
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
@@ -689,7 +690,11 @@ if [[ -z ${skip_zones} ]]; then
     create_zone ca
     create_zone adminui
     create_zone keyapi
-    create_zone usageapi
+    if [[ -f $(ls -1 ${USB_COPY}/datasets/usageapi*.zfs.gz | head -1) ]]; then
+        echo "HEAD-XXX can't setup usageapi/postgres under image regime yet"
+    else
+        create_zone usageapi
+    fi
 fi
 
 update_setup_state "sdczones_created"

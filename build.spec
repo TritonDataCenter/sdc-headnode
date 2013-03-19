@@ -7,6 +7,9 @@
   , "agents-shar": "master"
   , "sdcboot-release": "master"
 
+  , "use-images": false
+  , "updates_url": "https://updates.joyent.us"
+
   , "// *-tarball": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly"
   , "adminui-tarball": "adminui/adminui-pkg-master-.*.tar.bz2"
   , "amon-tarball": "amon/amon-pkg-master-.*.tar.bz2"
@@ -34,6 +37,19 @@
   , "vmapi-tarball": "vmapi/vmapi-pkg-master-.*.tar.bz2"
   , "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2"
   , "zookeeper-tarball": "binder/binder-pkg-master-.*.tar.bz2"
+
+  , "manatee-image":
+    { "name": "manta-postgres"
+    , "pattern": "master"
+    }
+  , "moray-image":
+    { "name": "manta-moray"
+    , "pattern": "master"
+    }
+  , "zookeeper-image":
+    { "name": "manta-nameservice"
+    , "pattern": "master"
+    }
 
   , "datasets": [
       { "name": "smartos-1.6.3"

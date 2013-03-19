@@ -128,8 +128,7 @@ function create_upgrade
 	boot/memdisk \
 	dos \
         extra \
-        datasets/smartos* \
-        datasets/multiarch* \
+        datasets \
         rc \
         scripts \
         tools \
