@@ -893,7 +893,7 @@ function _image_file_ext # manifest_file
     if [[ -z ${ext} ]]; then
         ext=$(${ROOT}/bin/json -H files[0].path < ${manifest})
         [[ ${ext} =~ gz ]] && ext="zfs.gz"
-        [[ ${ext} =~ bz2 ]] && ext="zfs.gz2"
+        [[ ${ext} =~ bz2 ]] && ext="zfs.bz2"
     fi
     [[ ${ext} == "gzip" ]] && ext="zfs.gz"
     [[ ${ext} == "bzip2" ]] && ext="zfs.bz2"
