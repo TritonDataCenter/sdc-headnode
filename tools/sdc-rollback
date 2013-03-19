@@ -168,6 +168,9 @@ do
 	# If rolling back after upgrade is done, save the upgrade log files
 	if [ $d == "zones/var" ]; then
 		mkdir /zones/up_logs
+		udir=`ls -dt /var/upgrade* | head -1`
+		[ -n "$udir" ] &&
+		    cp /var/svc/log/system-smartdc-init:default.log $udir
 		for l in `ls -d /var/upgrade* 2>/dev/null`
 		do
 			mv $l /zones/up_logs
