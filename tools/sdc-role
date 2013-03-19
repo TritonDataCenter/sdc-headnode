@@ -342,10 +342,10 @@ get_zone_parameters()
     fi
 
     local dataset=$(cat /usbkey/zones/${zrole}/dataset | head -1)
-    if [[ -z ${dataset} || ! -f /usbkey/datasets/${dataset}.dsmanifest ]]; then
+    if [[ -z ${dataset} || ! -f /usbkey/datasets/${dataset} ]]; then
         fatal "${zrole}: has missing/invalid dataset version."
     fi
-    dataset=$(json uuid < /usbkey/datasets/${dataset}.dsmanifest)
+    dataset=$(json uuid < /usbkey/datasets/${dataset})
     if [[ -z ${dataset} ]]; then
         fatal "${zrole}: unable to find dataset uuid."
     fi
