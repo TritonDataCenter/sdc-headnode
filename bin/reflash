@@ -763,6 +763,13 @@ if [[ -z \$(find /mnt/usbkey/os/ -name "boot_archive") ]]; then
     exit 1
 fi
 
+if [[ ! -d /mnt/usbkey/zones/mapi ]]; then
+    # Set default to 1 so we can boot unattended (we know this is a HN and flashing to 7)
+    sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
+        > /mnt/usbkey/boot/grub/menu.lst.new \
+        && mv /mnt/usbkey/boot/grub/menu.lst.new /mnt/usbkey/boot/grub/menu.lst
+fi
+
 # This is what sdc-factoryreset does
 echo "Performing factoryreset..."
 SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)

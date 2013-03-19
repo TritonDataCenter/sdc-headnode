@@ -299,11 +299,13 @@ function generate_grub_menu
     local unit=
     local serial_dev=$(build_spec serial-dev)
     local console=$(build_spec console)
+    local default_boot_option=$(build_spec default-boot-option)
 
     echo "==> Generating grub menu"
 
     [[ -z "${serial_dev}" ]] && serial_dev=ttyb
     [[ -z "${console}" ]] && console="serial"
+    [[ -z "${default_boot_option}" ]] && default_boot_option=0
 
     #
     # This section describes the serial-dev and console parameters.  These
@@ -346,35 +348,36 @@ function generate_grub_menu
         unit=1
         ;;
     ttyc)
-	unit=2
-	;;
+        unit=2
+        ;;
     ttyd)
-	unit=3
+        unit=3
         ;;
     *)
-	fatal "Unknown serial device: ${serial_dev}"
+        fatal "Unknown serial device: ${serial_dev}"
         ;;
     esac
 
     case "${console}" in
     serial)
-	console=${serial_dev}
-	;;
+        console=${serial_dev}
+        ;;
     ttya|ttyb|ttyc|ttyd)
-	;;
+        ;;
     text|graphics|vga)
-	console=text
-	;;
+        console=text
+        ;;
     *)
-	fatal "Unknown default console device: ${console}"
-	;;
+        fatal "Unknown default console device: ${console}"
+        ;;
     esac
 
     serial_string="--speed=115200 --unit=${unit} --word=8 --parity=no --stop=1"
 
     sed \
         -e "s/^#SERIAL/serial ${serial_string}/" \
-	-e "s/DEFAULT_CONSOLE/${console}/g" \
+        -e "s/DEFAULT_CONSOLE/${console}/g" \
+        -e "s/^default.*$/default ${default_boot_option}/" \
         boot/grub/menu.lst.tmpl \
         > ${STAGE}/boot/grub/menu.lst.tmpl
 }
