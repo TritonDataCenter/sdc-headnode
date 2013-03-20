@@ -387,13 +387,10 @@ function copy_base
     local branch=$(build_spec sdcboot-release)
     [[ -z ${branch} ]] && branch="master"
     local sdcboot_path=$(get_bit sdcboot/sdcboot-${branch}-.*\.tgz)
+    local platboot_path=$(get_bit platform/boot-${branch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
-
-    echo "==> Copying in grub"
-    mkdir -p ${STAGE}/boot/grub
-    cp boot/grub/stage2 ${STAGE}/boot/grub/stage2
 
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
@@ -409,6 +406,9 @@ function copy_base
 
     echo "==> Copying in EULA"
     cp -r EULA ${STAGE}/EULA
+
+    echo "==> Extracting platform boot bundle"
+    (cd ${STAGE} && ${TAR} xzf ${platboot_path})
 
     echo "==> Extracting sdcboot bundle"
     (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})

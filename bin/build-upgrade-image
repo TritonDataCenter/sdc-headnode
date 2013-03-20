@@ -119,6 +119,9 @@ function create_upgrade
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
         boot/grub/menu.lst.tmpl \
+	boot/grub/bin/grub \
+	boot/grub/fat_stage1_5 \
+	boot/grub/stage1 \
 	boot/grub/stage2 \
 	boot/freedos.img \
 	boot/ipxe.lkrn \
