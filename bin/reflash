@@ -450,7 +450,7 @@ ntp_hosts=\$(json ntp_host < /mnt/usbkey/private/answers.json)
 compute_node_ntp_hosts=\$(json compute_node_ntp_host < /mnt/usbkey/private/answers.json)
 [[ \${ntp_hosts} == "<default>" ]] && ntp_hosts=
 [[ \${compute_node_ntp_hosts} == "<default>" ]] && compute_node_ntp_hosts=
-[[ -z \${ntp_hosts} ]] && ntp_hosts="68.0.14.76"
+[[ -z \${ntp_hosts} ]] && ntp_hosts="132.246.11.228"
 [[ -z \${compute_node_ntp_hosts} ]] && compute_node_ntp_hosts=\${admin_ip}
 
 #
