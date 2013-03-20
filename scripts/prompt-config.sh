@@ -21,7 +21,7 @@ EUNKNOWN=3
 mail_to="root@localhost"
 # Temporarily use IPs until HEAD-1417 allows hostname usage.
 #ntp_hosts="ntp01.joyent.com,ntp02.joyent.com"
-ntp_hosts="132.246.11.228,209.87.233.53"
+ntp_hosts="132.246.11.228"
 dns_resolver1="8.8.8.8"
 dns_resolver2="8.8.4.4"
 
