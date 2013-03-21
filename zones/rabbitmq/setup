@@ -29,6 +29,14 @@ if [[ ! -L /root/.erlang.cookie ]]; then
 	ln -s /var/db/rabbitmq/.erlang.cookie /root/.erlang.cookie
 fi
 
+manifest=/opt/smartdc/etc/rabbitmq/rabbitmq.xml
+if [[ ! -f ${manifest} ]]; then
+    fatal "No SMF manifest found at ${manifest}"
+fi
+
+echo "Importing SMF manifest"
+svccfg import ${manifest}
+
 # Apply configuration from /opt/smartdc/etc/zoneconfig now
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
