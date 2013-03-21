@@ -853,6 +853,8 @@ if [[ $upgrading == 1 ]]; then
     # the equivalent of 'mark_as_setup' when it is done.
 else
     mark_as_setup
+    rm /tmp/.ur-startup
+    svcadm restart ur
 fi
 
 exit 0
