@@ -1172,6 +1172,19 @@ fi
 
 [[ $CHECK_ONLY == 1 && $AGENTS_ONLY == 1 ]] && fatal "incompatible options"
 
+# Get list of any CNs to ignore
+skip_arg=""
+skip_cns=`sdc-mapi /servers | nawk '{
+        if ($1 == "\"hostname\":")
+            hn = substr($2, 2, length($2) - 3)
+        if ($1 == "\"current_status\":") {
+            st = substr($2, 2, length($2) - 3)
+            if (st != "running")
+                print hn
+        }
+    }'`
+[ -n "$skip_cns" ] && skip_arg="-x -n $skip_cns"
+
 if [[ $AGENTS_ONLY == 1 ]]; then
     echo "Upgrade compute node agents"
 
@@ -1180,7 +1193,7 @@ if [[ $AGENTS_ONLY == 1 ]]; then
     cp $ROOT/heartbeater-65.tgz $assetdir
     cp $ROOT/provisioner-v2-65.tgz $assetdir
 
-    sdc-oneachnode -c "cd /var/tmp;
+    sdc-oneachnode $skip_arg -c "cd /var/tmp;
        curl -kOs $CONFIG_assets_admin_ip:/agents/heartbeater-65.tgz;
        /opt/smartdc/agents/bin/agents-npm \
        install /var/tmp/heartbeater-65.tgz \
@@ -1188,7 +1201,7 @@ if [[ $AGENTS_ONLY == 1 ]]; then
     [ $? != 0 ] && \
         fatal "installing new heartbeater agents"
 
-    sdc-oneachnode -c "cd /var/tmp;
+    sdc-oneachnode $skip_arg -c "cd /var/tmp;
        curl -kOs $CONFIG_assets_admin_ip:/agents/provisioner-v2-65.tgz;
        /opt/smartdc/agents/bin/agents-npm install \
        /var/tmp/provisioner-v2-65.tgz \
@@ -1307,11 +1320,13 @@ if [[ $CAPI_FOUND == 0 ]]; then
 fi
 
 echo -n "Checking each compute node for correct agents..."
-num_cn=`sdc-oneachnode -c hostname | egrep -v "^HOST" | wc -l`
-num_hb=`sdc-oneachnode -c /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-       egrep heartbeater@1.0.1 | wc -l`
-num_prov=`sdc-oneachnode -c /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-       egrep provisioner-v2@1.0.11 | wc -l`
+num_cn=`sdc-oneachnode $skip_arg -c hostname | egrep -v "^HOST" | wc -l`
+num_hb=`sdc-oneachnode $skip_arg -c \
+    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+    egrep heartbeater@1.0.1 | wc -l`
+num_prov=`sdc-oneachnode $skip_arg -c \
+    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+    egrep provisioner-v2@1.0.11 | wc -l`
 if [[ $num_hb != $num_cn || $num_prov != $num_cn ]]; then
     echo
     fatal "The correct agents are not installed on each compute node"
