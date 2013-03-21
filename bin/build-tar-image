@@ -1477,7 +1477,7 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
-    local target=$(build_spec manta-tarball)
+    local target=$(build_spec manta-tools)
     local bit_cache_path=$(get_bit ${target})
     cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2
     mkdir -p ${STAGE}/extra/manta

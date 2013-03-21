@@ -1,0 +1,47 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
+#
+
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+set -o xtrace
+
+PATH=/opt/smartdc/manta-deployment/build/node/bin:/opt/smartdc/manta-deployment/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+
+# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+source /var/svc/configure.common
+
+eval $(cat /opt/smartdc/etc/zoneconfig)
+
+IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
+NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
+SAPI_URL=http://$(echo "${SAPI_ADMIN_IPS}" | cut -d',' -f1)
+UFDS_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+
+echo "Creating manta config file"
+mkdir -p /opt/smartdc/manta-deployment/etc
+
+cat > /opt/smartdc/manta-deployment/etc/config.json <<HERE
+{
+  "sapi": {
+    "url": "$SAPI_URL"
+  },
+  "napi": {
+    "url": "$NAPI_URL"
+  },
+  "imgapi": {
+    "url": "$IMGAPI_URL"
+  },
+  "ufds": {
+    "url": "$UFDS_URL",
+    "bindDN": "$UFDS_LDAP_ROOT_DN",
+    "bindPassword": "$UFDS_LDAP_ROOT_PW",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  }
+}
+HERE
+
+exit 0

@@ -1063,6 +1063,7 @@ function cleanup_config
 	vmapi_pkg=${GENERIC_vmapi_pkg}
 	zookeeper_pkg=${GENERIC_zookeeper_pkg}
 	sapi_pkg=${GENERIC_sapi_pkg}
+	manta_pkg=${GENERIC_manta_pkg}
 	dbconn_retry_after=10
 	dbconn_num_attempts=10
 	DONE
