@@ -45,8 +45,8 @@ cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
     "database": {
         "type": "ufds",
         "url": "ldaps://${UFDS_ADMIN_IP}",
-        "rootDn": "${UFDS_LDAP_ROOT_DN}",
-        "password": "${UFDS_LDAP_ROOT_PW}"
+        "bindDN": "${UFDS_LDAP_ROOT_DN}",
+        "bindPassword": "${UFDS_LDAP_ROOT_PW}"
     },
     "storage": {
         "local": {

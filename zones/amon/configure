@@ -28,8 +28,8 @@ cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
   "adminUuid": "${UFDS_ADMIN_UUID}",
   "ufds": {
     "url": "ldaps://${UFDS_ADMIN_IP}",
-    "rootDn": "${UFDS_LDAP_ROOT_DN}",
-    "password": "${UFDS_LDAP_ROOT_PW}"
+    "bindDN": "${UFDS_LDAP_ROOT_DN}",
+    "bindPassword": "${UFDS_LDAP_ROOT_PW}"
   },
   "cnapi": {
     "url": "http://${CNAPI_ADMIN_IP}"
