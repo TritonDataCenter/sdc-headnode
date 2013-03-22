@@ -1,5 +1,6 @@
 {
     "brand": "joyent-minimal",
-    "networks": [ "admin" ],
+    "networks": [ "admin", "external" ],
+    "primary_network": "admin",
     "dependencies": [ "ufds", "redis" ]
 }

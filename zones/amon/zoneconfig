@@ -8,5 +8,6 @@ UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 CNAPI_ADMIN_IPS=${cnapi_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
 REDIS_ADMIN_IPS=${redis_admin_ips}
 REDIS_PORT=6379
