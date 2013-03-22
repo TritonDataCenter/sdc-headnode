@@ -793,7 +793,9 @@ if [[ -n ${CREATEDZONES} ]]; then
         fi
     fi
 
-    if [[ $(sdc-ldap search login=admin | grep registered_developer | tr -d ' ') == '' ]]; then
+    if [[ $(/opt/smartdc/bin/sdc-ldap search login=admin \
+            | grep registered_developer \
+            | tr -d ' ') == '' ]]; then
       printf_log "%-58s" "importing instance token developer key..."
 
       cat << EOF >> /tmp/admin_dev.ldif
