@@ -1,12 +1,12 @@
 {
   "alias": "ca0",
-  "autoboot": false,
-  "brand": "joyent",
+  "brand": "joyent-minimal",
   "delegate_dataset": true,
   "tags": {
       "smartdc_role": "ca",
       "smartdc_type": "core"
   },
+  "zfs_storage_pool_name": "zones",
   "registration": {
     "domain": "ca",
     "type": "rr_host",
