@@ -5,6 +5,7 @@
       "smartdc_role": "usageapi",
       "smartdc_type": "core"
   },
+  "delegate_dataset": true,
   "zfs_storage_pool_name": "zones",
   "registration": {
     "domain": "usageapi",
