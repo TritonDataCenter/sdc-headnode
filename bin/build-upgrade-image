@@ -117,7 +117,7 @@ function create_upgrade
     chmod 755 ${STAGE}/upgrade/upgrade.sh
     (cd ${IMG_TMP_STAGE} \
         && env GZIP=-9 \
-        ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade-${BUILD_DESCRIBE}.tgz \
+        ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade.tgz \
         boot/grub/menu.lst.tmpl \
 	boot/grub/bin/grub \
 	boot/grub/fat_stage1_5 \

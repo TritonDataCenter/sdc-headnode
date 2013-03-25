@@ -361,6 +361,11 @@ post_tasks()
         print_log "Upgrade: all svcs are ready, continuing..."
     fi
 
+    mkdir -p /usbkey/extra/usbkey
+    (cd /usbkey; tar cbfE 512 /usbkey/extra/usbkey/upgrade.tar boot dos)
+    gzip /usbkey/extra/usbkey/upgrade.tar
+    mv /usbkey/extra/usbkey/upgrade.tar.gz /usbkey/extra/usbkey/cnkey.tgz
+
     # load config to pick up latest settings
     load_sdc_config
 
