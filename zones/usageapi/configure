@@ -68,7 +68,7 @@ DATASET=`/usr/sbin/zfs list | /usr/bin/sed -n 's/.*\/\(zones.*data\)/\1/p'`
 /usr/sbin/zfs set recordsize=8k $DATASET
 
 # Postgres data typically compresses well, so enable lzjb compression
-#/usr/sbin/zfs set compression=on $DATASET
+/usr/sbin/zfs set compression=on $DATASET
 
 # move Postgres data into DATASET
 mv /var/pgsql /$DATASET
