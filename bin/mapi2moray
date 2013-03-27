@@ -143,7 +143,7 @@ function read_lines_chunked(file, dataCallback, doneCallback) {
 
 function generate_uuid(callback) {
     var exec = require('child_process').exec;
-    //var child = exec("uuidgen | tr '[A-Z]' '[a-z]'", function (error, stdout, stderr) {
+    // var child = exec("uuidgen | tr '[A-Z]' '[a-z]'", function (error, stdout, stderr) {
     var child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
         if (error) {
             return callback(error);
@@ -910,6 +910,7 @@ function transform_tags(table) {
 
 function transform_vms(file, callback) {
     var util = require('util');
+    var table = (file.indexOf('vms') !== -1) ? 'vms': 'zones';
 
     return read_lines(file, function(err, lines) {
         if (err) {
@@ -936,10 +937,11 @@ function transform_vms(file, callback) {
                 return;
             }
 
-            changes.push(change);
+            changes.push(JSON.stringify(change));
         });
 
-        return callback(changes);
+        return fs.writeFile(directory + '/vmapi_' + table + '.moray',
+            changes.join('\n'), 'utf8', callback);
     });
 }
 
@@ -1365,9 +1367,9 @@ process_argv();
 // values
 SERVERS = transform_uuids('servers');
 // Uncomment these if using transform_vms again:
-// IMAGES = transform_uuids('datasets');
-// ZPOOLS = transform_uuids('zfs_storage_pools');
-// TAGS = transform_tags('tags');
+IMAGES = transform_uuids('datasets');
+ZPOOLS = transform_uuids('zfs_storage_pools');
+TAGS = transform_tags('tags');
 VMS = transform_vm_uuids('vms');
 ZONES = transform_vm_uuids('zones');
 
@@ -1393,7 +1395,9 @@ var types = [
     ['nics', transform_nics ],
     ['ips', transform_ips ],
     ['network_pool_networks', transform_network_pool_networks ],
-    ['network_pools', transform_network_pools ]
+    ['network_pools', transform_network_pools ],
+    ['vms', transform_vms ],
+    ['zones', transform_vms ]
 ];
 
 function processNextDump(err) {
