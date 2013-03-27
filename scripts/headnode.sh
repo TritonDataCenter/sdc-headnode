@@ -29,11 +29,6 @@ CONSOLE_FD=4 ; export CONSOLE_FD
 # time to wait for each zone to setup (in seconds)
 ZONE_SETUP_TIMEOUT=180
 
-declare -A DS_UUID=()
-declare -A DS_MANIFEST=()
-declare -A DS_FILE=()
-DS_CNT=0
-
 shopt -s extglob
 
 #---- setup state support
@@ -150,6 +145,7 @@ function printf_log
     fi
 }
 
+# HEAD-1507 - Pretty sure this is obsolete with all core zones on joyent-minimal.
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
 # entirely well still getting all the things done that it would have done that
 # we care about.
@@ -447,19 +443,6 @@ create_latest_link
 # The setup script usually does some initial setup and then runs through the
 # configuration.
 
-function add_dataset {
-    local i=0
-
-    while [ $i -lt $DS_CNT ]; do
-        [ "${DS_UUID[$i]}" == "$1" ] && return
-        i=$(($i + 1))
-    done
-
-    DS_UUID[$DS_CNT]=$1
-    DS_MANIFEST[$DS_CNT]=$2
-    DS_FILE[$DS_CNT]=$3
-    DS_CNT=$(($DS_CNT + 1))
-}
 
 # Install the core headnode zones
 
@@ -503,8 +486,6 @@ function create_zone {
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
-
-        add_dataset ${ds_uuid} ${ds_manifest} ${ds_filename}
 
         # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
@@ -691,7 +672,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
     create_zone keyapi
     if [[ -f $(ls -1 ${USB_COPY}/datasets/usageapi*.zfs.gz | head -1) ]]; then
-        echo "HEAD-XXX can't setup usageapi/postgres under image regime yet"
+        echo "HEAD-1520 can't setup usageapi/postgres under image regime yet"
     else
         create_zone usageapi
     fi
@@ -700,30 +681,46 @@ fi
 update_setup_state "sdczones_created"
 
 
-function import_core_datasets {
-    local i=0
-    while [ $i -lt $DS_CNT ]; do
-        local uuid=${DS_UUID[$i]}
-        local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
-            | head -1 | awk '{print $2}')
-        if [[ "$status" == "404" ]]; then
-            local manifest=${DS_MANIFEST[$i]}
-            local file=${DS_FILE[$i]}
-            echo "Importing image $uuid ($manifest, $file) into IMGAPI."
-            [[ -f $file ]] || fatal "Image $uuid file $file not found."
-            /opt/smartdc/bin/sdc-imgadm import -m $manifest -f $file
-        elif [[ "$status" == "200" ]]; then
-            echo "Skipping import of image $uuid: already in IMGAPI."
+function _image_file_ext # manifest_file
+{
+    local manifest=$1
+    [[ -f ${manifest} ]] || fatal "_image_file_ext() called with bad manifest: $1"
+    local ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].compression)
+    if [[ -z ${ext} ]]; then
+        ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].path)
+        [[ ${ext} =~ gz ]] && ext="zfs.gz"
+        [[ ${ext} =~ bz2 ]] && ext="zfs.bz2"
+    fi
+    [[ ${ext} == "gzip" ]] && ext="zfs.gz"
+    [[ ${ext} == "bzip2" ]] && ext="zfs.bz2"
+    [[ ${ext} == "none" ]] && ext="zfs"
+
+    echo ${ext}
+}
+
+function import_datasets {
+    for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
+        local uuid=$(cat ${manifest} | json uuid)
+        local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
+                       | head -1 | awk '{print $2}')
+        local ext=$(_image_file_ext ${manifest})
+        local file=${manifest%%?(\.zfs)\.@(ds|img)manifest}.${ext}
+        if [[ "${status}" == "404" ]]; then
+            echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
+            [[ -f ${file} ]] || fatal "Image file ${file} not found."
+            /opt/smartdc/bin/sdc-imgadm import -m ${manifest} -f ${file}
+        elif [[ "${status}" == "200" ]]; then
+            # exists
+            echo "Skipping import of image ${uuid}: already in IMGAPI."
         else
-            echo "Error checking if image $uuid is in IMGAPI: HTTP $status"
+            fatal "Can't reach IMGAPI - status ${status}"
         fi
-        i=$(($i + 1))
     done
 }
 
 
 # Import bootstrapped core images into IMGAPI.
-import_core_datasets
+import_datasets
 
 
 
