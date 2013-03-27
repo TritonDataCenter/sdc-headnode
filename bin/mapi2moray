@@ -31,7 +31,7 @@ var UUID_POSITIONS = {
 };
 
 var IMAGES, NETWORKS, NETWORK_POOL_NETWORKS, NICS, NIC_NIC_TAGS, NIC_TAGS,
-    SERVERS, SUBNETS, VMS, ZONES, ZPOOLS;
+    SERVERS, SUBNETS, TAGS, VMS, ZONES, ZPOOLS;
 
 var IPS_NEEDED = {};
 
@@ -909,6 +909,10 @@ function transform_tags(table) {
 }
 
 function transform_vms(file, callback) {
+    if (can_transform_vms() === false) {
+        return callback();
+    }
+
     var util = require('util');
     var table = (file.indexOf('vms') !== -1) ? 'vms': 'zones';
 
@@ -1366,23 +1370,25 @@ process_argv();
 // We do this here because many other transform function might need these
 // values
 SERVERS = transform_uuids('servers');
-// Uncomment these if using transform_vms again:
-IMAGES = transform_uuids('datasets');
-ZPOOLS = transform_uuids('zfs_storage_pools');
-TAGS = transform_tags('tags');
 VMS = transform_vm_uuids('vms');
 ZONES = transform_vm_uuids('zones');
 
+function can_transform_vms() {
+    var file;
+    var tables = ['datasets', 'zfs_storage_pools', 'tags'];
 
-function printLines(changes) {
-    changes.forEach(printChange);
-
-    function printChange(change) {
-        console.log(JSON.stringify(change));
-        console.log();
+    for (var i in tables) {
+        file = directory + '/' + tables[i] + '.dump';
+        if (!path.existsSync(file)) {
+            return false;
+        }
     }
+    // Try loading this when paths exist
+    IMAGES = transform_uuids('datasets');
+    ZPOOLS = transform_uuids('zfs_storage_pools');
+    TAGS = transform_tags('tags');
+    return true;
 }
-
 
 
 var cur;
