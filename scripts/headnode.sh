@@ -681,30 +681,21 @@ fi
 update_setup_state "sdczones_created"
 
 
-function _image_file_ext # manifest_file
-{
-    local manifest=$1
-    [[ -f ${manifest} ]] || fatal "_image_file_ext() called with bad manifest: $1"
-    local ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].compression)
-    if [[ -z ${ext} ]]; then
-        ext=$(cat ${manifest} | ${ROOT}/bin/json -H files[0].path)
-        [[ ${ext} =~ gz ]] && ext="zfs.gz"
-        [[ ${ext} =~ bz2 ]] && ext="zfs.bz2"
-    fi
-    [[ ${ext} == "gzip" ]] && ext="zfs.gz"
-    [[ ${ext} == "bzip2" ]] && ext="zfs.bz2"
-    [[ ${ext} == "none" ]] && ext="zfs"
-
-    echo ${ext}
-}
 
 function import_datasets {
     for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
         local uuid=$(cat ${manifest} | json uuid)
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
                        | head -1 | awk '{print $2}')
-        local ext=$(_image_file_ext ${manifest})
-        local file=${manifest%%?(\.zfs)\.@(ds|img)manifest}.${ext}
+        local file=$(json -f "${manifest}" files.0.path)
+        if [[ -z "$file" ]]; then
+            # Newer imgmanifest files don't have the 'files.*.path' field.
+            # Our core datasets follow the pattern of "NAME-VERSION.EXT"
+            # so search for those.
+            local name=$(json -f "${manifest}" name)
+            local version=$(json -f "${manifest}" version)
+            file=$(ls -1 ${name}-${version}.* | grep -v 'manifest$')
+        fi
         if [[ "${status}" == "404" ]]; then
             echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
             [[ -f ${file} ]] || fatal "Image file ${file} not found."
