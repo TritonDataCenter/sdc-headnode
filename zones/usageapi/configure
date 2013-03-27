@@ -112,7 +112,7 @@ cat > /opt/smartdc/usageapi/config/config.json <<HERE
 {
   "siteName": "${usageapi_EXTERNAL_URL}",
   "port": 80,
-  "logLevel": 4,
+  "logLevel": "info",
   "metering_granularity": 3600,
   "amqp": {
     "host": "${RABBIT_IP}",
