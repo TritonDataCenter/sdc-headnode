@@ -28,10 +28,18 @@ function configure
 {
 	#
 	# Update the SMF configuration to reflect this headnode's configuration.
+	# We only grab the first IP for CNAPI and VMAPI.
 	#
+	local CNAPI_IP VMAPI_IP
+
+	CNAPI_IP=$(echo "$CNAPI_ADMIN_IPS" | tr ',' ' ')
+	VMAPI_IP=$(echo "$VMAPI_ADMIN_IPS" | tr ',' ' ')
+
 	svcadm disable -s caconfigsvc:default || \
 	    cafail "failed to disable configsvc"
 	casetprop caconfigsvc:default caconfig/amqp-host "$CA_AMQP_HOST"
+	casetprop caconfigsvc:default caconfig/cnapi-url "http://$CNAPI_IP"
+	casetprop caconfigsvc:default caconfig/vmapi-url "http://$VMAPI_IP"
 	svcadm refresh caconfigsvc:default || \
 	    cafail "failed to refresh configsvc"
 	svcadm enable -s caconfigsvc:default || \
