@@ -360,7 +360,8 @@ function dump_mapi
     [ $? != 0 ] && fatal "transforming the MAPI dumps to LDIF"
 
     echo "Transforming MAPI postgres dumps to moray"
-    $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name
+    $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name \
+        > $SDC_UPGRADE_DIR/mapi2moray.out 2>&1
     [ $? != 0 ] && fatal "transforming the MAPI dumps to moray"
 }
 
@@ -485,6 +486,9 @@ function upgrade_usbkey
     # Remove obsolete system-zone info
     rm -rf ${usbmnt}/zones/* /usbkey/zones/*
 
+    # Remove obsolete datasets & data only from the key
+    rm -rf ${usbmnt}/datasets/* ${usbmnt}/data/*
+
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
     [ $? != 0 ] && fatal_rb "upgrading USB key"
@@ -492,7 +496,7 @@ function upgrade_usbkey
     #
     # Save the current console device as the default.  Also, since we know
     # this to be a HN, set the default boot option to Live instead of PXE.
-    # We only modify the template because we are going to call switch-platform
+    # We only modify the template because we are going to call switch_platform
     # soon which will regenerate the actual menu.
     #
     console=$(bootparams | grep ^console= | cut -d= -f2)
@@ -505,6 +509,25 @@ function upgrade_usbkey
 
     (cd ${usbmnt} && rsync -a --exclude private --exclude os * ${usbcpy})
     [ $? != 0 ] && fatal_rb "syncing USB key to disk"
+}
+
+function switch_platform
+{
+    local vers=$1
+    local hashfile="/platform/i86pc/amd64/boot_archive.hash"
+    local menulst="${usbmnt}/boot/grub/menu.lst"
+
+    rm -f ${menulst}
+    while read input; do
+        set -- $input
+        output=$(echo "$input" | sed -e "s|/PLATFORM/|/os/${vers}/platform/|")
+        set -- $output
+        if [[ "$1" = "module" ]] && [[ "${2##*.}" = "hash" ]] && \
+            [[ ! -f "${usbcpy}/os/${vers}${hashfile}" ]]; then
+            continue
+        fi
+        eval echo '${output}' >> ${menulst}
+    done < "${menulst}.tmpl"
 }
 
 ip_to_num()
@@ -1094,16 +1117,8 @@ function install_platform
 		return
         fi
 
-	# cleanup old images from the USB key
-	local cnt=$(ls -d ${usbmnt}/os/* | wc -l)
-	if [ $cnt -gt 1 ]; then
-		# delete all but the last image (current will become previous)
-		local del_cnt=$(($cnt - 1))
-		for i in $(ls -d ${usbmnt}/os/* | head -$del_cnt)
-		do
-			rm -rf $i
-		done
-	fi
+        # Remove the 6.5.x platforms since they're no longer usable
+        rm -rf ${usbmnt}/os/* /usbkey/os/*
 
 	echo "Unpacking ${platformversion} to ${usbmnt}/os"
 	local CURLOPTS=
@@ -1433,6 +1448,7 @@ trap recover EXIT
 mount_usbkey
 install_platform
 upgrade_usbkey
+switch_platform ${platformversion}
 umount_usbkey
 
 convert_portal_zone
@@ -1442,11 +1458,6 @@ delete_sdc_zones
 
 cleanup_config
 load_sdc_config
-
-echo "$(date -u "+%Y%m%dT%H%M%S") start plat" >>$SDC_UPGRADE_DIR/upgrade_time
-/usbkey/scripts/switch-platform.sh -U ${platformversion} 1>&4 2>&1
-[ $? != 0 ] && fatal_rb "switching platform"
-echo "$(date -u "+%Y%m%dT%H%M%S") end plat" >>$SDC_UPGRADE_DIR/upgrade_time
 
 # Remove 6.5.x agent manifests so that svcs won't fail when we boot onto 7.0
 #
