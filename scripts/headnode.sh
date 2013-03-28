@@ -721,14 +721,12 @@ function import_datasets {
         local uuid=$(cat ${manifest} | json uuid)
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
                        | head -1 | awk '{print $2}')
-        local file=${USB_COPY}/datasets/$(json -f "${manifest}" files.0.path)
-        if [[ -z "$file" ]]; then
+        local filename=$(json -f "${manifest}" files.0.path)
+        local file=${USB_COPY}/datasets/${filename}
+        if [[ -z "$filename" ]]; then
             # Newer imgmanifest files don't have the 'files.*.path' field.
-            # Our core datasets follow the pattern of "NAME-VERSION.EXT"
-            # so search for those.
-            local name=$(json -f "${manifest}" name)
-            local version=$(json -f "${manifest}" version)
-            file=$(ls -1 ${USB_COPY}/datasets/${name}-${version}.* | grep -v 'manifest$')
+            # Our core datasets all have .zfs.imgmanifest extensions, though.
+            file=$(ls -1 ${manifest%.zfs.imgmanifest}.* | grep -v 'manifest$')
         fi
         if [[ "${status}" == "404" ]]; then
             echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
