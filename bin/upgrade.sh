@@ -1325,8 +1325,9 @@ if [[ $CAPI_FOUND == 0 ]]; then
         print a[1]
     }'`
 
+    # Need to check from adminui since GZ may not get through firewall
     echo -n "Checking connectivity to remote UFDS..."
-    curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
+    zlogin adminui curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
     if [ $? != 52 ]; then
         echo
         fatal "remote UFDS not responding"
