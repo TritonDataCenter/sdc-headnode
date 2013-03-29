@@ -1118,7 +1118,8 @@ function install_platform
         fi
 
         # Remove the 6.5.x platforms since they're no longer usable
-        rm -rf ${usbmnt}/os/* /usbkey/os/*
+        # Leave the platforms in /usbkey/os since they're needed by CNs
+        rm -rf ${usbmnt}/os/*
 
 	echo "Unpacking ${platformversion} to ${usbmnt}/os"
 	local CURLOPTS=
