@@ -210,6 +210,22 @@ convert_portal_zone()
 
     zoneadm -z portal move /zones/$uuid
     zonecfg -z portal set zonename=$uuid
+    # add missing rctls
+    local pmem=`zonecfg -z $uuid info capped-memory | \
+        nawk '{if ($1 == "[physical:") print substr($2, 1, length($2) - 2)}'`
+    if [ -z "$pmem" ]; then
+        pmem="8g"
+        echo "set zfs-io-priority=20; add capped-memory; set swap=$pmem; " \
+            "set locked=$pmem; set physical=$pmem; end" | zonecfg -z $uuid
+    else
+        if [ $pmem -gt 8 ]; then
+            pmem="8g"
+        else
+            pmem="${pmem}g"
+        fi
+        echo "set zfs-io-priority=20; select capped-memory; set swap=$pmem; " \
+            "set locked=$pmem; end" | zonecfg -z $uuid
+    fi
     vmadm update $uuid alias=portal0
     echo '{"set_tags": {"smartdc_role": "portal"}}' | vmadm update $uuid
 
@@ -232,6 +248,8 @@ convert_portal_zone()
 	EXT_DONE
 
     vmadm update -f ${SDC_UPGRADE_DIR}/portal_extnic.json $uuid
+
+
     zoneadm -z $uuid boot
 }
 
@@ -297,10 +315,32 @@ add_ext_net()
         return
     fi
 
+    local ext_uuid=`sdc-login napi /opt/smartdc/napi/bin/napictl \
+        network-list | \
+        json -a name uuid | nawk '{if ($1 == "external") print $2}'`
+    if [ -z "$ext_uuid" ]; then
+        saw_err "Error, missing uuid for external network"
+        return
+    fi
+
     local key="${role}_external_ips"
     local ext_ip=$(eval "echo \${CONFIG_${key}}")
+    if [ -z "$ext_ip" ]; then
+        ext_ip=`sdc-login napi /opt/smartdc/napi/bin/napictl nic-provision \
+            ${ext_uuid} \
+            owner_uuid=00000000-0000-0000-0000-000000000000 \
+            belongs_to_uuid=${role_uuid} \
+            belongs_to_type=zone | \
+            json ip`
+        if [ -z "$ext_ip" ]; then
+            saw_err "Error, unable to allocate external IP for $role"
+            return
+        fi
+    fi
+
     key="${role}_external_vlan"
     local ext_vlan=$(eval "echo \${CONFIG_${key}}")
+    [ -z "$ext_vlan" ] && ext_vlan=$CONFIG_external_vlan_id
     [ -z "$ext_vlan" ] && ext_vlan=0
 
     # Add external net
@@ -323,14 +363,6 @@ add_ext_net()
     vmadm update -f ${SDC_UPGRADE_DIR}/${role}_extnic.json $role_uuid
 
     # Reserve the external IP for the zone
-    local ext_uuid=`sdc-login napi /opt/smartdc/napi/bin/napictl \
-        network-list | \
-        json -a name uuid | nawk '{if ($1 == "external") print $2}'`
-    if [ -z "$ext_uuid" ]; then
-        saw_err "Error, missing uuid for external network"
-        return
-    fi
-
     sdc-login napi /opt/smartdc/napi/bin/napictl ip-update $ext_uuid $ext_ip \
 	owner_uuid="00000000-0000-0000-0000-000000000000" \
 	belongs_to_uuid=\"$role_uuid\" belongs_to_type=zone \
@@ -400,6 +432,12 @@ post_tasks()
     convert_portal_zone
 
     add_ext_net adminui
+    reboot_zone $role_uuid
+
+    add_ext_net amon
+    reboot_zone $role_uuid
+
+    add_ext_net imgapi
     reboot_zone $role_uuid
 
     add_ext_net ufds
