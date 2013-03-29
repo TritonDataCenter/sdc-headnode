@@ -145,6 +145,24 @@ function printf_log
     fi
 }
 
+function set_default_fw_rules {
+    [[ -f /var/fw/.default_rules_setup ]] && return
+
+    /usr/sbin/fwadm add -f - <<RULES
+{
+  "rules": [
+  {
+    "description": "allow pings to all VMs",
+    "rule": "FROM any TO all vms ALLOW icmp type 8 code 0",
+    "enabled": true
+  }
+  ]
+}
+RULES
+
+    [[ $? -eq 0 ]] && touch /var/fw/.default_rules_setup
+}
+
 # HEAD-1507 - Pretty sure this is obsolete with all core zones on joyent-minimal.
 # Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
 # entirely well still getting all the things done that it would have done that
@@ -370,6 +388,8 @@ if [[ ! -d /opt/smartdc/bin ]]; then
 JOYENT_IMGADM_EOF
     chmod 755 /opt/smartdc/bin/joyent-imgadm
 fi
+
+set_default_fw_rules
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 
