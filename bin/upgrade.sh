@@ -1326,10 +1326,10 @@ if [[ $CAPI_FOUND == 0 ]]; then
     }'`
 
     echo -n "Checking connectivity to remote UFDS..."
-    ping $MASTER_UFDS_IP >/dev/null 2>&1
-    if [ $? != 0 ]; then
+    curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
+    if [ $? != 52 ]; then
         echo
-        fatal "remote UFDS unreachable"
+        fatal "remote UFDS not responding"
     else
         printf "OK\n"
     fi

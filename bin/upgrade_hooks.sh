@@ -224,7 +224,7 @@ convert_portal_zone()
             pmem="${pmem}g"
         fi
         echo "set zfs-io-priority=20; select capped-memory; set swap=$pmem; " \
-            "set locked=$pmem; end" | zonecfg -z $uuid
+            "set locked=$pmem; set physical=$pmem; end" | zonecfg -z $uuid
     fi
     vmadm update $uuid alias=portal0
     echo '{"set_tags": {"smartdc_role": "portal"}}' | vmadm update $uuid
@@ -429,8 +429,10 @@ post_tasks()
 
     create_extra_zones
 
+    print_log "Updating the portal zone"
     convert_portal_zone
 
+    print_log "Adding additional zone external nics"
     add_ext_net adminui
     reboot_zone $role_uuid
 
