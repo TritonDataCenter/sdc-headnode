@@ -992,14 +992,13 @@ function vm_from_vm(pieces) {
     var owner_uuid = pieces[3];
 
     var state;
-
-    if (destroyed !== '') {
+    if (destroyed !== undefined) {
         zone_state = 'destroyed';
         state = 'destroyed';
     } else if (zone_state == 'ready' || zone_state == 'running') {
         state = 'running';
     } else {
-        state = 'off';
+        state = 'stopped';
     }
 
     change = {
@@ -1099,7 +1098,7 @@ function vm_from_zone(pieces) {
 
     var state;
 
-    if (destroyed !== '') {
+    if (destroyed !== undefined) {
         zone_state = 'destroyed';
         state = 'destroyed';
     } else if (zone_state == 'ready' || zone_state == 'running') {
