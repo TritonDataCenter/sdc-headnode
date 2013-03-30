@@ -145,15 +145,28 @@ function printf_log
     fi
 }
 
-function set_default_fw_rules {
+set_default_fw_rules() {
     [[ -f /var/fw/.default_rules_setup ]] && return
 
+    local admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network $CONFIG_admin_netmask)
     /usr/sbin/fwadm add -f - <<RULES
 {
   "rules": [
   {
     "description": "allow pings to all VMs",
     "rule": "FROM any TO all vms ALLOW icmp type 8 code 0",
+    "enabled": true
+  },
+  {
+    "description": "SDC zones: allow all UDP from admin net",
+    "rule": "FROM subnet 10.99.99.0/24 TO tag smartdc_role ALLOW udp PORT all",
+    "owner_uuid": "00000000-0000-0000-0000-000000000000",
+    "enabled": true
+  },
+  {
+    "description": "SDC zones: allow all TCP from admin net",
+    "rule": "FROM subnet 10.99.99.0/24 TO tag smartdc_role ALLOW tcp PORT all",
+    "owner_uuid": "00000000-0000-0000-0000-000000000000",
     "enabled": true
   }
   ]
@@ -245,6 +258,7 @@ USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:def
 
 # Load config variables with CONFIG_ prefix
 . /lib/sdc/config.sh
+. /lib/sdc/network.sh
 load_sdc_config
 
 # Now the infrastructure zones
