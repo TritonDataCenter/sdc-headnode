@@ -159,13 +159,13 @@ set_default_fw_rules() {
   },
   {
     "description": "SDC zones: allow all UDP from admin net",
-    "rule": "FROM subnet 10.99.99.0/24 TO tag smartdc_role ALLOW udp PORT all",
+    "rule": "FROM subnet ${admin_cidr} TO tag smartdc_role ALLOW udp PORT all",
     "owner_uuid": "00000000-0000-0000-0000-000000000000",
     "enabled": true
   },
   {
     "description": "SDC zones: allow all TCP from admin net",
-    "rule": "FROM subnet 10.99.99.0/24 TO tag smartdc_role ALLOW tcp PORT all",
+    "rule": "FROM subnet ${admin_cidr} TO tag smartdc_role ALLOW tcp PORT all",
     "owner_uuid": "00000000-0000-0000-0000-000000000000",
     "enabled": true
   }
