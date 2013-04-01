@@ -437,9 +437,11 @@ post_tasks()
     reboot_zone $role_uuid
 
     add_ext_net amon
+    vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
 
     add_ext_net imgapi
+    vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
 
     add_ext_net ufds
