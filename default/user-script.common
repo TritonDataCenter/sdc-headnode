@@ -38,8 +38,10 @@ if [[ ${zone_role} != "assets" ]]; then
     assets_ip=$(mdata-get assets-ip)
     [[ -z ${assets_ip} ]] \
         && fatal "Unable to find IP of assets server from metadata."
+    # ping assets so we can see in the log that networking is broken when that's
+    # what prevents us from getting the rest of the scripts.
+    ping ${assets_ip} || fatal "Unable to ping IP of assets server ${assets_ip}"
 fi
-
 
 # Setup "/opt/smartdc/etc" from assets.
 if [[ ! -d /opt/smartdc/etc ]]; then
