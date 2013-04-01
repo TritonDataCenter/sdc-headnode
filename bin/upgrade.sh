@@ -1533,7 +1533,8 @@ mkdir -m755 -p /var/log/vm
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
 
-cp /var/tmp/capi_access $SDC_UPGRADE_DIR
+[[ "$CONFIG_capi_is_local" == "true" && -f /var/tmp/capi_access ]] && \
+    cp /var/tmp/capi_access $SDC_UPGRADE_DIR
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 
