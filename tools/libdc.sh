@@ -46,6 +46,12 @@ if [[ -n ${WORKFLOW_IP} ]]; then
     WORKFLOW_URL="http://${WORKFLOW_IP}"
 fi
 
+# SAPI!
+SAPI_IP=$(echo "${CONFIG_sapi_admin_ips}" | cut -d ',' -f1)
+if [[ -n ${SAPI_IP} ]]; then
+    SAPI_URL="http://${SAPI_IP}"
+fi
+
 fatal()
 {
     echo "$@" >&2
@@ -88,6 +94,16 @@ fwapi()
     shift
     (curl ${CURL_OPTS} --url "${FWAPI_URL}${path}" \
         "$@") || return $?
+    echo ""  # sometimes the result is not terminated with a newline
+    return 0
+}
+
+sapi()
+{
+    path=$1
+    shift
+    curl ${CURL_OPTS} --url "${SAPI_URL}${path}" \
+        "$@" || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0
 }

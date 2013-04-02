@@ -1,0 +1,34 @@
+#!/usr/bin/bash
+#
+
+# Important! This is just a place-holder until we rewrite in node.
+#
+
+
+if [ "$TRACE" != "" ]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+if [[ ! -f /opt/smartdc/bin/libdc.sh ]]; then
+    echo "fatal: unable to find libdc.sh"
+    exit 1
+fi
+
+source /opt/smartdc/bin/libdc.sh
+
+path=$1
+if [[ -z ${path} ]]; then
+    cat <<EOF
+error: no PATH argument given
+
+Usage:
+        $0 [--no-headers] PATH [EXTRA-CURL-ARGS]
+
+EOF
+    exit 1
+fi
+
+sapi "$@" | json -q
+
+exit 0
