@@ -476,9 +476,13 @@ post_tasks()
         print_log "- Review CAPI issues in capi_conversion_issues.txt"
 
     if [[ $CONFIG_ufds_is_local == "true" ]]; then
-        print_log "- If remote sites were accessing CAPI and the remote IP"
-        print_log "  addresses were not listed in the capi_access file, then"
-        print_log "  you must update the UFDS firewall rule $FW_UUID"
+        print_log "- If remote sites were accessing CAPI and you did not" \
+                  "list all of the remote"
+        print_log "  IP addresses in the capi_access file, then you must" \
+                  "update the UFDS firewall"
+        print_log "  rule. In the fwapi zone fix /root/fwrules.json, then run:"
+        print_log "     /opt/smartdc/fwapi/bin/fwapi update -f" \
+                  "/root/fwrules.json $FW_UUID"
     fi
 
     print_log "- The upgrade logs are in $dname"

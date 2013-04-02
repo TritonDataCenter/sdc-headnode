@@ -1227,11 +1227,14 @@ if [[ $AGENTS_ONLY == 1 ]]; then
 
     echo "Compute node agent install is complete"
 
+    # Note that the billapi external IP will be re-used for the new remote ufds
+    # zone when that remote HN is upgraded.
     if [[ "$CONFIG_capi_is_local" == "true" ]]; then
         echo
-        echo "If you have other datacenters accessing this CAPI master, then"
-        echo "list the remote ADMINUI, CloudAPI, MAPI and Portal IP addresses"
-        echo "in /var/tmp/capi_access before you run the upgrade."
+        echo "If you have other datacenters accessing this CAPI master, then" \
+             "list the remote"
+        echo "ADMINUI, BILLAPI, CloudAPI and Portal external IP addresses in"
+        echo "/var/tmp/capi_access before you run the upgrade."
     fi
 
     exit 0
