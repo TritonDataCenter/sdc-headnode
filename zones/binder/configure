@@ -26,17 +26,18 @@ dataDir=/var/db/zookeeper
 clientPort=2181
 HERE
 
-echo "updating zoo.cfg with ensemble ips $ZK_IPS"
+echo "updating zoo.cfg with ensemble ips $BINDER_ADMIN_IPS"
 
 # Get local IP addr
 localIp=`ifconfig -a | grep net0 -A 2 | grep inet | cut -d ' ' -f2`
 
-# Strip out the comma seperated ips in ZK_IPS and append them to zoo.cfg
-# See: http://zookeeper.apache.org/doc/r3.3.2/zookeeperAdmin.html#sc_zkMulitServerSetup
+# Strip out the comma seperated ips in BINDER_ADMIN_IPS and append them to
+# zoo.cfg See:
+# http://zookeeper.apache.org/doc/r3.3.2/zookeeperAdmin.html#sc_zkMulitServerSetup
 
 IFS=","
 n=0
-for ip in $ZK_IPS
+for ip in $BINDER_ADMIN_IPS
 do
   $(( n += 1 ))
   echo server.$n=$ip:2888:3888 >> /opt/local/etc/zookeeper/zoo.cfg

@@ -1,2 +1,2 @@
 MANATEE_ADMIN_IPS=${manatee_admin_ips}
-ZOOKEEPER_ADMIN_IPS=${zookeeper_admin_ips}
+BINDER_ADMIN_IPS=${binder_admin_ips}

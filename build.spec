@@ -14,6 +14,7 @@
   "adminui-tarball": "adminui/adminui-pkg-master-.*.tar.bz2",
   "amon-tarball": "amon/amon-pkg-master-.*.tar.bz2",
   "assets-tarball": "assets/assets-pkg-master-.*.tar.bz2",
+  "binder-tarball": "binder/binder-pkg-master-.*.tar.bz2",
   "ca-tarball": "ca/ca-pkg-master-.*.tar.bz2",
   "cloudapi-tarball": "cloudapi/cloudapi-pkg-master-.*.tar.bz2",
   "cnapi-tarball": "cnapi/cnapi-pkg-master-.*.tar.bz2",
@@ -36,20 +37,31 @@
   "usageapi-tarball": "usageapi/usageapi-pkg-master-.*.tar.bz2",
   "vmapi-tarball": "vmapi/vmapi-pkg-master-.*.tar.bz2",
   "workflow-tarball": "workflow/workflow-pkg-master-.*.tar.bz2",
-  "zookeeper-tarball": "binder/binder-pkg-master-.*.tar.bz2",
 
-  "manatee-image": {
-    "name": "manta-postgres",
-    "pattern": "master"
-  },
-  "moray-image": {
-    "name": "manta-moray",
-    "pattern": "master"
-  },
-  "zookeeper-image": {
-    "name": "manta-nameservice",
-    "pattern": "master"
-  },
+  "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
+  "adminui-image": "adminui/adminui-zfs-.*manifest",
+  "amon-image": "amon/amon-zfs-.*manifest",
+  "assets-image": "assets/assets-zfs-.*manifest",
+  "binder-image": "binder/binder-zfs-.*manifest",
+  "ca-image": "ca/ca-zfs-.*manifest",
+  "cloudapi-image": "cloudapi/cloudapi-zfs-.*manifest",
+  "cnapi-image": "cnapi/cnapi-zfs-.*manifest",
+  "dapi-image": "dapi/dapi-zfs-.*manifest",
+  "dhcpd-image": "dhcpd/dhcpd-zfs-.*manifest",
+  "fwapi-image": "fwapi/fwapi-zfs-.*manifest",
+  "imgapi-image": "imgapi/imgapi-zfs-.*manifest",
+  "keyapi-image": "keyapi/keyapi-zfs-.*manifest",
+  "manatee-image": "manatee/manatee-zfs-.*manifest",
+  "moray-image": "moray/moray-zfs-.*manifest",
+  "napi-image": "napi/napi-zfs-.*manifest",
+  "rabbitmq-image": "rabbitmq/rabbitmq-zfs-.*manifest",
+  "redis-image": "redis/redis-zfs-.*manifest",
+  "sapi-image": "sapi/sapi-zfs-.*manifest",
+  "sdcsso-image": "sdcsso/sdcsso-zfs-.*manifest",
+  "ufds-image": "ufds/ufds-zfs-.*manifest",
+  "usageapi-image": "usageapi/usageapi-zfs-.*manifest",
+  "vmapi-image": "vmapi/vmapi-zfs-.*manifest",
+  "workflow-image": "workflow/workflow-zfs-.*manifest",
 
   "datasets": [
     {

@@ -8,7 +8,7 @@ set -o xtrace
 
 PATH=/opt/smartdc/moray/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+# This includes the fatal function
 source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
@@ -18,7 +18,7 @@ role=moray
 # XXX is net0 admin nic?
 ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 MORAY_MAIN_ADMIN_IP=$(echo "${MORAY_ADMIN_IPS}" | cut -d',' -f1)
-ZK_MAIN_ADMIN_IP=$(echo "${ZOOKEPER_ADMIN_IPS}" | cut -d',' -f1)
+BINDER_MAIN_ADMIN_IP=$(echo "${BINDER_ADMIN_IPS}" | cut -d',' -f1)
 
 
 ZONE_UUID=`/usr/bin/zonename`
@@ -72,7 +72,7 @@ CFG_FILE=/opt/smartdc/$role/etc/config.json
 
 # Update config file
 cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|ZK_IP|$ZK_MAIN_ADMIN_IP|" $CFG_FILE
+gsed -i -e "s|ZK_IP|$BINDER_MAIN_ADMIN_IP|" $CFG_FILE
 
 echo "Importing SMF Manifests"
 sed -e "s#@@MORAY_PORT@@#2020#g" \

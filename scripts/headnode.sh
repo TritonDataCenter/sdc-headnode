@@ -687,7 +687,7 @@ if [[ -z ${skip_zones} ]]; then
     # These are here in the order they'll be brought up.
     create_zone assets
     create_zone sapi
-    create_zone zookeeper
+    create_zone binder
     create_zone manatee
     create_zone moray
     create_zone redis
@@ -723,7 +723,7 @@ function import_datasets {
                        | head -1 | awk '{print $2}')
         local filename=$(json -f "${manifest}" files.0.path)
         local file=${USB_COPY}/datasets/${filename}
-        if [[ -z "$filename" ]]; then
+        if [[ -z "$filename" || ! -f "$file" ]]; then
             # Newer imgmanifest files don't have the 'files.*.path' field.
             # Our core datasets all have .zfs.imgmanifest extensions, though.
             file=$(ls -1 ${manifest%.zfs.imgmanifest}.* | grep -v 'manifest$')

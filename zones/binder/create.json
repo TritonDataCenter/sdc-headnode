@@ -1,8 +1,8 @@
 {
-  "alias": "zookeeper0",
+  "alias": "binder0",
   "brand": "joyent-minimal",
   "tags": {
-      "smartdc_role": "zookeeper",
+      "smartdc_role": "binder",
       "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones",
@@ -20,5 +20,4 @@
     },
     "ttl": 60
   }
-
 }

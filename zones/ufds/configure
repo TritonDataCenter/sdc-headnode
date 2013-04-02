@@ -10,7 +10,7 @@ role=ufds
 LDAPTLS_REQCERT=allow
 PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+# This includes the fatal function.
 source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
