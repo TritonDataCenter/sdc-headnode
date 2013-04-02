@@ -218,7 +218,7 @@ async.series([
 
             var svcName,
                 regConfig,
-                binderServers;
+                zkServers;
 
             if (!obj.hasOwnProperty('alias'))
                 return cb(new Error("No alias provided for " + zone));
@@ -237,19 +237,16 @@ async.series([
             regConfig.registration = obj.registration;
             regConfig.registration.domain = svcName;
 
-            binderServers = config.binder_resolver_ips.split(',')
-                .map(function binderConfig(e) {
+            zkServers = config.binder_resolver_ips.split(',')
+                .map(function zkConfig(e) {
                     return {
                         host : e,
                         port : 2181
                     }
                 });
-            regConfig.binder = {};
-            regConfig.binder.servers = binderServers;
-            regConfig.binder.timeout = 60000;
-            // XXX RELENG-460 Maintain the old 'zookeeper' key name to
-            // help with the flag day transition.
-            regConfig.zookeeper = regConfig.binder;
+            regConfig.zookeeper = {};
+            regConfig.zookeeper.servers = zkServers;
+            regConfig.zookeeper.timeout = 60000;
 
             if (!obj.hasOwnProperty('customer_metadata'))
                 obj.customer_metadata = {};
