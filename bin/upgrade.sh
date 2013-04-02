@@ -781,8 +781,8 @@ function cleanup_config
 	# 6 - was mapi, use for napi
 	napi_admin_ip="$CONFIG_mapi_admin_ip"
 
-	# 7 - was cloudapi, use for zookeeper
-	zookeeper_admin_ip="$CONFIG_cloudapi_admin_ip"
+	# 7 - was cloudapi, use for binder
+	binder_admin_ip="$CONFIG_cloudapi_admin_ip"
 
 	# 8
 	rabbitmq_admin_ip="$CONFIG_rabbitmq_admin_ip"
@@ -866,11 +866,11 @@ function cleanup_config
 	   usage_ext_vlan="usageapi_external_vlan=$CONFIG_adminui_external_vlan"
 	fi
 
-	# Allocate 4 more IP addrs for zookeeper instances
-	zk_resolver_ips=$zookeeper_admin_ip
+	# Allocate 4 more IP addrs for binder instances
+	binder_resolver_ips=$binder_admin_ip
 	for i in {0..3}; do
 	    allocate_ip_addr
-	    zk_resolver_ips="$zk_resolver_ips,$ip_addr"
+	    binder_resolver_ips="$binder_resolver_ips,$ip_addr"
 	done
 
 	cat <<-DONE >>/tmp/config.$$
@@ -895,12 +895,12 @@ function cleanup_config
 	ca_admin_ips=$ca_admin_ip
 	ca_svcname=ca.$CONFIG_dns_domain
 
-	zookeeper_root_pw=$CONFIG_adminui_root_pw
-	zookeeper_admin_ips=$zookeeper_admin_ip
-	zookeeper_svcname=zookeeper.$CONFIG_dns_domain
+	binder_root_pw=$CONFIG_adminui_root_pw
+	binder_admin_ips=$binder_admin_ip
+	binder_svcname=binder.$CONFIG_dns_domain
 
-	# Reserved IPs for ZK/binder instances
-	zk_resolver_ips=$zk_resolver_ips
+	# Reserved IPs for binder instances
+	binder_resolver_ips=$binder_resolver_ips
 
 	manatee_root_pw=$CONFIG_adminui_root_pw
 	manatee_admin_ips=$manatee_admin_ip
@@ -1084,7 +1084,7 @@ function cleanup_config
 	ufds_pkg=${GENERIC_ufds_pkg}
 	workflow_pkg=${GENERIC_workflow_pkg}
 	vmapi_pkg=${GENERIC_vmapi_pkg}
-	zookeeper_pkg=${GENERIC_zookeeper_pkg}
+	binder_pkg=${GENERIC_binder_pkg}
 	sapi_pkg=${GENERIC_sapi_pkg}
 	manta_pkg=${GENERIC_manta_pkg}
 	dbconn_retry_after=10
@@ -1284,7 +1284,7 @@ load_admin_ip_addrs
 # free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
 # to re-use.
 #
-# In 7.0 we have 23 admin zones plus 4 reserved IPs for additional zookeeper
+# In 7.0 we have 23 admin zones plus 4 reserved IPs for additional binder
 # instances,  so we need at least 12, and maybe 16, additional
 # addresses out of the dhcp range to accomodate the new zones, depending on how
 # the user config is setup and if we can use the 4 free addrs from 6.x.

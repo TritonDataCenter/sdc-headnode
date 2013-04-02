@@ -6,7 +6,7 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+# This includes the fatal function.
 source /var/svc/configure.common
 
 eval $(cat /opt/smartdc/etc/zoneconfig)

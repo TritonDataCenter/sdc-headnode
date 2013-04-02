@@ -1075,15 +1075,15 @@ napi_svcname="napi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
-zookeeper_admin_ip="$ip_addr"
-zookeeper_svcname="zookeeper.${dns_domain}"
+binder_admin_ip="$ip_addr"
+binder_svcname="binder.${dns_domain}"
 
 # we reserve four more (thus five total) ips for resolvers
-zk_resolver_ips="$zookeeper_admin_ip"
+binder_resolver_ips="$binder_admin_ip"
 for i in {0..3}; do
 	next_addr=$(($next_addr + 1))
 	num_to_ip $next_addr
-	zk_resolver_ips="$zk_resolver_ips,$ip_addr"
+	binder_resolver_ips="$binder_resolver_ips,$ip_addr"
 done
 
 next_addr=$(($next_addr + 1))
@@ -1214,9 +1214,9 @@ echo "swap=0.25x" >>$tmp_config
 echo "compute_node_swap=0.25x" >>$tmp_config
 echo >>$tmp_config
 
-echo "zookeeper_root_pw=$zone_admin_pw" >>$tmp_config
-echo "zookeeper_admin_ips=$zookeeper_admin_ip" >>$tmp_config
-echo "zookeeper_svcname=$zookeeper_svcname" >>$tmp_config
+echo "binder_root_pw=$zone_admin_pw" >>$tmp_config
+echo "binder_admin_ips=$binder_admin_ip" >>$tmp_config
+echo "binder_svcname=$binder_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "manatee_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1332,8 +1332,8 @@ fi
 
 echo >>$tmp_config
 
-echo "# Reserved IPs for ZK/binder instances" >>$tmp_config
-echo "zk_resolver_ips=$zk_resolver_ips" >>$tmp_config
+echo "# Reserved IPs for binder instances" >>$tmp_config
+echo "binder_resolver_ips=$binder_resolver_ips" >>$tmp_config
 echo >>$tmp_config
 
 echo "dns_resolvers=$dns_resolver1,$dns_resolver2" >>$tmp_config

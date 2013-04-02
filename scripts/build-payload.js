@@ -147,12 +147,12 @@ async.series([
                 + 'setting owner_uuid');
         }
 
-        if (config.hasOwnProperty('zk_resolver_ips')) {
+        if (config.hasOwnProperty('binder_resolver_ips')) {
             if (!obj.hasOwnProperty('customer_metadata')) {
                 obj.customer_metadata = {};
             }
 
-            var resolvers = config['zk_resolver_ips'].split(',');
+            var resolvers = config['binder_resolver_ips'].split(',');
 
             if (config.hasOwnProperty('dns_resolvers')) {
                 resolvers.concat(config['dns_resolvers'].split(','));
@@ -218,7 +218,7 @@ async.series([
 
             var svcName,
                 regConfig,
-                zkServers;
+                binderServers;
 
             if (!obj.hasOwnProperty('alias'))
                 return cb(new Error("No alias provided for " + zone));
@@ -226,8 +226,8 @@ async.series([
             if (!config.hasOwnProperty('dns_domain'))
                 return cb(new Error("No dns_domain in config"));
 
-            if (!config.hasOwnProperty('zk_resolver_ips'))
-                return cb(new Error("No ZK resolver IPs in config"));
+            if (!config.hasOwnProperty('binder_resolver_ips'))
+                return cb(new Error("No binder resolver IPs in config"));
 
             // by convention, the service name is the alphabetic part of the
             // alias (i.e., 'moray0' -> 'moray') - this is slightly fragile.
@@ -237,16 +237,19 @@ async.series([
             regConfig.registration = obj.registration;
             regConfig.registration.domain = svcName;
 
-            zkServers = config.zk_resolver_ips.split(',')
-                .map(function zkConfig(e) {
+            binderServers = config.binder_resolver_ips.split(',')
+                .map(function binderConfig(e) {
                     return {
                         host : e,
                         port : 2181
                     }
                 });
-            regConfig.zookeeper = {};
-            regConfig.zookeeper.servers = zkServers;
-            regConfig.zookeeper.timeout = 60000;
+            regConfig.binder = {};
+            regConfig.binder.servers = binderServers;
+            regConfig.binder.timeout = 60000;
+            // XXX RELENG-460 Maintain the old 'zookeeper' key name to
+            // help with the flag day transition.
+            regConfig.zookeeper = regConfig.binder;
 
             if (!obj.hasOwnProperty('customer_metadata'))
                 obj.customer_metadata = {};

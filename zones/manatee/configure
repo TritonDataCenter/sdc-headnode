@@ -11,7 +11,7 @@ REGISTRAR_CFG=/opt/smartdc/registrar/etc/config.json
 alias mbunyan="bunyan -c \"this.component !== 'ZKPlus'\" -c 'level >= 30' -c 'this.src=undefined; true' --strict"
 alias manatee_stat="/opt/smartdc/manatee/bin/manatee_stat.js -p `mdata-get nameservers`"
 
-# This includes the fatal and sdc_[zk|manatee|moray|ufds]_check functions
+# This includes the fatal function
 source /var/svc/configure.common
 
 function update_env {
@@ -114,10 +114,10 @@ gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE
 # enable one node write mode for coal, since there is only one manatee
 gsed -i -e "s|ONE_NODE_WRITE_MODE|true|g" $SITTER_CFG_FILE
 
-# update zk config - stole from registrar
+# update zk config
 echo "setting zk ips for sitter.cfg"
-echo $ZOOKEEPER_ADMIN_IPS
-for ip in $ZOOKEEPER_ADMIN_IPS
+echo $BINDER_ADMIN_IPS
+for ip in $BINDER_ADMIN_IPS
 do
 cat $SITTER_CFG_FILE| \
     json -e "zkCfg.servers.push({ host: \"$ip\", port: 2181 });" \
@@ -185,9 +185,9 @@ svcadm enable manatee-sitter
 
 #functions
 echo "mbunyan() { bunyan -c \"this.component !== 'ZKPlus'\"  -c 'level >= 30'; }" >> $PROFILE
-echo "manatee-history(){ /opt/smartdc/manatee/bin/manatee-history '$SHARD' '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
-echo "manatee-stat() { /opt/smartdc/manatee/bin/manatee-stat -p '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
-echo "manatee-clear(){ /opt/smartdc/manatee/bin/manatee-clear '$SHARD' '$ZONE_IP' '$ZOOKEEPER_ADMIN_IPS'; }" >> $PROFILE
+echo "manatee-history(){ /opt/smartdc/manatee/bin/manatee-history '$SHARD' '$BINDER_ADMIN_IPS'; }" >> $PROFILE
+echo "manatee-stat() { /opt/smartdc/manatee/bin/manatee-stat -p '$BINDER_ADMIN_IPS'; }" >> $PROFILE
+echo "manatee-clear(){ /opt/smartdc/manatee/bin/manatee-clear '$SHARD' '$ZONE_IP' '$BINDER_ADMIN_IPS'; }" >> $PROFILE
 echo "manatee-snapshots(){ /opt/smartdc/manatee/bin/manatee-snapshots '$DATASET'; }" >> $PROFILE
 echo "msitter(){ tail -f \`svcs -L manatee-sitter\` | mbunyan; }" >> $PROFILE
 echo "mbackupserver(){ tail -f \`svcs -L manatee-backupserver\` | mbunyan; }" >> $PROFILE

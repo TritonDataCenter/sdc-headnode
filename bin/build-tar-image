@@ -928,179 +928,6 @@ function _image_version
     echo ${version}
 }
 
-# Downloads and caches (or fetches from the cache) an SDC image.
-# outputs the downloaded file name (which is dependent on the manifest)
-#
-# REVIEW - should change this to take manifest file as param.
-function download_image # uuid, zone
-{
-    local uuid=$1
-    [[ -n ${uuid} ]] || fatal "download_image(): no UUID provided."
-
-    local zone=$2
-    [[ -n ${zone} ]] || fatal "download_image(): no name provided."
-
-    local image_cache=${ROOT}/cache/images/${zone}
-    # local cached_manifest="${image_cache}/${uuid}.zfs.imgmanifest"
-    # local image_file manifest_url manifest ext version updates_url
-
-    local image_file version filename manifest
-
-    # see if we can map the uuid to a name.
-    [[ -f ${image_cache}/${zone}_images.txt ]] \
-        || fatal "No image list for ${zone}, expected ${image_cache}/${zone}_images.txt"
-
-    version=$(cat ${image_cache}/${zone}_images.txt | grep ${uuid} | cut -d' ' -f3)
-    [[ -n ${version} ]] \
-        || fatal "Can't find ${uuid} in available images for ${zone}"
-
-    filename=${zone}-zfs-${version}
-    manifest=${image_cache}/${filename}.zfs.imgmanifest
-
-    if [[ -f ${manifest} ]]; then
-        ext=$(_image_file_ext ${manifest})
-        version=$(_image_version ${manifest})
-        image_file=${image_cache}/${filename}.${ext}
-
-        if [[ -n $(validate_image ${manifest} ${image_file}) ]]; then
-            echo "Corrupt image file ${image_file}, deleting and re-downloading." >&2
-            [[ -f ${image_file} ]] && rm ${image_file}
-            [[ -f ${manifest} ]] && rm ${manifest}
-        else
-            echo "Using cached ${zone} image: ${image_file}" >&2
-        fi
-    fi
-
-    if [[ ! -f ${image_file} ]]; then
-        if [[ ${HAVE_INTERNET} == "true" ]]; then
-            mkdir -p ${image_cache}
-            updates_url=$(build_spec updates_url)
-            manifest_url=${updates_url}/images/${uuid}
-            _check_vpn ${updates_url}
-
-            echo "Downloading manifest for ${zone} from: ${manifest_url}" >&2
-            curl ${CURL_OPTS} --fail -k ${manifest_url} \
-                -o ${manifest}
-            [[ $? -eq 0 ]] || fatal "Error downloading ${zone} image manifest from ${manifest_url}"
-
-            ext=$(_image_file_ext ${manifest})
-            version=$(_image_version ${manifest})
-
-            echo "Downloading image file for ${zone}: ${manifest_url}/file" >&2
-            image_file=${image_cache}/${filename}.${ext}
-
-            curl ${CURL_OPTS} --fail -k ${manifest_url}/file \
-                -o ${image_file}
-            [[ $? -eq 0 ]] || fatal "Error downloading ${zone} image file from ${manifest_url}/file"
-        fi
-    fi
-
-    if [[ -z ${image_file} ]] || [[ ! -f ${image_file} ]]; then
-        fatal "Can't find or download ${zone} image - ${uuid}"
-    fi
-
-    echo "${image_file}"
-}
-
-# Get a smartdc zone's pre-built image and manifest.
-#
-# Usage:
-#   copy_sdc_image ZONE
-#
-# Which image to apply to a zone is derived from build.spec's ${zone}-image
-# key which takes the following structure:
-#
-# "napi-image": {
-#   "name": "napi"
-#   "pattern": "master"
-# }
-#
-# name - defaults to ${zone}
-#   the IMGAPI sense of name, i.e., https://IMGAPI/images?name=NAME
-#
-# pattern - default 'master'
-#   can be one of:
-#     - grep-style pattern on the version
-#     - specific image UUID
-#         In these first two cases, we will query IMGAPI and select the most-
-#         most-recently-published image that matches the pattern criteria.
-#         That is, it is not possible to specify a UUID that does not match the
-#         name.
-#     - local file name or glob of a manifest
-#         Assumes the image file differs only by the extension, i.e., the
-#         same directory and same file name as the specified manifest. ls-style
-#         globs will be expanded, but should specify a single file.
-#     - URL of a manifest
-#         Assume IMGAPI semantics, and will download the image from URL/file.
-#
-function copy_sdc_image
-{
-    local zone=$1
-    [[ -n ${zone} ]] || fatal "copy_sdc_image(): no zone specified."
-
-    local uuid pattern ls_pattern file manifest img_name img_path img_ext
-
-    echo "Determining image for ${zone}"
-
-    ### XXX determine image name and version pattern.
-    pattern=$(build_spec ${zone}-image.pattern)
-    ls_pattern=${pattern}
-    [[ -n ${pattern} ]] || pattern="master"
-
-    name=$(build_spec ${zone}-image.name)
-    [[ -n ${name} ]] || name=${zone}
-
-    [[ -f ${ls_pattern} ]] || ls_pattern=$(ls ${pattern} 2&>/dev/null) \
-        || echo "No local file match for '${pattern}'"
-    if [[ -f ${ls_pattern} ]]; then
-        manifest=${ls_pattern}
-        img_name=${manifest##*/}
-        img_name=${img_name%%.*}
-        img_path=$(dirname ${manifest})
-        ext=$(_image_file_ext ${manifest})
-        uuid=$(json uuid < ${manifest})
-
-        file=${img_path}/${img_name}.${ext}
-        [[ -f ${file} ]] || fatal "No image file corresponding to ${manifest}"
-    else
-        if [[ ${pattern:0:7} == "http://" || ${pattern:0:8} == "https://" ]]; then
-            # it's an IMGAPI URL, we assume the basename is the UUID.
-            echo "Fetching image from ${pattern}"
-            uuid=$(basename ${pattern})
-        else
-            echo "Finding ${name} image matching ${pattern}"
-            uuid=$(get_avail_images ${zone} ${name} \
-                | grep "${pattern}" \
-                | sort \
-                | tail -1 \
-                | cut -f2 -d' ')
-        fi
-
-        [[ -n ${uuid} ]] || fatal "Unable to determine image UUID for ${zone}"
-
-        file=$(download_image ${uuid} ${zone})
-        img_name=${file##*/}
-        img_name=${img_name%%.*}
-        manifest=${ROOT}/cache/images/${zone}/${img_name}.zfs.imgmanifest
-    fi
-
-    [[ -n $(validate_image ${manifest} ${file}) ]] \
-        && fatal "copy_sdc_image(): ${file} is corrupt, can't build."
-
-    stage_image ${zone} ${manifest} ${file}
-
-    clean_image_cache ${ROOT}/cache/images/${zone}
-
-    # HEAD-1507 - this should be temporary until we get proto-SAPI returning
-    # a payload for vmadm. This should allow headnode.sh:create_zone()
-    # and build_payload to handle the sdc images with less trouble until
-    # then.
-    echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
-    # PCFS, sigh.
-    echo ${img_name}.zfs.imgmanifest | tr [:upper:] [:lower:] > ${STAGE}/zones/${zone}/dataset
-}
-
-
 function copy_platform
 {
     [[ -z "${loops}" ]] && loops=0
@@ -1411,6 +1238,81 @@ function get_fs_tarball
     fi
 }
 
+
+# Get the image manifest and file for the given core SDC zone.
+#
+# Usage:
+#   get_core_zone_image ZONE TARGET DST-DIR
+#
+# where:
+# - "TARGET" is either a full path to an existing image manifest file
+#   or (more typically) a pattern used by the "get_bit" function for getting
+#   a manifest file from the MG builds area on stuff.joyent.us. If TARGET
+#   is the empty string, it defaults to "NAME/NAME-zfs-.*manifest".
+#
+# Examples:
+#   get_core_zone_image admin "adminui/adminui-zfs-.*manifest" \
+#           /home/trent/usb-headnode/cache/stage/datasets
+#
+function get_core_zone_image
+{
+    local zone=$1
+    local target=$2
+    local dst_dir=$3
+
+    if [[ -z ${target} ]]; then
+        target="$zone/$zone-zfs-.*manifest"
+    fi
+    if [[ -z ${dst_dir} ]] || [[ ! -d ${dst_dir} ]]; then
+        fatal "get_core_zone_image(): No destination dir specified or not a directory."
+    fi
+
+    # First get it and cache it. Then we'll copy it to $dst_dir.
+    local manifest_base dst_manifest dst_file
+    if [[ -f ${target} ]]; then
+        # Existing local file. Use that.
+        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
+        #     usage but is '.dsmanifest' in the builds at this time.
+        manifest_base=$(basename $target)
+        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
+        if [[ "${target}" != "${dst_manifest}" ]]; then
+            ln ${target} ${dst_manifest}
+        fi
+        local src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
+        dst_file=${dst_dir}/$(basename $src_file)
+        ln ${src_file} ${dst_file}
+    else
+        # Not a local file, this is a pattern for 'get_bit'.
+        local bit_cache_path=$(get_bit ${target})
+        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
+        #     usage but is '.dsmanifest' in the builds at this time.
+        manifest_base=$(basename $bit_cache_path)
+        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
+        rm -f ${dst_manifest}
+        ln ${bit_cache_path} ${dst_manifest}
+        # Example of getting get_bit pattern for the image *file*:
+        #   target 'adminui/adminui-zfs.*manifest'
+        #   bit_cache_path '/.../cache/adminui-zfs-master-20130401T104924Z-g1695958.zfs.imgmanifest'
+        #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
+        # Note: We are hardcoding that sdc images use gzip compression here.
+        local file_pattern=${target%/*}/${manifest_base%.*manifest}.gz
+        bit_cache_path=$(get_bit $file_pattern)
+        dst_file=${dst_dir}/$(basename $bit_cache_path)
+        rm -f ${dst_file}
+        ln ${bit_cache_path} ${dst_file}
+        gzip -t ${dst_file} \
+            || fatal "Corrupt ${dst_file}, please remove and re-run."
+    fi
+
+    # HEAD-1507 - this should be temporary until we get proto-SAPI returning
+    # a payload for vmadm. This should allow headnode.sh:create_zone()
+    # and build_payload to handle the sdc images with less trouble until
+    # then.
+    echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
+    # PCFS, sigh.
+    echo $(basename $dst_manifest) | tr [:upper:] [:lower:] > ${STAGE}/zones/${zone}/dataset
+}
+
 function copy_zones
 {
     if [[ -n $ZONE_DIR ]]; then
@@ -1422,7 +1324,7 @@ function copy_zones
         export USAGEAPI_DIR=${ZONE_DIR}/usage_api
         export UFDS_DIR=${ZONE_DIR}/ufds
         export WORKFLOW_DIR=${ZONE_DIR}/workflow
-        export ZOOKEEPER_DIR=${ZONE_DIR}/zookeeper
+        export BINDER_DIR=${ZONE_DIR}/binder
         export VMAPI_DIR=${ZONE_DIR}/vmapi
         export DAPI_DIR=${ZONE_DIR}/dapi
         export CNAPI_DIR=${ZONE_DIR}/cnapi
@@ -1448,7 +1350,9 @@ function copy_zones
                 echo "Skipping manta tools zone - MANTA-1071"
                 continue
             fi
-            copy_sdc_image ${zone}
+            local image_pattern=$(build_spec ${zone}-image)
+            mkdir -p ${STAGE}/datasets
+            get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
         else
             local tarball_pattern=$(build_spec ${zone}-tarball)
             if [[ -n ${tarball_pattern} ]]; then

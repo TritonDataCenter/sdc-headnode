@@ -20,14 +20,15 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 #$yes | pkgin install zookeeper-server
 
 zone_uuid=$(zonename)
-zone_role="zookeeper"
+zone_role="binder"
 app_name=${zone_role}
 
 # Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/zookeeper
+mkdir -p /var/smartdc/binder
+
 mkdir -p /opt/smartdc/etc
 
-echo "Importing ZK SMF manifest."
+echo "Importing zookeeper SMF manifest."
 [[ -z $(/usr/bin/svcs -a | grep zookeeper) ]] && \
   /usr/sbin/svccfg import /opt/local/share/smf/zookeeper-server/manifest.xml
 
@@ -35,7 +36,7 @@ echo "Importing binder SMF manifest."
 [[ -z $(/usr/bin/svcs -a | grep binder) ]] && \
   /usr/sbin/svccfg import /opt/smartdc/binder/smf/manifests/binder.xml
 
-/opt/smartdc/bin/configure || fatal "Unable to complete configuration of zookeeper zone."
+/opt/smartdc/bin/configure || fatal "Unable to complete configuration of binder zone."
 
 touch /var/svc/setup_complete
 

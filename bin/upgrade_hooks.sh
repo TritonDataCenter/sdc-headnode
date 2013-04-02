@@ -635,11 +635,11 @@ napi_tasks()
     do
         local belong=""
         local z_uuid=`vmadm list -o uuid nics.0.ip=$a -H`
-        # If no zone, it must be one of the zk IPs we set aside
+        # If no zone, it must be one of the binder IPs we set aside
         if [ -n "$z_uuid" ]; then
             belong="belongs_to_uuid=\"$z_uuid\" belongs_to_type=zone"
         else
-            z_uuid="zookeeper"
+            z_uuid="binder"
         fi
 
         zlogin $1 /opt/smartdc/napi/bin/napictl ip-update $admin_uuid $a \
