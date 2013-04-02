@@ -7,8 +7,7 @@
   "agents-shar": "master",
   "sdcboot-release": "master",
 
-  "use-images": false,
-  "updates_url": "https://updates.joyent.us",
+  "use-images": true,
 
   "// *-tarball": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
   "adminui-tarball": "adminui/adminui-pkg-master-.*.tar.bz2",
