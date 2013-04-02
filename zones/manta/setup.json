@@ -1,5 +1,5 @@
 {
     "brand": "joyent-minimal",
     "networks": [ "admin" ],
-    "dependencies": [ "ufds", "sapi", "napi", "imgapi" ]
+    "dependencies": [ "cnapi", "ufds", "sapi", "napi", "imgapi" ]
 }
