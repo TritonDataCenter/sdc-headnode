@@ -72,23 +72,20 @@ LDIF=/tmp/.bootstrap.ldif
 # Update config file
 cp $LDIF_IN $LDIF
 
-ADMIN_LDIF=<<- EOD
-  dn: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
-  login: UFDS_ADMIN_LOGIN
-  uuid: UFDS_ADMIN_UUID
-  userpassword: UFDS_ADMIN_PW
-  email: UFDS_ADMIN_EMAIL
-  cn: Admin
-  sn: User
-  objectclass: sdcPerson
+if [[ -z "${IS_UPDATE}" ]]; then
+echo "
+dn: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
+login: UFDS_ADMIN_LOGIN
+uuid: UFDS_ADMIN_UUID
+userpassword: UFDS_ADMIN_PW
+email: UFDS_ADMIN_EMAIL
+cn: Admin
+sn: User
+objectclass: sdcPerson
 
-  dn: cn=operators, ou=groups, o=smartdc
-  uniquemember: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
-  objectclass: groupOfUniqueNames
-EOD
-
-if [[ -z "$IS_UPDATE" ]]; then
-  echo "$ADMIN_LDIF" >> $LDIF;
+dn: cn=operators, ou=groups, o=smartdc
+uniquemember: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
+objectclass: groupOfUniqueNames" >> $LDIF
 fi
 
 echo "Getting package information"
