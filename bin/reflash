@@ -422,7 +422,6 @@ if [[ -z \${external_provisionable_start} || -z \${external_provisionable_end} ]
 fi
 
 if [[ "\${external_provisionable_start}" == "<default>" || "\${external_provisionable_end}" == "<default>" ]]; then
-
     ip_netmask_to_network "\${external_ip}" "\${external_netmask}"
     ip_host_addr=\${host_addr}
     ip_netmask_to_network "\${external_gateway}" "\${external_netmask}"
@@ -430,7 +429,23 @@ if [[ "\${external_provisionable_start}" == "<default>" || "\${external_provisio
     # Get use_lo and use_hi values for defaults
     calc_ext_default_range \${host_addr} \${ip_host_addr}
 
-    next_addr=\$(expr \$host_addr + 5)
+    # External IPs for core zones.
+    # host_addr is the number of IPs above the subnet's start
+    # address, so convert these addresses to real (not relative)
+    # IPs:
+    next_addr=\$(expr \$net_d + \$use_lo)
+    adminui_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
+    next_addr=\$(expr \$next_addr + 1)
+    capi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
+    next_addr=\$(expr \$next_addr + 1)
+    portal_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
+    next_addr=\$(expr \$next_addr + 1)
+    billapi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
+    next_addr=\$(expr \$next_addr + 1)
+    cloudapi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
+
+    # Add 5 as a buffer (per the SDC 6.5 prompt-config.sh).
+    next_addr=\$(expr \$next_addr + 5)
     if [[ \${external_provisionable_start} == "<default>" ]]; then
         external_provisionable_start="\$net_a.\$net_b.\$net_c.\$next_addr"
     fi
@@ -482,18 +497,6 @@ dhcp_next_server="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 next_addr=\$(expr \$next_addr + 5)
 dhcp_range_start="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 dhcp_range_end="\$max_host"
-
-ip_netmask_to_network "\$external_provisionable_start" "\$external_netmask"
-next_addr=\$host_addr
-adminui_external_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-capi_external_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-portal_external_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-billapi_external_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-cloudapi_external_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 
 cat > /var/tmp/config.flashing <<EOF
 
@@ -636,6 +639,7 @@ EOF
 
 EOF65
 fi
+
 
 ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
