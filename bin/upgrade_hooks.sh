@@ -551,16 +551,6 @@ ufds_tasks()
     ufds_ip=`vmadm list -o nics.0.ip -H uuid=$1`
     client_url="ldaps://${ufds_ip}"
 
-    # Delete the newly created admin user since we'll have a dup when we
-    # reload from the dump
-    zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapdelete \
-        -H ${client_url} \
-        -D ${CONFIG_ufds_ldap_root_dn} \
-        -w ${CONFIG_ufds_ldap_root_pw} \
-        "uuid=${CONFIG_ufds_admin_uuid},ou=users,o=smartdc" 1>&4 2>&1
-    [ $? != 0 ] && \
-        saw_err "Error loading CAPI data into UFDS - deleting admin user"
-
     cp ${SDC_UPGRADE_DIR}/capi_dump/ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
         -H ${client_url} \

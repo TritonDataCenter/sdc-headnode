@@ -581,6 +581,8 @@ function create_zone {
                 echo "${var}='${!var}'"
             done
         ) > ${dir}/zoneconfig
+
+        [[ $upgrading == 1 ]] && echo "IS_UPDATE=1" >>${dir}/zoneconfig
     fi
 
     dtrace_pid=
