@@ -524,7 +524,7 @@ function create_zone {
         # imgadm exits non-zero when the dataset is already imported, we need to
         # work around that.
         if [[ ! -d /zones/${ds_uuid} ]]; then
-            printf_log "%-58s" "importing SMI: ${ds_name}"
+            printf_log "%-58s" "importing: $(echo ${ds_name} | cut -d'.' -f1) "
             imgadm install -m ${ds_manifest} -f ${ds_filename}
             printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
