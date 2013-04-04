@@ -73,7 +73,7 @@ LDIF=/tmp/.bootstrap.ldif
 cp $LDIF_IN $LDIF
 
 if [[ -z "${IS_UPDATE}" ]]; then
-echo "
+    echo "
 dn: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
 login: UFDS_ADMIN_LOGIN
 uuid: UFDS_ADMIN_UUID
@@ -85,6 +85,10 @@ objectclass: sdcPerson
 
 dn: cn=operators, ou=groups, o=smartdc
 uniquemember: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
+objectclass: groupOfUniqueNames" >> $LDIF
+else
+    echo "
+dn: cn=operators, ou=groups, o=smartdc
 objectclass: groupOfUniqueNames" >> $LDIF
 fi
 
