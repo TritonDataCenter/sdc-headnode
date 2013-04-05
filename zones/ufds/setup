@@ -81,16 +81,14 @@ userpassword: UFDS_ADMIN_PW
 email: UFDS_ADMIN_EMAIL
 cn: Admin
 sn: User
-objectclass: sdcPerson
+objectclass: sdcPerson" >> $LDIF
+fi
 
+echo "
 dn: cn=operators, ou=groups, o=smartdc
 uniquemember: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
 objectclass: groupOfUniqueNames" >> $LDIF
-else
-    echo "
-dn: cn=operators, ou=groups, o=smartdc
-objectclass: groupOfUniqueNames" >> $LDIF
-fi
+
 
 echo "Getting package information"
 packages=$(/usr/sbin/mdata-get packages)
