@@ -384,10 +384,18 @@ function generate_grub_menu
 
 function copy_base
 {
-    local branch=$(build_spec sdcboot-release)
-    [[ -z ${branch} ]] && branch="master"
-    local sdcboot_path=$(get_bit sdcboot/sdcboot-${branch}-.*\.tgz)
-    local platboot_path=$(get_bit platform/boot-${branch}-.*\.tgz)
+    local sbbranch=$(build_spec sdcboot-release)
+    local platbranch=$(build_spec sdcboot-release)
+    local ftbranch=$(build_spec firmware-tools-release)
+
+    [[ -z ${sbbranch} ]] && sbbranch="master"
+    [[ -z ${platbranch} ]] && platbranch="master"
+    [[ -z ${ftbranch} ]] && ftbranch="master"
+
+    local sdcboot_path=$(get_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
+    local platboot_path=$(get_bit platform/boot-${platbranch}-.*\.tgz)
+    local firmware_path=$(get_bit \
+	firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
@@ -412,6 +420,9 @@ function copy_base
 
     echo "==> Extracting sdcboot bundle"
     (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})
+
+    echo "==> Extracting firmware bundle"
+    (cd ${STAGE} && ${TAR} xzf ${firmware_path})
 }
 
 function copy_config {

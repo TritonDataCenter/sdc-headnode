@@ -6,6 +6,7 @@
   "platform-release": "master",
   "agents-shar": "master",
   "sdcboot-release": "master",
+  "firmware-tools-release": "master",
 
   "use-images": true,
 

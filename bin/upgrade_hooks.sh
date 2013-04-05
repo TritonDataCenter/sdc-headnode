@@ -394,7 +394,8 @@ post_tasks()
     fi
 
     mkdir -p /usbkey/extra/usbkey
-    (cd /usbkey; tar cbfE 512 /usbkey/extra/usbkey/upgrade.tar boot dos)
+    (cd /usbkey; tar cbfE 512 /usbkey/extra/usbkey/upgrade.tar \
+	boot dos firmware)
     gzip /usbkey/extra/usbkey/upgrade.tar
     mv /usbkey/extra/usbkey/upgrade.tar.gz /usbkey/extra/usbkey/cnkey.tgz
 
