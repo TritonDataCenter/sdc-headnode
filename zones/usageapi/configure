@@ -76,8 +76,8 @@ ln -s /$DATASET/pgsql /var/pgsql
 
 # Import postgres manifest straight from the pkgsrc file:
 echo "Importing posgtresql service"
-/usr/sbin/svccfg import /opt/local/share/smf/manifest/postgresql:pg91.xml
-/usr/sbin/svcadm enable -s postgresql:pg91
+/usr/sbin/svccfg import /opt/local/share/smf/postgresql91-server/manifest.xml
+/usr/sbin/svcadm enable -s postgresql
 
 # We're gonna have a PostgreSQL/moray/manta zone, this is temporary here:
 # Wait till Postgres is up and accepting connections.

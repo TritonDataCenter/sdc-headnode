@@ -707,11 +707,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone ca
     create_zone adminui
     create_zone keyapi
-    if [[ -f $(ls -1 ${USB_COPY}/datasets/usageapi*.zfs.gz | head -1) ]]; then
-        echo "HEAD-1520 can't setup usageapi/postgres under image regime yet"
-    else
-        create_zone usageapi
-    fi
+    create_zone usageapi
 fi
 
 update_setup_state "sdczones_created"
