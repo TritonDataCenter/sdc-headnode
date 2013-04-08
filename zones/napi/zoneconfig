@@ -17,5 +17,6 @@ EXTERNAL_START_IP=${external_provisionable_start}
 EXTERNAL_END_IP=${external_provisionable_end}
 EXTERNAL_VLAN_ID=${external_vlan_id}
 
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
 MORAY_ADMIN_IPS=${moray_admin_ips}
 DATACENTER_NAME=${datacenter_name}

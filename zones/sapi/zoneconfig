@@ -7,6 +7,7 @@ UFDS_ADMIN_IPS=${ufds_admin_ips}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
 
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
 UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
 

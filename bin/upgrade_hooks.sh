@@ -328,7 +328,7 @@ add_ext_net()
     if [ -z "$ext_ip" ]; then
         ext_ip=`sdc-login napi /opt/smartdc/napi/bin/napictl nic-provision \
             ${ext_uuid} \
-            owner_uuid=00000000-0000-0000-0000-000000000000 \
+            owner_uuid=${CONFIG_ufds_admin_uuid} \
             belongs_to_uuid=${role_uuid} \
             belongs_to_type=zone | \
             json ip`
@@ -364,7 +364,7 @@ add_ext_net()
 
     # Reserve the external IP for the zone
     sdc-login napi /opt/smartdc/napi/bin/napictl ip-update $ext_uuid $ext_ip \
-	owner_uuid="00000000-0000-0000-0000-000000000000" \
+	owner_uuid="${CONFIG_ufds_admin_uuid}" \
 	belongs_to_uuid=\"$role_uuid\" belongs_to_type=zone \
 	reserved=true  1>&4 2>&1
 	[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
@@ -619,9 +619,9 @@ napi_tasks()
         saw_err "Error loading NAPI data into moray"
 
     # reserve the IP addrs we stole out of the dhcp range for the new zones
-    local admin_uuid=`zlogin $1 /opt/smartdc/napi/bin/napictl network-list | \
+    local admin_net_uuid=`zlogin $1 /opt/smartdc/napi/bin/napictl network-list | \
         json -a name uuid | nawk '{if ($1 == "admin") print $2}'`
-    if [ -z "$admin_uuid" ]; then
+    if [ -z "$admin_net_uuid" ]; then
         saw_err "Error, missing uuid for admin network"
         return
     fi
@@ -637,8 +637,8 @@ napi_tasks()
             z_uuid="binder"
         fi
 
-        zlogin $1 /opt/smartdc/napi/bin/napictl ip-update $admin_uuid $a \
-            owner_uuid="00000000-0000-0000-0000-000000000000" \
+        zlogin $1 /opt/smartdc/napi/bin/napictl ip-update $admin_net_uuid $a \
+            owner_uuid="${CONFIG_ufds_admin_uuid}" \
 	    $belong reserved=true 1>&4 2>&1
         [ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
     done
@@ -689,7 +689,7 @@ fwapi_tasks()
     netmask_to_cidr $CONFIG_admin_netmask
     cat <<-FW_DONE >/zones/$fwapi_uuid/root/root/fwrules.json
 	{ "enabled": true,
-	  "owner_uuid": "00000000-0000-0000-0000-000000000000",
+	  "owner_uuid": "${CONFIG_ufds_admin_uuid}",
 	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR $ips) TO vm $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
 	}
 	FW_DONE

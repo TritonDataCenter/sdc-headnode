@@ -20,6 +20,7 @@ cat > /opt/smartdc/booter/config.json <<CONFIG
     "username": "${CNAPI_USER}",
     "password": "${CNAPI_PW}"
   },
+  "adminUuid": "${UFDS_ADMIN_UUID}",
   "listenIp": "0.0.0.0",
   "port": 67,
   "tftpRoot": "/tftpboot",

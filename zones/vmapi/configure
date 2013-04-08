@@ -35,7 +35,7 @@ gsed -i -e "s|NAPI_HTTP_ADMIN_USER|$NAPI_HTTP_ADMIN_USER|" $CFG_FILE
 gsed -i -e "s|NAPI_HTTP_ADMIN_PW|$NAPI_HTTP_ADMIN_PW|" $CFG_FILE
 gsed -i -e "s|VMAPI_LDAP_ROOT_DN|$VMAPI_LDAP_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|VMAPI_LDAP_ROOT_PW|$VMAPI_LDAP_ROOT_PW|" $CFG_FILE
-
+gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $CFG_FILE
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/vmapi/g" /opt/smartdc/vmapi/smf/manifests/vmapi.xml)

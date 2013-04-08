@@ -39,6 +39,7 @@ cat > ${CONF} <<ADMIN_CONFIG
     "host": "$MORAY_HOST",
     "port": 2020
   },
+  "ufdsAdminUuid": "${UFDS_ADMIN_UUID}",
   "initialNetworks": {
     "admin": {
       "vlan": 0,

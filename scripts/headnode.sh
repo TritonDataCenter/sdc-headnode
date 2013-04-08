@@ -160,13 +160,13 @@ set_default_fw_rules() {
   {
     "description": "SDC zones: allow all UDP from admin net",
     "rule": "FROM subnet ${admin_cidr} TO tag smartdc_role ALLOW udp PORT all",
-    "owner_uuid": "00000000-0000-0000-0000-000000000000",
+    "owner_uuid": "${CONFIG_ufds_admin_uuid}",
     "enabled": true
   },
   {
     "description": "SDC zones: allow all TCP from admin net",
     "rule": "FROM subnet ${admin_cidr} TO tag smartdc_role ALLOW tcp PORT all",
-    "owner_uuid": "00000000-0000-0000-0000-000000000000",
+    "owner_uuid": "${CONFIG_ufds_admin_uuid}",
     "enabled": true
   }
   ]
@@ -822,7 +822,7 @@ if [[ -n ${CREATEDZONES} ]]; then
         printf_log "%-58s" "importing instance token developer key..."
 
         cat << EOF >> /tmp/admin_dev.ldif
-dn: uuid=00000000-0000-0000-0000-000000000000, ou=users, o=smartdc
+dn: uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc
 changetype: modify
 replace: registered_developer
 registered_developer: true
@@ -831,7 +831,7 @@ EOF
         fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | cut -f 2 -d ' ')
 
         cat << EOF >> /tmp/admin_key.ldif
-dn: fingerprint=${fingerprint}, uuid=00000000-0000-0000-0000-000000000000, ou=users, o=smartdc
+dn: fingerprint=${fingerprint}, uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc
 changetype: add
 name: id_rsa
 fingerprint: ${fingerprint}

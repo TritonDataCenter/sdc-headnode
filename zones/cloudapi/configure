@@ -49,6 +49,7 @@ gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $CFG_FILE
 gsed -i -e "s|ldaps://127.0.0.1|ldaps://${UFDS_HOST}|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
 gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
+gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $CFG_FILE
 gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
 gsed -i -e "s|WFAPI_URL|$WORKFLOW_URL|" $CFG_FILE
 gsed -i -e "s|USAGEAPI_URL|$USAGEAPI_URL|" $CFG_FILE

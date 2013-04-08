@@ -11,3 +11,5 @@ NAPI_URL=${napi_client_url}
 CNAPI_USER=${cnapi_http_admin_user}
 CNAPI_PW=${cnapi_http_admin_pw}
 CNAPI_URL=${cnapi_client_url}
+
+UFDS_ADMIN_UUID=${ufds_admin_uuid}

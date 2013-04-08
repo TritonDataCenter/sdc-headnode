@@ -221,7 +221,7 @@ function dump_capi
     [ $rmpass == 1 ] && rm -f $passfile
 
     echo "Transforming CAPI postgres dumps to LDIF"
-    $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump $CONFIG_capi_admin_uuid \
+    $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump \
         > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif \
         2>$SDC_UPGRADE_DIR/capi_conversion_issues.txt
     [ $? != 0 ] && fatal "transforming the CAPI dumps"
@@ -240,8 +240,6 @@ function dump_mapi_live
     echo "Transforming MAPI datasets to IMGAPI manifest format"
     DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
         var fs = require("fs");
-        var OLD_ADMIN_UUID = process.env.CONFIG_capi_admin_uuid;
-        var NEW_ADMIN_UUID = "00000000-0000-0000-0000-000000000000";
         var dumpDir = process.env.DUMP_DIR;
         var d = JSON.parse(fs.readFileSync(dumpDir + "/datasets.json"));
         d.forEach(function (image) {
@@ -264,12 +262,6 @@ function dump_mapi_live
             if (!image.nic_driver) delete image.nic_driver;
             if (!image.disk_driver) delete image.disk_driver;
             if (!image.image_size) delete image.image_size;
-
-            // Possible admin UUID change.
-            if (image.creator_uuid === OLD_ADMIN_UUID)
-                image.creator_uuid = NEW_ADMIN_UUID;
-            if (image.restricted_to_uuid === OLD_ADMIN_UUID)
-                image.restricted_to_uuid = NEW_ADMIN_UUID;
 
             // Default is true and MAPI did not bother with the
             // null-as-default subtlety.
@@ -360,7 +352,9 @@ function dump_mapi
     [ $? != 0 ] && fatal "transforming the MAPI dumps to LDIF"
 
     echo "Transforming MAPI postgres dumps to moray"
-    $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name \
+    $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump \
+        $CONFIG_datacenter_name \
+        $CONFIG_capi_admin_uuid \
         > $SDC_UPGRADE_DIR/mapi2moray.out 2>&1
     [ $? != 0 ] && fatal "transforming the MAPI dumps to moray"
 }
@@ -386,7 +380,10 @@ function dump_mapi_netinfo
 
     ulimit -Sn 8192
 
-    $ROOT/mapi2moray /tmp/mapi_dump $CONFIG_datacenter_name >/dev/null 2>&1
+    $ROOT/mapi2moray /tmp/mapi_dump \
+        $CONFIG_datacenter_name \
+        $CONFIG_capi_admin_uuid \
+        > /tmp/mapi2moray-netinfo.out 2>&1
     [ $? != 0 ] && fatal "transforming the MAPI net dumps to moray"
 
     for i in `
@@ -976,7 +973,7 @@ function cleanup_config
 	ufds_svcname=ufds.$CONFIG_dns_domain
 	ufds_external_ips=$ufds_external_ip
 	$ufds_ext_vlan
-	ufds_admin_uuid=00000000-0000-0000-0000-000000000000
+	ufds_admin_uuid=$CONFIG_capi_admin_uuid
 	ufds_ldap_root_dn=cn=root
 	ufds_ldap_root_pw=secret
 	# Legacy CAPI parameters

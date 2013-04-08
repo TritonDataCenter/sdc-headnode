@@ -31,6 +31,7 @@ cat > /opt/smartdc/sapi/etc/config.json <<HERE
   },
   "mode": "proto",
   "datacenter_name": "$DATACENTER_NAME",
+  "adminUuid": "$UFDS_ADMIN_UUID",
   "moray": {
     "host": "$MORAY_HOST",
     "port": 2020

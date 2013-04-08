@@ -6,6 +6,7 @@ UFDS_ADMIN_IPS=${ufds_admin_ips}
 UFDS_ADMIN_LOGIN=${ufds_admin_login}
 UFDS_ROOT_DN=${ufds_ldap_root_dn}
 UFDS_ROOT_PW=${ufds_ldap_root_pw}
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
 
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
 USAGEAPI_ADMIN_IPS=${usageapi_admin_ips}

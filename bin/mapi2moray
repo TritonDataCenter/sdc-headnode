@@ -12,7 +12,8 @@ var util = require('util');
 
 ///--- Globals
 
-var ADMIN_UUID = '00000000-0000-0000-0000-000000000000';
+var directory, datacenter, admin_uuid;  // set in `process_argv()`.
+
 var NICS_READ = 0;
 var NICS_WRITTEN = 0;
 
@@ -56,15 +57,15 @@ function usage(msg, code) {
         console.error(msg);
     }
 
-
-    console.error('%s <directory> <dcname>', path.basename(process.argv[1]));
+    console.error('%s <directory> <dc-name> <admin-uuid>',
+        path.basename(process.argv[1]));
     process.exit(code || 0);
 }
 
 
 
 function process_argv() {
-    if (process.argv.length < 4) {
+    if (process.argv.length !== 5) {
         usage(null, 1);
     }
 
@@ -79,6 +80,7 @@ function process_argv() {
 
     directory = process.argv[2];
     datacenter = process.argv[3];
+    admin_uuid = process.argv[4];
 }
 
 
@@ -179,12 +181,12 @@ function get_addressable(id, type) {
     case 'Server':
         belongs_to.type = 'server';
         belongs_to.uuid = SERVERS[id];
-        belongs_to.owner_uuid = ADMIN_UUID;
+        belongs_to.owner_uuid = admin_uuid;
         break;
     case 'Nic':
         belongs_to.type = 'other';
-        belongs_to.uuid = ADMIN_UUID;
-        belongs_to.owner_uuid = ADMIN_UUID;
+        belongs_to.uuid = admin_uuid;
+        belongs_to.owner_uuid = admin_uuid;
         break;
     default:
         belongs_to = null;

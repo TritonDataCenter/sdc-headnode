@@ -24,8 +24,6 @@ function err_and_exit() {
   process.exit(1);
 }
 
-// The admin UUID is stored in the config file.
-// Pass in the admin uuid as an argument.
 function usage(msg, code) {
   if (typeof(msg) === 'string')
     console.error(msg);
@@ -36,7 +34,7 @@ function usage(msg, code) {
 
 
 function process_argv() {
-  if (process.argv.length < 4)
+  if (process.argv.length < 3)
     usage(null, 1);
 
   try {
@@ -48,7 +46,6 @@ function process_argv() {
   }
 
   directory = process.argv[2];
-  admin_uuid = process.argv[3];
 }
 
 
@@ -81,12 +78,7 @@ function transform_customers(file, callback) {
          return;
       }
 
-      if (pieces[5] === admin_uuid) {
-        uuid = '00000000-0000-0000-0000-000000000000';
-      } else {
-        uuid = pieces[5];
-      }
-
+      var uuid = pieces[5];
       CustomerIdMap[pieces[4]] = uuid;
 
       // duplicate uuids is a fatal error
