@@ -634,7 +634,7 @@ function cleanup_bit
         echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
 
         local bit=
-        for bit in $(ls -1 ${bits_dir} | grep "${bits_pattern}" | sort -r); do
+        for bit in $(ls -1t ${bits_dir} | grep "${bits_pattern}"); do
             if [[ ${kept} -lt ${keep_bits} ]]; then
                 echo "KEEPING: ${bit}" >&2
                 kept=$((${kept} + 1))
