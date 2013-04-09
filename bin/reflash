@@ -84,8 +84,10 @@ add_bits_creds()
 {
     bits_url=$1
 
-    if [[ ${bits_url:0:23} == "https://stuff.joyent.us" ]]; then
-        echo "Adding auth to bits url from '~/.sdcbuild.json'." >&2
+    local hostname=$(echo $bits_url | cut -f3 -d "/" | cut -f1 -d ":")
+    if [[ "$hostname" == "stuff.joyent.us"
+       || "$hostname" == "bits.joyent.us" ]]; then
+        echo "Adding auth to bits/stuff url from '~/.sdcbuild.json'." >&2
         if [[ ! -f "${HOME}/.sdcbuild.json" ]]; then
             echo "error: '~/.sdcbuild.json' does not exist" >&2
             exit 1
@@ -652,8 +654,8 @@ echo "Enabling DNS..."
 sed -i "" "s/^hosts:.*/hosts:      files mdns dns/" /etc/nsswitch.conf
 
 # XXX this is a hack to figure out if we're in the bh1 lab (assume we are if
-# the IP is 10.2.X.X) so that we can switch the stuff url to an IP because the
-# URL doesn't work in the lab.
+# the IP is 10.2.X.X) so that we can switch the stuff/bits url to an IP
+# because the URL doesn't work in the lab.
 URL="${URL}"
 if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
     | cut -d "'" -f2 | grep 10\.2\. | wc -l | tr -d ' ') -gt 0 ]]; then
@@ -661,6 +663,7 @@ if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
     # assume we're in the lab
     echo "Running in BH1, fixing URL..."
     URL=\$(echo "\${URL}" | sed -e "s/stuff.joyent.us/10.2.0.190/")
+    URL=\$(echo "\${URL}" | sed -e "s/bits.joyent.us/10.2.172.96/")
 fi
 
 # Make sure we've got our file

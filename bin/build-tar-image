@@ -131,7 +131,7 @@ fi
 # build will get its dependent pre-built bits.
 #
 # "BITS_URL" can either be a URL directory, e.g.
-# "https://stuff.joyent.us/stuff/builds", or a local
+# "https://bits.joyent.us/builds", or a local
 # directory. If an existing local dir, then "BITS_DIR" will be set to that
 # for the build code below.
 #
@@ -157,7 +157,7 @@ fi
 # This is the build structure created by the SDC "mountain-gorilla" build
 # system that is being run by Jenkins CI
 # (https://hub.joyent.com/wiki/display/dev/Jenkins) and uploaded
-# to <https://stuff.joyent.us/stuff/builds>.
+# to <https://bits.joyent.us/builds>.
 #
 # As well, if BITS_URL is a URL, then BITS_BRANCH must also be specified.
 #
@@ -182,7 +182,7 @@ if [[ -z "$BITS_URL" ]]; then
     BITS_URL=$(build_spec bits-url)
     if [[ ! -f ~/.sdcbuild.json ]]; then
       (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o \
-        BatchMode=yes stuff@stuff.joyent.us:.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
+        BatchMode=yes bits@bits.joyent.us:etc/.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
     fi
     if [[ -f ~/.sdcbuild.json ]]; then
       username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
@@ -667,10 +667,11 @@ function get_bit
         local file_name=$(basename $url)
         local cache_path=${ROOT}/cache/${file_name}
         local hostname=$(echo $url | cut -f3 -d "/" | cut -f1 -d ":")
-        if [[ "$hostname" == "stuff.joyent.us" ]]; then
-            echo "Adding auth info for stuff.joyent.us in bit URL." >&2
+        if [[ "$hostname" == "stuff.joyent.us"
+           || "$hostname" == "bits.joyent.us" ]]; then
+            echo "Adding auth info for {bits,stuff}.joyent.us in bit URL." >&2
             if [[ ! -f "$HOME/.sdcbuild.json" ]]; then
-                fatal "No '$HOME/.sdcbuild.json' with stuff.joyent.us auth info."
+                fatal "No '$HOME/.sdcbuild.json' with {bits,stuff}.joyent.us auth info."
             fi
             local username=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json username)
             local password=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json password)
@@ -711,9 +712,9 @@ function get_bit
         cleanup_bit "${pattern_base}"
     elif [[ ${HAVE_INTERNET} == "true" ]]; then
         # BITS_URL URL example:
-        #   https://user:pass@stuff.joyent.us/stuff/builds
+        #   https://user:pass@bits.joyent.us/builds
         # where pattern='agentsshar/agents-master-*' is at:
-        #   https://user:pass@stuff.joyent.us/stuff/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
+        #   https://user:pass@bits.joyent.us/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
         # where the "master" in "master-latest" is "BITS_BRANCH"
         # (or $branch_override).
         local branch=${BITS_BRANCH}
@@ -1056,7 +1057,7 @@ function copy_dataset
 #       it to cache/ca.tar.bz2 (where that "ca" is the basename of
 #       "zones/ca").
 #
-#   get_fs_tarball 'https://stuff.joyent.us/stuff/builds/workflow/release-20120809-20120809T173325Z/workflow/workflow-pkg-release-20120809-20120809T173325Z-gea41bc8.tar.bz2' cache/stage/zones/workflow
+#   get_fs_tarball 'https://bits.joyent.us/builds/workflow/release-20120809-20120809T173325Z/workflow/workflow-pkg-release-20120809-20120809T173325Z-gea41bc8.tar.bz2' cache/stage/zones/workflow
 #       Here we download the given URL, cache it to "cache/$basename" and
 #       copy it to the DST-DIR.
 #
@@ -1111,7 +1112,7 @@ function get_fs_tarball
 # where:
 # - "TARGET" is either a full path to an existing image manifest file
 #   or (more typically) a pattern used by the "get_bit" function for getting
-#   a manifest file from the MG builds area on stuff.joyent.us.
+#   a manifest file from the MG builds area on bits.joyent.us.
 #
 # Examples:
 #   get_core_zone_image admin "adminui/adminui-zfs-.*manifest" \
