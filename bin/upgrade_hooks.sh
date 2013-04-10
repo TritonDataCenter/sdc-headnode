@@ -476,7 +476,7 @@ post_tasks()
     [ -s $dname/capi_conversion_issues.txt ] && \
         print_log "- Review CAPI issues in capi_conversion_issues.txt"
 
-    if [[ $CONFIG_ufds_is_local == "true" ]]; then
+    if [[ $CONFIG_ufds_is_master == "true" ]]; then
         print_log "- If remote sites were accessing CAPI and you did not" \
                   "list all of the remote"
         print_log "  IP addresses in the capi_access file, then you must" \
@@ -527,7 +527,7 @@ ufds_tasks()
     # load config to pick up settings for newly created ufds zone
     load_sdc_config
 
-    if [[ $CONFIG_ufds_is_local != "true" ]]; then
+    if [[ $CONFIG_ufds_is_master != "true" ]]; then
 	local zpath=/zones/$1/root/opt/smartdc/ufds
 
         sed -e "s/REMOTE_UFDS_IP/$CONFIG_ufds_remote_ip/" \

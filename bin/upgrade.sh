@@ -968,7 +968,7 @@ function cleanup_config
 	show_setup_timers=true
 	serialize_setup=true
 
-	ufds_is_local=$CONFIG_capi_is_local
+	ufds_is_master=$CONFIG_capi_is_local
 	ufds_admin_ips=$ufds_admin_ip
 	ufds_svcname=ufds.$CONFIG_dns_domain
 	ufds_external_ips=$ufds_external_ip
