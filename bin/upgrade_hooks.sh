@@ -531,7 +531,7 @@ ufds_tasks()
 	local zpath=/zones/$1/root/opt/smartdc/ufds
 
         sed -e "s/REMOTE_UFDS_IP/$CONFIG_ufds_remote_ip/" \
-            -e "s/REMOTE_QUERY/\/ou=users, o=smartdc??sub?/" \
+            -e "s/REMOTE_QUERY/\/ou=users,o=smartdc??sub?(\&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))/" \
             -e "s/REMOTE_ROOT_DN/$CONFIG_ufds_ldap_root_dn/" \
             -e "s/REMOTE_ROOT_PW/$CONFIG_ufds_ldap_root_pw/" \
             -I .bak $zpath/etc/replicator.json.in
