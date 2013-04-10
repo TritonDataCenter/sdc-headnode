@@ -1,6 +1,6 @@
 {
   "build-tgz": "true",
-  "bits-url": "https://bits.joyent.us/builds",
+  "bits-url": "https://stuff.joyent.us/stuff/builds",
   "bits-url-open": "http://stuff:kie7Ooph@stuff.smartdatacenter.org",
   "bits-branch": "master",
   "platform-release": "master",
