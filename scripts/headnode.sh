@@ -821,13 +821,6 @@ if [[ -n ${CREATEDZONES} ]]; then
             | tr -d ' ') == '' ]]; then
         printf_log "%-58s" "importing instance token developer key..."
 
-        cat << EOF >> /tmp/admin_dev.ldif
-dn: uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc
-changetype: modify
-replace: registered_developer
-registered_developer: true
-EOF
-
         fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | cut -f 2 -d ' ')
 
         cat << EOF >> /tmp/admin_key.ldif
@@ -839,9 +832,7 @@ openssh: $(cat /var/ssh/ssh_host_rsa_key.pub)
 objectclass: sdckey
 EOF
         /opt/smartdc/bin/sdc-ldap add < /tmp/admin_key.ldif
-        /opt/smartdc/bin/sdc-ldap modify < /tmp/admin_dev.ldif
         rm /tmp/admin_key.ldif
-        rm /tmp/admin_dev.ldif
         printf_timer "done (%ss)\n" >&${CONSOLE_FD}
     fi
 
