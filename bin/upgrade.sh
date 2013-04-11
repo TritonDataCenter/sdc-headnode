@@ -1119,12 +1119,11 @@ function install_platform
         rm -rf ${usbmnt}/os/*
 
 	echo "Unpacking ${platformversion} to ${usbmnt}/os"
-	curl -k file://${platformupdate} | \
-	    (mkdir -p ${usbmnt}/os/${platformversion} \
-	    && cd ${usbmnt}/os/${platformversion} \
-	    && gunzip | tar -xf - 2>/tmp/install_platform.log \
-	    && mv platform-* platform
-	    )
+	(mkdir -p ${usbmnt}/os/${platformversion} \
+	 && cd ${usbmnt}/os/${platformversion} \
+	 && gzcat ${platformupdate} | tar -xf - 2>/tmp/install_platform.log \
+	 && mv platform-* platform
+	)
 	[ $? != 0 ] && \
 	    fatal_rb "unable to install the new platform onto the USB key"
 
