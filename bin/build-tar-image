@@ -182,7 +182,7 @@ if [[ -z "$BITS_URL" ]]; then
     BITS_URL=$(build_spec bits-url)
     if [[ ! -f ~/.sdcbuild.json ]]; then
       (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o \
-        BatchMode=yes bits@bits.joyent.us:etc/.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
+        BatchMode=yes stuff@stuff.joyent.us:builds-etc/.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
     fi
     if [[ -f ~/.sdcbuild.json ]]; then
       username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
