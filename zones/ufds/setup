@@ -86,7 +86,13 @@ objectclass: sdcPerson
 
 dn: cn=operators, ou=groups, o=smartdc
 uniquemember: uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
-objectclass: groupOfUniqueNames" >> $LDIF
+objectclass: groupOfUniqueNames
+
+dn: fingerprint=UFDS_ADMIN_KEY_FINGERPRINT, uuid=UFDS_ADMIN_UUID, ou=users, o=smartdc
+name: id_rsa
+fingerprint: UFDS_ADMIN_KEY_FINGERPRINT
+openssh: UFDS_ADMIN_KEY_OPENSSH
+objectclass: sdckey" >> $LDIF
 else
     echo "
 dn: cn=operators, ou=groups, o=smartdc
@@ -136,6 +142,8 @@ gsed -i -e "s|UFDS_ADMIN_EMAIL|$UFDS_ADMIN_EMAIL|" $LDIF
 gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $LDIF
 gsed -i -e "s|DATECENTER_COMPANY_NAME|$DATACENTER_COMPANY_NAME|" $LDIF
 gsed -i -e "s|DATACENTER_LOCATION|$DATACENTER_LOCATION|" $LDIF
+gsed -i -e "s|UFDS_ADMIN_KEY_FINGERPRINT|$UFDS_ADMIN_KEY_FINGERPRINT|" $LDIF
+gsed -i -e "s|UFDS_ADMIN_KEY_OPENSSH|$UFDS_ADMIN_KEY_OPENSSH|" $LDIF
 
 LDAPTLS_REQCERT=allow ldapadd -H ldaps://${UFDS_ADMIN_IP} -x \
     -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW} \

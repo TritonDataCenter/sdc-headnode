@@ -583,6 +583,15 @@ function create_zone {
         ) > ${dir}/zoneconfig
 
         [[ $upgrading == 1 ]] && echo "IS_UPDATE=1" >>${dir}/zoneconfig
+
+        if [[ "$zone" == "ufds" ]]; then
+            local fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | \
+                cut -f 2 -d ' ')
+            local openssh=$(cat /var/ssh/ssh_host_rsa_key.pub)
+
+            echo "UFDS_ADMIN_KEY_FINGERPRINT=$fingerprint" >>${dir}/zoneconfig
+            echo "UFDS_ADMIN_KEY_OPENSSH=$openssh" >>${dir}/zoneconfig
+        fi
     fi
 
     dtrace_pid=
@@ -814,26 +823,6 @@ if [[ -n ${CREATEDZONES} ]]; then
             # alternate formatting when restoring (sdc-restore)
             printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
         fi
-    fi
-
-    if [[ $(/opt/smartdc/bin/sdc-ldap search login=admin \
-            | grep registered_developer \
-            | tr -d ' ') == '' ]]; then
-        printf_log "%-58s" "importing instance token developer key..."
-
-        fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | cut -f 2 -d ' ')
-
-        cat << EOF >> /tmp/admin_key.ldif
-dn: fingerprint=${fingerprint}, uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc
-changetype: add
-name: id_rsa
-fingerprint: ${fingerprint}
-openssh: $(cat /var/ssh/ssh_host_rsa_key.pub)
-objectclass: sdckey
-EOF
-        /opt/smartdc/bin/sdc-ldap add < /tmp/admin_key.ldif
-        rm /tmp/admin_key.ldif
-        printf_timer "done (%ss)\n" >&${CONSOLE_FD}
     fi
 
     # Run a post-install script. This feature is not formally supported in SDC

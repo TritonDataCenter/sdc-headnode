@@ -28,13 +28,13 @@ function usage(msg, code) {
   if (typeof(msg) === 'string')
     console.error(msg);
 
-  console.error('%s <directory>', path.basename(process.argv[1]));
+  console.error('%s <directory> <admin uuid>', path.basename(process.argv[1]));
   process.exit(code || 0);
 }
 
 
 function process_argv() {
-  if (process.argv.length < 3)
+  if (process.argv.length < 4)
     usage(null, 1);
 
   try {
@@ -46,6 +46,7 @@ function process_argv() {
   }
 
   directory = process.argv[2];
+  admin_uuid = process.argv[3];
 }
 
 
@@ -115,6 +116,8 @@ function transform_customers(file, callback) {
         _salt: pieces[1]
       };
 
+      if (uuid === admin_uuid)
+         customer.registered_developer = true;
       if (pieces[7] !== '\\N')
         customer.company = pieces[7];
       if (pieces[8] !== '\\N')

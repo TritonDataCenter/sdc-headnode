@@ -221,7 +221,7 @@ function dump_capi
     [ $rmpass == 1 ] && rm -f $passfile
 
     echo "Transforming CAPI postgres dumps to LDIF"
-    $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump \
+    $ROOT/capi2ldif.sh $SDC_UPGRADE_DIR/capi_dump $CONFIG_capi_admin_uuid \
         > $SDC_UPGRADE_DIR/capi_dump/ufds.ldif \
         2>$SDC_UPGRADE_DIR/capi_conversion_issues.txt
     [ $? != 0 ] && fatal "transforming the CAPI dumps"
