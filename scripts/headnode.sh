@@ -673,6 +673,10 @@ function create_zone {
         printf_timer "%4s (%ss)\n" "done"
     fi
 
+    # Success, set created_${zone}=1 in case there are other things we want
+    # to do only when we created this thing.
+    eval "created_${zone}=1"
+
     return 0
 }
 
@@ -722,7 +726,7 @@ fi
 update_setup_state "sdczones_created"
 
 
-
+# Import dataset images into IMGAPI
 function import_datasets {
     for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
         local uuid=$(cat ${manifest} | json uuid)
@@ -750,7 +754,9 @@ function import_datasets {
 
 
 # Import bootstrapped core images into IMGAPI.
-import_datasets
+if [[ ${created_imgapi} == 1 ]]; then
+    import_datasets
+fi
 
 
 
@@ -858,7 +864,7 @@ if [[ $upgrading == 1 ]]; then
     # the equivalent of 'mark_as_setup' when it is done.
 else
     mark_as_setup
-    rm /tmp/.ur-startup
+    rm -f /tmp/.ur-startup
     svcadm restart ur
 fi
 
