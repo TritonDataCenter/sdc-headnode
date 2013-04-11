@@ -534,10 +534,7 @@ ufds_tasks()
             -e "s/REMOTE_QUERY/\/ou=users,o=smartdc??sub?(\&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))/" \
             -e "s/REMOTE_ROOT_DN/$CONFIG_ufds_ldap_root_dn/" \
             -e "s/REMOTE_ROOT_PW/$CONFIG_ufds_ldap_root_pw/" \
-            -I .bak $zpath/etc/replicator.json.in
-
-	# Update the main json file. configure will do this again on reboot
-	cp $zpath/etc/replicator.json.in $zpath/etc/replicator.json
+            -I .bak $zpath/etc/replicator.json
 
 	# import and restart the replicator service
 	cp $zpath/smf/manifests/ufds-replicator.xml.in \
