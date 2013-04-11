@@ -79,8 +79,9 @@ login: UFDS_ADMIN_LOGIN
 uuid: UFDS_ADMIN_UUID
 userpassword: UFDS_ADMIN_PW
 email: UFDS_ADMIN_EMAIL
-cn: Admin
+cn: Admin User
 sn: User
+givenName: Admin
 registered_developer: true
 objectclass: sdcPerson
 

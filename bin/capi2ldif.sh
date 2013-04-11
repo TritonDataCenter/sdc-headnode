@@ -121,9 +121,11 @@ function transform_customers(file, callback) {
       if (pieces[7] !== '\\N')
         customer.company = pieces[7];
       if (pieces[8] !== '\\N')
-        customer.cn = pieces[8];
+        customer.givenName = pieces[8];
       if (pieces[9] !== '\\N')
         customer.sn = pieces[9];
+      if (pieces[8] !== '\\N' && pieces[9] !== '\\N')
+        customer.cn = pieces[8] + ' ' + pieces[9];
       if (pieces[15] !== '\\N') {
         customer.address = [pieces[15]];
         if (pieces[16] !== '\\N')
