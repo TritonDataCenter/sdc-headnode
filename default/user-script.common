@@ -34,41 +34,73 @@ if [[ -z ${zone_role} ]]; then
     echo "Unable to find zone role in metadata."
     exit 1
 fi
+
+
+# Setup "/.dcinfo": info about the datacenter in which this zone runs
+# (used for a more helpful PS1 prompt).
+dc_name=$(mdata-get sdc:datacenter_name)
+if [[ $? == 0 && -z ${dc_name} ]]; then
+    dc_name="UNKNOWN"
+fi
+[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
+
+
+# On first boot we want to download the configure and other files from assets
+# if we don't have them.  On subsequent boots, we use the ones we already have.
+if [[ -f /var/svc/setup_complete ]]; then
+    # We already did setup (which ran configure last time), so just reconfigure.
+    /opt/smartdc/bin/configure || fatal "failed to configure zone."
+    exit 0
+fi
+
+# Only want to run this initial user-script once. Second time around we should
+# have just run 'configure' above, but this ensures we don't do setup twice in
+# case it's failing.
+if [[ -f /var/svc/.ran-user-script ]]; then
+    echo "Initial user-script has already been run."
+    exit 0
+fi
+touch /var/svc/.ran-user-script
+
+
 if [[ ${zone_role} != "assets" ]]; then
     assets_ip=$(mdata-get assets-ip)
     [[ -z ${assets_ip} ]] \
         && fatal "Unable to find IP of assets server from metadata."
-    # ping assets so we can see in the log that networking is broken when that's
-    # what prevents us from getting the rest of the scripts.
-    ping ${assets_ip} || fatal "Unable to ping IP of assets server ${assets_ip}"
+    # ping assets so we can see in the log that networking is broken when
+    # that's what prevents us from getting the rest of the scripts. We loop
+    # forever because we can't continue without assets. Eventually smf will
+    # put us into maint if we never get through.
+    while ! ping ${assets_ip} ; do
+        sleep 1
+    done
 fi
 
 # Setup "/opt/smartdc/etc" from assets.
 if [[ ! -d /opt/smartdc/etc ]]; then
     mkdir -p /opt/smartdc/etc || fatal "unable to create /opt/smartdc/etc"
 fi
-if [[ ${zone_role} == "assets" ]]; then
-    if [[ -f /assets/extra/${zone_role}/zoneconfig ]]; then
-        cp /assets/extra/${zone_role}/zoneconfig /opt/smartdc/etc/zoneconfig \
-            || fatal "unable to copy zoneconfig file"
-    fi
-    touch /opt/smartdc/etc/zoneconfig
-else
-    touch /opt/smartdc/etc/zoneconfig.new # in case 'zoneconfig' is empty
-    curl -m 10 -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
-        http://${assets_ip}/extra/${zone_role}/zoneconfig
-    if [[ $? != 0 ]]; then
-        echo "warning: Failed to get zoneconfig."
-        # For update, we carry on with old zoneconfig since we don't want to
-        # block other smartdc_role zones when assets is down. Setup should
-        # fail when zoneconfig doesn't exist.
+
+if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
+    if [[ ${zone_role} == "assets" ]]; then
+        if [[ -f /assets/extra/${zone_role}/zoneconfig ]]; then
+            cp /assets/extra/${zone_role}/zoneconfig \
+                /opt/smartdc/etc/zoneconfig \
+                || fatal "unable to copy zoneconfig file"
+        fi
+        touch /opt/smartdc/etc/zoneconfig
     else
-        cp /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig && \
-            rm -f /opt/smartdc/etc/zoneconfig.new
-        chmod 644 /opt/smartdc/etc/zoneconfig*
-    fi
-    if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
-        fatal "Missing zoneconfig"
+        touch /opt/smartdc/etc/zoneconfig.new
+        curl -m 10 -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
+            http://${assets_ip}/extra/${zone_role}/zoneconfig
+        if [[ $? == 0 ]]; then
+            cp /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig \
+                && rm -f /opt/smartdc/etc/zoneconfig.new
+            chmod 644 /opt/smartdc/etc/zoneconfig*
+        fi
+        if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
+            fatal "Missing zoneconfig"
+        fi
     fi
 fi
 
@@ -76,6 +108,7 @@ fi
 if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin || fatal "unable to create /opt/smartdc/bin"
 fi
+
 if [[ ${zone_role} == "assets" ]]; then
     for file in configure backup restore; do
         if [[ -f /assets/extra/${zone_role}/${file} ]]; then
@@ -90,16 +123,18 @@ else
         curl -m 10 -k -o /opt/smartdc/bin/${file}.new -s -S -f \
             http://${assets_ip}/extra/${zone_role}/${file}
         if [[ $? != 0 ]]; then
-            echo "warning: Failed to get /opt/smartdc/bin/${file} from assets."
-            # For update, we carry on with old configure since we don't want
-            # to block of other smartdc_role zones when assets is down. Setup
-            # should fail when configure doesn't exist.
+            echo "warning: Failed to get /opt/smartdc/bin/${file}"
         else
             cp /opt/smartdc/bin/${file}.new /opt/smartdc/bin/${file} && \
                 rm -f /opt/smartdc/bin/${file}.new
         fi
     done
     chmod 755 /opt/smartdc/bin/*
+
+    # configure is required
+    if [[ ! -f /opt/smartdc/bin/configure ]]; then
+        fatal "Missing /opt/smartdc/bin/configure"
+    fi
 fi
 
 # Setup "~/.bashrc" from assets.
@@ -115,36 +150,6 @@ else
     fi
 fi
 
-# Setup "/.dcinfo": info about the datacenter in which this zone runs
-# (used for a more helpful PS1 prompt).
-dc_name=$(mdata-get sdc:datacenter_name)
-if [[ $? == 0 && -z ${dc_name} ]]; then
-    dc_name="UNKNOWN"
-fi
-dc_headnode_id=$(mdata-get sdc:headnode_id)
-if [[ $? == 0 && -z ${dc_heanode_id} ]]; then
-    dc_heanode_id=0
-fi
-[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
-[[ -n ${dc_headnode_id} ]] \
-    && echo "SDC_DATACENTER_HEADNODE_ID=\"${dc_headnode_id}\"" >> /.dcinfo
-
-
-# Re-configure if we've already setup.
-if [[ -f /var/svc/setup_complete ]]; then
-    # We already did setup (which ran configure last time), so just reconfigure.
-    /opt/smartdc/bin/configure || fatal "failed to configure zone."
-fi
-
-
-# Only want to run this initial user-script once.
-if [[ -f /var/svc/.ran-user-script ]]; then
-    echo "Initial user-script has already been run."
-    exit 0
-fi
-touch /var/svc/.ran-user-script
-
-
 # Get setup scripts from assets.
 for file in setup.common configure.common setup; do
     if [[ ${zone_role} == "assets" ]]; then
@@ -158,21 +163,11 @@ for file in setup.common configure.common setup; do
     fi
 done
 
-
 # Run setup in the background.
 export ASSETS_IP="${assets_ip}"
 export ZONE_ROLE="${zone_role}"
 
-(bash /var/svc/setup
-    # TODO(trent, HEAD-1209): Get Josh to review this removal. Why run this
-    # again? Already done in setup.common.
-    #
-    ## We can't add any site-specific manifests automatically, since we're running
-    ## after the manifest import, so import any new manifests that were added.
-    #for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
-    #    svccfg import ${manifest}
-    #done
-) >/var/svc/setup.log 2>&1 &
+(bash /var/svc/setup) >/var/svc/setup.log 2>&1 &
 if [[ $? != 0 ]]; then
     fatal "Failed to setup ${zone_role} zone."
 fi
