@@ -590,7 +590,7 @@ function create_zone {
             local openssh=$(cat /var/ssh/ssh_host_rsa_key.pub)
 
             echo "UFDS_ADMIN_KEY_FINGERPRINT=$fingerprint" >>${dir}/zoneconfig
-            echo "UFDS_ADMIN_KEY_OPENSSH=$openssh" >>${dir}/zoneconfig
+            echo "UFDS_ADMIN_KEY_OPENSSH=\"$openssh\"" >>${dir}/zoneconfig
         fi
     fi
 
