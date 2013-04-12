@@ -709,17 +709,15 @@ cloudapi_tasks()
     local bdir=${SDC_UPGRADE_DIR}/bu.tmp/cloudapi
 
     # The plugin and ssl config is compatible
-    # Directory already exists into, recreating will remove new plugins
-    # mkdir -p /zones/$1/root/opt/smartdc/cloudapi/plugins
     if [[ -d "$bdir/plugins" ]]; then
         for i in `ls $bdir/plugins`
         do
-            # Only copy unexisting plugins for late review, machine_email and
-            # capi_limits has been upgraded to work with vmapi instead of mapi:
-            if [ ! -f /zones/$1/root/opt/smartdc/cloudapi/plugins/$i ]; then
-                cp -p $bdir/plugins/$i \
+            # Only copy non-existant plugins. machine_email and capi_limits
+            # have been upgraded to work with vmapi instead of mapi.
+            [[ ! -f /zones/$1/root/opt/smartdc/cloudapi/plugins/$i && \
+               ! -d /zones/$1/root/opt/smartdc/cloudapi/plugins/$i ]] && \
+                cp -pr $bdir/plugins/$i \
                     /zones/$1/root/opt/smartdc/cloudapi/plugins
-            fi
         done
     fi
 
