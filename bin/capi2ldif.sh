@@ -146,7 +146,7 @@ function transform_customers(file, callback) {
 
       customer.objectclass = 'sdcperson';
       changes.push(customer);
-      if (pieces[11] === '2') {
+      if (pieces[11] === '2' || pieces[11] === '3') {
         changes.push({
           dn: 'cn=operators, ou=groups, o=smartdc',
           changetype: 'modify',
