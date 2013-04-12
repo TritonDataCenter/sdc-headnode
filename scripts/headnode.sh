@@ -582,7 +582,7 @@ function create_zone {
             done
         ) > ${dir}/zoneconfig
 
-        [[ $upgrading == 1 ]] && echo "IS_UPDATE=1" >>${dir}/zoneconfig
+        [[ $upgrading == 1 ]] && echo "IS_UPDATE='1'" >>${dir}/zoneconfig
 
         if [[ "$zone" == "ufds" ]]; then
             local fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | \
