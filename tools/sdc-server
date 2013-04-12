@@ -31,17 +31,25 @@ function usage ()
         '',
         'Sub-commands:',
         '',
-        '    delete [-f] <uuid>  - remove all CNAPI information about this server',
-        '    jobs <uuid>         - list all jobs for this server',
-        '    list                - list all servers in this DC',
-        '    setup [-s] <uuid>   - setup a new server in this DC',
-        '    sysinfo <uuid>      - output the latest `sysinfo` from the server',
+        '    delete [-f] <uuid>                    - remove all CNAPI information about',
+        '                                            this server',
+        '    jobs <uuid>                           - list all jobs for this server',
+        '    list                                  - list all servers in this DC',
+        '    setup [-s] <uuid> [params]            - setup a new server in this DC',
+        '    sysinfo <uuid>                        - output the latest `sysinfo` from',
+        '                                            the server',
+        '    update-nictags [-s] <uuid> [params]   - update nic tags for this server',
+        '    replace-nictags [-s] <uuid> [params]  - set nic tags for this server',
+        '    delete-nictags [-s] <uuid> [params]   - delete nic tags from this server',
         ''
     ].join('\n'));
 }
 
 function isUUID(str) {
     var re = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+    if (!str) {
+        return false;
+    }
     if (str.length === 36 && str.match(re)) {
         return true;
     } else {
@@ -343,7 +351,7 @@ function outputSysinfo(server_uuid, callback)
     });
 }
 
-function setupServer(server_uuid, options, callback)
+function runServerWorkflow(server_uuid, func, options, callback)
 {
     var cnapi;
     var job_uuid;
@@ -370,8 +378,9 @@ function setupServer(server_uuid, options, callback)
             });
         }, function (cb) {
             var e;
+            var params = options.params || {};
 
-            cnapi.setupServer(server_uuid, function (err, result) {
+            cnapi[func](server_uuid, params, function (err, result) {
                 if (err) {
                     err.api = 'CNAPI';
                     cb(err);
@@ -565,27 +574,80 @@ function dispatchCommand(command, args, callback)
             break;
 
         case 'setup':
-            if ((args.length !== 1 && args.length !== 2)
-                || !isUUID(args[args.length - 1])) {
+        case 'update-nictags':
+        case 'replace-nictags':
+        case 'delete-nictags':
+            if (args.length === 0 || (!isUUID(args[0]) && !isUUID(args[1]))) {
                 usage();
-                callback(new Error('setup requires <uuid> argument'));
-                return;
-            }
-            if (args.length === 2 && args[0] !== '-s') {
-                usage();
-                callback(new Error('Invalid setup flag: ' + args[0]));
+                callback(new Error(command + ' requires <uuid> argument'));
                 return;
             }
 
-            server_uuid = args[args.length - 1];
+            var nics = {};
+            var remaining;
+            var setupOpts = { params: {} };
+            var sync;
 
-            if (args.length === 1) {
-                // async
-                setupServer(server_uuid, {}, callback);
+            sync = (args[0].charAt(0) == '-');
+            if (args.length > 1 && sync && args[0] !== '-s') {
+                usage();
+                callback(new Error('Invalid ' + command + ' flag: ' + args[0]));
+                return;
+            }
+
+            if (sync) {
+                server_uuid = args[1];
+                remain = args.slice(2);
+                setupOpts.sync = true;
             } else {
-                // sync
-                setupServer(server_uuid, {sync: true}, callback);
+                server_uuid = args[0];
+                remain = args.slice(1);
             }
+
+            for (var p in remain) {
+                var param = remain[p].split('=');
+                if (param.length !== 2) {
+                    usage();
+                    callback(new Error('Invalid parameter: ' + remain[p]));
+                    return;
+                }
+
+                var match = param[0].match(/^([^_]+)_nic$/);
+                if (!match) {
+                    usage();
+                    callback(new Error('Invalid parameter: ' + param[0]));
+                    return;
+                }
+
+                if (!nics.hasOwnProperty(param[1])) {
+                    nics[param[1]] = [];
+                }
+
+                nics[param[1]].push(match[1]);
+            }
+
+            if (Object.keys(nics).length !== 0) {
+                setupOpts.params.nics = [];
+                for (var n in nics) {
+                    setupOpts.params.nics.push(
+                        { mac: n, nic_tags_provided: nics[n] });
+                }
+            }
+
+            var commandMatch = command.match(/^([^-]+)-nictags$/);
+            if (commandMatch) {
+                if (!setupOpts.params.nics) {
+                    usage();
+                    callback(new Error(
+                        command + ' requires nic tags to be specified'));
+                    return;
+                }
+                setupOpts.params.action = commandMatch[1];
+            }
+
+            runServerWorkflow(server_uuid,
+                command === 'setup' ? 'setupServer' : 'updateNics',
+                setupOpts, callback);
 
             break;
 

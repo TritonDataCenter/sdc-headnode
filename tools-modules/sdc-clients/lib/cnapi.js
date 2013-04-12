@@ -73,13 +73,18 @@ CNAPI.prototype.getServer = function (uuid, callback) {
  * Setup a server by UUID
  *
  * @param {String} uuid : the UUID of the server.
+ * @param {Object} params : setup parameters (optional).
  * @param {Function} callback : of the form f(err, res).
  */
-CNAPI.prototype.setupServer = function (uuid, callback) {
+CNAPI.prototype.setupServer = function (uuid, params, callback) {
     if (!uuid)
         throw new TypeError('UUID is required');
+    if (typeof (params) === 'function') {
+        callback = params;
+        params = {};
+    }
 
-    return this.put(format('/servers/%s/setup', uuid), {}, callback);
+    return this.put(format('/servers/%s/setup', uuid), params, callback);
 };
 
 
@@ -207,6 +212,19 @@ CNAPI.prototype.updateServer = function (uuid, params, callback) {
 };
 
 
+/**
+ * Reboot a server
+ *
+ * @param {String} server : the UUID of the server.
+ * @param {Function} callback : of the form f(err, res).
+ */
+CNAPI.prototype.rebootServer = function (server, callback) {
+    if (!server)
+        throw new TypeError('Server UUID is required');
+
+    return this.post(format('/servers/%s/reboot', server), {}, callback);
+};
+
 
 
 /**
@@ -226,5 +244,48 @@ CNAPI.prototype.deleteVm = function (server, uuid, callback) {
 };
 
 
+/**
+ * Updates nics on a server
+ *
+ * @param {String} uuid : the UUID of the server.
+ * @param {Object} params : Nic params.
+ * @param {Function} callback : of the form f(err, res).
+ */
+CNAPI.prototype.updateNics = function (uuid, params, callback) {
+    if (!uuid)
+        throw new TypeError('UUID is required');
+    if (typeof (params) === 'function') {
+        callback = params;
+        params = {};
+    }
+
+    return this.put(format('/servers/%s/nics', uuid), params, callback);
+};
+
+
+/**
+ * Runs a command on the specified server.  The optional 'params' argument can
+ * contain two fields:
+ *
+ * @param {Array} args Array containing arguments to be passed in to command
+ * @param {Object} env Object containing environment variables to be passed in
+ */
+function commandExecute(server, script, params, callback) {
+    if (!server)
+        throw new TypeError('Server UUID is required');
+    if (!script)
+        throw new TypeError('Script is required');
+
+    if (arguments.length === 3) {
+        callback = params;
+        params = {};
+    }
+
+    params.script = script;
+
+    return this.post('/servers/' + server + '/execute', params, callback);
+}
+
+CNAPI.prototype.commandExecute = commandExecute;
 
 module.exports = CNAPI;
