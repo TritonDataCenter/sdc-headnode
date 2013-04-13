@@ -88,6 +88,11 @@ if [[ $COMMIT == 1 ]]; then
     rm -rf /var/usb_rollback
 
     zpool upgrade zones
+
+    echo "Syncing datasets back to the USB key, this will take a while"
+    /usbkey/scripts/mount-usb.sh
+    (cd /usbkey/datasets && rsync -a * /mnt/usbkey/datasets)
+    umount /mnt/usbkey
 fi
 
 exit 0

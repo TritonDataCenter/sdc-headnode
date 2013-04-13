@@ -486,9 +486,17 @@ function upgrade_usbkey
     # Remove obsolete datasets & data only from the key
     rm -rf ${usbmnt}/datasets/* ${usbmnt}/data/*
 
+    # The datasets subdir is almost 3GB and takes forever to copy to the key.
+    # We really only need the datasets in the cache dir to proceed.
+
     local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
-    (cd ${usbmnt} && gzcat ${usbupdate} | gtar --no-same-owner -xf -)
+    (cd ${usbmnt} && gzcat ${usbupdate} | \
+         gtar --no-same-owner --exclude=datasets -xf -)
     [ $? != 0 ] && fatal_rb "upgrading USB key"
+
+    (cd ${usbcpy} && gzcat ${usbupdate} | \
+         gtar --no-same-owner --xform 's/.*/\L&/' -xf - datasets)
+    [ $? != 0 ] && fatal_rb "extracting datasets"
 
     #
     # Save the current console device as the default.  Also, since we know
@@ -1131,12 +1139,15 @@ function install_platform
 	    mv -f ${usbmnt}/os/${platformversion}/platform/root.password \
 		${usbmnt}/private/root.password.${platformversion}
 
-	echo "Copying ${platformversion} to ${usbcpy}/os"
-	mkdir -p ${usbcpy}/os
-	(cd ${usbmnt}/os && \
-	    rsync -a ${platformversion}/ ${usbcpy}/os/${platformversion})
+	echo "Unpacking ${platformversion} to ${usbcpy}/os"
+	(mkdir -p ${usbcpy}/os/${platformversion} \
+	 && cd ${usbcpy}/os/${platformversion} \
+	 && gzcat ${platformupdate} | \
+            gtar --xform 's/.*/\L&/' -xf - 2>/tmp/copy_platform.log \
+	 && mv platform-* platform
+	)
 	[ $? != 0 ] && \
-	    fatal_rb "unable to copy the new platform onto the disk"
+	    fatal_rb "unable to install the new platform onto the disk"
 }
 
 function wait_and_clear
@@ -1441,11 +1452,15 @@ trap recover EXIT
 # At this point we start doing destructive actions on the HN, so we should
 # no longer call "fatal" if we see an error. Intead, call fatal_rb.
 
+echo "$(date -u "+%Y%m%dT%H%M%S") key upgrade start" \
+    >>$SDC_UPGRADE_DIR/upgrade_time
 mount_usbkey
 install_platform
 upgrade_usbkey
 switch_platform ${platformversion}
 umount_usbkey
+echo "$(date -u "+%Y%m%dT%H%M%S") key upgrade end" \
+    >>$SDC_UPGRADE_DIR/upgrade_time
 
 convert_portal_zone
 
