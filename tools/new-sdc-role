@@ -1,0 +1,15 @@
+#!/usr/node/bin/node
+
+/*
+ * Copyright (c) 2013 Joyent Inc.
+ *
+ * Summary:
+ *
+ *  Used to provision SDC services; assumes that setup has completed
+ *  successfully.
+ *
+ */
+
+var sdcRole = require('/opt/smartdc/node_modules/sdc-role');
+sdcRole.main();
+
