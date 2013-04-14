@@ -656,7 +656,8 @@ function transform_nics(file, callback) {
                 // is a vnic that is over a nic tag.
                 if (nic.belongs_to_type === 'server'
                     && pieces[8] === 'physical') {
-                    nic.nic_tags_provided = NIC_NIC_TAGS[pieces[0]];
+                    nic.nic_tags_provided = ','
+                        + NIC_NIC_TAGS[pieces[0]].join(',') + ',';
                 } else {
                     nic.nic_tag = NIC_NIC_TAGS[pieces[0]][0];
                 }
