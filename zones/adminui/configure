@@ -13,12 +13,6 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 host=`hostname`
 
-echo "Creating config.json from zoneconfig"
-(/opt/smartdc/adminui/build/node/bin/node \
-  /opt/smartdc/adminui/tools/create-config-from-zoneconfig \
-  /opt/smartdc/etc/zoneconfig \
-  /opt/smartdc/adminui/etc/config.json)
-
 echo "Updating adminui service manifest"
 $(/opt/local/bin/gsed -i"" \
   -e "s/@@PREFIX@@/\/opt\/smartdc\/adminui/g" \
