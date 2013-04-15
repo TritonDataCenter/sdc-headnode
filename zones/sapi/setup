@@ -35,6 +35,7 @@ NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 UFDS_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 WFAPI_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
+UFDS_ADMIN_UUID=$(echo "${UFDS_ADMIN_UUID}")
 
 echo "Creating SAPI config file"
 mkdir -p /opt/smartdc/sapi/etc
@@ -47,6 +48,7 @@ cat > /opt/smartdc/sapi/etc/config.json <<HERE
   },
   "mode": "proto",
   "datacenter_name": "$DATACENTER_NAME",
+  "adminUuid": "$UFDS_ADMIN_UUID",
   "moray": {
     "host": "$MORAY_HOST",
     "port": 2020
