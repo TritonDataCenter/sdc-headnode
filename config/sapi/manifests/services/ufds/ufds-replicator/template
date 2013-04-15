@@ -1,0 +1,19 @@
+{
+    "logLevel": "debug",
+    "checkpointDn": "cn=replicator, datacenter={{datacenter_name}}, o=smartdc",
+    "localUfds": {
+        "url": "ldaps://{{ufds_admin_ips}}",
+        "maxConnections": 1,
+        "bindDN": "{{ufds_ldap_root_dn}}",
+        "bindCredentials": "{{ufds_ldap_root_pw}}"
+    },
+    "remotes": [{
+        "url": "ldaps://{{REMOTE_UFDS_IP}}",
+        "queries": [
+            "{{REMOTE_UFDS_REPLICATOR_QUERY}}",
+        ],
+        "maxConnections": 1,
+        "bindDN": "{{REMOTE_UFDS_ROOT_DN}}",
+        "bindCredentials": "{{REMOTE_UFDS_ROOT_PW}}"
+    }]
+}

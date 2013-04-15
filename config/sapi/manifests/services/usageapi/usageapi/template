@@ -1,0 +1,32 @@
+{
+  "siteName": "https://{{EXTERNAL_IP}}",
+  "port": 80,
+  "logLevel": "info",
+  "metering_granularity": 3600,
+  "amqp": {
+    "host": "{{rabbitmq_admin_ips}}",
+    "login": "guest",
+    "password": "guest",
+    "vhost": "/",
+    "port": 5672
+  },
+  "postgres": {
+    "db": "usageapi_production",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "postgres",
+    "password": "PgresPass123"
+  },  "userThrottles": {
+    "all": {
+      "username": true,
+      "burst": 30,
+      "rate": 10,
+      "overrides": {
+        "{{ufds_admin_login}}": {
+          "burst": 0,
+          "rate": 0
+        }
+      }
+    }
+  }
+}

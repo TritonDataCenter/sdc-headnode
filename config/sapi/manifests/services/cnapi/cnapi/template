@@ -1,0 +1,40 @@
+{
+	"logLevel": "info",
+	"datacenter_name": "{{datacenter_name}}",
+    "adminUuid": "{{ufds_admin_uuid}}",
+	"amqp": {
+		"host": "{{rabbitmq_admin_ip}}"
+	},
+	"moray": {
+		"host": "{{moray_admin_ips}}",
+		"port": 2020
+	},
+	"api": {
+		"username": "{{cnapi_http_admin_user}}",
+		"password": "{{cnapi_http_admin_pw}}",
+		"port": 80
+	},
+	"wfapi": {
+		"workflows": [ ],
+		"url": "http://{{workflow_admin_ips}}",
+		"username": "{{workflow_http_admin_user}}",
+		"password": "{{workflow_http_admin_pw}}"
+	},
+	"napi": {
+		"url": "http://{{napi_admin_ips}}",
+		"username": "{{napi_http_admin_user}}",
+		"password": "{{napi_http_admin_pw}}"
+	},
+	"assets": {
+		"url": "http://{{assets_admin_ips}}"
+	},
+	"cnapi": {
+		"url": "http://{{ADMIN_IP}}"
+	},
+	"imgapi": {
+		"url": "http://{{imgapi_admin_ips}}"
+	},
+	"redis": {
+		"host": "{{redis_admin_ips}}"
+	}
+}

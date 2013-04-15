@@ -109,5 +109,29 @@ FWAPI.prototype.deleteRule = function (uuid, params, callback) {
 };
 
 
+/**
+ * Gets VMs affected by a rule.
+ *
+ * @param {String} uuid : the rule UUID.
+ * @param {Function} callback : of the form f(err, res).
+ */
+FWAPI.prototype.getRuleVMs = function (uuid, params, callback) {
+    assert.string(uuid, 'uuid');
+    return this.get(format('/rules/%s/vms', uuid), params, callback);
+};
+
+
+/**
+ * Gets rules affecting a VM.
+ *
+ * @param {String} uuid : the rule UUID.
+ * @param {Function} callback : of the form f(err, res).
+ */
+FWAPI.prototype.getVMrules = function (uuid, params, callback) {
+    assert.string(uuid, 'uuid');
+    return this.get(format('/firewalls/vms/%s', uuid), params, callback);
+};
+
+
 
 module.exports = FWAPI;

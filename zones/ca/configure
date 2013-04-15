@@ -30,10 +30,13 @@ function configure
 	# Update the SMF configuration to reflect this headnode's configuration.
 	# We only grab the first IP for CNAPI and VMAPI.
 	#
-	local CNAPI_IP VMAPI_IP
+	local SAPI_METADATA CNAPI_IP VMAPI_IP CA_AMQP_HOST
 
-	CNAPI_IP=$(echo "$CNAPI_ADMIN_IPS" | tr ',' ' ')
-	VMAPI_IP=$(echo "$VMAPI_ADMIN_IPS" | tr ',' ' ')
+	SAPI_METADATA=/opt/smartdc/etc/sapi_metadata.json
+
+	CNAPI_IP=$(json -f $SAPI_METADATA cnapi_admin_ips)
+	VMAPI_IP=$(json -f $SAPI_METADATA vmapi_admin_ips)
+	CA_AMQP_HOST=$(json -f $SAPI_METADATA ca_amqp_host)
 
 	svcadm disable -s caconfigsvc:default || \
 	    cafail "failed to disable configsvc"
@@ -52,6 +55,7 @@ function configure
 		svcadm refresh $fmri || cafail "failed to refresh $fmri"
 		svcadm enable -s $fmri || cafail "failed to re-enable $fmri"
 	done
+	# rm $SAPI_METADATA
 }
 
 [[ ! -e /var/svc/setup_complete ]] && configure

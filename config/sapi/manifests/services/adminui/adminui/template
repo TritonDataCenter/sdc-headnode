@@ -1,0 +1,61 @@
+{
+	"host": "0.0.0.0",
+	"port": 80,
+	"sslport": 443,
+	"ssl": {
+		"certificate": "/opt/smartdc/adminui/etc/ssl/default.pem",
+		"key": "/opt/smartdc/adminui/etc/ssl/default.pem"
+	},
+	"ufds": {
+		"url": "ldaps://{{ufds_admin_ips}}",
+		"bindDN": "{{ufds_root_dn}}",
+		"bindPassword": "{{ufds_root_pw}}",
+		"adminUuid": "{{ufds_admin_uuid}}",
+		"cache": {
+			"size": 1000,
+			"expiry": 300
+		}
+	},
+	"redis": {
+		"host": "{{redis_admin_ips}}}",
+		"port": "6379",
+		"db": 3
+	},
+	"datacenters": {
+		"{{datacenter_name}}": {
+			"moray": {
+				"host": "{{moray_admin_ips}}",
+				"port": 2020,
+				"connectTimeout": 200,
+				"retry": {
+					"retries": 2,
+					"minTimeout": 500
+				}
+			},
+			"amon": {
+				"url": "{{amon_admin_ips}}"
+			},
+			"vmapi": {
+				"url": "http://{{vmapi_admin_ips}}"
+			},
+			"cnapi": {
+				"url": "http://{{cnapi_admin_ips}}"
+			},
+			"napi": {
+				"url": "http://{{napi_admin_ips}}"
+			},
+			"ca": {
+				"url": "http://{{ca_admin_ips}}:23181"
+			},
+			"imgapi": {
+				"url": "http://{{imgapi_admin_ips}}"
+			},
+			"sapi": {
+				"url": "http://{{sapi_admin_ips}}"
+			},
+			"wfapi": {
+				"url": "http://{{wfapi_admin_ips}}"
+			}
+		}
+	}
+}

@@ -1,0 +1,19 @@
+{
+    "name": "ca",
+    "params": {
+        "package_name": "sdc_1024",
+        "delegate_dataset": true,
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "ca",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "ca",
+        "registrar_srvce": "_ca"
+    },
+    "manifests": {
+    }
+}

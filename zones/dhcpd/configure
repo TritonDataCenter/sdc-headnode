@@ -6,31 +6,6 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-cat > /opt/smartdc/booter/config.json <<CONFIG
-{
-  "napi": {
-    "url": "${NAPI_URL}",
-    "username": "${NAPI_USER}",
-    "password": "${NAPI_PW}"
-  },
-  "cnapi": {
-    "url": "${CNAPI_URL}",
-    "username": "${CNAPI_USER}",
-    "password": "${CNAPI_PW}"
-  },
-  "adminUuid": "${UFDS_ADMIN_UUID}",
-  "listenIp": "0.0.0.0",
-  "port": 67,
-  "tftpRoot": "/tftpboot",
-  "defaultGateway": "${DHCP_GATEWAY}",
-  "serverIp": "${PRIVATE_IP}",
-  "leaseTime": "${DHCP_LEASE_TIME}",
-  "netmask": "${ADMIN_NETMASK}"
-}
-CONFIG
-
 echo "Importing dhcpd manifest"
 /usr/sbin/svccfg import /opt/smartdc/booter/smf/manifests/dhcpd.xml
 

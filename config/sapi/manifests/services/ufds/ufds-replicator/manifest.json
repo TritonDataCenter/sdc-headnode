@@ -1,0 +1,5 @@
+{
+	"name": "ufds-replicator",
+	"path": "/opt/smartdc/ufds/etc/replicator.json",
+	"post_cmd": "/usr/sbin/svcadm restart ufds-replicator"
+}

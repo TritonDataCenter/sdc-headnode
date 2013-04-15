@@ -28,10 +28,18 @@
 #
 #
 # Usage:
-#       ./mk-sdc-clients-light.sh [SHA [TARGET-DIR]]
+#       ./mk-sdc-clients-light.sh [SHA] [TARGET-DIR] [LIBS...]
 #
 # By default SHA is "master". It is the version of node-sdc-clients.git to use.
 # By default TARGET-DIR is "./node_modules/sdc-clients".
+# By default if LIBS is excluded, then all sdc-clients/lib/*.js API modules
+#       are included. Note that UFDS-direct "APIs" are always excluded
+#       (ufds.js, etc.) If any LIBS are specified, then only those are
+#       kept.
+#
+#
+# Examples:
+#       ./mk-sdc-clients-light.sh master node_modules/sdc-clients imgapi.js amon.js
 #
 
 if [ "$TRACE" != "" ]; then
@@ -67,11 +75,15 @@ SHA=$1
 if [[ -z "$SHA" ]]; then
     SHA=master
 fi
+shift
 
-D=$2
+D=$1
 if [[ -z "$D" ]]; then
     D=node_modules/sdc-clients
 fi
+shift
+
+LIBS=$*
 
 rm -rf $D
 mkdir -p $D
@@ -84,15 +96,30 @@ mkdir _repos
 mv _repos/node-sdc-clients/{package.json,lib} .
 (cd lib && rm -f config.js package.js ufds.js mapi.javascript assertions.js)
 
+if [[ -n "$LIBS" ]]; then
+    for LIB in $(cd lib && ls -1 *api.js) amon.js ca.js; do
+        if [[ -z $(echo "$LIBS" | grep "\<$LIB\>") ]]; then
+            rm -f lib/$LIB
+        fi
+    done
+fi
+
 # restify (stripped down just for client usage)
-(cd _repos && git clone git://github.com/mcavage/node-restify.git)
-SHA=$(json -f package.json dependencies.restify | cut -d'#' -f2)
-[[ -n "$SHA" ]] || fatal "error finding restify dep git sha"
-(cd _repos/node-restify && git checkout $SHA)
-mkdir -p node_modules/restify
-mv _repos/node-restify/{LICENSE,package.json,lib} node_modules/restify
+DEP=$(json -f package.json dependencies.restify)
+if [[ ${DEP:0:6} == "git://" ]]; then
+    (cd _repos && git clone git://github.com/mcavage/node-restify.git)
+    SHA=$(json -f package.json dependencies.restify | cut -d'#' -f2)
+    [[ -n "$SHA" ]] || fatal "error finding restify dep git sha"
+    (cd _repos/node-restify && git checkout $SHA)
+    mkdir -p node_modules/restify
+    mv _repos/node-restify/{LICENSE,package.json,lib} node_modules/restify
+else
+    npm install restify@$DEP
+    (cd node_modules/restify \
+        && rm -rf node_modules bin README.md CHANGES.md .npmignore)
+fi
 (cd node_modules/restify/lib \
-    && rm -rf dtrace.js formatters plugins request.js response.js \
+    && rm -rf formatters plugins request.js response.js \
         router.js server.js)
 
 # assert-plus
@@ -193,8 +220,8 @@ touch node_modules/semver.js
 # Patch bunyan usages to use the platform one, because it has dtrace-provider
 # hooked up.
 patch -p0 <<PATCH
---- node_modules/restify/lib/bunyan_helper.js.orig	2013-02-05 15:39:13.000000000 -0800
-+++ node_modules/restify/lib/bunyan_helper.js	2013-02-05 15:40:49.000000000 -0800
+--- node_modules/restify/lib/bunyan_helper.js.orig  2013-02-05 15:39:13.000000000 -0800
++++ node_modules/restify/lib/bunyan_helper.js   2013-02-05 15:40:49.000000000 -0800
 @@ -4,7 +4,11 @@
  var util = require('util');
 
@@ -208,8 +235,8 @@ patch -p0 <<PATCH
  var LRU = require('lru-cache');
  var uuid = require('node-uuid');
 
---- node_modules/restify/lib/index.js.orig	2013-02-05 16:08:51.000000000 -0800
-+++ node_modules/restify/lib/index.js	2013-02-05 16:09:04.000000000 -0800
+--- node_modules/restify/lib/index.js.orig  2013-02-05 16:08:51.000000000 -0800
++++ node_modules/restify/lib/index.js   2013-02-05 16:09:04.000000000 -0800
 @@ -7,6 +7,8 @@
  // and enables much faster load times
  //
@@ -219,6 +246,17 @@ patch -p0 <<PATCH
  function createClient(options) {
          var assert = require('assert-plus');
          var bunyan = require('./bunyan_helper');
+--- node_modules/restify/lib/dtrace.js
++++ node_modules/restify/lib/dtrace.js
+@@ -38,7 +38,7 @@
+ module.exports = function exportStaticProvider() {
+         if (!PROVIDER) {
+                 try {
+-                        var dtrace = require('dtrace-provider');
++                        var dtrace = require('/usr/node/node_modules/dtrace-provider');
+                         PROVIDER = dtrace.createDTraceProvider('restify');
+                 } catch (e) {
+                         PROVIDER = {
 PATCH
 
 

@@ -15,7 +15,7 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/ufds
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
+# eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
@@ -25,6 +25,25 @@ echo "Generating SSL Certificate"
 /opt/local/bin/openssl req -x509 -nodes -subj '/CN=*' -newkey rsa:2048 \
     -keyout /opt/smartdc/ufds/ssl/key.pem -out /opt/smartdc/ufds/ssl/cert.pem \
     -days 3650
+
+# Gather metadata needed for setup
+UFDS_ADMIN_IP=$(json -f ${METADATA} ufds_admin_ips)
+UFDS_LDAP_ROOT_DN=$(json -f ${METADATA} ufds_ldap_root_dn)
+UFDS_LDAP_ROOT_PW=$(json -f ${METADATA} ufds_ldap_root_pw)
+
+UFDS_ADMIN_UUID=$(json -f ${METADATA} ufds_admin_uuid)
+UFDS_ADMIN_LOGIN=$(json -f ${METADATA} ufds_admin_login)
+UFDS_ADMIN_PW=$(json -f ${METADATA} ufds_admin_pw)
+UFDS_ADMIN_EMAIL=$(json -f ${METADATA} ufds_admin_email)
+
+DATACENTER_NAME=$(json -f ${METADATA} DATACENTER_NAME)
+DATACENTER_COMPANY_NAME=$(json -f ${METADATA} DATACENTER_COMPANY_NAME)
+DATACENTER_LOCATION=$(json -f ${METADATA} DATACENTER_JSON)
+
+UFDS_ADMIN_KEY_FINGERPRINT=$(json -f ${METADATA} ufds_admin_key_fingerprint)
+UFDS_ADMIN_KEY_OPENSSH=$(json -f ${METADATA} ufds_admin_key_openssh)
+
+IS_UPDATE=$(json -f ${METADATA} IS_UPDATE)
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
@@ -41,8 +60,6 @@ crontab /etc/cron.d/logadm
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile
-
-UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)
 
 # Wait up to 50s for UFDS to come up to load bootstrap data.
 echo "Wait for ufds service to come online."
@@ -102,7 +119,8 @@ fi
 
 
 echo "Getting package information"
-packages=$(/usr/sbin/mdata-get packages)
+# packages=$(/usr/sbin/mdata-get packages)
+packages=$(json -f ${METADATA} packages)
 # name:ram:swap:disk:cap:nlwp:iopri:uuid
 for pkg in $packages
 do

@@ -1,0 +1,87 @@
+{
+    "port": 636,
+    "rootDN": "{{ufds_ldap_root_dn}}",
+    "rootPassword": "{{ufds_ldap_root_pw}}",
+    "certificate": "/opt/smartdc/ufds/ssl/cert.pem",
+    "key": "/opt/smartdc/ufds/ssl/key.pem",
+    "logLevel": "info",
+    "use_bcrypt": false,
+    "moray": {
+        "url": "http://{{moray_admin_ips}}:2020",
+        "connectTimeout": 1000,
+        "retry": {
+            "retries": 3,
+            "minTimeout": 1000
+        }
+    },
+    "changelog": {
+        "bucket": "ufds_cn_changelog",
+        "schema": {
+            "changetype": { "type": "string"},
+            "changetime": { "type": "number" },
+            "targetdn": { "type": "string"}
+        }
+    },
+    "o=smartdc": {
+        "blacklistRDN": "cn=blacklist",
+        "pwdPolicyRDN": "cn=pwdPolicy",
+        "bucket": "ufds_o_smartdc",
+        "administratorsGroupRDN": "cn=operators, ou=groups",
+        "readersGroupRDN": "cn=readers, ou=groups",
+        "schema": {
+            "login": {
+                "type": "string",
+                "unique": true
+            },
+            "uuid": {
+                "type": "string",
+                "unique": true
+            },
+            "email": {
+                "type": "string",
+                "unique": true
+            },
+            "objectclass": { "type": "string" },
+            "fingerprint": { "type": "string" },
+            "cn": { "type": "string" },
+            "sn": { "type": "string" },
+            "givenName": { "type": "string" },
+            "city": { "type": "string" },
+            "state": { "type": "string" },
+            "country": { "type": "string" },
+            "postalcode": { "type": "string" },
+            "agent": { "type": "string" },
+            "owner": { "type": "string" },
+            "fromtag": { "type": "string" },
+            "totag": { "type": "string" },
+            "fromvm": { "type": "string" },
+            "tovm": { "type": "string" },
+            "fromip": { "type": "string" },
+            "toip": { "type": "string" },
+            "fromsubnet": { "type": "string" },
+            "tosubnet": { "type": "string" },
+            "fromwildcard": { "type": "string" },
+            "towildcard": { "type": "string" },
+            "_owner": { "type": "string" },
+            "_parent": { "type": "string" },
+            "urn": {
+                "type": "string",
+                "unique": true
+            },
+            "pwdattribute": { "type": "string" },
+            "pwdinhistory": { "type": "number" },
+            "pwdminlength": { "type": "number" },
+            "pwdmaxfailure": { "type": "number" },
+            "pwdlockoutduration": { "type": "number" },
+            "pwdmaxage": { "type": "number" },
+            "pwdcheckquality": { "type": "string" },
+            "pwdchangedtime": { "type": "number" },
+            "pwdhistory": { "type": "string" },
+            "pwdpolicysubentry": { "type": "string" },
+            "pwdendtime": { "type": "number" },
+            "pwdaccountlockedtime": { "type": "number" },
+            "pwdfailuretime": { "type": "number" },
+            "_imported": { "type": "string" }
+        }
+    }
+}

@@ -18,48 +18,6 @@ if [ -e /var/svc/setup_complete ]; then
     exit 0
 fi
 
-# XXX is net1 external nic?
-EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
-CLOUDAPI_EXTERNAL_URL="https://$EXT_IPADDR"
-
-echo "Updating config file manifest"
-CFG_FILE_IN=/opt/smartdc/cloudapi/etc/cloudapi.cfg.in
-CFG_FILE=/opt/smartdc/cloudapi/etc/cloudapi.cfg
-
-# XXX use the first for now
-CA_URL=http://$(echo "${CA_ADMIN_IPS}" | tr ',' ' '):23181
-WORKFLOW_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
-DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
-VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
-NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
-IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
-USAGEAPI_URL=http://$(echo "${USAGEAPI_ADMIN_IPS}" | cut -d',' -f1)
-FWAPI_URL=http://$(echo "${FWAPI_ADMIN_IPS}" | cut -d',' -f1)
-KEYAPI=http://$(echo "${KEYAPI_ADMIN_IPS}" | cut -d',' -f1):8080
-
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
-
-# Update config file
-cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|CA_URL|$CA_URL|" $CFG_FILE
-gsed -i -e "s|CLOUDAPI_EXTERNAL_URL|$CLOUDAPI_EXTERNAL_URL|" $CFG_FILE
-gsed -i -e "s|DATACENTER_NAME|$DATACENTER_NAME|" $CFG_FILE
-gsed -i -e "s|ldaps://127.0.0.1|ldaps://${UFDS_HOST}|" $CFG_FILE
-gsed -i -e "s|UFDS_ROOT_DN|$UFDS_ROOT_DN|" $CFG_FILE
-gsed -i -e "s|UFDS_ROOT_PW|$UFDS_ROOT_PW|" $CFG_FILE
-gsed -i -e "s|UFDS_ADMIN_UUID|$UFDS_ADMIN_UUID|" $CFG_FILE
-gsed -i -e "s|SDC_ADMIN_LOGIN|$UFDS_ADMIN_LOGIN|" $CFG_FILE
-gsed -i -e "s|WFAPI_URL|$WORKFLOW_URL|" $CFG_FILE
-gsed -i -e "s|USAGEAPI_URL|$USAGEAPI_URL|" $CFG_FILE
-gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
-gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
-gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
-gsed -i -e "s|IMGAPI_URL|$IMGAPI_URL|" $CFG_FILE
-gsed -i -e "s|KEYAPI|$KEYAPI|" $CFG_FILE
-gsed -i -e "s|FWAPI_URL|$FWAPI_URL|" $CFG_FILE
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml)
 

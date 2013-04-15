@@ -17,9 +17,9 @@ if [ -e /var/svc/setup_complete ]; then
 fi
 
 # XXX is net1 external nic?
-EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
-usageapi_EXTERNAL_URL="https://$EXT_IPADDR"
-ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+# EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
+# usageapi_EXTERNAL_URL="https://$EXT_IPADDR"
+# ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 
 # Function calculates number of bit in a netmask
 #
@@ -46,7 +46,12 @@ mask2cidr() {
 
 # Note this is temporary until we add a PostgreSQL zone
 
-echo "listen_addresses='${POSTGRES_HOST}, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
+sapi_metadata=/opt/smartdc/etc/sapi_metadata.json
+ADMIN_IPADDR=$(json -f ${sapi_metadata} admin_ip)
+ADMIN_NETWORK=$(json -f ${sapi_metadata} admin_network)
+ADMIN_NETMASK=$(json -f ${sapi_metadata} admin_netmask)
+
+echo "listen_addresses='127.0.0.1, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
 numbits=$(mask2cidr ${ADMIN_NETMASK})
 echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgsql/data91/pg_hba.conf
 
@@ -83,8 +88,8 @@ echo "Importing posgtresql service"
 # Wait till Postgres is up and accepting connections.
 for i in {1..25}
 do
-    if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-       -h ${POSTGRES_HOST} -l 2>&1 | grep 'could not connect' > /dev/null ; then
+    if ! PGPASSWORD=PgresPass123 /opt/local/bin/psql -U postgres \
+       -h 127.0.0.1 -l 2>&1 | grep 'could not connect' > /dev/null ; then
         break;
     fi
     sleep 2
@@ -92,56 +97,56 @@ done
 
 # Move forward anyway
 # If we cannot get a db listing using our password, we need to set it:
-if ! PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-  -h ${POSTGRES_HOST} -l 2> /dev/null; then
-  if ! PGPASSWORD='postgres' /opt/local/bin/psql -U ${POSTGRES_USER} \
-    -h ${POSTGRES_HOST} \
-    -c "ALTER USER postgres WITH PASSWORD '$POSTGRES_PW';" template1 ; then
+if ! PGPASSWORD=PgresPass123 /opt/local/bin/psql -U postgres \
+  -h 127.0.0.1 -l 2> /dev/null; then
+  if ! PGPASSWORD='postgres' /opt/local/bin/psql -U postgres \
+    -h 127.0.0.1 \
+    -c "ALTER USER postgres WITH PASSWORD 'PgresPass123';" template1 ; then
       echo "Changing the default password failed"
   fi
 fi
 
-if [[ -z $(PGPASSWORD=${POSTGRES_PW} /opt/local/bin/psql -U ${POSTGRES_USER} \
-  -h ${POSTGRES_HOST} -l | grep usageapi_production) ]]; then
+if [[ -z $(PGPASSWORD=PgresPass123 /opt/local/bin/psql -U postgres \
+  -h 127.0.0.1 -l | grep usageapi_production) ]]; then
     echo "Creating usageapi_production database"
-    PGPASSWORD=${POSTGRES_PW} /opt/local/bin/createdb -U ${POSTGRES_USER} \
-      -h ${POSTGRES_HOST} usageapi_production
+    PGPASSWORD=PgresPass123 /opt/local/bin/createdb -U postgres \
+      -h 127.0.0.1 usageapi_production
 fi
 
-cat > /opt/smartdc/usageapi/config/config.json <<HERE
-{
-  "siteName": "${usageapi_EXTERNAL_URL}",
-  "port": 80,
-  "logLevel": "info",
-  "metering_granularity": 3600,
-  "amqp": {
-    "host": "${RABBIT_IP}",
-    "login": "guest",
-    "password": "guest",
-    "vhost": "/",
-    "port": 5672
-  },
-  "postgres": {
-    "db": "usageapi_production",
-    "host": "${POSTGRES_HOST}",
-    "port": 5432,
-    "user": "${POSTGRES_USER}",
-    "password": "${POSTGRES_PW}"
-  },  "userThrottles": {
-    "all": {
-      "username": true,
-      "burst": 30,
-      "rate": 10,
-      "overrides": {
-        "${UFDS_ADMIN_LOGIN}": {
-          "burst": 0,
-          "rate": 0
-        }
-      }
-    }
-  }
-}
-HERE
+# cat > /opt/smartdc/usageapi/config/config.json <<HERE
+# {
+#   "siteName": "${usageapi_EXTERNAL_URL}",
+#   "port": 80,
+#   "logLevel": "info",
+#   "metering_granularity": 3600,
+#   "amqp": {
+#     "host": "${RABBIT_IP}",
+#     "login": "guest",
+#     "password": "guest",
+#     "vhost": "/",
+#     "port": 5672
+#   },
+#   "postgres": {
+#     "db": "usageapi_production",
+#     "host": "127.0.0.1",
+#     "port": 5432,
+#     "user": "postgres",
+#     "password": "PgresPass123"
+#   },  "userThrottles": {
+#     "all": {
+#       "username": true,
+#       "burst": 30,
+#       "rate": 10,
+#       "overrides": {
+#         "${UFDS_ADMIN_LOGIN}": {
+#           "burst": 0,
+#           "rate": 0
+#         }
+#       }
+#     }
+#   }
+# }
+# HERE
 
 echo "Importing usageapi_http_manifest.xml"
 /usr/sbin/svccfg import /opt/smartdc/usageapi/smf/manifests/usageapi_http_manifest.xml

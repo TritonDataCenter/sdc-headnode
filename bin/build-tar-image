@@ -272,6 +272,8 @@ function load_buildspec
     USE_IMAGES=$(build_spec use-images)
     [[ ${USE_IMAGES} == "false" ]] && USE_IMAGES=''
 
+    USE_SAPI=true
+
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -290,6 +292,7 @@ function create_directories
     echo "==> Creating stage/"
     rm -rf ${STAGE}
     mkdir -p ${STAGE}
+    # HEAD-1507 obsolete.
     mkdir -p ${STAGE}/extra/pkgsrc
     mkdir -p ${STAGE}/extra/amon-agent
 }
@@ -435,6 +438,12 @@ function copy_config {
 
     if [[ -f config/banner ]]; then
         cp config/banner ${STAGE}/banner
+    fi
+
+    # HEAD-1371 Stage application def'n and manifests, flag SAPI for
+    # headnode.sh. Service def'ns staged with zones.
+    if [[ -n ${USE_SAPI} ]]; then
+        echo "USE_SAPI=\"true\"" >> ${STAGE}/config.inc/generic
     fi
 }
 
@@ -932,6 +941,17 @@ function copy_agentsshar
     get_agentsshar ${agentsshar_branch}
 }
 
+function copy_sapi_config
+{
+    local manifests=${ROOT}/config/sapi/manifests/
+    local services=${ROOT}/config/sapi/services/
+    local application=${ROOT}/config/sapi/application.json
+
+    cp -r ${manifests} ${STAGE}/manifests
+    cp -r ${services} ${STAGE}/services
+    cp ${application} ${STAGE}/application.json
+}
+
 function copy_datasets
 {
     mkdir -p ${STAGE}/datasets
@@ -994,6 +1014,7 @@ function copy_datasets
         # its UUID.
         #
         # Note: ${dataset_file} is set by copy_dataset
+        # HEAD-1507 obsolete (probably from previously)
         if [[ -n ${headnode_zones} && ${headnode_zones} == "true" ]]; then
             echo "${uuid}" > ${STAGE}/datasets/smartos.uuid
             echo "${dataset_file}" > ${STAGE}/datasets/smartos.filename
@@ -1173,6 +1194,15 @@ function get_core_zone_image
     # and build_payload to handle the sdc images with less trouble until
     # then.
     echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
+
+    # HEAD-1371 - insert dataset uuid into config/services/${zone}/service.json
+    # as param. Expect an IMAGE_UUID placeholder.
+    local service=${STAGE}/services/${zone}/service.json
+    if [[ -n ${USE_SAPI} && -f ${service} ]]; then
+        local image_uuid=$(cat ${dst_manifest} | json uuid)
+        sed -i'' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
+    fi
+
     # PCFS, sigh.
     echo $(basename $dst_manifest) | tr [:upper:] [:lower:] > ${STAGE}/zones/${zone}/dataset
 }
@@ -1210,10 +1240,6 @@ function copy_zones
         fi
 
         if [[ -n ${USE_IMAGES} ]]; then
-            if [[ ${zone} == "manta" ]]; then
-                echo "Skipping manta tools zone - MANTA-1071"
-                continue
-            fi
             local image_pattern=$(build_spec ${zone}-image)
             mkdir -p ${STAGE}/datasets
             get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
@@ -1280,7 +1306,7 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
-    # HEAD-1057/MANTA-1071 to be cleaned up.
+    # HEAD-1507/MANTA-1071 to be cleaned up.
     local target=$(build_spec manta-tools)
     local bit_cache_path=$(get_bit ${target})
     cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2
@@ -1342,6 +1368,7 @@ copy_amon_agent
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_agentsshar
 copy_agents65
+copy_sapi_config
 copy_datasets
 copy_zones
 copy_registrar

@@ -116,19 +116,6 @@ fi
 (cd /opt/amon-agent && ./pkg/postinstall.sh)
 rm -f /var/svc/amon-agent.tgz
 
-# XXX move to vmadm parameters.
-# setup resolvers
-# resolvers=$(mdata-get resolvers)
-# if [[ -z ${resolvers} ]]; then
-#   echo "Unable to find resolvers in metadata."
-#   exit 1
-# else
-#   echo "Writing resolv.conf: $resolvers"
-#   sed -i'' '/nameserver/d' /etc/resolv.conf
-#   for HOST in $resolvers; do
-#     echo "nameserver ${HOST}" >> /etc/resolv.conf
-#   done
-# fi
 
 # HEAD-1507 scheduled for deletion
 # Install registrar for the zone.
@@ -145,17 +132,137 @@ if [[ -z ${NO_FS_TARBALL} ]]; then
   rm -f /var/svc/registrar.bz2
 fi
 
+# HEAD-1371 registrar config supplied by config-agent.
 # get registrar config from metadata and start the service.
-registrar_config=$(mdata-get registrar-config)
-if [[ -z ${registrar_config} ]]; then
-  echo "No registrar config in metadata, skipping."
-else
-  echo "Writing registrar config."
-  echo $registrar_config | json > /opt/smartdc/registrar/etc/config.json \
-    || fatal "FATAL: unable to write registrar config"
-  svccfg import /opt/smartdc/registrar/smf/manifests/registrar.xml \
-    || fatal "FATAL: unable to import registrar manifest"
-  svcadm enable registrar
+# registrar_config=$(mdata-get registrar-config)
+# if [[ -z ${registrar_config} ]]; then
+#   echo "No registrar config in metadata, skipping."
+# else
+#   echo "Writing registrar config."
+#   echo $registrar_config | json > /opt/smartdc/registrar/etc/config.json \
+#     || fatal "FATAL: unable to write registrar config"
+#   svccfg import /opt/smartdc/registrar/smf/manifests/registrar.xml \
+#     || fatal "FATAL: unable to import registrar manifest"
+#   svcadm enable registrar
+# fi
+
+
+#
+# Configuration handling: the following three functions import the config-agent,
+# upload the zone's IP addresses into its metadata, and download the zone
+# metadata into a temporary file.  The zone's setup script can inspect this
+# temporary file for information about the zone's metadata.
+#
+# Any other scripts or services which require ongoing access to SAPI metadata
+# (apart from files managed by the config-agent) should poll the /configs
+# SAPI endpoint.
+#
+export METADATA=/var/tmp/metadata.json
+
+
+# Write out the config-agent's file
+function setup_config_agent {
+    local sapi_url=$(mdata-get sapi-url)
+    local prefix=/opt/smartdc/config-agent
+    local tmpfile=/tmp/agent.$$.xml
+
+    sed -e "s#@@PREFIX@@#${prefix}#g" \
+       ${prefix}/smf/manifests/config-agent.xml > ${tmpfile}
+    mv ${tmpfile} ${prefix}/smf/manifests/config-agent.xml
+
+    mkdir -p ${prefix}/etc
+    cat >${prefix}/etc/config.json <<EOF
+{
+    "logLevel": "debug",
+    "pollInterval": 10000,
+    "sapi": {
+        "url": "${sapi_url}"
+    }
+}
+EOF
+}
+
+# Upload the IP addresses assigned to this zone into its metadata
+function upload_values {
+    local update=/opt/smartdc/config-agent/bin/mdata-update
+
+    # Let's assume a zone will have at most four NICs
+    for i in $(seq 0 3); do
+        local ip=$(mdata-get sdc:nics.${i}.ip)
+        [[ $? -eq 0 ]] || ip=""
+        local tag=$(mdata-get sdc:nics.${i}.nic_tag)
+        [[ $? -eq 0 ]] || tag=""
+
+        # Want tag name to be uppercase
+        tag=$(echo ${tag} | tr 'a-z' 'A-Z')
+
+        if [[ -n ${ip} && -n ${tag} ]]; then
+            ${update} ${tag}_IP ${ip}
+            if [[ $? -ne 0 ]]; then
+                 fatal "failed to upload ${tag}_IP metadata"
+            fi
+
+            if [[ $i == 0 ]]; then
+                ${update} PRIMARY_IP ${ip}
+                if [[ $? -ne 0 ]]; then
+                     fatal "failed to upload PRIMARY_IP metadata"
+                fi
+            fi
+        fi
+    done
+
+    # not required, in params already.
+    # local datacenter_name=$(mdata-get sdc:datacenter_name)
+    # ${update} DATACENTER_NAME ${datacenter_name}
+    # if [[ $? -ne 0 ]]; then
+    #     fatal "failed to upload DATACENTER_NAME metadata"
+    # fi
+}
+
+# Download this zone's SAPI metadata and save it in a local file
+function download_metadata {
+    local sapi_url=$(mdata-get sapi-url)
+
+    curl -s ${sapi_url}/configs/$(zonename) | json metadata > ${METADATA}
+    if [[ $? -ne 0 ]]; then
+        fatal "failed to download metadata from SAPI"
+    fi
+}
+
+function write_initial_config {
+    local prefix=/opt/smartdc/config-agent
+    # Write configuration synchronously
+    ${prefix}/build/node/bin/node ${prefix}/agent.js -s
+
+    svccfg import ${prefix}/smf/manifests/config-agent.xml
+    svcadm enable config-agent
+}
+
+sapi_service=$(mdata-get sapi-service)
+echo "SAPI service - ${sapi_service}"
+## non-sapi services will be necessarily created by sdc-role
+## at this point, so...
+if [[ -z ${sapi_service} &&\
+      ${ZONE_ROLE} != "assets" &&\
+      ${ZONE_ROLE} != "sapi" ]]; then
+    # adopt this instance
+    sapi_url=$(mdata-get sapi-url)
+    service_uuid=$(curl ${sapi_url}/services?name=${ZONE_ROLE}\
+      -sS -H accept:application/json | json -Ha uuid)
+    uuid=$(zonename)
+    curl ${sapi_url}/instances -sS -X POST \
+      -H content-type:application/json \
+      -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }"
+    sapi_service="true"
+fi
+
+if [[ -n ${sapi_service} && ${sapi_service} == "true" &&\
+      ${ZONE_ROLE} != "assets" &&\
+      ${ZONE_ROLE} != "sapi" ]]; then
+    setup_config_agent
+    upload_values
+    download_metadata
+    write_initial_config
 fi
 
 # HEAD-1507 - what is this intended to do? No such file in zones.

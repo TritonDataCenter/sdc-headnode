@@ -1060,23 +1060,19 @@ ip_netmask_to_network "$admin_zone_ip" "$admin_netmask"
 next_addr=$IP_NUM
 num_to_ip $next_addr
 assets_admin_ip="$ip_addr"
-assets_svcname="assets.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 dhcpd_admin_ip="$ip_addr"
-dhcpd_svcname="dhcpd.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 napi_admin_ip="$ip_addr"
 napi_client_url="http://${napi_admin_ip}:80"
-napi_svcname="napi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 binder_admin_ip="$ip_addr"
-binder_svcname="binder.${dns_domain}"
 
 # we reserve four more (thus five total) ips for resolvers
 binder_resolver_ips="$binder_admin_ip"
@@ -1089,90 +1085,73 @@ done
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 manatee_admin_ip="$ip_addr"
-manatee_svcname="manatee.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 moray_admin_ip="$ip_addr"
-moray_svcname="moray.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 ufds_admin_ip="$ip_addr"
-ufds_svcname="ufds.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 workflow_admin_ip="$ip_addr"
-workflow_svcname="workflow.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 rabbitmq_admin_ip="$ip_addr"
 rabbitmq="guest:guest:${rabbitmq_admin_ip}:5672"
-rabbitmq_svcname="rabbitmq.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 imgapi_admin_ip="$ip_addr"
-imgapi_svcname="imgapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 cnapi_admin_ip="$ip_addr"
 cnapi_client_url="http://${cnapi_admin_ip}:80"
-cnapi_svcname="cnapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 redis_admin_ip="$ip_addr"
-redis_svcname="redis.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 amon_admin_ip="$ip_addr"
-amon_svcname="amon.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 dapi_admin_ip="$ip_addr"
-dapi_svcname="dapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 fwapi_admin_ip="$ip_addr"
 fwapi_client_url="http://${fwapi_admin_ip}:80"
-fwapi_svcname="fwapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 vmapi_admin_ip="$ip_addr"
-vmapi_svcname="vmapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 keyapi_admin_ip="$ip_addr"
-keyapi_svcname="keyapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 ca_admin_ip="$ip_addr"
-ca_svcname="ca.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 adminui_admin_ip="$ip_addr"
-adminui_svcname="adminui.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 usageapi_admin_ip="$ip_addr"
-usageapi_svcname="usageapi.${dns_domain}"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 sapi_admin_ip="$ip_addr"
-sapi_svcname="sapi.${dns_domain}"
 
 # Add 5 to leave some room
 next_addr=$(($next_addr + 5))
@@ -1216,67 +1195,54 @@ echo >>$tmp_config
 
 echo "binder_root_pw=$zone_admin_pw" >>$tmp_config
 echo "binder_admin_ips=$binder_admin_ip" >>$tmp_config
-echo "binder_svcname=$binder_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "manatee_root_pw=$zone_admin_pw" >>$tmp_config
 echo "manatee_admin_ips=$manatee_admin_ip" >>$tmp_config
-echo "manatee_svcname=$manatee_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
 echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
-echo "moray_svcname=$moray_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
-echo "ufds_svcname=$ufds_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
-echo "workflow_svcname=$workflow_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "imgapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "imgapi_admin_ips=$imgapi_admin_ip" >>$tmp_config
-echo "imgapi_svcname=$imgapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
-echo "cnapi_svcname=$cnapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
-echo "dapi_svcname=$dapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "fwapi_admin_ips=$fwapi_admin_ip" >>$tmp_config
-echo "fwapi_svcname=$fwapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
-echo "vmapi_svcname=$vmapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "keyapi_admin_ips=$keyapi_admin_ip" >>$tmp_config
-echo "keyapi_svcname=$keyapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
-echo "ca_svcname=$ca_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
-echo "adminui_svcname=$adminui_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1381,17 +1347,14 @@ if [[ -n ${external_nic} ]]; then
 	fi
 fi
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
-echo "adminui_svcname=$adminui_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
-echo "amon_svcname=$amon_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
-echo "redis_svcname=$redis_svcname" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1399,7 +1362,6 @@ echo >>$tmp_config
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
 echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
-echo "assets_svcname=$assets_svcname" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1407,7 +1369,6 @@ echo >>$tmp_config
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
-echo "dhcpd_svcname=$dhcpd_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
@@ -1431,12 +1392,10 @@ echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
-echo "rabbitmq_svcname=$rabbitmq_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
-echo "usageapi_svcname=$usageapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_local=true" >>$tmp_config
@@ -1450,26 +1409,21 @@ echo "# Legacy CAPI parameters" >>$tmp_config
 # Do not remove. Required to work by smart-login.git agent:
 echo "# Required by SmartLogin:" >>$tmp_config
 echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
-echo "ufds_svcname=$ufds_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
-echo "cnapi_svcname=$cnapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_client_url=$fwapi_client_url" >>$tmp_config
-echo "fwapi_svcname=$fwapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
-echo "napi_svcname=$napi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
-echo "sapi_svcname=$sapi_svcname" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

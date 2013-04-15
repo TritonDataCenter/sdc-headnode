@@ -30,10 +30,14 @@ LOGNAME=root . /root/.profile
 TRACE=1 /opt/smartdc/imgapi/bin/imgapi-amon-install
 
 # Add imgapi SSH key to UFDS
-# for now just take the first IP
-UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-UFDS_ADMIN_IP=$UFDS_ADMIN_IP UFDS_LDAP_ROOT_DN=$UFDS_LDAP_ROOT_DN \
-UFDS_LDAP_ROOT_PW=$UFDS_LDAP_ROOT_PW /opt/smartdc/imgapi/bin/imgapi-add-ssh-keys
+UFDS_ADMIN_IP=$(json -f ${METADATA} ufds_admin_ip)
+UFDS_LDAP_ROOT_DN=$(json -f ${METADATA} ufds_ldap_root_dn)
+UFDS_LDAP_ROOT_PW=$(json -f ${METADATA} ufds_ldap_root_pw)
+
+UFDS_ADMIN_IP=$UFDS_ADMIN_IP \
+    UFDS_LDAP_ROOT_DN=$UFDS_LDAP_ROOT_DN \
+    UFDS_LDAP_ROOT_PW=$UFDS_LDAP_ROOT_PW \
+    /opt/smartdc/imgapi/bin/imgapi-add-ssh-keys
 
 touch /var/svc/setup_complete
 echo "setup done"

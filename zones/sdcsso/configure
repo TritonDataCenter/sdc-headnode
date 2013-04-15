@@ -10,8 +10,8 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-KEYAPI_URL=$(echo "${SDCSSO_KEYAPI}" | cut -d',' -f1)
-UFDS_URL="ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)"
+# KEYAPI_URL=$(echo "${SDCSSO_KEYAPI}" | cut -d',' -f1)
+# UFDS_URL="ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)"
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s|@@PREFIX@@|/opt/smartdc/sdcsso|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
@@ -22,31 +22,31 @@ $(/opt/local/bin/gsed -i"" -e "s|@@PREFIX@@|/opt/smartdc/sdcsso|g" /opt/smartdc/
 #$(/opt/local/bin/gsed -i"" -e "s|@@SSLCERT@@|/opt/smartdc/sdcsso/ssl/cert.pem|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 #$(/opt/local/bin/gsed -i"" -e "s|@@SSLKEY@@|/opt/smartdc/sdcsso/ssl/key.pem|g" /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml)
 
-echo "Writing config file"
-mkdir -p /opt/smartdc/sdcsso/cfg
+# echo "Writing config file"
+# mkdir -p /opt/smartdc/sdcsso/cfg
 
-cat << eof >> /opt/smartdc/sdcsso/cfg/config.js
-{
-  "port" : 80,
-  "ufds" : {
-    "url" : "${UFDS_URL}",
-    "bindDN" : "${SDCSSO_LDAP_ROOT_DN}",
-    "bindPassword" : "${SDCSSO_LDAP_BIND_PASSWORD}"
-  },
-  "keyapi" : "http://${KEYAPI_URL}:8080",
-  "sslkey" : "/opt/smartdc/sdcsso/ssl/key.pem",
-  "sslcert" : "/opt/smartdc/sdcsso/ssl/cert.pem",
-  "nodemailerOpts" : { "smtpTransport" : {
-    "service" : "Gmail",
-    "auth" : {
-        "user" : "TO BE FILLED IN BY VENDOR",
-        "pass" : "TO BE FILLED IN BY VENDOR"
-    }
-  }}
-}
+# cat << eof >> /opt/smartdc/sdcsso/cfg/config.js
+# {
+#   "port" : 80,
+#   "ufds" : {
+#     "url" : "${UFDS_URL}",
+#     "bindDN" : "${SDCSSO_LDAP_ROOT_DN}",
+#     "bindPassword" : "${SDCSSO_LDAP_BIND_PASSWORD}"
+#   },
+#   "keyapi" : "http://${KEYAPI_URL}:8080",
+#   "sslkey" : "/opt/smartdc/sdcsso/ssl/key.pem",
+#   "sslcert" : "/opt/smartdc/sdcsso/ssl/cert.pem",
+#   "nodemailerOpts" : { "smtpTransport" : {
+#     "service" : "Gmail",
+#     "auth" : {
+#         "user" : "TO BE FILLED IN BY VENDOR",
+#         "pass" : "TO BE FILLED IN BY VENDOR"
+#     }
+#   }}
+# }
 
-eof
- 
+# eof
+
 echo "Importing sdcsso.xml"
 /usr/sbin/svccfg import /opt/smartdc/sdcsso/smf/manifests/sdcsso.xml
 

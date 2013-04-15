@@ -13,24 +13,6 @@ PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/
 # This includes the fatal function.
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | cut -d',' -f1)
-
-# XXX for now use the first MORAY, soon we'll be switching to DNS
-MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
-
-echo "Updating config file"
-CFG_FILE_IN=/opt/smartdc/$role/etc/config.json.in
-CFG_FILE=/opt/smartdc/$role/etc/config.json
-
-# Update config file
-cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|UFDS_ADMIN_IP|$UFDS_ADMIN_IP|" $CFG_FILE
-gsed -i -e "s|ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
-gsed -i -e "s|ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
-gsed -i -e "s|MORAY_URL|http://${MORAY_HOST}:2020|" $CFG_FILE
-
 # Enable Cron
 echo "Starting Cron"
 svccfg import /lib/svc/manifest/system/cron.xml

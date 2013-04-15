@@ -334,6 +334,7 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         > /usbkey/extra/joysetup/node.config
 fi
 
+# HEAD-1507 obsolete.
 # Setup the pkgsrc directory for the core zones to pull files from.
 # We need to switch the name from 2010q4 to 2010Q4, so we just link the files
 # into one with the correct name.  Thanks PCFS!
@@ -350,6 +351,7 @@ if [[ -f /usbkey/banner && ! -x /opt/smartdc/agents/bin/apm ]]; then
     echo "" >&${CONSOLE_FD}
 fi
 
+# HEAD-1371 is tool setup going to have to come after SAPI/config?
 if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin
     cp /usbkey/tools/* /opt/smartdc/bin
@@ -484,7 +486,6 @@ function create_zone {
     zone=$1
     new_uuid=$(uuid -v4)
 
-    # Do a lookup here to ensure zone with this role doesn't exist
     existing_uuid=$(vmadm lookup tags.smartdc_role=${zone})
     if [[ -n ${existing_uuid} ]]; then
         echo "Skipping creation of ${zone} as ${existing_uuid} already has" \
@@ -566,6 +567,8 @@ function create_zone {
         ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
     fi
 
+    # HEAD-1371 - zoneconfig should shrink or disappear for most zones,
+    # depending on what is removed from their configure/setup scripts.
     if [[ -f ${USB_COPY}/zones/${zone}/zoneconfig ]]; then
         # This allows zoneconfig to use variables that exist in the <USB>/config
         # file, by putting them in the environment then putting the zoneconfig
@@ -582,6 +585,7 @@ function create_zone {
             done
         ) > ${dir}/zoneconfig
 
+        # HEAD-1371 - only used for ufds afaik - another way to flag that?
         [[ $upgrading == 1 ]] && echo "IS_UPDATE='1'" >>${dir}/zoneconfig
 
         if [[ "$zone" == "ufds" ]]; then
@@ -602,9 +606,22 @@ function create_zone {
         dtrace_pid=$!
     fi
 
-    # by breaking this up we're able to use fake_zoneinit instead of zoneinit
-    NODE_PATH="/usr/node_modules:${NODE_PATH}" \
-        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} | vmadm create
+
+    local payload_file=/var/tmp/${zone}_payload.json
+    # HEAD-1371 - branch on SAPI here.
+    if [[ ${USE_SAPI} && -f ${USB_COPY}/services/${zone}/service.json ]]; then
+        echo "XXX - deploying ${zone} via SAPI indirection."
+        local sapi_url=http://${CONFIG_sapi_admin_ips}
+        [[ $upgrading == 1 ]] && UPGRADING="yes"
+        UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > /var/tmp/${zone}_old.json
+    else
+        # by breaking this up we're able to use fake_zoneinit instead of zoneinit
+        echo "XXX - deploy ${zone} via build-payload."
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${payload_file}
+    fi
+
+    cat ${payload_file} | vmadm create
 
     # for joyent minimal we can autoboot and have already faked out zoneinit
     if [[ $(json brand < ${USB_COPY}/zones/${zone}/create.json) != "joyent-minimal" ]]; then
@@ -696,12 +713,30 @@ function num_not_setup {
 }
 
 
+# HEAD-1371
+# assets, then sapi (proto-mode). Crap - of course sapi needs a payload that we
+# plan to get from SAPI. build-payload.js will need to continue/leverage SAPI
+# code. Leave as-is for now.
+
+# if we have an application.json, augment it with prompt-config, push to SAPI.
+# Compare to /usbkey/config after reboot?
+function sdc_init_application
+{
+    [[ -f ${USB_COPY}/application.json ]] || fatal "No application.json"
+    ${USB_COPY}/scripts/sdc-init.js
+}
+
 if [[ -z ${skip_zones} ]]; then
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
     create_zone assets
     create_zone sapi
+
+    # get SAPI standing up, then use that.
+    sdc_init_application
+    USE_SAPI="true"
+
     create_zone binder
     create_zone manatee
     create_zone moray
@@ -830,6 +865,13 @@ if [[ -n ${CREATEDZONES} ]]; then
             printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
         fi
     fi
+
+    #
+    # Once SDC has finished setup, upgrade SAPI to full mode.  This call informs
+    # SAPI that its dependent SDC services are ready and that it should store
+    # the SDC deployment configuration persistently.
+    #
+    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then

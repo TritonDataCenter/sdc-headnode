@@ -118,6 +118,7 @@ function create_upgrade
     (cd ${IMG_TMP_STAGE} \
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade.tgz \
+        application.json \
         boot/grub/menu.lst.tmpl \
 	boot/grub/bin/grub \
 	boot/grub/fat_stage1_5 \
@@ -129,8 +130,10 @@ function create_upgrade
 	dos \
         extra \
         datasets \
+        manifests \
         rc \
         scripts \
+        services \
         tools \
         tools-man \
         tools-modules.tar \

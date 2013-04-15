@@ -1,0 +1,5 @@
+{
+    "name": "usageapi",
+    "path": "/opt/smartdc/usageapi/config/config.json",
+    "post_cmd": "/usr/sbin/svcadm restart usageapi"
+}

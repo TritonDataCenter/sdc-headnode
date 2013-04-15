@@ -52,6 +52,7 @@
   "imgapi-image": "imgapi/imgapi-zfs-.*manifest",
   "keyapi-image": "keyapi/keyapi-zfs-.*manifest",
   "manatee-image": "manatee/manatee-zfs-.*manifest",
+  "manta-image": "manta-deployment/manta-deployment-zfs-.*manifest",
   "moray-image": "moray/moray-zfs-.*manifest",
   "napi-image": "napi/napi-zfs-.*manifest",
   "rabbitmq-image": "rabbitmq/rabbitmq-zfs-.*manifest",

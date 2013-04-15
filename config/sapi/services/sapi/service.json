@@ -1,0 +1,18 @@
+{
+    "name": "sapi",
+    "params": {
+        "package_name": "sdc_256",
+        "image_uuid": "IMAGE_UUID",
+		"networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "sapi",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "sapi",
+        "registrar_srvce": "_sapi"
+    },
+    "manifests": {
+    }
+}

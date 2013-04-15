@@ -1,0 +1,19 @@
+{
+    "name": "fwapi",
+    "params": {
+        "delegate_dataset": true,
+        "package_name": "sdc_128",
+        "image_uuid": "IMAGE_UUID",
+		"networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "fwapi",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "fwapi",
+        "registrar_srvce": "_fwapi"
+    },
+    "manifests": {
+    }
+}

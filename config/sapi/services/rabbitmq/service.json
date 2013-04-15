@@ -1,0 +1,20 @@
+{
+    "name": "rabbitmq",
+    "params": {
+        "package_name": "sdc_1024",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "rabbitmq",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "rabbitmq",
+        "registrar_srvce": "_rabbitmq",
+        "amqp_user": "guest",
+        "amqp_pass": "guest"
+    },
+    "manifests": {
+    }
+}

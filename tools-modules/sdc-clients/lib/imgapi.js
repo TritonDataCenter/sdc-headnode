@@ -38,6 +38,7 @@
  * example of the latter.
  */
 
+var p = console.log;
 var util = require('util'),
     format = util.format;
 var qs = require('querystring');
@@ -46,6 +47,7 @@ var crypto = require('crypto');
 
 var vasync = require('vasync');
 var async = require('async');
+var once = require('once');
 var WError = require('verror').WError;
 var assert = require('assert-plus');
 var restify = require('restify');
@@ -56,9 +58,10 @@ var SSHAgentClient = require('ssh-agent');
 // ---- client errors
 
 function ChecksumError(cause, actual, expected) {
+    this.code = 'ChecksumError';
     if (expected === undefined) {
-        actual = cause;
         expected = actual;
+        actual = cause;
         cause = undefined;
     }
     assert.optionalObject(cause);
@@ -72,6 +75,19 @@ function ChecksumError(cause, actual, expected) {
     WError.apply(this, args);
 }
 util.inherits(ChecksumError, WError);
+
+/**
+ * An error signing a request.
+ */
+function SigningError(cause) {
+    this.code = 'SigningError';
+    assert.optionalObject(cause);
+    var msg = 'error signing request';
+    var args = (cause ? [cause, msg] : [msg]);
+    WError.apply(this, args);
+}
+util.inherits(SigningError, WError);
+
 
 
 
@@ -132,6 +148,36 @@ function pauseStream(stream) {
             stream.emit('end');
     };
 }
+
+
+function extendErrFromRawBody(err, res, callback) {
+    if (!res) {
+        callback(err);
+        return;
+    }
+
+    function finish_() {
+        if (errBody && (!err.body.message || !err.body.code)) {
+            try {
+                var data = JSON.parse(errBody);
+                err.message = data.message;
+                err.body.message = data.message;
+                err.body.code = data.code;
+            } catch (e) {
+                err.message = errBody;
+                err.body.message = errBody;
+            }
+        }
+        callback(err);
+    }
+    var finish = once(finish_);
+
+    var errBody = '';
+    res.on('data', function (chunk) { errBody += chunk; });
+    res.on('error', finish);
+    res.on('end', finish);
+}
+
 
 
 // ---- client API
@@ -199,6 +245,11 @@ IMGAPI.prototype._getAuthHeaders = function _getAuthHeaders(callback) {
     var str = headers.date;
 
     self.sign(str, function (err, signature) {
+        if (err || !signature) {
+            callback(new SigningError(err));
+            return;
+        }
+
         // Note that are using the *user* for the "keyId" in the HTTP-Signature
         // scheme. This is because on the server-side (IMGAPI) only the
         // username is used to determine relevant keys with which to verify.
@@ -239,9 +290,14 @@ IMGAPI.prototype.ping = function ping(error, callback) {
         path += '?' + qs.stringify({error: error});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
-            headers: headers
+            headers: headers,
+            connectTimeout: 15000 // long default for spotty internet
         };
         self.client.get(opts, function (err, req, res, pong) {
             if (err) {
@@ -265,6 +321,10 @@ IMGAPI.prototype.adminGetState = function adminGetState(callback) {
 
     var path = '/state';
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -303,6 +363,10 @@ IMGAPI.prototype.listImages = function listImages(filters, callback) {
         path += '?' + query;
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -342,6 +406,10 @@ IMGAPI.prototype.getImage = function getImage(uuid, account, callback) {
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -381,6 +449,10 @@ IMGAPI.prototype.createImage = function createImage(data, account, callback) {
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -414,6 +486,10 @@ IMGAPI.prototype.adminImportImage = function adminImportImage(data, callback) {
 
     var path = format('/images/%s?action=import', data.uuid);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -491,6 +567,10 @@ IMGAPI.prototype.addImageFile = function addImageFile(options, account,
         }
 
         self._getAuthHeaders(function (hErr, headers) {
+            if (hErr) {
+                callback(hErr);
+                return;
+            }
             headers['Content-Type'] = 'application/octet-stream';
             headers['Content-Length'] = size;
             headers['Accept'] = 'application/json';
@@ -515,7 +595,9 @@ IMGAPI.prototype.addImageFile = function addImageFile(options, account,
 
                 req.on('result', function (resultErr, res) {
                     if (resultErr) {
-                        callback(resultErr, null, res);
+                        extendErrFromRawBody(resultErr, res, function () {
+                            callback(resultErr, null, res);
+                        });
                         return;
                     }
 
@@ -571,6 +653,10 @@ IMGAPI.prototype.getImageFile = function getImageFile(uuid, filePath, account,
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -581,41 +667,30 @@ IMGAPI.prototype.getImageFile = function getImageFile(uuid, filePath, account,
                 return;
             }
             req.on('result', function (resultErr, res) {
-                if (resultErr && !res) {
-                    callback(resultErr);
+                if (resultErr) {
+                    extendErrFromRawBody(resultErr, res, function () {
+                        callback(resultErr, res);
+                    });
                     return;
                 }
 
                 var hash = null;
-                var errMessage = '';
-                if (resultErr) {
-                    // Still read the result data to get the body, which
-                    // has the error message.
-                    res.on('data', function (chunk) { errMessage += chunk; });
-                } else {
-                    res.pipe(fs.createWriteStream(filePath));
-                    hash = crypto.createHash('md5');
-                    res.on('data', function (chunk) { hash.update(chunk); });
-                }
+                res.pipe(fs.createWriteStream(filePath));
+                hash = crypto.createHash('md5');
+                res.on('data', function (chunk) { hash.update(chunk); });
 
-                var finished = false;
-                function finish(err) {
-                    if (!finished) {
-                        if (!(resultErr || err)) {
-                            var md5_expected = res.headers['content-md5'];
-                            var md5_actual = hash.digest('base64');
-                            if (md5_actual !== md5_expected) {
-                                err = new ChecksumError(md5_actual,
-                                                        md5_expected);
-                            }
+                function finish_(err) {
+                    if (!err) {
+                        var md5_expected = res.headers['content-md5'];
+                        var md5_actual = hash.digest('base64');
+                        if (md5_actual !== md5_expected) {
+                            err = new ChecksumError(md5_actual,
+                                                    md5_expected);
                         }
-                        if (resultErr && !resultErr.body.message) {
-                            resultErr.body.message = errMessage;
-                        }
-                        callback((resultErr || err), res);
-                        finished = true;
                     }
+                    callback(err, res);
                 }
+                var finish = once(finish_);
                 res.on('error', finish);
                 res.on('end', finish);
             });
@@ -651,6 +726,10 @@ IMGAPI.prototype.getImageFileStream = function getImageFileStream(
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -662,26 +741,9 @@ IMGAPI.prototype.getImageFileStream = function getImageFileStream(
             }
             req.on('result', function (resultErr, res) {
                 if (resultErr) {
-                    if (!res) {
-                        callback(resultErr);
-                    } else {
-                        var finished = false;
-                        function finish(err) {
-                            if (finished)
-                                return;
-                            finished = true;
-                            if (!resultErr.body.message && errMessage) {
-                                resultErr.body.message = errMessage;
-                            }
-                            callback(resultErr, res);
-                        }
-                        var errMessage = '';
-                        res.on('data', function (chunk) {
-                            errMessage += chunk;
-                        });
-                        res.on('error', finish);
-                        res.on('end', finish);
-                    }
+                    extendErrFromRawBody(resultErr, res, function () {
+                        callback(resultErr, res);
+                    });
                     return;
                 }
                 callback(null, res);
@@ -753,6 +815,10 @@ IMGAPI.prototype.addImageIcon = function addImageIcon(options, account,
         }
 
         self._getAuthHeaders(function (hErr, headers) {
+            if (hErr) {
+                callback(hErr);
+                return;
+            }
             headers['Content-Type'] = options.contentType;
             headers['Content-Length'] = size;
             headers['Accept'] = 'application/json';
@@ -777,7 +843,9 @@ IMGAPI.prototype.addImageIcon = function addImageIcon(options, account,
 
                 req.on('result', function (resultErr, res) {
                     if (resultErr) {
-                        callback(resultErr, null, res);
+                        extendErrFromRawBody(resultErr, res, function () {
+                            callback(resultErr, null, res);
+                        });
                         return;
                     }
 
@@ -833,6 +901,10 @@ IMGAPI.prototype.getImageIcon = function getImageIcon(uuid, filePath, account,
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -843,41 +915,31 @@ IMGAPI.prototype.getImageIcon = function getImageIcon(uuid, filePath, account,
                 return;
             }
             req.on('result', function (resultErr, res) {
-                if (resultErr && !res) {
-                    callback(resultErr);
+                if (resultErr) {
+                    extendErrFromRawBody(resultErr, res, function () {
+                        callback(resultErr, res);
+                    });
                     return;
                 }
 
                 var hash = null;
-                var errMessage = '';
-                if (resultErr) {
-                    // Still read the result data to get the body, which
-                    // has the error message.
-                    res.on('data', function (chunk) { errMessage += chunk; });
-                } else {
-                    res.pipe(fs.createWriteStream(filePath));
-                    hash = crypto.createHash('md5');
-                    res.on('data', function (chunk) { hash.update(chunk); });
-                }
+                res.pipe(fs.createWriteStream(filePath));
+                hash = crypto.createHash('md5');
+                res.on('data', function (chunk) { hash.update(chunk); });
 
-                var finished = false;
-                function finish(err) {
-                    if (!finished) {
-                        if (!(resultErr || err)) {
-                            var md5_expected = res.headers['content-md5'];
-                            var md5_actual = hash.digest('base64');
-                            if (md5_actual !== md5_expected) {
-                                err = new ChecksumError(md5_actual,
-                                                        md5_expected);
-                            }
+                function finish_(err) {
+                    if (!err) {
+                        var md5_expected = res.headers['content-md5'];
+                        var md5_actual = hash.digest('base64');
+                        if (md5_actual !== md5_expected) {
+                            err = new ChecksumError(md5_actual,
+                                                    md5_expected);
                         }
-                        if (resultErr && !resultErr.body.message) {
-                            resultErr.body.message = errMessage;
-                        }
-                        callback((resultErr || err), res);
-                        finished = true;
                     }
+                    callback(err, res);
                 }
+                var finish = once(finish_);
+
                 res.on('error', finish);
                 res.on('end', finish);
             });
@@ -913,6 +975,10 @@ IMGAPI.prototype.getImageIconStream = function getImageIconStream(
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -924,26 +990,9 @@ IMGAPI.prototype.getImageIconStream = function getImageIconStream(
             }
             req.on('result', function (resultErr, res) {
                 if (resultErr) {
-                    if (!res) {
-                        callback(resultErr);
-                    } else {
-                        var finished = false;
-                        function finish(err) {
-                            if (finished)
-                                return;
-                            finished = true;
-                            if (!resultErr.body.message && errMessage) {
-                                resultErr.body.message = errMessage;
-                            }
-                            callback(resultErr, res);
-                        }
-                        var errMessage = '';
-                        res.on('data', function (chunk) {
-                            errMessage += chunk;
-                        });
-                        res.on('error', finish);
-                        res.on('end', finish);
-                    }
+                    extendErrFromRawBody(resultErr, res, function () {
+                        callback(resultErr, res);
+                    });
                     return;
                 }
                 callback(null, res);
@@ -978,6 +1027,10 @@ function deleteImageIcon(uuid, account, callback) {
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1020,6 +1073,10 @@ IMGAPI.prototype.activateImage = function activateImage(uuid, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1062,6 +1119,10 @@ IMGAPI.prototype.disableImage = function disableImage(uuid, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1104,6 +1165,10 @@ IMGAPI.prototype.enableImage = function enableImage(uuid, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1148,6 +1213,10 @@ IMGAPI.prototype.addImageAcl = function addImageAcl(uuid, acl, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1192,6 +1261,10 @@ IMGAPI.prototype.removeImageAcl = function removeImageAcl(uuid, acl, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1236,6 +1309,10 @@ IMGAPI.prototype.updateImage = function updateImage(uuid, data, account,
     }
     path += '?' + qs.stringify(query);
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         var opts = {
             path: path,
             headers: headers
@@ -1275,6 +1352,10 @@ IMGAPI.prototype.deleteImage = function deleteImage(uuid, account, callback) {
         path += '?' + qs.stringify({account: account});
     }
     self._getAuthHeaders(function (hErr, headers) {
+        if (hErr) {
+            callback(hErr);
+            return;
+        }
         if (!headers['content-length']) {
             headers['content-length'] = 0;
         }
@@ -1621,6 +1702,9 @@ function cliSigner(options) {
 // ---- exports
 
 module.exports = IMGAPI;
+
+module.exports.ChecksumError = ChecksumError;
+module.exports.SigningError = SigningError;
 
 module.exports.createClient = function createClient(options) {
     return new IMGAPI(options);

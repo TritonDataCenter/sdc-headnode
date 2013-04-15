@@ -1,0 +1,19 @@
+{
+    "name": "usageapi",
+    "params": {
+        "package_name": "sdc_768",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "delegate_dataset": true,
+        "tags": {
+            "smartdc_role": "usageapi",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "usageapi",
+        "registrar_srvce": "_usageapi"
+    },
+    "manifests": {
+    }
+}

@@ -288,4 +288,29 @@ function commandExecute(server, script, params, callback) {
 
 CNAPI.prototype.commandExecute = commandExecute;
 
+/**
+ * Runs a command on the specified server.  The optional 'params' argument can
+ * contain two fields:
+ *
+ * @param {Array} args Array containing arguments to be passed in to command
+ * @param {Object} env Object containing environment variables to be passed in
+ */
+function commandExecute(server, script, params, callback) {
+    if (!server)
+        throw new TypeError('Server UUID is required');
+    if (!script)
+        throw new TypeError('Script is required');
+
+    if (arguments.length === 3) {
+        callback = params;
+        params = {};
+    }
+
+    params.script = script;
+
+    return this.post('/servers/' + server + '/execute', params, callback);
+}
+
+CNAPI.prototype.commandExecute = commandExecute;
+
 module.exports = CNAPI;

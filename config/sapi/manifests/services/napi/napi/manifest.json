@@ -1,0 +1,5 @@
+{
+    "name": "napi",
+    "path": "/opt/smartdc/napi/config.json",
+    "post_cmd": "svcadm refresh napi"
+}

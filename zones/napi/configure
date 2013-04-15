@@ -9,70 +9,10 @@ set -o xtrace
 # This includes the fatal function.
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-INSTDIR=/opt/smartdc/napi
-CONF=${INSTDIR}/config.json
-
-if [[ -z "${EXTERNAL_VLAN_ID}" ]]; then
-    EXTERNAL_VLAN_ID=0
-fi
-
-RESOLVER_LIST=""
-for R in $RESOLVERS; do
-    c=","
-    if [[ -z $RESOLVER_LIST ]]; then
-        c=""
-    fi
-    RESOLVER_LIST="${RESOLVER_LIST}${c} \"$R\""
-done
-
-# XXX for now use the first MORAY, soon we'll be switching to DNS
-MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
-
-cat > ${CONF} <<ADMIN_CONFIG
-{
-  "port": 80,
-  "datacenter": "${DATACENTER_NAME}",
-  "macOUI": "${MAC_OUI}",
-  "moray": {
-    "host": "$MORAY_HOST",
-    "port": 2020
-  },
-  "ufdsAdminUuid": "${UFDS_ADMIN_UUID}",
-  "initialNetworks": {
-    "admin": {
-      "vlan": 0,
-      "network": "${ADMIN_NETWORK}",
-      "netmask": "${ADMIN_NETMASK}",
-      "gateway": "${ADMIN_GATEWAY}",
-      "startIP": "${ADMIN_START_IP}",
-      "endIP": "${ADMIN_END_IP}",
-      "resolvers": [ ${RESOLVER_LIST} ]
-ADMIN_CONFIG
-
-if [[ -n "${EXTERNAL_NETWORK}" ]]; then
-    cat >> ${CONF} <<EXTERNAL_CONFIG
-    },
-    "external": {
-      "vlan": ${EXTERNAL_VLAN_ID},
-      "network": "${EXTERNAL_NETWORK}",
-      "netmask": "${EXTERNAL_NETMASK}",
-      "gateway": "${EXTERNAL_GATEWAY}",
-      "startIP": "${EXTERNAL_START_IP}",
-      "endIP": "${EXTERNAL_END_IP}",
-      "resolvers": [ ${RESOLVER_LIST} ]
-EXTERNAL_CONFIG
-fi
-
-cat >> ${CONF} <<END_CONFIG
-    }
-  }
-}
-END_CONFIG
+# eval $(cat /opt/smartdc/etc/zoneconfig)
 
 echo "Importing napi SMF manifest"
-/usr/sbin/svccfg import ${INSTDIR}/smf/manifests/napi.xml
+/usr/sbin/svccfg import /opt/smartdc/napi/smf/manifests/napi.xml
 
 echo "Enabling napi service"
 /usr/sbin/svcadm enable smartdc/site/napi

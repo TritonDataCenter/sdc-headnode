@@ -11,55 +11,6 @@ PATH=/opt/smartdc/sapi/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/u
 # This includes the fatal function.
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
-MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
-NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
-UFDS_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
-VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
-WFAPI_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-
-echo "Creating SAPI config file"
-mkdir -p /opt/smartdc/sapi/etc
-
-cat > /opt/smartdc/sapi/etc/config.json <<HERE
-{
-  "log_options": {
-    "name": "sapi",
-    "level": "debug"
-  },
-  "mode": "proto",
-  "datacenter_name": "$DATACENTER_NAME",
-  "adminUuid": "$UFDS_ADMIN_UUID",
-  "moray": {
-    "host": "$MORAY_HOST",
-    "port": 2020
-  },
-  "vmapi": {
-    "url": "$VMAPI_URL"
-  },
-  "napi": {
-    "url": "$NAPI_URL"
-  },
-  "imgapi": {
-    "url": "$IMGAPI_URL"
-  },
-  "remote_imgapi": {
-    "url": "https://updates.joyent.us"
-  },
-  "ufds": {
-    "url": "$UFDS_URL",
-    "bindDN": "$UFDS_LDAP_ROOT_DN",
-    "bindPassword": "$UFDS_LDAP_ROOT_PW",
-    "cache": {
-      "size": 1000,
-      "expiry": 300
-    }
-  }
-}
-HERE
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/sapi/g" /opt/smartdc/sapi/smf/manifests/sapi.xml)
 

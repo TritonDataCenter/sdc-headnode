@@ -37,7 +37,7 @@ sandwich:
 
 .PHONY: update-tools-modules
 update-tools-modules:
-	./bin/mk-sdc-clients-light.sh 75e1af8 tools-modules/sdc-clients
+	./bin/mk-sdc-clients-light.sh da0a1080feb tools-modules/sdc-clients
 
 
 

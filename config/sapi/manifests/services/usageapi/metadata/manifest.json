@@ -1,0 +1,5 @@
+{
+    "name": "usageapi-metadata",
+    "path": "/opt/smartdc/etc/sapi_metadata.json",
+    "post_cmd": "svcadm refresh usageapi"
+}

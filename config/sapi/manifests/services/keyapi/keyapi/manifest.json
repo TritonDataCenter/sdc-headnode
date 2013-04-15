@@ -1,0 +1,5 @@
+{
+    "name": "keyapi",
+    "path": "/opt/smartdc/keyapi/config.json",
+    "post_cmd": "/usr/sbin/svcadm restart keyapi"
+}

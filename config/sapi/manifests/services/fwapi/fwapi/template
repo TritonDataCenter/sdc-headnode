@@ -1,0 +1,23 @@
+{
+  "port": 80,
+  "datacenter": "{{datacenter_name}}",
+  "ufds": {
+    "url": "ldaps://{{ufds_admin_ips}}",
+    "bindDN": "{{ufds_ldap_root_dn}}",
+    "bindPassword": "{{ufds_ldap_root_pw}}",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  },
+  "vmapi": {
+    "url": "http://{{vmapi_admin_ips}}",
+    "connectTimeout": 1000,
+    "retry": {
+      "retries": 2
+    }
+  },
+  "wfapi": {
+    "url": "http://{{workflow_admin_ips}}"
+  }
+}

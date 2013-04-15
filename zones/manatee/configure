@@ -3,7 +3,7 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
+# eval $(cat /opt/smartdc/etc/zoneconfig)
 
 PATH=/opt/smartdc/manatee/build/node/bin:/opt/local/bin:/usr/sbin/:/usr/bin:$PATH
 PROFILE=/root/.bashrc
@@ -19,16 +19,20 @@ function update_env {
     echo "export PATH=\$PATH:/opt/smartdc/registrar/build/node/bin:/opt/smartdc/registrar/node_modules/.bin:/opt/smartdc/manatee/lib/tools" >>$PROFILE
 }
 
-ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
+# ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
+ZONE_UUID=$(json -f /var/tmp/metadata.json ZONE_UUID)
 DATASET=zones/$ZONE_UUID/data/manatee
 PARENT_DATASET=zones/$ZONE_UUID/data
 DATASET_MOUNT_DIR=/manatee/pg
 PG_DIR=/manatee/pg/data
-ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+# ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+ZONE_IP=$(json -f /var/tmp/metadata.json ADMIN_IP)
 SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
 SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/etc/snapshotter.json
 BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
-SHARD="sdc"
+SHARD=$(json -f /var/tmp/metadata.json manatee_shard)
+BINDER_ADMIN_IPS=$(json -f /var/tmp/metadata.json binder_admin_ips)
+
 
 # check that the dataset has been mounted
 echo "checking to see if dataset is mounted"
@@ -77,8 +81,8 @@ echo "make snapshot dir visible"
 zfs set snapdir=visible $DATASET
 
 # ZK configs
-ZK_TIMEOUT=30000
-SHARD_PATH=/manatee/$SHARD
+# ZK_TIMEOUT=30000
+# SHARD_PATH=/manatee/$SHARD
 
 # backup and snapshot configs
 PG_CONF=/opt/smartdc/manatee/etc/postgresql.sdc.conf
@@ -94,53 +98,53 @@ PG_URL=tcp://postgres@$ZONE_IP:5432/postgres
 SNAPSHOT_DIR=$DATASET_MOUNT_DIR/.zfs/snapshot/
 
 # update sitter cfg file
-echo "Updating /opt/smartdc/manatee/etc/sitter.json"
-cp /opt/smartdc/manatee/etc/sitter.json.in $SITTER_CFG_FILE
+# echo "Updating /opt/smartdc/manatee/etc/sitter.json"
+# cp /opt/smartdc/manatee/etc/sitter.json.in $SITTER_CFG_FILE
 
-gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $SITTER_CFG_FILE
-gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
-gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
-gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
-gsed -i -e "s|PG_CONF|$PG_CONF|g" $SITTER_CFG_FILE
-gsed -i -e "s|PARENT_DATASET|$PARENT_DATASET|g" $SITTER_CFG_FILE
-gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
-gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZONE_IP|$ZONE_IP|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZONE_ID|$ZONE_UUID|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $SITTER_CFG_FILE
-gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE
+# gsed -i -e "s|SHARD_PATH|$SHARD_PATH|g" $SITTER_CFG_FILE
+# gsed -i -e "s|BACKUP_URL|$BACKUP_URL|g" $SITTER_CFG_FILE
+# gsed -i -e "s|PG_URL|$PG_URL|g" $SITTER_CFG_FILE
+# gsed -i -e "s|PG_DIR|$PG_DIR|g" $SITTER_CFG_FILE
+# gsed -i -e "s|PG_CONF|$PG_CONF|g" $SITTER_CFG_FILE
+# gsed -i -e "s|PARENT_DATASET|$PARENT_DATASET|g" $SITTER_CFG_FILE
+# gsed -i -e "s|DATASET|$DATASET|g" $SITTER_CFG_FILE
+# gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SITTER_CFG_FILE
+# gsed -i -e "s|ZK_TIMEOUT|$ZK_TIMEOUT|g" $SITTER_CFG_FILE obsolete?
+# gsed -i -e "s|ZFS_RECV_IP|$ZONE_IP|g" $SITTER_CFG_FILE
+# gsed -i -e "s|ZONE_IP|$ZONE_IP|g" $SITTER_CFG_FILE
+# gsed -i -e "s|ZONE_ID|$ZONE_UUID|g" $SITTER_CFG_FILE
+# gsed -i -e "s|ZFS_RECV_PATH|$ZFS_RECV_PATH|g" $SITTER_CFG_FILE obsolete?
+# gsed -i -e "s|ZFS_RECV_PORT|$ZFS_RECV_PORT|g" $SITTER_CFG_FILE obsolete?
 # enable one node write mode for coal, since there is only one manatee
-gsed -i -e "s|ONE_NODE_WRITE_MODE|true|g" $SITTER_CFG_FILE
+# gsed -i -e "s|ONE_NODE_WRITE_MODE|true|g" $SITTER_CFG_FILE
 
 # update zk config
-echo "setting zk ips for sitter.cfg"
-echo $BINDER_ADMIN_IPS
-for ip in $BINDER_ADMIN_IPS
-do
-cat $SITTER_CFG_FILE| \
-    json -e "zkCfg.servers.push({ host: \"$ip\", port: 2181 });" \
-    > /tmp/.sitter.json
-mv /tmp/.sitter.json $SITTER_CFG_FILE
-done
+# echo "setting zk ips for sitter.cfg"
+# echo $BINDER_ADMIN_IPS
+# for ip in $BINDER_ADMIN_IPS
+# do
+# cat $SITTER_CFG_FILE| \
+#     json -e "zkCfg.servers.push({ host: \"$ip\", port: 2181 });" \
+#     > /tmp/.sitter.json
+# mv /tmp/.sitter.json $SITTER_CFG_FILE
+# done
 
 # update snapshot cfg file
-echo "Updating /opt/smartdc/manatee/etc/snapshotter.json"
-cp /opt/smartdc/manatee/etc/snapshotter.json.in $SNAPSHOT_CFG_FILE
-gsed -i -e "s|DATASET|$DATASET|g" $SNAPSHOT_CFG_FILE
-gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SNAPSHOT_CFG_FILE
-gsed -i -e "s|SNAPSHOT_INTERVAL|$SNAPSHOT_INTERVAL|g" $SNAPSHOT_CFG_FILE
-gsed -i -e "s|SNAPSHOT_NUMBER|$SNAPSHOT_NUMBER|g" $SNAPSHOT_CFG_FILE
-gsed -i -e "s|PG_URL|$PG_URL|g" $SNAPSHOT_CFG_FILE
+# echo "Updating /opt/smartdc/manatee/etc/snapshotter.json"
+# cp /opt/smartdc/manatee/etc/snapshotter.json.in $SNAPSHOT_CFG_FILE
+# gsed -i -e "s|DATASET|$DATASET|g" $SNAPSHOT_CFG_FILE
+# gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $SNAPSHOT_CFG_FILE
+# gsed -i -e "s|SNAPSHOT_INTERVAL|$SNAPSHOT_INTERVAL|g" $SNAPSHOT_CFG_FILE
+# gsed -i -e "s|SNAPSHOT_NUMBER|$SNAPSHOT_NUMBER|g" $SNAPSHOT_CFG_FILE
+# gsed -i -e "s|PG_URL|$PG_URL|g" $SNAPSHOT_CFG_FILE
 
 # update backupServer cfg file
-echo "Updating /opt/smartdc/manatee/etc/backupserver.json"
-cp /opt/smartdc/manatee/etc/backupserver.json.in $BACKUP_CFG_FILE
-gsed -i -e "s|DATASET|$DATASET|g" $BACKUP_CFG_FILE
-gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $BACKUP_CFG_FILE
-gsed -i -e "s|BACKUP_SERVER_PORT|$BACKUP_SERVER_PORT|g" $BACKUP_CFG_FILE
-gsed -i -e "s|ZFS_SEND_PATH|$ZFS_SEND_PATH|g" $BACKUP_CFG_FILE
+# echo "Updating /opt/smartdc/manatee/etc/backupserver.json"
+# cp /opt/smartdc/manatee/etc/backupserver.json.in $BACKUP_CFG_FILE
+# gsed -i -e "s|DATASET|$DATASET|g" $BACKUP_CFG_FILE
+# gsed -i -e "s|SNAPSHOT_DIR|$SNAPSHOT_DIR|g" $BACKUP_CFG_FILE
+# gsed -i -e "s|BACKUP_SERVER_PORT|$BACKUP_SERVER_PORT|g" $BACKUP_CFG_FILE
+# gsed -i -e "s|ZFS_SEND_PATH|$ZFS_SEND_PATH|g" $BACKUP_CFG_FILE
 
 echo "Updating ~/.bashrc"
 update_env
@@ -182,6 +186,7 @@ svcadm enable manatee-backupserver
 echo "Starting sitter"
 svccfg import /opt/smartdc/manatee/smf/manifests/sitter.xml
 svcadm enable manatee-sitter
+
 
 #functions
 echo "mbunyan() { bunyan -c \"this.component !== 'ZKPlus'\"  -c 'level >= 30'; }" >> $PROFILE

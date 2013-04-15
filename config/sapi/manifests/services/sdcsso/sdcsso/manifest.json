@@ -1,0 +1,5 @@
+{
+    "name": "sdcsso",
+    "path": "/opt/smartdc/sdcsso/cfg/config.js",
+    "post_cmd": "/usr/sbin/svcadm restart sdcsso"
+}

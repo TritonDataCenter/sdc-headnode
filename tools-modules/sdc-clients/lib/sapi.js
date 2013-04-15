@@ -1,18 +1,25 @@
 /*
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  *
- * Client library for the SDC Services API (SAPI)
+ * lib/sapi.js: client library for the SDC Services API (SAPI)
  */
 
 var assert = require('assert-plus');
+var async = require('async');
+var fs = require('fs');
+var qs = require('querystring');
+var path = require('path');
 var util = require('util');
+var vasync = require('vasync');
 
 var sprintf = require('util').format;
 
 var RestifyClient = require('./restifyclient');
 
 
-// --- Exported Client
+
+// --- API Functions
+
 
 /**
  * Constructor
@@ -20,10 +27,16 @@ var RestifyClient = require('./restifyclient');
  * See the RestifyClient constructor for details
  */
 function SAPI(options) {
+    assert.object(options, 'options');
+    assert.object(options.log, 'options.log');
+
+    this.log = options.log;
+
     RestifyClient.call(this, options);
 }
 
 util.inherits(SAPI, RestifyClient);
+
 
 
 // --- Applications
@@ -56,8 +69,14 @@ SAPI.prototype.createApplication = createApplication;
  *
  * @param {Function} callback: of the form f(err, apps).
  */
-function listApplications(callback) {
-    return (this.get('/applications', callback));
+function listApplications(search_opts, callback) {
+    if (arguments.length === 1) {
+        callback = search_opts;
+        search_opts = {};
+    }
+
+    var uri = '/applications?' + qs.stringify(search_opts);
+    return (this.get(uri, callback));
 }
 
 SAPI.prototype.listApplications = listApplications;
@@ -74,6 +93,23 @@ function getApplication(uuid, callback) {
 }
 
 SAPI.prototype.getApplication = getApplication;
+
+
+/**
+ * Updates an application
+ *
+ * @param {String} uuid: the UUID of the applications.
+ * @param {String} opts: new attributes
+ * @param {Function} callback: of the form f(err, app).
+ */
+function updateApplication(uuid, opts, callback) {
+    assert.string(uuid, 'uuid');
+    assert.object(opts, 'opts');
+
+    return (this.put(sprintf('/applications/%s', uuid), opts, callback));
+}
+
+SAPI.prototype.updateApplication = updateApplication;
 
 
 /**
@@ -120,8 +156,14 @@ SAPI.prototype.createService = createService;
  *
  * @param {Function} callback: of the form f(err, apps).
  */
-function listServices(callback) {
-    return (this.get('/services', callback));
+function listServices(search_opts, callback) {
+    if (arguments.length === 1) {
+        callback = search_opts;
+        search_opts = {};
+    }
+
+    var uri = '/services?' + qs.stringify(search_opts);
+    return (this.get(uri, callback));
 }
 
 SAPI.prototype.listServices = listServices;
@@ -138,6 +180,23 @@ function getService(uuid, callback) {
 }
 
 SAPI.prototype.getService = getService;
+
+
+/**
+ * Updates a service
+ *
+ * @param {String} uuid: the UUID of the services.
+ * @param {String} opts: new attributes
+ * @param {Function} callback: of the form f(err, app).
+ */
+function updateService(uuid, opts, callback) {
+    assert.string(uuid, 'uuid');
+    assert.object(opts, 'opts');
+
+    return (this.put(sprintf('/services/%s', uuid), opts, callback));
+}
+
+SAPI.prototype.updateService = updateService;
 
 
 /**
@@ -161,8 +220,7 @@ SAPI.prototype.deleteService = deleteService;
  *
  * @param {Function} callback: of the form f(err, app).
  */
-function createInstance(name, service_uuid, opts, callback) {
-    assert.string(name, 'name');
+function createInstance(service_uuid, opts, callback) {
     assert.string(service_uuid, 'service_uuid');
 
     if (typeof (opts) === 'function') {
@@ -170,7 +228,6 @@ function createInstance(name, service_uuid, opts, callback) {
         opts = {};
     }
 
-    opts.name = name;
     opts.service_uuid = service_uuid;
 
     return (this.post('/instances', opts, callback));
@@ -184,8 +241,14 @@ SAPI.prototype.createInstance = createInstance;
  *
  * @param {Function} callback: of the form f(err, instances).
  */
-function listInstances(callback) {
-    return (this.get('/instances', callback));
+function listInstances(search_opts, callback) {
+    if (arguments.length === 1) {
+        callback = search_opts;
+        search_opts = {};
+    }
+
+    var uri = '/instances?' + qs.stringify(search_opts);
+    return (this.get(uri, callback));
 }
 
 SAPI.prototype.listInstances = listInstances;
@@ -205,6 +268,23 @@ SAPI.prototype.getInstance = getInstance;
 
 
 /**
+ * Updates an instance
+ *
+ * @param {String} uuid: the UUID of the instances.
+ * @param {String} opts: new attributes
+ * @param {Function} callback: of the form f(err, app).
+ */
+function updateInstance(uuid, opts, callback) {
+    assert.string(uuid, 'uuid');
+    assert.object(opts, 'opts');
+
+    return (this.put(sprintf('/instances/%s', uuid), opts, callback));
+}
+
+SAPI.prototype.updateInstance = updateInstance;
+
+
+/**
  * Deletes an instance by UUID
  *
  * @param {String} uuid: the UUID of an instance.
@@ -216,76 +296,73 @@ function deleteInstance(uuid, callback) {
 
 SAPI.prototype.deleteInstance = deleteInstance;
 
+/**
+ * Get the actual payload passed to VMAPI.createVm() for this instance.
+ *
+ * @param {String} uuid: the UUID of an instance.
+ * @param {Function} callback : of the form f(err, payload).
+ */
+function getInstancePayload(uuid, callback) {
+    return (this.get(sprintf('/instances/%s/payload', uuid), callback));
+}
 
+SAPI.prototype.getInstancePayload = getInstancePayload;
 
-// --- Configs
+// --- Manifests
 
 /**
- * Create a config
+ * Create a manifest
  *
  * @param {Function} callback: of the form f(err, app).
  */
-function createConfig(name, template, path, type, service, callback) {
-    assert.string(name, 'name');
-    assert.string(template, 'template');
-    assert.string(path, 'path');
-    assert.string(type, 'type');
+function createManifest(manifest, callback) {
+    assert.object(manifest, 'manifest');
+    assert.string(manifest.name, 'manifest.name');
+    assert.string(manifest.template, 'manifest.template');
+    assert.string(manifest.path, 'manifest.path');
 
-    if (typeof (service) === 'function') {
-        callback = service;
-        service = null;
-    }
-
-    var opts = {};
-    opts.name = name;
-    opts.template = template;
-    opts.path = path;
-    opts.type = type;
-    if (service)
-        opts.service = service;
-
-    return (this.post('/config', opts, callback));
+    return (this.post('/manifests', manifest, callback));
 }
 
-SAPI.prototype.createConfig = createConfig;
+SAPI.prototype.createManifest = createManifest;
 
 
 /**
- * Lists all configs
+ * Lists all manifests
  *
- * @param {Function} callback: of the form f(err, configs).
+ * @param {Function} callback: of the form f(err, manifests).
  */
-function listConfigs(callback) {
-    return (this.get('/config', callback));
+function listManifests(callback) {
+    return (this.get('/manifests', callback));
 }
 
-SAPI.prototype.listConfigs = listConfigs;
+SAPI.prototype.listManifests = listManifests;
 
 
 /**
- * Gets a config by UUID
+ * Gets a manifest by UUID
  *
- * @param {String} uuid: the UUID of the config.
- * @param {Function} callback: of the form f(err, config).
+ * @param {String} uuid: the UUID of the manifest.
+ * @param {Function} callback: of the form f(err, manifest).
  */
-function getConfig(uuid, callback) {
-    return (this.get(sprintf('/config/%s', uuid), callback));
+function getManifest(uuid, callback) {
+    return (this.get(sprintf('/manifests/%s', uuid), callback));
 }
 
-SAPI.prototype.getConfig = getConfig;
+SAPI.prototype.getManifest = getManifest;
 
 
 /**
- * Deletes a config by UUID
+ * Deletes a manifest by UUID
  *
- * @param {String} uuid: the UUID of a config.
+ * @param {String} uuid: the UUID of a manifest.
  * @param {Function} callback : of the form f(err).
  */
-function deleteConfig(uuid, callback) {
-    return (this.del(sprintf('/config/%s', uuid), callback));
+function deleteManifest(uuid, callback) {
+    return (this.del(sprintf('/manifests/%s', uuid), callback));
 }
 
-SAPI.prototype.deleteConfig = deleteConfig;
+SAPI.prototype.deleteManifest = deleteManifest;
 
 
 
@@ -304,11 +381,407 @@ function downloadImage(uuid, callback) {
     assert.string(uuid, 'uuid');
     assert.func(callback, 'callback');
 
-    return (this.post(sprintf('/images/%s', uuid), callback));
+    return (this.post(sprintf('/images/%s', uuid), {}, callback));
 }
 
 SAPI.prototype.downloadImage = downloadImage;
 
 
 
+// -- Configs
+
+function getConfig(uuid, callback) {
+    assert.string(uuid, 'uuid');
+    assert.func(callback, 'callback');
+
+    return (this.get(sprintf('/configs/%s', uuid), callback));
+}
+
+SAPI.prototype.getConfig = getConfig;
+
+
+
+// -- Modes
+
+function getMode(callback) {
+    assert.func(callback, 'callback');
+
+    return (this.get('/mode', callback));
+}
+
+SAPI.prototype.getMode = getMode;
+
+function setMode(mode, callback) {
+    assert.string(mode, 'mode');
+    assert.func(callback, 'callback');
+
+    return (this.post(sprintf('/mode?mode=%s', mode), {}, callback));
+}
+
+SAPI.prototype.setMode = setMode;
+
 module.exports = SAPI;
+
+
+
+// -- Helper functions
+
+SAPI.prototype.getOrCreateApplication = getOrCreateApplication;
+SAPI.prototype.getOrCreateService = getOrCreateService;
+SAPI.prototype.loadManifests = loadManifests;
+
+
+function readJsonFile(file, cb) {
+    var log = this.log;
+
+    assert.string(file, 'file');
+    assert.func(cb, 'cb');
+
+    fs.readFile(file, 'ascii', function (err, contents) {
+        if (err) {
+            log.error(err, 'failed to read file %s', file);
+            return (cb(err));
+        }
+
+        var obj;
+        try {
+            obj = JSON.parse(contents);
+        } catch (e) {
+            var err = new Error('invalid JSON in ' + file);
+            return (cb(err));
+        }
+
+        return (cb(null, obj));
+    });
+}
+
+function mergeOptions(opts1, opts2) {
+    assert.object(opts1, 'opts1');
+    assert.optionalObject(opts2, 'opts2');
+
+    var opts = {};
+    opts.params = {};
+    opts.metadata = {};
+
+    if (opts1.params)
+        opts.params = opts1.params;
+    if (opts1.metadata)
+        opts.metadata = opts1.metadata;
+
+    if (opts2 && opts2.params) {
+        Object.keys(opts2.params).forEach(function (key) {
+            opts.params[key] = opts2.params[key];
+        });
+    }
+    if (opts2 && opts2.metadata) {
+        Object.keys(opts2.metadata).forEach(function (key) {
+            opts.metadata[key] = opts2.metadata[key];
+        });
+    }
+
+    return (opts);
+}
+
+/*
+ * getOrCreateApplication - get or create a SAPI application
+ *
+ * This function either gets a SAPI application (if already exists) or creates
+ * it (if it doesn't exist).  It's arguments are:
+ *
+ *     name - application name
+ *     owner_uuid - application owner
+ *     file - name of file which contains params and metadata for this
+ *         application
+ *     extra_opts - extra params and metadata which are merged with the
+ *         properties from `file`
+ */
+function getOrCreateApplication(name, owner_uuid, file, extra_opts, cb) {
+    var self = this;
+    var log = this.log;
+
+    assert.string(name, 'name');
+    assert.string(owner_uuid, 'owner_uuid');
+    assert.string(file, 'file');
+
+    if (arguments.length === 4) {
+        cb = extra_opts;
+        extra_opts = null;
+    }
+
+    assert.func(cb, 'cb');
+
+    log.info({
+        name: name,
+        owner_uuid: owner_uuid
+    }, 'getting or creating application');
+
+    async.waterfall([
+        function (subcb) {
+            var search = {};
+            search.name = name;
+            search.owner_uuid = owner_uuid;
+
+            self.listApplications(search, function (err, apps) {
+                if (err) {
+                    log.error(err, 'failed to list applications');
+                    return (subcb(err));
+                }
+
+                if (apps.length > 0) {
+                    log.debug({ app: apps[0] }, 'found application %s', name);
+                    return (cb(null, apps[0]));
+                }
+
+                return (subcb(null));
+            });
+        },
+        function (subcb) {
+            readJsonFile(file, function (err, obj) {
+                if (err)
+                    return (subcb(err));
+
+                return (subcb(null, mergeOptions(obj, extra_opts)));
+            });
+        },
+        function (opts, subcb) {
+            assert.object(opts, 'opts');
+            assert.func(subcb, 'subcb');
+
+            self.createApplication(name, owner_uuid, opts,
+                function (err, app) {
+                if (err) {
+                    log.error(err, 'failed to create ' +
+                        'application %s', name);
+                    return (subcb(err));
+                }
+
+                log.info('created application %s', app.uuid);
+                return (subcb(null, app));
+            });
+        }
+    ], cb);
+}
+
+
+
+/*
+ * getOrCreateService - get or create a SAPI service
+ *
+ * This function either gets a SAPI service (if already exists) or creates
+ * it (if it doesn't exist).  It's arguments are:
+ *
+ *     name - service name
+ *     application_uuid - application to which service belongs
+ *     file - name of file which contains params and metadata for this
+ *         service
+ *     extra_opts - extra params and metadata which are merged with the
+ *         properties from `file`
+ */
+function getOrCreateService(name, application_uuid, file, extra_opts, cb) {
+    var self = this;
+    var log = self.log;
+
+    assert.string(name, 'name');
+    assert.string(application_uuid, 'application_uuid');
+    assert.string(file, 'file');
+
+    if (arguments.length === 4) {
+        cb = extra_opts;
+        extra_opts = null;
+    }
+
+    assert.func(cb, 'cb');
+
+    log.info({
+        name: name,
+        application_uuid: application_uuid
+    }, 'getting or creating service');
+
+    async.waterfall([
+        function (subcb) {
+            var search = {};
+            search.name = name;
+            search.application_uuid = application_uuid;
+
+            self.listServices(search, function (err, svcs) {
+                if (err) {
+                    log.error(err, 'failed to list services');
+                    return (subcb(err));
+                }
+
+                if (svcs.length > 0) {
+                    log.debug({ svc: svcs[0] }, 'found service %s', name);
+                    return (cb(err, svcs[0]));
+                }
+
+                return (subcb(null));
+            });
+        },
+        function (subcb) {
+            readJsonFile(file, function (err, obj) {
+                if (err)
+                    return (subcb(err));
+
+                return (subcb(null, mergeOptions(obj, extra_opts)));
+            });
+        },
+        function (opts, subcb) {
+            assert.object(opts, 'opts');
+            assert.func(subcb, 'subcb');
+
+            log.debug({ opts: opts }, 'creating service');
+
+            self.createService(name, application_uuid, opts,
+                function (err, svc) {
+                if (err) {
+                    log.error(err, 'failed to create service %s', name);
+                    return (subcb(err));
+                }
+
+                log.info({ svc: svc },
+                    'created service %s', name);
+
+                return (subcb(err, svc));
+            });
+        }
+    ], cb);
+}
+
+
+
+function loadManifest(dirname, cb) {
+    var self = this;
+    var log = this.log;
+
+    log.info('creating configuration manifest from %s', dirname);
+
+    async.waterfall([
+        function (subcb) {
+            var file = path.join(dirname, 'manifest.json');
+
+            fs.readFile(file, 'ascii', function (err, contents) {
+                if (err) {
+                    log.error(err, 'failed to read file %s',
+                        file);
+                    return (subcb(err));
+                }
+
+                var manifest;
+                try {
+                    manifest = JSON.parse(contents);
+                } catch (e) {
+                    console.error('invalid JSON in ' +
+                        file);
+                    process.exit(1);
+                }
+
+                assert.object(manifest);
+                assert.string(manifest.name);
+                assert.string(manifest.path);
+
+                return (subcb(null, manifest));
+            });
+        },
+        function (manifest, subcb) {
+            assert.object(manifest);
+            assert.string(manifest.name);
+            assert.string(manifest.path);
+
+            var file = path.join(dirname, 'template');
+
+            fs.readFile(file, 'ascii', function (err, contents) {
+                if (err) {
+                    log.error(err, 'failed to read file %s',
+                        file);
+                    return (subcb(err));
+                }
+
+                return (subcb(null, manifest, contents));
+            });
+        },
+        function (manifest, template, subcb) {
+            assert.object(manifest);
+            assert.string(manifest.name);
+            assert.string(manifest.path);
+            assert.string(template);
+
+            var name = path.basename(dirname);
+            manifest.name = name;
+
+            manifest.template = template;
+
+            self.createManifest(manifest, function (err, obj) {
+                if (err) {
+                    log.error(err,
+                        'failed to add manifest');
+                    return (subcb(err));
+                }
+
+                assert.object(obj, 'obj');
+                assert.string(obj.uuid, 'obj.uuid');
+
+                var result = {};
+                result[name] = obj.uuid;
+
+                return (subcb(null, result));
+            });
+        }
+    ], cb);
+}
+
+
+/*
+ * loadManifests - load and create manifests from a directory
+ *
+ * This function expects a directory with the following structure:
+ *
+ *     manifests/mako
+ *     manifests/mako/template
+ *     manifests/mako/manifest.json
+ *     manifests/minnow
+ *     manifests/minnow/template
+ *     manifests/minnow/manifest.json
+ *
+ * In that case, calling loadManifests('manifests') would create two manifests:
+ * one for mako and a second for minnow.
+ */
+function loadManifests(dirname, cb) {
+    assert.string(dirname, 'dirname');
+    assert.func(cb, 'cb');
+
+    var self = this;
+    var log = self.log;
+
+    log.info('loading configuration manifests from %s', dirname);
+
+    fs.readdir(dirname, function (err, files) {
+        if (err) {
+            log.warn(err, 'failed to read directory %s', dirname);
+            return (cb(null, []));
+        }
+
+        vasync.forEachParallel({
+            func: function (item, subcb) {
+                loadManifest.call(self,
+                    path.join(dirname, item), subcb);
+            },
+            inputs: files
+        }, function (suberr, results) {
+            if (suberr)
+                return (cb(suberr));
+
+            var result = {};
+            results.successes.forEach(function (item) {
+                assert.object(item, 'item');
+                assert.ok(Object.keys(item).length === 1);
+
+                var key = Object.keys(item)[0];
+                result[key] = item[key];
+            });
+
+            return (cb(suberr, result));
+        });
+
+        return (null);
+    });
+}

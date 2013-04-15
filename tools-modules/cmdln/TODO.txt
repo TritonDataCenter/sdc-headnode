@@ -1,0 +1,12 @@
+- doc `init` usage (--version example). Doc `this.opts` for global parsed
+  opts.
+- update README for current usage
+- make do_help optional (see helpCmd in ctor)
+- `debug: true` option to  ctor for the debug logging
+- ship it
+- test with imgadm, imgapi-cli
+
+# someday/maybe
+
+- bash completion generation support
+- interactive shell (a la cmdln.py)

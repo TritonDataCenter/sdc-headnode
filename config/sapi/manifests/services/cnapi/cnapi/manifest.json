@@ -1,0 +1,5 @@
+{
+	"name": "cnapi",
+	"path": "/opt/smartdc/cnapi/config/config.json",
+	"post_cmd": "/usr/sbin/svcadm restart cnapi"
+}

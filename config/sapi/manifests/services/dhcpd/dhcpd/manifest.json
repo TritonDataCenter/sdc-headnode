@@ -1,0 +1,5 @@
+{
+    "name": "dhcpd",
+    "path": "/opt/smartdc/booter/config.json",
+    "post_cmd": "/usr/sbin/svcadm restart dhcpd"
+}

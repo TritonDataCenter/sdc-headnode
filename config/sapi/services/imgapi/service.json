@@ -1,0 +1,19 @@
+{
+    "name": "imgapi",
+    "params": {
+        "package_name": "sdc_768",
+        "image_uuid": "IMAGE_UUID",
+		"networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "imgapi",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "imgapi",
+        "registrar_srvce": "_imgapi",
+		"LOCAL_DB_DIR": "/data/imgapi/images"
+    },
+    "manifests": {
+    }
+}

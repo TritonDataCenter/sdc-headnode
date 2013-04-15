@@ -1,0 +1,14 @@
+{
+    "name": "sdc",
+    "owner_uuid": "00000000-0000-0000-0000-000000000000",
+    "params": {
+        "brand": "joyent-minimal",
+        "zfs_storage_pool_name": "zones"
+    },
+    "metadata": {
+		"DATACENTER_COMPANY_NAME": "Joyent, Inc.",
+		"DATACENTER_LOCATION": "Ashburn, Virginia"
+    },
+    "manifests": {
+    }
+}

@@ -12,47 +12,6 @@ PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/
 # This includes the fatal function.
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-WF_MAIN_ADMIN_IP=$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-
-CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
-DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
-VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
-NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
-IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
-FWAPI_URL=http://$(echo "${FWAPI_ADMIN_IPS}" | cut -d',' -f1)
-
-# XXX for now use the first MORAY, soon we'll be switching to DNS
-MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
-
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
-
-ZONE_UUID=`/usr/bin/zonename`
-
-echo "Updating config file"
-CFG_FILE_IN=/opt/smartdc/workflow/etc/config.json.in
-CFG_FILE=/opt/smartdc/workflow/etc/config.json
-
-# Update config file
-cp $CFG_FILE_IN $CFG_FILE
-gsed -i -e "s|WF_MORAY_URL|http://${MORAY_HOST}:2020|" $CFG_FILE
-gsed -i -e "s|WF_NUM_FORKS|$WORKERS|" $CFG_FILE
-gsed -i -e "s|WF_RUNNER_UUID|$ZONE_UUID|" $CFG_FILE
-gsed -i -e "s|WF_RUN_INTERVAL|10|" $CFG_FILE
-gsed -i -e "s|UFDS_URL|ldaps://${UFDS_HOST}|" $CFG_FILE
-gsed -i -e "s|UFDS_LDAP_ROOT_DN|$UFDS_LDAP_ROOT_DN|" $CFG_FILE
-gsed -i -e "s|UFDS_LDAP_ROOT_PW|$UFDS_LDAP_ROOT_PW|" $CFG_FILE
-gsed -i -e "s|DAPI_URL|$DAPI_URL|" $CFG_FILE
-gsed -i -e "s|CNAPI_URL|$CNAPI_URL|" $CFG_FILE
-gsed -i -e "s|VMAPI_URL|$VMAPI_URL|" $CFG_FILE
-gsed -i -e "s|IMGAPI_URL|$IMGAPI_URL|" $CFG_FILE
-gsed -i -e "s|FWAPI_URL|$FWAPI_URL|" $CFG_FILE
-# Must replace NAPI at the very end, or it will also replace CNAPI.
-gsed -i -e "s|NAPI_URL|$NAPI_URL|" $CFG_FILE
-
-
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/$role/smf/manifests/wf-api.xml)
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/workflow/g" /opt/smartdc/$role/smf/manifests/wf-runner.xml)
 

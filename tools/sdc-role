@@ -508,6 +508,7 @@ sdc_create()
         o.tags['smartdc_role'] = '${zrole}';
         o.tags['smartdc_type'] = '${smartdc_type}';
         o.customer_metadata = {};
+        o.customer_metadata['sapi-url'] = 'http://${CONFIG_sapi_admin_ips}';
         o.customer_metadata['assets-ip'] = '${CONFIG_assets_admin_ip}';
         o.customer_metadata['user-script'] = us.toString();
         o.customer_metadata['resolvers'] = '${CONFIG_binder_resolver_ips//,/ }';

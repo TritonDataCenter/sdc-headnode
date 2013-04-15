@@ -1,0 +1,39 @@
+{
+  "port": 80,
+  "logLevel": "debug",
+  "adminUuid": "{{ufds_admin_uuid}}",
+  "ufds": {
+    "url": "ldaps://{{ufds_admin_ips}}",
+    "bindDN": "{{ufds_ldap_root_dn}}",
+    "bindPassword": "{{ufds_ldap_root_pw}}"
+  },
+  "cnapi": {
+    "url": "http://{{cnapi_admin_ips}}"
+  },
+  "vmapi": {
+    "url": "http://{{vmapi_admin_ips}}"
+  },
+  "redis": {
+    "host": "{{redis_admin_ips}}",
+    "port": "6379"
+  },
+  "datacenterName": "{{datacenter_name}}",
+  "notificationPlugins": {
+    "email": {
+      "path": "./notifications/email",
+      "config": {
+        "smtp": {
+          "host": "127.0.0.1",
+          "port": 25,
+          "ssl": false,
+          "use_authentication": false
+        },
+        "from": "\"Monitoring\" <no-reply@joyent.com>"
+      }
+    },
+    "webhook": {
+      "path": "./notifications/webhook",
+      "config": {}
+    }
+  }
+}

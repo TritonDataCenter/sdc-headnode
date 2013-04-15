@@ -1,0 +1,17 @@
+{
+    "name": "manta",
+    "params": {
+        "package_name": "sdc_256",
+        "image_uuid": "IMAGE_UUID",
+        "tags": {
+            "smartdc_role": "manta",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "manta",
+        "registrar_srvce": "_manta"
+    },
+    "manifests": {
+    }
+}

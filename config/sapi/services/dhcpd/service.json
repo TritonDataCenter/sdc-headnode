@@ -1,0 +1,29 @@
+{
+    "name": "dhcpd",
+    "params": {
+        "package_name": "sdc_128",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "filesystems": [
+          {
+            "source": "/usbkey/os",
+            "target": "/tftpboot/os",
+            "type": "lofs",
+            "options": [
+              "ro",
+              "nodevices"
+            ]
+          }
+        ],
+        "tags": {
+            "smartdc_role": "dhcpd",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "dhcpd",
+        "registrar_srvce": "_dhcpd"
+    },
+    "manifests": {
+    }
+}

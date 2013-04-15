@@ -1,0 +1,49 @@
+{
+	"logLevel": "debug",
+	"maxSockets": 100,
+	"heartbeatQueueSize": 50,
+	"ufdsAdminUuid": "{{ufds_admin_uuid}}",
+	"amqp": {
+		"host": "{{rabbitmq_admin_ips}}",
+		"queue": "heartbeat.vmapi",
+		"reconnect": 5
+	},
+	"api": {
+		"port": 80
+	},
+	"redis": {
+		"host": "{{redis_admin_ips}}"
+	},
+	"wfapi": {
+		"workflows": [
+			"provision",
+			"start",
+			"stop",
+			"reboot",
+			"update",
+			"destroy",
+			"snapshot",
+			"rollback",
+			"delete-snapshot",
+			"add-nics",
+			"remove-nics"
+		],
+		"url": "http://{{workflow_admin_ips}}"
+	},
+	"cnapi": {
+		"maxSockets": 10,
+		"url": "http://{{cnapi_admin_ips}}"
+	},
+	"napi": {
+		"url": "http://{{napi_admin_ips}}"
+	},
+	"moray": {
+		"host": "{{moray_admin_ips}}",
+		"port": 2020,
+		"connectTimeout": 200,
+		"retry": {
+			"retries": 2,
+			"minTimeout": 500
+		}
+	}
+}

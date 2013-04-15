@@ -267,6 +267,8 @@ async.series([
                     obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
                 }
 
+                obj.customer_metadata['sapi-url'] = 'http://' + config['sapi_admin_ips'];
+
                 if (error) {
                     if (error.code !== 'ENOENT') {
                         return cb(error);

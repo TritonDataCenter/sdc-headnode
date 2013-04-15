@@ -122,6 +122,9 @@ VMAPI.prototype.stopVm = function (params, callback) {
         throw new TypeError('UUID is required');
     if (params.owner_uuid)
         query.owner_uuid = params.owner_uuid;
+    if (params.context) {
+        query.context = params.context;
+    }
 
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
@@ -145,6 +148,9 @@ VMAPI.prototype.addNics = function (params, callback) {
         throw new TypeError('networks is required (array)');
 
     query.networks = params.networks;
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -166,6 +172,9 @@ VMAPI.prototype.removeNics = function (params, callback) {
         throw new TypeError('macs is required (array)');
 
     query.macs = params.macs;
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -187,7 +196,9 @@ VMAPI.prototype.startVm = function (params, callback) {
         throw new TypeError('UUID is required');
     if (params.owner_uuid)
         query.owner_uuid = params.owner_uuid;
-
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -208,7 +219,9 @@ VMAPI.prototype.rebootVm = function (params, callback) {
         throw new TypeError('UUID is required');
     if (params.owner_uuid)
         query.owner_uuid = params.owner_uuid;
-
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -405,7 +418,9 @@ VMAPI.prototype.deleteMetadata = function (type, params, key, callback) {
         throw new TypeError('Metadata \'key\' is required');
     if (params.owner_uuid)
         query.owner_uuid = params.owner_uuid;
-
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.del(format('/vms/%s/%s/%s', params.uuid, type, key),
                     query, callback);
 };
@@ -434,7 +449,9 @@ VMAPI.prototype.deleteAllMetadata = function (type, params, callback) {
         throw new TypeError('UUID is required');
     if (params.owner_uuid)
         query.owner_uuid = params.owner_uuid;
-
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.del(format('/vms/%s/%s', params.uuid, type), query, callback);
 };
 
@@ -458,6 +475,9 @@ VMAPI.prototype.snapshotVm = function (params, callback) {
     if (params.name)
         query.snapshot_name = params.name;
     query.action = 'create_snapshot';
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -484,6 +504,9 @@ VMAPI.prototype.rollbackVm = function (params, callback) {
         query.snapshot_name = params.name;
     }
     query.action = 'rollback_snapshot';
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 
@@ -510,6 +533,9 @@ VMAPI.prototype.deleteSnapshot = function (params, callback) {
         query.snapshot_name = params.name;
     }
     query.action = 'delete_snapshot';
+    if (params.context) {
+        query.context = params.context;
+    }
     return this.post(format('/vms/%s', params.uuid), query, callback);
 };
 

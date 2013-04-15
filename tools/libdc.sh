@@ -92,6 +92,10 @@ fwapi()
 {
     path=$1
     shift
+
+    # Some SAPI calls can take much longer, so raise the timeout to two minutes.
+    CURL_OPTS=${CURL_OPTS/10/120}
+
     (curl ${CURL_OPTS} --url "${FWAPI_URL}${path}" \
         "$@") || return $?
     echo ""  # sometimes the result is not terminated with a newline

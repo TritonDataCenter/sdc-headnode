@@ -1,0 +1,5 @@
+{
+	"name": "zookeeper",
+    "path": "/var/db/zookeeper/myid",
+	"post_cmd": "/usr/sbin/svcadm restart zookeeper"
+}

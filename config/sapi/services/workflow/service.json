@@ -1,0 +1,20 @@
+{
+    "name": "workflow",
+    "params": {
+        "package_name": "sdc_1024",
+        "image_uuid": "IMAGE_UUID",
+		"networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "workflow",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "workflow",
+        "registrar_srvce": "_workflow",
+		"WORKFLOW_NUM_FORKS": 16,
+		"WORKFLOW_RUN_INTERVAL": 10
+    },
+    "manifests": {
+    }
+}

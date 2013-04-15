@@ -1,0 +1,27 @@
+{
+  "registration": {
+    "domain": "{{registrar_domain}}.{{datacenter_name}}.{{dns_domain}}",
+    "type": "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_{{registrar_srvce}}",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  },
+  "zookeeper": {
+    "servers": [
+      {{#ZK_SERVERS}}
+        {
+          "host": "{{host}}",
+          "port": {{port}}
+        }{{^last}}, {{/last}}
+      {{/ZK_SERVERS}}
+    ],
+    "timeout": 60000
+  }
+}

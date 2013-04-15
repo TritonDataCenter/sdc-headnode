@@ -11,65 +11,6 @@ PATH=/opt/smartdc/cnapi/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/
 # This includes the fatal function
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
-ASSETS_URL=http://$(echo "${ASSETS_ADMIN_IPS}" | cut -d',' -f1)
-DAPI_URL=http://$(echo "${DAPI_ADMIN_IPS}" | cut -d',' -f1)
-NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
-VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
-WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
-
-# XXX for now use the first MORAY, soon we'll be switching to DNS
-MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
-
-REDIS_HOST=$(echo "${REDIS_ADMIN_IPS}" | cut -d ',' -f1)
-
-echo "Creating CNAPI config file"
-cat > /opt/smartdc/cnapi/config/config.json <<HERE
-{
-  "logLevel": "info",
-  "datacenter_name": "$DATACENTER_NAME",
-  "adminUuid": "$UFDS_ADMIN_UUID",
-  "amqp": {
-    "host": "$RABBIT_ADMIN_IP"
-  },
-  "moray": {
-    "host": "$MORAY_HOST",
-    "port": 2020
-  },
-  "api": {
-    "username": "$CNAPI_HTTP_ADMIN_USER",
-    "password": "$CNAPI_HTTP_ADMIN_PW",
-    "port": 80
-  },
-  "wfapi": {
-    "workflows": [ ],
-    "url": "$WF_URL",
-    "username": "$WFAPI_HTTP_ADMIN_USER",
-    "password": "$WFAPI_HTTP_ADMIN_PW"
-  },
-  "napi": {
-    "url": "$NAPI_URL",
-    "username": "$NAPI_HTTP_ADMIN_USER",
-    "password": "$NAPI_HTTP_ADMIN_PW"
-  },
-  "assets": {
-    "url": "$ASSETS_URL"
-  },
-  "cnapi": {
-    "url": "$CNAPI_URL"
-  },
-  "imgapi": {
-    "url": "$IMGAPI_URL"
-  },
-  "redis": {
-    "host": "$REDIS_HOST"
-  }
-}
-HERE
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cnapi/g" /opt/smartdc/cnapi/smf/manifests/cnapi.xml)
 

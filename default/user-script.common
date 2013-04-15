@@ -76,6 +76,11 @@ if [[ ${zone_role} != "assets" ]]; then
     done
 fi
 
+if [[ ${zone_role} != "sapi" ]]; then
+    sapi_url=$(mdata-get sapi-url)
+    [[ -z ${sapi_url} ]] && fatal "Unable to find IP of SAPI in metadata"
+fi
+
 # Setup "/opt/smartdc/etc" from assets.
 if [[ ! -d /opt/smartdc/etc ]]; then
     mkdir -p /opt/smartdc/etc || fatal "unable to create /opt/smartdc/etc"
@@ -164,6 +169,7 @@ for file in setup.common configure.common setup; do
 done
 
 # Run setup in the background.
+export SAPI_URL="${}"
 export ASSETS_IP="${assets_ip}"
 export ZONE_ROLE="${zone_role}"
 

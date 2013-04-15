@@ -1,0 +1,132 @@
+{
+    "port": 443,
+    "certificate": "/opt/smartdc/cloudapi/ssl/cert.pem",
+    "key": "/opt/smartdc/cloudapi/ssl/key.pem",
+    "read_only": false,
+    "ufds": {
+        "url": "ldaps://{{ufds_admin_ips}}",
+        "bindDN": "{{ufds_ldap_root_dn}}",
+        "bindPassword": "{{ufds_ldap_root_pw}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 60
+        }
+    },
+    "wfapi": {
+        "url": "http://{{workflow_admin_ips}}",
+        "cache": {
+            "size": 1000,
+            "expiry": 300
+        }
+    },
+    "vmapi": {
+        "url": "http://{{vmapi_admin_ips}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 60
+        }
+    },
+    "cnapi": {
+        "url": "http://{{cnapi_admin_ips}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 60
+        }
+    },
+    "napi": {
+        "url": "http://{{napi_admin_ips}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 300
+        }
+    },
+    "fwapi": {
+        "url": "http://{{fwapi_admin_ips}}",
+        "cache": {
+            "size": 1000,
+            "expiry": 300
+        }
+    },
+    "imgapi": {
+        "url": "http://{{imgapi_admin_ips}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 300
+        }
+    },
+    "ca": {
+        "url": "http://{{ca_admin_ips}}"
+    },
+    "usageapi": {
+        "url": "http://{{usageapi_admin_ips}}"
+    },
+    "keyapi": "http://{{keyapi_admin_ips}}",
+    "datacenters": {
+        "{{datacenter_name}}": "https://{{EXTERNAL_IP}}"
+    },
+    "ufds_admin_uuid": "{{ufds_admin_uuid}}",
+    "plugins": [
+        {
+            "name": "provision_limits",
+            "enabled": false,
+            "config": {
+                "datacenter": "{{datacenter_name}}",
+                "defaults":[{
+                   "os": "any",
+                   "dataset": "any",
+                   "check": "os",
+                   "by": "ram",
+                   "value": 51200
+                }, {
+                   "os": "windows",
+                   "dataset": "windows",
+                   "check": "dataset",
+                   "by": "machines",
+                   "value": -1
+                }]
+            }
+        },
+        {
+            "name": "capi_limits",
+            "enabled": false,
+            "config": {
+                "datacenter": "{{datacenter_name}}",
+                "defaults": {
+                    "smartos": 1,
+                    "nodejs": 1,
+                    "ubuntu": 1
+                }
+            }
+        }, {
+            "name": "machine_email",
+            "enabled": false,
+            "config": {
+                "datacenter": "{{datacenter_name}}",
+                "smtp": {
+                    "host": "127.0.0.1",
+                    "port": 25,
+                    "use_authentication": false,
+                    "user": "",
+                    "pass": ""
+                },
+                "from": "nobody@joyent.com",
+                "subject": "Your SmartDataCenter machine is provisioning",
+                "body": "Check /my/machines for updates"
+            }
+        }
+    ],
+    "userThrottles": {
+        "all": {
+            "username": true,
+            "burst": 30,
+            "rate": 10,
+            "overrides": {
+                "{{ufds_admin_login}}": {
+                    "burst": 0,
+                    "rate": 0
+                }
+            }
+        },
+        "analytics": false
+    }
+}

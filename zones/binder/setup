@@ -17,8 +17,6 @@ source /var/svc/setup.common
 # Load variables
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
-#$yes | pkgin install zookeeper-server
-
 zone_uuid=$(zonename)
 zone_role="binder"
 app_name=${zone_role}

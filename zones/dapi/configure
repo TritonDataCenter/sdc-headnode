@@ -8,23 +8,8 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-
-echo "Creating DAPI config file"
-cat > /opt/smartdc/dapi/config.json <<HERE
-{
-  "logLevel": "info",
-  "api": {
-    "port": 80
-  }
-}
-HERE
-
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/dapi/g" /opt/smartdc/dapi/smf/manifests/dapi.xml)
-
 
 echo "Importing dapi.xml"
 /usr/sbin/svccfg import /opt/smartdc/dapi/smf/manifests/dapi.xml

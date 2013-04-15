@@ -6,23 +6,10 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-# Write redis config.
-cat >/opt/redis/etc/redis.conf <<CONFIG
-daemonize yes
-pidfile /var/run/redis.pid
-# "port 6379" is the default
-loglevel notice
-logfile /var/log/redis/redis.log
-# Snapshotting:
-#   after 60 sec if at least 1 key changed
-# Default of only every 15 *minutes* for 1 key change is too long for us here.
-save 60 1
-dir /var/db/redis
-CONFIG
-
 svccfg import /var/tmp/redis.smf
+
+# XXX Huh?  Shouldn't `svcadm restart redis` be sufficient?  Either way, why are
+# we doing this?
 svcadm disable redis
 svcadm enable redis
 

@@ -17,15 +17,18 @@ WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 # Mount our delegate dataset at '/data'.
 zfs set mountpoint=/data zones/$(zonename)/data
 
-# Note: Usage of "local" storage is only intended for bootstrapping.
-# Manta and/or DCLS will be required for full functionality.
-LOCAL_DB_DIR=/data/imgapi/images
+# Note: Usage of "local" storage is only intended for bootstrapping.  Manta will
+# be required for full functionality.
+LOCAL_DB_DIR=$(json -f ${METADATA} LOCAL_DB_DIR)
 if [[ ! -d $LOCAL_DB_DIR ]]; then
     echo "Create local db dir, $LOCAL_DB_DIR."
     mkdir -p $LOCAL_DB_DIR
     chown nobody:nobody $LOCAL_DB_DIR
 fi
 
+# XXX If IMGAPI needs the same key for all IMGAPI zones, then this key could be
+# generated and stored in the SAPI IMGAPI service.  See manta-init.addAdminKey()
+# for an equivalent example for manta.
 echo "Generating public key for imgapi"
 if [[ ! -f /opt/smartdc/imgapi/etc/id_rsa ]]; then
     # Generate key only the first time
@@ -34,31 +37,6 @@ if [[ ! -f /opt/smartdc/imgapi/etc/id_rsa ]]; then
     chown nobody:nobody /opt/smartdc/imgapi/etc/id_rsa.pub
 fi
 MANTA_KEY_ID=`ssh-keygen -l -f /opt/smartdc/imgapi/etc/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
-
-
-echo "Creating IMGAPI config file"
-cat > /opt/smartdc/imgapi/etc/imgapi.config.json <<HERE
-{
-    "port": 80,
-    "logLevel": "debug",
-    "mode": "dc",
-    "database": {
-        "type": "ufds",
-        "url": "ldaps://${UFDS_ADMIN_IP}",
-        "bindDN": "${UFDS_LDAP_ROOT_DN}",
-        "bindPassword": "${UFDS_LDAP_ROOT_PW}"
-    },
-    "storage": {
-        "local": {
-            "dir": "${LOCAL_DB_DIR}"
-        }
-    },
-    "wfapi": {
-        "workflows": [ "create-from-snapshot" ],
-        "url": "${WF_URL}"
-    }
-}
-HERE
 
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/imgapi/g" /opt/smartdc/imgapi/smf/manifests/imgapi.xml)

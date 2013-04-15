@@ -85,14 +85,14 @@ if [[ ${num_users} != "0" ]]; then
     exit 1
 fi
 
-# Add user, or if none specified: use guest
-amqp_user=$(echo ${RABBITMQ} | cut -d':' -f1)
-if [[ -z ${amqp_user} ]]; then
-    amqp_user="guest"
-    amqp_pass="guest"
-else
-    amqp_pass=$(echo ${RABBITMQ} | cut -d':' -f2)
+# XXX - break this up to natural fields.
+sapi_metadata=/opt/smartdc/etc/sapi_metadata.json
+amqp_config=$(json -f ${sapi_metadata} rabbitmq)
+if [[ -n ${amqp_config} ]]; then
+    amqp_user=$(echo ${amqp_config} | cut -d':' -f1)
+    amqp_pass=$(echo ${amqp_config} | cut -d':' -f2)
 fi
+# rm ${sapi_metadata}
 
 echo "Adding user ${amqp_user} and setting permissions"
 su - rabbitmq -c "/opt/local/sbin/rabbitmqctl -n rabbit@$(zonename) add_user ${amqp_user} ${amqp_pass}"

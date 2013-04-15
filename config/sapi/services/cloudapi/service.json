@@ -1,0 +1,17 @@
+{
+    "name": "cloudapi",
+    "params": {
+        "package_name": "sdc_256",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "cloudapi"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "cloudapi",
+        "registrar_srvce": "_cloudapi"
+    },
+    "manifests": {
+    }
+}

@@ -1,0 +1,5 @@
+{
+    "ca_amqp_host": "{{rabbitmq_admin_ip}}",
+    "vmapi_admin_ips": "{{vmapi_admin_ips}}",
+    "cnapi_admin_ips": "{{cnapi_admin_ips}}"
+}

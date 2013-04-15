@@ -1,0 +1,18 @@
+{
+    "name": "sdcsso",
+    "params": {
+        "package_name": "sdc_128",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "sdcsso",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "registrar_domain": "sdcsso",
+        "registrar_srvce": "_sdcsso"
+    },
+    "manifests": {
+    }
+}

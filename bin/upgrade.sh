@@ -882,64 +882,50 @@ function cleanup_config
 
 	adminui_admin_ips=$adminui_admin_ip
 	adminui_external_ips=$CONFIG_adminui_external_ip
-	adminui_svcname=adminui.$CONFIG_dns_domain
 
 	assets_admin_ip=$assets_admin_ip
 	assets_admin_ips=$assets_admin_ip
-	assets_svcname=assets.$CONFIG_dns_domain
 
 	dhcpd_admin_ip=$dhcpd_admin_ip
 	dhcpd_admin_ips=$dhcpd_admin_ip
-	dhcpd_svcname=$dhcpd.$CONFIG_dns_domain
 
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
-	rabbitmap_svcname=$rabbitmq.$CONFIG_dns_domain
 
 	ca_admin_ips=$ca_admin_ip
-	ca_svcname=ca.$CONFIG_dns_domain
 
 	binder_root_pw=$CONFIG_adminui_root_pw
 	binder_admin_ips=$binder_admin_ip
-	binder_svcname=binder.$CONFIG_dns_domain
 
 	# Reserved IPs for binder instances
 	binder_resolver_ips=$binder_resolver_ips
 
 	manatee_root_pw=$CONFIG_adminui_root_pw
 	manatee_admin_ips=$manatee_admin_ip
-	manatee_svcname=manatee.$CONFIG_dns_domain
 
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
-	moray_svcname=moray.$CONFIG_dns_domain
 
 	imgapi_root_pw=$CONFIG_adminui_root_pw
 	imgapi_admin_ips=$imgapi_admin_ip
-	imgapi_svcname=imgapi.$CONFIG_dns_domain
 
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
-	dapi_svcname=dapi.$CONFIG_dns_domain
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
-	vmapi_svcname=vmapi.$CONFIG_dns_domain
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
-	keyapi_svcname=keyapi.$CONFIG_dns_domain
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
-	amon_svcname=amon.$CONFIG_dns_domain
 
 	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
-	redis_svcname=redis.$CONFIG_dns_domain
 
 	dsapi_url=https://datasets.joyent.com
 	dsapi_http_user=honeybadger
@@ -948,37 +934,30 @@ function cleanup_config
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
 	usageapi_admin_ips=$usageapi_admin_ip
-	usageapi_svcname=usageapi.$CONFIG_dns_domain
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
-	cnapi_svcname=cnapi.$CONFIG_dns_domain
 	cnapi_client_url=http://${cnapi_admin_ip}:80
 
 	napi_root_pw=$CONFIG_adminui_root_pw
 	napi_admin_ips=$napi_admin_ip
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
-	napi_svcname=napi.$CONFIG_dns_domain
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
-	workflow_svcname=workflow.$CONFIG_dns_domain
 
 	fwapi_root_pw=$CONFIG_adminui_root_pw
 	fwapi_admin_ips=$fwapi_admin_ip
-	fwapi_svcname=fwapi.$CONFIG_dns_domain
 	fwapi_client_url=http://${fwapi_admin_ip}:80
 
 	sapi_admin_ips=$sapi_admin_ip
-	sapi_svcname=sapi.$CONFIG_dns_domain
 
 	show_setup_timers=true
 	serialize_setup=true
 
 	ufds_is_master=$CONFIG_capi_is_local
 	ufds_admin_ips=$ufds_admin_ip
-	ufds_svcname=ufds.$CONFIG_dns_domain
 	ufds_external_ips=$ufds_external_ip
 	$ufds_ext_vlan
 	ufds_admin_uuid=$CONFIG_capi_admin_uuid
