@@ -526,6 +526,13 @@ function create_zone {
         # work around that.
         if [[ ! -d /zones/${ds_uuid} ]]; then
             printf_log "%-58s" "importing: $(echo ${ds_name} | cut -d'.' -f1) "
+            # tweak manifest to be private and correct owner:
+            local tmpmanifest=/var/tmp/$(basename ds_manifest)
+            json -f ${ds_manifest}\
+                -e "public = false; owner = \"${CONFIG_ufds_admin_uuid}\"" \
+                > ${tmpmanifest}
+            [[ $? != 0 ]] && fatal "Couldn't make ${ds_manifest} private"
+            mv ${tmpmanifest} ${ds_manifest}
             imgadm install -m ${ds_manifest} -f ${ds_filename}
             printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
@@ -777,6 +784,7 @@ function import_datasets {
         if [[ "${status}" == "404" ]]; then
             echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
             [[ -f ${file} ]] || fatal "Image file ${file} not found."
+
             /opt/smartdc/bin/sdc-imgadm import -m ${manifest} -f ${file}
         elif [[ "${status}" == "200" ]]; then
             # exists
