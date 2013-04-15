@@ -269,8 +269,7 @@ function load_buildspec
     BUILD_TGZ=$(build_spec build-tgz)
 
     # HEAD-1507 cleanup.
-    USE_IMAGES=$(build_spec use-images)
-    [[ ${USE_IMAGES} == "false" ]] && USE_IMAGES=''
+    USE_IMAGES=true
 
     USE_SAPI=true
 
