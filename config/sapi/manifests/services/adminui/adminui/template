@@ -8,8 +8,8 @@
 	},
 	"ufds": {
 		"url": "ldaps://{{ufds_admin_ips}}",
-		"bindDN": "{{ufds_root_dn}}",
-		"bindPassword": "{{ufds_root_pw}}",
+		"bindDN": "{{ufds_ldap_root_dn}}",
+		"bindPassword": "{{ufds_ldap_root_pw}}",
 		"adminUuid": "{{ufds_admin_uuid}}",
 		"cache": {
 			"size": 1000,
