@@ -1,5 +1,5 @@
 {
 	"name": "workflow",
 	"path": "/opt/smartdc/workflow/etc/config.json",
-	"post_cmd": "/usr/sbin/svcadm restart wf-api"
+	"post_cmd": "/usr/sbin/svcadm restart wf-api; /usr/sbin/svcadm restart wf-runner"
 }

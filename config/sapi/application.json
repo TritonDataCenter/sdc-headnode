@@ -6,8 +6,6 @@
         "zfs_storage_pool_name": "zones"
     },
     "metadata": {
-		"DATACENTER_COMPANY_NAME": "Joyent, Inc.",
-		"DATACENTER_LOCATION": "Ashburn, Virginia"
     },
     "manifests": {
     }
