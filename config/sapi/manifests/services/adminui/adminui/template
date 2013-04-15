@@ -17,7 +17,7 @@
 		}
 	},
 	"redis": {
-		"host": "{{redis_admin_ips}}}",
+		"host": "{{redis_admin_ips}}",
 		"port": "6379",
 		"db": 3
 	},
