@@ -53,10 +53,6 @@ logadm -w ufds-master -C 48 -s 100m -p 1h \
 logadm -w ufds-capi -C 48 -s 100m -p 1h \
     /var/svc/log/smartdc-application-ufds-capi:default.log
 
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
-
-
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.profile

@@ -149,11 +149,6 @@ SNAPSHOT_DIR=$DATASET_MOUNT_DIR/.zfs/snapshot/
 echo "Updating ~/.bashrc"
 update_env
 
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
 # Add Log rotation
 echo "Adding log rotation"
 tempLogConf=/tmp/`uuid`
@@ -168,8 +163,6 @@ mv $tempLogConf /etc/logadm.conf
 #logadm -w manatee-postgres -C 48 /var/pg/postgresql*.log
 #logadm -w manatee-snapshotter -C 48 -c -p 1h /var/svc/log/sds-application-manatee-snapshotter:default.log
 #logadm -w manatee-backupserver -C 48 -c -p 1h /var/svc/log/sds-application-manatee-backupserver:default.log
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
 
 # prevent local postgres core dumps. MANTA-600
 ulimit -c 0

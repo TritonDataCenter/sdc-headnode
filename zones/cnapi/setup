@@ -28,17 +28,9 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
 echo "Adding log rotation"
 logadm -w cnapi -C 48 -s 100m -p 1h \
     /var/svc/log/smartdc-site-cnapi:default.log
-
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
 
 touch /var/svc/setup_complete
 echo "setup done"

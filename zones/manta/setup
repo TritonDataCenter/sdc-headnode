@@ -25,16 +25,7 @@ chown -R nobody:nobody /opt/smartdc/manta-deployment
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/manta-deployment/build/node/bin:/opt/smartdc/manta-deployment/bin:/opt/smartdc/sapi/node_modules/.bin" >>/root/.profile
 
-
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
-
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
 
 touch /var/svc/setup_complete
 echo "setup done"

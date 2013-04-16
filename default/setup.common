@@ -265,6 +265,12 @@ if [[ -n ${sapi_service} && ${sapi_service} == "true" &&\
     write_initial_config
 fi
 
+# HEAD-1367 - Enable Cron. Since all zones using this are joyent-minimal,cron
+# is not enable by default. We want to enable it though, for log rotation.
+echo "Starting Cron"
+svccfg import /lib/svc/manifest/system/cron.xml
+svcadm enable cron
+
 # HEAD-1507 - what is this intended to do? No such file in zones.
 # We can't add any site-specific manifests automatically, since we're running
 # after the manifest import, so import now.

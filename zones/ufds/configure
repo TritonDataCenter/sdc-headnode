@@ -13,11 +13,6 @@ PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/
 # This includes the fatal function.
 source /var/svc/configure.common
 
-# Enable Cron
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
 echo "Importing SMF Manifests"
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-master.xml)
 $(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role-capi.xml)

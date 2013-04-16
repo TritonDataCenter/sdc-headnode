@@ -29,13 +29,6 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 /usr/sbin/svccfg import /opt/local/share/smf/postfix/manifest.xml || fatal "unable to import postfix SMF manifest"
 /usr/sbin/svcadm enable postfix || fatal "unable to enable postfix"
 
-# Enable Cron for log rotation.
-echo "Starting Cron"
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
-
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &

@@ -33,17 +33,8 @@ echo "Generating SSL Certificate"
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin:/opt/smartdc/$role/node_modules/$role/bin" >>/root/.profile
 
-
-# Setup log rotation
-svccfg import /lib/svc/manifest/system/cron.xml
-svcadm enable cron
-
 logadm -w moray -C 48 -c -p 1h \
     /var/svc/log/smartdc-application-moray:default.log
-
-echo '0 * * * * /usr/sbin/logadm' > /etc/cron.d/logadm
-crontab /etc/cron.d/logadm
-
 
 MANATEE_MAIN_ADMIN_IP=$(json -f /var/tmp/metadata.json manatee_admin_ips)
 
