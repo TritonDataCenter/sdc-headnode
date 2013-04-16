@@ -1,12 +1,19 @@
 # -*- mode: makefile -*-
 #
-# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+# Copyright (c) 2013, Joyent, Inc. All rights reserved.
 #
 
 #
 # Files
 #
 DOC_FILES = index.restdown
+
+JS_FILES = $(shell find scripts -name '*.js')
+JSL_FILES_NODE = $(JS_FILES)
+JSSTYLE_FILES = $(JS_FILES)
+
+JSL_CONF_NODE = buildtools/jsl.node.conf
+JSSTYLE_FLAGS = -o indent=4,doxygen,unparenthesized-return=0
 
 
 #
