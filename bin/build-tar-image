@@ -1198,7 +1198,7 @@ function get_core_zone_image
     # as param. Expect an IMAGE_UUID placeholder.
     local service=${STAGE}/services/${zone}/service.json
     if [[ -n ${USE_SAPI} && -f ${service} ]]; then
-        local image_uuid=$(cat ${dst_manifest} | json uuid)
+        local image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
         sed -i'' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
     fi
 
