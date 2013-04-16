@@ -686,7 +686,7 @@ if [[ -n "${MD5_SUM}" ]]; then
 fi
 
 # let everyone who might be logged in know
-echo 'This system is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
+echo \$(hostname)/\$(sysinfo | json UUID) 'is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
     | wall
 
 # mount the usb key
