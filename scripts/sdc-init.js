@@ -59,7 +59,6 @@ function serviceName(service) {
 // I expect some may become params, packages require special handling
 // preferably in create_zone.
 function translateConfig(cb) {
-    var notMetadata = [];
     var log = self.log;
     var config = self.config;
     self.sdcExtras = {
@@ -78,18 +77,16 @@ function translateConfig(cb) {
     }
 
     // XXX NET-207, HEAD-1466 may have something to say about the following:
-    if (config.hasOwnProperty('binder_resolver_ips')) {
-        resolvers = resolvers.concat(config.binder_resolver_ips.split(','));
-        notMetadata.push('binder_resolver_ips');
-    } else {
-        var msg = 'No binder_resolver_ips in config, impossible to set up';
-        log.fatal(msg);
-        return cb(new Error(msg));
-    }
+    // if (config.hasOwnProperty('binder_resolver_ips')) {
+    //     resolvers = resolvers.concat(config.binder_resolver_ips.split(','));
+    // } else {
+    //     var msg = 'No binder_resolver_ips in config, impossible to set up';
+    //     log.fatal(msg);
+    //     return cb(new Error(msg));
+    // }
 
     if (config.hasOwnProperty('dns_resolvers')) {
         resolvers = resolvers.concat(config.dns_resolvers.split(','));
-        notMetadata.push('dns_resolvers');
     }
 
     if (resolvers.length > 0) {
@@ -325,7 +322,7 @@ function addSdcManifests(manifests, cb) {
 }
 
 // XXX refactor to two-step create params, then create, to allow simpler
-// modification based on specific services.
+// tweaking for services that need metadata at setup time.
 function getOrCreateServices(cb) {
     var log = self.log;
     var services = self.services;
@@ -368,6 +365,10 @@ function getOrCreateServices(cb) {
                     }, []);
 
                     extras.metadata['packages'] = packages.join('\n');
+                }
+
+                if (service == 'napi') {
+                    extras.metadata['resolvers'] = self.config.dns_resolvers.split(',');
                 }
 
                 self.sapi.getOrCreateService(service, self.app.uuid, file,
