@@ -24,7 +24,7 @@
       "gateway": "{{external_gateway}}",
       "startIP": "{{external_provisionable_start}}",
       "endIP": "{{external_provisionable_end}}",
-      "resolvers": [ {{resolvers}} ]
+      "resolvers": {{{resolvers}}}
     }
     {{/external_network}}
   }

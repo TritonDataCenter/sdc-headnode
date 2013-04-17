@@ -368,7 +368,8 @@ function getOrCreateServices(cb) {
                 }
 
                 if (service == 'napi') {
-                    extras.metadata['resolvers'] = self.config.dns_resolvers.split(',');
+                    extras.metadata['resolvers'] =
+                        JSON.stringify(self.config.dns_resolvers.split(','));
                 }
 
                 self.sapi.getOrCreateService(service, self.app.uuid, file,

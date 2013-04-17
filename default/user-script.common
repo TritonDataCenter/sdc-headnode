@@ -169,7 +169,6 @@ for file in setup.common configure.common setup; do
 done
 
 # Run setup in the background.
-export SAPI_URL="${}"
 export ASSETS_IP="${assets_ip}"
 export ZONE_ROLE="${zone_role}"
 
