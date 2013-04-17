@@ -53,8 +53,8 @@
 			"sapi": {
 				"url": "http://{{sapi_admin_ips}}"
 			},
-			"wfapi": {
-				"url": "http://{{wfapi_admin_ips}}"
+			"workflow": {
+				"url": "http://{{workflow_admin_ips}}"
 			}
 		}
 	}
