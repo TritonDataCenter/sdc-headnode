@@ -40,6 +40,8 @@ if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
+elif [[ -n ${TRACE} ]]; then
+    set -o xtrace
 fi
 
 
@@ -630,6 +632,24 @@ function valid_archive
     fi
 }
 
+function cleanup_logs
+{
+    local kept=0
+    local keep_logs=$(build_spec keep-logs)
+
+    if [[ -n ${keep_logs} && ${keep_logs} -gt 0 ]]; then
+        for log in $(ls -1t ${LOGDIR}); do
+            if [[ ${kept} -lt ${keep_logs} ]]; then
+                echo "KEEPING: ${log}" >&2
+                kept=$((${kept} + 1))
+            else
+                echo "DELETING: ${log}" >&2
+                rm ${LOGDIR}/${log} >&2
+            fi
+        done
+    fi
+}
+
 function cleanup_bit
 {
     local bits_pattern=$1
@@ -1165,6 +1185,8 @@ function get_core_zone_image
         local src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
         dst_file=${dst_dir}/$(basename $src_file)
         ln ${src_file} ${dst_file}
+        clean_pattern=$(echo "$(basename $dst_file)" | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
+        cleanup_bit ${clean_pattern}
     else
         # Not a local file, this is a pattern for 'get_bit'.
         local bit_cache_path=$(get_bit ${target})
@@ -1186,7 +1208,11 @@ function get_core_zone_image
         ln ${bit_cache_path} ${dst_file}
         gzip -t ${dst_file} \
             || fatal "Corrupt ${dst_file}, please remove and re-run."
+        clean_pattern=$(echo "$(basename $bit_cache_path)" | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
+        cleanup_bit ${clean_pattern}
     fi
+
+    #
 
     # HEAD-1507 - this should be temporary until we get proto-SAPI returning
     # a payload for vmadm. This should allow headnode.sh:create_zone()
@@ -1381,6 +1407,7 @@ trap 'cleanup' EXIT
 copy_to_mount
 cleanup
 create_output
+cleanup_logs
 
 # Unfortunately the log contains a whole bunch of progress updates,
 # clean that up.
