@@ -780,6 +780,18 @@ fi
 
 update_setup_state "sdczones_created"
 
+# copy sdc-manatee tools to GZ - see MANATEE-86
+echo "==> Copying manatee tools to GZ."
+manatee=$(vmadm list | grep manatee0 | cut -f1 -d' ')
+for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc/*); do
+    tool=$(basename ${file} .js)
+    mv ${file} /opt/smartdc/bin/${tool}
+done
+for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/manta/*); do
+    tool=$(basename ${file} .js)
+    ln -s ${file} /opt/smartdc/bin/${tool}
+done
+
 
 # Import dataset images into IMGAPI
 function import_datasets {
