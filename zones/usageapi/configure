@@ -12,8 +12,8 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # The user-script is downloaded and executed on every zone boot. We take
 # advantage of this to maintain the cached config values post-setup.
-if [ -e /var/svc/setup_complete ]; then
-	exit 0
+if [[ -e /var/svc/setup_complete ]]; then
+    exit 0
 fi
 
 # XXX is net1 external nic?

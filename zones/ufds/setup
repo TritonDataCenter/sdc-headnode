@@ -70,7 +70,7 @@ done
 
 LDAPTLS_REQCERT=allow ldapwhoami -H ldaps://${UFDS_ADMIN_IP} -x \
     -D ${UFDS_LDAP_ROOT_DN} -w ${UFDS_LDAP_ROOT_PW}
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     echo "Timeout waiting for ufds to come up."
     echo "Marking ufds SMF service as in maintenance."
     svcadm mark maintenance svc:/smartdc/application/ufds-master:default
@@ -124,7 +124,7 @@ do
   uuid=$(echo ${pkg} | cut -d ':' -f 8)
   # TBD: Decide if default package should be configurable
   # (can be changed from adminui post setup).
-  if [ "${name}" == "sdc_128" ]; then
+  if [[ "${name}" == "sdc_128" ]]; then
     default='true'
   else
     default='false'
@@ -169,7 +169,7 @@ LDAPTLS_REQCERT=allow ldapadd -H ldaps://${UFDS_ADMIN_IP} -x \
 # pass in metadata to this script such that we can skip this altogether if
 # provision > 1, but this works for now.
 rc=$?
-if [ $rc -ne 0 ] && [ $rc -ne 68 ]; then
+if [[ $rc -ne 0 ]] && [[ $rc -ne 68 ]]; then
     echo "Failed to load bootstrap data, exiting"
     echo "Marking ufds SMF service as in maintenance"
     svcadm mark maintenance svc:/smartdc/application/ufds-master:default
