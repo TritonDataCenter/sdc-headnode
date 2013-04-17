@@ -5,6 +5,7 @@
     "ttl": 60,
     "url": "{{PRIMARY_IP}}",
     "zoneId": "{{ZONE_UUID}}",
+    "disableSitter": {{^DISABLE_SITTER}}false{{/DISABLE_SITTER}}{{DISABLE_SITTER}},
     "heartbeatClientCfg": {
         "connectTimeout": 2000,
         "heartbeatInterval": 1000,
@@ -25,7 +26,7 @@
         "hbaConf": "/opt/smartdc/manatee/etc/pg_hba.conf",
         "healthChkInterval": 10000,
         "healthChkTimeout": 60000,
-        "oneNodeWriteMode": true,
+        "oneNodeWriteMode": {{^ONE_NODE_WRITE_MODE}}false{{/ONE_NODE_WRITE_MODE}}{{ONE_NODE_WRITE_MODE}},
         "opsTimeout": 10000,
         "pgCtlPath": "/opt/local/bin/pg_ctl",
         "pgInitDbPath": "/opt/local/bin/initdb",

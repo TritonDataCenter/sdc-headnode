@@ -620,7 +620,20 @@ function create_zone {
         echo "XXX - deploying ${zone} via SAPI indirection."
         local sapi_url=http://${CONFIG_sapi_admin_ips}
         [[ $upgrading == 1 ]] && UPGRADING="yes"
+
+        # HEAD-1327 for the first manatee, we want ONE_NODE_WRITE_MODE turned on
+        if [[ ${zone} == "manatee" ]]; then
+            export ONE_NODE_WRITE_MODE="true"
+        fi
+
         UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
+
+        # don't pollute things for everybody else
+        if [[ ${zone} == "manatee" ]]; then
+            unset ONE_NODE_WRITE_MODE
+            export ONE_NODE_WRITE_MODE
+        fi
+
         ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > /var/tmp/${zone}_old.json
     else
         # by breaking this up we're able to use fake_zoneinit instead of zoneinit

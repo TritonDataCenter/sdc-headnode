@@ -72,6 +72,9 @@ function createInstance(service, cb) {
     if (process.env['UPGRADING']) {
         opts.metadata['IS_UPDATE'] = '1';
     }
+    if (process.env['ONE_NODE_WRITE_MODE']) {
+        opts.metadata['ONE_NODE_WRITE_MODE'] = 'true';
+    }
     self.sapi.createInstance(service.uuid, opts, function(err, instance) {
         if (err) {
             log.fatal(err, 'Could not create instance for %s', service.name);
