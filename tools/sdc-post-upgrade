@@ -83,16 +83,29 @@ if [[ $COMMIT == 1 ]]; then
         zfs destroy -r $i
     done
 
-    zfs destroy -r zones/pre-upgrade
+    # We'd like to do the following:
+    #    zfs destroy -r zones/pre-upgrade
+    # but that will fail since the portal zone's snapshot & clone are still
+    # needed. We've already renamed the portal zone, so just cleanup the
+    # things we don't need.
+    for i in `zfs list -o name | egrep "zones/pre-upgrade/[a-z][^-/]*$"`
+    do
+        origin=`zfs list -H -o origin $i`
+        zfs destroy -r $i
+        zfs destroy $origin
+    done
 
     rm -rf /var/usb_rollback
 
     zpool upgrade zones
 
-    echo "Syncing datasets back to the USB key, this will take a while"
-    /usbkey/scripts/mount-usb.sh
-    (cd /usbkey/datasets && rsync -a * /mnt/usbkey/datasets)
-    umount /mnt/usbkey
+    # Skip this, not really needed and the key is almost full so there will
+    # be no room for a new platform.
+    #
+    # echo "Syncing datasets back to the USB key, this will take a while"
+    # /usbkey/scripts/mount-usb.sh
+    # (cd /usbkey/datasets && rsync -a * /mnt/usbkey/datasets)
+    # umount /mnt/usbkey
 fi
 
 exit 0
