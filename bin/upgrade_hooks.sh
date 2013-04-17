@@ -527,21 +527,50 @@ ufds_tasks()
     # load config to pick up settings for newly created ufds zone
     load_sdc_config
 
+    #
+    # If this datacenter is not a UFDS master, configure and deploy the
+    # ufds-replicator service.
+    #
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
-	local zpath=/zones/$1/root/opt/smartdc/ufds
+        local zpath=/zones/$1/root/opt/smartdc/ufds
+        local tmpfile=/tmp/ufds_metadata_update.$$.json
 
-        sed -e "s/REMOTE_UFDS_IP/$CONFIG_ufds_remote_ip/" \
-            -e "s/REMOTE_QUERY/\/ou=users,o=smartdc??sub?(\&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))/" \
-            -e "s/REMOTE_ROOT_DN/$CONFIG_ufds_ldap_root_dn/" \
-            -e "s/REMOTE_ROOT_PW/$CONFIG_ufds_ldap_root_pw/" \
-            -I .bak $zpath/etc/replicator.json
+        local service_uuid=$(sdc-sapi /services?name=ufds | json -Ha uuid)
+        if [[ $? -ne 0 ]]; then
+            saw_err "failed to get UFDS SAPI service"
+            return
+        fi
 
-	# import and restart the replicator service
-	cp $zpath/smf/manifests/ufds-replicator.xml.in \
-	    $zpath/smf/manifests/ufds-replicator.xml
-	zlogin $1 svccfg import \
-	    /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
-	zlogin $1 svcadm refresh ufds-replicator
+        local remote_query="/ou=users,o=smartdc??sub?(&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))"
+
+        echo "{
+            \"metadata\" {
+                \"REMOTE_UFDS_IP\": \"$CONFIG_ufds_remote_ip\",
+                \"REMOTE_UFDS_REPLICATOR_QUERY\": \"${remote_query}\",
+                \"REMOTE_UFDS_ROOT_DN\": \"$CONFIG_ufds_ldap_root_dn\",
+                \"REMOTE_UFDS_ROOT_PW\": \"$CONFIG_ufds_ldap_root_pw\"
+             }
+        }" > ${tmpfile}
+
+        sdc-sapi /services/${service_uuid} -T ${tmpfile}
+        [[ $? != 0 ]] && saw_err "Error updating UFDS metadata"
+
+        rm ${tmpfile}
+
+        #
+        # The config-agent inside the UFDS zone polls SAPI every 15 seconds, so
+        # it will take 15 seconds for the metadata update above to propagate
+        # into the zone.  Sleep for 20 seconds to make sure the update has been
+        # pushed out.
+        #
+        # Once the file has been updated, import and restart the ufds-replicator
+        # service.
+        #
+        sleep 20
+        cp $zpath/smf/manifests/ufds-replicator.xml.in \
+            $zpath/smf/manifests/ufds-replicator.xml
+        zlogin $1 svccfg import \
+            /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
 
         return
     fi
