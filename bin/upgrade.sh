@@ -1340,7 +1340,7 @@ num_prov=`sdc-oneachnode $skip_arg -c \
 num_zt=`sdc-oneachnode $skip_arg -c \
     /opt/smartdc/agents/bin/agents-npm --noreg ls | \
     egrep zonetracker-v2@1.0.7 | wc -l`
-if [[ $num_hb != $num_cn || $num_prov != $num_cn ]]; then
+if [[ $num_hb != $num_cn || $num_prov != $num_cn || $num_zt != $num_cn ]]; then
     echo
     fatal "The correct agents are not installed on each compute node"
 else
