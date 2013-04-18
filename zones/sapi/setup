@@ -63,7 +63,7 @@ cat > /opt/smartdc/sapi/etc/config.json <<HERE
     "url": "$IMGAPI_URL"
   },
   "remote_imgapi": {
-    "url": "https://updates.joyent.us"
+    "url": "https://updates.joyent.com"
   },
   "ufds": {
     "url": "$UFDS_URL",
