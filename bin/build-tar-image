@@ -1234,23 +1234,6 @@ function get_core_zone_image
 
 function copy_zones
 {
-    if [[ -n $ZONE_DIR ]]; then
-        export ADMINUI_DIR=${ZONE_DIR}/mcp_api_admin
-        export BOOTER_DIR=${ZONE_DIR}/booter
-        export MAPI_DIR=${ZONE_DIR}/mcp_api_gateway
-        export PORTAL_DIR=${ZONE_DIR}/public-web-client
-        export CLOUDAPI_DIR=${ZONE_DIR}/cloud-api
-        export USAGEAPI_DIR=${ZONE_DIR}/usage_api
-        export UFDS_DIR=${ZONE_DIR}/ufds
-        export WORKFLOW_DIR=${ZONE_DIR}/workflow
-        export BINDER_DIR=${ZONE_DIR}/binder
-        export VMAPI_DIR=${ZONE_DIR}/vmapi
-        export DAPI_DIR=${ZONE_DIR}/dapi
-        export CNAPI_DIR=${ZONE_DIR}/cnapi
-        export NAPI_DIR=${ZONE_DIR}/napi
-        export MANATEE_DIR=${ZONE_DIR}/manatee
-        export MORAY_DIR=${ZONE_DIR}/moray
-    fi
 
     for zone in $(ls ${STAGE}/zones); do
 
