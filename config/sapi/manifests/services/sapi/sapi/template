@@ -20,7 +20,7 @@
 		"url": "http://{{imgapi_admin_ips}}"
 	},
 	"remote_imgapi": {
-		"url": "https://updates.joyent.us"
+		"url": "https://updates.joyent.com"
 	},
 	"ufds": {
         	"url": "ldaps://{{ufds_admin_ips}}",

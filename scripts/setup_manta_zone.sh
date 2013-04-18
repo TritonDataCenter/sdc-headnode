@@ -52,13 +52,6 @@ function add_external_nic {
 }
 
 
-function check_vpn_status {
-    ping 10.2.172.99 1>/dev/null
-    [[ $? -eq 0 ]] || fatal "10.2.172.99 not reachable, \
-        are you connected to BH1 VPN?"
-}
-
-
 function import_manta_image {
     local manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
     local file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
@@ -89,6 +82,5 @@ function deploy_manta_zone {
 sapi_uuid=$(vmadm lookup alias=sapi0)
 
 add_external_nic ${sapi_uuid}
-check_vpn_status
 import_manta_image
 deploy_manta_zone
