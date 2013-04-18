@@ -1189,6 +1189,7 @@ if [[ $AGENTS_ONLY == 1 ]]; then
     mkdir -p $assetdir
     cp $ROOT/heartbeater-65.tgz $assetdir
     cp $ROOT/provisioner-v2-65.tgz $assetdir
+    cp $ROOT/zonetracker-v2-65.tgz $assetdir
 
     sdc-oneachnode $skip_arg -c "cd /var/tmp;
        curl -kOs $CONFIG_assets_admin_ip:/agents/heartbeater-65.tgz;
@@ -1205,6 +1206,14 @@ if [[ $AGENTS_ONLY == 1 ]]; then
        >/var/tmp/provisioner-v2-65_install.log 2>&1 &"
     [ $? != 0 ] && \
         fatal "installing new provisioner agents"
+
+    sdc-oneachnode $skip_arg -c "cd /var/tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/agents/zonetracker-v2-65.tgz;
+       /opt/smartdc/agents/bin/agents-npm install \
+       /var/tmp/zonetracker-v2-65.tgz \
+       >/var/tmp/zonetracker-v2-65_install.log 2>&1 &"
+    [ $? != 0 ] && \
+        fatal "installing new zonetracker-v2 agents"
 
     echo "Compute node agent install is complete"
 
@@ -1328,6 +1337,9 @@ num_hb=`sdc-oneachnode $skip_arg -c \
 num_prov=`sdc-oneachnode $skip_arg -c \
     /opt/smartdc/agents/bin/agents-npm --noreg ls | \
     egrep provisioner-v2@1.0.11 | wc -l`
+num_zt=`sdc-oneachnode $skip_arg -c \
+    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+    egrep zonetracker-v2@1.0.7 | wc -l`
 if [[ $num_hb != $num_cn || $num_prov != $num_cn ]]; then
     echo
     fatal "The correct agents are not installed on each compute node"
@@ -1350,7 +1362,7 @@ trap "" SIGPIPE
 trap "" SIGALRM
 trap "" SIGTERM
 trap cleanup EXIT
-
+2:
 # Disable cron so scheduled jobs, such as backup, don't interfere with us and
 # we don't interfere with them.
 svcadm disable cron
