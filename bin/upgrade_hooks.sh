@@ -544,7 +544,7 @@ ufds_tasks()
         local remote_query="/ou=users,o=smartdc??sub?(&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))"
 
         echo "{
-            \"metadata\" {
+            \"metadata\": {
                 \"REMOTE_UFDS_IP\": \"$CONFIG_ufds_remote_ip\",
                 \"REMOTE_UFDS_REPLICATOR_QUERY\": \"${remote_query}\",
                 \"REMOTE_UFDS_ROOT_DN\": \"$CONFIG_ufds_ldap_root_dn\",
