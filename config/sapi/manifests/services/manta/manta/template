@@ -1,15 +1,15 @@
 {
         "cnapi": {
-                "url": "http://{{cnapi_admin_ips}"
+                "url": "http://{{cnapi_admin_ips}}"
         },
         "imgapi": {
-                "url": "http://{{imgapi_admin_ips}"
+                "url": "http://{{imgapi_admin_ips}}"
         },
         "napi": {
-                "url": "http://{{napi_admin_ips}"
+                "url": "http://{{napi_admin_ips}}"
         },
         "sapi": {
-                "url": "http://{{sapi_admin_ips}"
+                "url": "http://{{sapi_admin_ips}}"
         },
         "ufds": {
                 "url": "ldaps://{{ufds_admin_ips}}",
