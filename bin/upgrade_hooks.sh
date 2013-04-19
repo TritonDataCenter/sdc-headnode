@@ -290,8 +290,7 @@ pre_tasks()
         "\"current_state\": \"imgadm_setup\"," \
         "\"seen_states\": [" \
         "\"zpool_created\"," \
-        "\"filesystems_setup\"," \
-        "\"imgadm_setup\"" \
+        "\"filesystems_setup\"" \
         "]," \
         "\"complete\": false," \
         "\"last_updated\": \"$(date "+%Y-%m-%dT%H:%M:%SZ")\"" \
