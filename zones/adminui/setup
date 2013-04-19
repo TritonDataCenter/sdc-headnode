@@ -34,8 +34,12 @@ echo -e "\nexport PATH=\$PATH:/opt/smartdc/adminui/node_modules/.bin:/opt/smartd
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure adminui zone"
 
+echo "Adding log rotation"
+logadm -w adminui -C 48 -s 100m -p 1h \
+    /var/svc/log/smartdc-application-adminui:default.log
+
 touch /var/svc/setup_complete
-echo "setup done"
+echo "Setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
 
 exit 0
