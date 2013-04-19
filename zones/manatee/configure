@@ -19,17 +19,14 @@ function update_env {
     echo "export PATH=\$PATH:/opt/smartdc/registrar/build/node/bin:/opt/smartdc/registrar/node_modules/.bin:/opt/smartdc/manatee/lib/tools" >>$PROFILE
 }
 
-# ZONE_UUID=`zoneadm list -p | cut -d ':' -f2`
+# vars used by manatee-* tools
 ZONE_UUID=$(json -f /var/tmp/metadata.json ZONE_UUID)
 DATASET=zones/$ZONE_UUID/data/manatee
 PARENT_DATASET=zones/$ZONE_UUID/data
 DATASET_MOUNT_DIR=/manatee/pg
 PG_DIR=/manatee/pg/data
-# ZONE_IP=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
+PG_LOG_DIR=/var/pg
 ZONE_IP=$(json -f /var/tmp/metadata.json ADMIN_IP)
-SITTER_CFG_FILE=/opt/smartdc/manatee/etc/sitter.json
-SNAPSHOT_CFG_FILE=/opt/smartdc/manatee/etc/snapshotter.json
-BACKUP_CFG_FILE=/opt/smartdc/manatee/etc/backupserver.json
 SHARD=$(json -f /var/tmp/metadata.json manatee_shard)
 BINDER_ADMIN_IPS=$(json -f /var/tmp/metadata.json binder_admin_ips)
 
@@ -63,16 +60,17 @@ echo "grant postgres user zfs perms"
 zfs allow -ld postgres create,destroy,diff,hold,release,rename,setuid,rollback,share,snapshot,mount,promote,send,receive,clone,mountpoint,canmount $PARENT_DATASET
 
 # change dataset perms such that manatee can access the dataset and mount/unmount
-mkdir -p /manatee/pg
-chmod 777 -R /zones/$ZONE_UUID/
-chmod 777 -R /manatee/pg
+mkdir -p $DATASET_MOUNT_DIR
+chown -R postgres $DATASET_MOUNT_DIR
+chmod 700 -R $DATASET_MOUNT_DIR
 # set mountpoint
 zfs set mountpoint=$DATASET_MOUNT_DIR $DATASET
 [[ $? -eq 0 ]] || fatal "Unable to set mountpoint to /manatee/pg"
 
 # add pg log dir
-mkdir -p /var/pg
-chmod 777 /var/pg
+mkdir -p $PG_LOG_DIR
+chown -R postgres $PG_LOG_DIR
+chmod 700 $PG_LOG_DIR
 
 # make the pg data dir
 echo "creating $PG_DIR"
