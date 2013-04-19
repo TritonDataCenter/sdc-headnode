@@ -428,12 +428,11 @@ post_tasks()
     print_log "upgrading napi data..."
     napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
-    create_extra_zones
-
-    print_log "Updating the portal zone"
-    convert_portal_zone
-
     print_log "Adding additional zone external nics"
+    add_ext_net ufds
+    vmadm update $role_uuid firewall_enabled=true
+    reboot_zone $role_uuid
+
     add_ext_net adminui
     reboot_zone $role_uuid
 
@@ -445,9 +444,28 @@ post_tasks()
     vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
 
-    add_ext_net ufds
-    vmadm update $role_uuid firewall_enabled=true
-    reboot_zone $role_uuid
+    if [[ $CONFIG_ufds_is_master != "true" ]]; then
+        # We have to wait until the admin user has replicated over
+        loops=0
+        local nadmin=0
+        while [ $loops -lt 15 ]; do
+            nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn \
+                2>/dev/null | wc -l`
+            [ $nadmin -ne 0 ] && break
+            print_log "Waiting for the admin user to be replicated..."
+            sleep 60
+            loops=$((${loops} + 1))
+        done
+    fi
+
+    [ $loops -eq 15 ] && \
+        print_log "admin user is still not replicated, continuing but errors" \
+	"are likely"
+
+    create_extra_zones
+
+    print_log "Updating the portal zone"
+    convert_portal_zone
 
     echo "$(date -u "+%Y%m%dT%H%M%S") post done" \
         >>$SDC_UPGRADE_DIR/upgrade_time
