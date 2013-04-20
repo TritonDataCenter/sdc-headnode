@@ -77,13 +77,13 @@ function translateConfig(cb) {
     }
 
     // XXX NET-207, HEAD-1466 may have something to say about the following:
-    // if (config.hasOwnProperty('binder_resolver_ips')) {
-    //     resolvers = resolvers.concat(config.binder_resolver_ips.split(','));
-    // } else {
-    //     var msg = 'No binder_resolver_ips in config, impossible to set up';
-    //     log.fatal(msg);
-    //     return cb(new Error(msg));
-    // }
+    if (config.hasOwnProperty('binder_resolver_ips')) {
+        resolvers = resolvers.concat(config.binder_resolver_ips.split(','));
+    } else {
+        var msg = 'No binder_resolver_ips in config, impossible to set up';
+        log.fatal(msg);
+        return cb(new Error(msg));
+    }
 
     if (config.hasOwnProperty('dns_resolvers')) {
         resolvers = resolvers.concat(config.dns_resolvers.split(','));
@@ -93,7 +93,7 @@ function translateConfig(cb) {
         sdcExtras.params.resolvers = resolvers;
     }
 
-    // this is also zookeeper. they may not always align.
+    // binder is also zookeeper.
     if (config.hasOwnProperty('binder_admin_ips')) {
         var binderIps = config.binder_admin_ips.split(',');
         var zkServers = binderIps.map(function(e, i, c) {
@@ -256,13 +256,15 @@ function getOrCreateSdc(cb) {
     var ownerUuid = self.config.ufds_admin_uuid
     var extra = self.sdcExtras;
 
+    log.debug({name : 'sdc', ownerUuid : ownerUuid, file : file, extra : extra}, 'Creating SDC application');
+
     self.sapi.getOrCreateApplication('sdc', ownerUuid, file, extra,
         function gotApplication(err, app) {
             if (err) {
-                log.fatal(err, 'Could not get/create SDC application: ' + err.message)
+                log.fatal(err, 'Could not get/create SDC application: ' + err.message);
                 return cb(err);
             }
-            log.debug('Created SDC application')
+            log.debug({ sdcApp : app }, 'Created SDC application');
             self.app = app;
             return cb(null);
         }
@@ -321,9 +323,10 @@ function addSdcManifests(manifests, cb) {
     }
 }
 
-// XXX refactor to two-step create params, then create, to allow simpler
-// tweaking for services that need metadata at setup time.
-function getOrCreateServices(cb) {
+// gets the services arranged for creation.
+// - loads the package name, adds package information
+// - for each service returns an array suitable for function.apply
+function prepareServices(cb) {
     var log = self.log;
     var services = self.services;
     var dirname = '/usbkey/services';
@@ -337,7 +340,8 @@ function getOrCreateServices(cb) {
             var extras = { metadata : {}, params : {} };
             extras.metadata['SERVICE_NAME'] = svcName;
             var svcDef;
-            // XXX - slightly clumsy way to get the package def.
+            // XXX - slightly clumsy way to get the package defn.
+            // consider moving this to build time?
             fs.readFile(file, function(err, data) {
                 if (err) {
                     log.error(err, 'Failed to read %s: %s', file, err.message);
@@ -358,22 +362,7 @@ function getOrCreateServices(cb) {
                     return _cb(new Error('No package name for ' + service));
                 }
 
-                if (service == 'ufds') {
-                    packages = Object.keys(self.config).reduce(function(acc, key) {
-                        if (key.match('^pkg_')) acc.push(self.config[key]);
-                        return acc;
-                    }, []);
-
-                    extras.metadata['packages'] = packages.join('\n');
-                }
-
-                if (service == 'napi') {
-                    extras.metadata['resolvers'] =
-                        JSON.stringify(self.config.dns_resolvers.split(','));
-                }
-
-                self.sapi.getOrCreateService(service, self.app.uuid, file,
-                                             extras, _cb);
+                return _cb(null, [service, self.app.uuid, file, extras]);
             });
         },
         inputs: services
@@ -383,9 +372,83 @@ function getOrCreateServices(cb) {
             return cb(err);
         }
 
+        serviceList = results.successes;
+        log.debug({ services : serviceList }, 'Created services');
+        return cb(null, serviceList);
+    });
+}
+
+// Adds user-script, other required customer-metadata, performs service-specific
+// adjustments.
+// serviceList is [service, self.app.uuid, file, extras]
+function filterServices(serviceList, cb) {
+    var log = self.log;
+    fs.readFile('/usbkey/default/user-script.common', function(err, data) {
+        if (err) {
+            log.fatal(err, 'Could not read user script: %s', err.message);
+            return cb(err);
+        }
+
+        var list = serviceList.map(function(serviceArgs) {
+            var service = serviceArgs[0];
+            var extras = serviceArgs[3];
+
+            // ufds needs package defn's.
+            if (service == 'ufds') {
+                packages = Object.keys(self.config).reduce(function(acc, key) {
+                    if (key.match('^pkg_')) acc.push(self.config[key]);
+                    return acc;
+                }, []);
+
+                extras.metadata['packages'] = packages.join('\n');
+            }
+
+            // napi needs resolvers in metadata
+            if (service == 'napi') {
+                extras.metadata['resolvers'] =
+                JSON.stringify(self.config.dns_resolvers.split(','));
+            }
+
+            // *everything* needs customer_metadata
+            if (!extras.params.hasOwnProperty('customer_metadata')) {
+                extras.params['customer_metadata'] = {};
+            }
+
+            // customer_metadata overwritten.
+            // extras.params['customer_metadata']['assets-ip'] =
+            //     self.config.assets_admin_ip;
+            // extras.params['customer_metadata']['sapi-url'] =
+            //     'http://' + self.config.sapi_admin_ips;
+            // extras.params['customer_metadata']['sapi-service'] = "true";
+            // extras.params['customer_metadata']['user-script'] = data.toString();
+            extras.metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
+            extras.metadata['assets-ip'] = self.config.assets_admin_ip;
+            extras.metadata['user-script'] = data.toString();
+            return serviceArgs;
+        });
+
+        log.debug({serviceList : list}, 'Adjusted service definitions');
+
+        return cb(null, list);
+    });
+}
+
+function getOrCreateServices(serviceList, cb) {
+    var log = self.log;
+    vasync.forEachParallel({
+        func: function(serviceArgs, _cb) {
+            var f = self.sapi.getOrCreateService;
+            f.apply(self.sapi, serviceArgs.concat(_cb));
+        },
+        inputs: serviceList
+    }, function(err, results) {
+        if (err) {
+            log.fatal(err, 'Failed to create SDC services: %s', err.message);
+            return cb(err);
+        }
         self.services = results.successes;
-        log.debug({ services : self.services }, 'Created services');
-        return cb(null, services);
+        log.debug({ services : self.services }, 'Created SDC servces');
+        return cb(null, self.services);
     });
 }
 
@@ -409,7 +472,7 @@ function createSvcManifests(services, cb) {
                 return _cb(null, result)
             });
         },
-        inputs: services
+        inputs: services.map(function(srvc) { return srvc.name })
     }, function (err, manifests) {
         // what does this look like anyway?
         if (err) {
@@ -476,7 +539,7 @@ function addSvcManifests(manifests, cb) {
 var self = this;
 self.log = new Logger({
     name: 'sdc-init',
-    level: 'debug',
+    level: 'trace',
     serializers: Logger.stdSerializers
 });
 
@@ -490,6 +553,8 @@ async.waterfall([
     getOrCreateSdc,
     createSdcManifests,
     addSdcManifests,
+    prepareServices,
+    filterServices,
     getOrCreateServices,
     createSvcManifests,
     addSvcManifests

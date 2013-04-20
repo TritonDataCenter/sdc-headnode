@@ -125,23 +125,24 @@ function addNic(payload, cb) {
 }
 
 function addUserScript(payload, cb) {
-    fs.readFile('/usbkey/default/user-script.common', function(err, data) {
-        var customer_metadata;
+    return cb(null, payload);
+    // fs.readFile('/usbkey/default/user-script.common', function(err, data) {
+    //     var customer_metadata;
 
-        if (err) {
-            log.fatal(err, 'Could not read user script: ', + err.message);
-            return cb(err);
-        }
+    //     if (err) {
+    //         log.fatal(err, 'Could not read user script: ', + err.message);
+    //         return cb(err);
+    //     }
 
-        if (!payload.hasOwnProperty('customer_metadata')) {
-            payload.customer_metadata = {};
-        }
-        payload.customer_metadata['sapi-service'] = "true";
-        payload.customer_metadata['user-script'] = data.toString();
-        payload.customer_metadata['assets-ip'] = self.config.assets_admin_ip;
-        payload.customer_metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
-        return cb(null, payload);
-    });
+    //     if (!payload.hasOwnProperty('customer_metadata')) {
+    //         payload.customer_metadata = {};
+    //     }
+    //     payload.customer_metadata['sapi-service'] = "true";
+    //     payload.customer_metadata['user-script'] = data.toString();
+    //     payload.customer_metadata['assets-ip'] = self.config.assets_admin_ip;
+    //     payload.customer_metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
+    //     return cb(null, payload);
+    // });
 }
 
 function outputPayload(payload, cb) {

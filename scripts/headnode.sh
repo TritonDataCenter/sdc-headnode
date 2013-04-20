@@ -732,14 +732,6 @@ function num_not_setup {
     echo ${remain}
 }
 
-
-# HEAD-1371
-# assets, then sapi (proto-mode). Crap - of course sapi needs a payload that we
-# plan to get from SAPI. build-payload.js will need to continue/leverage SAPI
-# code. Leave as-is for now.
-
-# if we have an application.json, augment it with prompt-config, push to SAPI.
-# Compare to /usbkey/config after reboot?
 function sdc_init_application
 {
     [[ -f ${USB_COPY}/application.json ]] || fatal "No application.json"

@@ -238,12 +238,9 @@ function write_initial_config {
     svcadm enable config-agent
 }
 
-sapi_service=$(mdata-get sapi-service)
-echo "SAPI service - ${sapi_service}"
 ## non-sapi services will be necessarily created by sdc-role
 ## at this point, so...
-if [[ -z ${sapi_service} &&\
-      ${ZONE_ROLE} != "assets" &&\
+if [[ ${ZONE_ROLE} != "assets" &&\
       ${ZONE_ROLE} != "sapi" ]]; then
     # adopt this instance
     sapi_url=$(mdata-get sapi-url)
@@ -256,8 +253,7 @@ if [[ -z ${sapi_service} &&\
     sapi_service="true"
 fi
 
-if [[ -n ${sapi_service} && ${sapi_service} == "true" &&\
-      ${ZONE_ROLE} != "assets" &&\
+if [[ ${ZONE_ROLE} != "assets" &&\
       ${ZONE_ROLE} != "sapi" ]]; then
     setup_config_agent
     upload_values
