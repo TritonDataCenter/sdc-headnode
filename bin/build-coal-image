@@ -296,6 +296,16 @@ function create_output
         $STAGE/USB-headnode.vmwarevm/${OUTPUT_IMG}
     echo "done."
 
+    coal_zpool_disk_size=$(build_spec coal-zpool-disk-size)
+    if [[ -n ${coal_zpool_disk_size} ]]; then
+        if [[ -x "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskmanager" ]]; then
+            /Applications/VMware\ Fusion.app/Contents/Library/vmware-vdiskmanager \
+                -x ${coal_zpool_disk_size}GB ${STAGE}/USB-headnode.vmwarevm/zpool.vmdk
+        else
+            echo " !!! WARNING !!! Cannot resize zpool disk with missing vmware-vdiskmanager!" >&2
+        fi
+    fi
+
     if [[ "$BUILD_TGZ" == "false" ]]; then
         echo "==> Creating coal-${THIS_BUILDSTAMP}/"
         [[ -d $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE} ]] \
