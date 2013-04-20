@@ -123,65 +123,11 @@ most interesting/helpful ones are:
         }
 
 
-# image-based builds (experimental)
-
-To enable HEAD-1396-style image-based builds, ensure you're on the VPN
-(necessary at the moment to reach https://updates.joyent.us) and add the
-following to your copy of build.spec.local:
-
-    "use-images": true
-
-Optionally, may specify which images to use with the following structure:
-
-    "$zone-image": {
-      "name": "NAME",
-      "pattern": "PATTERN"
-    }
-
-Be advised that mistakes in this section can render your build useless if, for
-instance, you specify a pattern that resolves to no available images.
-
-Where NAME is the IMGAPI sense of 'name', defaults to $zone. See:
-https://mo.joyent.com/docs/imgapi/master/#ListImages
-
-PATTERN may be one of several things, and defaults to 'master':
-  1. a grep-style regex on the image version (again the IMGAPI sense
-     of version). The IMGAPI instance specified in "updates-url" will be
-     searched for this name, then filtered by the version pattern, and
-     will choose the most-recently published image that matches.
-  2. The IMGAPI UUID of the image you want.
-  3. A URL pointing at an image manifest. Again this assume IMGAPI behaviour,
-     the corresponding image should be at URL/file
-  4. The local file name of an image manifest, the corresponding image file
-     should be in the same directory.
-  5. an ls-style glob that resolves to 4.
+# Using specific images
 
 # Re-building a single zone
 
-1.  Build the filesystem tarball for the zone:
-
-    This process has changed and will be updated soon with new instructions. The
-    short answer is that you should use MG to build the fs.tar.bz2 now.
-
-2.  Copy in the fs tarball:
-
-        ssh root@10.99.99.7 /usbkey/scripts/mount-usb.sh
-        scp zones/mapi/fs.tar.bz2 root@10.99.99.7:/mnt/usbkey/zones/mapi/fs.tar.bz2
-        scp zones/mapi/fs.tar.bz2 root@10.99.99.7:/usbkey/zones/mapi/fs.tar.bz2
-
-    Note, we copy it into both the USB key (necessary to be there for
-    reboot) and into the usbkey copy (in case you re-create the zone
-    without a reboot).
-
-3.  Recreate the zone:
-
-        ssh -A root@10.99.99.7 'vmadm destroy $(vmadm lookup alias=mapi)'
-        ssh -A root@10.99.99.7 /usbkey/scripts/headnode.sh
-
-Warning: In general this requires your changes to be locally commited
-(tho not pushed). HEAD-465 added support for uncommited changes for
-MAPI_DIR, but not for the others.
-
+to be updated - pending SAPI-80, others.
 
 # Testing upgrade
 
