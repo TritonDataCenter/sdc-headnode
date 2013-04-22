@@ -124,27 +124,6 @@ function addNic(payload, cb) {
     return cb(null, payload);
 }
 
-function addUserScript(payload, cb) {
-    return cb(null, payload);
-    // fs.readFile('/usbkey/default/user-script.common', function(err, data) {
-    //     var customer_metadata;
-
-    //     if (err) {
-    //         log.fatal(err, 'Could not read user script: ', + err.message);
-    //         return cb(err);
-    //     }
-
-    //     if (!payload.hasOwnProperty('customer_metadata')) {
-    //         payload.customer_metadata = {};
-    //     }
-    //     payload.customer_metadata['sapi-service'] = "true";
-    //     payload.customer_metadata['user-script'] = data.toString();
-    //     payload.customer_metadata['assets-ip'] = self.config.assets_admin_ip;
-    //     payload.customer_metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
-    //     return cb(null, payload);
-    // });
-}
-
 function outputPayload(payload, cb) {
     // also add the uuid if any.
     if (passed_uuid && passed_uuid.length > 0) {
@@ -175,7 +154,6 @@ async.waterfall([
     createInstance,
     getPayload,
     addNic,
-    addUserScript,
     outputPayload
 ], function (err) {
     if (err) {

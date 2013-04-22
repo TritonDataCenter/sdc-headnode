@@ -414,13 +414,6 @@ function filterServices(serviceList, cb) {
                 extras.params['customer_metadata'] = {};
             }
 
-            // customer_metadata overwritten.
-            // extras.params['customer_metadata']['assets-ip'] =
-            //     self.config.assets_admin_ip;
-            // extras.params['customer_metadata']['sapi-url'] =
-            //     'http://' + self.config.sapi_admin_ips;
-            // extras.params['customer_metadata']['sapi-service'] = "true";
-            // extras.params['customer_metadata']['user-script'] = data.toString();
             extras.metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
             extras.metadata['assets-ip'] = self.config.assets_admin_ip;
             extras.metadata['user-script'] = data.toString();
