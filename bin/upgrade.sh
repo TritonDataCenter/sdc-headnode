@@ -1362,7 +1362,7 @@ trap "" SIGPIPE
 trap "" SIGALRM
 trap "" SIGTERM
 trap cleanup EXIT
-2:
+
 # Disable cron so scheduled jobs, such as backup, don't interfere with us and
 # we don't interfere with them.
 svcadm disable cron
