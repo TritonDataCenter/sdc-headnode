@@ -447,7 +447,7 @@ post_tasks()
         # We have to wait until the admin user has replicated over
         loops=0
         local nadmin=0
-        while [ $loops -lt 15 ]; do
+        while [ $loops -lt 60 ]; do
             nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn \
                 2>/dev/null | wc -l`
             [ $nadmin -ne 0 ] && break
@@ -457,7 +457,7 @@ post_tasks()
         done
     fi
 
-    [ $loops -eq 15 ] && \
+    [ $loops -eq 60 ] && \
         print_log "admin user is still not replicated, continuing but errors" \
 	"are likely"
 
