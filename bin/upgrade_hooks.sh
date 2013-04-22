@@ -369,6 +369,24 @@ add_ext_net()
 	[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
 }
 
+get_replicator_status()
+{
+    local log=/var/svc/log/smartdc-application-ufds-replicator:default.log
+
+    changelog_num=`nawk '{
+            pos = index($0, "Updated changenumber to")
+            if (pos == 0)
+                next
+            s = substr($0, pos + 24)
+            pos = index(s, "\"") - 1
+            n = substr(s, 1, pos)
+        }
+        END {print n}' /zones/$1/root/$log`
+
+    egrep -s "No new changelog entries" /zones/$1/root/$log
+    replicator_done=$?
+}
+
 post_tasks()
 {
     echo "$(date -u "+%Y%m%dT%H%M%S") post start" \
@@ -443,6 +461,8 @@ post_tasks()
     vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
 
+    local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
         # We have to wait until the admin user has replicated over
         loops=0
@@ -451,20 +471,41 @@ post_tasks()
             nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn \
                 2>/dev/null | wc -l`
             [ $nadmin -ne 0 ] && break
-            print_log "Waiting for the admin user to be replicated..."
+            get_replicator_status $ufds_uuid
+            print_log "Waiting for the admin user to be replicated" \
+                "($changelog_num)..."
             sleep 60
             loops=$((${loops} + 1))
         done
-    fi
 
-    [ $loops -eq 60 ] && \
-        print_log "admin user is still not replicated, continuing but errors" \
-	"are likely"
+        [ $loops -eq 60 ] && \
+            print_log "admin user is still not replicated, continuing but" \
+                "errors are likely"
+    fi
 
     create_extra_zones
 
     print_log "Updating the portal zone"
     convert_portal_zone
+
+    if [[ $CONFIG_ufds_is_master != "true" ]]; then
+        # We have to wait until the initial set of user data has finished
+        # replicating over before this HN is usable.
+        loops=0
+        while [ $loops -lt 60 ]; do
+            get_replicator_status $ufds_uuid
+            [ $replicator_done -eq 0 ] && break
+            print_log "Waiting for all user data to be replicated" \
+                "($changelog_num)..."
+            sleep 60
+            loops=$((${loops} + 1))
+        done
+
+        [ $loops -eq 60 ] && \
+            print_log "User data is still not completely replicated," \
+                "continuing but the headnode is"
+            print_log "not fully usable until all users are replicated."
+    fi
 
     echo "$(date -u "+%Y%m%dT%H%M%S") post done" \
         >>$SDC_UPGRADE_DIR/upgrade_time
