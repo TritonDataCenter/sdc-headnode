@@ -56,7 +56,7 @@
         }
     },
     "ca": {
-        "url": "http://{{ca_admin_ips}}"
+        "url": "http://{{ca_admin_ips}}:23181"
     },
     "usageapi": {
         "url": "http://{{usageapi_admin_ips}}"
