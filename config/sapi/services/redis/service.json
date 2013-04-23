@@ -1,6 +1,7 @@
 {
     "name": "redis",
     "params": {
+        "delegate_dataset": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
 		"networks": [ "admin" ],

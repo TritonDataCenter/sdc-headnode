@@ -6,6 +6,7 @@
       "smartdc_type": "core"
   },
   "zfs_storage_pool_name": "zones",
+  "delegate_dataset": true,
   "registration": {
     "domain": "redis",
     "type": "rr_host",

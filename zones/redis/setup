@@ -14,15 +14,18 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/redis
 
+# Mount our delegate dataset at '/data'.
+zfs set mountpoint=/data zones/$(zonename)/data
+
 # Install Redis
 cd /opt
 /usr/bin/gtar -jxf /var/svc/redis-2.4.1.tar.bz2
-mkdir -p /var/db/redis /var/log/redis
+mkdir -p /data/redis /var/log/redis
 /usr/sbin/groupadd redis
 /usr/sbin/useradd -d /opt/redis -s /usr/bin/bash -g redis redis
 /usr/bin/passwd -l redis
 /usr/sbin/projadd -c "Redis Tunings" -K "process.max-file-descriptor=(basic,65535,deny),(priv,65535,deny)" -U redis -G redis redis
-/usr/bin/chown -R redis:redis /opt/redis /var/db/redis /var/log/redis
+/usr/bin/chown -R redis:redis /opt/redis /data/redis /var/log/redis
 rm -f /var/svc/redis-2.4.1.tar.bz2
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."

@@ -7,4 +7,4 @@ logfile /var/log/redis/redis.log
 #   after 60 sec if at least 1 key changed
 # Default of only every 15 *minutes* for 1 key change is too long for us here.
 save 60 1
-dir /var/db/redis
+dir /data/redis
