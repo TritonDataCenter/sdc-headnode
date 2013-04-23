@@ -617,7 +617,7 @@ function create_zone {
     local payload_file=/var/tmp/${zone}_payload.json
     # HEAD-1371 - branch on SAPI here.
     if [[ ${USE_SAPI} && -f ${USB_COPY}/services/${zone}/service.json ]]; then
-        echo "XXX - deploying ${zone} via SAPI indirection."
+        echo "deploying ${zone} via SAPI."
         local sapi_url=http://${CONFIG_sapi_admin_ips}
         [[ $upgrading == 1 ]] && UPGRADING="yes"
 
@@ -735,7 +735,14 @@ function num_not_setup {
 function sdc_init_application
 {
     [[ -f ${USB_COPY}/application.json ]] || fatal "No application.json"
+
+    local sapi_setup=$(json -f ${SETUP_FILE} -e \
+        'result=this.seen_states.filter(function(e) { return e=="sapi_setup" })[0]' | json result)
+
+    [[ -n ${sapi_setup} ]] && return 0
+
     ${USB_COPY}/scripts/sdc-init.js
+    update_setup_state "sapi_setup"
 }
 
 if [[ -z ${skip_zones} ]]; then
@@ -774,14 +781,14 @@ update_setup_state "sdczones_created"
 
 # copy sdc-manatee tools to GZ - see MANATEE-86
 echo "==> Copying manatee tools to GZ."
-manatee=$(vmadm list | grep manatee0 | cut -f1 -d' ')
+manatee=$(vmadm lookup tags.smartdc_role=manatee | tail -1)
 for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc/*); do
     tool=$(basename ${file} .js)
     mv ${file} /opt/smartdc/bin/${tool}
 done
 for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/manta/*); do
     tool=$(basename ${file} .js)
-    ln -s ${file} /opt/smartdc/bin/${tool}
+    mv ${file} /opt/smartdc/bin/${tool}
 done
 
 
