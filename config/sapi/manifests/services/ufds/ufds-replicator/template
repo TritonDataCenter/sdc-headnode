@@ -10,7 +10,8 @@
     "remotes": [{
         "url": "ldaps://{{REMOTE_UFDS_IP}}",
         "queries": [
-            "{{{REMOTE_UFDS_REPLICATOR_QUERY}}}"
+            "/ou=users, o=smartdc??sub?(&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))",
+            "/o=smartdc??sub?(objectclass=emailblacklist)"
         ],
         "maxConnections": 1,
         "bindDN": "{{REMOTE_UFDS_ROOT_DN}}",

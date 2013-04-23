@@ -10,7 +10,8 @@
         "cache": {
             "size": 5000,
             "expiry": 60
-        }
+        },
+        "clientTimeout": 3000
     },
     "wfapi": {
         "url": "http://{{workflow_admin_ips}}",
