@@ -42,48 +42,12 @@ root_authorized_keys_file=root.authorized_keys
 
 # Zone-specific configs
 
-adminui_pkg=sdc_512
 adminui_workers=8
 
-amon_pkg=sdc_256
-
-assets_pkg=sdc_128
-
-usageapi_pkg=sdc_768
-
-workflow_pkg=sdc_1024
-manatee_pkg=sdc_db
-moray_pkg=sdc_1024
-keyapi_pkg=sdc_128
-sdcsso_pkg=sdc_128
-
-vmapi_pkg=sdc_128
-dapi_pkg=sdc_128
-imgapi_pkg=sdc_imgapi
-cnapi_pkg=sdc_128
-napi_pkg=sdc_128
-fwapi_pkg=sdc_128
-
-ca_pkg=sdc_1024
-
-ufds_pkg=sdc_256
-
-cloudapi_pkg=sdc_256
-
-sapi_pkg=sdc_256
-
-manta_pkg=sdc_256
-
-dhcpd_pkg=sdc_128
 dhcpd_dhcp_server=1
 
-binder_pkg=sdc_512
 dbconn_retry_after=10
 dbconn_num_attempts=10
-
-rabbitmq_pkg=sdc_1024
-
-redis_pkg=sdc_1024
 
 sbapi_url=https://report.joyent.com/servicebundles/
 sbapi_http_user=sdc6support
