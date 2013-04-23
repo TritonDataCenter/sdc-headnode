@@ -11,7 +11,8 @@
         "url": "ldaps://{{REMOTE_UFDS_IP}}",
         "queries": [
             "/ou=users, o=smartdc??sub?(&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))",
-            "/o=smartdc??sub?(objectclass=emailblacklist)"
+            "/o=smartdc??sub?(objectclass=emailblacklist)",
+            "/ou=groups, o=smartdc??sub?(objectclass=groupofuniquenames)"
         ],
         "maxConnections": 1,
         "bindDN": "{{REMOTE_UFDS_ROOT_DN}}",
