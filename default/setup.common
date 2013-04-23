@@ -238,22 +238,30 @@ function write_initial_config {
     svcadm enable config-agent
 }
 
+sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
+                json -H uuid)
+
 ## non-sapi services will be necessarily created by sdc-role
 ## at this point, so...
-if [[ ${ZONE_ROLE} != "assets" &&\
+if [[ -z ${sapi_instance} &&\
+      ${ZONE_ROLE} != "assets" &&\
       ${ZONE_ROLE} != "sapi" ]]; then
     # adopt this instance
     sapi_url=$(mdata-get sapi-url)
     service_uuid=$(curl ${sapi_url}/services?name=${ZONE_ROLE}\
       -sS -H accept:application/json | json -Ha uuid)
     uuid=$(zonename)
-    curl ${sapi_url}/instances -sS -X POST \
+    sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
       -H content-type:application/json \
-      -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }"
-    sapi_service="true"
+      -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
+      | json -H uuid)
+
+    [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${ZONE_NAME} into SAPI"
+    echo "Adopted service ${ZONE_NAME} to instance ${uuid}"
 fi
 
-if [[ ${ZONE_ROLE} != "assets" &&\
+if [[ -n ${sapi_instance} && \
+      ${ZONE_ROLE} != "assets" && \
       ${ZONE_ROLE} != "sapi" ]]; then
     setup_config_agent
     upload_values
