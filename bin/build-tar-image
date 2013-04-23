@@ -293,9 +293,6 @@ function create_directories
     echo "==> Creating stage/"
     rm -rf ${STAGE}
     mkdir -p ${STAGE}
-    # HEAD-1507 obsolete.
-    mkdir -p ${STAGE}/extra/pkgsrc
-    mkdir -p ${STAGE}/extra/amon-agent
 }
 
 function generate_grub_menu
@@ -464,161 +461,6 @@ function pkgin_get
         fi
     else
         (cd ${dest} && curl -k -f0 ${CURL_OPTS} -O ${url}/${file})
-    fi
-}
-
-# HEAD-1507 obsolete.
-function copy_pkgsrc
-{
-    [[ -z ${USE_IMAGES} ]] || return 0
-
-    echo "==> Copying in pkgsrc"
-
-    # move old cache to new name so everyone doesn't have to download again.
-    [[ ! -d ${ROOT}/cache/2010Q4 && -d ${ROOT}/cache/pkgsrc_2010Q4 ]] && \
-        mv -f ${ROOT}/cache/pkgsrc_2010Q4 ${ROOT}/cache/2010Q4
-    [[ ! -d ${ROOT}/cache/2011Q2_64 && -d ${ROOT}/cache/pkgsrc_2011Q2_64 ]] && \
-        mv -f ${ROOT}/cache/pkgsrc_2011Q2_64 ${ROOT}/cache/2011Q2_64
-    [[ ! -d ${ROOT}/cache/2011Q4 && -d ${ROOT}/cache/pkgsrc_2011Q4 ]] && \
-        mv -f ${ROOT}/cache/pkgsrc_2011Q4 ${ROOT}/cache/2011Q4
-    [[ ! -d ${ROOT}/cache/2011Q4_64 && -d ${ROOT}/cache/pkgsrc_2011Q4_64 ]] && \
-        mv -f ${ROOT}/cache/pkgsrc_2011Q4_64 ${ROOT}/cache/2011Q4_64
-
-    PKGSRC_LIST=
-    local data=$((${ROOT}/bin/json datasets \
-        | ${ROOT}/bin/json -a name pkgsrc pkgsrc_url | tr ' ' '|' \
-        | grep -v "|$") < ${ROOT}/build.spec)
-    local idx=0
-    rm -f ${ROOT}/cache/*.lst
-    for ds in ${data}; do
-        local ds_name=$(echo "${ds}" | cut -d '|' -f1)
-        local ds_pkgsrc=$(echo "${ds}" | cut -d '|' -f2)
-        local ds_pkgsrc_url=$(echo "${ds}" | cut -d '|' -f3)
-
-        for zone in $(ls ${ROOT}/zones); do
-            zoneds=$(cat ${ROOT}/zones/${zone}/dataset)
-            if [[ ${zoneds} =~ ${ds_name} ]]; then
-                cat ${ROOT}/zones/${zone}/pkgsrc >> ${ROOT}/cache/${ds_pkgsrc}.lst
-                mkdir -p ${STAGE}/zones/${zone}
-            fi
-        done
-        if [[ -f ${ROOT}/cache/${ds_pkgsrc}.lst ]]; then
-            # Someone needs this pkgsrc
-            PKGSRC_LIST[${idx}]="${ds_pkgsrc}|${ds_pkgsrc_url}"
-            idx=$((${idx} + 1))
-        fi
-    done
-
-    for pkgsrc in ${PKGSRC_LIST[@]} ; do
-        local name=${pkgsrc%%|*}
-        local url=${pkgsrc##*|}
-        local do_download=0
-
-        local pkglist=$(find ${ROOT}/cache -type f -iname ${name}.lst)
-        [[ -z ${pkglist} ]] && continue
-
-        local cache_dir=${ROOT}/cache/${name}
-        mkdir -p ${cache_dir}
-
-        # XXX:
-        #
-        # We used to always have md5sums.txt in pkgsrc, since DATASET-27. For
-        # the new "multiarch" pkgsrc we no longer have these.  Instead per
-        # DATASET-647 we're supposed to use a new SHA512.bz2 file.  For now
-        # we need to support both with a preference for SHA512.bz2 when it
-        # exists.  When we no longer support old pkgsrc repos with md5sum.txt
-        # we can remove the MD5 checks below.
-        #
-
-        if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
-            (cd ${cache_dir} \
-                && rm -f md5sums.txt SHA512.bz2;
-                if ! pkgin_get ${url}/../ SHA512.bz2 ./; then
-                    if ! pkgin_get ${url} md5sums.txt ./; then
-                        fatal "Failed to download either SHA512.bz2 or md5sums.txt"
-                    fi
-                fi
-            )
-        elif [[ ! -f ${cache_dir}/md5sums.txt && ! -f ${cache_dir}/SHA512.bz2 ]]; then
-            fatal "Don't have cached ${cache_dir}/md5sums.txt or" \
-                "${cache_dir}/SHA512.bz2 files, can't build." \
-                "You need to find some Internet."
-        fi
-
-        pkgs=$(cat ${pkglist} \
-            | xargs -n1 \
-            | sort \
-            | uniq \
-            | sed -e "s/$/.tgz/")
-        for pkgfile in $pkgs; do
-            if [[ -f ${cache_dir}/md5sums.txt ]]; then
-                MD5=$(${GREP} " ${pkgfile}" ${cache_dir}/md5sums.txt | cut -d' ' -f1 || true)
-            else
-                MD5=
-            fi
-            if [[ -f ${cache_dir}/SHA512.bz2 ]]; then
-                SHA512=$(bzcat ${cache_dir}/SHA512.bz2 | ${GREP} "/${pkgfile})" | cut -d' ' -f4 || true)
-            else
-                SHA512=
-            fi
-            if [[ -z ${SHA512} && -z ${MD5} ]]; then
-                fatal "Unable to find md5sum or SHA512 for ${pkgfile}, " \
-                    "must be fixed before we can continue."
-            fi
-
-            if [[ -f ${cache_dir}/${pkgfile} ]]; then
-                [[ -n ${MD5} ]] && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
-                [[ -n ${SHA512} ]] && ACTUAL_SHA512=$(openssl dgst -sha512 ${cache_dir}/${pkgfile} | awk '{print $NF}')
-            fi
-
-            if [[ ! -f ${cache_dir}/${pkgfile} ]]; then
-                # don't have it at all, download
-                do_download=1
-            elif [[ -n ${SHA512} ]]; then
-                if [[ -z ${ACTUAL_SHA512} || ${SHA512} != ${ACTUAL_SHA512} ]]; then
-                    # don't have a good file, download now
-                    do_download=1
-                fi
-            elif [[ -n ${MD5} ]]; then
-                if [[ -z ${ACTUAL_MD5} || ${MD5} != ${ACTUAL_MD5} ]]; then
-                    # don't have a good file, download now
-                    do_download=1
-                fi
-            fi
-
-            if [[ ${do_download} == 1 ]]; then
-                echo "==> Downloading ${pkgfile}"
-                # if this exists, it's corrupt
-                rm -f ${cache_dir}/${pkgfile}
-                if [[ ${HAVE_INTERNET} == "true" || -n ${PKGSRC_DIR} ]]; then
-                    (cd ${cache_dir} \
-                        && pkgin_get ${url} ${pkgfile} ./) \
-                        || fatal "could not download ${url}/${pkgfile}"
-                    [[ -n ${MD5} ]] && ACTUAL_MD5=$(openssl dgst -md5 ${cache_dir}/${pkgfile} | awk '{print $NF}')
-                    [[ -n ${SHA512} ]] && ACTUAL_SHA512=$(openssl dgst -sha512 ${cache_dir}/${pkgfile} | awk '{print $NF}')
-                    [[ -n ${SHA512} && ${SHA512} != ${ACTUAL_SHA512} ]] && fatal "corrupt download of ${pkgfile}"
-                    [[ -n ${MD5} && ${MD5} != ${ACTUAL_MD5} ]] && fatal "corrupt download of ${pkgfile}"
-                else
-                    fatal "Need Internet to download ${pkgfile}"
-                fi
-            fi
-        done
-
-        mkdir -p ${STAGE}/extra/pkgsrc/${name}
-        local pkg=
-        for pkg in ${pkgs}; do
-            ln ${cache_dir}/${pkg} ${STAGE}/extra/pkgsrc/${name}/${pkg}
-        done
-    done
-}
-
-function valid_tgz_archive
-{
-    filename=$1
-    if [[ -f ${filename} ]] && ${TAR} -ztf ${filename} > /dev/null; then
-        return 0
-    else
-        return 1
     fi
 }
 
@@ -891,25 +733,25 @@ function copy_platform
 #
 # Note: A separate extra/amon-agent dir is a placeholder until the amon-agent
 # is in pkgsrc.
-function copy_amon_agent
-{
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download amon-agent, looping!"
+# function copy_amon_agent
+# {
+#     [[ -z "${loops}" ]] && loops=0
+#     loops=$((${loops} + 1))
+#     [[ ${loops} -gt 2 ]] && fatal "Unable to download amon-agent, looping!"
 
-    # See if there's a specific amon-agent branch we're supposed to use.
-    local branch=$(build_spec agents-shar)
-    if [[ -z ${branch} ]]; then
-        branch="master"
-    fi
+#     # See if there's a specific amon-agent branch we're supposed to use.
+#     local branch=$(build_spec agents-shar)
+#     if [[ -z ${branch} ]]; then
+#         branch="master"
+#     fi
 
-    local amon_agent_path=$(get_bit "amon/amon-agent-${branch}-.*\.tgz")
-    echo "Copying $(basename $amon_agent_path) to stage."
-    mkdir -p ${STAGE}/extra/amon-agent
-    cp ${amon_agent_path} ${STAGE}/extra/amon-agent/amon-agent.tgz
+#     local amon_agent_path=$(get_bit "amon/amon-agent-${branch}-.*\.tgz")
+#     echo "Copying $(basename $amon_agent_path) to stage."
+#     mkdir -p ${STAGE}/extra/amon-agent
+#     cp ${amon_agent_path} ${STAGE}/extra/amon-agent/amon-agent.tgz
 
-    loops=
-}
+#     loops=
+# }
 
 
 function get_agentsshar
@@ -1033,7 +875,6 @@ function copy_datasets
         # its UUID.
         #
         # Note: ${dataset_file} is set by copy_dataset
-        # HEAD-1507 obsolete (probably from previously)
         if [[ -n ${headnode_zones} && ${headnode_zones} == "true" ]]; then
             echo "${uuid}" > ${STAGE}/datasets/smartos.uuid
             echo "${dataset_file}" > ${STAGE}/datasets/smartos.filename
@@ -1085,64 +926,6 @@ function copy_dataset
   echo "==> Copying ${dataset_file}"
   ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
-
-# Get a smartdc zone's FS tarball.
-#
-# Usage:
-#   get_fs_tarball TARGET DST-DIR
-#
-# Example:
-#   get_fs_tarball 'ca/ca-pkg-master-.*.tar.bz2' cache/stage/zones/ca
-#       Here we want to find/download the latest ca-pkg-... tarball and copy
-#       it to cache/ca.tar.bz2 (where that "ca" is the basename of
-#       "zones/ca").
-#
-#   get_fs_tarball 'https://bits.joyent.us/builds/workflow/release-20120809-20120809T173325Z/workflow/workflow-pkg-release-20120809-20120809T173325Z-gea41bc8.tar.bz2' cache/stage/zones/workflow
-#       Here we download the given URL, cache it to "cache/$basename" and
-#       copy it to the DST-DIR.
-#
-#   get_fs_tarball /var/tmp/ca-pkg-master-1234.tar.bz2 cache/stage/zones/ca
-#       The "TARGET" can be a path to an existing file to use.
-#
-function get_fs_tarball
-{
-    local target=$1
-    local dst_dir=$2
-
-    if [[ -z ${dst_dir} ]] || [[ ! -d ${dst_dir} ]]; then
-        fatal "get_fs_tarball(): No destination dir specified or not a directory."
-    fi
-
-    [[ -z ${target} ]] && fatal "get_fs_tarball(): No target specified."
-
-    # First get it and cache to cache/$zone.tar.bz2. Then we'll copy
-    # it to $dst_dir.
-    zone=$(basename ${dst_dir})
-    cache_path=${ROOT}/cache/${zone}.tar.bz2
-    if [[ -f ${target} ]]; then
-        # if this is the filename of an existing file, we'll use that
-        if [[ ${target} != "${cache_path}" ]]; then
-            echo "$(basename ${target} .tar.bz2)" > ${dst_dir}/stamp
-            cp ${target} ${cache_path}
-        fi
-    else
-        # not a file so assume it's a pattern (find the latest) or URL
-        local bit_cache_path=$(get_bit ${target})
-        rm -f ${cache_path}
-        echo "$(basename ${bit_cache_path} .tar.bz2)" > ${dst_dir}/stamp
-        ln ${bit_cache_path} ${cache_path}
-    fi
-
-    # Validate and copy
-    if [[ ! -f ${cache_path} ]]; then
-        fatal "Unable to get file '${cache_path}'."
-    elif ! bzip2 -t ${cache_path}; then
-        fatal "Corrupt file ${cache_path}, please delete or fix and try again."
-    else
-        cp ${cache_path} ${dst_dir}/fs.tar.bz2
-    fi
-}
-
 
 # Get the image manifest and file for the given core SDC zone.
 #
@@ -1247,20 +1030,9 @@ function copy_zones
             cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
-        if [[ -n ${USE_IMAGES} ]]; then
-            local image_pattern=$(build_spec ${zone}-image)
-            mkdir -p ${STAGE}/datasets
-            get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
-        else
-            local tarball_pattern=$(build_spec ${zone}-tarball)
-            if [[ -n ${tarball_pattern} ]]; then
-                # Find latest that matches tarball_pattern.
-                get_fs_tarball ${tarball_pattern} ${STAGE}/zones/${zone}
-            fi
-            if [[ ! -f ${STAGE}/zones/${zone}/fs.tar.bz2 ]]; then
-                fatal "Unable to find fs.tar.bz2 for ${zone}"
-            fi
-        fi
+        local image_pattern=$(build_spec ${zone}-image)
+        mkdir -p ${STAGE}/datasets
+        get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
     done
 }
 
@@ -1373,8 +1145,6 @@ create_directories
 load_buildspec
 copy_base
 generate_grub_menu
-copy_pkgsrc
-copy_amon_agent
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_agentsshar
 copy_agents65
