@@ -79,6 +79,12 @@ function deploy_manta_zone {
 
 # Mainline
 
+manta_uuid=$(vmadm lookup alias=manta0)
+if [[ -n ${manta_uuid} ]]; then
+    echo "Manta zone already present."
+    exit 0
+fi
+
 sapi_uuid=$(vmadm lookup alias=sapi0)
 
 add_external_nic ${sapi_uuid}
