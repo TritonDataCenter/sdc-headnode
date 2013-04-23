@@ -54,6 +54,8 @@ useradd postgres
 # grant postgres user root privileges with pfexec
 echo "grant postgres user root privileges"
 usermod -P'Primary Administrator' postgres
+# grant postgres user chmod chown privileges with sudo
+echo "postgres    ALL=(ALL) NOPASSWD: /usr/bin/chown, /usr/bin/chmod, /opt/local/bin/chown, /opt/local/bin/chmod" >> /opt/local/etc/sudoers
 
 # give postgres user zfs permmissions.
 echo "grant postgres user zfs perms"
