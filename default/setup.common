@@ -173,8 +173,8 @@ function setup_config_agent {
     mkdir -p ${prefix}/etc
     cat >${prefix}/etc/config.json <<EOF
 {
-    "logLevel": "debug",
-    "pollInterval": 10000,
+    "logLevel": "info",
+    "pollInterval": 15000,
     "sapi": {
         "url": "${sapi_url}"
     }
