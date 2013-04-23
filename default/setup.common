@@ -238,8 +238,10 @@ function write_initial_config {
     svcadm enable config-agent
 }
 
-sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
+if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
+  sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
                 json -H uuid)
+fi
 
 ## non-sapi services will be necessarily created by sdc-role
 ## at this point, so...
