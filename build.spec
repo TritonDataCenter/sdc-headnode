@@ -1,5 +1,7 @@
 {
   "build-tgz": "true",
+  "coal-memsize": 4096,
+
   "bits-url": "https://bits.joyent.us/builds",
   "bits-url-open": "http://stuff:kie7Ooph@stuff.smartdatacenter.org",
   "bits-branch": "master",

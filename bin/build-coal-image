@@ -269,6 +269,14 @@ function create_output
 
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
+        if [[ ${coal_memsize} < 4096 ]]; then
+            echo "* * *"
+            echo "* Warning: Your COAL memory size (coal-memsize) is set to <4096 MiB."
+            echo "* That is likely to cause problems in your COAL. Consider a larger"
+            echo "* value for 'coal-memsize' in 'build.spec.local'."
+            echo "* * *"
+            sleep 5
+        fi
         echo -n "==> Setting COAL HN memory to: ${coal_memsize} MiB... "
         sed -e "s/^memsize.*$/memsize = \"${coal_memsize}\"/" \
             "${vmxfile}" > "${vmxfile}.new"
