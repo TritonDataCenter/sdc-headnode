@@ -79,6 +79,11 @@ chmod 700 $PG_DIR
 echo "make snapshot dir visible"
 zfs set snapdir=visible $DATASET
 
+# add pg log dir
+mkdir -p $PG_LOG_DIR
+chown -R postgres $PG_LOG_DIR
+chmod 700 $PG_LOG_DIR
+
 # update .bashrc
 echo "Updating ~/.bashrc"
 update_env
