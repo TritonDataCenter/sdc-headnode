@@ -6,8 +6,6 @@ if [[ -n "$TRACE" ]]; then
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
-set -o errexit
-set -o pipefail
 
 if [[ $# != 2 ]]; then
   echo "Usage: $0 <zone_name> <target_directory>"
@@ -25,7 +23,7 @@ zlogin ${ZONE} svcadm disable manatee-snapshotter
 zlogin ${ZONE} svcadm disable manatee-backupserver
 
 # Get existing data dataset.
-DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data/manatee$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data/manatee")
 
 # Destroy previous dataset.
 if [[ -z "${DATA_DATASET}" ]]; then
