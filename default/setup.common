@@ -30,122 +30,11 @@ if [[ "${ZONE_ROLE}" != "assets" ]]; then
 fi
 
 
-# HEAD-1507 scheduled for deletion.
-# Unpack the fs tarball.
-if [[ $(. /opt/smartdc/etc/zoneconfig ; echo ${NO_FS_TARBALL}) == "true" ]]; then
-    NO_FS_TARBALL=1
-fi
-if [[ -z ${NO_FS_TARBALL} ]]; then
-    if [[ "${ZONE_ROLE}" == "assets" ]]; then
-        cp /assets/extra/${ZONE_ROLE}/fs.tar.bz2 /var/svc/fs.tar.bz2 \
-            || fatal "FATAL: unable to get fs tarball from /assets"
-    else
-        curl -o /var/svc/fs.tar.bz2 -s -S -f \
-            http://${ASSETS_IP}/extra/${ZONE_ROLE}/fs.tar.bz2 \
-            || fatal "FATAL: unable to get fs tarball from assets server"
-    fi
-fi
-if [[ -z ${NO_FS_TARBALL} ]]; then
-   # Unpack fs.tar and copy files into proper locations within the zone
-   mkdir /.stage
-   echo "unpack fs.tar"
-   (cd /.stage && bzcat /var/svc/fs.tar.bz2 | tar xbf 512 -)
-   rm -f /var/svc/fs.tar.bz2
-   if [[ -d /.stage/root ]]; then
-       echo "install root"
-       (cd /.stage/root; tar cbf 512 - *) | (cd /; tar xbf 512 -)
-   fi
-   if [[ -d /.stage/site && -n $(ls /.stage/site) ]]; then
-       echo "install site"
-       (cd /.stage/site && tar cbf 512 - *) | \
-           (cd /lib/svc/manifest/site && tar xbf 512 -)
-   fi
-   rm -rf /.stage
-fi
+NO_FS_TARBALL=1
 
-
-# HEAD-1507 scheduled for deletion.
-# Install pkgsrc packages for this zone.
-# Note: We need to force lower case because the pkgsrc packages get copied
-# through pcfs which destroys their case.
-if [[ -z ${NO_FS_TARBALL} ]]; then
-  pkgsrc_version=$(tail -1 /opt/local/etc/pkgin/repositories.conf \
-       | sed -e "s/^.*\/201/201/" | cut -d '/' -f1 | tr [:lower:] [:upper:])
-  if [[ -z "$pkgsrc_version" ]]; then
-      fatal "FATAL: unable to get pkgsrc version"
-  fi
-  if tail -1 /opt/local/etc/pkgin/repositories.conf | grep "/x86_64/" >/dev/null; then
-      pkgsrc_version=${pkgsrc_version}_64
-  fi
-
-  if [[ "${ZONE_ROLE}" == "assets" ]]; then
-      cp /assets/extra/${ZONE_ROLE}/pkgsrc /var/svc/pkgsrc \
-          || fatal "FATAL: unable to get pkgsrc list from /assets"
-      pkgsrc_url=/assets/extra/pkgsrc/${pkgsrc_version}
-  else
-      touch /var/svc/pkgsrc   # If 'pkgsrc' file is empty, curl won't create it.
-      curl -o /var/svc/pkgsrc -s -S -f http://${ASSETS_IP}/extra/${ZONE_ROLE}/pkgsrc \
-          || fatal "FATAL: unable to get pkgsrc list from assets server"
-      pkgsrc_url=http://${ASSETS_IP}/extra/pkgsrc/${pkgsrc_version}
-  fi
-
-  for name in $(cat /var/svc/pkgsrc); do
-      name_lower=$(echo ${name} | tr [:upper:] [:lower:])
-      echo "Installing pkgsrc package '$name'."
-      # MANATEE-77 we add the -u flag to pkg_add so that we can upgrade old
-      # version already pre-installed in the dataset
-      pkg_info $name >/dev/null 2>&1 \
-          || (yes | pkg_add -u -f ${pkgsrc_url}/${name_lower})
-  done
-fi
-
-# HEAD-1507 only need to run postinstall.
 # Install and start the amon-agent.
-if [[ -z ${NO_FS_TARBALL} ]]; then
-  if [[ "${ZONE_ROLE}" == "assets" ]]; then
-      cp /assets/extra/amon-agent/amon-agent.tgz /var/svc/amon-agent.tgz \
-          || fatal "FATAL: unable to get amon-agent.tgz from /assets"
-  else
-      curl -o /var/svc/amon-agent.tgz -s -S -f \
-          http://${ASSETS_IP}/extra/amon-agent/amon-agent.tgz \
-          || fatal "FATAL: unable to get amon-agent.tgz from assets server"
-  fi
-  mkdir -p /opt/
-  (cd /opt/ && gtar xzf /var/svc/amon-agent.tgz)
-fi
 (cd /opt/amon-agent && ./pkg/postinstall.sh)
 rm -f /var/svc/amon-agent.tgz
-
-
-# HEAD-1507 scheduled for deletion
-# Install registrar for the zone.
-if [[ -z ${NO_FS_TARBALL} ]]; then
-  if [[ "${ZONE_ROLE}" == "assets" ]]; then
-      cp /assets/extra/registrar/registrar.bz2 /var/svc/registrar.bz2 \
-          || fatal "FATAL: unable to get registrar.bz2 from /assets"
-  else
-      curl -o /var/svc/registrar.bz2 -s -S -f \
-          http://${ASSETS_IP}/extra/registrar/registrar.bz2 \
-          || fatal "FATAL: unable to get registrar.bz2 from assets server"
-  fi
-  gtar --strip-components=1 -xjf /var/svc/registrar.bz2
-  rm -f /var/svc/registrar.bz2
-fi
-
-# HEAD-1371 registrar config supplied by config-agent.
-# get registrar config from metadata and start the service.
-# registrar_config=$(mdata-get registrar-config)
-# if [[ -z ${registrar_config} ]]; then
-#   echo "No registrar config in metadata, skipping."
-# else
-#   echo "Writing registrar config."
-#   echo $registrar_config | json > /opt/smartdc/registrar/etc/config.json \
-#     || fatal "FATAL: unable to write registrar config"
-#   svccfg import /opt/smartdc/registrar/smf/manifests/registrar.xml \
-#     || fatal "FATAL: unable to import registrar manifest"
-#   svcadm enable registrar
-# fi
-
 
 #
 # Configuration handling: the following three functions import the config-agent,
@@ -210,13 +99,6 @@ function upload_values {
             fi
         fi
     done
-
-    # not required, in params already.
-    # local datacenter_name=$(mdata-get sdc:datacenter_name)
-    # ${update} DATACENTER_NAME ${datacenter_name}
-    # if [[ $? -ne 0 ]]; then
-    #     fatal "failed to upload DATACENTER_NAME metadata"
-    # fi
 }
 
 # Download this zone's SAPI metadata and save it in a local file
@@ -238,14 +120,16 @@ function write_initial_config {
     svcadm enable config-agent
 }
 
-if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
-  sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
-                json -H uuid)
-fi
+function sapi_setup
+{
+  if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
+    sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
+                    json -H uuid)
+  fi
 
-## non-sapi services will be necessarily created by sdc-role
-## at this point, so...
-if [[ -z ${sapi_instance} &&\
+  ## non-sapi services will be necessarily created by sdc-role
+  ## at this point, so we need to adopt them.
+  if [[ -z ${sapi_instance} &&\
       ${ZONE_ROLE} != "assets" &&\
       ${ZONE_ROLE} != "sapi" ]]; then
     # adopt this instance
@@ -260,29 +144,30 @@ if [[ -z ${sapi_instance} &&\
 
     [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${ZONE_NAME} into SAPI"
     echo "Adopted service ${ZONE_NAME} to instance ${uuid}"
-fi
+  fi
 
-if [[ -n ${sapi_instance} && \
-      ${ZONE_ROLE} != "assets" && \
-      ${ZONE_ROLE} != "sapi" ]]; then
+  if [[ -n $(svcs config-agent) && \
+    ${ZONE_ROLE} != "assets" && \
+    ${ZONE_ROLE} != "sapi" ]]; then
     setup_config_agent
     upload_values
     download_metadata
     write_initial_config
+  fi
+}
+
+if [[ ! -f /var/svc/setup_complete ]]; then
+  echo "Initializing SAPI metadata and config-agent"
+  sapi_setup
+else
+  echo "Already setup, skipping SAPI initialization."
 fi
+
 
 # HEAD-1367 - Enable Cron. Since all zones using this are joyent-minimal,cron
 # is not enable by default. We want to enable it though, for log rotation.
 echo "Starting Cron"
 svccfg import /lib/svc/manifest/system/cron.xml
 svcadm enable cron
-
-# HEAD-1507 - what is this intended to do? No such file in zones.
-# We can't add any site-specific manifests automatically, since we're running
-# after the manifest import, so import now.
-# HEAD-1507 remove this.
-for manifest in $(ls -1 /lib/svc/manifest/site/*.xml); do
-    svccfg import ${manifest}
-done
 
 ### Now the rest of setup runs
