@@ -2,6 +2,12 @@
 
 PATH=/usr/bin:/usr/sbin
 export PATH
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
 
 if [[ $# != 2 ]]; then
   echo "Usage: $0 <zone_name> <target_directory>"
@@ -12,8 +18,14 @@ ZONE=$1
 TARGET_DIR=$2
 ROLE="manatee"
 
+# must shut down manatee services so that the dataset isn't EBUSY
+echo "==> shutting down manatee svcs"
+zlogin ${ZONE} svcadm disable manatee-sitter
+zlogin ${ZONE} svcadm disable manatee-snapshotter
+zlogin ${ZONE} svcadm disable manatee-backupserver
+
 # Get existing data dataset.
-DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data/manatee$")
 
 # Destroy previous dataset.
 if [[ -z "${DATA_DATASET}" ]]; then
@@ -42,15 +54,16 @@ gzcat ${TARGET_DIR}/${ROLE}/logs.tar.gz | \
 
 # Double check mountpoint for backup dataset:
 if [[ "$(zfs get -H -o value mountpoint ${DATA_DATASET})" != \
-    "/zones/$ZONE/data"  ]]; then
+    "/manatee/pg"  ]]; then
 
     # We need to boot the zone in order to be able to set mountpoint for the
     # delegated dataset properly:
     echo "==> Booting '${ZONE}' zone"
     /usr/sbin/zoneadm -z ${ZONE} boot
 
+
     echo "==> Setting mountpoint for dataset '${DATA_DATASET}'"
-    zlogin ${ZONE} /usr/sbin/zfs set mountpoint=/zones/$ZONE/data \
+    zlogin ${ZONE} /usr/sbin/zfs set mountpoint=/manatee/pg \
        "${DATA_DATASET}"
     if [[ $? -gt 0 ]]; then
         echo "FATAL: Unable to set mountpoint for data dataset into '${ZONE}' zone"

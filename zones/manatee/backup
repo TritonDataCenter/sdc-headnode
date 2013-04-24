@@ -2,6 +2,13 @@
 
 PATH=/usr/bin:/usr/sbin
 export PATH
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+set -o xtrace
 
 if [[ $# != 2 ]]; then
   echo "Usage: $0 <zone_name> <target_directory>"
@@ -17,7 +24,7 @@ if [[ ! -e "${TARGET_DIR}" ]]; then
   mkdir -p ${TARGET_DIR}
 fi
 
-DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data$")
+DATA_DATASET=$(zfs list -H -o name|grep "${ZONE}/data/manatee$")
 
 # We cannot backup if cannot find data dataset:
 if [[ -z $DATA_DATASET ]]; then
@@ -29,8 +36,8 @@ STAMP=$(date +'%F-%H-%M-%S-%Z')
 BACKUP_VERSION="manatee-data-${STAMP}"
 
 # Create data dataset backup
-echo "==> Creating snapshot of '${ZONE}/data' dataset"
-zfs snapshot zones/${ZONE}/data@${BACKUP_VERSION} 2>&1
+echo "==> Creating snapshot of '${ZONE}/data/manatee' dataset"
+zfs snapshot zones/${ZONE}/data/manatee@${BACKUP_VERSION} 2>&1
 if [[ $? -gt 0 ]]; then
     echo "FATAL: Unable to snapshot data dataset"
     exit 106
@@ -43,7 +50,7 @@ mkdir -p "${TARGET_DIR}/${ROLE}"
 # Send the dataset snapshots:
 
 echo "==> Saving data dataset"
-zfs send "zones/${ZONE}/data@${BACKUP_VERSION}" \
+zfs send "zones/${ZONE}/data/manatee@${BACKUP_VERSION}" \
     > "${TARGET_DIR}/${ROLE}/manatee-data.zfs" 2>&1
 if [[ $? -gt 0 ]]; then
     echo "Unable to zfs send data dataset"
@@ -51,7 +58,7 @@ if [[ $? -gt 0 ]]; then
 fi
 
 echo "==> Removing temporary snapshot of '${ZONE}'"
-/usr/sbin/zfs destroy "zones/${ZONE}/data@${BACKUP_VERSION}"
+/usr/sbin/zfs destroy "zones/${ZONE}/data/manatee@${BACKUP_VERSION}"
 
 echo "==> Saving logs"
 cd /zones/$ZONE/root/var
