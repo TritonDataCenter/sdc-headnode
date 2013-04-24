@@ -45,7 +45,7 @@ fi
 
 # create manatee dataset
 echo "creating manatee dataset"
-zfs create $DATASET
+zfs create -o canmount=noauto $DATASET
 
 # create postgres user
 echo "creating postgres user"
@@ -62,13 +62,12 @@ zfs allow -ld postgres create,destroy,diff,hold,release,rename,setuid,rollback,s
 mkdir -p $DATASET_MOUNT_DIR
 chown -R postgres $DATASET_MOUNT_DIR
 chmod 700 -R $DATASET_MOUNT_DIR
+
 # set mountpoint
 zfs set mountpoint=$DATASET_MOUNT_DIR $DATASET
 
-# add pg log dir
-mkdir -p $PG_LOG_DIR
-chown -R postgres $PG_LOG_DIR
-chmod 700 $PG_LOG_DIR
+# mount the dataset
+zfs mount $DATASET
 
 # make the pg data dir
 echo "creating $PG_DIR"
