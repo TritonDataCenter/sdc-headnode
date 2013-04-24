@@ -1086,13 +1086,6 @@ function copy_tools
         cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 
-    # HEAD-1507/MANTA-1071 to be cleaned up.
-    local target=$(build_spec manta-tools)
-    local bit_cache_path=$(get_bit ${target})
-    cp ${bit_cache_path} ${ROOT}/cache/manta.tar.bz2
-    mkdir -p ${STAGE}/extra/manta
-    cp ${ROOT}/cache/manta.tar.bz2 ${STAGE}/extra/manta
-
     target=$(build_spec imgapi-cli-tarball)
     bit_cache_path=$(get_bit ${target})
     cp ${bit_cache_path} ${ROOT}/cache/imgapi-cli.tar.bz2

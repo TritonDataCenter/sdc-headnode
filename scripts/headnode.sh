@@ -362,38 +362,6 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/node_modules
     (cd /opt/smartdc/node_modules && tar -xf /usbkey/tools-modules.tar)
 
-    mkdir -p /opt/smartdc/manta
-    (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/manta/manta.tar.bz2)
-    for file in $(ls /opt/smartdc/manta/bin/manta*); do
-        # Strip trailing .js if present
-        tool=$(basename ${file} .js)
-        ln -s ${file} /opt/smartdc/bin/${tool}
-    done
-
-    # Setup 'sdc-manatee-*' tools.
-    # MANATEE-86 - for image setup, this tarball won't exist.
-    if [[ -f ${USB_COPY}/zones/manatee/fs.tar.bz2 ]]; then
-        mkdir -p /opt/smartdc/manatee
-        (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
-            root/opt/smartdc/manatee/bin/sdc)
-        (cd /opt/smartdc/manatee && mkdir -p bin/sdc && \
-            mv root/opt/smartdc/manatee/bin/sdc/* ./bin/sdc && rm -rf root)
-        for file in $(ls /opt/smartdc/manatee/bin/sdc/*); do
-            # Strip trailing .js if present
-            tool=$(basename ${file} .js)
-            ln -s ${file} /opt/smartdc/bin/${tool}
-        done
-        (cd /opt/smartdc/manatee && tar -xjf ${USB_COPY}/zones/manatee/fs.tar.bz2 \
-            root/opt/smartdc/manatee/bin/manta)
-        (cd /opt/smartdc/manatee && mkdir -p bin/manta && \
-            mv root/opt/smartdc/manatee/bin/manta/* ./bin/manta && rm -rf root)
-        for file in $(ls /opt/smartdc/manatee/bin/manta/*); do
-            # Strip trailing .js if present
-            tool=$(basename ${file} .js)
-            ln -s ${file} /opt/smartdc/bin/${tool}
-        done
-    fi
-
     # Setup 'sdc-imgadm' and 'joyent-imgadm' tools.
     mkdir -p /opt/smartdc/imgapi-cli
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
@@ -633,8 +601,6 @@ function create_zone {
             unset ONE_NODE_WRITE_MODE
             export ONE_NODE_WRITE_MODE
         fi
-
-        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > /var/tmp/${zone}_old.json
     else
         # by breaking this up we're able to use fake_zoneinit instead of zoneinit
         echo "XXX - deploy ${zone} via build-payload."
@@ -777,11 +743,11 @@ echo "==> Copying manatee tools to GZ."
 manatee=$(vmadm list | grep manatee0 | cut -f1 -d' ')
 for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc/*); do
     tool=$(basename ${file} .js)
-    [[ -f /opt/smartdc/bin/${tool} ]] || ln -s ${file} /opt/smartdc/bin/${tool}
+    mv ${file} /opt/smartdc/bin/${tool}
 done
 for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/manta/*); do
     tool=$(basename ${file} .js)
-    [[ -f /opt/smartdc/bin/${tool} ]] || ln -s ${file} /opt/smartdc/bin/${tool}
+    mv ${file} /opt/smartdc/bin/${tool}
 done
 
 
