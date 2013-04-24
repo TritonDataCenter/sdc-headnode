@@ -42,6 +42,10 @@ root_authorized_keys_file=root.authorized_keys
 
 # Zone-specific configs
 
+# still required.
+assets_pkg=sdc_128
+sapi_pkg=sdc_256
+
 adminui_workers=8
 
 dhcpd_dhcp_server=1
