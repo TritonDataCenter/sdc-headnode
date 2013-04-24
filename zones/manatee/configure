@@ -67,7 +67,6 @@ chown -R postgres $DATASET_MOUNT_DIR
 chmod 700 -R $DATASET_MOUNT_DIR
 # set mountpoint
 zfs set mountpoint=$DATASET_MOUNT_DIR $DATASET
-[[ $? -eq 0 ]] || fatal "Unable to set mountpoint to /manatee/pg"
 
 # add pg log dir
 mkdir -p $PG_LOG_DIR
