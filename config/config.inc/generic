@@ -45,6 +45,8 @@ root_authorized_keys_file=root.authorized_keys
 # still required.
 assets_pkg=sdc_128
 sapi_pkg=sdc_256
+cloudapi_pkg=sdc_256
+sdcsso_pkg=sdc_128
 
 adminui_workers=8
 
