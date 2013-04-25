@@ -1053,8 +1053,8 @@ function cleanup_config
 
 	assets_pkg=${GENERIC_assets_pkg}
 	sapi_pkg=${GENERIC_sapi_pkg}
-    cloudapi_pkg=${GENERIC_cloudapi_pkg}
-    sdcsso_pkg=${GENERIC_sdcsso_pkg}
+	cloudapi_pkg=${GENERIC_cloudapi_pkg}
+	sdcsso_pkg=${GENERIC_sdcsso_pkg}
 
 	dbconn_retry_after=10
 	dbconn_num_attempts=10
