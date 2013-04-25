@@ -4,7 +4,7 @@
     "rootPassword": "{{ufds_ldap_root_pw}}",
     "certificate": "/opt/smartdc/ufds/ssl/cert.pem",
     "key": "/opt/smartdc/ufds/ssl/key.pem",
-    "logLevel": "info",
+    "logLevel": "debug",
     "use_bcrypt": false,
     "moray": {
         "url": "http://{{moray_admin_ips}}:2020",
