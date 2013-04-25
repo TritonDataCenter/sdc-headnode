@@ -462,8 +462,25 @@ post_tasks()
     reboot_zone $role_uuid
 
     local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+    local pct=0
+    local totcl=0
 
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
+        # determine approx. how many changelog entries we need to replicate
+        echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
+            >/zones/$ufds_uuid/root/tmp/cnt
+        echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
+            "-H ldaps://$CONFIG_ufds_remote_ip -D $CONFIG_ufds_ldap_root_dn" \
+            "-w $CONFIG_ufds_ldap_root_pw -b cn=changelogcount" \
+            "'(&(objetclass=*))'" >>/zones/$ufds_uuid/root/tmp/cnt
+
+        totcl=`zlogin $ufds_uuid bash /tmp/cnt | \
+            nawk '{if ($1 == "count:") print $2}'`
+
+        print_log "There are $totcl changelog entries to be replicated"
+
+        [[ -z "$totcl" || $totcl == 0 ]] && totcl=1
+
         # We have to wait until the admin user has replicated over
         loops=0
         local nadmin=0
@@ -472,8 +489,8 @@ post_tasks()
                 2>/dev/null | wc -l`
             [ $nadmin -ne 0 ] && break
             get_replicator_status $ufds_uuid
-            print_log "Waiting for the admin user to be replicated" \
-                "($changelog_num)..."
+            pct=$((($changelog_num * 100) / $totcl))
+            print_log "Waiting for the admin user to be replicated ($pct%)..."
             sleep 60
             loops=$((${loops} + 1))
         done
@@ -491,17 +508,23 @@ post_tasks()
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
         # We have to wait until the initial set of user data has finished
         # replicating over before this HN is usable.
+
+        # Get an updated total number of changelogs
+        totcl=`zlogin $ufds_uuid bash /tmp/cnt | \
+            nawk '{if ($1 == "count:") print $2}'`
+        [[ -z "$totcl" || $totcl == 0 ]] && totcl=1
+
         loops=0
-        while [ $loops -lt 60 ]; do
+        while [ $loops -lt 90 ]; do
             get_replicator_status $ufds_uuid
             [ $replicator_done -eq 0 ] && break
-            print_log "Waiting for all user data to be replicated" \
-                "($changelog_num)..."
+            pct=$((($changelog_num * 100) / $totcl))
+            print_log "Waiting for all user data to be replicated ($pct%)..."
             sleep 60
             loops=$((${loops} + 1))
         done
 
-        [ $loops -eq 60 ] && \
+        [ $loops -eq 90 ] && \
             print_log "User data is still not completely replicated," \
                 "continuing but the headnode is"
             print_log "not fully usable until all users are replicated."
