@@ -7,6 +7,7 @@ variable os_console DEFAULT_CONSOLE
 
 title Compute Node (PXE)
    kernel /boot/ipxe.lkrn
+   module /boot/default.ipxe
 
 title Live 64-bit
    kernel$ /PLATFORM/i86pc/kernel/amd64/unix -B console=${os_console},${os_console}-mode="115200,8,n,1,-",headnode=true

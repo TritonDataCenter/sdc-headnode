@@ -121,6 +121,7 @@ function create_upgrade
         && env GZIP=-9 \
         ${TAR} -zcf ${STAGE}/upgrade/usbkey/upgrade.tgz \
         application.json \
+	boot/default.ipxe \
         boot/grub/menu.lst.tmpl \
 	boot/grub/bin/grub \
 	boot/grub/fat_stage1_5 \
