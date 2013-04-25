@@ -42,11 +42,33 @@ root_authorized_keys_file=root.authorized_keys
 
 # Zone-specific configs
 
-# still required.
+# Pre-SAPI packages.
 assets_pkg=sdc_128
 sapi_pkg=sdc_256
+
+# These shouldn't be needed after sdc-role is using SAPI.
 cloudapi_pkg=sdc_256
 sdcsso_pkg=sdc_128
+adminui_pkg=sdc_512
+amon_pkg=sdc_256
+usageapi_pkg=sdc_768
+workflow_pkg=sdc_1024
+manatee_pkg=sdc_db
+moray_pkg=sdc_1024
+keyapi_pkg=sdc_128
+vmapi_pkg=sdc_128
+dapi_pkg=sdc_128
+imgapi_pkg=sdc_imgapi
+cnapi_pkg=sdc_128
+napi_pkg=sdc_128
+fwapi_pkg=sdc_128
+ca_pkg=sdc_1024
+ufds_pkg=sdc_256
+manta_pkg=sdc_256
+dhcpd_pkg=sdc_128
+binder_pkg=sdc_512
+rabbitmq_pkg=sdc_1024
+redis_pkg=sdc_1024
 
 adminui_workers=8
 
