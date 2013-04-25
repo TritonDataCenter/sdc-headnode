@@ -1398,7 +1398,7 @@ echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
-echo "ufds_is_local=true" >>$tmp_config
+echo "ufds_is_master=true" >>$tmp_config
 echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
 echo "ufds_ldap_root_pw=secret" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
