@@ -81,7 +81,8 @@
             "pwdendtime": { "type": "number" },
             "pwdaccountlockedtime": { "type": "number" },
             "pwdfailuretime": { "type": "number" },
-            "_imported": { "type": "string" }
+            "_imported": { "type": "string" },
+            "_replicated": { "type": "string" }
         }
     }
 }
