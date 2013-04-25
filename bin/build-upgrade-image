@@ -106,6 +106,8 @@ function create_upgrade
     chmod +x ${STAGE}/upgrade/mapi2ldif.sh
     cp ${ROOT}/bin/mapi2moray ${STAGE}/upgrade/mapi2moray
     chmod +x ${STAGE}/upgrade/mapi2moray
+    cp ${ROOT}/bin/mapi2alias.sh ${STAGE}/upgrade/mapi2alias.sh
+    chmod +x ${STAGE}/upgrade/mapi2alias.sh
     cp ${ROOT}/bin/setup_rb.sh ${STAGE}/upgrade/setup_rb.sh
     chmod +x ${STAGE}/upgrade/setup_rb.sh
     cp ${ROOT}/tools/sdc-rollback ${STAGE}/upgrade/sdc-rollback

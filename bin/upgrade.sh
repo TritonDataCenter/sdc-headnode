@@ -357,6 +357,10 @@ function dump_mapi
         $CONFIG_capi_admin_uuid \
         > $SDC_UPGRADE_DIR/mapi2moray.out 2>&1
     [ $? != 0 ] && fatal "transforming the MAPI dumps to moray"
+
+    $ROOT/mapi2alias.sh $SDC_UPGRADE_DIR/mapi_dump \
+        > $SDC_UPGRADE_DIR/aliases.out 2>&1
+    [ $? != 0 ] && fatal "generating aliases file"
 }
 
 # Use a subset of the table dump from mapi to find all zones with IP addresses
@@ -1123,6 +1127,40 @@ function wait_and_clear
 	done
 }
 
+# Generate a script which contains all of the zone/vm aliases and the code to
+# add the necessary attr to the zonecfg so that each zone can keep track of
+# its alias. Run this script on each CN.
+#
+# The script ignores zonecfg update errors which might occur if the alias
+# is already set so that we are idempotent.
+function update_vm_aliases
+{
+    echo "Updating the VM aliases on each compute node"
+
+    echo "cat <<DONE >/tmp/aliases" >/tmp/upd_aliases
+    cat $SDC_UPGRADE_DIR/aliases.out >>/tmp/upd_aliases
+
+    cat <<-PROG >>/tmp/upd_aliases
+	DONE
+
+	for i in \`zoneadm list -c\`
+	do
+	  a=\`nawk -v n=\$i '{if (\$1 == n) {print \$2; exit 0}}' /tmp/aliases\`
+	  [ -n "\$a" ] && zonecfg -z \$i \
+	  "add attr; set name=alias; set type=string; set value=\\"\$a\\"; end" \
+	    2>/dev/null
+	done
+	PROG
+
+    sdc-oneachnode $skip_arg -c "rm -f /tmp/upd_aliases" >/dev/null
+    [ $? != 0 ] && fatal "setting up alias update"
+    sdc-oneachnode $skip_arg -c -g /tmp/upd_aliases >/dev/null
+    [ $? != 0 ] && fatal "copying alias file"
+
+    sdc-oneachnode $skip_arg -c "bash /tmp/upd_aliases &" >/dev/null
+    [ $? != 0 ] && fatal "updating aliases"
+}
+
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
 
 CHECK_ONLY=0
@@ -1385,6 +1423,8 @@ if [ $CAPI_FOUND == 1 ]; then
 fi
 dump_mapi
 echo "$(date -u "+%Y%m%dT%H%M%S") dumps done" >>$SDC_UPGRADE_DIR/upgrade_time
+
+update_vm_aliases
 
 # Now we can shutdown the rest of the zones so we are in an even more stable
 # state for the rest of this phase of the upgrade.
