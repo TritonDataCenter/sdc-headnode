@@ -30,19 +30,6 @@ ZONE_IP=$(json -f /var/tmp/metadata.json ADMIN_IP)
 SHARD=$(json -f /var/tmp/metadata.json manatee_shard)
 BINDER_ADMIN_IPS=$(json -f /var/tmp/metadata.json binder_admin_ips)
 
-
-# check that the dataset has been mounted
-echo "checking to see if dataset is mounted"
-if zfs list ${DATASET}; then
-    mounted=$(zfs get mounted ${DATASET} | tail -1 | cut -d ' ' -f6)
-    if [[ ${mounted} == "no" ]]
-    then
-        fatal "dataset ${DATASET} not mounted"
-    fi
-else
-    echo "${DATASET} does not exist yet."
-fi
-
 # create manatee dataset
 echo "creating manatee dataset"
 zfs create -o canmount=noauto $DATASET
