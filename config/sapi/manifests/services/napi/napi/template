@@ -15,7 +15,7 @@
       "gateway": "{{admin_gateway}}",
       "startIP": "{{dhcp_range_start}}",
       "endIP": "{{dhcp_range_end}}",
-      "resolvers": []
+      "resolvers": {{{admin_resolvers}}}
     }{{#external_network}},
     "external": {
       "vlan": {{external_vlan_id}}{{^external_vlan_id}}0{{/external_vlan_id}},
@@ -24,7 +24,7 @@
       "gateway": "{{external_gateway}}",
       "startIP": "{{external_provisionable_start}}",
       "endIP": "{{external_provisionable_end}}",
-      "resolvers": {{{resolvers}}}
+      "resolvers": {{{ext_resolvers}}}
     }
     {{/external_network}}
   }
