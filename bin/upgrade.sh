@@ -1047,30 +1047,9 @@ function cleanup_config
 	# Positive offset from UTC 0. Used to calculate cron job start times.
 	utc_offset=0
 
-	adminui_pkg=${GENERIC_adminui_pkg}
-	amon_pkg=${GENERIC_amon_pkg}
 	assets_pkg=${GENERIC_assets_pkg}
-	usageapi_pkg=${GENERIC_usageapi_pkg}
-	ca_pkg=${GENERIC_ca_pkg}
-	cloudapi_pkg=${GENERIC_cloudapi_pkg}
-	cnapi_pkg=${GENERIC_cnapi_pkg}
-	dapi_pkg=${GENERIC_dapi_pkg}
-	dhcpd_pkg=${GENERIC_dhcpd_pkg}
-	imgapi_pkg=${GENERIC_imgapi_pkg}
-	manatee_pkg=${GENERIC_manatee_pkg}
-	moray_pkg=${GENERIC_moray_pkg}
-	keyapi_pkg=${GENERIC_keyapi_pkg}
-	sdcsso_pkg=${GENERIC_sdcsso_pkg}
-	napi_pkg=${GENERIC_napi_pkg}
-	fwapi_pkg=${GENERIC_fwapi_pkg}
-	rabbitmq_pkg=${GENERIC_rabbitmq_pkg}
-	redis_pkg=${GENERIC_redis_pkg}
-	ufds_pkg=${GENERIC_ufds_pkg}
-	workflow_pkg=${GENERIC_workflow_pkg}
-	vmapi_pkg=${GENERIC_vmapi_pkg}
-	binder_pkg=${GENERIC_binder_pkg}
 	sapi_pkg=${GENERIC_sapi_pkg}
-	manta_pkg=${GENERIC_manta_pkg}
+
 	dbconn_retry_after=10
 	dbconn_num_attempts=10
 	DONE
