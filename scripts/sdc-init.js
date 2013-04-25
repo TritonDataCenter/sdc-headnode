@@ -77,16 +77,12 @@ function translateConfig(cb) {
     }
 
     // XXX NET-207, HEAD-1466 may have something to say about the following:
-    if (config.hasOwnProperty('binder_resolver_ips')) {
-        resolvers = resolvers.concat(config.binder_resolver_ips.split(','));
+    if (config.hasOwnProperty('binder_admin_ips')) {
+        resolvers = [config['binder_admin_ips']];
     } else {
-        var msg = 'No binder_resolver_ips in config, impossible to set up';
+        var msg = 'No binder_admin_ips in config, impossible to set up';
         log.fatal(msg);
         return cb(new Error(msg));
-    }
-
-    if (config.hasOwnProperty('dns_resolvers')) {
-        resolvers = resolvers.concat(config.dns_resolvers.split(','));
     }
 
     if (resolvers.length > 0) {
