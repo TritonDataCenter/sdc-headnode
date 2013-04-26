@@ -29,16 +29,6 @@ LOGNAME=root . /root/.profile
 # Install Amon monitor and probes for IMGAPI.
 TRACE=1 /opt/smartdc/imgapi/bin/imgapi-amon-install
 
-# Add imgapi SSH key to UFDS
-UFDS_ADMIN_IP=$(json -f ${METADATA} ufds_admin_ip)
-UFDS_LDAP_ROOT_DN=$(json -f ${METADATA} ufds_ldap_root_dn)
-UFDS_LDAP_ROOT_PW=$(json -f ${METADATA} ufds_ldap_root_pw)
-
-UFDS_ADMIN_IP=$UFDS_ADMIN_IP \
-    UFDS_LDAP_ROOT_DN=$UFDS_LDAP_ROOT_DN \
-    UFDS_LDAP_ROOT_PW=$UFDS_LDAP_ROOT_PW \
-    /opt/smartdc/imgapi/bin/imgapi-add-ssh-keys
-
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &

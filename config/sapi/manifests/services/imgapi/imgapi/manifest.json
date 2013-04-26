@@ -1,5 +1,5 @@
 {
 	"name": "imgapi",
 	"path": "/opt/smartdc/imgapi/etc/imgapi.config.json",
-	"post_cmd": "/usr/sbin/svcadm restart imgapi"
+	"post_cmd": "/usr/sbin/svcadm refresh imgapi"
 }

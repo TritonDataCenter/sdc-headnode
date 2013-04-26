@@ -26,18 +26,6 @@ if [[ ! -d $LOCAL_DB_DIR ]]; then
     chown nobody:nobody $LOCAL_DB_DIR
 fi
 
-# XXX If IMGAPI needs the same key for all IMGAPI zones, then this key could be
-# generated and stored in the SAPI IMGAPI service.  See manta-init.addAdminKey()
-# for an equivalent example for manta.
-echo "Generating public key for imgapi"
-if [[ ! -f /opt/smartdc/imgapi/etc/id_rsa ]]; then
-    # Generate key only the first time
-    /usr/bin/ssh-keygen -t rsa -f /opt/smartdc/imgapi/etc/id_rsa -N ""
-    chown nobody:nobody /opt/smartdc/imgapi/etc/id_rsa
-    chown nobody:nobody /opt/smartdc/imgapi/etc/id_rsa.pub
-fi
-MANTA_KEY_ID=`ssh-keygen -l -f /opt/smartdc/imgapi/etc/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
-
 echo "Updating SMF manifest"
 $(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/imgapi/g" /opt/smartdc/imgapi/smf/manifests/imgapi.xml)
 
