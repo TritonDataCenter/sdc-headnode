@@ -663,11 +663,11 @@ if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
     # assume we're in the lab
     echo "Running in BH1, fixing URL..."
     URL=\$(echo "\${URL}" | sed -e "s/stuff.joyent.us/10.2.0.190/")
-    network=$(sysinfo | json "Virtual Network Interfaces".net0.ip4addr | cut -d '.' -f1-3)
+    network=\$(sysinfo | json "Virtual Network Interfaces".net0.ip4addr | cut -d '.' -f1-3)
     # bits.joyent.us is on two IPs. The 10.2.172 address is to allow zones
     # on the same network in the lab to access it directly without going
     # through the (often overburdened) switch.
-    if [[ "$network" == "10.2.172" ]]; then
+    if [[ "\${network}" == "10.2.172" ]]; then
         URL=\$(echo "\${URL}" | sed -e "s/bits.joyent.us/10.2.172.96/")
     else
         URL=\$(echo "\${URL}" | sed -e "s/bits.joyent.us/10.2.0.21/")
