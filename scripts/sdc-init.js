@@ -176,7 +176,7 @@ function addSigningKey(cb) {
                     log.fatal(err, 'Failed to generate fingerprint: %s', err.message);
                     return _cb(err);
                 }
-                var fingerprint = data.split(' ')[0];
+                var fingerprint = data.split(' ')[1];
                 extras.metadata.ufds_admin_key_fingerprint = fingerprint;
                 return _cb(null);
             });
