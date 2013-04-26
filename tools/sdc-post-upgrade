@@ -22,9 +22,11 @@ function fatal
 
 COMMIT=0
 WRITABLE=0
-while getopts "cw" opt
+REPL_STAT=0
+while getopts "crw" opt
 do
 	case "$opt" in
+		r)	REPL_STAT=1;;
 		w)	WRITABLE=1;;
 		c)	COMMIT=1;;
 		*)	fatal "invalid option";;
@@ -52,6 +54,53 @@ if [[ $WRITABLE == 1 ]]; then
     rm -f $cfgfile.new
 
     zlogin $zonename svcadm restart cloudapi
+
+    exit 0
+fi
+
+if [[ $REPL_STAT == 1 ]]; then
+    if [[ $CONFIG_ufds_is_master == "true" ]]; then
+        echo "This is the UFDS master"
+        exit 0
+    fi
+
+    ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+
+    log=/var/svc/log/smartdc-application-ufds-replicator:default.log
+
+    changelog_num=`nawk '{
+            pos = index($0, "Updated changenumber to")
+            if (pos == 0)
+                next
+            s = substr($0, pos + 24)
+            pos = index(s, "\"") - 1
+            n = substr(s, 1, pos)
+        }
+        END {print n}' /zones/$ufds_uuid/root/$log`
+
+    egrep -s "No new changelog entries" /zones/$ufds_uuid/root/$log
+    if [[ $? == 0 ]]; then
+        echo "Replication is caught up"
+        exit 0
+    fi
+
+    # determine approx. how many changelog entries we need to replicate
+    echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
+            >/zones/$ufds_uuid/root/tmp/cnt
+    echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
+        "-H ldaps://$CONFIG_ufds_remote_ip -D $CONFIG_ufds_ldap_root_dn" \
+        "-w $CONFIG_ufds_ldap_root_pw -b cn=changelogcount" \
+        "'(&(objetclass=*))'" >>/zones/$ufds_uuid/root/tmp/cnt
+
+    totcl=`zlogin $ufds_uuid bash /tmp/cnt | \
+        nawk '{if ($1 == "count:") print $2}'`
+
+    [[ -z "$totcl" || $totcl == 0 ]] && totcl=1
+
+    pct=$((($changelog_num * 100) / $totcl))
+    echo "$pct% of user data is replicated"
+
+    exit 0
 fi
 
 if [[ $COMMIT == 1 ]]; then

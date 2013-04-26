@@ -484,7 +484,7 @@ post_tasks()
         # We have to wait until the admin user has replicated over
         loops=0
         local nadmin=0
-        while [ $loops -lt 60 ]; do
+        while [ $loops -lt 90 ]; do
             nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn \
                 2>/dev/null | wc -l`
             [ $nadmin -ne 0 ] && break
@@ -495,7 +495,7 @@ post_tasks()
             loops=$((${loops} + 1))
         done
 
-        [ $loops -eq 60 ] && \
+        [ $loops -eq 90 ] && \
             print_log "admin user is still not replicated, continuing but" \
                 "errors are likely"
     fi
@@ -506,28 +506,19 @@ post_tasks()
     convert_portal_zone
 
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
-        # We have to wait until the initial set of user data has finished
-        # replicating over before this HN is usable.
-
         # Get an updated total number of changelogs
         totcl=`zlogin $ufds_uuid bash /tmp/cnt | \
             nawk '{if ($1 == "count:") print $2}'`
         [[ -z "$totcl" || $totcl == 0 ]] && totcl=1
 
-        loops=0
-        while [ $loops -lt 90 ]; do
-            get_replicator_status $ufds_uuid
-            [ $replicator_done -eq 0 ] && break
+        get_replicator_status $ufds_uuid
+        if [[ $replicator_done != 0 ]]; then
             pct=$((($changelog_num * 100) / $totcl))
-            print_log "Waiting for all user data to be replicated ($pct%)..."
-            sleep 60
-            loops=$((${loops} + 1))
-        done
-
-        [ $loops -eq 90 ] && \
-            print_log "User data is still not completely replicated," \
-                "continuing but the headnode is"
-            print_log "not fully usable until all users are replicated."
+            print_log "$pct% of user data is replicated"
+            print_log "The headnode is not fully usable until all users" \
+                "are replicated."
+            print_log "You can use 'sdc-post-upgrade -r' to monitor progress."
+        fi
     fi
 
     echo "$(date -u "+%Y%m%dT%H%M%S") post done" \
