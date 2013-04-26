@@ -146,9 +146,9 @@ function sapi_setup
     echo "Adopted service ${ZONE_NAME} to instance ${uuid}"
   fi
 
-  if [[ -n $(svcs config-agent) && \
-    ${ZONE_ROLE} != "assets" && \
-    ${ZONE_ROLE} != "sapi" ]]; then
+  if [[ ${ZONE_ROLE} != "assets" && \
+        ${ZONE_ROLE} != "sapi" && \
+        -z $(svcs -a | grep config-agent) ]]; then
     setup_config_agent
     upload_values
     download_metadata
@@ -156,11 +156,27 @@ function sapi_setup
   fi
 }
 
+function registrar_setup
+{
+  if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
+    local manifest=/opt/smartdc/registrar/smf/manifests/registrar.xml
+    local config=/opt/smartdc/registrar/etc/config.json
+
+    [[ -f ${manifest} ]] || fatal "No registrar manifest in ${ZONE_ROLE}"
+    [[ -f ${config} ]] || fatal "No registrar config for ${ZONE_ROLE}"
+
+    svccfg import ${manifest}
+    svcadm enable registrar
+  fi
+}
+
 if [[ ! -f /var/svc/setup_complete ]]; then
   echo "Initializing SAPI metadata and config-agent"
   sapi_setup
+  echo "Initializing registrar"
+  registrar_setup
 else
-  echo "Already setup, skipping SAPI initialization."
+  echo "Already setup, skipping SAPI and registrar initialization."
 fi
 
 
