@@ -1,0 +1,367 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2013, Joyent, Inc. All rights reserved.
+#
+# When you have one manatee initially, you're in ONE_NODE_WRITE_MODE which is a
+# special mode that exists just for bootstrapping. To go from this mode to a HA
+# setup you'll need at least one more manatee. Switching modes however is not
+# quite as simple as just provisioning a second one. This script attempts to
+# move you from one instance to a HA setup.
+#
+# After examining your setup and ensuring you're in the correct state it will:
+#
+#  - create a second manatee instance for you (with manatee-sitter disabled)
+#  - disable the one_node_write mode on the first instance
+#  - reboot the first manatee into mulit-node mode
+#  - reenable the sitter and reboot the second instance
+#  - wait for manatee to return that it's synchronized
+#
+# After you've gone through this, you'll be able to create a 3rd manatee without
+# using this tool.
+#
+
+LOG_FILENAME=/tmp/manatee-scaler.$$.log
+exec 4>${LOG_FILENAME}
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+export BASH_XTRACEFD=4
+
+set -o errexit
+set -o xtrace
+
+function fatal
+{
+    echo "FATAL: $*" >&2
+    exit 2
+}
+
+function ping_postgres
+{
+    server_uuid=$1
+    vm_uuid=$2
+
+    sdc-oneachnode -n ${server_uuid} \
+        "zlogin ${vm_uuid} \
+        '/opt/local/bin/psql -U postgres -t -A \
+        -c \"SELECT NOW() AS when;\"'" >&4 2>&1
+
+    return $?
+}
+
+# NOTE: we don't use vmapi here because it doesn't have a sync option for reboot
+function reboot_vm
+{
+    server_uuid=$1
+    vm_uuid=$2
+
+    sdc-oneachnode -n ${server_uuid} "vmadm reboot ${vm_uuid}" >&4 2>&1
+
+    return $?
+}
+
+function get_manatee_status
+{
+    server_uuid=$1
+    vm_uuid=$2
+
+    mode=$(sdc-oneachnode -n ${server_uuid} \
+        "zlogin ${vm_uuid} \"source ~/.bashrc; manatee-stat \
+        | json -e 'if (this.sdc.primary && this.sdc.sync && this.sdc.registrar \
+        && this.sdc.primary.repl.sync_state === \\\"sync\\\") { \
+            this.mode = \\\"HA\\\" \
+        } else { \
+            this.mode = \\\"non-HA\\\" \
+        }'\" mode" | tail -1 | awk '{ print $2 }')
+
+    result=$?
+
+    echo "${mode}"
+
+    return ${result}
+}
+
+function find_sapi_url
+{
+    local sapi_ip=
+
+    sapi_ip=$(bash /lib/sdc/config.sh -json | json sapi_admin_ips \
+        | sed -e "s/,.*$//" | sed -e "s/[^0-9\.]//")
+    sapi_url=http://${sapi_ip}
+    if [[ -z ${sapi_ip} ]]; then
+        echo ""
+        fatal "unable to determine SAPI IP"
+    fi
+    echo "SAPI URL is ${sapi_url}"
+}
+
+function find_manatee_service_uuid
+{
+    manatee_svc_uuid=$(sdc-sapi /services?name=manatee | json -Ha uuid)
+    if [[ -z ${manatee_svc_uuid} ]]; then
+        echo ""
+        fatal "unable to get manatee service uuid from SAPI."
+    fi
+    echo "Manatee service_uuid is ${manatee_svc_uuid}"
+}
+
+function find_manatee_instances
+{
+    first_instance=
+    second_instance=
+    num_instances=0
+
+    local disable_sitter=
+    local one_node_write_mode=
+    local uuid=
+
+    for line in $(sdc-sapi /instances?service_uuid=${manatee_svc_uuid} \
+        | json -Ha \
+        -d: uuid metadata.ONE_NODE_WRITE_MODE metadata.DISABLE_SITTER); do
+
+        uuid=$(echo "${line}" | cut -d':' -f1);
+        one_node_write_mode=$(echo "${line}" | cut -d':' -f2);
+        disable_sitter=$(echo "${line}" | cut -d':' -f3);
+
+        if [[ ${one_node_write_mode} == "true" ]]; then
+            if [[ -n ${first_instance} ]]; then
+                fatal "more than one instance found in ONE_NODE_WRITE_MODE: " \
+                    "(${first_instance} and ${uuid} at least)"
+            fi
+            first_instance=${uuid}
+        fi
+
+        if [[ ${disable_sitter} == "true" ]]; then
+            if [[ -n ${second_instance} ]]; then
+                fatal "more than one instance found with DISABLE_SITTER: " \
+                    "(${second_instance} and ${uuid} at least)"
+            fi
+            second_instance=${uuid}
+        fi
+        num_instances=$((${num_instances} + 1))
+    done
+    echo "Found ${num_instances} Manatee instances"
+    if [[ -n ${first_instance} ]]; then
+        echo "  > First Instance: ${first_instance}"
+    fi
+    if [[ -n ${second_instance} ]]; then
+        echo "  > Second Instance: ${second_instance}"
+    fi
+}
+
+function preflight_check
+{
+    if [[ ${num_instances} -lt 1 || ${num_instances} -gt 2 ]]; then
+        echo ""
+        fatal "You already have ${count} instances, this script only makes" \
+            "sense when you have 1 or 2"
+    fi
+    if [[ -z ${first_instance} ]]; then
+        echo ""
+        fatal "unable to find first manatee instance"
+    fi
+    if [[ ${num_instances} == 2 && -z ${second_instance} ]]; then
+        # Have 2 instances, but second is missing DISABLE_SITTER...
+        # TODO: move it back to correct state and continue?
+        fatal "2 instances found, but second is in unexpected state."
+    fi
+}
+
+#
+# needs:
+#
+#  manatee_svc_uuid
+#  sapi_url
+#  target_server_uuid
+#
+# sets:
+#
+#  second_instance
+#
+function create_second_instance
+{
+    local new_uuid=$(uuid -v4)
+    if [[ -z ${new_uuid} ]]; then
+        echo ""
+        fatal "unable to generate UUID for new instance"
+    fi
+
+    echo -n "Creating 2nd manatee (${new_uuid}) ... "
+    set +o errexit
+    result=$(/usr/node/bin/node /dev/stdin <<EOF
+var bunyan = require('/usr/node/node_modules/bunyan');
+var sdc = require('/opt/smartdc/node_modules/sdc-clients');
+
+var log = bunyan.createLogger({
+    name: 'proto-sdc-role',
+    serializers: {}
+});
+var sapi = new sdc.SAPI({
+    url: '${sapi_url}',
+    log: log,
+    agent: false
+});
+var service_uuid = '${manatee_svc_uuid}';
+var opts = { params: {}, metadata: {} };
+
+opts.uuid = '${new_uuid}';
+opts.params.alias = 'manatee1';
+opts.params.server_uuid = '${target_server_uuid}';
+opts.metadata['DISABLE_SITTER'] = 'true';
+
+sapi.createInstance(service_uuid, opts, function(err, instance) {
+    if (err) {
+        console.error('Could not create instance for ' + service_uuid + ': '
+            + err.message);
+        process.exit(1);
+    }
+
+    console.log(JSON.stringify(instance));
+});
+EOF
+    )
+    if [[ $? != 0 ]]; then
+        echo ""
+        fatal "unable to create 2nd manatee"
+    fi
+    set -o errexit
+    second_instance=$(echo "${result}" | json uuid)
+    if [[ -z ${second_instance} ]]; then
+        fatal "no uuid found for second instance, check SAPI and try again."
+    fi
+    echo "DONE"
+}
+
+function find_server_uuids
+{
+    first_server=$(sdc-vmapi /vms/${first_instance} | json -H server_uuid)
+    if [[ -z ${first_server} ]]; then
+        fatal "Unable to find server for First Manatee"
+    fi
+
+    second_server=$(sdc-vmapi /vms/${second_instance} | json -H server_uuid)
+    if [[ -z ${second_server} ]]; then
+        fatal "Unable to find server for Second Manatee"
+    fi
+
+    echo "First Manatee is on server with UUID: ${first_server}"
+    echo "Second Manatee is on server with UUID: ${second_server}"
+}
+
+function disable_flag
+{
+    local instance=$1
+    local flag=$2
+
+    local value=
+
+    /opt/smartdc/bin/sdc-sapi /instances/${instance} -X PUT \
+        -d "{\"action\": \"delete\", \"metadata\": {\"${flag}\": \"true\"}}" \
+        >&4 2>&1
+
+    value=$(/opt/smartdc/bin/sdc-sapi /instances/${instance} \
+        | json -H metadata."${flag}")
+
+    if [[ -n ${value} ]]; then
+        fatal "failed to remove ${flag} from ${instance}"
+    fi
+}
+
+function reboot_instance
+{
+    local server_uuid=$1
+    local instance=$2
+
+    set +o errexit
+    if ! reboot_vm "${server_uuid}" "${instance}"; then
+        fatal "unable to reboot ${instance} on ${server_uuid}"
+    fi
+    set -o errexit
+    echo "Rebooted ${instance}"
+}
+
+function wait_for_db
+{
+    local server_uuid=$1
+    local instance=$2
+
+    echo -n "Waiting for DB on ${instance} .."
+    set +o errexit
+    local tries=0
+    while ! ping_postgres "${server_uuid}" "${instance}"; do
+        echo -n "."
+        if [[ ${tries} -ge 36 ]]; then
+            echo " FAIL"
+            fatal "timed out waiting for postgres"
+        fi
+        sleep 5
+        tries=$((${tries} + 1))
+    done
+    set -o errexit
+
+    echo " It's UP!"
+}
+
+function wait_for_ha
+{
+    local server_uuid=$1
+    local instance=$2
+
+    echo -n "Waiting for Manatee to be HA .."
+    set +o errexit
+    local tries=0
+    local mode=$(get_manatee_status "${server_uuid}" "${instance}")
+    while [[ ${mode} != "HA" ]]; do
+        echo -n "."
+        if [[ ${tries} -ge 36 ]]; then
+            fatal "timed out waiting for HA"
+        fi
+        sleep 5
+        tries=$((${tries} + 1))
+        mode=$(get_manatee_status "${server_uuid}" "${instance}")
+    done
+    set -o errexit
+
+    echo " It's HA!"
+}
+
+
+# __MAIN__
+
+target_server_uuid=$1
+if [[ -z ${target_server_uuid} ]]; then
+    cat >&2 <<EOF
+Usage: $0 <server uuid>
+EOF
+    exit 1
+fi
+
+echo "!! log file is ${LOG_FILENAME}"
+
+# All the functions below exit and print a message on fatal error
+
+find_sapi_url              # sets sapi_url
+find_manatee_service_uuid  # sets manate_svc_uuid
+find_manatee_instances     # sets {first,second}_instance + num_instances
+preflight_check
+if [[ -z ${second_instance} ]]; then
+    create_second_instance # sets second_instance
+fi
+find_server_uuids          # sets {first,second}_server
+
+# disable both flags while we can still write...
+
+disable_flag "${first_instance}" "ONE_NODE_WRITE_MODE"
+disable_flag "${second_instance}" "DISABLE_SITTER"
+
+echo "!! IMPORTANT: DB will now become temporarily read-only !!"
+
+reboot_instance "${first_server}" "${first_instance}"
+wait_for_db "${first_server}" "${first_instance}"
+reboot_instance "${second_server}" "${second_instance}"
+wait_for_ha "${first_server}" "${first_instance}"
+
+echo "!! DB is now writable again !!"
+
+echo "Congratulations! Manatee is now in HA mode."
+echo "Future manatees can be provisioned without this tool (use SAPI)."
+
+exit 0
