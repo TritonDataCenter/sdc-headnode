@@ -402,7 +402,7 @@ function filterServices(serviceList, cb) {
             // napi needs resolvers in metadata
             if (service == 'napi') {
                 extras.metadata['admin_resolvers'] =
-                JSON.stringify(self.config.binder_resolver_ips.split(','));
+                JSON.stringify(self.config.binder_admin_ips.split(','));
                 extras.metadata['ext_resolvers'] =
                 JSON.stringify(self.config.dns_resolvers.split(','));
             }
