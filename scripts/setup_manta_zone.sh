@@ -77,6 +77,27 @@ function deploy_manta_zone {
 }
 
 
+# Wait for /opt/smartdc/manta-deployment/etc/config.json to be written out
+# by config-agent.
+function wait_for_config_agent {
+    local CONFIG_PATH=/opt/smartdc/manta-deployment/etc/config.json
+    local MANTA_ZONE=$(vmadm lookup -1 alias=manta0)
+    echo "Wait up to a minute for config-agent to write '$CONFIG_PATH'."
+    local ZONE_CONFIG_PATH=/zones/$MANTA_ZONE/root$CONFIG_PATH
+    for i in {1..30}; do
+        if [[ -f "$ZONE_CONFIG_PATH" ]]; then
+            break
+        fi
+        sleep 2
+    done
+    if [[ ! -f "$ZONE_CONFIG_PATH" ]]; then
+        fatal "Timeout waiting for '$ZONE_CONFIG_PATH' to be written."
+    else
+        echo "'$CONFIG_PATH' created in manta zone."
+    fi
+}
+
+
 # Mainline
 
 manta_uuid=$(vmadm lookup alias=manta0)
@@ -90,3 +111,4 @@ sapi_uuid=$(vmadm lookup alias=sapi0)
 add_external_nic ${sapi_uuid}
 import_manta_image
 deploy_manta_zone
+wait_for_config_agent
