@@ -22,6 +22,7 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin:\$PATH" >>/root/.profile
+echo '[[ -f $HOME/.mantaprofile ]] && source $HOME/.mantaprofile' >>/root/.profile
 LOGNAME=root . /root/.profile
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
