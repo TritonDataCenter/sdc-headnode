@@ -1,29 +1,29 @@
 {
   "port": 80,
-  "datacenter": "{{datacenter_name}}",
-  "macOUI": "{{napi_mac_prefix}}",
+  "datacenter": "{{{datacenter_name}}}",
+  "macOUI": "{{{napi_mac_prefix}}}",
   "moray": {
-    "host": "{{moray_admin_ips}}",
+    "host": "{{{MORAY_SERVICE}}}",
     "port": 2020
   },
-  "ufdsAdminUuid": "{{ufds_admin_uuid}}",
+  "ufdsAdminUuid": "{{{ufds_admin_uuid}}}",
   "initialNetworks": {
     "admin": {
       "vlan": 0,
-      "network": "{{admin_network}}",
-      "netmask": "{{admin_netmask}}",
-      "gateway": "{{admin_gateway}}",
-      "startIP": "{{dhcp_range_start}}",
-      "endIP": "{{dhcp_range_end}}",
+      "network": "{{{admin_network}}}",
+      "netmask": "{{{admin_netmask}}}",
+      "gateway": "{{{admin_gateway}}}",
+      "startIP": "{{{dhcp_range_start}}}",
+      "endIP": "{{{dhcp_range_end}}}",
       "resolvers": {{{admin_resolvers}}}
     }{{#external_network}},
     "external": {
-      "vlan": {{external_vlan_id}}{{^external_vlan_id}}0{{/external_vlan_id}},
-      "network": "{{external_network}}",
-      "netmask": "{{external_netmask}}",
-      "gateway": "{{external_gateway}}",
-      "startIP": "{{external_provisionable_start}}",
-      "endIP": "{{external_provisionable_end}}",
+      "vlan": {{{external_vlan_id}}}{{^external_vlan_id}}0{{/external_vlan_id}},
+      "network": "{{{external_network}}}",
+      "netmask": "{{{external_netmask}}}",
+      "gateway": "{{{external_gateway}}}",
+      "startIP": "{{{external_provisionable_start}}}",
+      "endIP": "{{{external_provisionable_end}}}",
       "resolvers": {{{ext_resolvers}}}
     }
     {{/external_network}}

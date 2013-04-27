@@ -47,7 +47,7 @@ function loadConfig(cb) {
     );
 }
 
-function serviceName(service) {
+function serviceDomain(service) {
     var cfg = self.config;
     var name = (service === "manatee" ? "moray" : service);
 
@@ -76,7 +76,6 @@ function translateConfig(cb) {
                  'in SDC application config.');
     }
 
-    // XXX NET-207, HEAD-1466 may have something to say about the following:
     if (config.hasOwnProperty('binder_admin_ips')) {
         resolvers = [config['binder_admin_ips']];
     } else {
@@ -104,6 +103,11 @@ function translateConfig(cb) {
     }
 
     sdcExtras.metadata['manatee_shard'] = 'sdc';
+
+    // sapi-url and assets-ip required in customer_metadata, are pushed
+    // there from standard metadata by SAPI's payload creation.
+    sdcExtras.metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
+    sdcExtras.metadata['assets-ip'] = self.config.assets_admin_ip;
 
     return cb(null);
 
@@ -141,7 +145,7 @@ function translateConfig(cb) {
     // config_inc_dir
 }
 
-function addServiceNames(cb) {
+function addServiceDomains(cb) {
     var dirname = '/usbkey/services';
     var extras = self.sdcExtras;
     var log = self.log;
@@ -155,7 +159,7 @@ function addServiceNames(cb) {
         services.forEach(function(service) {
             if (service == "manatee") return;
             var serviceKey = sprintf("%s_SERVICE", service.toUpperCase());
-            extras.metadata[serviceKey] = serviceName(service);
+            extras.metadata[serviceKey] = serviceDomain(service);
         });
 
         return cb(null)
@@ -332,9 +336,9 @@ function prepareServices(cb) {
         func: function(service, _cb) {
             // can't believe we need to read a file just for this.
             var file = dirname + '/' + service + '/service.json';
-            var svcName = serviceName(service);
             var extras = { metadata : {}, params : {} };
-            extras.metadata['SERVICE_NAME'] = svcName;
+            var svcDomain = serviceDomain(service);
+            extras.metadata['SERVICE_DOMAIN'] = svcDomain;
             var svcDef;
             // XXX - slightly clumsy way to get the package defn.
             // consider moving this to build time?
@@ -537,7 +541,7 @@ self.log = new Logger({
 async.waterfall([
     loadConfig,
     translateConfig,
-    addServiceNames,
+    addServiceDomains,
     addSigningKey,
     getPackageInfo,
     initSapiClient,

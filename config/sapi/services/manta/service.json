@@ -9,8 +9,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "manta",
-        "registrar_srvce": "_manta"
+        "SERVICE_NAME": "manta"
     },
     "manifests": {
     }

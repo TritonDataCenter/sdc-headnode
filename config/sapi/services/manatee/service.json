@@ -11,7 +11,7 @@
         "delegate_dataset": true
     },
     "metadata": {
-        "registrar_domain": "moray"
+        "SERVICE_NAME": "manatee"
     },
     "manifests": {
     }

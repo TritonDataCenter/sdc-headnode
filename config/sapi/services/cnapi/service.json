@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "cnapi",
-        "registrar_srvce": "_cnapi"
+        "SERVICE_NAME": "cnapi"
     },
     "manifests": {
     }

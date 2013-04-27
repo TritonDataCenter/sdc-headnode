@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "keyapi",
-        "registrar_srvce": "_keyapi"
+        "SERVICE_NAME": "keyapi"
     },
     "manifests": {
     }

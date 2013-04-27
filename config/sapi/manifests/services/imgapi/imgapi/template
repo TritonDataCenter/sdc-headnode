@@ -4,17 +4,17 @@
     "mode": "dc",
     "database": {
         "type": "ufds",
-        "url": "ldaps://{{ufds_admin_ips}}",
-        "bindDN": "{{ufds_ldap_root_dn}}",
-        "bindPassword": "{{ufds_ldap_root_pw}}"
+        "url": "ldaps://{{{UFDS_SERVICE}}}",
+        "bindDN": "{{{ufds_ldap_root_dn}}}",
+        "bindPassword": "{{{ufds_ldap_root_pw}}}"
     },
     "storage": {
         "local": {
-            "dir": "{{LOCAL_DB_DIR}}"
+            "dir": "{{{LOCAL_DB_DIR}}}"
         }
     },
     "wfapi": {
         "workflows": [ "create-from-snapshot" ],
-        "url": "http://{{workflow_admin_ips}}"
+        "url": "http://{{{WORKFLOW_SERVICE}}}"
     }
 }

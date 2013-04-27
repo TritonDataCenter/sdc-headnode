@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "ufds",
-        "registrar_srvce": "_ufds"
+        "SERVICE_NAME": "ufds"
     },
     "manifests": {
     }

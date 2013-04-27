@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "dapi",
-        "registrar_srvce": "_dapi"
+        "SERVICE_NAME": "dapi"
     },
     "manifests": {
     }

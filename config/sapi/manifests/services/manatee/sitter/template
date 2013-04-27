@@ -5,7 +5,7 @@
     "ttl": 60,
     "url": "{{PRIMARY_IP}}",
     "zoneId": "{{ZONE_UUID}}",
-    "disableSitter": {{^DISABLE_SITTER}}false{{/DISABLE_SITTER}}{{DISABLE_SITTER}},
+    "disableSitter": {{^DISABLE_SITTER}}false{{/DISABLE_SITTER}}{{{DISABLE_SITTER}}},
     "heartbeatClientCfg": {
         "connectTimeout": 2000,
         "heartbeatInterval": 1000,
@@ -26,7 +26,7 @@
         "hbaConf": "/opt/smartdc/manatee/etc/pg_hba.conf",
         "healthChkInterval": 10000,
         "healthChkTimeout": 60000,
-        "oneNodeWriteMode": {{^ONE_NODE_WRITE_MODE}}false{{/ONE_NODE_WRITE_MODE}}{{ONE_NODE_WRITE_MODE}},
+        "oneNodeWriteMode": {{^ONE_NODE_WRITE_MODE}}false{{/ONE_NODE_WRITE_MODE}}{{{ONE_NODE_WRITE_MODE}}},
         "opsTimeout": 30000,
         "pgCtlPath": "/opt/local/bin/pg_ctl",
         "pgInitDbPath": "/opt/local/bin/initdb",
@@ -35,18 +35,18 @@
         "recoveryConf": "/opt/smartdc/manatee/etc/recovery.conf",
         "replicationTimeout": 30000,
         "snapShotterCfg": {
-            "dataset": "zones/{{ZONE_UUID}}/data/manatee",
+            "dataset": "zones/{{{ZONE_UUID}}}/data/manatee",
             "snapshotDir": "/manatee/pg/.zfs/snapshot/",
             "pollInterval": 5000,
             "snapshotNumber": 5,
-            "pgUrl": "tcp://postgres@{{PRIMARY_IP}}:5432/postgres"
+            "pgUrl": "tcp://postgres@{{{PRIMARY_IP}}}:5432/postgres"
         },
-        "url": "tcp://postgres@{{PRIMARY_IP}}:5432/postgres",
+        "url": "tcp://postgres@{{{PRIMARY_IP}}}:5432/postgres",
         "zfsClientCfg": {
-            "dataset": "zones/{{ZONE_UUID}}/data/manatee",
-            "parentDataset": "zones/{{ZONE_UUID}}/data",
+            "dataset": "zones/{{{ZONE_UUID}}}/data/manatee",
+            "parentDataset": "zones/{{{ZONE_UUID}}}/data",
             "snapshotDir": "/manatee/pg/.zfs/snapshot/",
-            "zfsHost": "{{PRIMARY_IP}}",
+            "zfsHost": "{{{PRIMARY_IP}}}",
             "zfsPort": 1234,
             "pollInterval": 1000,
             "zfsRecvPath": "/usr/vm/sbin/zfs_recv",
@@ -57,8 +57,8 @@
         "servers": [
          {{#ZK_SERVERS}}
             {
-              "host": "{{host}}",
-              "port": {{port}}
+              "host": "{{{host}}}",
+              "port": {{{port}}}
             }{{^last}}, {{/last}}
         {{/ZK_SERVERS}}
         ],

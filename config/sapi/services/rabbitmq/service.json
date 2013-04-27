@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "rabbitmq",
-        "registrar_srvce": "_rabbitmq",
+        "SERVICE_NAME": "rabbitmq",
         "amqp_user": "guest",
         "amqp_pass": "guest"
     },

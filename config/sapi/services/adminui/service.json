@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "adminui",
-        "registrar_srvce": "_adminui"
+        "SERVICE_NAME": "adminui"
     },
     "manifests": {
     }

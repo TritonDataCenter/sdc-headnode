@@ -9,8 +9,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "cloudapi",
-        "registrar_srvce": "_cloudapi"
+        "SERVICE_NAME": "cloudapi"
     },
     "manifests": {
     }

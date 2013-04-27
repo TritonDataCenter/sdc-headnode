@@ -1,23 +1,23 @@
 {
   "port": 80,
   "logLevel": "debug",
-  "adminUuid": "{{ufds_admin_uuid}}",
+  "adminUuid": "{{{ufds_admin_uuid}}}",
   "ufds": {
-    "url": "ldaps://{{ufds_admin_ips}}",
-    "bindDN": "{{ufds_ldap_root_dn}}",
-    "bindPassword": "{{ufds_ldap_root_pw}}"
+    "url": "ldaps://{{{UFDS_SERVICE}}}",
+    "bindDN": "{{{ufds_ldap_root_dn}}}",
+    "bindPassword": "{{{ufds_ldap_root_pw}}}"
   },
   "cnapi": {
-    "url": "http://{{cnapi_admin_ips}}"
+    "url": "http://{{{CNAPI_SERVICE}}}"
   },
   "vmapi": {
-    "url": "http://{{vmapi_admin_ips}}"
+    "url": "http://{{{VMAPI_SERVICE}}}"
   },
   "redis": {
-    "host": "{{redis_admin_ips}}",
+    "host": "{{{REDIS_SERVICE}}}",
     "port": "6379"
   },
-  "datacenterName": "{{datacenter_name}}",
+  "datacenterName": "{{{datacenter_name}}}",
   "notificationPlugins": {
     "email": {
       "path": "./notifications/email",

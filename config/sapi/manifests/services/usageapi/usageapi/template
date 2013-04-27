@@ -1,10 +1,10 @@
 {
-  "siteName": "https://{{EXTERNAL_IP}}",
+  "siteName": "https://{{{EXTERNAL_IP}}}",
   "port": 80,
   "logLevel": "info",
   "metering_granularity": 3600,
   "amqp": {
-    "host": "{{rabbitmq_admin_ips}}",
+    "host": "{{{RABBITMQ_SERVICE}}}",
     "login": "guest",
     "password": "guest",
     "vhost": "/",
@@ -22,7 +22,7 @@
       "burst": 30,
       "rate": 10,
       "overrides": {
-        "{{ufds_admin_login}}": {
+        "{{{ufds_admin_login}}}": {
           "burst": 0,
           "rate": 0
         }

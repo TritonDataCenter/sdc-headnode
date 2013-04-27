@@ -11,6 +11,7 @@
         "delegate_dataset": true
     },
     "metadata": {
+        "SERVICE_NAME" : "moray"
     },
     "manifests": {
     }

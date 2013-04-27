@@ -9,7 +9,7 @@
   "numWorkers": 0,
   "audit": false,
   "manatee": {
-    "path": "/manatee/{{manatee_shard}}/election",
+    "path": "/manatee/{{{manatee_shard}}}/election",
     "pg": {
       "connectTimeout": 3000,
       "checkInterval": 30000,
@@ -22,8 +22,8 @@
       "servers": [
         {{#ZK_SERVERS}}
           {
-            "host": "{{host}}",
-            "port": {{port}}
+            "host": "{{{host}}}",
+            "port": {{{port}}}
           }{{^last}}, {{/last}}
         {{/ZK_SERVERS}}
       ],

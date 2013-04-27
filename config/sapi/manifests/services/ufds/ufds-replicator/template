@@ -1,21 +1,21 @@
 {
     "logLevel": "debug",
-    "checkpointDn": "cn=replicator, datacenter={{datacenter_name}}, o=smartdc",
+    "checkpointDn": "cn=replicator, datacenter={{{datacenter_name}}}, o=smartdc",
     "localUfds": {
-        "url": "ldaps://{{ufds_admin_ips}}",
+        "url": "ldaps://{{{UFDS_SERVICE}}}",
         "maxConnections": 1,
-        "bindDN": "{{ufds_ldap_root_dn}}",
-        "bindCredentials": "{{ufds_ldap_root_pw}}"
+        "bindDN": "{{{ufds_ldap_root_dn}}}",
+        "bindCredentials": "{{{ufds_ldap_root_pw}}}"
     },
     "remotes": [{
-        "url": "ldaps://{{REMOTE_UFDS_IP}}",
+        "url": "ldaps://{{{REMOTE_UFDS_IP}}}",
         "queries": [
             "/ou=users, o=smartdc??sub?(&(!(objectclass=amonprobe))(!(objectclass=amonprobegroup)))",
             "/o=smartdc??sub?(objectclass=emailblacklist)",
             "/ou=groups, o=smartdc??sub?(objectclass=groupofuniquenames)"
         ],
         "maxConnections": 1,
-        "bindDN": "{{REMOTE_UFDS_ROOT_DN}}",
-        "bindCredentials": "{{REMOTE_UFDS_ROOT_PW}}"
+        "bindDN": "{{{REMOTE_UFDS_ROOT_DN}}}",
+        "bindCredentials": "{{{REMOTE_UFDS_ROOT_PW}}}"
     }]
 }

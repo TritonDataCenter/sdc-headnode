@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "sapi",
-        "registrar_srvce": "_sapi"
+        "SERVICE_NAME": "sapi"
     },
     "manifests": {
     }

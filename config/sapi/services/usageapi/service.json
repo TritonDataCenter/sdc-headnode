@@ -11,8 +11,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "usageapi",
-        "registrar_srvce": "_usageapi"
+        "SERVICE_NAME": "usageapi"
     },
     "manifests": {
     }

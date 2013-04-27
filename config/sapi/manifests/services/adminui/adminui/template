@@ -7,24 +7,24 @@
 		"key": "/opt/smartdc/adminui/etc/ssl/default.pem"
 	},
 	"ufds": {
-		"url": "ldaps://{{ufds_admin_ips}}",
-		"bindDN": "{{ufds_ldap_root_dn}}",
-		"bindPassword": "{{ufds_ldap_root_pw}}",
-		"adminUuid": "{{ufds_admin_uuid}}",
+		"url": "ldaps://{{{UFDS_SERVICE}}}",
+		"bindDN": "{{{ufds_ldap_root_dn}}}",
+		"bindPassword": "{{{ufds_ldap_root_pw}}}",
+		"adminUuid": "{{{ufds_admin_uuid}}}",
 		"cache": {
 			"size": 1000,
 			"expiry": 300
 		}
 	},
 	"redis": {
-		"host": "{{redis_admin_ips}}",
+		"host": "{{{REDIS_SERVICE}}}",
 		"port": "6379",
 		"db": 3
 	},
 	"datacenters": {
 		"{{datacenter_name}}": {
 			"moray": {
-				"host": "{{moray_admin_ips}}",
+				"host": "{{{MORAY_SERVICE}}}",
 				"port": 2020,
 				"connectTimeout": 200,
 				"retry": {
@@ -33,28 +33,28 @@
 				}
 			},
 			"amon": {
-				"url": "{{amon_admin_ips}}"
+				"url": "http://{{{AMON_SERVICE}}}"
 			},
 			"vmapi": {
-				"url": "http://{{vmapi_admin_ips}}"
+				"url": "http://{{{VMAPI_SERVICE}}}"
 			},
 			"cnapi": {
-				"url": "http://{{cnapi_admin_ips}}"
+				"url": "http://{{{CNAPI_SERVICE}}}"
 			},
 			"napi": {
-				"url": "http://{{napi_admin_ips}}"
+				"url": "http://{{{NAPI_SERVICE}}}"
 			},
 			"ca": {
-				"url": "http://{{ca_admin_ips}}:23181"
+				"url": "http://{{{CA_SERVICE}}}:23181"
 			},
 			"imgapi": {
-				"url": "http://{{imgapi_admin_ips}}"
+				"url": "http://{{{IMGAPI_SERVICE}}}"
 			},
 			"sapi": {
-				"url": "http://{{sapi_admin_ips}}"
+				"url": "http://{{{sapi_admin_ips}}}"
 			},
 			"workflow": {
-				"url": "http://{{workflow_admin_ips}}"
+				"url": "http://{{{WORKFLOW_SERVICE}}}"
 			}
 		}
 	}

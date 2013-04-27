@@ -1,20 +1,20 @@
 {
         "cnapi": {
-                "url": "http://{{cnapi_admin_ips}}"
+                "url": "http://{{{CNAPI_SERVICE}}}"
         },
         "imgapi": {
-                "url": "http://{{imgapi_admin_ips}}"
+                "url": "http://{{{IMGAPI_SERVICE}}}"
         },
         "napi": {
-                "url": "http://{{napi_admin_ips}}"
+                "url": "http://{{{NAPI_SERVICE}}}"
         },
         "sapi": {
-                "url": "http://{{sapi_admin_ips}}"
+                "url": "http://{{{sapi_admin_ips}}}"
         },
         "ufds": {
-                "url": "ldaps://{{ufds_admin_ips}}",
-                "bindDN": "{{ufds_ldap_root_dn}}",
-                "bindPassword": "{{ufds_ldap_root_pw}}",
+                "url": "ldaps://{{{UFDS_SERVICE}}}",
+                "bindDN": "{{{ufds_ldap_root_dn}}}",
+                "bindPassword": "{{{ufds_ldap_root_pw}}}",
                 "cache": {
                         "size": 1000,
                         "expiry": 300

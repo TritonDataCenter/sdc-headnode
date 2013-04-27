@@ -1,13 +1,13 @@
 {
     "port": 636,
-    "rootDN": "{{ufds_ldap_root_dn}}",
-    "rootPassword": "{{ufds_ldap_root_pw}}",
+    "rootDN": "{{{ufds_ldap_root_dn}}}",
+    "rootPassword": "{{{ufds_ldap_root_pw}}}",
     "certificate": "/opt/smartdc/ufds/ssl/cert.pem",
     "key": "/opt/smartdc/ufds/ssl/key.pem",
     "logLevel": "info",
     "use_bcrypt": false,
     "moray": {
-        "url": "http://{{moray_admin_ips}}:2020",
+        "url": "http://{{{MORAY_SERVICE}}}:2020",
         "connectTimeout": 1000,
         "retry": {
             "retries": 3,

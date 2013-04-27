@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "amon",
-        "registrar_srvce": "_amon"
+        "SERVICE_NAME": "amon"
     },
     "manifests": {
     }

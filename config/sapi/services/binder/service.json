@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "binder",
-        "registrar_srvce": "_binder"
+        "SERVICE_NAME": "binder"
     },
     "manifests": {
     }

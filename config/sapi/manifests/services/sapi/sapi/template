@@ -4,28 +4,28 @@
 		"level": "debug"
 	},
 	"mode": "proto",
-	"datacenter_name": "{{datacenter_name}}"
-	"adminUuid": "{{ufds_admin_uuid}}",
+	"datacenter_name": "{{{datacenter_name}}}"
+	"adminUuid": "{{{ufds_admin_uuid}}}",
 	"moray": {
-		"host": "{{moray_admin_ips}}",
+		"host": "{{{MORAY_SERVICE}}}",
 		"port": 2020
 	},
 	"vmapi": {
-		"url": "http://{{vmapi_admin_ips}}"
+		"url": "http://{{{VMAPI_SERVICE}}}"
 	},
 	"napi": {
-		"url": "http://{{napi_admin_ips}}"
+		"url": "http://{{{NAPI_SERVICE}}}"
 	},
 	"imgapi": {
-		"url": "http://{{imgapi_admin_ips}}"
+		"url": "http://{{{IMGAPI_SERVICE}}}"
 	},
 	"remote_imgapi": {
 		"url": "https://updates.joyent.com"
 	},
 	"ufds": {
-        	"url": "ldaps://{{ufds_admin_ips}}",
-        	"bindDN": "{{ufds_ldap_root_dn}}",
-        	"bindPassword": "{{ufds_ldap_root_pw}}"
+        	"url": "ldaps://{{{ufds_admin_ips}}}",
+        	"bindDN": "{{{ufds_ldap_root_dn}}}",
+        	"bindPassword": "{{{ufds_ldap_root_pw}}}"
 		"cache": {
 			"size": 1000,
 			"expiry": 300

@@ -1,6 +1,6 @@
 {
   "registration": {
-    "domain": "{{SERVICE_NAME}}",
+    "domain": "moray",
     "type": "db_host",
     "ttl": 60
   },

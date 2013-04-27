@@ -1,5 +1,5 @@
 {
-    "admin_ip": "{{ADMIN_IP}}",
-    "admin_network": "{{admin_network}}",
-    "admin_netmask": "{{admin_netmask}}"
+    "admin_ip": "{{{ADMIN_IP}}}",
+    "admin_network": "{{{admin_network}}}",
+    "admin_netmask": "{{{admin_netmask}}}"
 }

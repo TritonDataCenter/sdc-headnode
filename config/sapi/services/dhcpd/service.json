@@ -21,8 +21,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "dhcpd",
-        "registrar_srvce": "_dhcpd"
+        "SERVICE_NAME": "dhcpd"
     },
     "manifests": {
     }

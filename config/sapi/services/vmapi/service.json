@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "vmapi",
-        "registrar_srvce": "_vmapi"
+        "SERVICE_NAME": "vmapi"
     },
     "manifests": {
     }

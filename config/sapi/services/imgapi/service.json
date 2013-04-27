@@ -11,8 +11,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "imgapi",
-        "registrar_srvce": "_imgapi",
+        "SERVICE_NAME": "imgapi",
 		"LOCAL_DB_DIR": "/data/imgapi/images"
     },
     "manifests": {

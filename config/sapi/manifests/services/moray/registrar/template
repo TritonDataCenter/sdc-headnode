@@ -1,6 +1,6 @@
 {
   "registration": {
-    "domain": "{{SERVICE_NAME}}",
+    "domain": "{{{SERVICE_DOMAIN}}}",
     "type": "moray_host",
     "service": {
       "type": "service",

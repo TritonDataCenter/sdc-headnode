@@ -2,7 +2,7 @@
     "backend": {
         "module": "wf-moray-backend",
         "opts": {
-            "url": "http://{{moray_admin_ips}}:2020"
+            "url": "http://{{{MORAY_SERVICE}}}:2020"
         }
     },
     "api": {
@@ -12,9 +12,9 @@
     "logLevel": "debug",
     "maxInitRetries": 50,
     "runner": {
-        "identifier": "{{ZONE_UUID}}",
-        "forks": {{WORKFLOW_NUM_FORKS}},
-        "run_interval": {{WORKFLOW_RUN_INTERVAL}},
+        "identifier": "{{{ZONE_UUID}}}",
+        "forks": {{{WORKFLOW_NUM_FORKS}}},
+        "run_interval": {{{WORKFLOW_RUN_INTERVAL}}},
         "sandbox": {
             "modules": {
                 "urlModule": "url",
@@ -25,15 +25,15 @@
                 "sdcClients": "sdc-clients",
                 "verror": "verror"
             },
-            "ufdsUrl": "ldaps://{{ufds_admin_ips}}",
-            "ufdsDn": "{{ufds_ldap_root_dn}}",
-            "ufdsPassword": "{{ufds_ldap_root_pw}}",
-            "dapiUrl": "http://{{dapi_admin_ips}}",
-            "napiUrl": "http://{{napi_admin_ips}}",
-            "cnapiUrl": "http://{{cnapi_admin_ips}}",
-            "vmapiUrl": "http://{{vmapi_admin_ips}}",
-            "imgapiUrl": "http://{{imgapi_admin_ips}}",
-            "fwapiUrl": "http://{{fwapi_admin_ips}}"
+            "ufdsUrl": "ldaps://{{{UFDS_SERVICE}}}",
+            "ufdsDn": "{{{ufds_ldap_root_dn}}}",
+            "ufdsPassword": "{{{ufds_ldap_root_pw}}}",
+            "dapiUrl": "http://{{{DAPI_SERVICE}}}",
+            "napiUrl": "http://{{{NAPI_SERVICE}}}",
+            "cnapiUrl": "http://{{{CNAPI_SERVICE}}}",
+            "vmapiUrl": "http://{{{VMAPI_SERVICE}}}",
+            "imgapiUrl": "http://{{{IMGAPI_SERVICE}}}",
+            "fwapiUrl": "http://{{{FWAPI_SERVICE}}}"
         }
     }
 }

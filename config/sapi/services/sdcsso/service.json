@@ -10,8 +10,7 @@
         }
     },
     "metadata": {
-        "registrar_domain": "sdcsso",
-        "registrar_srvce": "_sdcsso"
+        "SERVICE_NAME": "sdcsso"
     },
     "manifests": {
     }

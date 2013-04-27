@@ -1,11 +1,11 @@
 {
   "port" : 80,
   "ufds" : {
-    "url" : "ldaps://{{ufds_admin_ips}}",
-    "bindDN" : "{{ufds_ldap_root_dn}}",
-    "bindPassword" : "{{ufds_ldap_root_pw}}"
+    "url" : "ldaps://{{{UFDS_SERVICE}}}",
+    "bindDN" : "{{{ufds_ldap_root_dn}}}",
+    "bindPassword" : "{{{ufds_ldap_root_pw}}}"
   },
-  "keyapi" : "http://{{keyapi_admin_ips}}:8080",
+  "keyapi" : "http://{{{KEYAPI_SERVICE}}}:8080",
   "sslkey" : "/opt/smartdc/sdcsso/ssl/key.pem",
   "sslcert" : "/opt/smartdc/sdcsso/ssl/cert.pem",
   "nodemailerOpts" : { "smtpTransport" : {
