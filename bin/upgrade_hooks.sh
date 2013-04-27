@@ -445,6 +445,9 @@ post_tasks()
     print_log "upgrading napi data..."
     napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
+    print_log "upgrading vmapi data"
+    vmapi_tasks `cat ${SDC_UPGRADE_DIR}/vmapi_zonename.txt`
+
     print_log "Adding additional zone external nics"
     add_ext_net ufds
     vmadm update $role_uuid firewall_enabled=true
@@ -666,6 +669,17 @@ ufds_tasks()
         -f /mapi-ufds.ldif >${SDC_UPGRADE_DIR}/ufds_mapi_load.txt 2>&4
     res=$?
     [[ $res != 0 ]] && saw_err "Error loading MAPI data into UFDS"
+}
+
+# arg1 is zonename
+vmapi_tasks()
+{
+    cp ${SDC_UPGRADE_DIR}/mapi_dump/vmapi*.moray /zones/$1/root/root
+
+    zlogin $1 /opt/smartdc/vmapi/bin/moray-import -f /root/vmapi_zones.moray 1>&4 2>&1
+    zlogin $1 /opt/smartdc/vmapi/bin/moray-import -f /root/vmapi_vms.moray 1>&4 2>&1
+    [ $? != 0 ] && \
+        saw_err "Error loading VMAPI data into moray"
 }
 
 # arg1 is zonename
@@ -924,6 +938,8 @@ case "$1" in
 "ufds") ufds_tasks $2;;
 
 "napi") echo "$2" >${SDC_UPGRADE_DIR}/napi_zonename.txt;;
+
+"vmapi") echo "$2" >${SDC_UPGRADE_DIR}/vmapi_zonename.txt;;
 esac
 
 exit 0

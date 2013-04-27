@@ -1395,6 +1395,8 @@ function can_transform_vms() {
 
 var cur;
 var types = [
+    ['vms', transform_vms ],
+    ['zones', transform_vms ],
     ['nic_tags', transform_nic_tags ],
     ['networks', transform_networks ],
     ['subnets', transform_subnets ],
@@ -1403,9 +1405,7 @@ var types = [
     ['nics', transform_nics ],
     ['ips', transform_ips ],
     ['network_pool_networks', transform_network_pool_networks ],
-    ['network_pools', transform_network_pools ],
-    ['vms', transform_vms ],
-    ['zones', transform_vms ]
+    ['network_pools', transform_network_pools ]
 ];
 
 function processNextDump(err) {
