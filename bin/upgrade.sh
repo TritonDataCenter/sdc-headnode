@@ -982,7 +982,7 @@ function cleanup_config
 	# Legacy CAPI parameters
 	# Required by SmartLogin:
 	capi_client_url=http://$ufds_admin_ip:8080
-	ufds_comain=ufds.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
+	ufds_domain=ufds.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 	DONE
 
 	if [[ $CAPI_FOUND == 1 ]]; then
