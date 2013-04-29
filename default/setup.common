@@ -170,26 +170,11 @@ function registrar_setup
   fi
 }
 
-function write_resolve_conf
-{
-  local file=/etc/resolv.conf
-  local resolver=$(json -f ${METADATA} binder_admin_ips)
-  cat >${file} <<EOF
-nameserver ${resolver}
-EOF
-}
-
-# XXX break these functions out, figure out their pre-reqs for:
-# initial setup in general
-# initial setup for real SAPI
-# reboot
 if [[ ! -f /var/svc/setup_complete ]]; then
   echo "Initializing SAPI metadata and config-agent"
   sapi_setup
   echo "Initializing registrar"
   registrar_setup
-  echo "XXX - OS-2175 workaround"
-  write_resolve_conf
 else
   echo "Already setup, skipping SAPI and registrar initialization."
 fi
