@@ -878,26 +878,30 @@ function cleanup_config
 	# Allocate 4 more IP addrs for binder instances
 	binder_resolver_ips=$binder_admin_ip
 	for i in {0..3}; do
-	    allocate_ip_addr
-	    binder_resolver_ips="$binder_resolver_ips,$ip_addr"
+		allocate_ip_addr
+		binder_resolver_ips="$binder_resolver_ips,$ip_addr"
 	done
 
 	cat <<-DONE >>/tmp/config.$$
 
 	adminui_admin_ips=$adminui_admin_ip
 	adminui_external_ips=$CONFIG_adminui_external_ip
+	adminui_domain=adminui.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	assets_admin_ip=$assets_admin_ip
 	assets_admin_ips=$assets_admin_ip
 
 	dhcpd_admin_ip=$dhcpd_admin_ip
 	dhcpd_admin_ips=$dhcpd_admin_ip
+	dhcpd_domain=dhcpd.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip
 	rabbitmq=guest:guest:${rabbitmq_admin_ip}:5672
+	rabbitmq_domain=rabbitmq.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	ca_admin_ips=$ca_admin_ip
+	ca_domain=ca.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	binder_root_pw=$CONFIG_adminui_root_pw
 	binder_admin_ips=$binder_admin_ip
@@ -910,26 +914,34 @@ function cleanup_config
 
 	moray_root_pw=$CONFIG_adminui_root_pw
 	moray_admin_ips=$moray_admin_ip
+	moray_domain=moray.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	imgapi_root_pw=$CONFIG_adminui_root_pw
 	imgapi_admin_ips=$imgapi_admin_ip
+	imgapi_domain=imgapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	dapi_root_pw=$CONFIG_adminui_root_pw
 	dapi_admin_ips=$dapi_admin_ip
+	dapi_domain=dapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
+	vmapi_domain=vmapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
+	keyapi_domain=keyapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
+	sdcsso_domain=sdcsso.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
+	amon_domain=amon.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
+	redis_domain=redis.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	dsapi_url=https://datasets.joyent.com
 	dsapi_http_user=honeybadger
@@ -938,22 +950,27 @@ function cleanup_config
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
 	usageapi_admin_ips=$usageapi_admin_ip
+	usageapi_domain=usagepi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
 	cnapi_client_url=http://${cnapi_admin_ip}:80
+	cnapi_domain=cnapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	napi_root_pw=$CONFIG_adminui_root_pw
 	napi_admin_ips=$napi_admin_ip
 	napi_client_url=http://${napi_admin_ip}:80
 	napi_mac_prefix=90b8d0
+	napi_domain=napi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	workflow_root_pw=$CONFIG_adminui_root_pw
 	workflow_admin_ips=$workflow_admin_ip
+	workflow_domain=workflow.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	fwapi_root_pw=$CONFIG_adminui_root_pw
 	fwapi_admin_ips=$fwapi_admin_ip
 	fwapi_client_url=http://${fwapi_admin_ip}:80
+	fwapi_domain=fwapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	sapi_admin_ips=$sapi_admin_ip
 
@@ -970,6 +987,7 @@ function cleanup_config
 	# Legacy CAPI parameters
 	# Required by SmartLogin:
 	capi_client_url=http://$ufds_admin_ip:8080
+	ufds_comain=ufds.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 	DONE
 
 	if [[ $CAPI_FOUND == 1 ]]; then

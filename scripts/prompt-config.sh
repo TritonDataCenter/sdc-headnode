@@ -1203,49 +1203,61 @@ echo >>$tmp_config
 
 echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
 echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
+echo "moray_domain=moray.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
+echo "ufds_domain=ufds.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
 echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
+echo "workflow_domain=workflow.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "imgapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "imgapi_admin_ips=$imgapi_admin_ip" >>$tmp_config
+echo "imgapi_domain=imgapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
+echo "cnapi_domain=cnapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
+echo "dapi_domain=dapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "fwapi_admin_ips=$fwapi_admin_ip" >>$tmp_config
+echo "fwapi_domain=fwapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
+echo "vmapi_domain=vmapi.${datacenter_name}.${dns_domain}" >>$tmp_config"
 echo >>$tmp_config
 
 echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "keyapi_admin_ips=$keyapi_admin_ip" >>$tmp_config
+echo "keyapi_domain=keyapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
+echo "ca_domain=ca.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
+echo "admonui_domain=adminui.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
+echo "sdcsso_domain=sdcsso.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "# datacenter_name should be unique in your cloud" >>$tmp_config
@@ -1369,6 +1381,7 @@ echo >>$tmp_config
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
+echo "dhcpd_domain=dhcpd.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "dsapi_url=https://datasets.joyent.com" >>$tmp_config
@@ -1392,10 +1405,12 @@ echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
+echo "rabbitmq_domain=rabbitmq.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
+echo "usageapi_domain=usageapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_master=true" >>$tmp_config
@@ -1409,6 +1424,7 @@ echo "# Legacy CAPI parameters" >>$tmp_config
 # Do not remove. Required to work by smart-login.git agent:
 echo "# Required by SmartLogin:" >>$tmp_config
 echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
+echo "ufds_domain=ufds.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
@@ -1421,6 +1437,7 @@ echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
+echo "napi_domain=napi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config

@@ -17,34 +17,22 @@ else
 fi
 
 # CNAPI!
-CNAPI_IP=$(echo "${CONFIG_cnapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${CNAPI_IP} ]]; then
-    CNAPI_URL="http://${CNAPI_IP}"
-fi
+CNAPI_URL="http://${CONFIG_cnapi_domain}"
 
 # VMAPI!
-VMAPI_IP=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${VMAPI_IP} ]]; then
-    VMAPI_URL="http://${VMAPI_IP}"
-fi
+VMAPI_URL="http://${CONFIG_vmapi_domain}"
 
 # NAPI!
-NAPI_URL=${CONFIG_napi_client_url}
+NAPI_URL="http://${CONFIG_napi_domain}"
 
 # DAPI!
-DAPI_IP=$(echo "${CONFIG_dapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${DAPI_IP} ]]; then
-    DAPI_URL="http://${DAPI_IP}"
-fi
+DAPI_URL="http://${CONFIG_dapi_domain}"
 
 # FWAPI!
-FWAPI_URL=${CONFIG_fwapi_client_url}
+FWAPI_URL="http://${CONFIG_fwapi_domain}"
 
 # WORKFLOW!
-WORKFLOW_IP=$(echo "${CONFIG_workflow_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${WORKFLOW_IP} ]]; then
-    WORKFLOW_URL="http://${WORKFLOW_IP}"
-fi
+WORKFLOW_URL="http://${CONFIG_workflow_domain}"
 
 # SAPI!
 SAPI_IP=$(echo "${CONFIG_sapi_admin_ips}" | cut -d ',' -f1)
