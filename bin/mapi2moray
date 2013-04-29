@@ -32,7 +32,7 @@ var UUID_POSITIONS = {
 };
 
 var IMAGES, NETWORKS, NETWORK_POOL_NETWORKS, NICS, NIC_NIC_TAGS, NIC_TAGS,
-    SERVERS, SUBNETS, TAGS, VMS, ZONES, ZPOOLS;
+    SERVERS, SUBNETS, TAGS, VMS, ZONES, ZPOOLS, PACKAGES;
 
 var IPS_NEEDED = {};
 
@@ -1364,6 +1364,189 @@ function transform_servers(file, callback) {
 }
 
 
+function process_package_line(uuid, pieces, errs) {
+    var id = pieces[0];
+
+    var pkg = {
+        dn: 'uuid=' + uuid + ', ou=packages, o=smartdc',
+        uuid: uuid,
+        active: (pieces[26] !== '\\N') ? 'true' : 'false',
+        cpu_cap: pieces[5],
+        'default': pieces[10] !== 'f',
+        max_lwps: pieces[6],
+        max_physical_memory: pieces[2],
+        max_swap: pieces[4],
+        name: pieces[1],
+        quota: pieces[3],
+        urn: pieces[14],
+        vcpus: pieces[16],
+        version: pieces[13],
+        zfs_io_priority: pieces[12],
+        objectclass: 'sdcpackage'
+    };
+
+    PACKAGES[id] = pkg;
+    //console.log(JSON.stringify(pkg, null, 2));
+}
+
+
+/**
+ * 0 -- id
+ * 1 -- name
+ * 2 -- ram
+ * 3 -- disk
+ * 4 -- swap
+ * 5 -- cpu_cap
+ * 6 -- lightweight_processes
+ * 7 -- created_at
+ * 8 -- udpated_at
+ * 9 -- blocked_outgoing_ports
+ * 10 -- default
+ * 11 -- restricted_to_uuid
+ * 12 -- zfs_io_priority
+ * 13 -- version
+ * 14 -- urn
+ * 15 -- deactivated_at
+ * 16 -- vcpus
+ * */
+function transform_packages(file, callback) {
+    PACKAGES = {};
+
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var errs = [];
+        var done = 0;
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 17) {
+                done++;
+                return;
+            }
+
+            generate_uuid(function (err, uuid) {
+                if (err) {
+                    errs.push(err);
+                } else {
+                    process_package_line(uuid, pieces, errs);
+                }
+
+                done++;
+
+                if (done === lines.length) {
+                    if (errs.length !== 0) {
+                        return callback(errs);
+                    }
+
+                    return callback();
+                }
+            });
+        });
+    });
+}
+
+function obj2ldif(obj) {
+    var out = '';
+    Object.keys(obj).forEach(function (k) {
+        if (Array.isArray(obj[k])) {
+            out += k + ': ' + JSON.stringify(obj[k]) + '\n';
+        } else {
+            out += k + ': ' + obj[k] + '\n';
+        }
+    });
+    return out;
+}
+
+/**
+ * 0 -- id
+ * 1 -- package_id
+ * 2 -- created_at
+ * 3 -- updated_at
+ * 4 -- data
+ */
+// data member will have the following format:
+// {
+//      "list":[
+//          {"networkable_id":2,"networkable_type":"Network"}
+//      ],
+//      "primary":{"networkable_id":2,"networkable_type":"Network"}
+// }
+function transform_package_network_list(file, callback) {
+    return read_lines(file, function (err, lines) {
+        if (err) {
+            return callback(err);
+        }
+
+        var errs = [];
+        var done = 0;
+
+        lines.forEach(function (line) {
+            var pieces = line.split('\t').map(function (e) {
+                return e === NULL ? null : e;
+            });
+
+            if (pieces.length !== 5) {
+                done++;
+                return;
+            }
+
+            var pkg = PACKAGES[pieces[1]];
+            var networks;
+
+            if (!pkg) {
+                done++;
+                return;
+            }
+
+            if (!pkg.networks) {
+                pkg.networks = [];
+            }
+
+            try {
+                networks = JSON.parse(pieces[4]).list;
+            } catch (e) {
+                done++;
+                return;
+            }
+
+            networks.forEach(function (net) {
+                if (net.networkable_type === 'Network') {
+                    var network = NETWORKS[net.networkable_id];
+                    if (network) {
+                        pkg.networks.push(network.uuid);
+                    }
+                }
+            });
+
+            done++;
+        });
+
+        if (done === lines.length) {
+            if (errs.length !== 0) {
+                return callback(errs);
+            }
+
+            var pkgs = [];
+            Object.keys(PACKAGES).forEach(function (p) {
+                pkgs.push(obj2ldif(PACKAGES[p]));
+            });
+            fs.writeFile(directory + '/mapi-ufds.ldif',
+                (pkgs.join('\n') + '\n'), 'utf8', function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    return callback();
+                });
+        }
+    });
+}
+
 
 ///--- Mainline
 
@@ -1404,6 +1587,8 @@ var types = [
     ['nic_nic_tags', transform_nic_nic_tags ],
     ['nics', transform_nics ],
     ['ips', transform_ips ],
+    ['packages', transform_packages ],
+    ['package_network_lists', transform_package_network_list ],
     ['network_pool_networks', transform_network_pool_networks ],
     ['network_pools', transform_network_pools ]
 ];
@@ -1429,7 +1614,6 @@ function processNextDump(err) {
         return;
     }
     var file = directory + '/' + cur[0] + '.dump';
-
     path.exists(file, function (exists) {
         if (!exists) {
             console.error('Dump file does not exist: %s', file);

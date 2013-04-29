@@ -346,11 +346,6 @@ function dump_mapi
 
     ulimit -Sn 8192
 
-    echo "Transforming MAPI postgres dumps to LDIF"
-    $ROOT/mapi2ldif.sh $SDC_UPGRADE_DIR/mapi_dump $CONFIG_datacenter_name \
-        > $SDC_UPGRADE_DIR/mapi_dump/mapi-ufds.ldif
-    [ $? != 0 ] && fatal "transforming the MAPI dumps to LDIF"
-
     echo "Transforming MAPI postgres dumps to moray"
     $ROOT/mapi2moray $SDC_UPGRADE_DIR/mapi_dump \
         $CONFIG_datacenter_name \
