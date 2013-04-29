@@ -102,8 +102,6 @@ function create_upgrade
     cp ${ROOT}/bin/upgrade_hooks.sh ${STAGE}/upgrade/upgrade_hooks.sh
     cp ${ROOT}/bin/capi2ldif.sh ${STAGE}/upgrade/capi2ldif.sh
     chmod +x ${STAGE}/upgrade/capi2ldif.sh
-    cp ${ROOT}/bin/mapi2ldif.sh ${STAGE}/upgrade/mapi2ldif.sh
-    chmod +x ${STAGE}/upgrade/mapi2ldif.sh
     cp ${ROOT}/bin/mapi2moray ${STAGE}/upgrade/mapi2moray
     chmod +x ${STAGE}/upgrade/mapi2moray
     cp ${ROOT}/bin/mapi2alias.sh ${STAGE}/upgrade/mapi2alias.sh
