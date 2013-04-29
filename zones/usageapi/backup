@@ -60,5 +60,4 @@ fi
 echo "==> Removing temporary snapshot of ${ROLE} data dataset"
 /usr/sbin/zfs destroy "$DATA_DATASET@${BACKUP_VERSION}"
 
-echo "==> Done!"
 exit 0

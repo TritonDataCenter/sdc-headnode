@@ -112,7 +112,7 @@ backup()
 	echo "Backing up the $2 zone $1"
 
 	chmod +x /tmp/backup.$$/backup
-	/tmp/backup.$$/backup $1 $dest >/dev/null 2>&1
+	/tmp/backup.$$/backup $1 $dest 2>&1
 	res=$?
 	[ $res != 0 ] && fatal "$res backing up $1"
 
@@ -424,7 +424,7 @@ for i in $(get_smartdc_zones); do # we get a tuple of uuid,tag
 	if [ $do_backup == 1 ]; then
 		backup $uuid $tag
 	else
-		echo "Skipping $zone (${uuid})"
+		echo "Skipping $tag (${uuid})"
 	fi
 done
 
@@ -437,12 +437,12 @@ fi
 
 get_smartdc_zones >$dest/zones.uuids
 
-echo "creating backup file"
+echo "Creating backup file"
 (cd $dest && tar cbfE 512 - *) | gzip >/zones/tmp_bu.$$.tgz || \
     fatal "writing to file /zones/tmp_bu.$$.tgz"
 
 fname=$destdir/backup-$(date +%Y-%m-%d-%H-%M-%S).tgz
-echo "moving backup file to destination"
+echo "Moving backup file to destination"
 mv /zones/tmp_bu.$$.tgz $fname || fatal "writing to file $fname"
 
 cleanup

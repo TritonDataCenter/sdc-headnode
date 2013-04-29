@@ -41,5 +41,4 @@ if [ -d $SSL_DIR ]; then
     (cd ${SSL_DIR} && cp -p * ${TARGET_DIR}/${ROLE}/ssl)
 fi
 
-echo "==> Done!"
 exit 0

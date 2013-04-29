@@ -62,5 +62,4 @@ cd /zones/$ZONE/root/var
 tar cbfE 512 - svc/log/sds-application-manatee* pg | gzip \
     >${TARGET_DIR}/${ROLE}/logs.tar.gz
 
-echo "All done!!!"
 exit 0

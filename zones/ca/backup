@@ -53,5 +53,4 @@ fi
 echo "==> Removing temporary snapshot of '${ZONE}'"
 /usr/sbin/zfs destroy "zones/${ZONE}/data@${BACKUP_VERSION}"
 
-echo "All done!!!"
 exit 0
