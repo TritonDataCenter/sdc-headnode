@@ -1584,7 +1584,8 @@ rm -rf $AGENTS_DIR/smf/*
 
 # Fix up /var
 mkdir -m755 -p /var/db/imgadm
-mkdir -m755 -p /var/log/vm
+mkdir -m755 -p /var/log/vm/logs
+touch /var/log/vm/vm.log
 
 cd /tmp
 cp -pr *log* $SDC_UPGRADE_DIR
