@@ -1238,7 +1238,7 @@ echo >>$tmp_config
 
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
-echo "vmapi_domain=vmapi.${datacenter_name}.${dns_domain}" >>$tmp_config"
+echo "vmapi_domain=vmapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config
@@ -1253,7 +1253,7 @@ echo >>$tmp_config
 
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
-echo "admonui_domain=adminui.${datacenter_name}.${dns_domain}" >>$tmp_config
+echo "adminui_domain=adminui.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
