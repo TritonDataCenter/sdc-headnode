@@ -8,6 +8,11 @@
 #
 DOC_FILES = index.restdown
 
+BASH_FILES = \
+    $(shell find scripts -name '*.sh') \
+    bin/upgrade.sh \
+    bin/upgrade_hooks.sh
+
 JS_FILES = $(shell find scripts -name '*.js')
 JSL_FILES_NODE = $(JS_FILES)
 JSSTYLE_FILES = $(JS_FILES)

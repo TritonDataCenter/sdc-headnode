@@ -80,7 +80,7 @@
 # Defaults for the various tools we use.
 #
 BASH		?= bash
-BASHSTYLE	?= tools/bashstyle
+BASHSTYLE	?= buildtools/bashstyle
 CP		?= cp
 CSCOPE		?= cscope
 CSCOPE_DIRS	?= .
