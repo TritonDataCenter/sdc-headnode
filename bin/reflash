@@ -30,6 +30,9 @@
 
 FORCE_65=0
 
+# need at least this much space to download the image and do a reflash
+MIN_TMP_FREE=3200
+
 if [[ -n "$TRACE" ]]; then
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
@@ -179,6 +182,32 @@ if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
     usage
 fi
 
+echo "NOTE: If you're prompted for Password:, you need the current root password of ${hostname}"
+
+MISSING_POOL=
+if [[ $(ssh $SSH_OPTS root@${hostname} "zpool list") == "no pools available" ]]; then
+    echo "No pool on remote host, applying countermeasures."
+    MISSING_POOL="true"
+fi
+
+# If we have no pool, use /tmp instead of /var/tmp because /var/tmp will
+# be in the ramdisk and /tmp should be bigger.
+WHICH_TMP="/var/tmp"
+if [[ -n ${MISSING_POOL} ]]; then
+    WHICH_TMP="/tmp"
+fi
+
+TMP_FREE=$(ssh ${SSH_OPTS} root@${hostname} "echo \$((\$(df -b ${WHICH_TMP} | tail -1 | awk '{ print \$2 }') / 1000))")
+if [[ -z ${TMP_FREE} ]]; then
+    echo "Unable to find free space in ${WHICH_TMP} on ${hostname}" >&2
+    exit 1
+fi
+if [[ ${TMP_FREE} -lt ${MIN_TMP_FREE} ]]; then
+    echo "Not enough space in ${WHICH_TMP} to start reflash, you must fix before continuing." >&2
+    echo "Have: ${TMP_FREE} Need: ${MIN_TMP_FREE}"
+    exit 1
+fi
+
 URL=
 FILENAME=
 if [[ ${filename} == "latest" ]]; then
@@ -209,7 +238,7 @@ elif [[ ! -f ${filename} ]]; then
     usage
 else
     echo "Attempting upload..."
-    scp ${filename} root@${hostname}:/var/tmp
+    scp ${filename} root@${hostname}:${WHICH_TMP}
     FILENAME=$(basename ${filename})
     MD5_SUM=$(${MD5_CMD} ${filename} | cut -d ' ' -f1)
 fi
@@ -249,9 +278,14 @@ if [[ -n "${TRACE}" ]]; then
     set -o xtrace
 fi
 
-rm -f /var/tmp/config.flashing
+rm -f ${WHICH_TMP}/config.flashing
 
-/usbkey/scripts/mount-usb.sh || /bin/true
+MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
+if [[ ! -f \${MOUNT_SCRIPT} ]]; then
+    MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
+fi
+
+\${MOUNT_SCRIPT} || /bin/true
 if [[ ! -f /mnt/usbkey/private/answers.json ]]; then
     echo "No answers.json, not creating config."
     exit 0
@@ -500,7 +534,7 @@ next_addr=\$(expr \$next_addr + 5)
 dhcp_range_start="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
 dhcp_range_end="\$max_host"
 
-cat > /var/tmp/config.flashing <<EOF
+cat > ${WHICH_TMP}/config.flashing <<EOF
 
 swap=0.25x
 compute_node_swap=0.25x
@@ -675,10 +709,10 @@ if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
 fi
 
 # Make sure we've got our file
-if [[ ! -f "/var/tmp/${FILENAME}" ]]; then
+if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
     echo "Downloading \${URL}"
-    curl -f -k -o /var/tmp/${FILENAME} \${URL}
-    if [[ ! -f "/var/tmp/${FILENAME}" ]]; then
+    curl -f -k -o ${WHICH_TMP}/${FILENAME} \${URL}
+    if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
         echo "FAILED to download image." >&2
         exit 1
     fi
@@ -686,7 +720,7 @@ fi
 
 # Check MD5 of image
 if [[ -n "${MD5_SUM}" ]]; then
-    MD5=\$(/usr/bin/sum -x md5 /var/tmp/${FILENAME} | cut -d ' ' -f1)
+    MD5=\$(/usr/bin/sum -x md5 ${WHICH_TMP}/${FILENAME} | cut -d ' ' -f1)
     if [[ \${MD5} != "${MD5_SUM}" ]]; then
         echo "MD5 does not match." >&2
         exit 1
@@ -697,34 +731,39 @@ fi
 echo \$(hostname)/\$(sysinfo | json UUID) 'is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
     | wall
 
+MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
+if [[ ! -f \${MOUNT_SCRIPT} ]]; then
+    MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
+fi
+
 # mount the usb key
 echo "Mounting USB key..."
-/usbkey/scripts/mount-usb.sh
+\${MOUNT_SCRIPT}
 
 # Move these first so we only restore if they existed to start with
 # keep them though in case there is a reflash failure.
 timestamp=\$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
-mv /var/tmp/root.authorized_keys.flashing /var/tmp/root.authorized_keys.\${timestamp} \
+mv ${WHICH_TMP}/root.authorized_keys.flashing ${WHICH_TMP}/root.authorized_keys.\${timestamp} \
     || /bin/true
-mv /var/tmp/answers.flashing /var/tmp/answers.\${timestamp} || /bin/true
-mv /var/tmp/devtools.flashing /var/tmp/devtools.\${timestamp} || /bin/true
+mv ${WHICH_TMP}/answers.flashing ${WHICH_TMP}/answers.\${timestamp} || /bin/true
+mv ${WHICH_TMP}/devtools.flashing ${WHICH_TMP}/devtools.\${timestamp} || /bin/true
 
 # Keep the answers.json if it exists
 if [[ -f /mnt/usbkey/private/answers.json ]]; then
     echo "Saving answers.json..."
-    cp /mnt/usbkey/private/answers.json /var/tmp/answers.flashing
+    cp /mnt/usbkey/private/answers.json ${WHICH_TMP}/answers.flashing
 fi
 
 # Also keep root.authorized_keys if it exists
 if [[ -f /mnt/usbkey/config.inc/root.authorized_keys ]]; then
     echo "Saving root.authorized_keys..."
     cp /mnt/usbkey/config.inc/root.authorized_keys \
-        /var/tmp/root.authorized_keys.flashing
+        ${WHICH_TMP}/root.authorized_keys.flashing
 fi
 
 # backup devtools
 if [[ -d /mnt/usbkey/devtools ]]; then
-     cp -RP /mnt/usbkey/devtools /var/tmp/devtools.flashing
+     cp -RP /mnt/usbkey/devtools ${WHICH_TMP}/devtools.flashing
 fi
 
 # Remove everything!
@@ -732,8 +771,8 @@ echo "Wiping /mnt/usbkey..."
 rm -rf /mnt/usbkey/*
 
 # copy devtools back (we'll unpack new ones over old ones but keep custom ones)
-if [[ -d /var/tmp/devtools.flashing ]]; then
-    cp -RP /var/tmp/devtools.flashing /mnt/usbkey/devtools
+if [[ -d ${WHICH_TMP}/devtools.flashing ]]; then
+    cp -RP ${WHICH_TMP}/devtools.flashing /mnt/usbkey/devtools
 fi
 
 # Unpack the image
@@ -741,31 +780,31 @@ fi
 # SmartOS tar. They occur because we're writing to pcfs which doesn't support
 # the permissions from the tarball.
 echo "Unpacking new image..."
-(cd /mnt/usbkey && tar -zxf /var/tmp/${FILENAME}) 2>&1 \
+(cd /mnt/usbkey && tar -zxf ${WHICH_TMP}/${FILENAME}) 2>&1 \
      | sed -e "s/tar: warning - file permissions have changed for //" \
      | sed -e "s/ (are 0100.*, should be .*)$//"
 
 # Restore the answers.json if we had one.
-if [[ -f /var/tmp/answers.flashing ]]; then
+if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
     echo "Restoring answers.json..."
     mkdir -p /mnt/usbkey/private
-    cp /var/tmp/answers.flashing /mnt/usbkey/private/answers.json
-    rm -f /var/tmp/answers.flashing
+    cp ${WHICH_TMP}/answers.flashing /mnt/usbkey/private/answers.json
+    rm -f ${WHICH_TMP}/answers.flashing
 fi
 
 # Copy over config if we created one
-if [[ ( "${FILENAME}" =~ "release-20110901" || ${FORCE_65} == 1 ) && -f /var/tmp/config.flashing ]]; then
+if [[ ( "${FILENAME}" =~ "release-20110901" || ${FORCE_65} == 1 ) && -f ${WHICH_TMP}/config.flashing ]]; then
     echo "Copying in created config..."
-    cp /var/tmp/config.flashing /mnt/usbkey/config
-    rm -f /var/tmp/config.flashing
+    cp ${WHICH_TMP}/config.flashing /mnt/usbkey/config
+    rm -f ${WHICH_TMP}/config.flashing
 fi
 
 # Restore root.authorized_keys if we had one
-if [[ -f /var/tmp/root.authorized_keys.flashing ]]; then
+if [[ -f ${WHICH_TMP}/root.authorized_keys.flashing ]]; then
     echo "Restoring root.authorized_keys..."
-    cp /var/tmp/root.authorized_keys.flashing \
+    cp ${WHICH_TMP}/root.authorized_keys.flashing \
         /mnt/usbkey/config.inc/root.authorized_keys
-    rm -f /var/tmp/root.authorized_keys.flashing
+    rm -f ${WHICH_TMP}/root.authorized_keys.flashing
 fi
 
 # Ensure we've got a platform + grub
