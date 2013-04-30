@@ -2,11 +2,13 @@
     "port": 80,
     "logLevel": "debug",
     "mode": "dc",
-    "database": {
-        "type": "ufds",
+    "ufds": {
         "url": "ldaps://{{{UFDS_SERVICE}}}",
         "bindDN": "{{{ufds_ldap_root_dn}}}",
         "bindPassword": "{{{ufds_ldap_root_pw}}}"
+    },
+    "database": {
+        "type": "ufds"
     },
     "storage": {
         "local": {
