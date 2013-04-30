@@ -7,7 +7,9 @@
 var fs = require('fs');
 var path = require('path');
 var util = require('util');
-
+// Using Spanish here to avoid having to change all the "exists" references:
+var existe = fs.exists || path.exists;
+var existsSync = fs.existsSync || path.existsSync;
 
 
 ///--- Globals
@@ -1427,13 +1429,13 @@ function transform_packages(file, callback) {
                     process_package_line(uuid, pieces, errs);
                 }
             });
-
-            if (errs.length !== 0) {
-                return callback(errs);
-            }
-
-            return callback();
         });
+
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        return callback();
     });
 }
 
@@ -1538,7 +1540,7 @@ function can_transform_vms() {
 
     for (var i in tables) {
         file = directory + '/' + tables[i] + '.dump';
-        if (!path.existsSync(file)) {
+        if (!existsSync(file)) {
             return false;
         }
     }
@@ -1588,7 +1590,7 @@ function processNextDump(err) {
         return;
     }
     var file = directory + '/' + cur[0] + '.dump';
-    path.exists(file, function (exists) {
+    existe(file, function (exists) {
         if (!exists) {
             console.error('Dump file does not exist: %s', file);
             close_files();
