@@ -944,7 +944,9 @@ function transform_vms(file, callback) {
                 return;
             }
 
-            changes.push(JSON.stringify(change));
+            if (change !== false) {
+                changes.push(JSON.stringify(change));
+            }
         });
 
         return fs.writeFile(directory + '/vmapi_' + table + '.moray',
@@ -998,14 +1000,13 @@ function vm_from_vm(pieces) {
     if (destroyed !== undefined) {
         zone_state = 'destroyed';
         state = 'destroyed';
-    } else if (zone_state == 'ready' || zone_state == 'running') {
-        state = 'running';
     } else {
-        state = 'stopped';
+        return false;
     }
 
     change = {
         uuid: uuid,
+        owner_uuid: owner_uuid,
         server_uuid: SERVERS[pieces[5]],
         image_uuid: IMAGES[pieces[4]],
         brand: brand,
@@ -1104,14 +1105,13 @@ function vm_from_zone(pieces) {
     if (destroyed !== undefined) {
         zone_state = 'destroyed';
         state = 'destroyed';
-    } else if (zone_state == 'ready' || zone_state == 'running') {
-        state = 'running';
     } else {
-        state = 'off';
+        return false;
     }
 
     change = {
         uuid: uuid,
+        owner_uuid: owner_uuid,
         server_uuid: SERVERS[pieces[19]],
         image_uuid: IMAGES[pieces[29]],
         brand: brand,
