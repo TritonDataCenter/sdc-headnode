@@ -9,7 +9,7 @@
                 "url": "http://{{{NAPI_SERVICE}}}"
         },
         "sapi": {
-                "url": "http://{{{sapi_admin_ips}}}"
+                "url": "http://{{{SAPI_SERVICE}}}"
         },
         "ufds": {
                 "url": "ldaps://{{{UFDS_SERVICE}}}",

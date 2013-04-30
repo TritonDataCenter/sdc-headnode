@@ -4,7 +4,7 @@
 		"level": "debug"
 	},
 	"mode": "proto",
-	"datacenter_name": "{{{datacenter_name}}}"
+	"datacenter_name": "{{{datacenter_name}}}",
 	"adminUuid": "{{{ufds_admin_uuid}}}",
 	"moray": {
 		"host": "{{{MORAY_SERVICE}}}",
@@ -23,9 +23,9 @@
 		"url": "https://updates.joyent.com"
 	},
 	"ufds": {
-        	"url": "ldaps://{{{ufds_admin_ips}}}",
-        	"bindDN": "{{{ufds_ldap_root_dn}}}",
-        	"bindPassword": "{{{ufds_ldap_root_pw}}}"
+		"url": "ldaps://{{{ufds_admin_ips}}}",
+		"bindDN": "{{{ufds_ldap_root_dn}}}",
+		"bindPassword": "{{{ufds_ldap_root_pw}}}",
 		"cache": {
 			"size": 1000,
 			"expiry": 300

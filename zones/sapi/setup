@@ -29,6 +29,8 @@ echo "export PATH=\$PATH:/opt/smartdc/sapi/build/node/bin:/opt/smartdc/sapi/node
 # this will get clobbered as soon as we enable the config-agent.
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+# During setup/bootstrapping, we do not expect binder to be available, and
+# reply on the pre-allocated IPs.
 IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
 MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
@@ -40,6 +42,10 @@ UFDS_ADMIN_UUID=$(echo "${UFDS_ADMIN_UUID}")
 echo "Creating SAPI config file"
 mkdir -p /opt/smartdc/sapi/etc
 
+# This config file is used during setup to bootstrap SAPI. With the exception
+# that it requires IP addresses instead of DNS names (as binder is not expected
+# to be setup yet), it should be kept broadly in sync with the template at:
+# $USB_HEADNODE_ROOT/config/sapi/manifests/services/sapi/sapi/template
 cat > /opt/smartdc/sapi/etc/config.json <<HERE
 {
   "log_options": {
@@ -82,10 +88,6 @@ HERE
 echo "Adding log rotation"
 logadm -w sapi -C 48 -s 100m -p 1h \
     /var/svc/log/smartdc-site-sapi:default.log
-
-# enable the config agent - we don't do this in setup.common for SAPI as for
-# other zones, because what's the agent going to talk to?
-setup_config_agent
 
 touch /var/svc/setup_complete
 echo "setup done"

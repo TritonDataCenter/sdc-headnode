@@ -605,6 +605,8 @@ function create_zone {
 
         UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
 
+
+
         # don't pollute things for everybody else
         if [[ ${zone} == "manatee" ]]; then
             unset ONE_NODE_WRITE_MODE
@@ -613,7 +615,12 @@ function create_zone {
     else
         # by breaking this up we're able to use fake_zoneinit instead of zoneinit
         echo "XXX - deploy ${zone} via build-payload."
-        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${payload_file}
+        local tmp_file=/var/tmp/${zone}_payload.$$
+
+        # need to add resolvers.
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${tmp_file}
+        json -f ${tmp_file} -e "resolvers=[\"${CONFIG_binder_admin_ips}\"]" \
+            > ${payload_file}
     fi
 
     cat ${payload_file} | vmadm create
@@ -720,6 +727,23 @@ function sdc_init_application
     update_setup_state "sapi_setup"
 }
 
+function bootstrap_sapi
+{
+    echo "Bootstrapping SAPI into SAPI"
+    local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
+    zlogin ${sapi_uuid} /usr/bin/bash <<HERE
+export ZONE_ROLE=sapi
+export ASSETS_IP=${CONFIG_assets_admin_ip}
+source /var/svc/setup.common
+sapi_adopt
+setup_config_agent
+upload_values
+download_metadata
+write_initial_config
+registrar_setup
+HERE
+}
+
 if [[ -z ${skip_zones} ]]; then
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
@@ -729,9 +753,14 @@ if [[ -z ${skip_zones} ]]; then
 
     # get SAPI standing up, then use that.
     sdc_init_application
-    USE_SAPI="true"
+    export USE_SAPI="true"
 
     create_zone binder
+    # here we bootstrap SAPI to be aware of itself, including writing out
+    # its standard DNS config.
+    bootstrap_sapi
+
+
     create_zone manatee
     create_zone moray
     create_zone redis

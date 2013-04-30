@@ -35,10 +35,7 @@ FWAPI_URL="http://${CONFIG_fwapi_domain}"
 WORKFLOW_URL="http://${CONFIG_workflow_domain}"
 
 # SAPI!
-SAPI_IP=$(echo "${CONFIG_sapi_admin_ips}" | cut -d ',' -f1)
-if [[ -n ${SAPI_IP} ]]; then
-    SAPI_URL="http://${SAPI_IP}"
-fi
+SAPI_URL="http://${CONFIG_sapi_domain}"
 
 fatal()
 {

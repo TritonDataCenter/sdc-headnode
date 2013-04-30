@@ -51,7 +51,7 @@
 				"url": "http://{{{IMGAPI_SERVICE}}}"
 			},
 			"sapi": {
-				"url": "http://{{{sapi_admin_ips}}}"
+				"url": "http://{{{SAPI_SERVICE}}}"
 			},
 			"workflow": {
 				"url": "http://{{{WORKFLOW_SERVICE}}}"

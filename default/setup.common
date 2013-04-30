@@ -32,9 +32,11 @@ fi
 
 NO_FS_TARBALL=1
 
-# Install and start the amon-agent.
-(cd /opt/amon-agent && ./pkg/postinstall.sh)
-rm -f /var/svc/amon-agent.tgz
+if [[ ! -f /var/svc/setup_complete ]]; then
+    # Install and start the amon-agent.
+    (cd /opt/amon-agent && ./pkg/postinstall.sh)
+    rm -f /var/svc/amon-agent.tgz
+fi
 
 #
 # Configuration handling: the following three functions import the config-agent,
@@ -51,16 +53,17 @@ export METADATA=/var/tmp/metadata.json
 
 # Write out the config-agent's file
 function setup_config_agent {
-    local sapi_url=$(mdata-get sapi-url)
-    local prefix=/opt/smartdc/config-agent
-    local tmpfile=/tmp/agent.$$.xml
+  echo "Setting up SAPI config-agent"
+  local sapi_url=$(mdata-get sapi-url)
+  local prefix=/opt/smartdc/config-agent
+  local tmpfile=/tmp/agent.$$.xml
 
-    sed -e "s#@@PREFIX@@#${prefix}#g" \
-       ${prefix}/smf/manifests/config-agent.xml > ${tmpfile}
-    mv ${tmpfile} ${prefix}/smf/manifests/config-agent.xml
+  sed -e "s#@@PREFIX@@#${prefix}#g" \
+    ${prefix}/smf/manifests/config-agent.xml > ${tmpfile}
+  mv ${tmpfile} ${prefix}/smf/manifests/config-agent.xml
 
-    mkdir -p ${prefix}/etc
-    cat >${prefix}/etc/config.json <<EOF
+  mkdir -p ${prefix}/etc
+  cat >${prefix}/etc/config.json <<EOF
 {
     "logLevel": "info",
     "pollInterval": 15000,
@@ -73,6 +76,7 @@ EOF
 
 # Upload the IP addresses assigned to this zone into its metadata
 function upload_values {
+    echo "Updating IP metadata in SAPI"
     local update=/opt/smartdc/config-agent/bin/mdata-update
 
     # Let's assume a zone will have at most four NICs
@@ -88,21 +92,22 @@ function upload_values {
         if [[ -n ${ip} && -n ${tag} ]]; then
             ${update} ${tag}_IP ${ip}
             if [[ $? -ne 0 ]]; then
-                 fatal "failed to upload ${tag}_IP metadata"
+                fatal "failed to upload ${tag}_IP metadata"
             fi
 
             if [[ $i == 0 ]]; then
                 ${update} PRIMARY_IP ${ip}
                 if [[ $? -ne 0 ]]; then
-                     fatal "failed to upload PRIMARY_IP metadata"
-                fi
-            fi
-        fi
-    done
+                  fatal "failed to upload PRIMARY_IP metadata"
+              fi
+          fi
+      fi
+  done
 }
 
 # Download this zone's SAPI metadata and save it in a local file
 function download_metadata {
+    echo "Downloading SAPI metadata to ${METADATA}"
     local sapi_url=$(mdata-get sapi-url)
 
     curl -s ${sapi_url}/configs/$(zonename) | json metadata > ${METADATA}
@@ -112,6 +117,7 @@ function download_metadata {
 }
 
 function write_initial_config {
+    echo "Writing initial SAPI manifests."
     local prefix=/opt/smartdc/config-agent
     # Write configuration synchronously
     ${prefix}/build/node/bin/node ${prefix}/agent.js -s
@@ -120,63 +126,58 @@ function write_initial_config {
     svcadm enable config-agent
 }
 
-function sapi_setup
+# XXX - can be removed when sdc-role is backed by SAPI.
+function sapi_adopt
 {
-  if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
-    sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
-                    json -H uuid)
-  fi
+    if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
+        sapi_instance=$(curl -s $(mdata-get sapi-url)/instances/$(zonename) | \
+                        json -H uuid)
+    fi
 
-  ## non-sapi services will be necessarily created by sdc-role
-  ## at this point, so we need to adopt them.
-  if [[ -z ${sapi_instance} &&\
-      ${ZONE_ROLE} != "assets" &&\
-      ${ZONE_ROLE} != "sapi" ]]; then
-    # adopt this instance
-    sapi_url=$(mdata-get sapi-url)
-    service_uuid=$(curl ${sapi_url}/services?name=${ZONE_ROLE}\
-      -sS -H accept:application/json | json -Ha uuid)
-    uuid=$(zonename)
-    sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
-      -H content-type:application/json \
-      -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
-      | json -H uuid)
+    ## non-sapi services will be necessarily created by sdc-role
+    ## at this point, so we need to adopt them.
+    if [[ -z ${sapi_instance} ]]; then
+        # adopt this instance
+        sapi_url=$(mdata-get sapi-url)
+        service_uuid=$(curl ${sapi_url}/services?name=${ZONE_ROLE}\
+            -sS -H accept:application/json | json -Ha uuid)
+        uuid=$(zonename)
+        sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
+            -H content-type:application/json \
+            -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
+            | json -H uuid)
 
-    [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${ZONE_NAME} into SAPI"
-    echo "Adopted service ${ZONE_NAME} to instance ${uuid}"
-  fi
-
-  if [[ ${ZONE_ROLE} != "assets" && \
-        ${ZONE_ROLE} != "sapi" && \
-        -z $(svcs -a | grep config-agent) ]]; then
-    setup_config_agent
-    upload_values
-    download_metadata
-    write_initial_config
-  fi
+        [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${ZONE_NAME} into SAPI"
+        echo "Adopted service ${ZONE_NAME} to instance ${uuid}"
+    fi
 }
 
 function registrar_setup
 {
-  if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
     local manifest=/opt/smartdc/registrar/smf/manifests/registrar.xml
     local config=/opt/smartdc/registrar/etc/config.json
 
     [[ -f ${manifest} ]] || fatal "No registrar manifest in ${ZONE_ROLE}"
     [[ -f ${config} ]] || fatal "No registrar config for ${ZONE_ROLE}"
 
+    echo "Importing and enabling registrar"
     svccfg import ${manifest}
     svcadm enable registrar
-  fi
 }
 
 if [[ ! -f /var/svc/setup_complete ]]; then
-  echo "Initializing SAPI metadata and config-agent"
-  sapi_setup
-  echo "Initializing registrar"
-  registrar_setup
+    echo "Initializing SAPI metadata and config-agent"
+
+    if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
+        sapi_adopt
+        setup_config_agent
+        upload_values
+        download_metadata
+        write_initial_config
+        registrar_setup
+    fi
 else
-  echo "Already setup, skipping SAPI and registrar initialization."
+    echo "Already setup, skipping SAPI and registrar initialization."
 fi
 
 

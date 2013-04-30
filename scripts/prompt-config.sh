@@ -1441,6 +1441,7 @@ echo "napi_domain=napi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
+echo "sapi_domain=sapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=true" >>$tmp_config

@@ -973,6 +973,7 @@ function cleanup_config
 	fwapi_domain=fwapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	sapi_admin_ips=$sapi_admin_ip
+	sapi_domain=sapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	show_setup_timers=true
 	serialize_setup=true
