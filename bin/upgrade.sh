@@ -372,6 +372,7 @@ function dump_mapi_netinfo
 
     MTABLES="nic_tags networks subnets network_ips nic_nic_tags nics ips"
     MTABLES="$MTABLES network_pool_networks network_pools vms zones servers"
+    MTABLES="$MTABLES packages package_network_lists"
 
     dump_mapi_tables /tmp/mapi_dump
 
