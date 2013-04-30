@@ -812,6 +812,32 @@ fwapi_tasks()
 # arg1 is zonename
 cloudapi_tasks()
 {
+    if [[ $CONFIG_ufds_is_master != "true" ]]; then
+        # pickup config
+        load_sdc_config
+
+        local tmpfile=/tmp/cloudapi_metadata_update.$$.json
+
+        local service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
+        if [[ $? -ne 0 ]]; then
+            saw_err "failed to get CloudAPI SAPI service"
+            return
+        fi
+
+        echo "{
+            \"metadata\": {
+                \"REMOTE_UFDS_IP\": \"$CONFIG_ufds_remote_ip\",
+                \"REMOTE_UFDS_ROOT_DN\": \"$CONFIG_ufds_ldap_root_dn\",
+                \"REMOTE_UFDS_ROOT_PW\": \"$CONFIG_ufds_ldap_root_pw\"
+             }
+        }" > ${tmpfile}
+
+        sdc-sapi /services/${service_uuid} -T ${tmpfile}
+        [[ $? != 0 ]] && saw_err "Error updating CloudAPI metadata"
+
+        rm ${tmpfile}
+    fi
+
     # We're going to replace the config files, so halt the zone
     shutdown_zone $1
 

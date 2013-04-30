@@ -13,6 +13,16 @@
         },
         "clientTimeout": 10000
     },
+    "ufds_master": {
+        "url": "ldaps://{{{REMOTE_UFDS_IP}}}",
+        "bindDN": "{{{REMOTE_UFDS_ROOT_DN}}}",
+        "bindPassword": "{{{REMOTE_UFDS_ROOT_PW}}}",
+        "cache": {
+            "size": 5000,
+            "expiry": 60
+        },
+        "clientTimeout": 10000
+    },
     "wfapi": {
         "url": "http://{{{WORKFLOW_SERVICE}}}",
         "cache": {
