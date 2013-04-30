@@ -11,7 +11,7 @@
             "size": 5000,
             "expiry": 60
         },
-        "clientTimeout": 3000
+        "clientTimeout": 10000
     },
     "wfapi": {
         "url": "http://{{{WORKFLOW_SERVICE}}}",
