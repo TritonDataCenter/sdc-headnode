@@ -459,20 +459,16 @@ function transform_network_pools(file, callback) {
             return callback(err);
         }
 
-        var done = 0;
-
         lines.forEach(function (line) {
             var pieces = line.split('\t').map(function (e) {
                 return e === NULL ? null : e;
             });
 
             if (pieces.length !== 4) {
-                done++;
                 return;
             }
 
             if (!NETWORK_POOL_NETWORKS.hasOwnProperty(pieces[0])) {
-                done++;
                 errs.push(new Error('network pool ' + pieces[1] +
                     ' (' + pieces[0] + ') has no networks'));
                     return;
@@ -492,20 +488,16 @@ function transform_network_pools(file, callback) {
                     //console.log(JSON.stringify(pool));
                 }
 
-                done++;
-
-                if (done === lines.length) {
-                    if (errs.length !== 0) {
-                        return callback(errs);
-                    }
-
-                    return fs.writeFile(directory
-                        + '/napi_network_pools.moray', pools.join('\n'),
-                        'utf8', callback);
-
-                }
             });
         });
+
+        if (errs.length !== 0) {
+            return callback(errs);
+        }
+
+        return fs.writeFile(directory
+            + '/napi_network_pools.moray', pools.join('\n'),
+            'utf8', callback);
     });
 }
 
