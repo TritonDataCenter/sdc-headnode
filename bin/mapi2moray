@@ -497,6 +497,10 @@ function transform_network_pools(file, callback) {
             return callback(errs);
         }
 
+        if (pools.length === 0) {
+            return callback();
+        }
+
         return fs.writeFile(directory
             + '/napi_network_pools.moray', pools.join('\n'),
             'utf8', callback);
