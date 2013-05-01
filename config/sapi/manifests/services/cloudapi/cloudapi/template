@@ -11,7 +11,8 @@
             "size": 5000,
             "expiry": 60
         },
-        "clientTimeout": 10000
+        "clientTimeout": 10000,
+        "maxConnections": 1
     },
     "ufds_master": {
         "url": "ldaps://{{{REMOTE_UFDS_IP}}}",
@@ -21,7 +22,8 @@
             "size": 5000,
             "expiry": 60
         },
-        "clientTimeout": 10000
+        "clientTimeout": 10000,
+        "maxConnections": 1
     },
     "wfapi": {
         "url": "http://{{{workflow_admin_ips}}}",
