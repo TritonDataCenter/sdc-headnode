@@ -4,7 +4,7 @@
     "key": "/opt/smartdc/cloudapi/ssl/key.pem",
     "read_only": false,
     "ufds": {
-        "url": "ldaps://{{{UFDS_SERVICE}}}",
+        "url": "ldaps://{{{ufds_admin_ips}}}",
         "bindDN": "{{{ufds_ldap_root_dn}}}",
         "bindPassword": "{{{ufds_ldap_root_pw}}}",
         "cache": {
@@ -24,54 +24,54 @@
         "clientTimeout": 10000
     },
     "wfapi": {
-        "url": "http://{{{WORKFLOW_SERVICE}}}",
+        "url": "http://{{{workflow_admin_ips}}}",
         "cache": {
             "size": 1000,
             "expiry": 300
         }
     },
     "vmapi": {
-        "url": "http://{{{VMAPI_SERVICE}}}",
+        "url": "http://{{{vmapi_admin_ips}}}",
         "cache": {
             "size": 5000,
             "expiry": 60
         }
     },
     "cnapi": {
-        "url": "http://{{{CNAPI_SERVICE}}}",
+        "url": "http://{{{cnapi_admin_ips}}}",
         "cache": {
             "size": 5000,
             "expiry": 60
         }
     },
     "napi": {
-        "url": "http://{{{NAPI_SERVICE}}}",
+        "url": "http://{{{napi_admin_ips}}}",
         "cache": {
             "size": 5000,
             "expiry": 300
         }
     },
     "fwapi": {
-        "url": "http://{{{FWAPI_SERVICE}}}",
+        "url": "http://{{{fwapi_admin_ips}}}",
         "cache": {
             "size": 1000,
             "expiry": 300
         }
     },
     "imgapi": {
-        "url": "http://{{{IMGAPI_SERVICE}}}",
+        "url": "http://{{{imgapi_admin_ips}}}",
         "cache": {
             "size": 5000,
             "expiry": 300
         }
     },
     "ca": {
-        "url": "http://{{{CA_SERVICE}}}:23181"
+        "url": "http://{{{ca_admin_ips}}}:23181"
     },
     "usageapi": {
-        "url": "http://{{{USAGEAPI_SERVICE}}}"
+        "url": "http://{{{usageapi_admin_ips}}}"
     },
-    "keyapi": "http://{{{KEYAPI_SERVICE}}}",
+    "keyapi": "http://{{{keyapi_admin_ips}}}",
     "datacenters": {
         "{{{datacenter_name}}}": "https://{{EXTERNAL_IP}}"
     },
