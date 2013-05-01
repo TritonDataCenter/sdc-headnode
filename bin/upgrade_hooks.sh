@@ -838,6 +838,8 @@ cloudapi_tasks()
         rm ${tmpfile}
     fi
 
+    zlogin $1 zfs set mountpoint=/cloudapi/data zones/$1/data
+
     # We're going to replace the config files, so halt the zone
     shutdown_zone $1
 
