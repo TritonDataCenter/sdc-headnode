@@ -24,6 +24,7 @@ LOG_FILENAME=/tmp/manatee-scaler.$$.log
 exec 4>${LOG_FILENAME}
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
+PATH=/opt/smartdc/bin:/usr/sbin:/usr/bin
 
 set -o errexit
 set -o xtrace
