@@ -1368,7 +1368,7 @@ function process_package_line(uuid, pieces, errs) {
     var pkg = {
         dn: 'uuid=' + uuid + ', ou=packages, o=smartdc',
         uuid: uuid,
-        active: (pieces[26] !== '\\N') ? 'true' : 'false',
+        active: (pieces[15] !== '\\N') ? 'true' : 'false',
         cpu_cap: pieces[5],
         'default': pieces[10] !== 'f',
         max_lwps: pieces[6],
@@ -1382,6 +1382,10 @@ function process_package_line(uuid, pieces, errs) {
         zfs_io_priority: pieces[12],
         objectclass: 'sdcpackage'
     };
+
+    if (pieces[11] !== '\\N') {
+        pkg.owner_uuid = pieces[11];
+    }
 
     PACKAGES[id] = pkg;
     //console.log(JSON.stringify(pkg, null, 2));
@@ -1435,16 +1439,22 @@ function transform_packages(file, callback) {
             });
         });
 
-        if (errs.length !== 0) {
-            return callback(errs);
-        }
+        // Will wait for latest pkg to process, given that line will take
+        // way longer to get processed than lines from where we are returning:
+        setTimeout(function () {
+            if (errs.length !== 0) {
+                return callback(errs);
+            }
 
-        return callback();
+            return callback();
+        }, 500);
     });
 }
 
 function obj2ldif(obj) {
     var out = '';
+    // We don't want to keep owner_uuid into packages
+    delete obj.owner_uuid;
     Object.keys(obj).forEach(function (k) {
         if (Array.isArray(obj[k])) {
             out += k + ': ' + JSON.stringify(obj[k]) + '\n';
@@ -1508,6 +1518,17 @@ function transform_package_network_list(file, callback) {
                     var network = NETWORKS[net.networkable_id];
                     if (network) {
                         pkg.networks.push(network.uuid);
+                        // If we have package ownership, we need to add this
+                        // to the network. First as network.owner_uuids, until
+                        // Rob can change in NAPI:
+                        if (pkg.owner_uuid) {
+                            if (network.owner_uuids &&
+                                (network.owner_uuids.indexOf(pkg.owner_uuid) === -1)) {
+                                network.owner_uuids.push(pkg.owner_uuid);
+                            } else {
+                                network.owner_uuids = [pkg.owner_uuid];
+                            }
+                        }
                     }
                 }
             });
@@ -1562,13 +1583,13 @@ var types = [
     ['zones', transform_vms ],
     ['nic_tags', transform_nic_tags ],
     ['networks', transform_networks ],
+    ['packages', transform_packages ],
+    ['package_network_lists', transform_package_network_list ],
     ['subnets', transform_subnets ],
     ['network_ips', transform_network_ips ],
     ['nic_nic_tags', transform_nic_nic_tags ],
     ['nics', transform_nics ],
     ['ips', transform_ips ],
-    ['packages', transform_packages ],
-    ['package_network_lists', transform_package_network_list ],
     ['network_pool_networks', transform_network_pool_networks ],
     ['network_pools', transform_network_pools ]
 ];
