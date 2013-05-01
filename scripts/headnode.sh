@@ -426,6 +426,22 @@ CREATEDUUIDS=
 # Create link for latest platform
 create_latest_link
 
+
+# Update /usbkey/datasets/ manifests usage of the all-zero's owner UUID
+# placeholder, to the actual admin UUID for this DC.
+for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
+    tmpmanifest=/var/tmp/$(basename manifest)
+    json -f ${manifest} \
+        -e "if (this.creator_uuid === '00000000-0000-0000-0000-000000000000')
+                this.creator_uuid = '$CONFIG_ufds_admin_uuid';
+            if (this.owner === '00000000-0000-0000-0000-000000000000')
+                this.owner = '$CONFIG_ufds_admin_uuid';" \
+        > ${tmpmanifest}
+    [[ $? != 0 ]] && fatal "Could not update owner in $manifest"
+    mv ${tmpmanifest} ${manifest}
+done
+
+
 # HOW THE CORE ZONE PROCESS WORKS:
 #
 # In the /usbkey/zones/<zone> directory you can have any of:
@@ -494,13 +510,6 @@ function create_zone {
         # work around that.
         if [[ ! -d /zones/${ds_uuid} ]]; then
             printf_log "%-58s" "importing: $(echo ${ds_name} | cut -d'.' -f1) "
-            # tweak manifest to be private and correct owner:
-            local tmpmanifest=/var/tmp/$(basename ds_manifest)
-            json -f ${ds_manifest}\
-                -e "public = false; owner = \"${CONFIG_ufds_admin_uuid}\"" \
-                > ${tmpmanifest}
-            [[ $? != 0 ]] && fatal "Couldn't make ${ds_manifest} private"
-            mv ${tmpmanifest} ${ds_manifest}
             imgadm install -m ${ds_manifest} -f ${ds_filename}
             printf_timer "done (%ss)\n" >&${CONSOLE_FD}
         fi
@@ -774,8 +783,11 @@ function import_datasets {
         if [[ "${status}" == "404" ]]; then
             echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
             [[ -f ${file} ]] || fatal "Image file ${file} not found."
-
-            /opt/smartdc/bin/sdc-imgadm import -m ${manifest} -f ${file}
+            # Skip the check that "owner" exists in UFDS during setup
+            # b/c if this is not the DC with the UFDS master, then the
+            # admin user will not have been replicated yet.
+            /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
+                -m ${manifest} -f ${file}
         elif [[ "${status}" == "200" ]]; then
             # exists
             echo "Skipping import of image ${uuid}: already in IMGAPI."

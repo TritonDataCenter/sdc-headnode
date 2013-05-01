@@ -866,8 +866,16 @@ function copy_datasets
 
         local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
         copy_dataset ${name} ${file_url} ${sha1}
-        echo "==> Copying ${name} manifest"
-        cp ${manifest} ${STAGE}/datasets/
+        # The all-zero's owner UUID will be changed to the actual admin
+        # user UUID on headnode setup.
+        echo "==> Copying ${name} manifest (with reset 'owner' UUID)"
+        ${ROOT}/bin/json -f ${manifest} \
+            -e 'if (this.creator_uuid) {
+                    this.creator_uuid = "00000000-0000-0000-0000-000000000000";
+                } else {
+                    this.owner = "00000000-0000-0000-0000-000000000000";
+                }' \
+            > ${STAGE}/datasets/$(basename ${manifest})
 
         # Since create-zone.sh needs to know which dataset it should use to
         # base the headnode zones on, we create these files here, one which
