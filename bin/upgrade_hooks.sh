@@ -602,6 +602,9 @@ ufds_tasks()
     # load config to pick up settings for newly created ufds zone
     load_sdc_config
 
+    ufds_ip=`vmadm list -o nics.0.ip -H uuid=$1`
+    client_url="ldaps://${ufds_ip}"
+
     #
     # If this datacenter is not a UFDS master, configure and deploy the
     # ufds-replicator service.
@@ -644,21 +647,18 @@ ufds_tasks()
         zlogin $1 svccfg import \
             /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
 
-        return
+    else
+
+        cp ${SDC_UPGRADE_DIR}/capi_dump/ufds.ldif /zones/$1/root
+        zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
+            -H ${client_url} \
+            -D ${CONFIG_ufds_ldap_root_dn} \
+            -w ${CONFIG_ufds_ldap_root_pw} \
+            -M \
+            -f /ufds.ldif >${SDC_UPGRADE_DIR}/ufds_capi_load.txt 2>&4
+        local res=$?
+        [[ $res != 0 ]] && saw_err "Error loading CAPI data into UFDS"
     fi
-
-    ufds_ip=`vmadm list -o nics.0.ip -H uuid=$1`
-    client_url="ldaps://${ufds_ip}"
-
-    cp ${SDC_UPGRADE_DIR}/capi_dump/ufds.ldif /zones/$1/root
-    zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
-        -H ${client_url} \
-        -D ${CONFIG_ufds_ldap_root_dn} \
-        -w ${CONFIG_ufds_ldap_root_pw} \
-        -M \
-        -f /ufds.ldif >${SDC_UPGRADE_DIR}/ufds_capi_load.txt 2>&4
-    local res=$?
-    [[ $res != 0 ]] && saw_err "Error loading CAPI data into UFDS"
 
     cp ${SDC_UPGRADE_DIR}/mapi_dump/mapi-ufds.ldif /zones/$1/root
     zlogin $1 LDAPTLS_REQCERT=allow /opt/local/bin/ldapadd \
