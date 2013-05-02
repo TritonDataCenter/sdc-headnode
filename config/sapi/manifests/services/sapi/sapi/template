@@ -3,7 +3,7 @@
 		"name": "sapi",
 		"level": "debug"
 	},
-	"mode": "proto",
+	"mode": "{{{SAPI_MODE}}}",
 	"datacenter_name": "{{{datacenter_name}}}",
 	"adminUuid": "{{{ufds_admin_uuid}}}",
 	"moray": {
