@@ -9,7 +9,54 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "cloudapi"
+        "SERVICE_NAME": "cloudapi",
+		"CLOUDAPI_PLUGINS": [
+			{
+	            "name": "provision_limits",
+	            "enabled": false,
+	            "config": {
+	                "defaults":[{
+	                   "os": "any",
+	                   "dataset": "any",
+	                   "check": "os",
+	                   "by": "ram",
+	                   "value": 51200
+	                }, {
+	                   "os": "windows",
+	                   "dataset": "windows",
+	                   "check": "dataset",
+	                   "by": "machines",
+	                   "value": -1
+	                }]
+	            }
+	        },
+	        {
+	            "name": "capi_limits",
+	            "enabled": false,
+	            "config": {
+	                "defaults": {
+	                    "smartos": 1,
+	                    "nodejs": 1,
+	                    "ubuntu": 1
+	                }
+	            }
+	        }, {
+	            "name": "machine_email",
+	            "enabled": false,
+	            "config": {
+	                "smtp": {
+	                    "host": "127.0.0.1",
+	                    "port": 25,
+	                    "use_authentication": false,
+	                    "user": "",
+	                    "pass": ""
+	                },
+	                "from": "nobody@joyent.com",
+	                "subject": "Your SmartDataCenter machine is provisioning",
+	                "body": "Check /my/machines for updates"
+	            }
+	        }
+		]
     },
     "manifests": {
     }

@@ -812,17 +812,16 @@ fwapi_tasks()
 # arg1 is zonename
 cloudapi_tasks()
 {
+    local service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
+    if [[ $? -ne 0 ]]; then
+        saw_err "failed to get CloudAPI SAPI service"
+        return
+    fi
+    local tmpfile=/tmp/cloudapi_metadata_changes.$$.json
+
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
         # pickup config
         load_sdc_config
-
-        local tmpfile=/tmp/cloudapi_metadata_update.$$.json
-
-        local service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
-        if [[ $? -ne 0 ]]; then
-            saw_err "failed to get CloudAPI SAPI service"
-            return
-        fi
 
         echo "{
             \"metadata\": {
@@ -875,6 +874,7 @@ cloudapi_tasks()
         var path = require("path");
         var oldPath = process.argv[1];
         var cfgPath = process.argv[2];
+        var tmpPath = process.argv[3];
 
         var old = JSON.parse(fs.readFileSync(oldPath));
         var cfg = JSON.parse(fs.readFileSync(cfgPath));
@@ -936,12 +936,18 @@ cloudapi_tasks()
             cfg.plugins.push(p);
         });
 
-        console.log(JSON.stringify(cfg, null, 2));
-    ' $ocfg $cfgfile >$cfgfile.new
+        var changes = {};
+        changes.metadata = {};
+        changes.metadata.CLOUDAPI_PLUGINS = JSON.stringify(cfg.plugins);
+        changes.metadata.CLOUDAPI_DATACENTERS = JSON.stringify(cfg.datacenters);
 
-    cp $cfgfile $cfgfile.bak
-    cp $cfgfile.new $cfgfile
-    rm -f $cfgfile.new
+        fs.writeFileSync(tmpPath, JSON.stringify(changes));
+    ' $ocfg $cfgfile $tmpfile
+
+    sdc-sapi /services/${service_uuid} -T ${tmpfile}
+    [[ $? != 0 ]] && saw_err "Error updating CloudAPI plugins and datacenters"
+
+    rm -f $tmpfile
 
     # Boot the zone with the new config data
     zoneadm -z $1 boot

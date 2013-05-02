@@ -3,15 +3,18 @@
 /*
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  *
- * sdc-init-app.js: initializes sdc SAPI application definition.
+ * sdc-init.js: initializes sdc SAPI application definition.
  */
 
+var assert = require('/opt/smartdc/node_modules/assert-plus');
 var async = require('/usr/node/node_modules/async');
-var vasync = require('/opt/smartdc/node_modules/sdc-clients/node_modules/vasync');
 var cp = require('child_process');
 var execFile = cp.execFile;
 var fs = require('fs');
 var sdc = require('/opt/smartdc/node_modules/sdc-clients');
+var vasync =
+    require('/opt/smartdc/node_modules/sdc-clients/node_modules/vasync');
+
 var Logger = require('/usr/node/node_modules/bunyan');
 var sprintf = require('util').format;
 
@@ -38,20 +41,19 @@ function loadConfig(cb) {
             try {
                 self.config = JSON.parse(stdout);
             } catch (e) {
-                log.fatal(e, 'Could not parse config: ' + e.message)
+                log.fatal(e, 'Could not parse config: ' + e.message);
                 return cb(e);
             }
 
             return cb(null);
-        }
-    );
+    });
 }
 
 function serviceDomain(service) {
     var cfg = self.config;
-    var name = (service === "manatee" ? "moray" : service);
+    var name = (service === 'manatee' ? 'moray' : service);
 
-    return sprintf("%s.%s.%s", name, cfg.datacenter_name, cfg.dns_domain);
+    return sprintf('%s.%s.%s', name, cfg.datacenter_name, cfg.dns_domain);
 }
 
 // translate config object to SAPI params/metadata.
@@ -64,7 +66,7 @@ function translateConfig(cb) {
     self.sdcExtras = {
         metadata: config,
         params: {}
-    }
+    };
     var sdcExtras = self.sdcExtras;
     var resolvers = [];
 
@@ -91,7 +93,7 @@ function translateConfig(cb) {
     // binder is also zookeeper.
     if (config.hasOwnProperty('binder_admin_ips')) {
         var binderIps = config.binder_admin_ips.split(',');
-        var zkServers = binderIps.map(function(e, i, c) {
+        var zkServers = binderIps.map(function (e, i, c) {
             var server = {
                 host: e,
                 port: 2181
@@ -111,7 +113,8 @@ function translateConfig(cb) {
 
     return cb(null);
 
-    // XXX - other things that aren't metadata? i.e. metadata of use to *services*?
+    // XXX - other things that aren't metadata?
+    //     (i.e. metadata of use to *services*?)
     // package definitions - expand them in the services.
     // ?? everything in config.inc/generic?
     // ?? everything that's used purely in setup.
@@ -149,20 +152,21 @@ function addServiceDomains(cb) {
     var dirname = '/usbkey/services';
     var extras = self.sdcExtras;
     var log = self.log;
-    fs.readdir(dirname, function(err, services) {
+    fs.readdir(dirname, function (err, services) {
         if (err) {
             log.fatal(err, 'Failed to read %s', dirname);
             return cb(err);
         }
         self.services = services;
 
-        services.forEach(function(service) {
-            if (service == "manatee") return;
-            var serviceKey = sprintf("%s_SERVICE", service.toUpperCase());
+        services.forEach(function (service) {
+            if (service == 'manatee')
+                return;
+            var serviceKey = sprintf('%s_SERVICE', service.toUpperCase());
             extras.metadata[serviceKey] = serviceDomain(service);
         });
 
-        return cb(null)
+        return cb(null);
     });
 }
 
@@ -175,9 +179,10 @@ function addSigningKey(cb) {
     async.waterfall([
         function genFingerprint(_cb) {
             var cmd = sprintf('ssh-keygen -lf %s', keyFile);
-            cp.exec(cmd, function(err, data) {
+            cp.exec(cmd, function (err, data) {
                 if (err) {
-                    log.fatal(err, 'Failed to generate fingerprint: %s', err.message);
+                    log.fatal(err,
+                        'Failed to generate fingerprint: %s', err.message);
                     return _cb(err);
                 }
                 var fingerprint = data.split(' ')[1];
@@ -194,9 +199,9 @@ function addSigningKey(cb) {
                 return _cb(null);
             });
         }
-    ], function(err) {
+    ], function (err) {
         if (err) {
-            log.fatal(err, "Failed to add keys: %s", err.message);
+            log.fatal(err, 'Failed to add keys: %s', err.message);
             return cb(err);
         }
         return cb(null);
@@ -204,8 +209,9 @@ function addSigningKey(cb) {
 }
 
 function getPackageInfo(cb) {
-    self.packages = Object.keys(self.config).reduce(function(acc, key) {
-        if (!key.match('^pkg_')) return acc;
+    self.packages = Object.keys(self.config).reduce(function (acc, key) {
+        if (!key.match('^pkg_'))
+             return acc;
 
         var pkgdata = self.config[key].split(':');
         var pkg = {};
@@ -253,28 +259,33 @@ function initSapiClient(cb) {
 function getOrCreateSdc(cb) {
     var file = '/usbkey/application.json';
     var log = self.log;
-    var ownerUuid = self.config.ufds_admin_uuid
+    var ownerUuid = self.config.ufds_admin_uuid;
     var extra = self.sdcExtras;
 
-    log.debug({name : 'sdc', ownerUuid : ownerUuid, file : file, extra : extra}, 'Creating SDC application');
+    log.debug({
+        name: 'sdc',
+        ownerUuid: ownerUuid,
+        file: file,
+        extra: extra
+    }, 'Creating SDC application');
 
     self.sapi.getOrCreateApplication('sdc', ownerUuid, file, extra,
         function gotApplication(err, app) {
             if (err) {
-                log.fatal(err, 'Could not get/create SDC application: ' + err.message);
+                log.fatal(err, 'Could not get/create SDC application: ' +
+                    err.message);
                 return cb(err);
             }
             log.debug({ sdcApp : app }, 'Created SDC application');
             self.app = app;
             return cb(null);
-        }
-    );
+    });
 }
 
 function loadManifests(dirname, cb) {
     var log = self.log;
 
-    self.sapi.loadManifests(dirname, function(err, manifests) {
+    self.sapi.loadManifests(dirname, function (err, manifests) {
         if (err) {
             log.fatal(err, 'Could not load manifests: ' +
                       err.message);
@@ -299,7 +310,7 @@ function addSdcManifests(manifests, cb) {
     var log = self.log;
     if (!app.hasOwnProperty(manifests)) app.manifests = {};
 
-    Object.keys(manifests).forEach(function(name) {
+    Object.keys(manifests).forEach(function (name) {
         if (app.manifests.hasOwnProperty(name)) {
             log.debug('Skipping update of manifest %s', name);
             manifests[name] = app.manifests[name];
@@ -308,19 +319,20 @@ function addSdcManifests(manifests, cb) {
 
     if (Object.getOwnPropertyNames(manifests).length > 0) {
         self.sapi.updateApplication(app.uuid,
-            { manifests : manifests }, function(err) {
+            { manifests : manifests }, function (err) {
                 if (err) {
                     log.fatal(err, 'Failed to update app: %s', err.message);
                     return cb(err);
                 }
                 log.debug('Updated application to add manifests');
                 return cb(null);
-            }
-        );
+        });
     } else {
         log.debug('No manifests to update');
         return cb(null);
     }
+
+    return (null);
 }
 
 // gets the services arranged for creation.
@@ -331,9 +343,9 @@ function prepareServices(cb) {
     var services = self.services;
     var dirname = '/usbkey/services';
 
-    log.debug({ services : services }, "Creating services.");
+    log.debug({ services : services }, 'Creating services.');
     vasync.forEachParallel({
-        func: function(service, _cb) {
+        func: function (service, _cb) {
             // can't believe we need to read a file just for this.
             var file = dirname + '/' + service + '/service.json';
             var extras = { metadata : {}, params : {} };
@@ -342,7 +354,7 @@ function prepareServices(cb) {
             var svcDef;
             // XXX - slightly clumsy way to get the package defn.
             // consider moving this to build time?
-            fs.readFile(file, function(err, data) {
+            fs.readFile(file, function (err, data) {
                 if (err) {
                     log.error(err, 'Failed to read %s: %s', file, err.message);
                     return _cb(err);
@@ -350,7 +362,7 @@ function prepareServices(cb) {
 
                 try {
                     svcDef = JSON.parse(data);
-                } catch(e) {
+                } catch (e) {
                     log.error(e, 'Failed to parse %s: %s', file, e.message);
                     return _cb(e);
                 }
@@ -362,7 +374,8 @@ function prepareServices(cb) {
                     return _cb(new Error('No package name for ' + service));
                 }
 
-                return _cb(null, [service, self.app.uuid, file, extras]);
+                return _cb(null,
+                    [service, self.app.uuid, file, extras, svcDef]);
             });
         },
         inputs: services
@@ -372,7 +385,7 @@ function prepareServices(cb) {
             return cb(err);
         }
 
-        serviceList = results.successes;
+        var serviceList = results.successes;
         log.debug({ services : serviceList }, 'Created services');
         return cb(null, serviceList);
     });
@@ -383,19 +396,25 @@ function prepareServices(cb) {
 // serviceList is [service, self.app.uuid, file, extras]
 function filterServices(serviceList, cb) {
     var log = self.log;
-    fs.readFile('/usbkey/default/user-script.common', function(err, data) {
+    fs.readFile('/usbkey/default/user-script.common', function (err, data) {
         if (err) {
             log.fatal(err, 'Could not read user script: %s', err.message);
             return cb(err);
         }
 
-        var list = serviceList.map(function(serviceArgs) {
+        var list = serviceList.map(function (serviceArgs) {
             var service = serviceArgs[0];
             var extras = serviceArgs[3];
+            var svcDef = serviceArgs[4];
+
+            assert.ok(serviceArgs.length === 5);
+            assert.string(service, 'service');
+            assert.object(extras, 'extras');
+            assert.object(svcDef, 'svcDef');
 
             // ufds needs package defn's.
             if (service == 'ufds') {
-                packages = Object.keys(self.config).reduce(function(acc, key) {
+                packages = Object.keys(self.config).reduce(function (acc, key) {
                     if (key.match('^pkg_')) acc.push(self.config[key]);
                     return acc;
                 }, []);
@@ -411,14 +430,37 @@ function filterServices(serviceList, cb) {
                 JSON.stringify(self.config.dns_resolvers.split(','));
             }
 
+            // The CloudAPI service's plugins each need the datacenter name
+            if (service === 'cloudapi') {
+                var datacenter = self.config.datacenter_name;
+                var plugins = svcDef.metadata['CLOUDAPI_PLUGINS'];
+
+                plugins.forEach(function (plugin) {
+                    if (plugin.config)
+                        plugin.config.datacenter = datacenter;
+                });
+
+                extras.metadata['CLOUDAPI_PLUGINS'] = JSON.stringify(plugins);
+
+                extras.metadata['CLOUDAPI_DATACENTERS'] = {};
+                extras.metadata['CLOUDAPI_DATACENTERS'][datacenter] =
+                    'https://' + self.app.metadata['CLOUDAPI_SERVICE'];
+            }
+
             // *everything* needs customer_metadata
             if (!extras.params.hasOwnProperty('customer_metadata')) {
                 extras.params['customer_metadata'] = {};
             }
 
-            extras.metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
+            extras.metadata['sapi-url'] =
+                'http://' + self.config.sapi_admin_ips;
             extras.metadata['assets-ip'] = self.config.assets_admin_ip;
             extras.metadata['user-script'] = data.toString();
+
+            // There's no need to pass the service defintion to
+            // getOrCreateService() below, so remove it.
+            serviceArgs.pop();
+
             return serviceArgs;
         });
 
@@ -431,12 +473,12 @@ function filterServices(serviceList, cb) {
 function getOrCreateServices(serviceList, cb) {
     var log = self.log;
     vasync.forEachParallel({
-        func: function(serviceArgs, _cb) {
+        func: function (serviceArgs, _cb) {
             var f = self.sapi.getOrCreateService;
             f.apply(self.sapi, serviceArgs.concat(_cb));
         },
         inputs: serviceList
-    }, function(err, results) {
+    }, function (err, results) {
         if (err) {
             log.fatal(err, 'Failed to create SDC services: %s', err.message);
             return cb(err);
@@ -455,19 +497,20 @@ function createSvcManifests(services, cb) {
     var results;
 
     vasync.forEachParallel({
-        func: function(service, _cb) {
+        func: function (service, _cb) {
             var dir = dirname + '/' + service;
-            loadManifests(dir, function(err, manifests) {
+            loadManifests(dir, function (err, manifests) {
                 if (err) {
                     return _cb(err);
                 }
-                log.debug({ manifests : manifests }, 'Found manifests for %s', service)
+                log.debug({ manifests : manifests },
+                    'Found manifests for %s', service);
                 var result = {};
                 result[service] = manifests;
-                return _cb(null, result)
+                return _cb(null, result);
             });
         },
-        inputs: services.map(function(srvc) { return srvc.name })
+        inputs: services.map(function (srvc) { return srvc.name; })
     }, function (err, manifests) {
         // what does this look like anyway?
         if (err) {
@@ -475,10 +518,10 @@ function createSvcManifests(services, cb) {
             return cb(err);
         }
 
-        results = manifests.successes.reduce(function(acc, manifest) {
-            Object.keys(manifest).forEach(function(svc) {
+        results = manifests.successes.reduce(function (acc, manifest) {
+            Object.keys(manifest).forEach(function (svc) {
                 acc[svc] = manifest[svc];
-            })
+            });
             return acc;
         }, {});
 
@@ -491,23 +534,25 @@ function addSvcManifests(manifests, cb) {
     var log = self.log;
 
     vasync.forEachParallel({
-        func: function(service, _cb) {
+        func: function (service, _cb) {
             var svcManifests = manifests[service.name];
 
             if (!service.hasOwnProperty(manifests)) service.manifests = {};
 
-            Object.keys(manifests).forEach(function(name) {
+            Object.keys(manifests).forEach(function (name) {
                 if (service.manifests.hasOwnProperty(name)) {
-                    log.debug('Skipping update of exostomg %s manifest %s', service.name, name);
+                    log.debug('Skipping update of exostomg %s manifest %s',
+                        service.name, name);
                     svcManifests[name] = service.manifests[name];
                 }
             });
 
             if (Object.getOwnPropertyNames(svcManifests).length > 0) {
                 self.sapi.updateService(service.uuid,
-                    { manifests : svcManifests }, function(err) {
+                    { manifests : svcManifests }, function (err) {
                     if (err) {
-                        log.fatal(err, 'Failed to update %s: %s', service.name, err.message);
+                        log.fatal(err, 'Failed to update %s: %s',
+                            service.name, err.message);
                         return _cb(err);
                     }
                     log.debug('Updated %s with manifests', service.name);
@@ -517,11 +562,14 @@ function addSvcManifests(manifests, cb) {
                 log.debug('No manifests to update for %s', service.name);
                 return _cb(null);
             }
+
+            return (null);
         },
         inputs: self.services
-    }, function(err, services) {
+    }, function (err, services) {
         if (err) {
-            log.fatal(err, 'Failed to add manifests to all services: %s', err.message);
+            log.fatal(err,
+                'Failed to add manifests to all services: %s', err.message);
             return cb(err);
         }
         log.debug('All service manifests added.');
@@ -553,9 +601,9 @@ async.waterfall([
     getOrCreateServices,
     createSvcManifests,
     addSvcManifests
-], function(err) {
+], function (err) {
     if (err) {
-        console.error("Error: " + err.message);
+        console.error('Error: ' + err.message);
         process.exit(1);
     }
     process.exit(0);
