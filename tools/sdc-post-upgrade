@@ -37,23 +37,24 @@ if [[ $WRITABLE == 1 ]]; then
     zonename=`vmadm list -H -o uuid,tags.smartdc_role | \
         nawk '/cloudapi/{print $1}'`
 
-    [[ -z "$zonename" ]] && fatal "no cloudapi zone"
+    [[ -z "$zonename" ]] && fatal "no CloudAPI zone"
 
-    echo "Enabling read-write mode in cloudapi"
+    echo "Enabling read-write mode in CloudAPI"
 
-    cfgfile=/zones/$zonename/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
+    service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
+    [[ $? -ne 0 ]] && fatal "failed to get CloudAPI SAPI service"
 
-    nawk '{
-        if ($1 == "\"read_only\":")
-             printf("    \"read_only\": false,\n")
-        else
-            print $0
-    }' $cfgfile >$cfgfile.new
-    cp $cfgfile $cfgfile.bak
-    cp $cfgfile.new $cfgfile
-    rm -f $cfgfile.new
+    tmpfile=/tmp/cloudapi_metadata_changes.$$.json
 
-    zlogin $zonename svcadm restart cloudapi
+    echo "{
+        \"metadata\": {
+            \"CLOUDAPI_READONLY\": false
+         }
+    }" > ${tmpfile}
+
+    sdc-sapi /services/${service_uuid} -T ${tmpfile}
+    [[ $? != 0 ]] && fatal "Error updating CloudAPI metadata"
+    rm ${tmpfile}
 
     exit 0
 fi
