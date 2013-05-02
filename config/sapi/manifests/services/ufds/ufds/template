@@ -82,7 +82,10 @@
             "pwdaccountlockedtime": { "type": "number" },
             "pwdfailuretime": { "type": "number" },
             "_imported": { "type": "string" },
-            "_replicated": { "type": "string" }
+            "_replicated": { "type": "string" },
+            "approved_for_provisioning": { "type": "string" },
+            "created_at": { "type": "number" },
+            "updated_at": { "type": "number" }
         }
     }
 }
