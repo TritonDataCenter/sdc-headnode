@@ -853,10 +853,12 @@ cloudapi_tasks()
         do
             # Only copy non-existant plugins. machine_email and capi_limits
             # have been upgraded to work with vmapi instead of mapi.
-            [[ ! -f /zones/$1/root/opt/smartdc/cloudapi/plugins/$i && \
-               ! -d /zones/$1/root/opt/smartdc/cloudapi/plugins/$i ]] && \
+            if [[ ! -f /zones/$1/root/opt/smartdc/cloudapi/plugins/$i && \
+               ! -d /zones/$1/root/opt/smartdc/cloudapi/plugins/$i ]]; then
+                mkdir -p /zones/$1/root/cloudapi/data/plugins
                 cp -pr $bdir/plugins/$i \
-                    /zones/$1/root/opt/smartdc/cloudapi/plugins
+                    /zones/$1/root/cloudapi/data/plugins
+            fi
         done
     fi
 
@@ -931,7 +933,8 @@ cloudapi_tasks()
 
         // add extra plugins
         oldExtraPlugins.forEach(function (p) {
-            p.name = path.basename(p.plugin);
+            p.name = "../../../../cloudapi/data/plugins/" +
+                path.basename(p.plugin);
             delete p.plugin;
             cfg.plugins.push(p);
         });
