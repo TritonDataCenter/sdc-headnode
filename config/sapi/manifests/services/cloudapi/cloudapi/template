@@ -2,7 +2,7 @@
     "port": 443,
     "certificate": "/opt/smartdc/cloudapi/ssl/cert.pem",
     "key": "/opt/smartdc/cloudapi/ssl/key.pem",
-    "read_only": false,
+    "read_only": {{{CLOUDAPI_READONLY}}},
     "ufds": {
         "url": "ldaps://{{{ufds_admin_ips}}}",
         "bindDN": "{{{ufds_ldap_root_dn}}}",
@@ -74,9 +74,7 @@
         "url": "http://{{{usageapi_admin_ips}}}"
     },
     "keyapi": "http://{{{keyapi_admin_ips}}}",
-    "datacenters": {
-        "{{{datacenter_name}}}": "https://{{EXTERNAL_IP}}"
-    },
+    "datacenters": {{{CLOUDAPI_DATACENTERS}}},
     "ufds_admin_uuid": "{{{ufds_admin_uuid}}}",
     "plugins": {{{CLOUDAPI_PLUGINS}}},
     "userThrottles": {

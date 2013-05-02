@@ -10,6 +10,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "cloudapi",
+		"CLOUDAPI_READONLY": false,
 		"CLOUDAPI_PLUGINS": [
 			{
 	            "name": "provision_limits",

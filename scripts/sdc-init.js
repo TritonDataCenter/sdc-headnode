@@ -445,6 +445,8 @@ function filterServices(serviceList, cb) {
                 extras.metadata['CLOUDAPI_DATACENTERS'] = {};
                 extras.metadata['CLOUDAPI_DATACENTERS'][datacenter] =
                     'https://' + self.app.metadata['CLOUDAPI_SERVICE'];
+                extras.metadata['CLOUDAPI_DATACENTERS'] =
+		    JSON.stringify(extras.metadata['CLOUDAPI_DATACENTERS']);
             }
 
             // *everything* needs customer_metadata

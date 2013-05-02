@@ -946,8 +946,18 @@ cloudapi_tasks()
 
     sdc-sapi /services/${service_uuid} -T ${tmpfile}
     [[ $? != 0 ]] && saw_err "Error updating CloudAPI plugins and datacenters"
-
     rm -f $tmpfile
+
+    # Put CloudAPI into read-only mode
+    echo "{
+        \"metadata\": {
+            \"CLOUDAPI_READONLY\": true
+         }
+    }" > ${tmpfile}
+
+    sdc-sapi /services/${service_uuid} -T ${tmpfile}
+    [[ $? != 0 ]] && saw_err "Error updating CloudAPI mode"
+    rm ${tmpfile}
 
     # Boot the zone with the new config data
     zoneadm -z $1 boot
