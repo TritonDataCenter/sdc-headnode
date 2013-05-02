@@ -45,7 +45,7 @@ if [[ -f "/lib/sdc/config.sh" ]]; then
     source /lib/sdc/config.sh
     load_sdc_config
     UFDS_CREDENTIALS="$CONFIG_ufds_ldap_root_dn:$CONFIG_ufds_ldap_root_pw"
-    UFDS_HOST="${CONFIG_ufds_admin_ips%%,*}"
+    UFDS_HOST="${CONFIG_ufds_domain}"
 else
     if [[ -z "$UFDS_CREDENTIALS" ]]; then
         UFDS_CREDENTIALS=cn=root:secret

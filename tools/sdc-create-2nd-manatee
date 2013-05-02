@@ -84,8 +84,7 @@ function find_sapi_url
 {
     local sapi_ip=
 
-    sapi_ip=$(bash /lib/sdc/config.sh -json | json sapi_admin_ips \
-        | sed -e "s/,.*$//" | sed -e "s/[^0-9\.]//")
+    sapi_ip=$(bash /lib/sdc/config.sh -json | json sapi_domain)
     sapi_url=http://${sapi_ip}
     if [[ -z ${sapi_ip} ]]; then
         echo ""

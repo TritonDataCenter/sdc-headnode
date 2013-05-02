@@ -41,13 +41,12 @@ if [[ -z "$AMON_URL" && -f /lib/sdc/config.sh ]]; then
     source /lib/sdc/config.sh
     load_sdc_config
 
-    if [[ -z ${CONFIG_amon_admin_ips} ]]; then
-        echo "error: Unable to find IP for amon. Is it installed?"
+    if [[ -z ${CONFIG_amon_domain} ]]; then
+        echo "error: Unable to find address for amon. Is it installed?"
         exit 1
     fi
 
-    # Just use the first of the "amon_admin_ips".
-    AMON_URL=http://$(echo $CONFIG_amon_admin_ips | cut -d, -f1)
+    AMON_URL=http://${CONFIG_amon_domain}
 fi
 if [[ -z "$AMON_URL" ]]; then
     echo "error: AMON_URL envvar is not set and could not be determined"

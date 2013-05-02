@@ -85,10 +85,9 @@ add_pkg()
 
 update_sdc_zone_pkgs()
 {
-	[[ -z ${CONFIG_vmapi_admin_ips} ]] && return
+	[[ -z ${CONFIG_vmapi_domain} ]] && return
 
-	local vmapi_ip=$(echo "${CONFIG_vmapi_admin_ips}" | cut -d ',' -f1)
-	local vmurl="http://${vmapi_ip}"
+	local vmurl="http://${CONFIG_vmapi_domain}"
 
 	curl -sS \
     --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \

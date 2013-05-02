@@ -107,7 +107,7 @@ function createClient(api, callback) {
             return;
         case 'WFAPI':
             handle = restify.createJsonClient({
-                url: 'http://' + sdc_config.workflow_admin_ips.split(',')[0],
+                url: 'http://' + sdc_config.workflow_domain,
                 agent: false
             });
             callback(null, handle);
