@@ -839,9 +839,6 @@ cloudapi_tasks()
 
     zlogin $1 zfs set mountpoint=/cloudapi/data zones/$1/data
 
-    # We're going to replace the config files, so halt the zone
-    shutdown_zone $1
-
     # Parts of the 6.5.x backup are compatible with the 7.0 cloudapi
     # configuration, but not all, so restore what we can and convert the rest.
 
@@ -962,8 +959,8 @@ cloudapi_tasks()
     [[ $? != 0 ]] && saw_err "Error updating CloudAPI mode"
     rm ${tmpfile}
 
-    # Boot the zone with the new config data
-    zoneadm -z $1 boot
+    # Reboot the zone with the new config data
+    zoneadm -z $1 reboot
 }
 
 
