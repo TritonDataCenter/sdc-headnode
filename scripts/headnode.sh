@@ -795,6 +795,15 @@ for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/manta/*); do
     mv ${file} /opt/smartdc/bin/${tool}
 done
 
+# Copy sapiadm into the GZ from the SAPI zone
+zone_uuid=$(vmadm list | grep sapi | head -n 1 | awk '{print $1}')
+if [[ -n ${zone_uuid} ]]; then
+    from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
+    to_dir=/opt/smartdc/bin
+    rm -f ${to_dir}/sapiadm
+    ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
+fi
+
 
 # Import dataset images into IMGAPI
 function import_datasets {
