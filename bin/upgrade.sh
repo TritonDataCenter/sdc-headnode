@@ -362,6 +362,23 @@ function dump_mapi
     [ $? != 0 ] && fatal "generating create_time file"
 }
 
+function get_net_uuid
+{
+    NET_UUID=`nawk -F, -v type=$1 '{
+        split($1, a, ":")
+        nm = substr(a[2], 2, length(a[2]) - 2)
+        if (nm == type) {
+            for (i = 2; i < NF; i++) {
+                split($i, a, ":")
+                if (a[1] == "\"uuid\"") {
+                    val = substr(a[2], 2, length(a[2]) - 2)
+                    print val
+                }
+            }
+        }
+    }' /tmp/mapi_dump/napi_networks.moray`
+}
+
 # Use a subset of the table dump from mapi to find all zones with IP addresses
 # on the admin network. We do this dump before we start the upgrade, so we
 # will re-dump later to be sure we have the latest data.
@@ -404,6 +421,11 @@ function dump_mapi_netinfo
         num_to_ip $i
         echo $ip_addr >> /tmp/admin_ips.txt
     done
+
+    get_net_uuid "admin"
+    ADMIN_NET_UUID=$NET_UUID
+    get_net_uuid "external"
+    EXTERNAL_NET_UUID=$NET_UUID
 
     rm -rf /tmp/mapi_dump
 }
@@ -883,6 +905,10 @@ function cleanup_config
 	done
 
 	cat <<-DONE >>/tmp/config.$$
+
+	# UUIDs for the admin and external networks
+	admin_uuid=$ADMIN_NET_UUID
+	external_uuid=$EXTERNAL_NET_UUID
 
 	adminui_admin_ips=$adminui_admin_ip
 	adminui_external_ips=$CONFIG_adminui_external_ip

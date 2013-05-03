@@ -10,6 +10,7 @@
   "initialNetworks": {
     "admin": {
       "vlan": 0,
+      "uuid": "{{{admin_uuid}}}",
       "network": "{{{admin_network}}}",
       "netmask": "{{{admin_netmask}}}",
       "gateway": "{{{admin_gateway}}}",
@@ -19,6 +20,7 @@
     }{{#external_network}},
     "external": {
       "vlan": {{{external_vlan_id}}}{{^external_vlan_id}}0{{/external_vlan_id}},
+      "uuid": "{{{external_uuid}}}",
       "network": "{{{external_network}}}",
       "netmask": "{{{external_netmask}}}",
       "gateway": "{{{external_gateway}}}",
