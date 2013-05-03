@@ -1237,13 +1237,15 @@ function update_vm_attrs
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
 
 CHECK_ONLY=0
+DO_CHECKS=1
 AGENTS_ONLY=0
 FATAL_CNT=0
-while getopts "ac" opt
+while getopts "acC" opt
 do
 	case "$opt" in
 		a)	AGENTS_ONLY=1;;
 		c)	CHECK_ONLY=1;;
+		C)	DO_CHECKS=0;;
 		*)	echo "ERROR: invalid option" >/dev/stderr
 			exit 1;;
 	esac
@@ -1324,34 +1326,38 @@ mount_usbkey
 check_versions
 umount_usbkey
 
-# Make sure there are no svcs in maintenance. This will break checking later
-# in the upgrade process. Also, we don't want multiple users on the HN in
-# the middle of an upgrade and we want to be sure the zpool is stable.
-maint_svcs=`svcs -x | nawk 'BEGIN {cnt=0} {
-   if (substr($0, 1, 4) == "svc:") cnt++
-   } END {print cnt}'`
-[ $maint_svcs -gt 0 ] && \
-    fatal "there are SMF svcs in maintenance, unable to proceed with upgrade."
+if [ $DO_CHECKS -eq 1 ]; then
+    # Make sure there are no svcs in maintenance. This will break checking later
+    # in the upgrade process. Also, we don't want multiple users on the HN in
+    # the middle of an upgrade and we want to be sure the zpool is stable.
+    maint_svcs=`svcs -x | nawk 'BEGIN {cnt=0} {
+       if (substr($0, 1, 4) == "svc:") cnt++
+       } END {print cnt}'`
+    [ $maint_svcs -gt 0 ] && \
+        fatal "there are SMF svcs in maintenance, unable to proceed with" \
+            "upgrade."
 
-nusers=`who | wc -l`
-[ $nusers -gt 1 ] && \
-    fatal "there are multiple users logged in, unable to proceed with upgrade."
+    nusers=`who | wc -l`
+    [ $nusers -gt 1 ] && \
+        fatal "there are multiple users logged in, unable to proceed with" \
+           "upgrade."
 
-zpool status zones >/dev/null
-[ $? -ne 0 ] && \
-    fatal "the 'zones' zpool has errors, unable to proceed with upgrade."
+    zpool status zones >/dev/null
+    [ $? -ne 0 ] && \
+        fatal "the 'zones' zpool has errors, unable to proceed with upgrade."
 
-# check that we have enough space
-mount_usbkey
-fspace=`df -k /mnt/usbkey | nawk '{if ($4 != "avail") print $4}'`
-umount_usbkey
-# At least 700MB free on key?
-[[ $fspace -lt 700000 ]] && \
-    fatal "there is not enough free space on the USB key"
-fspace=`zfs list -o avail -Hp zones`
-# At least 4GB free on disk?
-[[ $fspace -lt 4000000000 ]] && \
-    fatal "there is not enough free space in the zpool"
+    # check that we have enough space
+    mount_usbkey
+    fspace=`df -k /mnt/usbkey | nawk '{if ($4 != "avail") print $4}'`
+    umount_usbkey
+    # At least 700MB free on key?
+    [[ $fspace -lt 700000 ]] && \
+        fatal "there is not enough free space on the USB key"
+    fspace=`zfs list -o avail -Hp zones`
+    # At least 4GB free on disk?
+    [[ $fspace -lt 4000000000 ]] && \
+        fatal "there is not enough free space in the zpool"
+fi
 
 rm -rf /tmp/admin_ips.txt /tmp/mapi_dump
 dump_server_addrs
@@ -1408,33 +1414,38 @@ if [[ $CAPI_FOUND == 0 ]]; then
         print a[1]
     }'`
 
-    # Need to check from adminui since GZ may not get through firewall
-    echo -n "Checking connectivity to remote UFDS..."
-    zlogin adminui curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
-    if [ $? != 52 ]; then
-        echo
-        fatal "remote UFDS not responding"
-    else
-        printf "OK\n"
+    if [ $DO_CHECKS -eq 1 ]; then
+        # Need to check from adminui since GZ may not get through firewall
+        echo -n "Checking connectivity to remote UFDS..."
+        zlogin adminui curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
+        if [ $? != 52 ]; then
+            echo
+            fatal "remote UFDS not responding"
+        else
+            printf "OK\n"
+        fi
     fi
 fi
 
-echo -n "Checking each compute node for correct agents..."
-num_cn=`sdc-oneachnode $skip_arg -c hostname | egrep -v "^HOST" | wc -l`
-num_hb=`sdc-oneachnode $skip_arg -c \
-    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-    egrep heartbeater@1.0.1 | wc -l`
-num_prov=`sdc-oneachnode $skip_arg -c \
-    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-    egrep provisioner-v2@1.0.11 | wc -l`
-num_zt=`sdc-oneachnode $skip_arg -c \
-    /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-    egrep zonetracker-v2@1.0.7 | wc -l`
-if [[ $num_hb != $num_cn || $num_prov != $num_cn || $num_zt != $num_cn ]]; then
-    echo
-    fatal "The correct agents are not installed on each compute node"
-else
-    printf "OK\n"
+if [ $DO_CHECKS -eq 1 ]; then
+    echo -n "Checking each compute node for correct agents..."
+    num_cn=`sdc-oneachnode $skip_arg -c hostname | egrep -v "^HOST" | wc -l`
+    num_hb=`sdc-oneachnode $skip_arg -c \
+        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+        egrep heartbeater@1.0.1 | wc -l`
+    num_prov=`sdc-oneachnode $skip_arg -c \
+        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+        egrep provisioner-v2@1.0.11 | wc -l`
+    num_zt=`sdc-oneachnode $skip_arg -c \
+        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
+        egrep zonetracker-v2@1.0.7 | wc -l`
+    if [[ $num_hb != $num_cn || $num_prov != $num_cn || $num_zt != $num_cn ]]
+    then
+        echo
+        fatal "The correct agents are not installed on each compute node"
+    else
+        printf "OK\n"
+    fi
 fi
 
 # End of validation checks, quit now if only validating
