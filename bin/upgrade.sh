@@ -749,6 +749,7 @@ function cleanup_config
 	/^dnsapi_/d
 	/^dhcpd_admin_ip=/d
 	/^dhcp_next_server=/d
+	/^dhcp_lease_time=/d
 	/^dhcpd_admin_pw=/d
 	/^mapi_/d
 	/^portal_/d
@@ -908,6 +909,14 @@ function cleanup_config
 		binder_resolver_ips="$binder_resolver_ips,$ip_addr"
 	done
 
+	#
+	# The floor for default DHCP lease time (for CNs) is 30 days.
+	#
+	dhcp_lease_time=${CONFIG_dhcp_lease_time}
+	if [[ "${CONFIG_dhcp_lease_time}" -lt 2592000 ]]; then
+		dhcp_lease_time=2592000
+	fi
+
 	cat <<-DONE >>/tmp/config.$$
 
 	# UUIDs for the admin and external networks
@@ -924,6 +933,7 @@ function cleanup_config
 	dhcpd_admin_ip=$dhcpd_admin_ip
 	dhcpd_admin_ips=$dhcpd_admin_ip
 	dhcpd_domain=dhcpd.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
+	dhcp_lease_time=$dhcp_lease_time
 
 	rabbitmq_admin_ip=$rabbitmq_admin_ip
 	rabbitmq_admin_ips=$rabbitmq_admin_ip

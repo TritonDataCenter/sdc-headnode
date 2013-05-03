@@ -574,7 +574,7 @@ dns_domain=\${dns_domain}
 
 dhcp_range_start=\${dhcp_range_start}
 dhcp_range_end=\${dhcp_range_end}
-dhcp_lease_time=86400
+dhcp_lease_time=2592000
 dhcp_next_server=\${dhcp_next_server}
 
 initial_script=scripts/headnode.sh
