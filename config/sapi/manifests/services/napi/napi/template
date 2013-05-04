@@ -7,6 +7,15 @@
     "port": 2020
   },
   "ufdsAdminUuid": "{{{ufds_admin_uuid}}}",
+  "wfapi": {
+    "forceReplace": true,
+    "retry": {
+      "maxTimeout": 6000,
+      "minTimeout": 100,
+      "retries": "Infinity"
+    },
+    "url": "http://{{{WORKFLOW_SERVICE}}}"
+  },
   "initialNetworks": {
     "admin": {
       "vlan": 0,
