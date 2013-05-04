@@ -91,12 +91,15 @@ function translateConfig(cb) {
     }
 
     // binder is also zookeeper.
+    // bootstrap constraint here: num aligns with ZK_ID of
     if (config.hasOwnProperty('binder_admin_ips')) {
         var binderIps = config.binder_admin_ips.split(',');
         var zkServers = binderIps.map(function (e, i, c) {
             var server = {
                 host: e,
-                port: 2181
+                port: 2181,
+                num: 1,
+                last: true
             };
             if (i == c.length - 1) server.last = true;
             return server;
