@@ -127,7 +127,7 @@ create_extra_zones()
         ext_ip=`nawk -v role=$i '{if ($1 == role) print $2 }' \
             ${SDC_UPGRADE_DIR}/ext_addrs.txt`
 
-        local service_uuid=$(sdc-sapi /servers?name=$i | json -H 0.uuid)
+        local service_uuid=$(sdc-sapi /services?name=$i | json -H 0.uuid)
         local payload="{
             \"service_uuid\": \"$service_uuid\",
             \"params\": {
