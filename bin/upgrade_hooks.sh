@@ -131,7 +131,7 @@ create_extra_zones()
         local payload="{
             \"service_uuid\": \"$service_uuid\",
             \"params\": {
-                \"alias\": \"${i}4\",
+                \"alias\": \"${i}0\",
                 \"networks\": [
                     {
                         \"uuid\": \"$(sdc-napi /networks | json -H -c 'this.nic_tag=="admin"' 0.uuid)\"
