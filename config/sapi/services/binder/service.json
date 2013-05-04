@@ -8,6 +8,7 @@
             "smartdc_role": "binder",
             "smartdc_type": "core"
         },
+        "resolvers": [],
         "internal_metadata": {
             "set_resolvers": false
         }
