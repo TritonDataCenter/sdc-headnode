@@ -476,15 +476,29 @@ IMGAPI.prototype.createImage = function createImage(data, account, callback) {
  * Typically it is for importing existing images from images.joyent.com.
  *
  * @param {String} data : the image data.
+ * @param {Object} options: For backward compat, this argument is optional.
+ *      - skipOwnerCheck {Boolean} Optional. Default false.
  * @param {Function} callback : `function (err, image, res)`
  */
-IMGAPI.prototype.adminImportImage = function adminImportImage(data, callback) {
+IMGAPI.prototype.adminImportImage = function adminImportImage(
+        data, options, callback) {
     var self = this;
+    if (callback === undefined) {
+        callback = options;
+        options = {};
+    }
     assert.object(data, 'data');
+    assert.object(options, 'options');
+    assert.optionalBool(options.skipOwnerCheck, 'options.skipOwnerCheck');
     assert.func(callback, 'callback');
     assert.string(data.uuid, 'data.uuid');
 
-    var path = format('/images/%s?action=import', data.uuid);
+    path += '?' + qs.stringify(query);
+    var query = {action: 'import'};
+    if (options.skipOwnerCheck) {
+        query.skip_owner_check = true;
+    }
+    var path = format('/images/%s?%s', data.uuid, qs.stringify(query));
     self._getAuthHeaders(function (hErr, headers) {
         if (hErr) {
             callback(hErr);
@@ -517,6 +531,7 @@ IMGAPI.prototype.adminImportImage = function adminImportImage(data, callback) {
  *      - {Number} size : The number of bytes. If `file` is a stream, then
  *        this is required, otherwise it will be retrieved with `fs.stat`.
  *      - {String} compression : One of 'bzip2', 'gzip', or 'none'.
+ *      - {String} sha1 : SHA-1 hash of the file being uploaded.
  * @param {UUID} account : Optional. The UUID of the account on behalf of whom
  *      this request is being made. If given this will only return images
  *      accessible to that account.
@@ -530,6 +545,7 @@ IMGAPI.prototype.addImageFile = function addImageFile(options, account,
     assert.string(options.compression, 'options.compression');
     assert.ok(['string', 'object'].indexOf(typeof (options.file)) !== -1,
         'options.file');
+    assert.optionalString(options.sha1, 'options.sha1');
     assert.optionalNumber(options.size, 'options.size');
     if (callback === undefined) {
         callback = account;
@@ -578,6 +594,9 @@ IMGAPI.prototype.addImageFile = function addImageFile(options, account,
             var query = {compression: options.compression};
             if (account) {
                 query.account = account;
+            }
+            if (options.sha1) {
+                query.sha1 = options.sha1;
             }
             path += '?' + qs.stringify(query);
             var opts = {
@@ -765,6 +784,7 @@ IMGAPI.prototype.getImageFileStream = function getImageFileStream(
  *        similar due to a node stream API bug.
  *      - {Number} size : The number of bytes. If `file` is a stream, then
  *        this is required, otherwise it will be retrieved with `fs.stat`.
+ *      - {String} sha1 : SHA-1 hash of the icon file being uploaded.
  * @param {UUID} account : Optional. The UUID of the account on behalf of whom
  *      this request is being made. If given this will only return images
  *      accessible to that account.
@@ -778,6 +798,7 @@ IMGAPI.prototype.addImageIcon = function addImageIcon(options, account,
     assert.string(options.contentType, 'options.contentType');
     assert.ok(['string', 'object'].indexOf(typeof (options.file)) !== -1,
         'options.file');
+    assert.optionalString(options.sha1, 'options.sha1');
     assert.optionalNumber(options.size, 'options.size');
     if (callback === undefined) {
         callback = account;
@@ -826,6 +847,9 @@ IMGAPI.prototype.addImageIcon = function addImageIcon(options, account,
             var query = {};
             if (account) {
                 query.account = account;
+            }
+            if (options.sha1) {
+                query.sha1 = options.sha1;
             }
             path += '?' + qs.stringify(query);
             var opts = {

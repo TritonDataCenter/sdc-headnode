@@ -253,6 +253,19 @@ NAPI.prototype.getNetwork = function (uuid, callback) {
 
 
 /**
+ * Updates the Network specified by UUID.
+ *
+ * @param {String} uuid : the UUID.
+ * @param {Object} params : the parameters to update.
+ * @param {Function} callback : of the form f(err, res).
+ */
+NAPI.prototype.updateNetwork = function (uuid, params, callback) {
+    assert.string(uuid, 'uuid');
+    return this.put(format('/networks/%s', uuid), params, callback);
+};
+
+
+/**
  * Deletes a Network by UUID.
  *
  * @param {String} uuid : the UUID.

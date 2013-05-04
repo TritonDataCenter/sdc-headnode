@@ -228,6 +228,33 @@ VMAPI.prototype.rebootVm = function (params, callback) {
 
 
 /**
+ * Reprovisions a VM. Returns a Job Response Object
+ *
+ * @param {String} uuid : the UUID of the VM.
+ * @param {String} image_uuid : the UUID of the Image to reprovision the VM with
+ * @param {Function} callback : of the form f(err, job).
+ */
+VMAPI.prototype.reprovisionVm = function (params, callback) {
+    var query = { action: 'reprovision' };
+
+    if (!params || typeof (params) !== 'object')
+        throw new TypeError('params is required (object)');
+    if (!params.uuid)
+        throw new TypeError('UUID is required');
+    if (!params.image_uuid)
+        throw new TypeError('Image UUID (image_uuid) is required');
+    if (params.owner_uuid)
+        query.owner_uuid = params.owner_uuid;
+    if (params.context) {
+        query.context = params.context;
+    }
+    query.image_uuid = params.image_uuid;
+    return this.post(format('/vms/%s', params.uuid), query, callback);
+};
+
+
+
+/**
  * Updates a VM. Returns a Job Response Object
  *
  * @param {String} uuid : the UUID of the VM.

@@ -186,7 +186,8 @@ SAPI.prototype.getService = getService;
  * Updates a service
  *
  * @param {String} uuid: the UUID of the services.
- * @param {String} opts: new attributes
+ * @param {String} opts: Optional attributes per
+ *      <https://mo.joyent.com/docs/sapi/master/#UpdateService>
  * @param {Function} callback: of the form f(err, app).
  */
 function updateService(uuid, opts, callback) {
@@ -218,15 +219,20 @@ SAPI.prototype.deleteService = deleteService;
 /**
  * Create an instance
  *
- * @param {Function} callback: of the form f(err, app).
+ * @param {String} service_uuid: The UUID of the service for which to create
+ *      an instance.
+ * @param {String} opts: Optional attributes per
+ *      <https://mo.joyent.com/docs/sapi/master/#CreateInstance>
+ * @param {Function} callback: of the form f(err, instance).
  */
 function createInstance(service_uuid, opts, callback) {
     assert.string(service_uuid, 'service_uuid');
-
     if (typeof (opts) === 'function') {
         callback = opts;
         opts = {};
     }
+    assert.object(opts, 'opts');
+    assert.func(callback, 'callback');
 
     opts.service_uuid = service_uuid;
 
@@ -265,6 +271,26 @@ function getInstance(uuid, callback) {
 }
 
 SAPI.prototype.getInstance = getInstance;
+
+/**
+ * Reprovision an instance
+ *
+ * @param {String} uuid: the UUID of the instances.
+ * @param {String} image_uuid: new attributes
+ * @param {Function} callback: of the form f(err, app).
+ */
+function reprovisionInstance(uuid, image_uuid, callback) {
+    assert.string(uuid, 'uuid');
+    assert.string(image_uuid, 'image_uuid');
+
+    var opts = {};
+    opts.image_uuid = image_uuid;
+
+    return (this.put(sprintf('/instances/%s/upgrade', uuid), opts, callback));
+}
+
+SAPI.prototype.reprovisionInstance = reprovisionInstance;
+
 
 
 /**
@@ -368,11 +394,22 @@ SAPI.prototype.deleteManifest = deleteManifest;
 
 // -- Images
 
-function searchImages(name, callback) {
+function searchImages(name, version, callback) {
+    if (arguments.length === 2) {
+        callback = version;
+        version = null;
+    }
+
     assert.string(name, 'name');
+    assert.optionalString(version, 'version');
     assert.func(callback, 'callback');
 
-    return (this.get(sprintf('/images?name=%s', name), callback));
+    var uri = sprintf('/images?name=%s', name);
+
+    if (version)
+        uri = uri + sprintf('&version=%s', version);
+
+    return (this.get(uri, callback));
 }
 
 SAPI.prototype.searchImages = searchImages;
@@ -420,15 +457,28 @@ function setMode(mode, callback) {
 
 SAPI.prototype.setMode = setMode;
 
+
+
+// -- Payloads
+
+SAPI.prototype.getPayload = function getPayload(uuid, callback) {
+    assert.string(uuid, 'uuid');
+    assert.func(callback, 'callback');
+
+    return (this.get(sprintf('/instances/%s/payload', uuid), callback));
+};
+
 module.exports = SAPI;
 
 
 
 // -- Helper functions
 
+SAPI.prototype.getApplicationObjects = getApplicationObjects;
 SAPI.prototype.getOrCreateApplication = getOrCreateApplication;
 SAPI.prototype.getOrCreateService = getOrCreateService;
 SAPI.prototype.loadManifests = loadManifests;
+SAPI.prototype.whatis = whatis;
 
 
 function readJsonFile(file, cb) {
@@ -480,6 +530,75 @@ function mergeOptions(opts1, opts2) {
     }
 
     return (opts);
+}
+
+/*
+ * getApplicationObjects - get all services and instances contained in a given
+ *   application.  Returns an object with two fields, "services" and
+ *   "instances".  The "services" field maps each service's UUID to its service
+ *   definition, and the "instances" field maps each service's UUID to a list of
+ *   associated instances.
+ */
+function getApplicationObjects(app_uuid, cb) {
+    var self = this;
+
+    assert.string(app_uuid, 'app_uuid');
+    assert.func(cb, 'cb');
+
+    var ret = {};
+
+    async.waterfall([
+        function (subcb) {
+            var search_opts = {};
+            search_opts.application_uuid = app_uuid;
+
+            self.listServices(search_opts, function (err, svcs) {
+                if (err)
+                    return (subcb(err));
+
+                ret.services = {};
+                svcs.forEach(function (svc) {
+                    ret.services[svc.uuid] = svc;
+                });
+
+                return (subcb());
+            });
+        },
+        function (subcb) {
+            ret.instances = {};
+
+            self.listInstances(function (err, insts) {
+                if (err)
+                    return (subcb(err));
+
+                /*
+                 * The listInstances() call returns all instances, not just
+                 * those contained within the application.  To see if an
+                 * instance should be included, check its service_uuid to see it
+                 * it refers to a service within the given application.
+                 */
+                insts.forEach(function (inst) {
+                    var svc_uuid = inst.service_uuid;
+                    if (!ret.services[svc_uuid])
+                        return;
+                    if (!ret.instances[svc_uuid])
+                        ret.instances[svc_uuid] = [];
+                    ret.instances[svc_uuid].push(inst);
+                });
+
+                return (subcb());
+            });
+        }
+    ], function (err) {
+        if (err)
+            return (cb(err));
+
+        assert.object(ret, 'ret');
+        assert.object(ret.services, 'ret.services');
+        assert.object(ret.instances, 'ret.instances');
+
+        return (cb(null, ret));
+    });
 }
 
 /*
@@ -783,5 +902,56 @@ function loadManifests(dirname, cb) {
         });
 
         return (null);
+    });
+}
+
+/*
+ * whatis - get either an application, service, or instance by UUID
+ */
+function whatis(uuid, cb) {
+    assert.string(uuid, 'uuid');
+    assert.func(cb, 'cb');
+
+    var self = this;
+
+    async.waterfall([
+        function (subcb) {
+            self.getApplication(uuid, function (err, app) {
+                if (err && err.statusCode !== 404)
+                    return (cb(err));
+                if (app) {
+                    app.type = 'application';
+                    return (cb(null, app));
+                }
+
+                return (subcb(null));
+            });
+        },
+        function (subcb) {
+            self.getService(uuid, function (err, svc) {
+                if (err && err.statusCode !== 404)
+                    return (cb(err));
+                if (svc) {
+                    svc.type = 'service';
+                    return (cb(null, svc));
+                }
+
+                return (subcb(null));
+            });
+        },
+        function (subcb) {
+            self.getInstance(uuid, function (err, inst) {
+                if (err && err.statusCode !== 404)
+                    return (cb(err));
+                if (inst) {
+                    inst.type = 'instance';
+                    return (cb(null, inst));
+                }
+
+                return (subcb(null));
+            });
+        }
+    ], function () {
+        cb(null, null);
     });
 }
