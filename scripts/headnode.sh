@@ -441,6 +441,64 @@ for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
     mv ${tmpmanifest} ${manifest}
 done
 
+function copy_extras
+{
+    local zone=$1
+    dir=${USB_COPY}/extra/${zone}
+    mkdir -p ${dir}
+
+    for file in configure backup restore setup; do
+        if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
+            rm -f ${dir}/${file}
+            ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
+        fi
+    done
+    if [[ -f ${USB_COPY}/default/setup.common ]]; then
+        # extra include file for core zones.
+        rm -f ${dir}/setup.common
+        ln ${USB_COPY}/default/setup.common ${dir}/setup.common
+    fi
+    if [[ -f ${USB_COPY}/default/configure.common ]]; then
+        # extra include file for core zones.
+        rm -f ${dir}/configure.common
+        ln ${USB_COPY}/default/configure.common ${dir}/configure.common
+    fi
+    if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
+        rm -f ${dir}/bashrc
+        ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
+    fi
+
+    # HEAD-1371 - zoneconfig should shrink or disappear for most zones,
+    # depending on what is removed from their configure/setup scripts.
+    if [[ -f ${USB_COPY}/zones/${zone}/zoneconfig ]]; then
+        # This allows zoneconfig to use variables that exist in the <USB>/config
+        # file, by putting them in the environment then putting the zoneconfig
+        # in the environment, then printing all the variables from the file.  It
+        # is done in a subshell to avoid further namespace polution.
+        (
+            . ${USB_COPY}/config
+            . ${USB_COPY}/config.inc/generic
+            . ${USB_COPY}/zones/${zone}/zoneconfig
+            for var in $(cat ${USB_COPY}/zones/${zone}/zoneconfig \
+                | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
+
+                echo "${var}='${!var}'"
+            done
+        ) > ${dir}/zoneconfig
+
+        # HEAD-1371 - only used for ufds afaik - another way to flag that?
+        [[ $upgrading == 1 ]] && echo "IS_UPDATE='1'" >>${dir}/zoneconfig
+
+        if [[ "$zone" == "ufds" ]]; then
+            local fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | \
+                cut -f 2 -d ' ')
+            local openssh=$(cat /var/ssh/ssh_host_rsa_key.pub)
+
+            echo "UFDS_ADMIN_KEY_FINGERPRINT=$fingerprint" >>${dir}/zoneconfig
+            echo "UFDS_ADMIN_KEY_OPENSSH=\"$openssh\"" >>${dir}/zoneconfig
+        fi
+    fi
+}
 
 # HOW THE CORE ZONE PROCESS WORKS:
 #
@@ -522,65 +580,8 @@ function create_zone {
         printf "%s" "creating zone ${existing_uuid}${zone}... " \
             >&${CONSOLE_FD}
     fi
-    dir=${USB_COPY}/extra/${zone}
-    mkdir -p ${dir}
-    rm -f ${dir}/pkgsrc
-    ln ${USB_COPY}/zones/${zone}/pkgsrc ${dir}/pkgsrc
-    if [[ -f ${USB_COPY}/zones/${zone}/fs.tar.bz2 ]]; then
-        rm -f ${dir}/fs.tar.bz2
-        ln ${USB_COPY}/zones/${zone}/fs.tar.bz2 ${dir}/fs.tar.bz2
-    fi
-    for file in configure backup restore setup; do
-        if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
-            rm -f ${dir}/${file}
-            ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
-        fi
-    done
-    if [[ -f ${USB_COPY}/default/setup.common ]]; then
-        # extra include file for core zones.
-        rm -f ${dir}/setup.common
-        ln ${USB_COPY}/default/setup.common ${dir}/setup.common
-    fi
-    if [[ -f ${USB_COPY}/default/configure.common ]]; then
-        # extra include file for core zones.
-        rm -f ${dir}/configure.common
-        ln ${USB_COPY}/default/configure.common ${dir}/configure.common
-    fi
-    if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
-        rm -f ${dir}/bashrc
-        ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
-    fi
 
-    # HEAD-1371 - zoneconfig should shrink or disappear for most zones,
-    # depending on what is removed from their configure/setup scripts.
-    if [[ -f ${USB_COPY}/zones/${zone}/zoneconfig ]]; then
-        # This allows zoneconfig to use variables that exist in the <USB>/config
-        # file, by putting them in the environment then putting the zoneconfig
-        # in the environment, then printing all the variables from the file.  It
-        # is done in a subshell to avoid further namespace polution.
-        (
-            . ${USB_COPY}/config
-            . ${USB_COPY}/config.inc/generic
-            . ${USB_COPY}/zones/${zone}/zoneconfig
-            for var in $(cat ${USB_COPY}/zones/${zone}/zoneconfig \
-                | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
-
-                echo "${var}='${!var}'"
-            done
-        ) > ${dir}/zoneconfig
-
-        # HEAD-1371 - only used for ufds afaik - another way to flag that?
-        [[ $upgrading == 1 ]] && echo "IS_UPDATE='1'" >>${dir}/zoneconfig
-
-        if [[ "$zone" == "ufds" ]]; then
-            local fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | \
-                cut -f 2 -d ' ')
-            local openssh=$(cat /var/ssh/ssh_host_rsa_key.pub)
-
-            echo "UFDS_ADMIN_KEY_FINGERPRINT=$fingerprint" >>${dir}/zoneconfig
-            echo "UFDS_ADMIN_KEY_OPENSSH=\"$openssh\"" >>${dir}/zoneconfig
-        fi
-    fi
+    copy_extras ${zone}
 
     dtrace_pid=
     if [[ -x /usbkey/tools/zoneboot.d \
@@ -779,6 +780,10 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
     create_zone keyapi
     create_zone usageapi
+
+    # copy extras for cloudapi, sdcsso
+    copy_extras cloudapi
+    copy_extras sdcsso
 fi
 
 update_setup_state "sdczones_created"

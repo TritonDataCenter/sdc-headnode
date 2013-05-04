@@ -126,27 +126,33 @@ create_extra_zones()
 
         ext_ip=`nawk -v role=$i '{if ($1 == role) print $2 }' \
             ${SDC_UPGRADE_DIR}/ext_addrs.txt`
-        ext_ip_arg=""
-        [ -n "$ext_ip" ] && ext_ip_arg="-o external_ip=$ext_ip"
 
-        sdc-role create $ext_ip_arg $hn_uuid $i 1>/tmp/role.out.$$ 2>&1
+        local service_uuid=$(sdc-sapi /servers?name=$i | json -H 0.uuid)
+        local payload="{
+            \"service_uuid\": \"$service_uuid\",
+            \"params\": {
+                \"alias\": \"cloudapi4\",
+                \"networks\": [
+                    {
+                        \"uuid\": \"$(sdc-napi /networks | json -H -c 'this.nic_tag=="admin"' 0.uuid)\"
+                    }
+                ]
+            }
+        }"
+        if [[ -n "$ext_ip" ]]; then
+            payload=$(echo "$payload" | json -e "this.params.networks.push({
+                \"uuid\": \"$(sdc-napi /networks | json -H -c 'this.nic_tag=="external"' 0.uuid)\",
+                \"ip\": \"$ext_ip\",
+                \"primary\": true
+            })")
+        fi
+        echo "$payload" | sapiadm provision
+
         res=$?
-        cat /tmp/role.out.$$ 1>&4
         if [ $res != 0 ]; then
             saw_err "Error creating $i zone"
-            mv /tmp/payload.* ${SDC_UPGRADE_DIR}
-            mv /tmp/provision.* ${SDC_UPGRADE_DIR}
-
-            # Capture the job info into the log
-            local job=`nawk '/Job is/{print $NF}' /tmp/role.out.$$`
-            [ -n "$job" ] && \
-                curl -i -s \
-                    http://${CONFIG_vmapi_admin_ips}/${job} | json 1>&4 2>&1
-
-            rm -f /tmp/role.out.$$
             continue
         fi
-        rm -f /tmp/role.out.$$
 
         new_uuid=`sdc-role list | nawk -v role=$i '{if ($6 == role) print $3}'`
         if [[ -z "$new_uuid" ]]; then

@@ -91,7 +91,8 @@ sapi()
 {
     path=$1
     shift
-    curl ${CURL_OPTS} --url "${SAPI_URL}${path}" \
+    # Want a longer max-time (-m) for SAPI's CreateInstance: one hour.
+    curl ${CURL_OPTS} -m 3600 --url "${SAPI_URL}${path}" \
         "$@" || return $?
     echo ""  # sometimes the result is not terminated with a newline
     return 0

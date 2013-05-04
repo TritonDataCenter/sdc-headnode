@@ -19,6 +19,7 @@ zfs set mountpoint=/data zones/$(zonename)/data
 
 # Note: Usage of "local" storage is only intended for bootstrapping.  Manta will
 # be required for full functionality.
+#XXX METADATA isn't here on reboot because setup.common vs configure.common
 LOCAL_DB_DIR=$(json -f ${METADATA} LOCAL_DB_DIR)
 if [[ ! -d $LOCAL_DB_DIR ]]; then
     echo "Create local db dir, $LOCAL_DB_DIR."
