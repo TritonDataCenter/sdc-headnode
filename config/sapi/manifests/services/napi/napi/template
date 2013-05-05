@@ -22,6 +22,7 @@
       "uuid": "{{{admin_uuid}}}",
       "network": "{{{admin_network}}}",
       "netmask": "{{{admin_netmask}}}",
+      "owner_uuids": ["{{{ufds_admin_uuid}}}"],
       "gateway": "{{{admin_gateway}}}",
       "startIP": "{{{dhcp_range_start}}}",
       "endIP": "{{{dhcp_range_end}}}",
