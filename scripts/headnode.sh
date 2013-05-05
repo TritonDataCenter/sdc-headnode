@@ -730,9 +730,11 @@ function sdc_init_application
 
 function bootstrap_sapi
 {
-    echo "Bootstrapping SAPI into SAPI"
-    local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
-    zlogin ${sapi_uuid} /usr/bin/bash <<HERE
+    local sapi_bootstrap=$(grep sapi_bootstrapped ${SETUP_FILE})
+    if [[ -z ${sapi_bootstrap} ]]; then
+        echo "Bootstrapping SAPI into SAPI"
+        local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
+        zlogin ${sapi_uuid} /usr/bin/bash <<HERE
 export ZONE_ROLE=sapi
 export ASSETS_IP=${CONFIG_assets_admin_ip}
 source /var/svc/setup.common
@@ -743,6 +745,8 @@ download_metadata
 write_initial_config
 registrar_setup
 HERE
+    fi
+    update_setup_state "sapi_bootstrapped"
 }
 
 if [[ -z ${skip_zones} ]]; then
