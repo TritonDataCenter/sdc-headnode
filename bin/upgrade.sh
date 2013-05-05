@@ -360,6 +360,11 @@ function dump_mapi
     $ROOT/mapi2ctime.sh $SDC_UPGRADE_DIR/mapi_dump \
         > $SDC_UPGRADE_DIR/cr_time.out 2>&1
     [ $? != 0 ] && fatal "generating create_time file"
+
+    get_net_uuid "admin"
+    ADMIN_NET_UUID=$NET_UUID
+    get_net_uuid "external"
+    EXTERNAL_NET_UUID=$NET_UUID
 }
 
 function get_net_uuid
@@ -376,7 +381,7 @@ function get_net_uuid
                 }
             }
         }
-    }' /tmp/mapi_dump/napi_networks.moray`
+    }' $SDC_UPGRADE_DIR/mapi_dump/napi_networks.moray`
 }
 
 # Use a subset of the table dump from mapi to find all zones with IP addresses
@@ -421,11 +426,6 @@ function dump_mapi_netinfo
         num_to_ip $i
         echo $ip_addr >> /tmp/admin_ips.txt
     done
-
-    get_net_uuid "admin"
-    ADMIN_NET_UUID=$NET_UUID
-    get_net_uuid "external"
-    EXTERNAL_NET_UUID=$NET_UUID
 
     rm -rf /tmp/mapi_dump
 }
