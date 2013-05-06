@@ -157,12 +157,13 @@ function registrar_setup
     local manifest=/opt/smartdc/registrar/smf/manifests/registrar.xml
     local config=/opt/smartdc/registrar/etc/config.json
 
-    [[ -f ${manifest} ]] || fatal "No registrar manifest in ${ZONE_ROLE}"
-    [[ -f ${config} ]] || fatal "No registrar config for ${ZONE_ROLE}"
+    if [[ -f ${manifest} ]]; then
+        [[ -f ${config} ]] || fatal "No registrar config for ${ZONE_ROLE}"
 
-    echo "Importing and enabling registrar"
-    svccfg import ${manifest}
-    svcadm enable registrar
+        echo "Importing and enabling registrar"
+        svccfg import ${manifest} || fatal "failed to import registrar"
+        svcadm enable registrar || fatal "failed to enable registrar"
+    fi
 }
 
 if [[ ! -f /var/svc/setup_complete ]]; then
