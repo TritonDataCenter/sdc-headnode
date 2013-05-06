@@ -157,32 +157,6 @@ function reserveIp(cb) {
     reserveAndGetNic('admin', self.zoneUuid, adminUuid, function (err, nic) {
         self.nic = nic;
         log.debug({nic : nic}, 'Have a nic.');
-        cb(err, nic);
-    });
-}
-
-function updateZKServers(nic, cb) {
-    var log = self.log;
-    var sapi = self.SAPI;
-
-    var zkServers = self.app.metadata['ZK_SERVERS'];
-    self.myId = zkServers.length + 1;
-    zkServers.push({
-        host: nic.ip,
-        port: 2181,
-        num: self.myId
-    });
-
-    var opts = { metadata: {} };
-    opts.metadata['ZK_SERVERS'] = zkServers.map(function(e, i, c) {
-        delete e.last;
-        if (i == c.length-1) e.last = true;
-        return e;
-    });
-
-    self.SAPI.updateApplication(self.app.uuid, opts, function (err, app) {
-        if (err) fatal(err, 'Failed to update ZK_SERVERS in application');
-        self.app = app;
         return cb(null);
     });
 }
@@ -202,9 +176,13 @@ function getService(cb) {
 function deployBinder(serviceUuid, cb) {
     var log = self.log;
     var extras = { metadata : {}, params : {} };
+
+    self.myId = self.app.metadata['ZK_SERVERS'].length + 1;
+
     extras.params['alias'] = 'binder' + (self.myId-1);
     extras.params['uuid'] = self.zoneUuid;
     extras.params['server_uuid'] = serverUuid;
+    extras.metadata['ZK_ID'] = self.myId;
 
     log.debug({extras : extras, myId : self.myId }, 'creating new binder instance');
 
@@ -212,6 +190,31 @@ function deployBinder(serviceUuid, cb) {
         if (err) fatal(err, 'Failed to create binder instance');
 
         log.debug({ instances : inst }, 'Created binder instance %s', inst.uuid);
+        return cb(null);
+    });
+}
+
+function updateZkMetadata(cb) {
+    var log = self.log;
+    var sapi = self.SAPI;
+
+    var zkServers = self.app.metadata['ZK_SERVERS'];
+    zkServers.push({
+        host: self.nic.ip,
+        port: 2181,
+        num: self.myId
+    });
+
+    var opts = { metadata: {} };
+    opts.metadata['ZK_SERVERS'] = zkServers.map(function(e, i, c) {
+        delete e.last;
+        if (i == c.length-1) e.last = true;
+        return e;
+    });
+
+    self.SAPI.updateApplication(self.app.uuid, opts, function (err, app) {
+        if (err) fatal(err, 'Failed to update ZK_SERVERS in application');
+        self.app = app;
         return cb(null);
     });
 }
@@ -261,9 +264,9 @@ async.waterfall([
     initializeClients,
     checkServer,
     reserveIp,
-    updateZKServers,
     getService,
     deployBinder,
+    updateZkMetadata,
     updateResolvers
 ], function(err) {
     if (err) fatal(err, 'Error');

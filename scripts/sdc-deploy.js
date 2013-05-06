@@ -75,6 +75,12 @@ function createInstance(service, cb) {
     if (process.env['ONE_NODE_WRITE_MODE']) {
         opts.metadata['ONE_NODE_WRITE_MODE'] = 'true';
     }
+
+    if (service.name == 'binder') {
+        opts.metadata['ZK_ID'] = 1;
+    }
+
+
     self.sapi.createInstance(service.uuid, opts, function(err, instance) {
         if (err) {
             log.fatal(err, 'Could not create instance for %s', service.name);
