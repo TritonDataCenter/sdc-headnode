@@ -1453,8 +1453,6 @@ function transform_packages(file, callback) {
 
 function obj2ldif(obj) {
     var out = '';
-    // We don't want to keep owner_uuid into packages
-    delete obj.owner_uuid;
     Object.keys(obj).forEach(function (k) {
         if (Array.isArray(obj[k])) {
             out += k + ': ' + JSON.stringify(obj[k]) + '\n';
