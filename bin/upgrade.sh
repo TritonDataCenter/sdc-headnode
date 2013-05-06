@@ -361,6 +361,10 @@ function dump_mapi
         > $SDC_UPGRADE_DIR/cr_time.out 2>&1
     [ $? != 0 ] && fatal "generating create_time file"
 
+    $ROOT/mapi2tags.sh $SDC_UPGRADE_DIR/mapi_dump \
+        > $SDC_UPGRADE_DIR/tags.out 2>&1
+    [ $? != 0 ] && fatal "generating tags file"
+
     get_net_uuid "admin"
     ADMIN_NET_UUID=$NET_UUID
     get_net_uuid "external"
@@ -1196,10 +1200,11 @@ function wait_and_clear
 	done
 }
 
-# Generate two scripts, the first of which contains all of the zone/vm aliases
+# Generate 3 scripts, the first of which contains all of the zone/vm aliases
 # along with the code to add the necessary attr to the zonecfg so that each
-# zone can keep track of its alias, and the second of which does the same thing
-# for the create-timestamp. Run these scripts on each CN.
+# zone can keep track of its alias, the second of which does the same thing
+# for the create-timestamp and the third of which creates the zone's
+# config/tags.json file. Run these scripts on each CN.
 #
 # The scripts ignores zonecfg update errors which might occur if the attr
 # is already set so that we are idempotent.
@@ -1258,6 +1263,34 @@ function update_vm_attrs
 
     sdc-oneachnode $skip_arg -c "bash /tmp/upd_ctime &" >/dev/null
     [ $? != 0 ] && fatal "updating create times"
+
+    # 3rd script
+
+    echo "Updating the VM tags on each compute node"
+
+    echo "cat <<DONE >/tmp/tags" >/tmp/upd_tags
+    cat $SDC_UPGRADE_DIR/tags.out >>/tmp/upd_tags
+
+    cat <<-PROG3 >>/tmp/upd_tags
+	DONE
+
+	for i in \`zoneadm list -c\`
+	do
+	  a=\`nawk -v n=\$i '{if (\$1 == n) {print substr(\$0, length(\$1) + 2); exit 0}}' /tmp/tags\`
+	  if [ -n "\$a" ]; then
+	      mkdir -p /zones/\$i/config
+	      echo \$a > /zones/\$i/config/tags.json
+	  fi
+	done
+	PROG3
+
+    sdc-oneachnode $skip_arg -c "rm -f /tmp/upd_tags" >/dev/null
+    [ $? != 0 ] && fatal "setting up tags update"
+    sdc-oneachnode $skip_arg -c -g /tmp/upd_tags >/dev/null
+    [ $? != 0 ] && fatal "copying tags file"
+
+    sdc-oneachnode $skip_arg -c "bash /tmp/upd_tags &" >/dev/null
+    [ $? != 0 ] && fatal "updating tags"
 }
 
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
