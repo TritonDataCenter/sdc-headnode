@@ -11,5 +11,5 @@ dataDir=/var/db/zookeeper
 clientPort=2181
 maxClientCnxns=0
 {{#ZK_SERVERS}}
-server.1={{host}}:2888:3888
+server.{{num}}={{host}}:2888:3888
 {{/ZK_SERVERS}}
