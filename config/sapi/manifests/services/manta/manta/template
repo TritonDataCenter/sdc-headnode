@@ -1,4 +1,7 @@
 {
+        "amon": {
+                "url": "http://{{{AMON_SERVICE}}}"
+        },
         "cnapi": {
                 "url": "http://{{{CNAPI_SERVICE}}}"
         },
