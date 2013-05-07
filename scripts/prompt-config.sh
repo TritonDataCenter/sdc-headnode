@@ -1363,10 +1363,12 @@ echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amon_domain=amon.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
 echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
+echo "redis_domain=redis.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
@@ -1424,7 +1426,6 @@ echo "# Legacy CAPI parameters" >>$tmp_config
 # Do not remove. Required to work by smart-login.git agent:
 echo "# Required by SmartLogin:" >>$tmp_config
 echo "capi_client_url=http://$ufds_admin_ip:8080" >>$tmp_config
-echo "ufds_domain=ufds.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "cnapi_client_url=$cnapi_client_url" >>$tmp_config
