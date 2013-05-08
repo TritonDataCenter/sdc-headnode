@@ -179,8 +179,8 @@ function deployBinder(serviceUuid, cb) {
 
     self.myId = self.app.metadata['ZK_SERVERS'].length + 1;
 
+    extras['uuid'] = self.zoneUuid;
     extras.params['alias'] = 'binder' + (self.myId-1);
-    extras.params['uuid'] = self.zoneUuid;
     extras.params['server_uuid'] = serverUuid;
     extras.metadata['ZK_ID'] = self.myId;
 
