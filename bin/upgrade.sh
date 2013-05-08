@@ -1235,7 +1235,7 @@ function update_vm_attrs
     [ $? != 0 ] && fatal "copying alias file"
 
     sdc-oneachnode $skip_arg -c "bash /tmp/upd_aliases &" >/dev/null
-    [ $? != 0 ] && fatal "updating aliases"
+    # ignore errors which are expected on a re-run
 
     # 2nd script
 
@@ -1262,7 +1262,7 @@ function update_vm_attrs
     [ $? != 0 ] && fatal "copying create time file"
 
     sdc-oneachnode $skip_arg -c "bash /tmp/upd_ctime &" >/dev/null
-    [ $? != 0 ] && fatal "updating create times"
+    # ignore errors which are expected on a re-run
 
     # 3rd script
 
@@ -1290,7 +1290,7 @@ function update_vm_attrs
     [ $? != 0 ] && fatal "copying tags file"
 
     sdc-oneachnode $skip_arg -c "bash /tmp/upd_tags &" >/dev/null
-    [ $? != 0 ] && fatal "updating tags"
+    # ignore errors which are expected on a re-run
 }
 
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
