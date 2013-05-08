@@ -362,7 +362,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/node_modules
     (cd /opt/smartdc/node_modules && tar -xf /usbkey/tools-modules.tar)
 
-    # Setup 'sdc-imgadm' and 'joyent-imgadm' tools.
+    # Setup '*-imgadm' tools.
     mkdir -p /opt/smartdc/imgapi-cli
     (cd /opt/smartdc && tar -xjf ${USB_COPY}/extra/imgapi-cli/imgapi-cli.tar.bz2)
     ln -s /opt/smartdc/imgapi-cli/bin/sdc-imgadm /opt/smartdc/bin/sdc-imgadm
@@ -371,6 +371,11 @@ if [[ ! -d /opt/smartdc/bin ]]; then
 /usr/node/bin/node /opt/smartdc/imgapi-cli/bin/joyent-imgadm "\$@"
 JOYENT_IMGADM_EOF
     chmod 755 /opt/smartdc/bin/joyent-imgadm
+    cat > /opt/smartdc/bin/updates-imgadm << UPDATES_IMGADM_EOF
+#!/usr/bin/bash
+/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm "\$@"
+UPDATES_IMGADM_EOF
+    chmod 755 /opt/smartdc/bin/updates-imgadm
 fi
 
 set_default_fw_rules
