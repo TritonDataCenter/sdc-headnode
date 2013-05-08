@@ -1387,6 +1387,10 @@ function process_package_line(uuid, pieces, errs) {
         pkg.owner_uuid = pieces[11];
     }
 
+    if (pkg.owner_uuid === null) {
+        delete pkg.owner_uuid;
+    }
+
     PACKAGES[id] = pkg;
     //console.log(JSON.stringify(pkg, null, 2));
 }
