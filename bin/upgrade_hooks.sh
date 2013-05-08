@@ -375,6 +375,24 @@ add_ext_net()
 	[ $? != 0 ] && saw_err "Error reserving IP $a for zone $z_uuid"
 }
 
+resv_cns()
+{
+    print_log "reserving compute nodes..."
+    dump=$1
+
+    local i=""
+    for i in `nawk -F\t '{
+        if (NF != 30) next 
+	    if ($2 == "headnode") next
+	    if ($7 == "f") next
+	    print $17
+        }'  ${SDC_UPGRADE_DIR}/mapi_dump/servers.dump`
+    do
+        sdc-cnapi /servers/$i -X POST -d '{ "reserved": true }' \
+            >> ${SDC_UPGRADE_DIR}/res_cn.out 2>&1
+    done
+}
+
 get_replicator_status()
 {
     local log=/var/svc/log/smartdc-application-ufds-replicator:default.log
@@ -469,6 +487,8 @@ post_tasks()
     add_ext_net imgapi
     vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
+
+    resv_cns
 
     local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
     local pct=0
