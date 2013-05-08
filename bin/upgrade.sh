@@ -272,7 +272,7 @@ function dump_mapi_live
                 delete image.users;
             // IMGAPI wants published_at as "YYYY-MM-DDTHH:MM:SS(.SSS)Z"
             // but MAPI gives, e.g. "2011-11-18T01:41:40+00:00".
-            image.published_at = image.published_at.replace(/\+00:00$/, "Z");
+            image.published_at = (image.published_at || image.created_at).replace(/\+00:00$/, "Z");
             image.files.forEach(function (file) {
                 delete file.path;
                 delete file.url;
