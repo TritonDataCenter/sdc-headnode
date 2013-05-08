@@ -5,7 +5,7 @@
     "bindDN" : "{{{ufds_ldap_root_dn}}}",
     "bindPassword" : "{{{ufds_ldap_root_pw}}}"
   },
-  "keyapi" : "http://{{{keyapi_admin_ips}}}:8080",
+  "keyapi" : "http://{{{keyapi_domain}}}:80",
   "sslkey" : "/opt/smartdc/sdcsso/ssl/key.pem",
   "sslcert" : "/opt/smartdc/sdcsso/ssl/cert.pem",
   "nodemailerOpts" : { "smtpTransport" : {
