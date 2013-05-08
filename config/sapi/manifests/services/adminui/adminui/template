@@ -6,6 +6,17 @@
 		"certificate": "/opt/smartdc/adminui/etc/ssl/default.pem",
 		"key": "/opt/smartdc/adminui/etc/ssl/default.pem"
 	},
+	"ufdsMaster": {
+		"url": "ldaps://{{{REMOTE_UFDS_IP}}}",
+		"bindDN": "{{{REMOTE_UFDS_ROOT_DN}}}",
+		"bindPassword": "{{{REMOTE_UFDS_ROOT_PW}}}",
+		"cache": {
+			"size": 5000,
+			"expiry": 60
+		},
+		"clientTimeout": 240000,
+		"maxConnections": 1
+	},
 	"ufds": {
 		"url": "ldaps://{{{UFDS_SERVICE}}}",
 		"bindDN": "{{{ufds_ldap_root_dn}}}",
