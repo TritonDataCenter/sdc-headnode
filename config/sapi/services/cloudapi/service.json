@@ -1,6 +1,7 @@
 {
     "name": "cloudapi",
     "params": {
+        "delegate_dataset": true,
         "package_name": "sdc_256",
         "image_uuid": "IMAGE_UUID",
         "networks": [ "admin" ],
