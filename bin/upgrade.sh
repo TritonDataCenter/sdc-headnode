@@ -980,7 +980,7 @@ function cleanup_config
 	$usage_ext_vlan
 	usageapi_root_pw=$CONFIG_capi_root_pw
 	usageapi_admin_ips=$usageapi_admin_ip
-	usageapi_domain=usagepi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
+	usageapi_domain=usageapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
