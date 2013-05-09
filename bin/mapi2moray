@@ -461,24 +461,30 @@ function transform_network_pools(file, callback) {
             return callback(err);
         }
 
+        var count = 0;
+        var total = lines.length;
+
         lines.forEach(function (line) {
             var pieces = line.split('\t').map(function (e) {
                 return e === NULL ? null : e;
             });
 
             if (pieces.length !== 4) {
+                count += 1;
                 return;
             }
 
             if (!NETWORK_POOL_NETWORKS.hasOwnProperty(pieces[0])) {
                 errs.push(new Error('network pool ' + pieces[1] +
                     ' (' + pieces[0] + ') has no networks'));
-                    return;
+                count += 1;
+                return;
             }
 
             generate_uuid(function (err, uuid) {
                 if (err) {
                     errs.push(err);
+                    count += 1;
                 } else {
                     var pool = {
                         name: pieces[1],
@@ -487,23 +493,33 @@ function transform_network_pools(file, callback) {
                     };
 
                     pools.push(JSON.stringify(pool));
+                    count += 1;
                     //console.log(JSON.stringify(pool));
                 }
 
             });
         });
 
-        if (errs.length !== 0) {
-            return callback(errs);
+        function writeNetworkPools() {
+            if (errs.length !== 0) {
+                return callback(errs);
+            }
+
+            if (pools.length === 0) {
+                return callback();
+            }
+
+            return fs.writeFile(directory
+                + '/napi_network_pools.moray', pools.join('\n'),
+                'utf8', callback);
         }
 
-        if (pools.length === 0) {
-            return callback();
-        }
 
-        return fs.writeFile(directory
-            + '/napi_network_pools.moray', pools.join('\n'),
-            'utf8', callback);
+        if (count < total) {
+            setTimeout(writeNetworkPools, 200);
+        } else {
+            writeNetworkPools();
+        }
     });
 }
 
@@ -1424,6 +1440,8 @@ function transform_packages(file, callback) {
         }
 
         var errs = [];
+        var total = lines.length;
+        var count = 0;
 
         lines.forEach(function (line) {
             var pieces = line.split('\t').map(function (e) {
@@ -1431,27 +1449,34 @@ function transform_packages(file, callback) {
             });
 
             if (pieces.length !== 17) {
+                count +=1;
                 return;
             }
 
             generate_uuid(function (err, uuid) {
                 if (err) {
                     errs.push(err);
+                    count +=1;
                 } else {
                     process_package_line(uuid, pieces, errs);
+                    count +=1;
                 }
             });
         });
 
-        // Will wait for latest pkg to process, given that line will take
-        // way longer to get processed than lines from where we are returning:
-        setTimeout(function () {
+        function doneWithPackages() {
             if (errs.length !== 0) {
                 return callback(errs);
             }
 
             return callback();
-        }, 500);
+        }
+
+        if (count < total) {
+            setTimeout(doneWithPackages, 200);
+        } else {
+            doneWithPackages();
+        }
     });
 }
 
