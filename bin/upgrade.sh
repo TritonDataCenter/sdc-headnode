@@ -1211,12 +1211,12 @@ function update_vm_attrs
 	done
 	PROG
 
-    sdc-oneachnode $skip_arg -c "rm -f /tmp/upd_aliases" >/dev/null
+    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_aliases" >/dev/null
     [ $? != 0 ] && fatal "setting up alias update"
-    sdc-oneachnode $skip_arg -c -g /tmp/upd_aliases >/dev/null
+    sdc-oneachnode $OEN_ARGS -g /tmp/upd_aliases >/dev/null
     [ $? != 0 ] && fatal "copying alias file"
 
-    sdc-oneachnode $skip_arg -c "bash /tmp/upd_aliases &" >/dev/null
+    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_aliases &" >/dev/null
     # ignore errors which are expected on a re-run
 
     # 2nd script
@@ -1238,12 +1238,12 @@ function update_vm_attrs
 	done
 	PROG2
 
-    sdc-oneachnode $skip_arg -c "rm -f /tmp/upd_ctime" >/dev/null
+    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_ctime" >/dev/null
     [ $? != 0 ] && fatal "setting up create time update"
-    sdc-oneachnode $skip_arg -c -g /tmp/upd_ctime >/dev/null
+    sdc-oneachnode $OEN_ARGS -g /tmp/upd_ctime >/dev/null
     [ $? != 0 ] && fatal "copying create time file"
 
-    sdc-oneachnode $skip_arg -c "bash /tmp/upd_ctime &" >/dev/null
+    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_ctime &" >/dev/null
     # ignore errors which are expected on a re-run
 
     # 3rd script
@@ -1266,13 +1266,27 @@ function update_vm_attrs
 	done
 	PROG3
 
-    sdc-oneachnode $skip_arg -c "rm -f /tmp/upd_tags" >/dev/null
+    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_tags" >/dev/null
     [ $? != 0 ] && fatal "setting up tags update"
-    sdc-oneachnode $skip_arg -c -g /tmp/upd_tags >/dev/null
+    sdc-oneachnode $OEN_ARGS -g /tmp/upd_tags >/dev/null
     [ $? != 0 ] && fatal "copying tags file"
 
-    sdc-oneachnode $skip_arg -c "bash /tmp/upd_tags &" >/dev/null
+    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_tags &" >/dev/null
     # ignore errors which are expected on a re-run
+}
+
+function install_agent
+{
+    local nm=$1
+
+    cp $ROOT/$nm.tgz $assetdir
+
+    local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/agents/$nm.tgz;
+       /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
+       >/var/tmp/${nm}_install.log 2>&1 &" | \
+       egrep -v "^HOST" | wc -l`
+    echo "Installed $nm agent on $cnt nodes"
 }
 
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
@@ -1302,51 +1316,30 @@ fi
 
 [[ $CHECK_ONLY == 1 && $AGENTS_ONLY == 1 ]] && fatal "incompatible options"
 
+OEN_ARGS="-t 30 -T 120 -c"
 # Get list of any CNs to ignore
-skip_arg=""
 skip_cns=`sdc-mapi /servers | nawk '{
         if ($1 == "\"hostname\":")
             hn = substr($2, 2, length($2) - 3)
         if ($1 == "\"current_status\":") {
             st = substr($2, 2, length($2) - 3)
-            if (st != "running")
-                print hn
+            if (st != "running") {
+                printf("%s%s", hn, delim)
+                delim=","
+            }
         }
     }'`
-[ -n "$skip_cns" ] && skip_arg="-x -n $skip_cns"
+[ -n "$skip_cns" ] && OEN_ARGS="$OEN_ARGS -x -n $skip_cns"
 
 if [[ $AGENTS_ONLY == 1 ]]; then
     echo "Upgrade compute node agents"
 
     assetdir=/zones/assets/root/assets/agents
     mkdir -p $assetdir
-    cp $ROOT/heartbeater-65.tgz $assetdir
-    cp $ROOT/provisioner-v2-65.tgz $assetdir
-    cp $ROOT/zonetracker-v2-65.tgz $assetdir
 
-    sdc-oneachnode $skip_arg -c "cd /var/tmp;
-       curl -kOs $CONFIG_assets_admin_ip:/agents/heartbeater-65.tgz;
-       /opt/smartdc/agents/bin/agents-npm \
-       install /var/tmp/heartbeater-65.tgz \
-       >/var/tmp/heartbeater65_install.log 2>&1 &"
-    [ $? != 0 ] && \
-        fatal "installing new heartbeater agents"
-
-    sdc-oneachnode $skip_arg -c "cd /var/tmp;
-       curl -kOs $CONFIG_assets_admin_ip:/agents/provisioner-v2-65.tgz;
-       /opt/smartdc/agents/bin/agents-npm install \
-       /var/tmp/provisioner-v2-65.tgz \
-       >/var/tmp/provisioner-v2-65_install.log 2>&1 &"
-    [ $? != 0 ] && \
-        fatal "installing new provisioner agents"
-
-    sdc-oneachnode $skip_arg -c "cd /var/tmp;
-       curl -kOs $CONFIG_assets_admin_ip:/agents/zonetracker-v2-65.tgz;
-       /opt/smartdc/agents/bin/agents-npm install \
-       /var/tmp/zonetracker-v2-65.tgz \
-       >/var/tmp/zonetracker-v2-65_install.log 2>&1 &"
-    [ $? != 0 ] && \
-        fatal "installing new zonetracker-v2 agents"
+    install_agent heartbeater-65
+    install_agent provisioner-v2-65
+    install_agent zonetracker-v2-65
 
     echo "Compute node agent install is complete"
 
@@ -1461,23 +1454,32 @@ fi
 
 if [ $DO_CHECKS -eq 1 ]; then
     echo -n "Checking each compute node for correct agents..."
-    num_cn=`sdc-oneachnode $skip_arg -c hostname | egrep -v "^HOST" | wc -l`
-    num_hb=`sdc-oneachnode $skip_arg -c \
+    num_cn=`sdc-oneachnode $OEN_ARGS hostname | egrep -v "^HOST" | wc -l`
+    num_hb=`sdc-oneachnode $OEN_ARGS \
         /opt/smartdc/agents/bin/agents-npm --noreg ls | \
         egrep heartbeater@1.0.1 | wc -l`
-    num_prov=`sdc-oneachnode $skip_arg -c \
+    num_prov=`sdc-oneachnode $OEN_ARGS \
         /opt/smartdc/agents/bin/agents-npm --noreg ls | \
         egrep provisioner-v2@1.0.11 | wc -l`
-    num_zt=`sdc-oneachnode $skip_arg -c \
+    num_zt=`sdc-oneachnode $OEN_ARGS \
         /opt/smartdc/agents/bin/agents-npm --noreg ls | \
         egrep zonetracker-v2@1.0.7 | wc -l`
-    if [[ $num_hb != $num_cn || $num_prov != $num_cn || $num_zt != $num_cn ]]
-    then
+    if [[ $num_hb != $num_cn ]]; then
         echo
-        fatal "The correct agents are not installed on each compute node"
-    else
-        printf "OK\n"
+        fatal "The correct hearbeater agents are not installed on each" \
+           "compute node"
     fi
+    if [[ $num_prov != $num_cn ]]; then
+        echo
+        fatal "The correct provisioner agents are not installed on each" \
+           "compute node"
+    fi
+    if [[ $num_zt != $num_cn ]]; then
+        echo
+        fatal "The correct zonetracker agents are not installed on each" \
+           "compute node"
+    fi
+    printf "OK\n"
 fi
 
 # End of validation checks, quit now if only validating
