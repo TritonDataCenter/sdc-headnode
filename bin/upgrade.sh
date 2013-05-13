@@ -829,54 +829,22 @@ function cleanup_config
 	# 10 - was riak, use for workflow
 	workflow_admin_ip="$CONFIG_riak_admin_ip"
 
-	# 11 - was dhcp_next_server, use for manatee
-	manatee_admin_ip="$CONFIG_dhcp_next_server"
+	# Start eating into the dhcp range for the rest of the new zones.
 
-	# We may have 4 more free fixed IP addrs to use or we may have to eat
-	# into the dhcp range for these next 4  new zones.
+	allocate_ip_addr
+	manatee_admin_ip="$ip_addr"
 
-	# 12
-	if [ $HAVE_FREE_RANGE -eq 1 ]; then
-	    ip_netmask_to_haddr "$CONFIG_dhcp_next_server" \
-	        "$CONFIG_admin_netmask"
-	    next_addr=$host_addr
-
-	    next_addr=$(expr $next_addr + 1)
-	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-	else
-	    allocate_ip_addr
-	fi
+	allocate_ip_addr
 	imgapi_admin_ip="$ip_addr"
 
-	# 13
-	if [ $HAVE_FREE_RANGE -eq 1 ]; then
-	    next_addr=$(expr $next_addr + 1)
-	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-	else
-	    allocate_ip_addr
-	fi
+	allocate_ip_addr
 	cnapi_admin_ip="$ip_addr"
 
-	# 14
-	if [ $HAVE_FREE_RANGE -eq 1 ]; then
-	    next_addr=$(expr $next_addr + 1)
-	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-	else
-	    allocate_ip_addr
-	fi
+	allocate_ip_addr
 	redis_admin_ip="$ip_addr"
 
-	# 15
-	if [ $HAVE_FREE_RANGE -eq 1 ]; then
-	    next_addr=$(expr $next_addr + 1)
-	    ip_addr="$net_a.$net_b.$net_c.$(expr $net_d + $next_addr)"
-	else
-	    allocate_ip_addr
-	fi
+	allocate_ip_addr
 	amon_admin_ip="$ip_addr"
-
-	# We have now definitely re-allocated the fixed IP addrs so we have to
-	# eat into the dhcp range for the rest of the new zones.
 
 	allocate_ip_addr
 	dapi_admin_ip="$ip_addr"
@@ -1433,25 +1401,22 @@ dump_server_addrs
 dump_mapi_netinfo
 load_admin_ip_addrs
 
+load_sdc_config
+check_capi
+
 # Verify there is enough free IP addrs in the dhcp range for the upgrade.
 #
-# In 6.x we allocated 10 IP addrs for the zones on the admin net, plus 1 IP
-# addr for the dhcp_next_server entry which was unused. This gives 11 available
-# IP addrs. We then allowed a block of 4 additional unused addrs before the
-# start of the dhcp range, but not all customer configs are setup with the 4
-# free addrs followed by the dhcp range. Thus, we might have 11 or 15 addresses
-# to re-use.
+# In 6.x we allocated 10 IP addrs (only 9 if no local capi) for the zones on
+# the admin net. We also allocated 1 IP addr for the dhcp_next_server entry
+# which was unused, but some sites have a conflict on that address, so we
+# don't attempt to use it. Thus, we only have 9 or 10 addresses to re-use.
 #
 # In 7.0 we have 23 admin zones plus 4 reserved IPs for additional binder
-# instances,  so we need at least 12, and maybe 16, additional
-# addresses out of the dhcp range to accomodate the new zones, depending on how
-# the user config is setup and if we can use the 4 free addrs from 6.x.
+# instances, so we need at least 17, and maybe 18, additional addresses out of
+# the dhcp range to accomodate the new zones.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=12
-
-ip_to_num $CONFIG_dhcp_next_server
-unused_addr=$num
+need_num_addrs=17
 
 ip_to_num $CONFIG_dhcp_range_start
 dhcp_start=$num
@@ -1463,20 +1428,14 @@ dhcp_end=$num
 dhcp_total=$(($dhcp_end - $dhcp_start + 1))
 dhcp_avail=$(($dhcp_total - $ADMIN_ADDRS_IN_USE))
 
-# Check if we have the block of 4 free IP addrs to use
-# the dhcp range is inclusive, so we need to subtract 1
-free_range=$(($dhcp_start - $unused_addr - 1))
-HAVE_FREE_RANGE=1
-if [ $free_range -ne 4 ]; then
-     HAVE_FREE_RANGE=0
-     need_num_addrs=$(($need_num_addrs + 4))
+# Check if we have a local CAPI
+if [[ $CAPI_FOUND == 0 ]]; then
+     need_num_addrs=$(($need_num_addrs + 1))
 fi
 
 [[ $dhcp_avail -lt $need_num_addrs ]] && \
     fatal "there are not enough free IP addresses in the DHCP range to upgrade"
 
-load_sdc_config
-check_capi
 if [[ $CAPI_FOUND == 0 ]]; then
     MASTER_UFDS_IP=`echo $CONFIG_capi_external_url | nawk -F/ '{
         split($3, a, ":")
