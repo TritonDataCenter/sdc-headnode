@@ -553,6 +553,11 @@ post_tasks()
     print_log "Updating the portal zone"
     convert_portal_zone
 
+    # fix ubuntu image size if we have the image
+    local uimgid=56108678-1183-11e1-83c3-ff3185a5b47
+    sdc-imgadm get $uimgid >/dev/null 2>&1 && \
+       sdc-imgadm update $uimgid image_size=5120 || true
+
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
         # Get an updated total number of changelogs
         totcl=`zlogin $ufds_uuid bash /tmp/cnt | \
