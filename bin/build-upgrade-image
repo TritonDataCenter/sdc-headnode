@@ -110,6 +110,8 @@ function create_upgrade
     chmod +x ${STAGE}/upgrade/mapi2ctime.sh
     cp ${ROOT}/bin/mapi2tags.sh ${STAGE}/upgrade/mapi2tags.sh
     chmod +x ${STAGE}/upgrade/mapi2tags.sh
+    cp ${ROOT}/bin/mapi2notes.sh ${STAGE}/upgrade/mapi2notes.sh
+    chmod +x ${STAGE}/upgrade/mapi2notes.sh
     cp ${ROOT}/bin/setup_rb.sh ${STAGE}/upgrade/setup_rb.sh
     chmod +x ${STAGE}/upgrade/setup_rb.sh
     cp ${ROOT}/tools/sdc-rollback ${STAGE}/upgrade/sdc-rollback

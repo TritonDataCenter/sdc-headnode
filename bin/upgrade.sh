@@ -365,6 +365,10 @@ function dump_mapi
         > $SDC_UPGRADE_DIR/tags.out 2>&1
     [ $? != 0 ] && fatal "generating tags file"
 
+    $ROOT/mapi2notes.sh $SDC_UPGRADE_DIR/mapi_dump \
+        > $SDC_UPGRADE_DIR/notes.out 2>&1
+    [ $? != 0 ] && fatal "generating notes file"
+
     get_net_uuid "admin"
     ADMIN_NET_UUID=$NET_UUID
     get_net_uuid "external"

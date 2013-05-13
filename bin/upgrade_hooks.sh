@@ -393,6 +393,24 @@ resv_cns()
     done
 }
 
+add_notes()
+{
+    print_log "adding notes..."
+
+    local moray_uuid=`vmadm lookup -1 tags.smartdc_role=moray`
+    local cmd=/opt/smartdc/moray/node_modules/moray/bin/putobject
+    local p=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/moray/build/node/bin:/opt/smartdc/moray/node_modules/.bin:/opt/smartdc/moray/node_modules/moray/bin
+
+    local old_ifs=$IFS
+    IFS=$'\n'
+    local i=""
+    for i in `cat ${SDC_UPGRADE_DIR}/notes.out`
+    do
+        zlogin $moray_uuid "PATH=$p $cmd -d '$i' sdcnotes $(uuid)"
+    done
+    IFS=$old_ifs
+}
+
 get_replicator_status()
 {
     local log=/var/svc/log/smartdc-application-ufds-replicator:default.log
@@ -489,6 +507,7 @@ post_tasks()
     reboot_zone $role_uuid
 
     resv_cns
+    add_notes
 
     local ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
     local pct=0
