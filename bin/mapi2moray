@@ -486,11 +486,13 @@ function transform_network_pools(file, callback) {
                     errs.push(err);
                     count += 1;
                 } else {
+                    var id = pieces[0];
                     var pool = {
                         name: pieces[1],
                         networks: NETWORK_POOL_NETWORKS[pieces[0]],
                         uuid : uuid,
                     };
+                    NETWORK_POOLS[id] = pool;
 
                     pools.push(JSON.stringify(pool));
                     count += 1;
@@ -1556,9 +1558,23 @@ function transform_package_network_list(file, callback) {
                             }
                         }
                     }
+                } else if (net.networkable_type === 'NetworkPool') {
+                    var pool = NETWORK_POOLS[net.networkable_id];
+                    if (pool) {
+                        pkg.networks.push(pool.uuid);
+                        if (pkg.owner_uuid) {
+                            pool.networks.forEach(function (network) {
+                                if (network.owner_uuids &&
+                                    (network.owner_uuids.indexOf(pkg.owner_uuid) === -1)) {
+                                    network.owner_uuids.push(pkg.owner_uuid);
+                                } else {
+                                    network.owner_uuids = [pkg.owner_uuid];
+                                }
+                            });
+                        }
+                    }
                 }
             });
-
         });
 
         if (errs.length !== 0) {
