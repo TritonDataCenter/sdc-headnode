@@ -107,8 +107,11 @@ if [[ -n ${manta_uuid} ]]; then
 fi
 
 sapi_uuid=$(vmadm lookup alias=sapi0)
-
 add_external_nic ${sapi_uuid}
+
+imgapi_uuid=$(vmadm lookup alias=imgapi0)
+add_external_nic ${imgapi_uuid}
+
 import_manta_image
 deploy_manta_zone
 wait_for_config_agent

@@ -45,7 +45,7 @@ root_authorized_keys_file=root.authorized_keys
 
 # Pre-SAPI packages.
 assets_pkg=sdc_128
-sapi_pkg=sdc_256
+sapi_pkg=sdc_512
 
 # These shouldn't be needed after sdc-role is using SAPI.
 cloudapi_pkg=sdc_256
