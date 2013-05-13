@@ -22,5 +22,8 @@
                         "size": 1000,
                         "expiry": 300
                 }
-        }
+        },
+	"vmapi": {
+                "url": "http://{{{VMAPI_SERVICE}}}"
+	}
 }
