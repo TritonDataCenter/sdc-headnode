@@ -683,17 +683,10 @@ if [[ $(getanswer "skip_instructions") != "true" ]]; then
 fi
 
 console=$(getanswer "config_console")
-if [[ -n ${console} ]]; then
-	if [[ ${console} == "vga" ]]; then
-		console="/dev/console"
-	elif [[ ${console} == "ttya" ]]; then
-		console="/dev/tty/a"
-	elif [[ ${console} == "ttyb" ]]; then
-		console="/dev/tty/b"
-	fi
-fi
-if [[ -z ${console} || ${console} != $(tty) ]]; then
-	prmpt_str="\nPress [enter] to continue "
+# If we've asked for automatic configuration, but are not running on the
+# primary boot console (as selected in the bootloader menu), then pause at a
+# prompt:
+if [[ -z ${console} || $(tty) != "/dev/console" ]]; then
 	read continue;
 fi
 
