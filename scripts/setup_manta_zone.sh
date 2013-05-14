@@ -104,6 +104,7 @@ function copy_manta_status {
         to_dir=/opt/smartdc/bin
         rm -f ${to_dir}/manta-status
         ln -s ${from_dir}/manta-status.js ${to_dir}/manta-status
+        mkdir -p /opt/smartdc/manta-deployment/log
     fi
 }
 
