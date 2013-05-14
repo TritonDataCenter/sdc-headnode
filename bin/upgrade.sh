@@ -1317,8 +1317,8 @@ skip_cns=`sdc-mapi /servers | nawk '{
             hn = substr($2, 2, length($2) - 3)
         if ($1 == "\"current_status\":") {
             st = substr($2, 2, length($2) - 3)
-            if (st != "running") {
-                printf("%s%s", hn, delim)
+            if (st == "unsetup") {
+                printf("%s%s", delim, hn)
                 delim=","
             }
         }
@@ -1449,15 +1449,13 @@ fi
 if [ $DO_CHECKS -eq 1 ]; then
     echo -n "Checking each compute node for correct agents..."
     num_cn=`sdc-oneachnode $OEN_ARGS hostname | egrep -v "^HOST" | wc -l`
-    num_hb=`sdc-oneachnode $OEN_ARGS \
-        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-        egrep heartbeater@1.0.1 | wc -l`
-    num_prov=`sdc-oneachnode $OEN_ARGS \
-        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-        egrep provisioner-v2@1.0.11 | wc -l`
-    num_zt=`sdc-oneachnode $OEN_ARGS \
-        /opt/smartdc/agents/bin/agents-npm --noreg ls | \
-        egrep zonetracker-v2@1.0.7 | wc -l`
+    sdc-oneachnode $OEN_ARGS /opt/smartdc/agents/bin/agents-npm --noreg ls \
+        >/tmp/cn_agent.out
+
+    num_hb=`egrep heartbeater@1.0.1 /tmp/cn_agent.out | wc -l`
+    num_prov=`egrep provisioner-v2@1.0.11 /tmp/cn_agent.out | wc -l`
+    num_zt=`egrep zonetracker-v2@1.0.7 /tmp/cn_agent.out | wc -l`
+
     if [[ $num_hb != $num_cn ]]; then
         echo
         fatal "The correct hearbeater agents are not installed on each" \
