@@ -1218,6 +1218,7 @@ function update_vm_attrs
     echo "" >>/tmp/upd_cn
 
     cat <<-"PROG" >>/tmp/upd_cn
+	rm -f /tmp/upd.log
 	for i in `zoneadm list -c`
 	do
 	  [ "$i" == "global" ] && continue
@@ -1225,16 +1226,22 @@ function update_vm_attrs
 	  # use /tmp/aliases to add an alias to the zone
 	  zonecfg -z $i remove attr name=alias 2>/dev/null
 	  v=`nawk -v n=$i '{if ($1 == n) {print $2; exit 0}}' /tmp/aliases`
-	  [ -n "$v" ] && zonecfg -z $i \
+	  if [ -n "$v" ]; then
+	    echo "=== alias $i $v" >>/tmp/upd.log
+	    zonecfg -z $i \
 	    "add attr; set name=alias; set type=string; set value=\"$v\"; end" \
-	    2>/dev/null
+	    >>/tmp/upd.log 2>&1
+	  fi
 
 	  # use /tmp/cr_time to add the creation time to the zone
 	  zonecfg -z $i remove attr name=create-timestamp 2>/dev/null
 	  v=`nawk -v n=$i '{if ($1 == n) {print $2; exit 0}}' /tmp/cr_time`
-	  [ -n "$v" ] && zonecfg -z $i \
+	  if [ -n "$v" ]; then
+	    echo "=== crtim $i $v" >>/tmp/upd.log
+	    zonecfg -z $i \
 	    "add attr; set name=create-timestamp; set type=string; set value=\"$v\"; end" \
-	    2>/dev/null
+	    >>/tmp/upd.log 2>&1
+	  fi
 
 	  # use /tmp/pkg_ids to fix the billing_id on the zone
 	  zonecfg -z $i remove attr name=billing-id 2>/dev/null
@@ -1245,15 +1252,19 @@ function update_vm_attrs
 	  pkey="$pnm $pvr"
 	  v=`nawk -v n="$pkey" -F\t '{if ($1 == n) {print $2; exit 0}}' \
 	    /tmp/pkg_ids`
-	  [ -n "$v" ] && zonecfg -z $i \
+	  if [ -n "$v" ]; then
+	    echo "=== bllid $i $v" >>/tmp/upd.log
+	    zonecfg -z $i \
 	    "add attr; set name=billing-id; set type=string; set value=\"$v\"; end" \
-	    2>/dev/null
+	    >>/tmp/upd.log 2>&1
+	  fi
 
 	  # use /tmp/tags to put the tag in the zone config dir
 	  v=`nawk -v n=$i \
 	    '{if ($1 == n) {print substr($0, length($1) + 2); exit 0}}' \
 	    /tmp/tags`
 	  if [ -n "$v" ]; then
+	      echo "=== tags  $i $v" >>/tmp/upd.log
 	      mkdir -p /zones/$i/config
 	      echo $v > /zones/$i/config/tags.json
 	  fi
