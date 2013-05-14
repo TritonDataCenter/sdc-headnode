@@ -51,7 +51,6 @@ function add_external_nic {
     rm -f ${tmpffile}
 }
 
-
 function import_manta_image {
     local manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
     local file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
@@ -97,6 +96,17 @@ function wait_for_config_agent {
     fi
 }
 
+# Copy manta-status into the GZ from the manta zone
+function copy_manta_status {
+    zone_uuid=$(vmadm list | grep manta | head -n 1 | awk '{print $1}')
+    if [[ -n ${zone_uuid} ]]; then
+        from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment/cmd
+        to_dir=/opt/smartdc/bin
+        rm -f ${to_dir}/manta-status
+        ln -s ${from_dir}/manta-status.js ${to_dir}/manta-status
+    fi
+}
+
 
 # Mainline
 
@@ -115,3 +125,4 @@ add_external_nic ${imgapi_uuid}
 import_manta_image
 deploy_manta_zone
 wait_for_config_agent
+copy_manta_status
