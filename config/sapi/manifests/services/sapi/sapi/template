@@ -8,7 +8,9 @@
 	"adminUuid": "{{{ufds_admin_uuid}}}",
 	"moray": {
 		"host": "{{{MORAY_SERVICE}}}",
-		"port": 2020
+		"port": 2020,
+		"master_host": "{{{MASTER_MORAY_IP}}}",
+		"master_port": "{{{MASTER_MORAY_PORT}}}"
 	},
 	"vmapi": {
 		"url": "http://{{{VMAPI_SERVICE}}}"
