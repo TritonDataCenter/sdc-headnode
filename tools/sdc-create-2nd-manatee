@@ -265,6 +265,37 @@ function disable_flag
     fi
 }
 
+function wait_for_disabled
+{
+    local server_uuid=$1
+    local instance=$2
+    local flag=$3
+
+    local count=0
+    local result=
+
+    echo -n "Waiting for ${flag}=false on ${instance} ... "
+
+    while [[ ${result} != "false" ]]; do
+        result=$(sdc-oneachnode -n ${server_uuid} \
+            "zlogin ${instance} \
+            'json ${flag} < /opt/smartdc/manatee/etc/sitter.json'" \
+            | tail -1 \
+            | awk '{ print $2 }')
+
+        if [[ ${result} == "false" ]]; then
+            continue;
+        elif [[ ${count} -gt 12 ]]; then
+            fatal "timeout after 60s waiting for ${flag} on ${instance}"
+        else
+            count=$((${count} + 1))
+            sleep 5
+        fi
+    done
+
+    echo "Done"
+}
+
 function reboot_instance
 {
     local server_uuid=$1
@@ -351,6 +382,10 @@ find_server_uuids          # sets {first,second}_server
 
 disable_flag "${first_instance}" "ONE_NODE_WRITE_MODE"
 disable_flag "${second_instance}" "DISABLE_SITTER"
+
+# ensure the flags were disabled (prevent races w/ config-agent ala HEAD-1679)
+wait_for_disabled "${first_server}" "${first_instance}" "disableSitter"
+wait_for_disabled "${second_server}" "${second_instance}" "postgresMgrCfg.oneNodeWriteMode"
 
 echo "!! IMPORTANT: DB will now become temporarily read-only !!"
 
