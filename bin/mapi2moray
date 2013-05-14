@@ -455,6 +455,7 @@ function transform_networks(file, callback) {
 function transform_network_pools(file, callback) {
     var errs = [];
     var pools = [];
+    NETWORK_POOLS = {};
 
     return read_lines(file, function (err, lines) {
         if (err) {
