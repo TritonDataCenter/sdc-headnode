@@ -14,21 +14,37 @@ function fatal
     exit 1
 }
 
+function install_agent
+{
+    local nm=$1
+
+    cp $ROOT/$nm.tgz $assetdir
+
+    local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/agents65/$nm.tgz;
+       /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
+       >/var/tmp/${nm}_install.log 2>&1 &" | \
+       egrep -v "^HOST" | wc -l`
+    echo "Installed $nm agent on $cnt node"
+}
+
 #
 # post-upgrade only runs on headnodes.
 #
 [[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
     fatal "this command can only be run on the headnode"
 
+UPDATE_CN=""
 COMMIT=0
 WRITABLE=0
 REPL_STAT=0
-while getopts "crw" opt
+while getopts "cru:w" opt
 do
 	case "$opt" in
-		r)	REPL_STAT=1;;
-		w)	WRITABLE=1;;
 		c)	COMMIT=1;;
+		r)	REPL_STAT=1;;
+		u)	UPDATE_CN="$OPTARG";;
+		w)	WRITABLE=1;;
 		*)	fatal "invalid option";;
 	esac
 done
@@ -103,6 +119,43 @@ if [[ $REPL_STAT == 1 ]]; then
 
     pct=$((($changelog_num * 100) / $totcl))
     echo "$pct% of user data is replicated"
+
+    exit 0
+fi
+
+if [[ -n "$UPDATE_CN" ]]; then
+    . /lib/sdc/config.sh
+    load_sdc_config
+
+    OEN_ARGS="-t 30 -T 120 -c -n $UPDATE_CN"
+
+    role_uuid=`vmadm lookup -1 tags.smartdc_role=assets`
+
+    echo "Upgrading the agents on compute node $UPDATE_CN"
+
+    ROOT=/var/cn_upgrade
+    assetdir=/zones/$role_uuid/root/assets/agents65
+    mkdir -p $assetdir
+
+    install_agent heartbeater-65
+    install_agent provisioner-v2-65
+    install_agent zonetracker-v2-65
+
+    echo "Compute node agent install is complete"
+
+    echo "Updating the VM configurations on compute node $UPDATE_CN"
+
+    cp $ROOT/upd_cn /tmp
+
+    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_cn" >/dev/null
+    [ $? != 0 ] && fatal "setting up compute node update"
+    sdc-oneachnode $OEN_ARGS -g /tmp/upd_cn >/dev/null
+    [ $? != 0 ] && fatal "copying compute node update file"
+
+    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_cn &" >/dev/null
+    # ignore errors which are expected on a re-run
+
+    echo "Compute node VM update is complete"
 
     exit 0
 fi

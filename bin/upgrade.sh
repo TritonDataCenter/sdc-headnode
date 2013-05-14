@@ -1267,6 +1267,10 @@ function update_vm_attrs
 
     sdc-oneachnode $OEN_ARGS "bash /tmp/upd_cn &" >/dev/null
     # ignore errors which are expected on a re-run
+
+    # save for possible re-run on CNs that are currently down
+    mkdir -p /var/cn_upgrade
+    cp /tmp/upd_cn /var/cn_upgrade
 }
 
 function install_agent
@@ -1274,6 +1278,9 @@ function install_agent
     local nm=$1
 
     cp $ROOT/$nm.tgz $assetdir
+
+    mkdir -p /var/cn_upgrade
+    cp $ROOT/$nm.tgz /var/cn_upgrade
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
        curl -kOs $CONFIG_assets_admin_ip:/agents/$nm.tgz;

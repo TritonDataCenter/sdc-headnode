@@ -8,6 +8,8 @@
 .br
 \fBsdc\-post-upgrade\fR \-r
 .br
+\fBsdc\-post-upgrade\fR \-u {compute node}
+.br
 \fBsdc\-post-upgrade\fR \-w
 .
 .SH "DESCRIPTION"
@@ -26,6 +28,11 @@ This utility is used after a headnode upgrade to perform various tasks.
 .br
 
 \fB\-r\fR               Display UFDS replication status.
+.
+.br
+
+\fB\-u {node}\fR        Update a compute node that was down
+                 during the upgrade.
 .
 .br
 
