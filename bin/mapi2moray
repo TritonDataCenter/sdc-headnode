@@ -1495,6 +1495,11 @@ function obj2ldif(obj) {
     return out;
 }
 
+function pkg2id(obj) {
+    var out = obj.name + ' ' + obj.version + '\t' + obj.uuid + '\n';
+    return out;
+}
+
 /**
  * 0 -- id
  * 1 -- package_id
@@ -1581,6 +1586,12 @@ function transform_package_network_list(file, callback) {
         if (errs.length !== 0) {
             return callback(errs);
         }
+
+        var pkgids = [];
+        Object.keys(PACKAGES).forEach(function (p) {
+            pkgids.push(pkg2id(PACKAGES[p]));
+        });
+        fs.writeFileSync(directory + '/pkgids.out', pkgids.join(''), 'utf8');
 
         var pkgs = [];
         Object.keys(PACKAGES).forEach(function (p) {

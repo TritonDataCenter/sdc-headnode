@@ -353,6 +353,8 @@ function dump_mapi
         > $SDC_UPGRADE_DIR/mapi2moray.out 2>&1
     [ $? != 0 ] && fatal "transforming the MAPI dumps to moray"
 
+    mv $SDC_UPGRADE_DIR/mapi_dump/pkgids.out $SDC_UPGRADE_DIR
+
     $ROOT/mapi2alias.sh $SDC_UPGRADE_DIR/mapi_dump \
         > $SDC_UPGRADE_DIR/aliases.out 2>&1
     [ $? != 0 ] && fatal "generating aliases file"
@@ -1182,96 +1184,88 @@ function wait_and_clear
 	done
 }
 
-# Generate 3 scripts, the first of which contains all of the zone/vm aliases
-# along with the code to add the necessary attr to the zonecfg so that each
-# zone can keep track of its alias, the second of which does the same thing
-# for the create-timestamp and the third of which creates the zone's
-# config/tags.json file. Run these scripts on each CN.
+# Generate a script with embedded data that will update each zone configuration
+# on each compute node. The embedded data is the zone/vm aliases, the zone
+# creation timestamp, the zone's corrected billing id, and the zone's tags.json.
+# In addition to the embedded data in the script, the code will process that
+# data and update each of the zones that are local to that specific compute
+# node.
 #
-# The scripts ignores zonecfg update errors which might occur if the attr
-# is already set so that we are idempotent.
+# The script must be idempotent so it can re-run if we've rolled back and
+# upgraded again.
 function update_vm_attrs
 {
-    # 1st script
+    echo "Updating the VM configurations on each compute node"
 
-    echo "Updating the VM aliases on each compute node"
+    echo "cat <<DONE1 >/tmp/aliases" >/tmp/upd_cn
+    cat $SDC_UPGRADE_DIR/aliases.out >>/tmp/upd_cn
+    echo "DONE1" >>/tmp/upd_cn
+    echo "" >>/tmp/upd_cn
 
-    echo "cat <<DONE >/tmp/aliases" >/tmp/upd_aliases
-    cat $SDC_UPGRADE_DIR/aliases.out >>/tmp/upd_aliases
+    echo "cat <<DONE2 >/tmp/cr_time" >>/tmp/upd_cn
+    cat $SDC_UPGRADE_DIR/cr_time.out >>/tmp/upd_cn
+    echo "DONE2" >>/tmp/upd_cn
+    echo "" >>/tmp/upd_cn
 
-    cat <<-PROG >>/tmp/upd_aliases
-	DONE
+    echo "cat <<DONE3 >/tmp/tags" >>/tmp/upd_cn
+    cat $SDC_UPGRADE_DIR/tags.out >>/tmp/upd_cn
+    echo "DONE3" >>/tmp/upd_cn
+    echo "" >>/tmp/upd_cn
 
-	for i in \`zoneadm list -c\`
+    echo "cat <<DONE4 >/tmp/pkg_ids" >>/tmp/upd_cn
+    cat $SDC_UPGRADE_DIR/pkgids.out >>/tmp/upd_cn
+    echo "DONE4" >>/tmp/upd_cn
+    echo "" >>/tmp/upd_cn
+
+    cat <<-"PROG" >>/tmp/upd_cn
+	for i in `zoneadm list -c`
 	do
-	  a=\`nawk -v n=\$i '{if (\$1 == n) {print \$2; exit 0}}' /tmp/aliases\`
-	  [ -n "\$a" ] && zonecfg -z \$i \
-	  "add attr; set name=alias; set type=string; set value=\\"\$a\\"; end" \
+	  [ "$i" == "global" ] && continue
+
+	  # use /tmp/aliases to add an alias to the zone
+	  zonecfg -z $i remove attr name=alias 2>/dev/null
+	  v=`nawk -v n=$i '{if ($1 == n) {print $2; exit 0}}' /tmp/aliases`
+	  [ -n "$v" ] && zonecfg -z $i \
+	    "add attr; set name=alias; set type=string; set value=\"$v\"; end" \
 	    2>/dev/null
+
+	  # use /tmp/cr_time to add the creation time to the zone
+	  zonecfg -z $i remove attr name=create-timestamp 2>/dev/null
+	  v=`nawk -v n=$i '{if ($1 == n) {print $2; exit 0}}' /tmp/cr_time`
+	  [ -n "$v" ] && zonecfg -z $i \
+	    "add attr; set name=create-timestamp; set type=string; set value=\"$v\"; end" \
+	    2>/dev/null
+
+	  # use /tmp/pkg_ids to fix the billing_id on the zone
+	  zonecfg -z $i remove attr name=billing-id 2>/dev/null
+	  pnm=`zonecfg -z $i info attr name=package-name | \
+	    nawk '{if ($1 == "value:") print $2}'`
+	  pvr=`zonecfg -z $i info attr name=package-version | \
+	    nawk '{if ($1 == "value:") print $2}'`
+	  pkey="$pnm $pvr"
+	  v=`nawk -v n="$pkey" -F\t '{if ($1 == n) {print $2; exit 0}}' \
+	    /tmp/pkg_ids`
+	  [ -n "$v" ] && zonecfg -z $i \
+	    "add attr; set name=billing-id; set type=string; set value=\"$v\"; end" \
+	    2>/dev/null
+
+	  # use /tmp/tags to put the tag in the zone config dir
+	  v=`nawk -v n=$i \
+	    '{if ($1 == n) {print substr($0, length($1) + 2); exit 0}}' \
+	    /tmp/tags`
+	  if [ -n "$v" ]; then
+	      mkdir -p /zones/$i/config
+	      echo $v > /zones/$i/config/tags.json
+	  fi
 	done
 	PROG
 
-    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_aliases" >/dev/null
-    [ $? != 0 ] && fatal "setting up alias update"
-    sdc-oneachnode $OEN_ARGS -g /tmp/upd_aliases >/dev/null
-    [ $? != 0 ] && fatal "copying alias file"
+    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_cn" >/dev/null
+    [ $? != 0 ] && fatal "setting up compute node update"
+    sdc-oneachnode $OEN_ARGS -g /tmp/upd_cn >/dev/null
+    [ $? != 0 ] && fatal "copying compute node update file"
 
-    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_aliases &" >/dev/null
-    # ignore errors which are expected on a re-run
-
-    # 2nd script
-
-    echo "Updating the VM create times on each compute node"
-
-    echo "cat <<DONE >/tmp/cr_time" >/tmp/upd_ctime
-    cat $SDC_UPGRADE_DIR/cr_time.out >>/tmp/upd_ctime
-
-    cat <<-PROG2 >>/tmp/upd_ctime
-	DONE
-
-	for i in \`zoneadm list -c\`
-	do
-	  a=\`nawk -v n=\$i '{if (\$1 == n) {print \$2; exit 0}}' /tmp/cr_time\`
-	  [ -n "\$a" ] && zonecfg -z \$i \
-	  "add attr; set name=create-timestamp; set type=string; set value=\\"\$a\\"; end" \
-	    2>/dev/null
-	done
-	PROG2
-
-    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_ctime" >/dev/null
-    [ $? != 0 ] && fatal "setting up create time update"
-    sdc-oneachnode $OEN_ARGS -g /tmp/upd_ctime >/dev/null
-    [ $? != 0 ] && fatal "copying create time file"
-
-    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_ctime &" >/dev/null
-    # ignore errors which are expected on a re-run
-
-    # 3rd script
-
-    echo "Updating the VM tags on each compute node"
-
-    echo "cat <<DONE >/tmp/tags" >/tmp/upd_tags
-    cat $SDC_UPGRADE_DIR/tags.out >>/tmp/upd_tags
-
-    cat <<-PROG3 >>/tmp/upd_tags
-	DONE
-
-	for i in \`zoneadm list -c\`
-	do
-	  a=\`nawk -v n=\$i '{if (\$1 == n) {print substr(\$0, length(\$1) + 2); exit 0}}' /tmp/tags\`
-	  if [ -n "\$a" ]; then
-	      mkdir -p /zones/\$i/config
-	      echo \$a > /zones/\$i/config/tags.json
-	  fi
-	done
-	PROG3
-
-    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_tags" >/dev/null
-    [ $? != 0 ] && fatal "setting up tags update"
-    sdc-oneachnode $OEN_ARGS -g /tmp/upd_tags >/dev/null
-    [ $? != 0 ] && fatal "copying tags file"
-
-    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_tags &" >/dev/null
+    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_cn &" >/dev/null
     # ignore errors which are expected on a re-run
 }
 
