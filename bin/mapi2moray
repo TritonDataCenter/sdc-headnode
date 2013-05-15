@@ -10,7 +10,7 @@ var util = require('util');
 // Using Spanish here to avoid having to change all the "exists" references:
 var existe = fs.exists || path.exists;
 var existsSync = fs.existsSync || path.existsSync;
-
+var node_uuid = require('./node-uuid');
 
 ///--- Globals
 
@@ -146,15 +146,8 @@ function read_lines_chunked(file, dataCallback, doneCallback) {
 
 
 function generate_uuid(callback) {
-    var exec = require('child_process').exec;
-    // var child = exec("uuidgen | tr '[A-Z]' '[a-z]'", function (error, stdout, stderr) {
-    var child = exec('/usr/bin/uuid', function (error, stdout, stderr) {
-        if (error) {
-            return callback(error);
-        }
-
-        return callback(null, stdout.replace(/^\s+|\s+$/g, ''));
-    });
+    var u = node_uuid();
+    return callback(null, u);
 }
 
 
@@ -422,32 +415,38 @@ function transform_networks(file, callback) {
                 }
 
                 done++;
-
-                if (done === lines.length) {
-                    if (errs.length !== 0) {
-                        return callback(errs);
-                    }
-
-                    // We now have UUIDs to transform primary_network_id in
-                    // the VMS and ZONES tables
-                    for (var zid in ZONES) {
-                      var prim_net = NETWORKS[ZONES[zid].primary_network_id];
-                      if (prim_net) {
-                        ZONES[zid].primary_network = prim_net.uuid;
-                      }
-                    }
-
-                    for (var vid in VMS) {
-                      var prim_net = NETWORKS[VMS[vid].primary_network_id];
-                      if (prim_net) {
-                        VMS[vid].primary_network = prim_net.uuid;
-                      }
-                    }
-
-                    return callback();
-                }
             });
         });
+
+        function doneWithNetworks() {
+            if (errs.length !== 0) {
+                return callback(errs);
+            }
+
+            // We now have UUIDs to transform primary_network_id in
+            // the VMS and ZONES tables
+            for (var zid in ZONES) {
+              var prim_net = NETWORKS[ZONES[zid].primary_network_id];
+              if (prim_net) {
+                ZONES[zid].primary_network = prim_net.uuid;
+              }
+            }
+
+            for (var vid in VMS) {
+              var prim_net = NETWORKS[VMS[vid].primary_network_id];
+              if (prim_net) {
+                VMS[vid].primary_network = prim_net.uuid;
+              }
+            }
+
+            return callback();
+        }
+
+        if (done < lines.length) {
+            setTimeout(doneWithNetworks, 200);
+        } else {
+            doneWithNetworks();
+        }
     });
 }
 
@@ -802,17 +801,23 @@ function transform_nic_tags(file, callback) {
                 }
 
                 done++;
-
-                if (done === lines.length) {
-                    if (errs.length !== 0) {
-                        return callback(errs[0]);
-                    }
-
-                    fs.writeFile(directory + '/napi_nic_tags.moray',
-                        tags.join('\n'), 'utf8', callback);
-                }
             });
         });
+
+        function doneWithNicTags() {
+            if (errs.length !== 0) {
+                return callback(errs[0]);
+            }
+
+            fs.writeFile(directory + '/napi_nic_tags.moray',
+                tags.join('\n'), 'utf8', callback);
+        }
+
+        if (done < lines.length) {
+            setTimeout(doneWithNicTags, 200);
+        } else {
+            doneWithNicTags();
+        }
     });
 }
 
