@@ -104,6 +104,7 @@ function create_upgrade
     chmod +x ${STAGE}/upgrade/capi2ldif.sh
     cp ${ROOT}/bin/mapi2moray ${STAGE}/upgrade/mapi2moray
     chmod +x ${STAGE}/upgrade/mapi2moray
+    cp ${ROOT}/bin/node-uuid.js ${STAGE}/upgrade/node-uuid.js
     cp ${ROOT}/bin/mapi2alias.sh ${STAGE}/upgrade/mapi2alias.sh
     chmod +x ${STAGE}/upgrade/mapi2alias.sh
     cp ${ROOT}/bin/mapi2ctime.sh ${STAGE}/upgrade/mapi2ctime.sh
