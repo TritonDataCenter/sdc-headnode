@@ -167,30 +167,35 @@ function macToNum(addr) {
 
 function get_addressable(id, type) {
     var belongs_to = {};
-    switch (type) {
-    case 'VM':
-        belongs_to.type = 'zone';
-        belongs_to.uuid = VMS[id].uuid;
-        belongs_to.owner_uuid = VMS[id].owner_uuid;
-        belongs_to.primary_network_uuid = VMS[id].primary_network_uuid;
-        break;
-    case 'Zone':
-        belongs_to.type = 'zone';
-        belongs_to.uuid = ZONES[id].uuid;
-        belongs_to.owner_uuid = ZONES[id].owner_uuid;
-        belongs_to.primary_network_uuid = ZONES[id].primary_network_uuid;
-        break;
-    case 'Server':
-        belongs_to.type = 'server';
-        belongs_to.uuid = SERVERS[id];
-        belongs_to.owner_uuid = admin_uuid;
-        break;
-    case 'Nic':
-        belongs_to.type = 'other';
-        belongs_to.uuid = admin_uuid;
-        belongs_to.owner_uuid = admin_uuid;
-        break;
-    default:
+    // it is possible that the referenced object doesn't exist anymore
+    try {
+        switch (type) {
+        case 'VM':
+            belongs_to.type = 'zone';
+            belongs_to.uuid = VMS[id].uuid;
+            belongs_to.owner_uuid = VMS[id].owner_uuid;
+            belongs_to.primary_network_uuid = VMS[id].primary_network_uuid;
+            break;
+        case 'Zone':
+            belongs_to.type = 'zone';
+            belongs_to.uuid = ZONES[id].uuid;
+            belongs_to.owner_uuid = ZONES[id].owner_uuid;
+            belongs_to.primary_network_uuid = ZONES[id].primary_network_uuid;
+            break;
+        case 'Server':
+            belongs_to.type = 'server';
+            belongs_to.uuid = SERVERS[id];
+            belongs_to.owner_uuid = admin_uuid;
+            break;
+        case 'Nic':
+            belongs_to.type = 'other';
+            belongs_to.uuid = admin_uuid;
+            belongs_to.owner_uuid = admin_uuid;
+            break;
+        default:
+            belongs_to = null;
+        }
+    } catch (e) {
         belongs_to = null;
     }
 
