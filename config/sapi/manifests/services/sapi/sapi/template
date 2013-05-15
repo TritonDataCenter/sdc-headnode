@@ -1,7 +1,7 @@
 {
 	"log_options": {
 		"name": "sapi",
-		"level": "debug"
+		"level": "info"
 	},
 	"mode": "{{{SAPI_MODE}}}",
 	"datacenter_name": "{{{datacenter_name}}}",
