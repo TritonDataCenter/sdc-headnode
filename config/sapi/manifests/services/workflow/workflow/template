@@ -9,7 +9,7 @@
         "port": 80
     },
     "maxHttpSockets": 100,
-    "logLevel": "debug",
+    "logLevel": "info",
     "maxInitRetries": 50,
     "runner": {
         "identifier": "{{{ZONE_UUID}}}",
