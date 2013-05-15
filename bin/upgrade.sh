@@ -1246,7 +1246,13 @@ function update_vm_attrs
 	  # use /tmp/pkg_ids to fix the billing_id on the zone
 	  zonecfg -z $i remove attr name=billing-id 2>/dev/null
 	  pnm=`zonecfg -z $i info attr name=package-name | \
-	    nawk '{if ($1 == "value:") print $2}'`
+	    nawk '{if ($1 == "value:") {
+	      nm = substr($0, length($1) + 3)
+	      if (substr(nm, 1, 1) == "\"")
+	          print substr(nm, 2, length(nm) - 2)
+	      else
+	          print nm
+	    }}'`
 	  pvr=`zonecfg -z $i info attr name=package-version | \
 	    nawk '{if ($1 == "value:") print $2}'`
 	  pkey="$pnm $pvr"
