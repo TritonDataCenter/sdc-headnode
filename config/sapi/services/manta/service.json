@@ -1,7 +1,7 @@
 {
     "name": "manta",
     "params": {
-        "package_name": "sdc_256",
+        "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "tags": {
             "smartdc_role": "manta",
