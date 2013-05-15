@@ -68,7 +68,7 @@ if [[ $WRITABLE == 1 ]]; then
          }
     }" > ${tmpfile}
 
-    sdc-sapi /services/${service_uuid} -T ${tmpfile}
+    sdc-sapi /services/${service_uuid} -T ${tmpfile} >/dev/null 2>&1
     [[ $? != 0 ]] && fatal "Error updating CloudAPI metadata"
     rm ${tmpfile}
 
