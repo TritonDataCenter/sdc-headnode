@@ -267,6 +267,15 @@ function create_output
         > USB-headnode.vmdk)
     echo "done."
 
+    coal_numvcpus=$(build_spec coal-numvcpus)
+    if [[ -n ${coal_numvcpus} ]]; then
+        echo -n "==> Setting COAL HN vcpu count to: ${coal_numvcpus} "
+        sed -e "s/^numvcpus.*$/numvcpus = \"${coal_numvcpus}\"/" \
+            "${vmxfile}" > "${vmxfile}.new"
+        mv "${vmxfile}.new" "${vmxfile}"
+        echo "done."
+    fi
+
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
         if [[ ${coal_memsize} < 4096 ]]; then
