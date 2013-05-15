@@ -1,4 +1,26 @@
 {
-    "port": 80,
-    "keyfile": "/opt/smartdc/keyapi/keyfile"
+  "port": 80,
+  "keyfile": "/opt/smartdc/keyapi/keyfile",
+
+  "ufdsMaster": {
+    "url": "ldaps://{{{REMOTE_UFDS_IP}}}",
+    "bindDN": "{{{REMOTE_UFDS_ROOT_DN}}}",
+    "bindPassword": "{{{REMOTE_UFDS_ROOT_PW}}}",
+    "cache": {
+      "size": 5000,
+      "expiry": 60
+    },
+    "clientTimeout": 240000,
+    "maxConnections": 1
+  },
+  "ufds": {
+    "url": "ldaps://{{{UFDS_SERVICE}}}",
+    "bindDN": "{{{ufds_ldap_root_dn}}}",
+    "bindPassword": "{{{ufds_ldap_root_pw}}}",
+    "adminUuid": "{{{ufds_admin_uuid}}}",
+    "cache": {
+      "size": 1000,
+      "expiry": 300
+    }
+  }
 }
