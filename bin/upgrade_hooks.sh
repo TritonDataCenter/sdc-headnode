@@ -398,17 +398,24 @@ add_notes()
     print_log "adding notes..."
 
     local moray_uuid=`vmadm lookup -1 tags.smartdc_role=moray`
-    local cmd=/opt/smartdc/moray/node_modules/moray/bin/putobject
-    local p=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/moray/build/node/bin:/opt/smartdc/moray/node_modules/.bin:/opt/smartdc/moray/node_modules/moray/bin
 
     local old_ifs=$IFS
     IFS=$'\n'
     local i=""
     for i in `cat ${SDC_UPGRADE_DIR}/notes.out`
     do
-        zlogin $moray_uuid "PATH=$p $cmd -d '$i' sdcnotes $(uuid)"
+	d=`echo "$i" | nawk '{sub("\047", "\047\\\\\047\047"); print $0}'`
+
+	cat <<- PROG >/zones/$moray_uuid/root/root/addnote
+	export PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/moray/build/node/bin:/opt/smartdc/moray/node_modules/.bin:/opt/smartdc/moray/node_modules/moray/bin
+
+	putobject -d '$d' sdcnotes $(uuid)
+	PROG
+        zlogin $moray_uuid "bash /root/addnote"
     done
     IFS=$old_ifs
+
+    rm -f /zones/$moray_uuid/root/root/addnote
 }
 
 get_replicator_status()
