@@ -234,16 +234,19 @@ function dump_mapi_live
 {
     echo "Dump MAPI (live responses) for data conversion"
     mkdir -p $SDC_UPGRADE_DIR/mapi_dump
-    sdc-mapi /datasets | json -H >$SDC_UPGRADE_DIR/mapi_dump/datasets.json
+    sdc-mapi /datasets?include_disabled=true \
+        | json -H >$SDC_UPGRADE_DIR/mapi_dump/datasets.json
     [ $? != 0 ] && fatal "getting MAPI datasets failed"
 
     echo "Transforming MAPI datasets to IMGAPI manifest format"
     DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
         var fs = require("fs");
+        var path = require("path");
         var dumpDir = process.env.DUMP_DIR;
         var d = JSON.parse(fs.readFileSync(dumpDir + "/datasets.json"));
         d.forEach(function (image) {
-            image._local_path = "/usbkey/datasets/" + image.files[0].path;
+            image._local_path = path.resolve("/usbkey/datasets/",
+                image.files[0].path);
             delete image.id;
             delete image.uri;
             delete image.default;
@@ -1680,7 +1683,6 @@ done
 rm -rf $AGENTS_DIR/smf/*
 
 # Fix up /var
-mkdir -m755 -p /var/db/imgadm
 mkdir -m755 -p /var/log/vm/logs
 touch /var/log/vm/vm.log
 

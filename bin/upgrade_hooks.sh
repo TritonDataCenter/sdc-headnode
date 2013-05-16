@@ -381,7 +381,7 @@ resv_cns()
 
     local i=""
     for i in `nawk -F\t '{
-        if (NF != 30) next 
+        if (NF != 30) next
 	    if ($2 == "headnode") next
 	    if ($7 == "f") next
 	    print $17
@@ -754,12 +754,10 @@ imgapi_tasks()
         if [[ "$status" == "404" ]]; then
             echo "Importing image $uuid ($imageFile) into IMGAPI."
             if [[ -f $imageFile ]]; then
-                echo "$image" | /opt/smartdc/bin/sdc-imgadm import -f $imageFile
+                echo "$image" | /opt/smartdc/bin/sdc-imgadm import \
+                    -q -f $imageFile --skip-owner-check
                 local res=$?
-                if [[ $res == 0 ]]; then
-                    echo "Removing image file $imageFile (no longer needed)."
-                    rm $imageFile
-                else
+                if [[ $res != 0 ]]; then
                     saw_err "Error importing image $uuid $(file) into IMGAPI."
                 fi
             else

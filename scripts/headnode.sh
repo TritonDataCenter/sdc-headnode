@@ -821,21 +821,24 @@ if [[ -n ${zone_uuid} ]]; then
 fi
 
 
-# Import dataset images into IMGAPI
-function import_datasets {
-    for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
+# Import the images used for SDC services into IMGAPI.
+function import_smartdc_service_images {
+    for manifest in $(ls -1 ${USB_COPY}/datasets/*.imgmanifest); do
+        local is_smartdc_service=$(cat $manifest | json tags.smartdc_service)
+        if [[ "$is_smartdc_service" != "true" ]]; then
+            # /usbkey/datasets often has non-core images. Don't import those
+            # here. This includes any additional datasets included in
+            # build.spec#datasets.
+            continue
+        fi
         local uuid=$(cat ${manifest} | json uuid)
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
                        | head -1 | awk '{print $2}')
-        local filename=$(json -f "${manifest}" files.0.path)
-        local file=${USB_COPY}/datasets/${filename}
-        if [[ -z "$filename" || ! -f "$file" ]]; then
-            # Newer imgmanifest files don't have the 'files.*.path' field.
-            # Our core datasets all have .zfs.imgmanifest extensions, though.
-            file=$(ls -1 ${manifest%.zfs.imgmanifest}.* | grep -v 'manifest$')
-        fi
         if [[ "${status}" == "404" ]]; then
-            echo "Importing image ${uuid} (${manifest}, ${file}) into IMGAPI."
+            # The core images all have .zfs.imgmanifest extensions.
+            local file=$(ls -1 ${manifest%.zfs.imgmanifest}.* \
+                | grep -v 'manifest$')
+            echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
             [[ -f ${file} ]] || fatal "Image file ${file} not found."
             # Skip the check that "owner" exists in UFDS during setup
             # b/c if this is not the DC with the UFDS master, then the
@@ -844,7 +847,7 @@ function import_datasets {
                 -m ${manifest} -f ${file}
         elif [[ "${status}" == "200" ]]; then
             # exists
-            echo "Skipping import of image ${uuid}: already in IMGAPI."
+            echo "Skipping import of SDC service image ${uuid}: already in IMGAPI."
         else
             fatal "Can't reach IMGAPI - status ${status}"
         fi
@@ -854,7 +857,7 @@ function import_datasets {
 
 # Import bootstrapped core images into IMGAPI.
 if [[ ${created_imgapi} == 1 ]]; then
-    import_datasets
+    import_smartdc_service_images
 fi
 
 
