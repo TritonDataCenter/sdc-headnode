@@ -317,7 +317,9 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         capi_http_admin_pw
         zonetracker_database_path
         imgapi_admin_ips
+        imgapi_domain
         vmapi_admin_ips
+        vmapi_domain
         '
     bash /lib/sdc/config.sh -json \
         | json -e '// compute_node_FOO -> FOO
