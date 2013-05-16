@@ -34,6 +34,9 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 # do configuration now.
 /opt/smartdc/bin/configure || fatal "Unable to configure $role zone"
 
+# Install Amon monitor and probes for CloudAPI
+TRACE=1 /opt/smartdc/cloudapi/bin/cloudapi-amon-install
+
 echo "Adding log rotation"
 logadm -w cloudapi -C 48 -s 100m -p 1h \
     /var/svc/log/smartdc-application-cloudapi:default.log
