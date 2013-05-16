@@ -582,8 +582,7 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
         echo '{}' > /var/imgadm/imgadm.conf
     fi
     if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
-        imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-        imgadm sources -f -a $imgapi_url
+        imgadm sources -f -a http://$CONFIG_imgapi_domain
         imgadm sources -f -d https://images.joyent.com  # remove the default
     fi
 

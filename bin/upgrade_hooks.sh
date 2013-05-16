@@ -279,8 +279,7 @@ pre_tasks()
         # pickup config
         load_sdc_config
 
-        imgapi_url=http://$(echo $CONFIG_imgapi_admin_ips | cut -d, -f1)
-        imgadm sources -f -a $imgapi_url
+        imgadm sources -f -a http://$CONFIG_imgapi_domain
         imgadm sources -f -d https://images.joyent.com  # remove the default
     fi
 
