@@ -293,17 +293,21 @@ function create_output
         echo "done."
     fi
 
-    coal_enable_serial=$(build_spec coal-enable-serial)
+    local coal_enable_serial=$(build_spec coal-enable-serial)
     sed -e "/^serial[0-1]\./d" "${vmxfile}" > "${vmxfile}.new"
     mv "${vmxfile}.new" "${vmxfile}"
     if [[ "${coal_enable_serial}" == "true" ]]; then
         echo -n "==> Adding serial ports to VMware configuration..."
         for i in 0 1; do
+            local coal_serial_path=$(build_spec coal-serial${i}-path)
+            if [[ -z ${coal_serial_path} ]]; then
+              coal_serial_path="socket.serial${i}"
+            fi
             echo "serial${i}.present = \"TRUE\""
             echo "serial${i}.fileType = \"pipe\""
             echo "serial${i}.yieldOnMsrRead = \"TRUE\""
             echo "serial${i}.startConnected = \"TRUE\""
-            echo "serial${i}.fileName = \"/tmp/.coal.com$(( i + 1 ))\""
+            echo "serial${i}.fileName = \"${coal_serial_path}\""
             echo
         done >> "${vmxfile}"
     fi
