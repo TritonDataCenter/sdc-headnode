@@ -1303,10 +1303,12 @@ function install_agent
     cp $ROOT/$nm.tgz /var/cn_upgrade
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       [ -d /opt/smartdc/agents/lib ] && exit 0;
        curl -kOs $CONFIG_assets_admin_ip:/agents/$nm.tgz;
+       echo 'SDC6 agent upgrade';
        /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
        >/var/tmp/${nm}_install.log 2>&1 &" | \
-       egrep -v "^HOST" | wc -l`
+       egrep "SDC6 agent upgrade" | wc -l`
     echo "Installed $nm agent on $cnt nodes"
 }
 
@@ -1475,7 +1477,9 @@ fi
 
 if [ $DO_CHECKS -eq 1 ]; then
     echo -n "Checking each compute node for correct agents..."
-    num_cn=`sdc-oneachnode $OEN_ARGS hostname | egrep -v "^HOST" | wc -l`
+    num_cn=`sdc-oneachnode $OEN_ARGS "if [ -d /opt/smartdc/agents/lib ]; then
+        echo 'SDC7agents'; else echo 'SDC6agents'; fi" | \
+        egrep "SDC6agents" | wc -l`
     sdc-oneachnode $OEN_ARGS /opt/smartdc/agents/bin/agents-npm --noreg ls \
         >/tmp/cn_agent.out
 
