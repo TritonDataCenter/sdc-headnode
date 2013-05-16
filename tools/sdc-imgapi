@@ -41,7 +41,7 @@ if [[ -z "$IMGAPI_URL" && -f /lib/sdc/config.sh ]]; then
     load_sdc_config
 
     if [[ -z ${CONFIG_imgapi_domain} ]]; then
-        echo "error: Unable to find IP for amon. Is it installed?"
+        echo "error: Unable to find IP for imgapi. Is it installed?"
         exit 1
     fi
 
