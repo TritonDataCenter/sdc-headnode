@@ -1,6 +1,7 @@
 {
   "port": 80,
   "datacenter": "{{{datacenter_name}}}",
+  "logLevel": "{{{NAPI_LOG_LEVEL}}}",
   "macOUI": "{{{napi_mac_prefix}}}",
   "moray": {
     "host": "{{{MORAY_SERVICE}}}",
