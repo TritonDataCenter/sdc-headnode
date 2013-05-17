@@ -134,14 +134,14 @@ create_extra_zones()
                 \"alias\": \"${i}0\",
                 \"networks\": [
                     {
-                        \"uuid\": \"$(sdc-napi /networks | json -H -c 'this.nic_tag=="admin"' 0.uuid)\"
+                        \"uuid\": \"$(sdc-napi /networks?name=admin | json -H 0.uuid)\"
                     }
                 ]
             }
         }"
         if [[ -n "$ext_ip" ]]; then
             payload=$(echo "$payload" | json -e "this.params.networks.push({
-                \"uuid\": \"$(sdc-napi /networks | json -H -c 'this.nic_tag=="external"' 0.uuid)\",
+                \"uuid\": \"$(sdc-napi /networks?name=external | json -H 0.uuid)\",
                 \"ip\": \"$ext_ip\",
                 \"primary\": true
             })")
