@@ -1545,7 +1545,7 @@ trim_db
 # Double check the existence of backup file.
 echo "$(date -u "+%Y%m%dT%H%M%S") backup start" >>$SDC_UPGRADE_DIR/upgrade_time
 echo "Creating a backup"
-sdc-backup -s datasets -s billapi -s riak -d $SDC_UPGRADE_DIR
+sdc-backup -s datasets -s ca -s billapi -s riak -d $SDC_UPGRADE_DIR
 [[ $? != 0 ]] && fatal "unable to make a backup"
 bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
