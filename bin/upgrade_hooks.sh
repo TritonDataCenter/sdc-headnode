@@ -866,6 +866,7 @@ cloudapi_tasks()
     # The config file needs conversion
     local ocfg=$bdir/config.json
     local cfgfile=/zones/$1/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
+    local tmpfile=/tmp/cloudapi_metadata_changes.$$.json
 
     /usr/node/bin/node -e '
         var fs = require("fs");
