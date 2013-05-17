@@ -493,6 +493,10 @@ post_tasks()
     print_log "upgrading napi data..."
     napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
+    local dhcpd_uuid=`vmadm lookup -1 tags.smartdc_role=dhcpd`
+    zlogin $dhcpd_uuid svcadm enable dhcpd
+    [[ $? != 0 ]] && saw_err "Error enabling dhcpd svc"
+
     print_log "upgrading vmapi data"
     vmapi_tasks `cat ${SDC_UPGRADE_DIR}/vmapi_zonename.txt`
 
@@ -650,6 +654,13 @@ reboot_zone()
 
     [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]] && \
         saw_err "Error restarting $1 zone: svcs did not completely restart"
+}
+
+# arg1 is zonename
+dhcpd_tasks()
+{
+    zlogin $1 svcadm disable dhcpd
+    [[ $? != 0 ]] && saw_err "Error disabling dhcpd svc"
 }
 
 # arg1 is zonename
@@ -978,6 +989,8 @@ case "$1" in
 "post_bg") post_tasks;;
 
 "cloudapi") cloudapi_tasks $2;;
+
+"dhcpd") dhcpd_tasks $2;;
 
 "ufds") ufds_tasks $2;;
 
