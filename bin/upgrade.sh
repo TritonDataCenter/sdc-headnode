@@ -1607,6 +1607,25 @@ echo "$(date -u "+%Y%m%dT%H%M%S") dumps done" >>$SDC_UPGRADE_DIR/upgrade_time
 
 update_vm_attrs
 
+echo "Temporarily disabling heartbeater on all compute nodes"
+# Wait between 45 to 60 minutes before re-enabling heartbeat. This baseline
+# is to account for the time to backup/update the USB key, reboot and get the
+# core zones setup.
+cat <<-"HBPROG" >/tmp/hb_down
+svcadm disable heartbeater
+sleep $((($RANDOM % 15 * 60 + $RANDOM % 60 + 2700)))
+svcadm enable heartbeater
+HBPROG
+
+sdc-oneachnode $OEN_ARGS "rm -f /tmp/hb_down" >/dev/null
+[ $? != 0 ] && fatal "setting up heartbeat disable"
+sdc-oneachnode $OEN_ARGS -g /tmp/hb_down >/dev/null
+[ $? != 0 ] && fatal "copying hearbeat disable file"
+
+cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
+   bash /tmp/hb_down >/dev/null 2>&1 &" | egrep "Disable heartbeater" | wc -l`
+echo "Disable heartbeater on $cnt nodes"
+
 # Now we can shutdown the rest of the zones so we are in an even more stable
 # state for the rest of this phase of the upgrade.
 shutdown_sdc_zones
@@ -1737,23 +1756,6 @@ cp -pr *log* $SDC_UPGRADE_DIR
     cp /var/tmp/capi_access $SDC_UPGRADE_DIR
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
-
-echo "Temporarily disabling heartbeater on all compute nodes"
-# Wait between 10 minutes and 40 minutes before re-enabling heartbeat
-cat <<-"HBPROG" >/tmp/hb_down
-svcadm disable heartbeater
-sleep $((($RANDOM % 30 * 60 + $RANDOM % 60 + 600)))
-svcadm enable heartbeater
-HBPROG
-
-sdc-oneachnode $OEN_ARGS "rm -f /tmp/hb_down" >/dev/null
-[ $? != 0 ] && fatal "setting up heartbeat disable"
-sdc-oneachnode $OEN_ARGS -g /tmp/hb_down >/dev/null
-[ $? != 0 ] && fatal "copying hearbeat disable file"
-
-cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
-   bash /tmp/hb_down >/dev/null 2>&1 &" | egrep "Disable heartbeater" | wc -l`
-echo "Disable heartbeater on $cnt nodes"
 
 echo "$(date -u "+%Y%m%dT%H%M%S") 6.5 done" >>$SDC_UPGRADE_DIR/upgrade_time
 mv $SDC_UPGRADE_DIR /var/upgrade_headnode
