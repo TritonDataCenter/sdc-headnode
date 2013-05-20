@@ -1698,16 +1698,20 @@ cp -pr *log* $SDC_UPGRADE_DIR
 cp -pr $ROOT/upgrade_hooks.sh $SDC_UPGRADE_DIR
 chmod +x $SDC_UPGRADE_DIR/upgrade_hooks.sh
 
+echo "Temporarily disabling heartbeater on all compute nodes"
 # Wait between 10 minutes and 40 minutes before re-enabling heartbeat
-cat <<-"HBPROG" >/zones/assets/root/assets/hb_down
+cat <<-"HBPROG" >/tmp/hb_down
 svcadm disable heartbeater
 sleep $((($RANDOM % 30 * 60 + $RANDOM % 60 + 600)))
 svcadm enable heartbeater
 HBPROG
 
-local cnt=`sdc-oneachnode $OEN_ARGS "cd /tmp;
-   curl -kOs $CONFIG_assets_admin_ip:/hb_down;
-   echo 'Disable heartbeater';
+sdc-oneachnode $OEN_ARGS "rm -f /tmp/hb_down" >/dev/null
+[ $? != 0 ] && fatal "setting up heartbeat disable"
+sdc-oneachnode $OEN_ARGS -g /tmp/hb_down >/dev/null
+[ $? != 0 ] && fatal "copying hearbeat disable file"
+
+local cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
    bash /tmp/hb_down >/dev/null 2>&1 &" | egrep "Disable heartbeater" | wc -l`
 echo "Disable heartbeater on $cnt nodes"
 
