@@ -484,9 +484,6 @@ post_tasks()
     # Can still see timeouts in coal when things are spinning up
     [[ "$CONFIG_coal" == "true" ]] && sleep 120
 
-    print_log "upgrading imgapi..."
-    imgapi_tasks
-
     print_log "configuring fwapi..."
     fwapi_tasks
 
@@ -496,9 +493,6 @@ post_tasks()
     local dhcpd_uuid=`vmadm lookup -1 tags.smartdc_role=dhcpd`
     zlogin $dhcpd_uuid svcadm enable dhcpd
     [[ $? != 0 ]] && saw_err "Error enabling dhcpd svc"
-
-    print_log "upgrading vmapi data"
-    vmapi_tasks `cat ${SDC_UPGRADE_DIR}/vmapi_zonename.txt`
 
     print_log "Adding additional zone external nics"
     add_ext_net ufds
@@ -515,6 +509,12 @@ post_tasks()
     add_ext_net imgapi
     vmadm update $role_uuid firewall_enabled=true
     reboot_zone $role_uuid
+
+    print_log "loading images..."
+    imgapi_tasks
+
+    print_log "upgrading vmapi data"
+    vmapi_tasks `cat ${SDC_UPGRADE_DIR}/vmapi_zonename.txt`
 
     resv_cns
     add_notes
@@ -727,6 +727,7 @@ imgapi_tasks()
     local numImages=$(echo "$images" | json length)
     local i=0
     while [ $i -lt $numImages ]; do
+        print_log "image $(($i + 1)) of $numImages"
         local imageFile=$(echo "$images" | json $i._local_path)
         local image=$(echo "$images" | json -e 'this._local_path = undefined' $i)
         local uuid=$(echo "$image" | json uuid)
