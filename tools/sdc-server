@@ -612,18 +612,23 @@ function dispatchCommand(command, args, callback)
                     return;
                 }
 
-                var match = param[0].match(/^([^_]+)_nic$/);
-                if (!match) {
-                    usage();
-                    callback(new Error('Invalid parameter: ' + param[0]));
-                    return;
-                }
+                if (param[0] === 'hostname') {
+                    setupOpts.params.hostname = param[1];
+                } else if (param[0] === 'postsetup_script') {
+                    setupOpts.params.postsetup_script = param[1];
+                } else {
+                    var match = param[0].match(/^([^_]+)_nic$/);
+                    if (!match) {
+                        usage();
+                        callback(new Error('Invalid parameter: ' + param[0]));
+                        return;
+                    }
+                    if (!nics.hasOwnProperty(param[1])) {
+                        nics[param[1]] = [];
+                    }
 
-                if (!nics.hasOwnProperty(param[1])) {
-                    nics[param[1]] = [];
+                    nics[param[1]].push(match[1]);
                 }
-
-                nics[param[1]].push(match[1]);
             }
 
             if (Object.keys(nics).length !== 0) {
