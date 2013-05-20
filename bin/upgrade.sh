@@ -1293,6 +1293,43 @@ function update_vm_attrs
     cp /tmp/upd_cn /var/cn_upgrade
 }
 
+function extend_leases
+{
+    nawk '{
+        if ($1 == "leaseTime") printf("  leaseTime\t: \"86400\",\n")
+        else print $0}' /zones/dhcpd/root/opt/smartdc/booter/config.js \
+        >/zones/dhcpd/root/opt/smartdc/booter/config.js.new
+    cp /zones/dhcpd/root/opt/smartdc/booter/config.js.new \
+        /zones/dhcpd/root/opt/smartdc/booter/config.js
+    rm -f /zones/dhcpd/root/opt/smartdc/booter/config.js.new
+
+    nawk -F= '{
+        if ($1 == "DHCP_LEASE_TIME") printf("DHCP_LEASE_TIME=\04786400\047\n")
+        else print $0}' /zones/dhcpd/root/opt/smartdc/etc/zoneconfig \
+        >/zones/dhcpd/root/opt/smartdc/etc/zoneconfig.new
+    cp /zones/dhcpd/root/opt/smartdc/etc/zoneconfig.new \
+        /zones/dhcpd/root/opt/smartdc/etc/zoneconfig
+    rm -f /zones/dhcpd/root/opt/smartdc/etc/zoneconfig.new
+
+    zlogin dhcpd svcadm restart dhcpd
+
+    # Wait between 5 and 30 seconds before extending the lease so all CNs
+    # don't try at once
+    cat <<-"LEASEPROG" >/zones/assets/root/assets/dhcp_extend
+	. /lib/sdc/config.sh
+	load_sdc_sysinfo
+
+	sleep $((($RANDOM % 25 + 5)))
+	ifconfig $SYSINFO_NIC_admin dhcp extend
+	LEASEPROG
+
+    local cnt=`sdc-oneachnode $OEN_ARGS "cd /tmp;
+       curl -kOs $CONFIG_assets_admin_ip:/dhcp_extend;
+       echo 'Extend';
+       bash /tmp/dhcp_extend >/dev/null 2>&1 &" | egrep "Extend" | wc -l`
+    echo "Extended DHCP lease on $cnt nodes"
+}
+
 function install_agent
 {
     local nm=$1
@@ -1551,6 +1588,9 @@ bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
 [ -z "$bfile" ] && fatal "missing backup file"
 echo "$(date -u "+%Y%m%dT%H%M%S") backup end" >>$SDC_UPGRADE_DIR/upgrade_time
 
+echo "Extending and renewing DHCP leases"
+extend_leases
+
 # Keep track of the core zone external addresses
 save_zone_addrs
 
@@ -1711,7 +1751,7 @@ sdc-oneachnode $OEN_ARGS "rm -f /tmp/hb_down" >/dev/null
 sdc-oneachnode $OEN_ARGS -g /tmp/hb_down >/dev/null
 [ $? != 0 ] && fatal "copying hearbeat disable file"
 
-local cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
+cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
    bash /tmp/hb_down >/dev/null 2>&1 &" | egrep "Disable heartbeater" | wc -l`
 echo "Disable heartbeater on $cnt nodes"
 
