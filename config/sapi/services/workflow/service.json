@@ -1,7 +1,7 @@
 {
     "name": "workflow",
     "params": {
-        "package_name": "sdc_4096",
+        "package_name": "sdc_8192",
         "image_uuid": "IMAGE_UUID",
 		"networks": [ "admin" ],
         "tags": {
