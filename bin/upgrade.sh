@@ -1575,18 +1575,7 @@ mv /tmp/upgrade_time $SDC_UPGRADE_DIR
 # First trim down dataset_messages since it gets huge
 trim_db
 
-# Since we're upgrading from 6.x we cannot shutdown the zones before backing
-# up, since 6.x backup depends on the zones running.
-
-# Run full backup with the old sdc-backup code, then unpack the backup archive.
-# Double check the existence of backup file.
-echo "$(date -u "+%Y%m%dT%H%M%S") backup start" >>$SDC_UPGRADE_DIR/upgrade_time
-echo "Creating a backup"
-sdc-backup -s datasets -s ca -s billapi -s riak -d $SDC_UPGRADE_DIR
-[[ $? != 0 ]] && fatal "unable to make a backup"
-bfile=`ls $SDC_UPGRADE_DIR/backup-* 2>/dev/null`
-[ -z "$bfile" ] && fatal "missing backup file"
-echo "$(date -u "+%Y%m%dT%H%M%S") backup end" >>$SDC_UPGRADE_DIR/upgrade_time
+# sdc-oneachnode depends on some of the zones running.
 
 echo "Extending and renewing DHCP leases"
 extend_leases
@@ -1624,7 +1613,7 @@ sdc-oneachnode $OEN_ARGS -g /tmp/hb_down >/dev/null
 
 cnt=`sdc-oneachnode $OEN_ARGS "echo 'Disable heartbeater';
    bash /tmp/hb_down >/dev/null 2>&1 &" | egrep "Disable heartbeater" | wc -l`
-echo "Disable heartbeater on $cnt nodes"
+echo "Disabled heartbeater on $cnt nodes"
 
 # Now we can shutdown the rest of the zones so we are in an even more stable
 # state for the rest of this phase of the upgrade.
@@ -1637,14 +1626,22 @@ do
     svcadm disable $i
 done
 
-mkdir $SDC_UPGRADE_DIR/bu.tmp
-(cd $SDC_UPGRADE_DIR/bu.tmp; gzcat $bfile | tar xbf 512 -)
+# Capture cloudapi data as if by an 6.5.x backup
+BU_DIR=${SDC_UPGRADE_DIR}/bu.tmp/cloudapi
+mkdir -p $BU_DIR
+CFG_FILE=/zones/cloudapi/root/opt/smartdc/cloudapi/cfg/config.json
+[ -f $CFG_FILE ] && cp $CFG_FILE $BU_DIR
 
-# Capture data missed by 6.5.x backup
+SSL_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/ssl
+if [ -d $SSL_DIR ]; then
+    mkdir -p $BU_DIR/ssl
+    (cd ${SSL_DIR} && cp -p * $BU_DIR/ssl)
+fi
+
 PLUG_DIR=/zones/cloudapi/root/opt/smartdc/cloudapi/plugins
 if [ -d $PLUG_DIR ]; then
-    mkdir -p ${SDC_UPGRADE_DIR}/bu.tmp/cloudapi/plugins
-    (cd ${PLUG_DIR} && cp -pr * ${SDC_UPGRADE_DIR}/bu.tmp/cloudapi/plugins)
+    mkdir -p $BU_DIR/plugins
+    (cd ${PLUG_DIR} && cp -pr * $BU_DIR/plugins)
 fi
 
 upgrade_zfs_datasets
