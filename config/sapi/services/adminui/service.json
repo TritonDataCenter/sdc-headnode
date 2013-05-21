@@ -1,7 +1,7 @@
 {
     "name": "adminui",
     "params": {
-        "package_name": "sdc_1024",
+        "package_name": "sdc_2048",
         "image_uuid": "IMAGE_UUID",
 		"networks": [ "admin" ],
         "tags": {
