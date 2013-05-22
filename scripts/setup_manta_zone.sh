@@ -97,15 +97,17 @@ function wait_for_config_agent {
     fi
 }
 
-# Copy manta-status into the GZ from the manta zone
-function copy_manta_status {
+# Copy manta tools into the GZ from the manta zone
+function copy_manta_tools{
     zone_uuid=$(vmadm list | grep manta | head -n 1 | awk '{print $1}')
     if [[ -n ${zone_uuid} ]]; then
-        from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment/cmd
+        from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment
         to_dir=/opt/smartdc/bin
         rm -f ${to_dir}/manta-status
-        ln -s ${from_dir}/manta-status.js ${to_dir}/manta-status
         mkdir -p /opt/smartdc/manta-deployment/log
+        ln -s ${from_dir}/cmd/manta-status.js ${to_dir}/manta-status
+        rm -f ${to_dir}/manta-login
+        ln -s ${from_dir}/bin/manta-login ${to_dir}/manta-login
     fi
 }
 
@@ -127,4 +129,4 @@ add_external_nic ${imgapi_uuid}
 import_manta_image
 deploy_manta_zone
 wait_for_config_agent
-copy_manta_status
+copy_manta_tools
