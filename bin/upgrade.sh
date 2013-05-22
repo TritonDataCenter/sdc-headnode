@@ -1597,12 +1597,12 @@ echo "$(date -u "+%Y%m%dT%H%M%S") dumps done" >>$SDC_UPGRADE_DIR/upgrade_time
 update_vm_attrs
 
 echo "Temporarily disabling heartbeater on all compute nodes"
-# Wait between 45 to 60 minutes before re-enabling heartbeat. This baseline
+# Wait between 60 to 90 minutes before re-enabling heartbeat. This baseline
 # is to account for the time to backup/update the USB key, reboot and get the
 # core zones setup.
 cat <<-"HBPROG" >/tmp/hb_down
 svcadm disable heartbeater
-sleep $((($RANDOM % 15 * 60 + $RANDOM % 60 + 2700)))
+sleep $((($RANDOM % 30 * 60 + $RANDOM % 60 + 3600)))
 svcadm enable heartbeater
 HBPROG
 
