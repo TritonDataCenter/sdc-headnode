@@ -1397,7 +1397,7 @@ function process_package_line(uuid, pieces, errs) {
     var pkg = {
         dn: 'uuid=' + uuid + ', ou=packages, o=smartdc',
         uuid: uuid,
-        active: (pieces[15] !== null) ? 'true' : 'false',
+        active: (pieces[15] !== null) ? 'false' : 'true',
         cpu_cap: pieces[5],
         'default': pieces[10] !== 'f',
         max_lwps: pieces[6],
