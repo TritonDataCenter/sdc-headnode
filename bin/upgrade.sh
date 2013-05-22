@@ -374,27 +374,82 @@ function dump_mapi
         > $SDC_UPGRADE_DIR/notes.out 2>&1
     [ $? != 0 ] && fatal "generating notes file"
 
-    get_net_uuid "admin"
+    ip_netmask_to_bits $CONFIG_admin_netmask
+    local vlan_id=0
+    [ -n "$CONFIG_admin_vlan_id" ] && vlan_id=$CONFIG_admin_vlan_id
+    get_net_uuid "admin" $vlan_id $NETMASK_BITS
     ADMIN_NET_UUID=$NET_UUID
-    get_net_uuid "external"
+    [ -z "$ADMIN_NET_UUID" ] && fatal "missing admin net uuid"
+
+    ip_netmask_to_bits $CONFIG_external_netmask
+    vlan_id=0
+    [ -n "$CONFIG_external_vlan_id" ] && vlan_id=$CONFIG_external_vlan_id
+    get_net_uuid "external" $vlan_id $NETMASK_BITS
     EXTERNAL_NET_UUID=$NET_UUID
+    [ -z "$EXTERNAL_NET_UUID" ] && fatal "missing external net uuid"
 }
 
 function get_net_uuid
 {
-    NET_UUID=`nawk -F, -v type=$1 '{
-        split($1, a, ":")
-        nm = substr(a[2], 2, length(a[2]) - 2)
-        if (nm == type) {
-            for (i = 2; i < NF; i++) {
-                split($i, a, ":")
-                if (a[1] == "\"uuid\"") {
-                    val = substr(a[2], 2, length(a[2]) - 2)
-                    print val
-                }
-            }
+    NET_UUID=`nawk -v type=$1 -v vid=$2 -v sbits=$3 '{
+        cnt = split($0, a, ",")
+        tag = uuid = vlan = subnet = ""
+        for (i = 1; i <= cnt; i++) {
+            split(a[i], b, ":")
+            nm = substr(b[1], 2, length(b[1]) - 2)
+            val = substr(b[2], 2, length(b[2]) - 2)
+            if (nm == "nic_tag")
+                tag = val
+            else if (nm == "uuid")
+                uuid = val
+            else if (nm == "vlan_id")
+                vlan = val
+            else if (nm == "subnet_bits")
+                subnet = val
+        }
+        if (type == tag && vid == vlan && sbits == subnet) {
+            print uuid
+            exit 0
         }
     }' $SDC_UPGRADE_DIR/mapi_dump/napi_networks.moray`
+}
+
+cnt_bits()
+{
+    NBITS=0
+
+    local cnt=0
+    local val=$1
+    while [[ $cnt < 8 ]]; do
+        lsb=$((1 & $val))
+        val=$(($val >> 1))
+        [[ $lsb == 1 ]] && NBITS=$(($NBITS + 1))
+        cnt=$(($cnt + 1))
+    done
+}
+
+# Converts an IP netmask to the number of bits
+# e.g. 255.255.255.128 -> 25
+ip_netmask_to_bits()
+{
+    local mask=$1
+
+    local oldifs=$IFS
+    IFS=.
+
+    set -- $mask
+    cnt_bits $1
+    local n1=$NBITS
+    cnt_bits $2
+    local n2=$NBITS
+    cnt_bits $3
+    local n3=$NBITS
+    cnt_bits $4
+    local n4=$NBITS
+
+    NETMASK_BITS=$(($n1 + $n2 + $n3 + $n4))
+
+    IFS=$oldifs
 }
 
 # Use a subset of the table dump from mapi to find all zones with IP addresses
