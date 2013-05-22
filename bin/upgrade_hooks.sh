@@ -956,6 +956,7 @@ cloudapi_tasks()
         fs.writeFileSync(tmpPath, JSON.stringify(changes));
     ' $ocfg $cfgfile $tmpfile
 
+    local service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
     sdc-sapi /services/${service_uuid} -T ${tmpfile}
     [[ $? != 0 ]] && saw_err "Error updating CloudAPI plugins and datacenters"
     rm -f $tmpfile
