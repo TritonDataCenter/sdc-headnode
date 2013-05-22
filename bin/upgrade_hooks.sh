@@ -740,7 +740,7 @@ imgapi_tasks()
                     -q -f $imageFile --skip-owner-check
                 local res=$?
                 if [[ $res != 0 ]]; then
-                    saw_err "Error importing image $uuid $(file) into IMGAPI."
+                    saw_err "Error importing image $uuid ($imageFile) into IMGAPI."
                 fi
             else
                 saw_err "Image $uuid file $imageFile not found."
