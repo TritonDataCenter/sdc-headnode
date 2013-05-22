@@ -98,7 +98,7 @@ function wait_for_config_agent {
 }
 
 # Copy manta tools into the GZ from the manta zone
-function copy_manta_tools{
+function copy_manta_tools {
     zone_uuid=$(vmadm list | grep manta | head -n 1 | awk '{print $1}')
     if [[ -n ${zone_uuid} ]]; then
         from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment
