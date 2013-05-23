@@ -21,10 +21,12 @@ function install_agent
     cp $ROOT/$nm.tgz $assetdir
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       [ -d /opt/smartdc/agents/lib ] && exit 0;
+       echo 'SDC6 agent upgrade';
        curl -kOs $CONFIG_assets_admin_ip:/agents65/$nm.tgz;
        /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
        >/var/tmp/${nm}_install.log 2>&1 &" | \
-       egrep -v "^HOST" | wc -l`
+       egrep "SDC6 agent upgrade" | wc -l`
     echo "Installed $nm agent on $cnt node"
 }
 
@@ -139,6 +141,7 @@ if [[ -n "$UPDATE_CN" ]]; then
 
     install_agent heartbeater-65
     install_agent provisioner-v2-65
+    sleep 60
     install_agent zonetracker-v2-65
 
     echo "Compute node agent install is complete"
