@@ -198,7 +198,9 @@ function outputServerList(callback)
             });
         }, function (cb) {
             // Grab all the server nics so we can just pull them out as we list
-            napi.listNics({belongs_to_type: 'server'}, function (err, n) {
+            napi.listNics({belongs_to_type: 'server', limit: 10000,
+                nic_tags_provided: 'admin'}, function (err, n) {
+
                 if (err) {
                     err.api = 'NAPI';
                 } else {
