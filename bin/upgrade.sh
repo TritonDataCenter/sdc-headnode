@@ -1454,6 +1454,9 @@ if [[ $AGENTS_ONLY == 1 ]]; then
 
     install_agent heartbeater-65
     install_agent provisioner-v2-65
+    # zonetracker usually fails if we do it too quickly after the previous
+    # two sets.
+    sleep 60
     install_agent zonetracker-v2-65
 
     echo "Compute node agent install is complete"
