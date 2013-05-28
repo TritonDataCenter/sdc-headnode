@@ -383,7 +383,7 @@ var onReply = function (m, headers, deliveryInfo)
 		results[key[2]].result = m;
 
 		outstanding--;
-		if (options.node.present) {
+		if (!exclude && options.node.present) {
 			// if we've given an explicit list of nodes, output when all of
 			// those have responded.
 			if (--nodes_outstanding == 0) {
