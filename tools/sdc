@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
+#
+# A wrapper to call operator tools (mainly the 'sdc-*' suite of tools
+# in the 'sdc' zone.
+#
+# Usage:
+#  	sdc [<command>]
+#
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
+
+# Get the admin user.
+. /lib/sdc/config.sh
+load_sdc_config
+admin_uuid=${CONFIG_ufds_admin_uuid}
+if [[ -z ${admin_uuid} ]]; then
+    echo "error: sdc: unable to find the UUID for admin"
+    exit 1
+fi
+
+# Find the sdc zone. Use the most recent one if there are multiple
+# (e.g. during or post upgrade of the 'sdc' zone).
+#
+# Why this long 'vmadm list'? Because `vmadm lookup` doesn't have 
+# sorting, 'vmadm list' filter by 'tags.FOO' is broken (OS-2246).
+sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp -s create_timestamp owner_uuid=930896af-bf8c-48d4-885c-6573a94b1853 | grep '^sdc\>' | tail -1 | awk '{print $2}')
+if [[ -z "${sdc_zone}" ]]; then
+    echo "error: sdc: unable to find a 'sdc' core zone on this node"
+    exit 1
+fi
+
+# Preserve give quoting (http://stackoverflow.com/questions/1668649)
+C=''
+for i in "$@"; do 
+    C="$C \"${i//\"/\\\"}\""
+done
+
+if [[ -z "$C" ]]; then
+    exec zlogin $sdc_zone
+else
+    exec zlogin $sdc_zone "source .bash_profile; $C"
+fi
+

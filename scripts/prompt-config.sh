@@ -1128,6 +1128,10 @@ vmapi_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
+sdc_admin_ip="$ip_addr"
+
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
 keyapi_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
@@ -1232,6 +1236,11 @@ echo >>$tmp_config
 echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
 echo "vmapi_domain=vmapi.${datacenter_name}.${dns_domain}" >>$tmp_config
+echo >>$tmp_config
+
+echo "sdc_root_pw=$zone_admin_pw" >>$tmp_config
+echo "sdc_admin_ips=$sdc_admin_ip" >>$tmp_config
+echo "sdc_domain=sdc.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "keyapi_root_pw=$zone_admin_pw" >>$tmp_config

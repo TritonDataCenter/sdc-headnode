@@ -787,6 +787,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone dapi
     create_zone fwapi
     create_zone vmapi
+    create_zone sdc
     create_zone ca
     create_zone adminui
     create_zone keyapi
@@ -812,7 +813,7 @@ for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/manta/*); do
 done
 
 # Copy sapiadm into the GZ from the SAPI zone
-zone_uuid=$(vmadm list | grep sapi | head -n 1 | awk '{print $1}')
+zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
 if [[ -n ${zone_uuid} ]]; then
     from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
     to_dir=/opt/smartdc/bin

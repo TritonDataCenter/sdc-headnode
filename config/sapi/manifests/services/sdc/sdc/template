@@ -1,0 +1,10 @@
+{
+    "imgapi_domain": "{{{imgapi_domain}}}",
+    "vmapi_domain": "{{{vmapi_domain}}}",
+    "cnapi_domain": "{{{cnapi_domain}}}",
+    "napi_domain": "{{{napi_domain}}}",
+    "fwapi_domain": "{{{fwapi_domain}}}",
+    "workflow_domain": "{{{workflow_domain}}}",
+    "dapi_domain": "{{{dapi_domain}}}",
+    "sapi_domain": "{{{sapi_domain}}}"
+}

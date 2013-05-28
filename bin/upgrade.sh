@@ -920,6 +920,9 @@ function cleanup_config
 	vmapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
+	sdc_admin_ip="$ip_addr"
+
+	allocate_ip_addr
 	keyapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -999,6 +1002,10 @@ function cleanup_config
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
 	vmapi_domain=vmapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
+
+	sdc_root_pw=$CONFIG_adminui_root_pw
+	sdc_admin_ips=$sdc_admin_ip
+	sdc_domain=sdc.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	keyapi_root_pw=$CONFIG_adminui_root_pw
 	keyapi_admin_ips=$keyapi_admin_ip
@@ -1166,6 +1173,7 @@ function cleanup_config
 	ufds_pkg=${GENERIC_ufds_pkg}
 	workflow_pkg=${GENERIC_workflow_pkg}
 	vmapi_pkg=${GENERIC_vmapi_pkg}
+	sdc_pkg=${GENERIC_sdc_pkg}
 	binder_pkg=${GENERIC_binder_pkg}
 	manta_pkg=${GENERIC_manta_pkg}
 
@@ -1526,12 +1534,12 @@ check_capi
 # which was unused, but some sites have a conflict on that address, so we
 # don't attempt to use it. Thus, we only have 9 or 10 addresses to re-use.
 #
-# In 7.0 we have 23 admin zones plus 4 reserved IPs for additional binder
-# instances, so we need at least 17, and maybe 18, additional addresses out of
+# In 7.0 we have 24 admin zones plus 4 reserved IPs for additional binder
+# instances, so we need at least 18, and maybe 19, additional addresses out of
 # the dhcp range to accomodate the new zones.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=17
+need_num_addrs=18
 
 ip_to_num $CONFIG_dhcp_range_start
 dhcp_start=$num

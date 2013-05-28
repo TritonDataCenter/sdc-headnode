@@ -1,0 +1,23 @@
+{
+  "alias": "sdc0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "sdc",
+      "smartdc_type": "core"
+  },
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "sdc",
+    "type":  "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_sdc",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  }
+}

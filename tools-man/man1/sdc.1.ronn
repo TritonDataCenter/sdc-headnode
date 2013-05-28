@@ -1,0 +1,46 @@
+# sdc(1) -- Run a command in the 'sdc' core zone.
+
+
+## SYNOPSIS
+
+`sdc [COMMANDS...]`
+
+
+## DESCRIPTION
+
+Most of SmartDataCenter's tools (mainly the "sdc-*" suite of tools) are
+in the "sdc" zone. They can either be run from that zone directly, or
+via this "sdc" convenience wrapper. E.g.:
+
+    [root@headnode (coal) /opt/smartdc/bin]# sdc-imgapi /ping
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Content-Length: 76
+    Date: Mon, 27 May 2013 22:04:57 GMT
+    Server: IMGAPI/1.0.2
+    x-request-id: 782d9820-c719-11e2-83ba-fda170b5fd80
+    x-response-time: 0
+    x-server-name: b061f52a-c4b6-4b67-8a4c-a5f6ee3ff013
+    Connection: keep-alive
+
+    {
+      "ping": "pong",
+      "version": "1.0.2",
+      "imgapi": true,
+      "pid": 57828
+    }
+
+If no arguments are given, this will zlogin to the 'sdc' zone.
+
+If there are multiple 'sdc' zones on this node, the one created most recently
+will be used.
+
+
+## COPYRIGHT
+
+sdc Copyright (c) 2013 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+sdc-login (1)

@@ -1,0 +1,17 @@
+{
+    "name": "sdc",
+    "params": {
+        "package_name": "sdc_256",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "sdc",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "sdc"
+    },
+    "manifests": {
+    }
+}
