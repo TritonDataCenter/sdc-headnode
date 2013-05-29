@@ -6,5 +6,8 @@
     "fwapi_domain": "{{{fwapi_domain}}}",
     "workflow_domain": "{{{workflow_domain}}}",
     "dapi_domain": "{{{dapi_domain}}}",
-    "sapi_domain": "{{{sapi_domain}}}"
+    "sapi_domain": "{{{sapi_domain}}}",
+    "ufds_domain": "{{{ufds_domain}}}",
+    "ufds_ldap_root_dn": "{{{ufds_ldap_root_dn}}}",
+    "ufds_ldap_root_pw": "{{{ufds_ldap_root_pw}}}"
 }
