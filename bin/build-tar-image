@@ -1107,6 +1107,8 @@ function copy_agents65
     cp $bit_cache_path ${STAGE}/agents65/provisioner-v2-65.tgz
     bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/zonetracker-v2-*")
     cp $bit_cache_path ${STAGE}/agents65/zonetracker-v2-65.tgz
+    bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/metadata-*")
+    cp $bit_cache_path ${STAGE}/agents65/metadata-65.tgz
 }
 
 function add_manifests

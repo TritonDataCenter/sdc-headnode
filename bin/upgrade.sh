@@ -1462,6 +1462,7 @@ if [[ $AGENTS_ONLY == 1 ]]; then
 
     install_agent heartbeater-65
     install_agent provisioner-v2-65
+    install_agent metadata-65
     # zonetracker usually fails if we do it too quickly after the previous
     # two sets.
     sleep 60
@@ -1588,6 +1589,7 @@ if [ $DO_CHECKS -eq 1 ]; then
 
     num_hb=`egrep heartbeater@1.0.1 /tmp/cn_agent.out | wc -l`
     num_prov=`egrep provisioner-v2@1.0.11 /tmp/cn_agent.out | wc -l`
+    num_mdata=`egrep metadata@1.0.2 /tmp/cn_agent.out | wc -l`
     num_zt=`egrep zonetracker-v2@1.0.7 /tmp/cn_agent.out | wc -l`
 
     if [[ $num_hb != $num_cn ]]; then
@@ -1603,6 +1605,11 @@ if [ $DO_CHECKS -eq 1 ]; then
     if [[ $num_zt != $num_cn ]]; then
         echo
         fatal "The correct zonetracker agents are not installed on each" \
+           "compute node"
+    fi
+    if [[ $num_mdata != $num_cn ]]; then
+        echo
+        fatal "The correct metadata agents are not installed on each" \
            "compute node"
     fi
     printf "OK\n"

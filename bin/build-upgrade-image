@@ -157,6 +157,8 @@ function create_upgrade
         ${STAGE}/upgrade/provisioner-v2-65.tgz
     cp ${IMG_TMP_STAGE}/agents65/zonetracker-v2-65.tgz \
         ${STAGE}/upgrade/zonetracker-v2-65.tgz
+    cp ${IMG_TMP_STAGE}/agents65/metadata-65.tgz \
+        ${STAGE}/upgrade/metadata-65.tgz
 
     PLATFORM_STAMP=$(ls -t $IMG_TMP_DIR/upgrade.$$/os/ | head -1)
     cp -R $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP
