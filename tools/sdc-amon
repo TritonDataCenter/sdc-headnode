@@ -1,1 +1,65 @@
-.sdc-call-this-in-sdc-zone
+#!/bin/bash
+#
+# Copyright (c) 2012 Joyent Inc., All rights reserved.
+#
+# Convenience wrapper for calling the Amon Master API.
+#
+
+if [ "$TRACE" != "" ]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
+
+
+# Arguments.
+verbose=0
+if [ "$1" == "-v" ]; then
+    shift
+    verbose=1
+fi
+path=$1
+if [[ -z "$path" ]]; then
+    echo "error: no PATH argument given"
+    echo ""
+    echo "Usage:"
+    echo "  sdc-amon [-v] PATH [EXTRA-CURL-ARGS]"
+    echo ""
+    echo "Environment Variables:"
+    echo "  AMON_URL        Base URL for Amon Master server. Typically this"
+    echo "                  is automatically determined."
+    exit 1
+fi
+shift;
+JSON=$(which json 2>/dev/null || true)
+
+
+# Determine Amon URL.
+if [[ -z "$AMON_URL" && -f /lib/sdc/config.sh ]]; then
+    source /lib/sdc/config.sh
+    load_sdc_config
+
+    if [[ -z ${CONFIG_amon_domain} ]]; then
+        echo "error: Unable to find address for amon. Is it installed?"
+        exit 1
+    fi
+
+    AMON_URL=http://${CONFIG_amon_domain}
+fi
+if [[ -z "$AMON_URL" ]]; then
+    echo "error: AMON_URL envvar is not set and could not be determined"
+    exit 1
+fi
+
+CURL_ARGS="-sS -i -H accept:application/json -H content-type:application/json"
+
+# Note: the 'echo' doesn't show the real quoting of args.
+[ "$verbose" == "1" ] && echo "# curl $CURL_ARGS --url $AMON_URL$path $@" >&2
+if [[ ! -x "$JSON" ]]; then
+    curl $CURL_ARGS --url "$AMON_URL$path" "$@"
+    echo ""
+else
+    curl $CURL_ARGS --url "$AMON_URL$path" "$@" | json -q
+fi
