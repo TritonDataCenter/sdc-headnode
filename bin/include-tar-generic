@@ -80,7 +80,7 @@ function create_output
     else
         echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
         ${SUCMD} chown -R ${USER} ${MNT_DIR}
-        ${TAR} -zcf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
+        ${TAR} --hard-dereference -zchf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
     fi
     rm -rf $MNT_DIR || true
 }
