@@ -26,7 +26,16 @@ case "$PLATFORM" in
     echo "Platform $PLATFORM not supported."
     exit 1
 esac
+# Tar 1.20 added --hard-dereference, which we need if using tar >=1.20.
+TAR_MAJOR=$($TAR --version | head -n1 | sed -n -E 's/.*([0-9])\.([0-9]+).*/\1/p')
+TAR_MINOR=$($TAR --version | head -n1 | sed -n -E 's/.*([0-9])\.([0-9]+).*/\2/p')
+if [[ $TAR_MAJOR -gt 1 || $TAR_MINOR -ge 20 ]]; then
+    TAR_HARD_DEREF="--hard-dereference"
+else
+    TAR_HARD_DEREF=""
+fi
 USER=$(whoami)
+
 
 function can_has_internets
 {
@@ -80,7 +89,7 @@ function create_output
     else
         echo "==> Creating boot-${THIS_BUILDSTAMP}.tgz"
         ${SUCMD} chown -R ${USER} ${MNT_DIR}
-        ${TAR} --hard-dereference -zchf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
+        ${TAR} $TAR_HARD_DEREF -zchf ${ROOT}/boot-${THIS_BUILDSTAMP}.tgz -C ${MNT_DIR} .
     fi
     rm -rf $MNT_DIR || true
 }
