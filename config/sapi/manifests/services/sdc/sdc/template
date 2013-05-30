@@ -9,5 +9,7 @@
     "sapi_domain": "{{{sapi_domain}}}",
     "ufds_domain": "{{{ufds_domain}}}",
     "ufds_ldap_root_dn": "{{{ufds_ldap_root_dn}}}",
-    "ufds_ldap_root_pw": "{{{ufds_ldap_root_pw}}}"
+    "ufds_ldap_root_pw": "{{{ufds_ldap_root_pw}}}",
+    "amon_domain": "{{{amon_domain}}}",
+    "admin_ip": "{{{admin_ip}}}"
 }
