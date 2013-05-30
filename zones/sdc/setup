@@ -20,6 +20,7 @@ mkdir -p /var/smartdc/sdc
 
 # Add node_modules/bin to PATH
 echo "" >>/root/.bashrc
+echo "export MANPATH=\${MANPATH}:/opt/smartdc/${role}/man" >>/root/.bashrc
 echo "export PATH=\$PATH:/opt/smartdc/$role/bin:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
 
 # run the configuration
