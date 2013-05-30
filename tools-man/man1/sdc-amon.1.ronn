@@ -1,33 +1,6 @@
 # sdc-amon(1) -- call the Amon Master API for this datacenter
 
 
-## SYNOPSIS
-
-`sdc-amon [-v] URLPATH [CURL-OPTIONS...]`
-
-
-## DESCRIPTION
-
-This is a light convenience wrapper around `curl` for calling the Amon Master
-API for this datacenter.
-
-Formatting of the response is done via the `json` tool.
-
-
-## OPTIONS
-
-`-v`
-    Show the curl command that is being issued. If used this option must appear
-    before the URLPATH argument.
-
-Any additional options supported by `curl` may be used.
-
-
-## COPYRIGHT
-
-sdc-amon Copyright (c) 2012 Joyent Inc., All rights reserved.
-
-
 ## SEE ALSO
 
-curl (1), json (1), sdc-amonrelay (1)
+`sdc-amon` has been moved to the 'sdc' zone. Run `sdc man sdc-amon`.
