@@ -1101,14 +1101,11 @@ function copy_agents65
 {
     local bit_cache_path
     mkdir -p ${STAGE}/agents65
-    bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/heartbeater-*")
-    cp $bit_cache_path ${STAGE}/agents65/heartbeater-65.tgz
-    bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/provisioner-v2-*")
-    cp $bit_cache_path ${STAGE}/agents65/provisioner-v2-65.tgz
-    bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/zonetracker-v2-*")
-    cp $bit_cache_path ${STAGE}/agents65/zonetracker-v2-65.tgz
-    bit_cache_path=$(get_bit "agents-upgrade/release-20110901-upgrade/metadata-*")
-    cp $bit_cache_path ${STAGE}/agents65/metadata-65.tgz
+
+    bit_cache_path=$(get_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
+    cp $bit_cache_path ${STAGE}/agents65/agents65.sh
+    bit_cache_path=$(get_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
+    cp $bit_cache_path ${STAGE}/agents65/agents65.md5sum
 }
 
 function add_manifests

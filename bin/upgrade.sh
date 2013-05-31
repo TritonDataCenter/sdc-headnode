@@ -1393,23 +1393,22 @@ function extend_leases
     echo "Extended DHCP lease on $cnt nodes"
 }
 
-function install_agent
+function upgrade_agents
 {
     local nm=$1
 
-    cp $ROOT/$nm.tgz $assetdir
+    cp $ROOT/agents65.sh $assetdir
 
     mkdir -p /var/cn_upgrade
-    cp $ROOT/$nm.tgz /var/cn_upgrade
+    cp $ROOT/agents65.sh /var/cn_upgrade
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
        [ -d /opt/smartdc/agents/lib ] && exit 0;
-       curl -kOs $CONFIG_assets_admin_ip:/agents/$nm.tgz;
-       echo 'SDC6 agent upgrade';
-       /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
-       >/var/tmp/${nm}_install.log 2>&1 &" | \
-       egrep "SDC6 agent upgrade" | wc -l`
-    echo "Installed $nm agent on $cnt nodes"
+       curl -kOs $CONFIG_assets_admin_ip:/agents/agents65.sh && \
+       bash /var/tmp/agents65.sh </dev/null \
+           >/var/tmp/agent65_install.log 2>&1 && \
+       echo 'SDC6 agent upgrade'" | egrep "SDC6 agent upgrade" | wc -l`
+    echo "Installed agents on $cnt nodes"
 }
 
 echo "$(date -u "+%Y%m%dT%H%M%S") start" >/tmp/upgrade_time
@@ -1460,13 +1459,7 @@ if [[ $AGENTS_ONLY == 1 ]]; then
     assetdir=/zones/assets/root/assets/agents
     mkdir -p $assetdir
 
-    install_agent heartbeater-65
-    install_agent provisioner-v2-65
-    install_agent metadata-65
-    # zonetracker usually fails if we do it too quickly after the previous
-    # two sets.
-    sleep 60
-    install_agent zonetracker-v2-65
+    upgrade_agents
 
     echo "Compute node agent install is complete"
 

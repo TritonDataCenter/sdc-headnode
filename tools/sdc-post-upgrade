@@ -22,11 +22,10 @@ function install_agent
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
        [ -d /opt/smartdc/agents/lib ] && exit 0;
-       echo 'SDC6 agent upgrade';
-       curl -kOs $CONFIG_assets_admin_ip:/agents65/$nm.tgz;
-       /opt/smartdc/agents/bin/agents-npm install /var/tmp/$nm.tgz \
-       >/var/tmp/${nm}_install.log 2>&1 &" | \
-       egrep "SDC6 agent upgrade" | wc -l`
+       curl -kOs $CONFIG_assets_admin_ip:/agents/agents65.sh && \
+       bash /var/tmp/agents65.sh </dev/null \
+           >/var/tmp/agent65_install.log 2>&1 && \
+       echo 'SDC6 agent upgrade'" | egrep "SDC6 agent upgrade" | wc -l`
     echo "Installed $nm agent on $cnt node"
 }
 
