@@ -14,15 +14,13 @@ function fatal
     exit 1
 }
 
-function install_agent
+function upgrade_agents
 {
-    local nm=$1
-
-    cp $ROOT/$nm.tgz $assetdir
+    cp $ROOT/agents65.sh $assetdir
 
     local cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
        [ -d /opt/smartdc/agents/lib ] && exit 0;
-       curl -kOs $CONFIG_assets_admin_ip:/agents/agents65.sh && \
+       curl -kOs $CONFIG_assets_admin_ip:/extra/agents65/agents65.sh && \
        bash /var/tmp/agents65.sh </dev/null \
            >/var/tmp/agent65_install.log 2>&1 && \
        echo 'SDC6 agent upgrade'" | egrep "SDC6 agent upgrade" | wc -l`
@@ -135,15 +133,12 @@ if [[ -n "$UPDATE_CN" ]]; then
     echo "Upgrading the agents on compute node $UPDATE_CN"
 
     ROOT=/var/cn_upgrade
-    assetdir=/zones/$role_uuid/root/assets/agents65
+    assetdir=/usbkey/extra/agents65
     mkdir -p $assetdir
 
-    install_agent heartbeater-65
-    install_agent provisioner-v2-65
-    sleep 60
-    install_agent zonetracker-v2-65
+    upgrade_agents
 
-    echo "Compute node agent install is complete"
+    echo "Compute node agent upgrade is complete"
 
     echo "Updating the VM configurations on compute node $UPDATE_CN"
 
