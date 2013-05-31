@@ -347,6 +347,13 @@ add_ext_net()
     [ -z "$ext_vlan" ] && ext_vlan=$CONFIG_external_vlan_id
     [ -z "$ext_vlan" ] && ext_vlan=0
 
+    local resolvers="{
+        \"resolvers\": $(sdc-napi /networks?name=admin | json -H 0.resolvers)
+    }"
+    resolvers=$(echo $resolvers | json -e "this.resolvers = this.resolvers.concat( \
+        $(sdc-napi /networks?name=external | json -H 0.resolvers) \
+        )")
+
     # Add external net
     cat <<-EXT_DONE >${SDC_UPGRADE_DIR}/${role}_extnic.json
 	{
@@ -360,7 +367,8 @@ add_ext_net()
 	            "netmask": "$CONFIG_external_netmask",
 	            "gateway": "$CONFIG_external_gateway"
 	        }
-	    ]
+	    ],
+        "resolvers": $(echo $resolvers | json resolvers)
 	}
 	EXT_DONE
 
