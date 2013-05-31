@@ -1,0 +1,58 @@
+#!/bin/bash
+#
+# Copyright (c) 2013, Joyent Inc., All rights reserved.
+#
+
+function usage()
+{
+    echo "Usage: $0 <agent shar>"
+    exit 1
+}
+
+function fatal()
+{
+    printf "Error: %s\n" "$1" >/dev/stderr
+    exit 1
+}
+
+shar=$1
+[[ -z ${shar} ]] && usage
+[[ ! -f ${shar} ]] && fatal "file '${shar}' not found."
+
+file=$(basename ${shar})
+
+. /lib/sdc/config.sh
+load_sdc_config
+
+OEN_ARGS="-t 30 -T 180"
+
+if [[ "$file" == "agents65.sh" ]]; then
+    echo "Updating agents on all 6.5.x compute nodes"
+    assetdir=/usbkey/extra/agents65
+    mkdir -p $assetdir
+    cp $shar $assetdir
+    [ $? -ne 0 ] && fatal "copying file to $assetdir"
+    cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       [ -d /opt/smartdc/agents/lib ] && exit 0;
+       curl -kOs $CONFIG_assets_admin_ip:/extra/agents65/agents65.sh && \
+       bash /var/tmp/agents65.sh </dev/null \
+           >/var/tmp/agent65_install.log 2>&1 && \
+       echo 'SDC6 agent upgrade'" | egrep "SDC6 agent upgrade" | wc -l`
+else
+    echo "Updating agents on all 7.x nodes"
+    assetdir=/usbkey/extra/agents
+    mkdir -p $assetdir
+    cp $shar $assetdir
+    [ $? -ne 0 ] && fatal "copying file to $assetdir"
+    rm -f $assetdir/latest
+    (cd $assetdir; ln -s $file latest)
+    cnt=`sdc-oneachnode $OEN_ARGS "cd /var/tmp;
+       [ ! -d /opt/smartdc/agents/lib ] && exit 0;
+       curl -kOs $CONFIG_assets_admin_ip:/extra/agents/$file && \
+       bash /var/tmp/$file </dev/null >/var/tmp/agent_install.log 2>&1 && \
+       echo 'SDC7 agent upgrade'" | egrep "SDC7 agent upgrade" | wc -l`
+fi
+
+echo "Updated agents on $cnt nodes"
+
+exit 0

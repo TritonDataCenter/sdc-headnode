@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Copyright (c) 2013, Joyent Inc., All rights reserved.
+#
+
+OEN_ARGS="-t 30 -T 120"
+
+outfile=/tmp/agent_list.txt
+summary=/tmp/agent_summary.txt
+
+echo "Checking each node for correct agents..."
+
+sdc-oneachnode $OEN_ARGS "if [ -x /opt/smartdc/agents/bin/apm ]; then
+        echo 'SDC7agents'
+    elif [ -x /opt/smartdc/agents/bin/agents-npm  ]; then
+        echo 'SDC6agents'
+    else
+        echo 'UNSETUPagents'
+    fi" >$outfile
+
+num_nd6=`egrep "SDC6agents" $outfile | wc -l`
+num_nd7=`egrep "SDC7agents" $outfile | wc -l`
+num_ndu=`egrep "UNSETUPagents" $outfile | wc -l`
+
+sdc-oneachnode $OEN_ARGS "if [ -x /opt/smartdc/agents/bin/apm ]; then
+        /opt/smartdc/agents/bin/apm list
+    elif [ -x /opt/smartdc/agents/bin/agents-npm  ]; then
+        /opt/smartdc/agents/bin/agents-npm  --noreg ls
+    fi" >$outfile
+
+nawk '{
+    if ($1 == "===")
+        nm = substr($5, 2, length($5) - 3)
+    else if ($1 == "heartbeater" || $1 == "provisioner" || $1 == "zonetracker")
+        a = a " " $1 "@" $2
+    else if ($1 == "heartbeater@1.0.1" || $1 == "provisioner-v2@1.0.11" ||
+        $1 == "zonetracker-v2@1.0.7" || $1 == "metadata@1.0.2")
+        a = a " " $1
+
+    if (length($0) == 0) {
+        printf("%s: %s\n", nm, a)
+        a = ""
+    }
+}' $outfile >$summary
+
+num_6_hb=`egrep heartbeater@1.0.1 $summary | wc -l`
+num_6_prov=`egrep provisioner-v2@1.0.11 $summary | wc -l`
+num_6_zt=`egrep zonetracker-v2@1.0.7 $summary | wc -l`
+num_6_mdata=`egrep metadata@1.0.2 $summary | wc -l`
+
+num_7_hb=`egrep heartbeater@2.1.0 $summary | wc -l`
+num_7_prov=`egrep provisioner@2.2.0 $summary | wc -l`
+num_7_zt=`egrep zonetracker@1.0.0 $summary | wc -l`
+
+echo "Num 6.x nodes $num_nd6"
+echo "Num 7.x nodes $num_nd7"
+echo "Num uns nodes $num_ndu"
+echo "Num 6.x HBs   $num_6_hb"
+echo "Num 6.x PVs   $num_6_prov"
+echo "Num 6.x ZTs   $num_6_zt"
+echo "Num 6.x MDs   $num_6_mdata"
+echo "Num 7.x HBs   $num_7_hb"
+echo "Num 7.x PVs   $num_7_prov"
+echo "Num 7.x ZTs   $num_7_zt"
+echo
+
+echo "Nodes with missing agents (showing installed agents):"
+egrep -v heartbeater $summary >/tmp/t$$
+egrep -v provisioner $summary >>/tmp/t$$
+egrep -v zonetracker $summary >>/tmp/t$$
+
+nawk -F: '{
+    if (!($1 in n))
+        n[$1] = $2
+}
+END {
+    for (i in n)
+        printf("%s: %s\n", i, n[i])
+}' /tmp/t$$
+
+rm -f /tmp/t$$
