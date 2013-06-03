@@ -153,8 +153,8 @@ mount_usb()
 		done
 		[ $skip == 1 ] && continue
 
-		if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
-			mount -F pcfs -o noatime /dev/dsk/${key}p0:c /mnt/usbkey
+		if [[ `/usr/sbin/fstyp /dev/dsk/${key}p1` == 'pcfs' ]]; then
+			mount -F pcfs -o noatime /dev/dsk/${key}p1 /mnt/usbkey
 			if [[ $? == "0" ]]; then
 				if [[ ! -f /mnt/usbkey/.joyliveusb ]]; then
 					umount /mnt/usbkey

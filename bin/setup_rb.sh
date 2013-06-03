@@ -32,8 +32,8 @@ mount_usb()
     mkdir -p /mnt/usbkey
     USBKEYS=`/usr/bin/disklist -a`
     for key in ${USBKEYS}; do
-        if [[ `/usr/sbin/fstyp /dev/dsk/${key}p0:1` == 'pcfs' ]]; then
-            /usr/sbin/mount -F pcfs -o noatime /dev/dsk/${key}p0:1 /mnt/usbkey
+        if [[ `/usr/sbin/fstyp /dev/dsk/${key}p1` == 'pcfs' ]]; then
+            /usr/sbin/mount -F pcfs -o noatime /dev/dsk/${key}p1 /mnt/usbkey
             if [[ $? == "0" ]]; then
                 if [[ ! -f /mnt/usbkey/.joyliveusb ]]; then
                     /usr/sbin/umount /mnt/usbkey
