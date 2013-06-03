@@ -5,6 +5,7 @@
         "package_name": "sdc_imgapi",
         "image_uuid": "IMAGE_UUID",
 		"networks": [ "admin" ],
+        "firewall_enabled": true,
         "tags": {
             "smartdc_role": "imgapi",
             "smartdc_type": "core"
