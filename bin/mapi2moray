@@ -1550,6 +1550,7 @@ function transform_package_network_list(file, callback) {
                 return;
             }
 
+            // iterate twice to ensure networks are before pools on the pkg
             networks.forEach(function (net) {
                 if (net.networkable_type === 'Network') {
                     var network = NETWORKS[net.networkable_id];
@@ -1566,7 +1567,11 @@ function transform_package_network_list(file, callback) {
                             }
                         }
                     }
-                } else if (net.networkable_type === 'NetworkPool') {
+                }
+            });
+
+            networks.forEach(function (net) {
+                if (net.networkable_type === 'NetworkPool') {
                     var pool = NETWORK_POOLS[net.networkable_id];
                     if (pool) {
                         pkg.networks.push(pool.uuid);
