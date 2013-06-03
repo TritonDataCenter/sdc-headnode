@@ -363,15 +363,7 @@ function transform_ips(file, callback) {
             return callback(errs);
         }
 
-        // We now have the IP data necessary in IPS_NEEDED to write out the
-        // networks and nics
-        return finish_networks(function (err) {
-            if (err) {
-                return callback(err);
-            }
-
-            return finish_nics(callback);
-        });
+        return callback();
     });
 }
 
@@ -1611,8 +1603,22 @@ function transform_package_network_list(file, callback) {
             pkgs.push(obj2ldif(PACKAGES[p]));
         });
         fs.writeFile(directory + '/mapi-ufds.ldif',
-            (pkgs.join('\n') + '\n'), 'utf8', callback);
+            (pkgs.join('\n') + '\n'), 'utf8', function (err) {
 
+            if (err) {
+                return callback(err);
+            }
+
+            // We now have the IP data necessary in IPS_NEEDED to write out the
+            // networks and nics
+            return finish_networks(function (err) {
+                if (err) {
+                    return callback(err);
+                }
+
+                return finish_nics(callback);
+            });
+        });
     });
 }
 
