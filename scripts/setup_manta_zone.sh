@@ -10,6 +10,8 @@ set -o xtrace
 
 PATH=/opt/smartdc/bin:$PATH
 
+ZONE_ALIAS=manta0
+
 
 function fatal {
     echo "$(basename $0): fatal error: $*" >&2
@@ -71,8 +73,16 @@ function import_manta_image {
 
 
 function deploy_manta_zone {
-    local headnode_uuid=$(sysinfo | json UUID)
-    sdc-role create ${headnode_uuid} manta
+    local service_uuid=$(sdc-sapi /services?name=manta | json -Ha uuid)
+
+    echo "
+    {
+        \"service_uuid\": \"${service_uuid}\",
+        \"params\": {
+            \"alias\": \"${ZONE_ALIAS}\"
+        }
+    }" | sapiadm provision
+
     [[ $? -eq 0 ]] || fatal "failed to provision manta zone"
 }
 
@@ -81,7 +91,7 @@ function deploy_manta_zone {
 # by config-agent.
 function wait_for_config_agent {
     local CONFIG_PATH=/opt/smartdc/manta-deployment/etc/config.json
-    local MANTA_ZONE=$(vmadm lookup -1 alias=manta0)
+    local MANTA_ZONE=$(vmadm lookup -1 alias=${ZONE_ALIAS})
     echo "Wait up to a minute for config-agent to write '$CONFIG_PATH'."
     local ZONE_CONFIG_PATH=/zones/$MANTA_ZONE/root$CONFIG_PATH
     for i in {1..30}; do
@@ -114,13 +124,13 @@ function copy_manta_tools {
 
 # Mainline
 
-manta_uuid=$(vmadm lookup alias=manta0)
+manta_uuid=$(vmadm lookup -1 alias=${ZONE_ALIAS})
 if [[ -n ${manta_uuid} ]]; then
     echo "Manta zone already present."
     exit 0
 fi
 
-sapi_uuid=$(vmadm lookup alias=sapi0)
+sapi_uuid=$(vmadm lookup alias=~sapi)
 add_external_nic ${sapi_uuid}
 
 imgapi_uuid=$(vmadm lookup alias=imgapi0)

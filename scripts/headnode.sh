@@ -793,9 +793,11 @@ if [[ -z ${skip_zones} ]]; then
     create_zone keyapi
     create_zone usageapi
 
-    # copy extras for cloudapi, sdcsso
+    # copy extras for cloudapi, sdcsso, and manta (i.e. zones not created as
+    # part of initial setup)
     copy_extras cloudapi
     copy_extras sdcsso
+    copy_extras manta
 fi
 
 update_setup_state "sdczones_created"
