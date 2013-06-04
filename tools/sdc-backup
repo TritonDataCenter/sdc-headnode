@@ -193,7 +193,9 @@ copy_usb()
 	DISK=${bname%s[0-9]}
 
 	RDISK=/dev/rdsk/${DISK}p0
+	RDISK1=/dev/rdsk/${DISK}p1
 	BDISK=/dev/dsk/${DISK}p0
+	BDISK1=/dev/dsk/${DISK}p1
 
 	[ ! -c "$RDISK" ] && fatal "the device $RDISK does not exist"
 	[ ! -b "$BDISK" ] && fatal "the device $BDISK does not exist"
@@ -231,11 +233,11 @@ copy_usb()
 
 	echo "creating PCFS file system"
 	echo "y" | \
-	    mkfs -F pcfs -o B=/usbkey/boot/grub/stage1,fat=32 ${RDISK}:c || \
+	    mkfs -F pcfs -o B=/usbkey/boot/grub/stage1,fat=32 ${RDISK1} || \
 	    fatal "making PCFS file system"
 	echo "mounting target disk $DISK"
 	mkdir -p /key
-	mount -F pcfs -o noatime ${BDISK}:c /key || \
+	mount -F pcfs -o noatime ${BDISK1} /key || \
 	   fatal "mounting file system"
 
 	mount_usb
@@ -262,10 +264,10 @@ check_disk_master()
 {
 	master=""
 
-	local ftype=`fstyp /dev/dsk/$1:1 2>/dev/null`
+	local ftype=`fstyp /dev/dsk/$1 2>/dev/null`
 	[[ "$ftype" != "pcfs" ]] && return
 
-	mount -F pcfs -o foldcase,noatime /dev/dsk/$1:1 /mnt/usbkey
+	mount -F pcfs -o foldcase,noatime /dev/dsk/$1 /mnt/usbkey
 	[[ $? != 0 ]] && return
 
 	[[ -f /mnt/usbkey/.joyliveusb ]] && master="(master)"
@@ -287,7 +289,7 @@ show_usb()
 	if [ "$platform" == "VMware" ]; then
 		local DISKS=`disklist -a`
 		for key in ${DISKS}; do
-			local dname="${key}p0"
+			local dname="${key}p1"
 
 			check_disk_master "$dname"
 			[ -n "$master" ] && echo "$dname $master"
@@ -299,6 +301,7 @@ show_usb()
 		if ( $1 ~ /[0-9]+\./ ) {
 			n = split($4, f, "/")
 			dname = f[n]
+			sub(/p0$/, "p1", dname)
 			skip = 0
 		}
 
