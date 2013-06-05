@@ -318,6 +318,7 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         zonetracker_database_path
         imgapi_admin_ips
         imgapi_domain
+        fwapi_domain
         vmapi_admin_ips
         vmapi_domain
         '
