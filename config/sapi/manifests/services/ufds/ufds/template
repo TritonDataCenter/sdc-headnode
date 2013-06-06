@@ -6,6 +6,7 @@
     "key": "/opt/smartdc/ufds/ssl/key.pem",
     "logLevel": "info",
     "use_bcrypt": false,
+    "ufds_is_master": {{{ufds_is_master}}},
     "moray": {
         "url": "http://{{{MORAY_SERVICE}}}:2020",
         "connectTimeout": 1000,
