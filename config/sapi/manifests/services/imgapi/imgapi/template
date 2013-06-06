@@ -16,7 +16,7 @@
         }
     },
     "wfapi": {
-        "workflows": [ "create-from-snapshot" ],
+        "workflows": [ "create-from-snapshot", "import-remote-image" ],
         "url": "http://{{{WORKFLOW_SERVICE}}}"
     }
 }
