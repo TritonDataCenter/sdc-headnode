@@ -8,7 +8,6 @@ export DHCPD_IMAGE=c62cab6f-b2ee-4e6a-b563-4e3d494d3d91
 export FWAPI_IMAGE=82661b1e-c439-4ac6-9764-8ee61baf2732
 export IMGAPI_IMAGE=13f91ad1-bc35-4a9c-9ef1-fd91e1bd8bf1
 export NAPI_IMAGE=2c221597-668e-4464-a865-1ab93a0ea2db
-export REDIS_IMAGE=ef338d3e-a041-4001-945f-3a287399fa6d
 export SAPI_IMAGE=9b3c08c7-e410-4206-b3fa-778c310c6bad
 export USAGEAPI_IMAGE=97edd836-b70f-498f-b87e-e691ec80d75e
 export VMAPI_IMAGE=5dffacdc-d072-4d33-beca-5ce5aca7de51

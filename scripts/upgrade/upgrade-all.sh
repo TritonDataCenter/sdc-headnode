@@ -92,7 +92,9 @@ env | grep IMAGE
 #
 # XXX I hear from John he doesn't want us to upgrade keyapi/sdcsso this time.
 #
-# XXX Marsell points out it's pointless to upgrade rabbitmq.
+# XXX Marsell says it's pointless to upgrade rabbitmq.
+#
+# XXX JoshW says it's pointless to upgrade redis
 #
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
@@ -106,7 +108,6 @@ upgrade_zone dhcpd0 $DHCPD_IMAGE
 upgrade_zone fwapi0 $FWAPI_IMAGE
 upgrade_zone imgapi0 $IMGAPI_IMAGE
 upgrade_zone napi0 $NAPI_IMAGE
-upgrade_zone redis0 $REDIS_IMAGE
 upgrade_zone usageapi0 $USAGEAPI_IMAGE
 upgrade_zone vmapi0 $VMAPI_IMAGE
 upgrade_zone workflow0 $WORKFLOW_IMAGE

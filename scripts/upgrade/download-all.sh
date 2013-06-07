@@ -10,6 +10,7 @@ source ./images.sh
 ./download-image.sh $ADMINUI_IMAGE
 ./download-image.sh $AMON_IMAGE
 ./download-image.sh $CA_IMAGE
+./download-image.sh $CLOUDAPI_IMAGE
 ./download-image.sh $CNAPI_IMAGE
 ./download-image.sh $DAPI_IMAGE
 ./download-image.sh $DHCPD_IMAGE

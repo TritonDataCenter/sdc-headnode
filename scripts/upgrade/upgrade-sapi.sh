@@ -52,6 +52,14 @@ for zone in $(vmadm lookup tags.smartdc_type=core | awk '{print $1}'); do
     cat /tmp/changes.$$.json | vmadm update $zone
 done
 
+for zone in $(vmadm lookup alias=~cloudapi | awk '{print $1}'); do
+    cat /tmp/changes.$$.json | vmadm update $zone
+done
+
+for zone in $(vmadm lookup alias=~sdcsso | awk '{print $1}'); do
+    cat /tmp/changes.$$.json | vmadm update $zone
+done
+
 
 # (4) Update all the config-agent/etc/config.json to refer to the new sapi-url
 # as opposed to the original IP address
