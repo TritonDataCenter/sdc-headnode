@@ -54,6 +54,21 @@ function add_external_nic {
     rm -f ${tmpffile}
 }
 
+
+function wait_for_sapi {
+    local tries=0
+
+    SAPI_UP=1
+    until [[ $SAPI_UP -eq 0 || $tries -gt 120 ]]; do
+        tries=$(( $tries + 1 ))
+
+        sleep 5
+        sdc-sapi /mode >/dev/null 2>&1
+        SAPI_UP=$?
+    done
+}
+
+
 function import_manta_image {
     local manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
     local file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
@@ -132,6 +147,12 @@ fi
 
 sapi_uuid=$(vmadm lookup alias=~sapi)
 add_external_nic ${sapi_uuid}
+
+#
+# The add_external_nic function reboots the SAPI zone, so it may not be up for
+# another 10-20 seconds.  Poll its /mode endpoint until it returns something.
+#
+wait_for_sapi
 
 imgapi_uuid=$(vmadm lookup alias=imgapi0)
 add_external_nic ${imgapi_uuid}
