@@ -1,0 +1,2 @@
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}

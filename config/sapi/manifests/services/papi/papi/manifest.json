@@ -1,0 +1,5 @@
+{
+	"name": "papi",
+	"path": "/opt/smartdc/papi/etc/config.json",
+	"post_cmd": "/usr/sbin/svcadm restart papi"
+}

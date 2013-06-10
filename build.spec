@@ -37,6 +37,7 @@
   "redis-image": "redis/redis-zfs-.*manifest",
   "sapi-image": "sapi/sapi-zfs-.*manifest",
   "sdc-image": "sdc/sdc-zfs-.*manifest",
+  "papi-image": "papi/papi-zfs-.*manifest",
   "sdcsso-image": "sdcsso/sdcsso-zfs-.*manifest",
   "ufds-image": "ufds/ufds-zfs-.*manifest",
   "usageapi-image": "usageapi/usageapi-zfs-.*manifest",
