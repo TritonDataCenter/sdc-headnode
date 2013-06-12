@@ -18,10 +18,13 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/sdc
 
-# Add node_modules/bin to PATH
+# Add the main bin dir to the PATH.
+# Note: we do NOT want the $role/node_modules/.bin dir on the PATH because
+# we install 'node-smartdc' there to have it available, but we don't want
+# all those 'sdc-*' commands on the default PATH.
 echo "" >>/root/.bashrc
 echo "export MANPATH=\${MANPATH}:/opt/smartdc/${role}/man" >>/root/.bashrc
-echo "export PATH=\$PATH:/opt/smartdc/$role/bin:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin" >>/root/.bashrc
+echo "export PATH=/opt/smartdc/$role/bin:\$PATH" >>/root/.bashrc
 
 # run the configuration
 /opt/smartdc/bin/configure || fatal "unable to configure"
