@@ -64,7 +64,8 @@ function check_end_to_end()
 {
   case "$1" in
     amon)
-      local got_status=`sdc-amon /state | nawk '{if ($1 == "HTTP/1.1") print $2}'`
+      local got_status=`sdc-amon /pub/admin/probes | \
+          nawk '{if ($1 == "HTTP/1.1") print $2}'`
       [[ "$got_status" == "200" ]] && return
       ;;
     cnapi)
