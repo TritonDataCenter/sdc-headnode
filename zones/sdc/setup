@@ -24,7 +24,7 @@ mkdir -p /var/smartdc/sdc
 # all those 'sdc-*' commands on the default PATH.
 echo "" >>/root/.bashrc
 echo "export MANPATH=\${MANPATH}:/opt/smartdc/${role}/man" >>/root/.bashrc
-echo "export PATH=/opt/smartdc/$role/bin:\$PATH" >>/root/.bashrc
+echo "export PATH=/opt/smartdc/$role/bin:/opt/smartdc/$role/build/node/bin:\$PATH" >>/root/.bashrc
 
 # run the configuration
 /opt/smartdc/bin/configure || fatal "unable to configure"
