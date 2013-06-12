@@ -32,10 +32,14 @@ echo "[" >> $PACKAGES_BOOTSTRAP
 
 echo "Getting package information"
 # packages=$(/usr/sbin/mdata-get packages)
-packages=$(json -f ${METADATA} packages)
+PACKAGES=($(json -f ${METADATA} packages))
 # name:ram:swap:disk:cap:nlwp:iopri:uuid
-for pkg in $packages
+tLen=${#PACKAGES[@]}
+let "lastestComma = $tLen - 1"
+
+for (( i=0; i<${tLen}; i++ ));
 do
+  pkg=${PACKAGES[$i]}
   name=$(echo ${pkg} | cut -d ':' -f 1)
   uuid=$(echo ${pkg} | cut -d ':' -f 8)
   # TBD: Decide if default package should be configurable
@@ -45,7 +49,7 @@ do
   else
     default='false'
   fi
-  # Make sure we always have a new line before our stuff
+
   echo "{
     \"uuid\": \"${uuid}\",
     \"active\": true,
@@ -60,8 +64,15 @@ do
     \"version\": \"1.0.0\",
     \"zfs_io_priority\": $(echo ${pkg} | cut -d ':' -f 7),
     \"owner_uuid\": \"${UFDS_ADMIN_UUID}\"
-  }, " >> $PACKAGES_BOOTSTRAP
+  }" >> $PACKAGES_BOOTSTRAP
+
+  # Do not append a comma to the last element
+  if [ "$i" -lt "$lastestComma" ]; then
+    echo "," >> $PACKAGES_BOOTSTRAP
+  fi
+
   # Cleanup variables before next loop iteration
+  unset pkg
   unset name
   unset uuid
 done
