@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2011, Joyent Inc. All rights reserved.
+# Copyright (c) 2013, Joyent Inc. All rights reserved.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -25,9 +25,27 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 # run the configuration
 /opt/smartdc/bin/configure || fatal "unable to configure"
 
+
 # Amon master needs postfix to send email notifications.
+# - rate limit out going emails to something reasonably high
+# - discard bounce email attempts to (hardcoded) no-reply@joyent.com
+echo "no-reply@joyent.com discard" >>/opt/local/etc/postfix/transport
+/opt/local/bin/postmap /opt/local/etc/postfix/transport
+
+cat <<EOM >>/opt/local/etc/postfix/main.cf
+
+## -- amon tweaks
+
+transport_maps = hash:/opt/local/etc/postfix/transport
+
+smtp_destination_rate_delay = 5s
+smtp_destination_concurrency_failed_cohort_limit = 10
+
+EOM
+
 /usr/sbin/svccfg import /opt/local/share/smf/postfix/manifest.xml || fatal "unable to import postfix SMF manifest"
 /usr/sbin/svcadm enable postfix || fatal "unable to enable postfix"
+
 
 touch /var/svc/setup_complete
 echo "setup done"
