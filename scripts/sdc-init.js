@@ -416,7 +416,7 @@ function filterServices(serviceList, cb) {
             assert.object(svcDef, 'svcDef');
 
             // ufds needs package defn's.
-            if (service == 'ufds') {
+            if (service == 'ufds' || service == 'papi') {
                 packages = Object.keys(self.config).reduce(function (acc, key) {
                     if (key.match('^pkg_')) acc.push(self.config[key]);
                     return acc;
