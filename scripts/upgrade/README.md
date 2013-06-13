@@ -9,3 +9,9 @@ To run an upgrade:
     ./download-all.sh
     ./upgrade-sapi.sh <datacenter name>
     ./upgrade-all.sh
+
+## Addendum June 12
+
+Used to upgrade us-beta-4 to latest.
+
+Used (with various images commented out) to upgrade CNAPI in production to fix critical memory leak.

@@ -26,7 +26,7 @@ function get_latest_image {
 
 function get_instance_uuid {
     local alias=$1
-    export uuid=$(sdc-vmapi /vms?alias=${alias} | json -Ha uuid | head -n 1) || \
+    export uuid=$(sdc-vmapi /vms?alias=${alias}\&state=active | json -Ha uuid | head -n 1) || \
         fatal "failed to get instance UUID"
 }
 
@@ -58,6 +58,14 @@ function upgrade_zone {
         imgadm import ${image_uuid} || fatal "failed to install image"
     fi
     set -o errexit
+
+    # XXX work around OS-2275
+    local quota=$(vmadm get ${instance_uuid} | json quota)
+    if [[ ${quota} == 0 ]]; then
+        printf "Adding default quota of 25GiB for instance %s." \
+            ${instance_uuid}
+        vmadm update ${instance_uuid} quota=25
+    fi
 
     if [[ ${DC_NAME} == "eu-ams-1" ]]; then
         vmadm stop ${instance_uuid}
@@ -98,18 +106,18 @@ env | grep IMAGE
 #
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
-upgrade_zone adminui0 $ADMINUI_IMAGE
-upgrade_zone amon0 $AMON_IMAGE
-upgrade_zone ca0 $CA_IMAGE
-upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
+# upgrade_zone adminui0 $ADMINUI_IMAGE
+# upgrade_zone amon0 $AMON_IMAGE
+# upgrade_zone ca0 $CA_IMAGE
+# upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
 upgrade_zone cnapi0 $CNAPI_IMAGE
-upgrade_zone dapi0 $DAPI_IMAGE
-upgrade_zone dhcpd0 $DHCPD_IMAGE
-upgrade_zone fwapi0 $FWAPI_IMAGE
-upgrade_zone imgapi0 $IMGAPI_IMAGE
-upgrade_zone napi0 $NAPI_IMAGE
-upgrade_zone usageapi0 $USAGEAPI_IMAGE
-upgrade_zone vmapi0 $VMAPI_IMAGE
-upgrade_zone workflow0 $WORKFLOW_IMAGE
+# upgrade_zone dapi0 $DAPI_IMAGE
+# upgrade_zone dhcpd0 $DHCPD_IMAGE
+# upgrade_zone fwapi0 $FWAPI_IMAGE
+# upgrade_zone imgapi0 $IMGAPI_IMAGE
+# upgrade_zone napi0 $NAPI_IMAGE
+# upgrade_zone usageapi0 $USAGEAPI_IMAGE
+# upgrade_zone vmapi0 $VMAPI_IMAGE
+# upgrade_zone workflow0 $WORKFLOW_IMAGE
 
 exit 0
