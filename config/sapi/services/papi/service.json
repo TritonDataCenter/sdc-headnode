@@ -11,7 +11,8 @@
     },
     "metadata": {
         "SERVICE_NAME": "papi",
-        "SERVICE_SYNC_UFDS": true
+        "SERVICE_SYNC_UFDS": true,
+        "SERVICE_IS_FIRST_BOOT": true
     },
     "manifests": {
     }

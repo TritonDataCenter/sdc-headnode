@@ -11,7 +11,8 @@
         "noCache": true
     },
     "ufds_admin_uuid": "{{{ufds_admin_uuid}}}",
-    "ufds_sync": {{{SERVICE_SYNC_UFDS}}}, 
+    "ufds_sync": {{{SERVICE_SYNC_UFDS}}},
+    "first_boot": {{{SERVICE_IS_FIRST_BOOT}}},
     "ufds": {
         "url": "ldaps://{{{ufds_domain}}}",
         "bindDN": "{{{ufds_ldap_root_dn}}}",
@@ -22,6 +23,9 @@
         },
         "clientTimeout": 240000,
         "maxConnections": 1
+    },
+    "sapi": {
+        "url": "http://{{{SAPI_SERVICE}}}"
     },
     "bucket": "sdc_packages",
     "warning": "Please, keep 'is_default' and 'group_name' into schema. Translation happening within the App, given 'default' and 'group' cannot be used as PostgreSQL indexes.",
@@ -61,7 +65,6 @@
         "overprovision_network": { "type": "number" },
         "overprovision_io": { "type": "number" }
     },
-
     "required": [
         "active",
         "cpu_cap",
@@ -73,12 +76,10 @@
         "max_swap",
         "name",
         "common_name",
-        "quota", 
-        "version", 
-        "zfs_io_priority", 
-        "fss"
+        "quota",
+        "version",
+        "zfs_io_priority"
     ],
-
     "immutable": [
         "uuid",
         "name",
