@@ -14,7 +14,6 @@
   "use-images": true,
 
   "// *-tarball": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
-  "amon-tarball": "amon/amon-pkg-master-.*.tar.bz2",
   "imgapi-cli-tarball": "imgapi-cli/imgapi-cli-pkg-master-.*.tar.bz2",
 
   "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",

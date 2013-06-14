@@ -270,11 +270,6 @@ function load_buildspec
     PLATFORM_RELEASE=$(build_spec platform-release)
     BUILD_TGZ=$(build_spec build-tgz)
 
-    # HEAD-1507 cleanup.
-    USE_IMAGES=true
-
-    USE_SAPI=true
-
     [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
@@ -438,11 +433,9 @@ function copy_config {
         cp config/banner ${STAGE}/banner
     fi
 
-    # HEAD-1371 Stage application def'n and manifests, flag SAPI for
-    # headnode.sh. Service def'ns staged with zones.
-    if [[ -n ${USE_SAPI} ]]; then
-        echo "USE_SAPI=\"true\"" >> ${STAGE}/config.inc/generic
-    fi
+    # Flag SAPI for headnode.sh.
+    # TODO:matt Is this still needed?
+    echo "USE_SAPI=\"true\"" >> ${STAGE}/config.inc/generic
 }
 
 function pkgin_get
@@ -728,32 +721,6 @@ function copy_platform
 }
 
 
-# Copy the latest amon-agent-*.tgz package (using the 'agent-shar' branch
-# setting in build.spec) into the staging area.
-#
-# Note: A separate extra/amon-agent dir is a placeholder until the amon-agent
-# is in pkgsrc.
-# function copy_amon_agent
-# {
-#     [[ -z "${loops}" ]] && loops=0
-#     loops=$((${loops} + 1))
-#     [[ ${loops} -gt 2 ]] && fatal "Unable to download amon-agent, looping!"
-
-#     # See if there's a specific amon-agent branch we're supposed to use.
-#     local branch=$(build_spec agents-shar)
-#     if [[ -z ${branch} ]]; then
-#         branch="master"
-#     fi
-
-#     local amon_agent_path=$(get_bit "amon/amon-agent-${branch}-.*\.tgz")
-#     echo "Copying $(basename $amon_agent_path) to stage."
-#     mkdir -p ${STAGE}/extra/amon-agent
-#     cp ${amon_agent_path} ${STAGE}/extra/amon-agent/amon-agent.tgz
-
-#     loops=
-# }
-
-
 function get_agentsshar
 {
     [[ -z "${loops}" ]] && loops=0
@@ -998,10 +965,10 @@ function get_core_zone_image
     # then.
     echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
 
-    # HEAD-1371 - insert dataset uuid into config/services/${zone}/service.json
+    # HEAD-1371 - insert image uuid into config/services/${zone}/service.json
     # as param. Expect an IMAGE_UUID placeholder.
     local service=${STAGE}/services/${zone}/service.json
-    if [[ -n ${USE_SAPI} && -f ${service} ]]; then
+    if [[ -f ${service} ]]; then
         local image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
         sed -i'' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
     fi
@@ -1030,32 +997,6 @@ function copy_zones
         get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
     done
 }
-
-# Copy in the appropriate version of registrar using (if applicable) the
-# registrar branch specified in build.spec.
-# HEAD-1507 obsolete function.
-function copy_registrar
-{
-    [[ -z ${USE_IMAGES} ]] || return 0
-
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download registrar, looping!"
-
-    # See if there's a specific registrar branch we're supposed to use.
-    local branch=$(build_spec registrar)
-    if [[ -z ${branch} ]]; then
-        branch="master"
-    fi
-
-    local registrar_path=$(get_bit "registrar/registrar-pkg-${branch}-.*\.bz2")
-    echo "Copying $(basename $registrar_path) to stage."
-    mkdir -p ${STAGE}/extra/registrar
-    cp ${registrar_path} ${STAGE}/extra/registrar/registrar.bz2
-
-    loops=
-}
-
 
 function copy_tools
 {
@@ -1138,7 +1079,6 @@ copy_agents65
 copy_sapi_config
 copy_datasets
 copy_zones
-copy_registrar
 copy_tools
 copy_config
 

@@ -1,7 +1,0 @@
-{
-    "brand": "joyent-minimal",
-    "networks": [ "admin", "external" ],
-    "primary_network": "external",
-    "dependencies": [ "ufds", "ca", "amon", "keyapi" ],
-    "delegate_dataset": true
-}

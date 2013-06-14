@@ -1,7 +1,0 @@
-{
-    "brand": "joyent-minimal",
-    "allow_multiple": true,
-    "networks": [ "admin", "external" ],
-    "primary_network": "external",
-    "dependencies": [ "moray" ]
-}

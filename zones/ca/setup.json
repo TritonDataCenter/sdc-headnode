@@ -1,5 +1,0 @@
-{
-    "delegate_dataset": true,
-    "networks": [ "admin" ],
-    "dependencies": [ ]
-}

@@ -176,61 +176,6 @@ RULES
     [[ $? -eq 0 ]] && touch /var/fw/.default_rules_setup
 }
 
-# HEAD-1507 - Pretty sure this is obsolete with all core zones on joyent-minimal.
-# Zoneinit is a pig and makes us reboot the zone, this allows us to bypass it
-# entirely well still getting all the things done that it would have done that
-# we care about.
-function fake_zoneinit
-{
-    local zoneroot=$1
-
-    if [[ -z ${zoneroot} || ! -d ${zoneroot} ]]; then
-        fatal "fake_zoneinit(): bad zoneroot: ${zoneroot}"
-    fi
-
-    rm -f ${zoneroot}/var/adm/utmpx ${zoneroot}/var/adm/wtmpx ; touch ${zoneroot}/var/adm/wtmpx
-    rm -rf ${zoneroot}/var/svc/log/*
-    rm -rf ${zoneroot}/root/zone*
-    cat > ${zoneroot}/root/zoneinit <<EOF
-#!/usr/bin/bash
-
-export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
-set -o xtrace
-
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
-PKGSRC_REPO=http://pkgsrc.joyent.com/sdc6/2011Q4/i386/All
-
-# Unset passwords that might have been mistakenly left in datasets (yes really)
-passwd -N root
-passwd -N admin
-
-# Then disable services we don't ever need (disabling ssh is important so
-# we don't need to bother generating an ssh key for this zone)
-svcadm disable ssh:default
-svcadm disable inetd
-
-# Remove these default keys (that are again in the dataset!)
-rm -f /etc/ssh/ssh_*key*
-
-upgrading=0
-
-echo "PKG_PATH=\${PKGSRC_REPO}" > /opt/local/etc/pkg_install.conf
-echo "\${PKGSRC_REPO}" > /opt/local/etc/pkgin/repositories.conf
-pkgin -V -f -y update || true
-
-# start mdata so we run the user-script
-svcadm enable mdata:fetch
-
-# suicide
-rm -f /root/zoneinit
-svccfg delete zoneinit
-
-exit 0
-EOF
-
-    chmod 555 ${zoneroot}/root/zoneinit
-}
-
 
 # TODO: add something in that adds packages.
 
@@ -336,16 +281,6 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
             }).join('\\n');" formatted \
         > /usbkey/extra/joysetup/node.config
 fi
-
-# HEAD-1507 obsolete.
-# Setup the pkgsrc directory for the core zones to pull files from.
-# We need to switch the name from 2010q4 to 2010Q4, so we just link the files
-# into one with the correct name.  Thanks PCFS!
-for dir in $(ls ${USB_COPY}/extra/pkgsrc/ | grep q); do
-    upper=$(echo "${dir}" | tr [:lower:] [:upper:])
-    mkdir -p ${USB_COPY}/extra/pkgsrc/${upper}
-    (cd ${USB_COPY}/extra/pkgsrc/${upper} && ln -f ${USB_COPY}/extra/pkgsrc/${dir}/* .)
-done
 
 # print a banner on first boot indicating this is SDC7
 if [[ -f /usbkey/banner && ! -x /opt/smartdc/agents/bin/apm ]]; then
@@ -614,15 +549,12 @@ function create_zone {
 
         UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
 
-
-
         # don't pollute things for everybody else
         if [[ ${zone} == "manatee" ]]; then
             unset ONE_NODE_WRITE_MODE
             export ONE_NODE_WRITE_MODE
         fi
     else
-        # by breaking this up we're able to use fake_zoneinit instead of zoneinit
         echo "XXX - deploy ${zone} via build-payload."
         local tmp_file=/var/tmp/${zone}_payload.$$
 
@@ -633,12 +565,6 @@ function create_zone {
     fi
 
     cat ${payload_file} | vmadm create
-
-    # for joyent minimal we can autoboot and have already faked out zoneinit
-    if [[ $(json brand < ${USB_COPY}/zones/${zone}/create.json) != "joyent-minimal" ]]; then
-        fake_zoneinit /zones/${new_uuid}/root
-        vmadm boot ${new_uuid}
-    fi
 
     local loops=
     local zonepath=
