@@ -64,48 +64,53 @@ function check_end_to_end()
 {
   case "$1" in
     amon)
-      local got_status=`sdc-amon /pub/admin/probes | \
+      local got_status=`sdc-amon /pub/admin/probes 2>/dev/null | \
           nawk '{if ($1 == "HTTP/1.1") print $2}'`
       [[ "$got_status" == "200" ]] && return
       ;;
+    cloudapi)
+      check_cloudapi
+      [[ $CLOUDAPI_STATUS -eq 0 ]] && return
+      ;;
     cnapi)
-      local got_name=`sdc-cnapi /servers?headnode=true | json -H -a hostname`
+      local got_name=`sdc-cnapi /servers?headnode=true 2>/dev/null | \
+          json -H -a hostname`
       [[ "$got_name" == "headnode" ]] && return
       ;;
     fwapi)
-      local got_status=`sdc-fwapi /rules | \
+      local got_status=`sdc-fwapi /rules 2>/dev/null | \
           nawk '{if ($1 == "HTTP/1.1") print $2}'`
       [[ "$got_status" == "200" ]] && return
       ;;
     imgapi)
-      local got_status=`sdc-imgapi /images?name=imgapi | \
+      local got_status=`sdc-imgapi /images?name=imgapi 2>/dev/null | \
           nawk '{if ($1 == "HTTP/1.1") print $2}'`
       [[ "$got_status" == "200" ]] && return
       ;;
     napi)
-      local got_uuid=`sdc-napi /networks?name=admin | json -H -a uuid`
+      local got_uuid=`sdc-napi /networks?name=admin 2>/dev/null | \
+          json -H -a uuid`
       [[ "$got_uuid" == "$CONFIG_admin_uuid" ]] && return
       ;;
     sapi)
-      local got_status=`sdc-sapi /services?name=sapi | \
+      local got_status=`sdc-sapi /services?name=sapi 2>/dev/null | \
           nawk '{if ($1 == "HTTP/1.1") print $2}'`
       [[ "$got_status" == "200" ]] && return
       ;;
     ufds)
-      local got_uuid=`sdc-ldap search login=admin | \
+      local got_uuid=`sdc-ldap search login=admin 2>/dev/null | \
           nawk '{if ($1 == "uuid:") print $2}'`
       [[ "$got_uuid" == "$CONFIG_ufds_admin_uuid" ]] && return
       ;;
     vmapi)
       local vmapi_uuid=`vmadm lookup -1 tags.smartdc_role=vmapi`
-      local got_uuid=`sdc-vmapi /vms/93a644fd-d41b-4d5b-9af9-5d857a18884d | \
-          json -H uuid`
+      local got_uuid=`sdc-vmapi /vms/$vmapi_uuid 2>/dev/null | json -H uuid`
       [[ "$vmapi_uuid" == "$got_uuid" ]] && return
       ;;
     workflow)
-      local got_name=`sdc-workflow /workflows?name=server-sysinfo-1.0.0 | \
-          json -a name`
-      [[ "$got_name" == "server-sysinfo-1.0.0" ]] && return
+      local got_flows=`sdc-workflow /workflows | json -a name | \
+          grep "provision-"`
+      [[ -n "$got_flows" ]] && return
       ;;
     *) return
       ;;
@@ -113,6 +118,117 @@ function check_end_to_end()
 
   status="error"
   res=1
+}
+
+cp_ssh()
+{
+    cp -pr /var/smartdc/ssh $ssh_dir
+    chmod 700 $ssh_dir
+}
+
+key_to_ufds()
+{
+	# If existing key with our reserved healthcheck name, first remove it
+	local oldkey=`sdc-ldap search \
+	    -b "uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc" \
+	    objectclass=sdckey 2>/dev/null | \
+	    nawk -v dc="$CONFIG_datacenter_name sdc-healthcheck key" '{
+		if ($1 == "fingerprint:") {
+		    fp=$2
+		} else if ($1 == "name:") {
+		    nm = substr($0, 7)
+		    if (nm == dc) print fp
+		}
+	    }'`
+
+	if [[ -n "$oldkey" ]]; then
+	    sdc-ldap delete "fingerprint=$oldkey, uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc" >/dev/null 2>&1
+	fi
+
+	local key=`cat /var/smartdc/ssh/id_rsa.pub`
+
+	cat <<-KEY >/tmp/key.ldif
+	dn: fingerprint=$fprint, uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc
+	fingerprint: $fprint
+	name: $CONFIG_datacenter_name sdc-healthcheck key
+	objectclass: sdckey
+	openssh: $key
+
+	KEY
+
+	sdc-ldap add -f /tmp/key.ldif >/dev/null 2>&1
+}
+
+function check_cloudapi
+{
+    CLOUDAPI_STATUS=0
+
+    sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp \
+        -s create_timestamp owner_uuid=$CONFIG_ufds_admin_uuid | \
+        grep '^sdc\>' | tail -1 | awk '{print $2}')
+    [[ -z "$sdc_zone" ]] && return
+
+    cloudapi_zone=`vmadm lookup -1 tags.smartdc_role=cloudapi`
+    if [[ -z "$cloudapi_zone" ]]; then
+        CLOUDAPI_STATUS=1
+        return
+    fi
+
+    ssh_dir=/zones/$sdc_zone/root/root/.ssh
+
+    # The sdc zone might never have been setup with the admin ssh key (i.e. this
+    # is the first time) or it might have been reprovisioned and need the key
+    # data copied back in. We normally only need to setup the key once and it
+    # will remain for subsequent healthcheck runs.
+    if [[ ! -d $ssh_dir ]]; then
+        if [[ ! -d /var/smartdc/ssh ]]; then
+            # We're generating the key for the first time.
+            mkdir -m700 -p /var/smartdc/ssh
+            ssh-keygen -b 2048 -t rsa -N "" -f /var/smartdc/ssh/id_rsa \
+                >/dev/null 2>&1
+            if [[ $? -ne 0 || ! -f /var/smartdc/ssh/id_rsa.pub ]]; then
+                CLOUDAPI_STATUS=1
+                return
+            fi
+
+            # get the fingerprint to load into ufds
+            fprint=`ssh-keygen -l -f /var/smartdc/ssh/id_rsa.pub | \
+                awk '{printf("%s", $2)}'`
+            if [[ -z "$fprint" ]]; then
+                CLOUDAPI_STATUS=1
+                return
+            fi
+            key_to_ufds
+            # We need a couple seconds so cloudapi can see the ufds update
+            sleep 2
+        fi
+        cp_ssh
+    fi
+
+    fingerprint=`ssh-keygen -l -f $ssh_dir/id_rsa.pub | \
+        awk '{printf("%s", $2)}'`
+    if [[ -z "$fingerprint" ]]; then
+        CLOUDAPI_STATUS=1
+        return
+    fi
+
+    admin_ip=`sdc-vmapi /vms/$cloudapi_zone | json -H nics | \
+        json -a nic_tag ip | nawk '{if ($1 == "admin") print $2}'`
+    ext_ip=`sdc-vmapi /vms/$cloudapi_zone | json -H nics | json -a nic_tag ip | \
+        nawk '{if ($1 == "external") print $2}'`
+
+    expect="https://$ext_ip"
+
+    got=`zlogin $sdc_zone \
+        PATH=/opt/smartdc/sdc/bin:/opt/smartdc/sdc/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin \
+        SDC_TESTING=1 \
+        /opt/smartdc/sdc/node_modules/smartdc/bin/sdc-listdatacenters \
+        -a admin \
+        -u https://$admin_ip \
+        -k $fingerprint 2>/dev/null | \
+        json $CONFIG_datacenter_name`
+
+    [[ "$got" != "$expect" ]] && CLOUDAPI_STATUS=1
 }
 
 #
