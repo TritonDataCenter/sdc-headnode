@@ -516,6 +516,14 @@ function create_zone {
         fi
     fi
 
+    if [[ "$CONFIG_coal" == "true" && "$zone" == "ufds" && $upgrading == 1 ]]
+    then
+        printf_log "%-58s" "coal pre-ufds sleep... "
+        sleep 30
+        printf_log "done (30)\n" >&${CONSOLE_FD}
+        prev_t=$(date +%s)
+    fi
+
     if [[ ${restore} == 0 ]]; then
         printf_log "%-58s" "creating zone ${existing_uuid}${zone}... "
     else
