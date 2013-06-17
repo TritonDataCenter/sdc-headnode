@@ -14,55 +14,6 @@ eval $(cat /opt/smartdc/etc/zoneconfig)
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/amon
 
-# for now just take the first IP
-UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-REDIS_ADMIN_IP=$(echo "${REDIS_ADMIN_IPS}" | tr ',' ' ')
-CNAPI_ADMIN_IP=$(echo "${CNAPI_ADMIN_IPS}" | tr ',' ' ')
-VMAPI_ADMIN_IP=$(echo "${VMAPI_ADMIN_IPS}" | tr ',' ' ')
-
-mkdir -p /opt/smartdc/amon/cfg
-cat > /opt/smartdc/amon/cfg/amon-master.json <<HERE
-{
-  "port": 80,
-  "logLevel": "debug",
-  "adminUuid": "${UFDS_ADMIN_UUID}",
-  "ufds": {
-    "url": "ldaps://${UFDS_ADMIN_IP}",
-    "bindDN": "${UFDS_LDAP_ROOT_DN}",
-    "bindPassword": "${UFDS_LDAP_ROOT_PW}"
-  },
-  "cnapi": {
-    "url": "http://${CNAPI_ADMIN_IP}"
-  },
-  "vmapi": {
-    "url": "http://${VMAPI_ADMIN_IP}"
-  },
-  "redis": {
-    "host": "${REDIS_ADMIN_IP}",
-    "port": "${REDIS_PORT}"
-  },
-  "datacenterName": "${DATACENTER_NAME}",
-  "notificationPlugins": {
-    "email": {
-      "path": "./notifications/email",
-      "config": {
-        "smtp": {
-          "host": "127.0.0.1",
-          "port": 25,
-          "ssl": false,
-          "use_authentication": false
-        },
-        "from": "\"Monitoring\" <no-reply@joyent.com>"
-      }
-    },
-    "webhook": {
-      "path": "./notifications/webhook",
-      "config": {}
-    }
-  }
-}
-HERE
-
 # Currently there aren't any vars to interpolate into 'amon-master.smf.in'.
 echo "Importing Amon SMF manifest."
 /usr/sbin/svccfg import /opt/smartdc/amon/smf/amon-master.smf.in

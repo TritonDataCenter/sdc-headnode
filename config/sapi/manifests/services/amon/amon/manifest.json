@@ -1,5 +1,5 @@
 {
     "name": "amon",
     "path": "/opt/smartdc/amon/cfg/amon-master.json",
-    "post_cmd": "/usr/sbin/svcadm restart amon"
+    "post_cmd": "/usr/sbin/svcadm restart amon-master"
 }

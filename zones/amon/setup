@@ -30,7 +30,7 @@ echo "export PATH=\$PATH:/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/no
 # - rate limit out going emails to something reasonably high
 # - discard bounce email attempts to (hardcoded) no-reply@joyent.com
 echo "no-reply@joyent.com discard" >>/opt/local/etc/postfix/transport
-/opt/local/bin/postmap /opt/local/etc/postfix/transport
+/opt/local/sbin/postmap /opt/local/etc/postfix/transport
 
 cat <<EOM >>/opt/local/etc/postfix/main.cf
 
