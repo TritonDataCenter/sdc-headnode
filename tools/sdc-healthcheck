@@ -121,9 +121,12 @@ function check_end_to_end()
 }
 
 cp_ssh()
-{
-    cp -pr /var/smartdc/ssh $ssh_dir
-    chmod 700 $ssh_dir
+{ 
+    diff /var/smartdc/ssh/id_rsa.pub $ssh_dir/id_rsa.pub >/dev/null 2>&1
+    [[ $? -eq 0 ]] && return
+
+    mkdir -m700 -p $ssh_dir
+    cp -pr /var/smartdc/ssh/* $ssh_dir
 }
 
 key_to_ufds()
@@ -180,30 +183,29 @@ function check_cloudapi
     # is the first time) or it might have been reprovisioned and need the key
     # data copied back in. We normally only need to setup the key once and it
     # will remain for subsequent healthcheck runs.
-    if [[ ! -d $ssh_dir ]]; then
-        if [[ ! -d /var/smartdc/ssh ]]; then
-            # We're generating the key for the first time.
-            mkdir -m700 -p /var/smartdc/ssh
-            ssh-keygen -b 2048 -t rsa -N "" -f /var/smartdc/ssh/id_rsa \
-                >/dev/null 2>&1
-            if [[ $? -ne 0 || ! -f /var/smartdc/ssh/id_rsa.pub ]]; then
-                CLOUDAPI_STATUS=1
-                return
-            fi
-
-            # get the fingerprint to load into ufds
-            fprint=`ssh-keygen -l -f /var/smartdc/ssh/id_rsa.pub | \
-                awk '{printf("%s", $2)}'`
-            if [[ -z "$fprint" ]]; then
-                CLOUDAPI_STATUS=1
-                return
-            fi
-            key_to_ufds
-            # We need a couple seconds so cloudapi can see the ufds update
-            sleep 2
+    if [[ ! -d /var/smartdc/ssh ]]; then
+        # We're generating the key for the first time.
+        mkdir -m700 -p /var/smartdc/ssh
+        ssh-keygen -b 2048 -t rsa -N "" -f /var/smartdc/ssh/id_rsa \
+            >/dev/null 2>&1
+        if [[ $? -ne 0 || ! -f /var/smartdc/ssh/id_rsa.pub ]]; then
+            CLOUDAPI_STATUS=1
+            return
         fi
-        cp_ssh
+
+        # get the fingerprint to load into ufds
+        fprint=`ssh-keygen -l -f /var/smartdc/ssh/id_rsa.pub | \
+            awk '{printf("%s", $2)}'`
+        if [[ -z "$fprint" ]]; then
+            CLOUDAPI_STATUS=1
+            return
+        fi
+        key_to_ufds
+        # We need a couple seconds so cloudapi can see the ufds update
+        sleep 2
     fi
+
+    cp_ssh
 
     fingerprint=`ssh-keygen -l -f $ssh_dir/id_rsa.pub | \
         awk '{printf("%s", $2)}'`
@@ -214,10 +216,6 @@ function check_cloudapi
 
     admin_ip=`sdc-vmapi /vms/$cloudapi_zone | json -H nics | \
         json -a nic_tag ip | nawk '{if ($1 == "admin") print $2}'`
-    ext_ip=`sdc-vmapi /vms/$cloudapi_zone | json -H nics | json -a nic_tag ip | \
-        nawk '{if ($1 == "external") print $2}'`
-
-    expect="https://$ext_ip"
 
     got=`zlogin $sdc_zone \
         PATH=/opt/smartdc/sdc/bin:/opt/smartdc/sdc/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin \
@@ -226,9 +224,10 @@ function check_cloudapi
         -a admin \
         -u https://$admin_ip \
         -k $fingerprint 2>/dev/null | \
-        json $CONFIG_datacenter_name`
+        json $CONFIG_datacenter_name | nawk '{print substr($0, 1, 8)}'`
 
-    [[ "$got" != "$expect" ]] && CLOUDAPI_STATUS=1
+    # We may get back an IP or a DNS name. Just check the prefix
+    [[ "$got" != "https://" ]] && CLOUDAPI_STATUS=1
 }
 
 #
