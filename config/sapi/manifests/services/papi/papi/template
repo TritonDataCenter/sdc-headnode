@@ -68,13 +68,10 @@
         "active",
         "cpu_cap",
         "default",
-        "group",
-        "description",
         "max_lwps",
         "max_physical_memory",
         "max_swap",
         "name",
-        "common_name",
         "quota",
         "version",
         "zfs_io_priority"
