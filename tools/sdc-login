@@ -26,10 +26,13 @@ if [[ -z ${zone} ]]; then
     exit 2
 fi
 
-zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
+zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null)
 if [[ -z ${zone_uuid} ]]; then
-    echo "Did not find exactly 1 zone matching: ${zone}"
-    exit 1
+    zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
+    if [[ -z ${zone_uuid} ]]; then
+            echo "Did not find exactly 1 zone matching: ${zone}"
+            exit 1
+    fi
 fi
 
 exec zlogin ${zone_uuid} $*
