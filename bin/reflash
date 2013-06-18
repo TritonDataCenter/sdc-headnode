@@ -28,6 +28,7 @@
 #    To install an image from a remote URL
 #
 
+DEBUG=0
 FORCE_65=0
 
 # need at least this much space to download the image and do a reflash
@@ -46,27 +47,43 @@ ROOT=$(cd $(dirname $0)/../; pwd)
 usage()
 {
     cat <<EOF
-Usage: $0 <filename|URL> <hostname>
+Usage: $0 [-F|-6|-u] <filename|URL> <hostname>
 EOF
     exit 1
 }
 
-if [[ $1 == "-F" ]]; then
-    LIVE_DANGEROUSLY=1
-    shift
-fi
-if [[ $1 == "-?" || $1 == "-h" ]]; then
+if [[ $1 == "-?" ]]; then
     usage
 fi
-if [[ $1 == "-6" ]]; then
-    FORCE_65=1
-    shift
+
+args=$(getopt F6uh $*)
+if [[ $? != 0 ]]; then
+    usage
 fi
+
+for i in $*; do
+    case $i in
+        -6) FORCE_65=1; shift;;
+        -F) LIVE_DANGEROUSLY=1; shift;;
+        -u) USB_MODE=1; shift;;
+    esac
+done
 
 filename=$1
 hostname=$2
 identityfile=$3
 bits_url=
+
+if [[ ${DEBUG} == 1 ]]; then
+cat <<EOF
+FORCE_65=${FORCE_65}
+LIVE_DANGEROUSLY=${LIVE_DANGEROUSLY}
+USB_MODE=${USB_MODE}
+filename=${filename}
+hostname=${hostname}
+identityfile=${identityfile}
+EOF
+fi
 
 SSH_OPTS=
 if [[ -f "$identityfile" ]]; then
@@ -137,21 +154,36 @@ get_latest()
     bits_url=$(get_bits_url)
 
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
-        file=$(curl -f -s -k \
-            ${bits_url}/sdc/${release}-latest/usbheadnode/ \
-            | grep "href" | cut -d '"' -f2 | grep "^boot-")
+        if [[ ${USB_MODE} == 1 ]]; then
+            file=$(curl -f -s -k \
+                ${bits_url}/sdc/${release}-latest/usbheadnode/ \
+                | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
+        else
+            file=$(curl -f -s -k \
+                ${bits_url}/sdc/${release}-latest/usbheadnode/ \
+                | grep "href" | cut -d '"' -f2 | grep "^boot-")
+        fi
 
         if [[ -n ${file} ]]; then
             echo "${bits_url}/sdc/${release}-latest/usbheadnode/${file}"
         fi
     else
-        file=$(curl -f -sS -k \
-            ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
-            | grep "href" | cut -d '"' -f2 | grep "^boot-")
-
-        if [[ -n ${file} ]]; then
-            echo "${bits_url}/usbheadnodetar/master-latest/usbheadnode/${file}"
+        if [[ ${USB_MODE} == 1 ]]; then
+            file=$(curl -f -sS -k \
+                ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
+                | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
+            if [[ -n ${file} ]]; then
+                echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
+            fi
+        else
+            file=$(curl -f -sS -k \
+                ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
+                | grep "href" | cut -d '"' -f2 | grep "^boot-")
+            if [[ -n ${file} ]]; then
+                echo "${bits_url}/usbheadnodetar/master-latest/usbheadnode/${file}"
+            fi
         fi
+
     fi
 }
 
@@ -766,23 +798,66 @@ if [[ -d /mnt/usbkey/devtools ]]; then
      cp -RP /mnt/usbkey/devtools ${WHICH_TMP}/devtools.flashing
 fi
 
-# Remove everything!
-echo "Wiping /mnt/usbkey..."
-rm -rf /mnt/usbkey/*
+if [[ "${USB_MODE}" == "1" ]]; then
+
+    set -o xtrace
+    # We mounted above, check device now
+    USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
+    if [[ -z \${USB_DEV} ]]; then
+        echo "Unable to determine USB device."
+        exit 2
+    else
+        echo "USB Device is: \${USB_DEV}"
+    fi
+
+    # unmount the key while we dd over it
+    umount /mnt/usbkey || /bin/true
+
+    #set +o errexit
+    # dd over it
+    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
+        | time dd of=\${USB_DEV} bs=1024k
+    #set -o errexit
+
+    # mount it again
+    \${MOUNT_SCRIPT}
+
+    # move new devtools out of way so we can drop in old first
+    if [[ -d /mnt/usbkey/devtools ]]; then
+        mv /mnt/usbkey/devtools /mnt/usbkey/devtools.new
+    fi
+
+else
+
+    # Remove everything!
+    echo "Wiping /mnt/usbkey..."
+    rm -rf /mnt/usbkey/*
+
+fi
 
 # copy devtools back (we'll unpack new ones over old ones but keep custom ones)
 if [[ -d ${WHICH_TMP}/devtools.flashing ]]; then
     cp -RP ${WHICH_TMP}/devtools.flashing /mnt/usbkey/devtools
 fi
 
-# Unpack the image
-# XXX there doesn't appear to be a way to disable these permission warnings on
-# SmartOS tar. They occur because we're writing to pcfs which doesn't support
-# the permissions from the tarball.
-echo "Unpacking new image..."
-(cd /mnt/usbkey && tar -zxf ${WHICH_TMP}/${FILENAME}) 2>&1 \
-     | sed -e "s/tar: warning - file permissions have changed for //" \
-     | sed -e "s/ (are 0100.*, should be .*)$//"
+if [[ "${USB_MODE}" != "1" ]]; then
+    # Unpack the image
+    # XXX there doesn't appear to be a way to disable these permission warnings
+    # on SmartOS tar. They occur because we're writing to pcfs which doesn't
+    # support the permissions from the tarball.
+    echo "Unpacking new image..."
+    (cd /mnt/usbkey && tar -zxf ${WHICH_TMP}/${FILENAME}) 2>&1 \
+         | sed -e "s/tar: warning - file permissions have changed for //" \
+         | sed -e "s/ (are 0100.*, should be .*)$//"
+else
+    # just write over devtools
+    if [[ ! -d /mnt/usbkey/devtools ]]; then
+        mkdir /mnt/usbkey/devtools
+    fi
+    (cd /mnt/usbkey/devtools.new && tar -cpf - ./) \
+        | (cd /mnt/usbkey/devtools && tar -xf -)
+    rm -rf /mnt/usbkey/devtools.new
+fi
 
 # Restore the answers.json if we had one.
 if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
