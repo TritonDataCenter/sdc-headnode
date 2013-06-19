@@ -88,9 +88,9 @@ function check_end_to_end()
       [[ "$got_status" == "200" ]] && return
       ;;
     napi)
-      local got_uuid=`sdc-napi /networks?name=admin 2>/dev/null | \
-          json -H -a uuid`
-      [[ "$got_uuid" == "$CONFIG_admin_uuid" ]] && return
+      sdc-napi /networks?name=admin 2>/dev/null | json -H -a owner_uuids | \
+          grep $CONFIG_ufds_admin_uuid >/dev/null 2>&1
+      [[ $? -eq 0 ]] && return
       ;;
     sapi)
       local got_status=`sdc-sapi /services?name=sapi 2>/dev/null | \
