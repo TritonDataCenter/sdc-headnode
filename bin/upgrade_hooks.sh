@@ -498,6 +498,9 @@ post_tasks()
     print_log "upgrading napi data..."
     napi_tasks `cat ${SDC_UPGRADE_DIR}/napi_zonename.txt`
 
+    print_log "upgrading papi data..."
+    papi_tasks `cat ${SDC_UPGRADE_DIR}/papi_zonename.txt`
+
     local dhcpd_uuid=`vmadm lookup -1 tags.smartdc_role=dhcpd`
     zlogin $dhcpd_uuid svcadm enable dhcpd
     [[ $? != 0 ]] && saw_err "Error enabling dhcpd svc"
@@ -854,6 +857,16 @@ fwapi_tasks()
 }
 
 # arg1 is zonename
+papi_tasks()
+{
+    cp ${SDC_UPGRADE_DIR}/mapi_dump/papi*.moray /zones/$1/root/root
+
+    zlogin $1 /opt/smartdc/papi/sbin/import-data /root 1>&4 2>&1
+    [ $? != 0 ] && \
+        saw_err "Error loading PAPI data into moray"
+}
+
+# arg1 is zonename
 cloudapi_tasks()
 {
     zlogin $1 zfs set mountpoint=/cloudapi/data zones/$1/data
@@ -1005,6 +1018,8 @@ case "$1" in
 "ufds") ufds_tasks $2;;
 
 "napi") echo "$2" >${SDC_UPGRADE_DIR}/napi_zonename.txt;;
+
+"papi") echo "$2" >${SDC_UPGRADE_DIR}/papi_zonename.txt;;
 
 "vmapi") echo "$2" >${SDC_UPGRADE_DIR}/vmapi_zonename.txt;;
 esac
