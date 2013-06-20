@@ -13,6 +13,7 @@ role=sdc
 app_name=$role
 
 # This includes the fatal function and downloads and installs files.
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$role
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
