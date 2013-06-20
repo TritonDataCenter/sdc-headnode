@@ -1,7 +1,0 @@
-# sdc-papi(1) -- call the Packages API for this datacenter
-
-
-## SEE ALSO
-
-`sdc-papi` has been moved to the 'sdc' zone. Run `man sdc-papi` there.
-(You can login to the sdc zone via `sdc`.)
