@@ -47,9 +47,6 @@ IS_UPDATE=$(json -f ${METADATA} IS_UPDATE)
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
-# Install Amon monitor and probes for UFDS.
-TRACE=1 /opt/smartdc/ufds/bin/ufds-amon-install
-
 echo "Adding log rotation"
 logadm -w ufds-master -C 48 -s 100m -p 1h \
     /var/svc/log/smartdc-application-ufds-master:default.log
