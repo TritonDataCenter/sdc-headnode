@@ -122,6 +122,31 @@ most interesting/helpful ones are:
           "coal-memsize": 3400
         }
 
+# Adding a new service:
+
+Important files, see README.zones for more details:
+
+/zones/$SERVICE/setup      - required
+/zones/$SERVICE/configure  - required
+/zones/$SERVICE/zoneconfig - required, deprecated, can be empty.
+
+/sapi/config/services/$SERVICE/service.json - required
+
+ - SAPI manifests
+Manifests should exist in the image, typically at
+/opt/smartdc/$SERVICE/sapi_manifests, and that directory (or directories)
+should be specified in the setup file before setup.common is sourced, in the
+env var similar to this:
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$SERVICE
+
+The structure of that directory assumes the following:
+/opt/smartdc/$SERVICE/sapi_manifests/$MANIFEST_NAME
+  Where each $MANIFEST_NAME has two files:
+$MANIFEST_NAME/manifest.json
+$MANIFEST_NAME/template
+
+See SAPI docs at https://mo.joyent.com/docs/sapi/master/ and examples COAL for
+more information on these files.
 
 # Using specific images
 
