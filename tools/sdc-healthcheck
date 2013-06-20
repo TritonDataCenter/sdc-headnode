@@ -11,7 +11,7 @@ already_checked=""
 
 res=0
 parseflag=false
-PATH=/opt/smartdc/agents/bin:$PATH
+PATH=/opt/smartdc/bin:/opt/smartdc/agents/bin:$PATH
 
 load_sdc_sysinfo
 load_sdc_config_filename
@@ -121,7 +121,7 @@ function check_end_to_end()
 }
 
 cp_ssh()
-{ 
+{
     diff /var/smartdc/ssh/id_rsa.pub $ssh_dir/id_rsa.pub >/dev/null 2>&1
     [[ $? -eq 0 ]] && return
 
