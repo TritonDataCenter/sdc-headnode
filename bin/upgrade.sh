@@ -1291,8 +1291,48 @@ function update_vm_attrs
     echo "DONE4" >>/tmp/upd_cn
     echo "" >>/tmp/upd_cn
 
+    echo "cat <<\"PROG1\" >/tmp/fixmd" >>/tmp/upd_cn
+    cat <<-"NODE" >>/tmp/upd_cn
+	#!/usr/bin/node
+
+	var fs = require('fs');
+
+	var mod = 0;
+	var file = process.argv[2] + '/metadata.json';
+
+	fs.readFile(file, 'utf8', function (err, data) {
+	    if (err) {
+	        return;
+	    }
+
+	    data = JSON.parse(data);
+
+	    Object.keys(data.customer_metadata).forEach(function (k) {
+		if (k.match(/_pw$/)) {
+		    mod = 1;
+		    if (! data.internal_metadata) {
+			data.internal_metadata = {};
+		    }
+
+		    if (! data.internal_metadata.hasOwnProperty(k)) {
+			data.internal_metadata[k] = data.customer_metadata[k];
+			delete data.customer_metadata[k];
+		    }
+		}
+	    });
+
+	    if (mod) {
+		console.log(JSON.stringify(data));
+	    }
+	});
+	NODE
+    echo "PROG1" >>/tmp/upd_cn
+
+    echo "" >>/tmp/upd_cn
+
     cat <<-"PROG" >>/tmp/upd_cn
 	rm -f /tmp/upd.log
+	chmod +x /tmp/fixmd
 	for i in `zoneadm list -c`
 	do
 	  [ "$i" == "global" ] && continue
@@ -1347,6 +1387,18 @@ function update_vm_attrs
 	      echo "=== tags  $i $v" >>/tmp/upd.log
 	      mkdir -p /zones/$i/config
 	      echo $v > /zones/$i/config/tags.json
+	  fi
+
+	  # move pw metadata from customer to internal
+	  if [[ -s /zones/$i/config/metadata.json ]]; then
+	      /tmp/fixmd /zones/$i/config | json >/zones/$i/config/mdata.new
+	      if [[ -s /zones/$i/config/mdata.new ]]; then
+	          cp /zones/$i/config/metadata.json /zones/$i/config/mdata.old
+	          cp /zones/$i/config/mdata.new /zones/$i/config/metadata.json
+	          touch /etc/zones/$i.xml
+	          echo "=== metad $i" >>/tmp/upd.log
+	      fi
+	      rm -f /zones/$i/config/mdata.new
 	  fi
 	done
 	PROG
