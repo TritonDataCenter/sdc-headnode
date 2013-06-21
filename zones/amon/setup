@@ -48,6 +48,16 @@ EOM
 /usr/sbin/svcadm enable postfix || fatal "unable to enable postfix"
 
 
+# Setup crontab
+crontab=/tmp/amon_cron
+crontab -l > $crontab
+[[ $? -eq 0 ]] || fatal "Unable to write to $crontab"
+echo '' >>$crontab
+echo '0,10,20,30,40,50 * * * * /opt/smartdc/amon/bin/alert-if-amon-master-down.sh 2>&1' >>$crontab
+crontab $crontab
+[[ $? -eq 0 ]] || fatal "Unable import crontab"
+
+
 touch /var/svc/setup_complete
 echo "setup done"
 (sleep 5; cp /var/svc/setup.log /var/svc/setup_init.log) &
