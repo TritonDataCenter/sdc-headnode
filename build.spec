@@ -19,6 +19,7 @@
   "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
   "adminui-image": "adminui/adminui-zfs-.*manifest",
   "amon-image": "amon/amon-zfs-.*manifest",
+  "amonredis-image": "amonredis/amonredis-zfs-.*manifest",
   "assets-image": "assets/assets-zfs-.*manifest",
   "binder-image": "binder/binder-zfs-.*manifest",
   "ca-image": "ca/ca-zfs-.*manifest",

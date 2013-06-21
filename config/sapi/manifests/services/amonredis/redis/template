@@ -1,0 +1,10 @@
+daemonize yes
+pidfile /var/run/redis.pid
+# "port 6379" is the default
+loglevel notice
+logfile /var/log/redis/redis.log
+# Snapshotting:
+#   after 60 sec if at least 1 key changed
+# Default of only every 15 *minutes* for 1 key change is too long for us here.
+save 60 1
+dir /data/redis

@@ -1107,6 +1107,10 @@ cnapi_client_url="http://${cnapi_admin_ip}:80"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
+amonredis_admin_ip="$ip_addr"
+
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
 redis_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
@@ -1375,6 +1379,11 @@ echo >>$tmp_config
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
 echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
 echo "amon_domain=amon.${datacenter_name}.${dns_domain}" >>$tmp_config
+echo >>$tmp_config
+
+echo "amonredis_admin_ips=$amonredis_admin_ip" >>$tmp_config
+echo "amonredis_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amonredis_domain=amonredis.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config

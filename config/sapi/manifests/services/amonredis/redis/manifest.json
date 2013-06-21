@@ -1,0 +1,5 @@
+{
+	"name": "redis",
+	"path": "/opt/redis/etc/redis.conf",
+	"post_cmd": "/usr/sbin/svcadm restart redis"
+}

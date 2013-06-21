@@ -103,6 +103,7 @@ env | grep IMAGE
 # XXX Marsell says it's pointless to upgrade rabbitmq.
 #
 # XXX JoshW says it's pointless to upgrade redis
+# XXX Trent presumes it is currently pointless to upgrade amonredis
 #
 # SAPI is upgraded separately through upgrade-sapi.sh.
 

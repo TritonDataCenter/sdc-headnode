@@ -1,0 +1,18 @@
+{
+    "name": "amonredis",
+    "params": {
+        "delegate_dataset": true,
+        "package_name": "sdc_1024",
+        "image_uuid": "IMAGE_UUID",
+		"networks": [ "admin" ],
+        "tags": {
+            "smartdc_role": "amonredis",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "amonredis"
+    },
+    "manifests": {
+    }
+}

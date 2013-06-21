@@ -344,7 +344,8 @@ function create_output
     fi
 
     rm -rf $IMG_TMP_DIR/coal.$$
-    rm -rf $STAGE || true
+    #XXX
+    #rm -rf $STAGE || true
 }
 
 unpack_image

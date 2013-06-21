@@ -905,6 +905,9 @@ function cleanup_config
 	cnapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
+	amonredis_admin_ip="$ip_addr"
+
+	allocate_ip_addr
 	redis_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -1024,6 +1027,10 @@ function cleanup_config
 	amon_admin_ips=$amon_admin_ip
 	amon_root_pw=$CONFIG_adminui_root_pw
 	amon_domain=amon.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
+
+	amonredis_admin_ips=$amonredis_admin_ip
+	amonredis_root_pw=$CONFIG_adminui_root_pw
+	amonredis_domain=amonredis.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	redis_admin_ips=$redis_admin_ip
 	redis_root_pw=$CONFIG_adminui_root_pw
@@ -1162,6 +1169,7 @@ function cleanup_config
 	sdcsso_pkg=${GENERIC_sdcsso_pkg}
 	adminui_pkg=${GENERIC_adminui_pkg}
 	amon_pkg=${GENERIC_amon_pkg}
+	amonredis_pkg=${GENERIC_amonredis_pkg}
 	usageapi_pkg=${GENERIC_usageapi_pkg}
 	ca_pkg=${GENERIC_ca_pkg}
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
@@ -1181,7 +1189,7 @@ function cleanup_config
 	workflow_pkg=${GENERIC_workflow_pkg}
 	vmapi_pkg=${GENERIC_vmapi_pkg}
 	sdc_pkg=${GENERIC_sdc_pkg}
-  papi_pkg=${GENERIC_papi_pkg}
+	papi_pkg=${GENERIC_papi_pkg}
 	binder_pkg=${GENERIC_binder_pkg}
 	manta_pkg=${GENERIC_manta_pkg}
 
@@ -1588,12 +1596,12 @@ check_capi
 # which was unused, but some sites have a conflict on that address, so we
 # don't attempt to use it. Thus, we only have 9 or 10 addresses to re-use.
 #
-# In 7.0 we have 25 admin zones plus 4 reserved IPs for additional binder
-# instances, so we need at least 19, and maybe 20, additional addresses out of
+# In 7.0 we have 26 admin zones plus 4 reserved IPs for additional binder
+# instances, so we need at least 20, and maybe 21, additional addresses out of
 # the dhcp range to accomodate the new zones.
 #
 # XXX each time another new core HN zone is added, we need to bump this up
-need_num_addrs=19
+need_num_addrs=20
 
 ip_to_num $CONFIG_dhcp_range_start
 dhcp_start=$num
