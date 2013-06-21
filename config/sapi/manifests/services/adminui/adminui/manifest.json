@@ -1,5 +1,0 @@
-{
-	"name": "adminui",
-	"path": "/opt/smartdc/adminui/etc/config.json",
-	"post_cmd": "/usr/sbin/svcadm restart adminui"
-}
