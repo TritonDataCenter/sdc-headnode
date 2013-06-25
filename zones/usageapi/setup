@@ -11,6 +11,9 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 role=usageapi
 app_name=$role
 
+# Let SAPI know where the local manifests are
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/usageapi
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 

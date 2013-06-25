@@ -1,6 +1,0 @@
-{
-	"logLevel": "info",
-	"api": {
-		"port": 80
-	}
-}

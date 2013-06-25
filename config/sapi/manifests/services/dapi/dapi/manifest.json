@@ -1,5 +1,0 @@
-{
-	"name": "dapi",
-	"path": "/opt/smartdc/dapi/config.json",
-	"post_cmd": "/usr/sbin/svcadm restart dapi"
-}
