@@ -13,6 +13,9 @@ touch /opt/local/.dli_license_accepted
 
 role=manatee
 
+# Local manifests
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$role
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 

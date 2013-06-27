@@ -9,6 +9,8 @@ set -o xtrace
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 role=moray
 
+# Local manifests
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$role/sdc
 
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common

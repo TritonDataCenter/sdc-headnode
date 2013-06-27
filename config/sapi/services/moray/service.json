@@ -11,7 +11,8 @@
         "delegate_dataset": true
     },
     "metadata": {
-        "SERVICE_NAME" : "moray"
+        "SERVICE_NAME" : "moray",
+        "MORAY_MAX_PG_CONNS": 15
     },
     "manifests": {
     }
