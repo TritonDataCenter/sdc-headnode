@@ -11,6 +11,9 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 role=keyapi
 app_name=$role
 
+# SAPI manifests
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/keyapi
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 

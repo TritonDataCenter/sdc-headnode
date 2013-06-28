@@ -17,6 +17,9 @@ mkdir -p /opt/smartdc/$role/ssl/
     -keyout /opt/smartdc/$role/ssl/key.pem \
     -out /opt/smartdc/$role/ssl/cert.pem -days 365
 
+# SAPI manifests
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/sdcsso
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
