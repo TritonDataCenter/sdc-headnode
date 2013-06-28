@@ -1,0 +1,13 @@
+MAIL_TO=${mail_to}
+MAIL_FROM=${mail_from}
+DATACENTER_NAME=${datacenter_name}
+
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
+REDIS_ADMIN_IPS=${redis_admin_ips}
+REDIS_PORT=6379

@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012, Joyent Inc. All rights reserved.
+#
+# Common configure script used by SDC zones.
+#
+# It is expected that SDC zones' "configure" script sources this
+# "configure.common" script.
+#
+
+set -o xtrace
+# Can't use `set -e errexit` because we are selective warning on some
+# failures below.
+
+function fatal() {
+    echo "error: $*" >&2
+    exit 1
+}
