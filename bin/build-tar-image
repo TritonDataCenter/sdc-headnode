@@ -666,14 +666,22 @@ function copy_platform
     # instead of looking for the newest that matches platform-<release>
     local platform_file=$1
     local platform_release=$2
+    local plat_suffix=""
 
     local image
     if [[ -z ${platform_file} ]]; then
+
+        # Check for using a debug platform
+        if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
+            plat_suffix="-debug"
+            echo "Using DEBUG platform"
+        fi
+
         [[ -z "${platform_release}" ]] \
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
 
-        image=$(get_bit "platform/platform-${platform_release}-.*")
+        image=$(get_bit "platform${plat_suffix}/platform${plat_suffix}-${platform_release}-.*")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
