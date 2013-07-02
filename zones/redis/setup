@@ -8,7 +8,10 @@ set -o xtrace
 
 PATH=/opt/redis/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
+role=redis
+
 # This includes the fatal function and downloads and installs files.
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$role
 source /var/svc/setup.common
 
 # Cookie to identify this as a SmartDC zone and its role
