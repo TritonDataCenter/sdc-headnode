@@ -205,6 +205,9 @@ if [[ ! -f /var/svc/setup_complete ]]; then
 
     if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
         sapi_adopt
+    fi
+
+    if [[ ${ZONE_ROLE} != "assets" ]]; then
         setup_config_agent
         upload_values
         download_metadata

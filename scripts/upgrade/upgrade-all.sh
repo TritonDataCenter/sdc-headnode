@@ -147,15 +147,16 @@ env | grep IMAGE
 
 upgrade_zone adminui0 $ADMINUI_IMAGE
 upgrade_zone amon0 $AMON_IMAGE
+# upgrade_zone amonredis0 $AMONREDIS_IMAGE
 upgrade_zone ca0 $CA_IMAGE
-upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
+# upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
 upgrade_zone cnapi0 $CNAPI_IMAGE
-upgrade_zone dapi0 $DAPI_IMAGE
-upgrade_zone dhcpd0 $DHCPD_IMAGE
+# upgrade_zone dapi0 $DAPI_IMAGE
+# upgrade_zone dhcpd0 $DHCPD_IMAGE
 upgrade_zone fwapi0 $FWAPI_IMAGE
 upgrade_zone imgapi0 $IMGAPI_IMAGE
 upgrade_zone napi0 $NAPI_IMAGE
-upgrade_zone usageapi0 $USAGEAPI_IMAGE
+# upgrade_zone usageapi0 $USAGEAPI_IMAGE
 upgrade_zone vmapi0 $VMAPI_IMAGE
 upgrade_zone workflow0 $WORKFLOW_IMAGE
 # upgrade_zone ufds0 $UFDS_IMAGE

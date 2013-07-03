@@ -1,5 +1,0 @@
-{
-	"name": "ufds",
-	"path": "/opt/smartdc/ufds/etc/config.json",
-	"post_cmd": "/usr/sbin/svcadm restart ufds-master; /usr/sbin/svcadm restart ufds-capi"
-}
