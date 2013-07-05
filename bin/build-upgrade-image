@@ -137,7 +137,6 @@ function create_upgrade
 	boot/memdisk \
 	dos \
 	firmware \
-        extra \
         datasets \
         manifests \
         rc \
