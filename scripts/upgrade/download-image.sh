@@ -13,7 +13,7 @@ fatal()
 
 [[ $# -eq 1 ]] || fatal "usage: $0 <image uuid>"
 
-REMOTE='/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm'
+REMOTE='/opt/smartdc/bin/updates-imgadm'
 LOCAL='/opt/smartdc/bin/sdc-imgadm'
 
 UUID=$1

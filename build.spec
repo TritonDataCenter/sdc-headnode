@@ -13,9 +13,6 @@
 
   "use-images": true,
 
-  "// *-tarball": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
-  "imgapi-cli-tarball": "imgapi-cli/imgapi-cli-pkg-master-.*.tar.bz2",
-
   "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
   "adminui-image": "adminui/adminui-zfs-.*manifest",
   "amon-image": "amon/amon-zfs-.*manifest",

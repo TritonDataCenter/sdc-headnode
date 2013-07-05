@@ -8,7 +8,7 @@ set -o xtrace
 
 PATH=/opt/smartdc/bin:$PATH
 
-UPDATES_IMGADM='/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm'
+UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
 
 DC_NAME=$(sysinfo | json "Datacenter Name")
 
