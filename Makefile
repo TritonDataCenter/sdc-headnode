@@ -49,6 +49,9 @@ upgrade:
 sandwich:
 	@open http://xkcd.com/149/
 
+coal-and-open: coal
+	open $(shell ls -1d coal-*.vmwarevm | sort | tail -1)
+
 .PHONY: all coal usb boot tar upgrade sandwich
 
 .PHONY: update-tools-modules
