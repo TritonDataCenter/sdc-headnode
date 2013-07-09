@@ -1,11 +1,12 @@
 #!/bin/bash
 #
-# Copyright (c) 2012 Joyent Inc. All rights reserved.
+# Copyright (c) 2013 Joyent Inc. All rights reserved.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/booter
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 

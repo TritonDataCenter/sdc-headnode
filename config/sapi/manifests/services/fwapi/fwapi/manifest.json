@@ -1,5 +1,0 @@
-{
-    "name": "fwapi",
-    "path": "/opt/smartdc/fwapi/config.json",
-    "post_cmd": "svcadm refresh fwapi"
-}
