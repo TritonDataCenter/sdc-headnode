@@ -1,16 +1,52 @@
 #!/bin/bash
 #
-# Copyright (c) 2012 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
+set -o errexit
 
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+PATH=/opt/smartdc/sdc/bin:/opt/smartdc/sdc/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+SAPIADM=/opt/smartdc/config-agent/bin/sapiadm
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
 
-# Cookie to identify this as a SmartDC zone and its role
-mkdir -p /var/smartdc/sdc
+# If necessary, add a '$dcname sdc key' ssh key on the 'admin' user for use by
+# the sdc tools in this zone.
+metadata_path=/var/tmp/metadata.json
+sdc-sapi /configs/$(zonename) | json -H metadata > $metadata_path
+admin_uuid=$(json -f ${metadata_path} ufds_admin_uuid)
+key_name="$(json -f ${metadata_path} datacenter_name) sdc key"
+key=$(sdc-useradm key $admin_uuid "$key_name" || true)
+if [[ -n "$key" ]]; then
+    echo "Already have '$key_name' key on admin user"
+else
+    echo "Create '$key_name' key for admin user and add to the 'sdc' SAPI service"
+    key_file=/var/tmp/sdckey.id_rsa
+    rm -f $key_file $key_file.pub
+    ssh-keygen -t rsa -C "$key_name" -f "$key_file" -N ""
+    key_fingerprint=$(ssh-keygen -l -f "$key_file" | awk '{print $2}')
+
+    # Add the keys to the sdc service metadata, which will be used by the
+    # actual manifests that write the keys to each 'sdc' zone.
+    sdc_svc_uuid=$(sdc-sapi /services?name=sdc | json -H 0.uuid)
+    node -e "
+        var fs = require('fs');
+        var d = {
+            metadata: {
+                SDC_PRIVATE_KEY: fs.readFileSync('$key_file', 'ascii'),
+                SDC_PUBLIC_KEY: fs.readFileSync('$key_file.pub', 'ascii'),
+                SDC_KEY_ID: '$key_fingerprint'
+            }
+        };
+        console.log(JSON.stringify(d,null,2));
+        " >/var/tmp/sdckey-update.json
+    $SAPIADM update $sdc_svc_uuid -f /var/tmp/sdckey-update.json
+
+    # Add the key to the admin user.
+    sdc-useradm add-key -n "$key_name" ${admin_uuid} ${key_file}.pub
+
+    rm $key_file $key_file.pub /var/tmp/sdckey-update.json
+fi
 
 exit 0
