@@ -11,6 +11,8 @@ PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 # Install zookeeper package, need to touch this file to disable the license prompt
 touch /opt/local/.dli_license_accepted
 
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/binder
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
