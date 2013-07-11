@@ -45,11 +45,8 @@ function add_external_nic {
         -d @${tmpfile}
     [[ $? -eq 0 ]] || fatal "failed to add external NIC"
 
-    # The add_nics job takes 10-15 seconds.
-    sleep 20
-
-    vmadm reboot ${zone_uuid}
-    [[ $? -eq 0 ]] || fatal "failed to reboot zone"
+    # The add_nics job takes about 20 seconds.
+    sleep 30
 
     rm -f ${tmpffile}
 }
@@ -149,8 +146,8 @@ sapi_uuid=$(vmadm lookup alias=~sapi)
 add_external_nic ${sapi_uuid}
 
 #
-# The add_external_nic function reboots the SAPI zone, so it may not be up for
-# another 10-20 seconds.  Poll its /mode endpoint until it returns something.
+# The SAPI zone is rebooted as part of adding an external NIC.  Poll its /mode
+# endpoint until it returns something.
 #
 wait_for_sapi
 
