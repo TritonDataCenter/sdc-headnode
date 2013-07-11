@@ -27,6 +27,11 @@ else
     ssh-keygen -t rsa -C "$key_name" -f "$key_file" -N ""
     key_fingerprint=$(ssh-keygen -l -f "$key_file" | awk '{print $2}')
 
+    # Ensure permissions on the priv key are such that 'ssh' will use it.
+    # TODO: Really want config-agent manifests to support file mode.
+    touch /root/.ssh/sdc.id_rsa
+    chmod 0600 /root/.ssh/sdc.id_rsa
+
     # Add the keys to the sdc service metadata, which will be used by the
     # actual manifests that write the keys to each 'sdc' zone.
     sdc_svc_uuid=$(sdc-sapi /services?name=sdc | json -H 0.uuid)
