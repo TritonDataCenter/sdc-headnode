@@ -865,9 +865,9 @@ if [[ -n ${CREATEDZONES} ]]; then
     # the SDC deployment configuration persistently.
     #
     sapi_uuid=$(/opt/smartdc/bin/sdc-sapi /services?name=sapi | json -Ha uuid)
+    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST
     /opt/smartdc/bin/sdc-sapi /services/${sapi_uuid} -X PUT \
         -d '{ "metadata" : { "SAPI_MODE" : "full" } }'
-    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
