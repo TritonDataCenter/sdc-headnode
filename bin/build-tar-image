@@ -125,6 +125,25 @@ CURL_OPTS=$(build_spec curl-opts)
 SPEED_LIMIT=$(build_spec speed-limit)
 NO_INTERNET=$(build_spec no-internet)
 
+
+# --- Manta config
+if [[ -z "$(build_spec manta-key-id)" ]]; then
+    export MANTA_KEY_ID=`ssh-keygen -l -f ~/.ssh/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
+else
+    export MANTA_KEY_ID=$(build_spec manta-key-id)
+fi
+if [[ -z "$(build_spec manta-url)" ]]; then
+    export MANTA_URL=https://us-east.manta.joyent.com
+else
+    export MANTA_URL="$(build_spec manta-url)"
+fi
+
+if [[ -z "$(build_spec manta-user)" ]]; then
+    export MANTA_USER="Joyent_Dev"
+else
+    export MANTA_USER="$(build_spec manta-user)"
+fi
+
 if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
 fi
@@ -509,11 +528,68 @@ function cleanup_bit
     fi
 }
 
+# Get a bit from manta to the local cache/ dir.
+function get_manta_bit
+{
+    pattern=$1
+    local get_bit_rv=
+
+    local pattern_dir=$(dirname $pattern)
+    local file_name=$(basename $pattern)
+
+    local branch=${BITS_BRANCH}
+    local have_branch_override=$(dirname $pattern_dir)
+    if [[ "$have_branch_override" != "." ]]; then
+        branch=$(basename $pattern_dir)
+        pattern_dir=$(dirname $pattern_dir)
+    fi
+    local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
+    local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
+    local manta_file_dir="${manta_base_dir}/${pattern_dir}"
+    local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
+    local latest_filename=$(basename $latest_name)
+    local cache_path=${ROOT}/cache/${latest_filename}
+
+    local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null | grep $latest_filename | cut -d ' ' -f1)
+
+    local ok=0
+    local retries=0
+    while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
+        if [[ ! -f $cache_path ]]; then
+            echo "Downloading '${latest_name}' bit to cache." >&2
+            (cd ${ROOT}/cache \
+                && mget -O ${latest_name} \
+                || fatal "Unable to fetch '${latest_name}'.")
+        fi
+
+        local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
+        if [[ ${my_md5} == ${md5} ]]; then
+            ok=1
+            continue
+        else
+            rm -f ${cache_path}
+            retries=$((${retries} + 1))
+            echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
+        fi
+    done
+    if [[ ${ok} -ne 1 ]]; then
+        fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
+    fi
+    get_bit_rv=${cache_path}
+    cleanup_bit "${pattern_base}"
+
+    echo "${get_bit_rv}"
+}
+
 # Get a bit (from BITS_URL/BITS_DIR/BITS_BRANCH) to the local "cache/" dir.
 # If the file base name already exists in the cache dir, then it is not
 # re-downloaded.
 function get_bit
 {
+    if [[ $(build_spec use-manta) == 'true' ]]; then
+        get_manta_bit $@
+        return 0
+    fi
     # Presumption: This pattern is of the form:
     # (a) "$single-level-dir/$file-regex-pattern", or
     # (b) "$single-level-dir/$branch-override/$file-regex-pattern", or
