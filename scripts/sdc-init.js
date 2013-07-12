@@ -449,7 +449,7 @@ function filterServices(serviceList, cb) {
                 extras.metadata['CLOUDAPI_DATACENTERS'][datacenter] =
                     'https://' + self.app.metadata['CLOUDAPI_SERVICE'];
                 extras.metadata['CLOUDAPI_DATACENTERS'] =
-		    JSON.stringify(extras.metadata['CLOUDAPI_DATACENTERS']);
+                    JSON.stringify(extras.metadata['CLOUDAPI_DATACENTERS']);
             }
 
             // *everything* needs customer_metadata
@@ -494,94 +494,6 @@ function getOrCreateServices(serviceList, cb) {
     });
 }
 
-// each service should have a corresponding directory:
-// /usbkey/manifests/services/SERVICE/MANIFEST_NAME/[manifest.json, template]
-function createSvcManifests(services, cb) {
-    var dirname = '/usbkey/manifests/services';
-    var log = self.log;
-    var results;
-
-    vasync.forEachParallel({
-        func: function (service, _cb) {
-            var dir = dirname + '/' + service;
-            loadManifests(dir, function (err, manifests) {
-                if (err) {
-                    return _cb(err);
-                }
-                log.debug({ manifests : manifests },
-                    'Found manifests for %s', service);
-                var result = {};
-                result[service] = manifests;
-                return _cb(null, result);
-            });
-        },
-        inputs: services.map(function (srvc) { return srvc.name; })
-    }, function (err, manifests) {
-        // what does this look like anyway?
-        if (err) {
-            log.fatal(err, 'Failed to create sdc services: %s', err.message);
-            return cb(err);
-        }
-
-        results = manifests.successes.reduce(function (acc, manifest) {
-            Object.keys(manifest).forEach(function (svc) {
-                acc[svc] = manifest[svc];
-            });
-            return acc;
-        }, {});
-
-        log.debug({ svc_manifests : results }, 'created svc manifests');
-        return cb(null, results);
-    });
-}
-
-function addSvcManifests(manifests, cb) {
-    var log = self.log;
-
-    vasync.forEachParallel({
-        func: function (service, _cb) {
-            var svcManifests = manifests[service.name];
-
-            if (!service.hasOwnProperty(manifests)) service.manifests = {};
-
-            Object.keys(manifests).forEach(function (name) {
-                if (service.manifests.hasOwnProperty(name)) {
-                    log.debug('Skipping update of exostomg %s manifest %s',
-                        service.name, name);
-                    svcManifests[name] = service.manifests[name];
-                }
-            });
-
-            if (Object.getOwnPropertyNames(svcManifests).length > 0) {
-                self.sapi.updateService(service.uuid,
-                    { manifests : svcManifests }, function (err) {
-                    if (err) {
-                        log.fatal(err, 'Failed to update %s: %s',
-                            service.name, err.message);
-                        return _cb(err);
-                    }
-                    log.debug('Updated %s with manifests', service.name);
-                    return _cb(null);
-                });
-            } else {
-                log.debug('No manifests to update for %s', service.name);
-                return _cb(null);
-            }
-
-            return (null);
-        },
-        inputs: self.services
-    }, function (err, services) {
-        if (err) {
-            log.fatal(err,
-                'Failed to add manifests to all services: %s', err.message);
-            return cb(err);
-        }
-        log.debug('All service manifests added.');
-        return cb(null);
-    });
-}
-
 /* -- Mainline -- */
 
 var self = this;
@@ -603,9 +515,7 @@ async.waterfall([
     addSdcManifests,
     prepareServices,
     filterServices,
-    getOrCreateServices,
-    createSvcManifests,
-    addSvcManifests
+    getOrCreateServices
 ], function (err) {
     if (err) {
         console.error('Error: ' + err.message);

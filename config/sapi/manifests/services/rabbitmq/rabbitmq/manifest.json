@@ -1,5 +1,0 @@
-{
-    "name": "rabbitmq",
-    "path": "/opt/smartdc/etc/sapi_metadata.json",
-    "post_cmd": "svcadm refresh rabbitmq"
-}

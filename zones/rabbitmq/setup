@@ -8,6 +8,8 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
+CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/etc/rabbitmq/sapi_manifests
+
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
