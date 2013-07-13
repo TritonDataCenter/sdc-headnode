@@ -9,17 +9,19 @@
 #  	sdc [<command>]
 #
 
+set -o errexit
+set -o pipefail
+
+# Never want to xtrace these.
+. /lib/sdc/config.sh
+load_sdc_config
+
 if [[ -n "$TRACE" ]]; then
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
-set -o errexit
-set -o pipefail
-
 
 # Get the admin user.
-. /lib/sdc/config.sh
-load_sdc_config
 admin_uuid=${CONFIG_ufds_admin_uuid}
 if [[ -z ${admin_uuid} ]]; then
     echo "error: sdc: unable to find the UUID for admin"
