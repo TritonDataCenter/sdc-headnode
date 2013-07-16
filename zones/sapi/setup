@@ -37,6 +37,7 @@ IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
 MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
 UFDS_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
+CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 WFAPI_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 UFDS_ADMIN_UUID=$(echo "${UFDS_ADMIN_UUID}")
@@ -60,6 +61,9 @@ cat > /opt/smartdc/sapi/etc/config.json <<HERE
   "moray": {
     "host": "$MORAY_HOST",
     "port": 2020
+  },
+  "cnapi": {
+    "url": "$CNAPI_URL"
   },
   "vmapi": {
     "url": "$VMAPI_URL"

@@ -5,6 +5,7 @@ MORAY_ADMIN_IPS=${moray_admin_ips}
 NAPI_ADMIN_IPS=${napi_admin_ips}
 UFDS_ADMIN_IPS=${ufds_admin_ips}
 VMAPI_ADMIN_IPS=${vmapi_admin_ips}
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
 WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
 
 UFDS_ADMIN_UUID=${ufds_admin_uuid}
