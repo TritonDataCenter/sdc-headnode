@@ -410,13 +410,18 @@ function copy_base
     local sdcboot_path=$(get_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
     local platboot_path=$(get_bit platform/boot-${platbranch}-.*\.tgz)
     local firmware_path=$(get_bit \
-	firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
+        firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
 
     echo "==> Copying in scripts/"
     cp -r scripts ${STAGE}/scripts
+
+    if [[ -d "65-files" ]]; then
+        echo "==> Copying in 65-files/"
+        cp -r 65-files ${STAGE}/65-files
+    fi
 
     echo "==> Copying in zones/"
     cp -r zones ${STAGE}/zones

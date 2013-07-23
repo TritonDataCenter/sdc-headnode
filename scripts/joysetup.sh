@@ -51,6 +51,12 @@ done
 load_sdc_sysinfo
 load_sdc_config
 
+# flag set when we're on a 6.x platform
+ENABLE_6x_WORKAROUNDS=
+if [[ -z ${SYSINFO_SDC_Version} ]]; then
+    ENABLE_6x_WORKAROUNDS="true"
+fi
+
 fatal()
 {
     echo "Error: $*" >&4
@@ -157,21 +163,21 @@ function boot_setup
     [[ -z "${console}" ]] && console=text
 
     if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
-	fatal "No GRUB menu found."
+        fatal "No GRUB menu found."
     else
-	sed -e "s/^default.*/default 1/" \
-	    -e "s/^variable os_console.*/variable os_console ${console}/" \
-	    < /mnt/usbkey/boot/grub/menu.lst.tmpl \
-	    > /tmp/menu.lst.tmpl
-	mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
+        sed -e "s/^default.*/default 1/" \
+            -e "s/^variable os_console.*/variable os_console ${console}/" \
+            < /mnt/usbkey/boot/grub/menu.lst.tmpl \
+            > /tmp/menu.lst.tmpl
+        mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
     fi
 
     if [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
-	sed -e "s/^default.*/default 1/" \
-	    -e "s/^variable os_console.*/variable os_console ${console}/" \
-	    < /mnt/usbkey/boot/grub/menu.lst \
-	    > /tmp/menu.lst
-	mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
+        sed -e "s/^default.*/default 1/" \
+            -e "s/^variable os_console.*/variable os_console ${console}/" \
+            < /mnt/usbkey/boot/grub/menu.lst \
+            > /tmp/menu.lst
+        mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
     fi
 }
 
@@ -180,6 +186,9 @@ SETUP_FILE=/var/lib/setup.json
 function create_setup_file
 {
     TYPE=$1
+
+    # Skip this on 6.x
+    [[ -n ${ENABLE_6x_WORKAROUNDS} ]] && return 0
 
     if [[ ! -e "$SETUP_FILE" ]]; then
         echo "{ \"node_type\": \"$TYPE\", " \
@@ -196,6 +205,9 @@ function create_setup_file
 function update_setup_state
 {
     STATE=$1
+
+    # Skip this on 6.x
+    [[ -n ${ENABLE_6x_WORKAROUNDS} ]] && return 0
 
     chmod 600 $SETUP_FILE
     cat "$SETUP_FILE" | json -e \
@@ -358,12 +370,19 @@ setup_datasets()
 
     if ! echo $datasets | grep ${COREDS} > /dev/null; then
         printf "%-56s" "adding volume: cores" >&4
-        zfs create -o compression=lz4 -o mountpoint=none ${COREDS} || \
-            fatal "failed to create the cores dataset"
-        zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
-            ${COREDS}/global || \
-            fatal "failed to create the global zone cores dataset"
+        if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
+            zfs create -o compression=lz4 -o mountpoint=none ${COREDS} || \
+                fatal "failed to create the cores dataset"
+            zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
+                ${COREDS}/global || \
+                fatal "failed to create the global zone cores dataset"
+        else
+            zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
+                -o compression=gzip ${COREDS} || \
+                fatal "failed to create the cores dataset"
+        fi
         printf "%4s\n" "done" >&4
+
     fi
 
     if ! echo $datasets | grep ${OPTDS} > /dev/null; then
@@ -531,7 +550,7 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
     create_zpool zones /tmp/pool.json
 
     if is_headnode; then
-	boot_setup
+        boot_setup
     fi
 
     if is_headnode; then
@@ -570,23 +589,38 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
     # also restart routing-setup here to pick up defaultrouter, also
     # written by network/physical.
     svcadm disable -s svc:/network/physical:default
+    # in 6.x disable doesn't really disable everything, we'll fix that up here
+    if [[ -n ${ENABLE_6x_WORKAROUNDS} ]]; then
+        set +o errexit
+        set +o pipefail
+        for iface in $(ifconfig -a | grep ^[a-z] | cut -d':' -f1 | grep -v "^lo" | sort | uniq); do
+            ifconfig ${iface} down
+            ifconfig ${iface} unplumb
+            dladm remove-bridge -l ${iface} vmwarebr
+        done
+        dladm delete-bridge vmwarebr
+        set -o errexit
+        set -o pipefail
+    fi
     svcadm enable -s svc:/network/physical:default
     svcadm disable -s svc:/network/routing-setup:default
     svcadm enable -s svc:/network/routing-setup:default
 
     echo $(cat /etc/resolv.conf)
 
-    # imgadm setup to use the IMGAPI in this DC.
-    if [[ ! -f /var/imgadm/imgadm.conf ]]; then
-        mkdir -p /var/imgadm
-        echo '{}' > /var/imgadm/imgadm.conf
-    fi
-    if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
-        imgadm sources -f -a http://$CONFIG_imgapi_domain
-        imgadm sources -f -d https://images.joyent.com  # remove the default
-    fi
+    if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
+        # imgadm setup to use the IMGAPI in this DC.
+        if [[ ! -f /var/imgadm/imgadm.conf ]]; then
+            mkdir -p /var/imgadm
+            echo '{}' > /var/imgadm/imgadm.conf
+        fi
+        if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
+            imgadm sources -f -a http://$CONFIG_imgapi_domain
+            imgadm sources -f -d https://images.joyent.com  # remove the default
+        fi
 
-    update_setup_state "imgadm_setup"
+        update_setup_state "imgadm_setup"
+    fi
 
     # We're the headnode
 

@@ -139,12 +139,19 @@ function outputServerData(data, callback)
         }
     }
 
-    console.log(sprintf('%-20s %-36s %8s  %8s  %7s  %-15s', 'HOSTNAME', 'UUID',
-        'SETUP', 'STATUS', 'RAM', 'ADMIN_IP'));
+    console.log(sprintf('%-20s %-36s %7s %8s  %8s  %7s  %-15s',
+        'HOSTNAME', 'UUID', 'VERSION', 'SETUP', 'STATUS', 'RAM', 'ADMIN_IP'));
 
     servers.forEach(function (s) {
         var admin_ip = '-';
+        var sdc_version;
         var setup_state = s.setup;
+
+        // Eventually this will be a first-class property of a CN
+        sdc_version = s.sysinfo['SDC Version'];
+        if (!sdc_version) {
+            sdc_version = '6.x';
+        }
 
         if (admin_nics.hasOwnProperty(s.uuid)) {
             admin_ip = admin_nics[s.uuid];
@@ -155,8 +162,14 @@ function outputServerData(data, callback)
             setup_state = 'running';
         }
 
-        console.log(sprintf('%-20s %36s %8s  %8s  %7d  %-15s', s.hostname,
-            s.uuid, setup_state, s.status, s.ram, admin_ip));
+        console.log(sprintf('%-20s %36s %7s %8s  %8s  %7d  %-15s',
+            s.hostname,
+            s.uuid,
+            sdc_version,
+            (setup_state ? setup_state : 'unknown'),
+            s.status,
+            s.ram,
+            admin_ip));
     });
 }
 
@@ -188,7 +201,7 @@ function outputServerList(callback)
             });
         }, function (cb) {
             // grab all the servers
-            cnapi.listServers(function (err, s) {
+            cnapi.listServers({extras: 'sysinfo'}, function (err, s) {
                 if (err) {
                     err.api = 'CNAPI';
                 } else {
