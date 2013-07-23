@@ -10,13 +10,14 @@ set -o errexit
 PATH=/opt/smartdc/sdc/bin:/opt/smartdc/sdc/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 SAPIADM=/opt/smartdc/config-agent/bin/sapiadm
 
-
-# If necessary, add a '$dcname sdc key' ssh key on the 'admin' user for use by
-# the sdc tools in this zone.
 metadata_path=/var/tmp/metadata.json
 sdc-sapi /configs/$(zonename) | json -H metadata > $metadata_path
 admin_uuid=$(json -f ${metadata_path} ufds_admin_uuid)
-key_name="$(json -f ${metadata_path} datacenter_name) sdc key"
+datacenter_name=$(json -f ${metadata_path} datacenter_name)
+
+# If necessary, add a '$dcname sdc key' ssh key on the 'admin' user for use by
+# the sdc tools in this zone.
+key_name="$datacenter_name sdc key"
 key=$(sdc-useradm key $admin_uuid "$key_name" || true)
 if [[ -n "$key" ]]; then
     echo "Already have '$key_name' key on admin user"
@@ -53,5 +54,44 @@ else
 
     rm $key_file $key_file.pub /var/tmp/sdckey-update.json
 fi
+
+
+# Add a '$dcname logs key' ssh key on the 'admin' user and to ~/.ssh in each
+# sdc zone (by adding for manifest on the 'sdc' *application* in SAPI). This
+# will be used for ssh'ing to each sdc zone (e.g. by the 'sdc-req' tool) and
+# for uploading rotated log files to Manta.
+key_name="$datacenter_name logs key"
+key=$(sdc-useradm key $admin_uuid "$key_name" || true)
+if [[ -n "$key" ]]; then
+    echo "Already have '$key_name' key on admin user"
+else
+    echo "Create '$key_name' key for admin user and add to the 'sdc' SAPI app"
+    key_file=/var/tmp/logs.id_rsa
+    rm -f $key_file $key_file.pub
+    ssh-keygen -t rsa -C "$key_name" -f "$key_file" -N ""
+    key_fingerprint=$(ssh-keygen -l -f "$key_file" | awk '{print $2}')
+
+    # Add the keys to the sdc service metadata, which will be used by the
+    # actual manifests that write the keys to each 'sdc' zone.
+    sdc_app_uuid=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+    node -e "
+        var fs = require('fs');
+        var d = {
+            metadata: {
+                LOGS_PRIVATE_KEY: fs.readFileSync('$key_file', 'ascii'),
+                LOGS_PUBLIC_KEY: fs.readFileSync('$key_file.pub', 'ascii'),
+                LOGS_KEY_ID: '$key_fingerprint'
+            }
+        };
+        console.log(JSON.stringify(d,null,2));
+        " >/var/tmp/logs-key-update.json
+    $SAPIADM update $sdc_app_uuid -f /var/tmp/logs-key-update.json
+
+    # Add the key to the admin user.
+    sdc-useradm add-key -n "$key_name" ${admin_uuid} ${key_file}.pub
+
+    rm $key_file $key_file.pub /var/tmp/logs-key-update.json
+fi
+
 
 exit 0

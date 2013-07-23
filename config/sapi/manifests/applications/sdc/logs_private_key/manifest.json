@@ -1,0 +1,5 @@
+{
+    "name": "logs_private_key",
+    "path": "/root/.ssh/logs.id_rsa",
+    "post_cmd": "chmod 600 /root/.ssh/logs.id_rsa"
+}

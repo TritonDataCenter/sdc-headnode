@@ -1,0 +1,5 @@
+{
+    "name": "logs_public_key",
+    "path": "/root/.ssh/logs.id_rsa.pub",
+    "post_cmd": "touch /root/.ssh/authorized_keys; sed -i '.bak' -e '/ logs key$/d' /root/.ssh/authorized_keys; echo '' >>/root/.ssh/authorized_keys; cat /root/.ssh/logs.id_rsa.pub >>/root/.ssh/authorized_keys"
+}
