@@ -20,6 +20,10 @@ mkdir -p /var/smartdc/$role
 # Reload zoneconfig variables
 eval $(cat /opt/smartdc/etc/zoneconfig)
 
+# Add manta vars to the env for 'mls' et al usage.
+echo "" >>/root/.profile
+echo 'source $HOME/.mantaprofile' >>/root/.profile
+
 # Add build/node/bin and node_modules/.bin to PATH
 echo "" >>/root/.profile
 echo "export PATH=/opt/smartdc/$role/build/node/bin:/opt/smartdc/$role/node_modules/.bin:\$PATH" >>/root/.profile

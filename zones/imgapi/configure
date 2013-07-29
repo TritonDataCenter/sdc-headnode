@@ -8,19 +8,18 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
-# for now just take the first IP
-UFDS_ADMIN_IP=$(echo "${UFDS_ADMIN_IPS}" | tr ',' ' ')
-WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
 
 # Mount our delegate dataset at '/data'.
 zfs set mountpoint=/data zones/$(zonename)/data
 
+# We pull in our metadata on our own because 'setup.common' doesn't do it on
+# reboot.
+metadata_path=/var/tmp/metadata.json
+sdc-sapi /configs/$(zonename) | json -H metadata > $metadata_path
+
 # Note: Usage of "local" storage is only intended for bootstrapping.  Manta will
 # be required for full functionality.
-#XXX METADATA isn't here on reboot because setup.common vs configure.common
-LOCAL_DB_DIR=$(json -f ${METADATA} LOCAL_DB_DIR)
+LOCAL_DB_DIR=$(json -f ${metadata_path} LOCAL_DB_DIR)
 if [[ ! -d $LOCAL_DB_DIR ]]; then
     echo "Create local db dir, $LOCAL_DB_DIR."
     mkdir -p $LOCAL_DB_DIR
