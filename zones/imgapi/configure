@@ -5,6 +5,8 @@
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
+set -o errexit
+set -o pipefail
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
@@ -15,7 +17,8 @@ zfs set mountpoint=/data zones/$(zonename)/data
 # We pull in our metadata on our own because 'setup.common' doesn't do it on
 # reboot.
 metadata_path=/var/tmp/metadata.json
-sdc-sapi /configs/$(zonename) | json -H metadata > $metadata_path
+sapi_url=$(mdata-get sapi-url)
+curl -fs ${sapi_url}/configs/$(zonename) | json metadata >${metadata_path}
 
 # Note: Usage of "local" storage is only intended for bootstrapping.  Manta will
 # be required for full functionality.
