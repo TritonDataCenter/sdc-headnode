@@ -4,63 +4,68 @@
         "delegate_dataset": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
-        "networks": [ "admin" ],
+        "networks": [
+            "admin"
+        ],
         "tags": {
             "smartdc_role": "cloudapi"
         }
     },
     "metadata": {
         "SERVICE_NAME": "cloudapi",
-		"CLOUDAPI_READONLY": false,
+        "CLOUDAPI_READONLY": false,
         "CLOUDAPI_CREATE_IMAGES": false,
-		"CLOUDAPI_PLUGINS": [
-			{
-	            "name": "provision_limits",
-	            "enabled": false,
-	            "config": {
-	                "defaults":[{
-	                   "os": "any",
-	                   "dataset": "any",
-	                   "check": "os",
-	                   "by": "ram",
-	                   "value": 51200
-	                }, {
-	                   "os": "windows",
-	                   "dataset": "windows",
-	                   "check": "dataset",
-	                   "by": "machines",
-	                   "value": -1
-	                }]
-	            }
-	        },
-	        {
-	            "name": "capi_limits",
-	            "enabled": false,
-	            "config": {
-	                "defaults": {
-	                    "smartos": 1,
-	                    "nodejs": 1,
-	                    "ubuntu": 1
-	                }
-	            }
-	        }, {
-	            "name": "machine_email",
-	            "enabled": false,
-	            "config": {
-	                "smtp": {
-	                    "host": "127.0.0.1",
-	                    "port": 25,
-	                    "use_authentication": false,
-	                    "user": "",
-	                    "pass": ""
-	                },
-	                "from": "nobody@joyent.com",
-	                "subject": "Your SmartDataCenter machine is provisioning",
-	                "body": "Check /my/machines for updates"
-	            }
-	        }
-		]
+        "CLOUDAPI_PLUGINS": [
+            {
+                "name": "provision_limits",
+                "enabled": false,
+                "config": {
+                    "defaults": [
+                        {
+                            "os": "any",
+                            "dataset": "any",
+                            "check": "os",
+                            "by": "ram",
+                            "value": 51200
+                        },
+                        {
+                            "os": "windows",
+                            "dataset": "windows",
+                            "check": "dataset",
+                            "by": "machines",
+                            "value": -1
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "capi_limits",
+                "enabled": false,
+                "config": {
+                    "defaults": {
+                        "smartos": 1,
+                        "nodejs": 1,
+                        "ubuntu": 1
+                    }
+                }
+            },
+            {
+                "name": "machine_email",
+                "enabled": false,
+                "config": {
+                    "smtp": {
+                        "host": "127.0.0.1",
+                        "port": 25,
+                        "use_authentication": false,
+                        "user": "",
+                        "pass": ""
+                    },
+                    "from": "nobody@joyent.com",
+                    "subject": "Your SmartDataCenter machine is provisioning",
+                    "body": "Check /my/machines for updates"
+                }
+            }
+        ]
     },
-    "manifests": {
-    }
+    "manifests": {}
 }
