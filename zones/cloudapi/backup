@@ -14,7 +14,7 @@ fi
 ROLE=cloudapi
 UUID=$1
 TARGET_DIR=$2
-CFG_FILE=/zones/${UUID}/root/opt/smartdc/cloudapi/cfg/config.json
+CFG_FILE=/zones/${UUID}/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
 PLUG_DIR=/zones/${UUID}/root/opt/smartdc/cloudapi/plugins
 SSL_DIR=/zones/${UUID}/root/opt/smartdc/cloudapi/ssl
 

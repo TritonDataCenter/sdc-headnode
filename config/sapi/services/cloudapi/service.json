@@ -14,7 +14,8 @@
     "metadata": {
         "SERVICE_NAME": "cloudapi",
         "CLOUDAPI_READONLY": false,
-        "CLOUDAPI_CREATE_IMAGES": false,
+        "CLOUDAPI_BLEEDING_EDGE_FEATURES": [],
+        "CLOUDAPI_BLEEDING_EDGE_LOGIN_WHITELIST": [],
         "CLOUDAPI_PLUGINS": [
             {
                 "name": "provision_limits",

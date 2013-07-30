@@ -18,9 +18,6 @@ source /var/svc/setup.common
 mkdir -p /var/smartdc/$role
 mkdir -p /opt/smartdc/$role/ssl
 
-echo "Installing local node.js"
-mkdir -p /opt/smartdc/$role/cfg
-cd -
 /usr/bin/chown -R root:root /opt/smartdc
 
 echo "Generating SSL Certificate"

@@ -14,7 +14,7 @@ fi
 ROLE=cloudapi
 UUID=$1
 SRC_DIR=$2
-CFG_FILE=/zones/${UUID}/root/opt/smartdc/cloudapi/cfg/config.json
+CFG_FILE=/zones/${UUID}/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
 SSL_DIR=/zones/${UUID}/root/opt/smartdc/cloudapi/ssl
 
 # Older backups may not have had this zone
