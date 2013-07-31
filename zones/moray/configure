@@ -114,20 +114,4 @@ function manta_setup_moray {
 
 manta_setup_moray
 
-# echo "Updating config file"
-# CFG_FILE_IN=/opt/smartdc/$role/etc/config.json.in
-# CFG_FILE=/opt/smartdc/$role/etc/config.json
-
-# # Update config file
-# cp $CFG_FILE_IN $CFG_FILE
-# gsed -i -e "s|ZK_IP|$BINDER_MAIN_ADMIN_IP|" $CFG_FILE
-
-#echo "Importing SMF Manifests"
-#sed -e "s#@@MORAY_PORT@@#2020#g" \
-    #-e "s#@@MORAY_INSTANCE_NAME@@#default#g" \
-    #/opt/smartdc/$role/smf/manifests/$role.xml.in  \
-    #> /opt/smartdc/$role/smf/manifests/$role.xml || \
-    #fatal "could not process /opt/smartdc/$role/smf/manifests/$role.xml.in"
-#$(/usr/sbin/svccfg import /opt/smartdc/$role/smf/manifests/$role.xml)
-
 exit 0
