@@ -5,6 +5,8 @@
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
+set -o pipefail
+set -e
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
@@ -51,32 +53,37 @@ ADMIN_IPADDR=$(json -f ${sapi_metadata} admin_ip)
 ADMIN_NETWORK=$(json -f ${sapi_metadata} admin_network)
 ADMIN_NETMASK=$(json -f ${sapi_metadata} admin_netmask)
 
-echo "listen_addresses='127.0.0.1, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
-numbits=$(mask2cidr ${ADMIN_NETMASK})
-echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgsql/data91/pg_hba.conf
-
-# enable slow query logging (anything beyond 200ms right now)
-echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
-
-# We don't need full_page_writes due to ZFS's transactional nature, and synchronous_commit is
-# unnecessary since consumer.js will correct any lost uncommitted data automatically in almost all cases
-echo "full_page_writes = off" >> /var/pgsql/data91/postgresql.conf
-echo "synchronous_commit = off" >> /var/pgsql/data91/postgresql.conf
-
-# Set memory usage. These numbers assume a ~768MB usageapi zone.
-echo "shared_buffers = 192MB" >> /var/pgsql/data91/postgresql.conf
-echo "effective_cache_size = 512MB" >> /var/pgsql/data91/postgresql.conf
-
 DATASET=`/usr/sbin/zfs list | /usr/bin/sed -n 's/.*\/\(zones.*data\)/\1/p'`
 
-# set pool recordsize to the same size as Postgres' block size
-/usr/sbin/zfs set recordsize=8k $DATASET
+if [ ! -e /$DATASET/pgsql ]; then
+    echo "listen_addresses='127.0.0.1, ${ADMIN_IPADDR}'" >> /var/pgsql/data91/postgresql.conf
+    numbits=$(mask2cidr ${ADMIN_NETMASK})
+    echo "host    all    all    ${ADMIN_NETWORK}/${numbits}    password" >> /var/pgsql/data91/pg_hba.conf
 
-# Postgres data typically compresses well, so enable lz4 compression
-/usr/sbin/zfs set compression=lz4 $DATASET
+    # enable slow query logging (anything beyond 200ms right now)
+    echo "log_min_duration_statement = 200" >> /var/pgsql/data91/postgresql.conf
 
-# move Postgres data into DATASET
-mv /var/pgsql /$DATASET
+    # We don't need full_page_writes due to ZFS's transactional nature, and synchronous_commit is
+    # unnecessary since consumer.js will correct any lost uncommitted data automatically in almost all cases
+    echo "full_page_writes = off" >> /var/pgsql/data91/postgresql.conf
+    echo "synchronous_commit = off" >> /var/pgsql/data91/postgresql.conf
+
+    # Set memory usage. These numbers assume a ~768MB usageapi zone.
+    echo "shared_buffers = 192MB" >> /var/pgsql/data91/postgresql.conf
+    echo "effective_cache_size = 512MB" >> /var/pgsql/data91/postgresql.conf
+
+    # set pool recordsize to the same size as Postgres' block size
+    /usr/sbin/zfs set recordsize=8k $DATASET
+
+    # Postgres data typically compresses well, so enable lz4 compression
+    /usr/sbin/zfs set compression=lz4 $DATASET
+
+    # move Postgres data into DATASET
+    mv /var/pgsql /$DATASET
+else
+    rm -rf /var/pgsql || true
+fi
+
 ln -s /$DATASET/pgsql /var/pgsql
 
 # Import postgres manifest straight from the pkgsrc file:
