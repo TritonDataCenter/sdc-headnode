@@ -1,0 +1,5 @@
+{
+    "name": "sdc_private_key",
+    "path": "/root/.ssh/sdc.id_rsa",
+    "post_cmd": "chmod 600 /root/.ssh/sdc.id_rsa"
+}
