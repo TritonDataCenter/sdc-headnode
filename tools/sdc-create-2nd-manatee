@@ -351,7 +351,7 @@ function wait_for_ha
     done
     set -o errexit
 
-    echo " It's HA!"
+    echo " It's HAlive!"
 }
 
 
