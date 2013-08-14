@@ -11,6 +11,13 @@ set -o pipefail
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
 
+# Tune TCP so IMGAPI will work better with Manta
+ipadm set-prop -t -p max_buf=2097152 tcp
+ndd -set /dev/tcp tcp_recv_hiwat 2097152
+ndd -set /dev/tcp tcp_xmit_hiwat 2097152
+ndd -set /dev/tcp tcp_conn_req_max_q 2048
+ndd -set /dev/tcp tcp_conn_req_max_q0 8192
+
 # Mount our delegate dataset at '/data'.
 zfs set mountpoint=/data zones/$(zonename)/data
 
