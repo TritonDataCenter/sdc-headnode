@@ -7,7 +7,7 @@
 # set -o errexit
 # set -o xtrace
 
-ROLES="adminui amon ca cnapi dapi dhcpd fwapi imgapi napi sapi ufds usageapi vmapi workflow"
+ROLES="adminui amon amonredis ca cloudapi cnapi dapi dhcpd fwapi imgapi napi sapi ufds usageapi vmapi workflow"
 
 function print_version
 {

@@ -5,13 +5,29 @@ of work to do to make them sufficiently general.
 
 To run an upgrade:
 
-    cd /usbkey/scripts/upgrade
-    ./download-all.sh
-    ./upgrade-sapi.sh <datacenter name>
-    ./upgrade-all.sh
+    # become root
+    p su -
 
-## Addendum June 12
+    ./version-list.sh > rollback-images
+    ./get-latest.sh > upgrade-images
+    ./download-all.sh upgrade-images 2>&1 | tee download.out
+    cp -r /usbkey/extra ./oldzones
+    ./upgrade-setup.sh 2>&1 | tee setup.out
+    ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
-Used to upgrade us-beta-4 to latest.
+To rollback:
 
-Used (with various images commented out) to upgrade CNAPI in production to fix critical memory leak.
+    mv zones newzones
+    mv oldzones zones
+    ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
+    ./upgrade-all rollback-images 2>&1 | tee rollback.out
+
+To make a changelog:
+
+    ./get-changes.sh upgrade-images.sh > changelog.sh
+
+    # changelog.sh is a script that assumes it runs in a directory where
+    # all the relevant service repos are present in subdirectories named
+    # identically to their role. E.g., cloning CA creates 'cloud-analytics'
+    # by default; it would need to be renamed to 'ca' for this script.
+

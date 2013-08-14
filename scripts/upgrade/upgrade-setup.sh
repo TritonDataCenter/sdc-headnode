@@ -6,7 +6,7 @@
 set -o errexit
 set -o xtrace
 
-ROLES="adminui amon ca cloudapi cnapi fwapi imgapi napi vmapi workflow"
+ROLES="cnapi dapi vmapi workflow"
 
 function copy_setup_files
 {
@@ -14,9 +14,9 @@ function copy_setup_files
     local CONFIGURE=zones/$ROLE/configure
     local COMMON=setup.common
 
-    mv $SETUP /usbkey/extra/$ROLE/setup
-    mv $CONFIGURE /usbkey/extra/$ROLE/configure
-    mv $COMMON /usbkey/extra/$ROLE/setup.common
+    cp $SETUP /usbkey/extra/$ROLE/setup
+    cp $CONFIGURE /usbkey/extra/$ROLE/configure
+    cp $COMMON /usbkey/extra/$ROLE/setup.common
 }
 
 for ROLE in $ROLES; do
