@@ -335,12 +335,21 @@ function wait_for_ha
 {
     local server_uuid=$1
     local instance=$2
+    local second_server_uuid=$3
+    local second_instance_uuid=$4
 
     echo -n "Waiting for Manatee to be HA .."
     set +o errexit
     local tries=0
     local mode=$(get_manatee_status "${server_uuid}" "${instance}")
     while [[ ${mode} != "HA" ]]; do
+        if [[ ${tries} -eq 12 ]]; then
+            # if we've waited this long we're probably racing w/ config-agent
+            # brokenness, work around as suggested by wdp in HEAD-1679
+            sdc-oneachnode -n ${second_server_uuid} "zlogin \
+                ${second_instance_uuid} svcadm enable -s manatee-sitter" \
+                >&4 2>&1
+        fi
         echo -n "."
         if [[ ${tries} -ge 36 ]]; then
             fatal "timed out waiting for HA"
@@ -384,15 +393,16 @@ disable_flag "${first_instance}" "ONE_NODE_WRITE_MODE"
 disable_flag "${second_instance}" "DISABLE_SITTER"
 
 # ensure the flags were disabled (prevent races w/ config-agent ala HEAD-1679)
-wait_for_disabled "${first_server}" "${first_instance}" "disableSitter"
-wait_for_disabled "${second_server}" "${second_instance}" "postgresMgrCfg.oneNodeWriteMode"
+wait_for_disabled "${first_server}" "${first_instance}" "postgresMgrCfg.oneNodeWriteMode"
+wait_for_disabled "${second_server}" "${second_instance}" "disableSitter"
 
 echo "!! IMPORTANT: DB will now become temporarily read-only !!"
 
 reboot_instance "${first_server}" "${first_instance}"
 wait_for_db "${first_server}" "${first_instance}"
 reboot_instance "${second_server}" "${second_instance}"
-wait_for_ha "${first_server}" "${first_instance}"
+wait_for_ha "${first_server}" "${first_instance}" \
+    "${second_server}" "${second_instance}"
 
 echo "!! DB is now writable again !!"
 
