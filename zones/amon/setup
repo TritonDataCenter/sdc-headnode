@@ -49,13 +49,14 @@ EOM
 
 
 # Setup crontab
-crontab=/tmp/amon_cron
+crontab=/tmp/$role-$$.cron
 crontab -l > $crontab
 [[ $? -eq 0 ]] || fatal "Unable to write to $crontab"
 echo '' >>$crontab
 echo '0,10,20,30,40,50 * * * * /opt/smartdc/amon/bin/alert-if-amon-master-down.sh 2>&1' >>$crontab
 crontab $crontab
 [[ $? -eq 0 ]] || fatal "Unable import crontab"
+rm -f $crontab
 
 
 touch /var/svc/setup_complete
