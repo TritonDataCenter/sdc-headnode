@@ -1,0 +1,31 @@
+{
+  "name": "sdc",
+  "params": {
+    "package_name": "sdc_256",
+    "image_uuid": "92199a42-8d21-41b9-a45d-1913cdccb745",
+    "networks": [
+      "admin",
+      "external"
+    ],
+    "firewall_enabled": true,
+    "tags": {
+      "smartdc_role": "sdc",
+      "smartdc_type": "core"
+    },
+    "cpu_shares": 256,
+    "cpu_cap": 150,
+    "zfs_io_priority": 10,
+    "max_lwps": 1000,
+    "max_physical_memory": 256,
+    "max_locked_memory": 256,
+    "max_swap": 512,
+    "quota": "25",
+    "package_version": "1.0.0",
+    "billing_id": "78aa629d-04fc-4ee5-881b-0b4a914e0c52",
+    "customer_metadata": {}
+  },
+  "metadata": {
+    "SERVICE_NAME": "sdc"
+  },
+  "manifests": {}
+}

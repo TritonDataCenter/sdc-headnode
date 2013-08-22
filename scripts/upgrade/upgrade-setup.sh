@@ -6,19 +6,20 @@
 set -o errexit
 set -o xtrace
 
-ROLES="cnapi dapi vmapi workflow"
+# Note: must manually update this list for each upgrade. (TODO: have that
+# come from a single upgrade-spec file that all scripts use.)
+ROLES="dapi imgapi vmapi cloudapi cnapi workflow"
 
 function copy_setup_files
 {
-    local SETUP=zones/$ROLE/setup
-    local CONFIGURE=zones/$ROLE/configure
-    local COMMON=setup.common
-
-    cp $SETUP /usbkey/extra/$ROLE/setup
-    cp $CONFIGURE /usbkey/extra/$ROLE/configure
-    cp $COMMON /usbkey/extra/$ROLE/setup.common
+    cp zones/$ROLE/setup /usbkey/extra/$ROLE/setup
+    cp zones/$ROLE/configure /usbkey/extra/$ROLE/configure
+    cp /usbkey/default/setup.common /usbkey/extra/$ROLE
+    cp /usbkey/default/configure.common /usbkey/extra/$ROLE
+    #TODO: should update /usbkey/extras/bashrc from /usbkey/rc/
 }
 
+cp default/* /usbkey/default
 for ROLE in $ROLES; do
     copy_setup_files
 done
