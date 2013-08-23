@@ -24,6 +24,8 @@ key_name="$datacenter_name sdc key"
 key=$(sdc-useradm key $admin_uuid "$key_name" || true)
 if [[ -n "$key" ]]; then
     echo "Already have '$key_name' key on admin user"
+elif [[ "$(sdc-useradm ping --master)" != "pong" ]]; then
+    echo "Skip '$key_name' setup because cannot reach UFDS master"
 else
     echo "Create '$key_name' key for admin user and add to the 'sdc' SAPI app"
     key_file=/var/tmp/sdc.id_rsa
