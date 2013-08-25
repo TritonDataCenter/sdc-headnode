@@ -147,7 +147,7 @@ env | grep IMAGE
 # off a number of sysinfo jobs.
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
-# upgrade_zone sdc0 $ADMINUI_IMAGE
+# upgrade_zone sdc0 $SDC_IMAGE
 # upgrade_zone adminui0 $ADMINUI_IMAGE
 # upgrade_zone amon0 $AMON_IMAGE
 # upgrade_zone amonredis0 $AMONREDIS_IMAGE

@@ -21,6 +21,8 @@ To run an upgrade:
     ./upgrade-setup.sh 2>&1 | tee setup.out
     # Add new services if required:
     # ./add-sdc.sh
+    cp -rP /opt/smartdc/bin ./oldtools
+    ./upgrade-tools.sh 2>&1 | tee tools.out
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
 To rollback:
@@ -28,6 +30,11 @@ To rollback:
     mv zones newzones
     mv oldzones zones
     ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
+
+    mv tools newtools
+    mv oldtools tools
+    ./upgrade-tools.sh 2>&1 | tee rollback-tools.out
+
     ./upgrade-all rollback-images 2>&1 | tee rollback.out
 
 To make a changelog:
@@ -101,3 +108,5 @@ as part of the upgrade.
 Should grab logs from the old zone before reprovision. Should perhaps snapshot and send
 to a file before reprovision.
 
+Reprovision of each zone should be followed up by waiting for setup_complete...
+and timeout on that (as headnode.sh).

@@ -58,3 +58,52 @@ cat <<EOM | sapiadm provision
 }
 EOM
 
+# Give the SDC zone an external nic.
+sdc-vmapi /vms/$(vmadm lookup -1 alias=sdc0)?action=add_nics -X POST -d@- <<EOP
+{
+    "networks": [{"uuid": "$(sdc-napi /networks?name=external | json -H 0.uuid)"}]
+}
+EOP
+sleep 10
+
+
+# Add the new SDC *app* manifests for the sdc key that the 'sdc' zone creates.
+sdc_app_uuid=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+
+sdc_private_key_uuid=$(uuid)
+sdc-sapi /manifests -X POST -d@- <<EOP
+{
+    "uuid": "$sdc_private_key_uuid",
+    "name": "sdc_private_key",
+    "path": "/root/.ssh/sdc.id_rsa",
+    "post_cmd": "chmod 600 /root/.ssh/sdc.id_rsa",
+    "template": "{{{SDC_PRIVATE_KEY}}}"
+}
+EOP
+sdc-sapi /applications/$sdc_app_uuid -X PUT -d@- <<EOP
+{
+    "manifests": {
+        "sdc_private_key": "$sdc_private_key_uuid"
+    }
+}
+EOP
+
+sdc_public_key_uuid=$(uuid)
+sdc-sapi /manifests -X POST -d@- <<EOP
+{
+    "uuid": "$sdc_public_key_uuid",
+    "name": "sdc_public_key",
+    "path": "/root/.ssh/sdc.id_rsa.pub",
+    "post_cmd": "touch /root/.ssh/authorized_keys; sed -i '.bak' -e '/ sdc key$/d' /root/.ssh/authorized_keys; echo '' >>/root/.ssh/authorized_keys; cat /root/.ssh/sdc.id_rsa.pub >>/root/.ssh/authorized_keys",
+    "template": "{{{SDC_PUBLIC_KEY}}}"
+}
+EOP
+sdc-sapi /applications/$sdc_app_uuid -X PUT -d@- <<EOP
+{
+    "manifests": {
+        "sdc_public_key": "$sdc_public_key_uuid"
+    }
+}
+EOP
+
+
