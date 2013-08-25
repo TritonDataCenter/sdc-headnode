@@ -4,6 +4,7 @@
 /coal-*-*-*
 /usb-*-*-*
 /boot-*-*-*
+/incr-upgrade-*-*-*
 /upgrade-*.tgz
 /config/*.local
 /config/root.authorized_keys

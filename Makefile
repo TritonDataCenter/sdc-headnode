@@ -35,6 +35,7 @@ include ./buildtools/mk/Makefile.defs
 # usb-headnode-specific targets
 #
 
+.PHONY: all coal usb boot tar upgrade sandwich
 all: coal
 
 coal:
@@ -49,14 +50,29 @@ upgrade:
 sandwich:
 	@open http://xkcd.com/149/
 
+.PHONY: coal-and-open
 coal-and-open: coal
 	open $(shell ls -1d coal-*.vmwarevm | sort | tail -1)
-
-.PHONY: all coal usb boot tar upgrade sandwich
 
 .PHONY: update-tools-modules
 update-tools-modules:
 	./bin/mk-sdc-clients-light.sh da0a1080feb tools-modules/sdc-clients
+
+.PHONY: incr-upgrade
+incr-upgrade:
+	@echo building incr-upgrade-$(STAMP).tgz
+	rm -rf build/incr-upgrade
+	mkdir -p build
+	cp -r $(TOP)/incr-upgrade-scripts build/incr-upgrade-$(STAMP)
+	cp -r \
+		$(TOP)/zones \
+		$(TOP)/tools \
+		$(TOP)/default \
+		build/incr-upgrade-$(STAMP)
+	(cd build && tar czf ../incr-upgrade-$(STAMP).tgz incr-upgrade-$(STAMP))
+
+CLEAN_FILES += build/incr-upgrade
+
 
 
 
