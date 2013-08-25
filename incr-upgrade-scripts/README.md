@@ -1,13 +1,8 @@
-# SDC Upgrade Scripts
+# SDC (Incremental) Upgrade Scripts
 
-These scripts will be used for the JPC upgrades on June 5th.  There's a fair bit
-of work to do to make them sufficiently general.
-
-Get the latest upgrade scripts to the target HN, including the 'zones' tree
-copy for 'upgrade-setup.sh'. For example:
-
-    ln -s .../usb-headnode/zones zones
-    rsync -akv ../upgrade/ beta4:/var/tmp/tmick/upgrade/
+These scripts can be used to drive incremental upgrades of SDC 7 (as opposed
+to usb-headnode.git/bin/upgrade.sh which is about the major SDC 6.5 -> 7 upgrade).
+There's a fair bit of work to do to make this process sufficiently general.
 
 To run an upgrade:
 
