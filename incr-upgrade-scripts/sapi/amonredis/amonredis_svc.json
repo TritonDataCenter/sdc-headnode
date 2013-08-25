@@ -1,0 +1,31 @@
+{
+  "name": "amonredis",
+  "application_uuid": "f7f1d9b0-8c0f-45d9-a103-f3e5f54360cb",
+  "params": {
+    "delegate_dataset": true,
+    "package_name": "sdc_1024",
+    "image_uuid": "9b7f624b-6980-4059-8942-6be33c4f54d6",
+    "networks": [
+      "admin"
+    ],
+    "tags": {
+      "smartdc_role": "amonredis",
+      "smartdc_type": "core"
+    },
+    "cpu_shares": 1024,
+    "cpu_cap": 300,
+    "zfs_io_priority": 10,
+    "max_lwps": 1000,
+    "max_physical_memory": 1024,
+    "max_locked_memory": 1024,
+    "max_swap": 2048,
+    "quota": "25",
+    "package_version": "1.0.0",
+    "billing_id": "4769a8f9-de51-4c1e-885f-c3920cc68137",
+    "customer_metadata": {}
+  },
+  "metadata": {
+    "SERVICE_NAME": "amonredis"
+  },
+  "manifests": {}
+}

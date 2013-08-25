@@ -5,12 +5,13 @@
 set -o xtrace
 set -o errexit
 
-if [[ $# -ne 0 ]]; then
-    echo "usage: $0"
+if [[ $# -ne 1 ]]; then
+    echo "Usage: upgrade-all.sh imagefile.sh"
     exit 1
 fi
 
-source ./images.sh
+IMAGE_LIST=$1
+source $IMAGE_LIST
 
 if [[ -z ${SAPI_IMAGE} ]] ; then
     echo "error: \$SAPI_IMAGE not defined"
@@ -54,6 +55,7 @@ echo "
 {
     \"service_uuid\": \"${SAPI_SVC_UUID}\",
     \"params\": {
+        \"owner_uuid\": \"9dce1460-0c4c-4417-ab8b-25ca478c5a78\",
         \"alias\": \"sapi${new}\"
     }
 }" | sapiadm provision
