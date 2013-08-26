@@ -12,10 +12,14 @@ ROLES="dapi imgapi vmapi cloudapi cnapi workflow"
 
 function copy_setup_files
 {
+    rm -f /usbkey/extra/$ROLE/setup
     cp zones/$ROLE/setup /usbkey/extra/$ROLE/setup
+    rm -f /usbkey/extra/$ROLE/configure
     cp zones/$ROLE/configure /usbkey/extra/$ROLE/configure
-    cp /usbkey/default/setup.common /usbkey/extra/$ROLE
-    cp /usbkey/default/configure.common /usbkey/extra/$ROLE
+    rm -f /usbkey/extra/$ROLE/setup.common
+    cp /usbkey/default/setup.common /usbkey/extra/$ROLE/setup.common
+    rm -f /usbkey/extra/$ROLE/configure.common
+    cp /usbkey/default/configure.common /usbkey/extra/$ROLE/configure.common
     #TODO: should update /usbkey/extras/bashrc from /usbkey/rc/
 }
 

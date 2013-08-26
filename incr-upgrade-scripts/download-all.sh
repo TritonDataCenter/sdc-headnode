@@ -7,7 +7,7 @@ set -o errexit
 
 IMAGE_LIST=$1
 if [[ -z $1 ]]; then
-    fatal "Usage: upgrade-all.sh imagefile.sh"
+    fatal "Usage: download-all.sh imagefile.sh"
 fi
 source $IMAGE_LIST
 
