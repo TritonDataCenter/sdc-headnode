@@ -2,20 +2,38 @@
 
 These scripts can be used to drive incremental upgrades of SDC 7 (as opposed
 to usb-headnode.git/bin/upgrade.sh which is about the major SDC 6.5 -> 7 upgrade).
-There's a fair bit of work to do to make this process sufficiently general.
+See HEAD-1795 for intended improvements to this process.
 
-To run an upgrade:
+## To run an upgrade
+
+    # Get the latest 'incr-upgrade' package
+    wget https://bits.joyent.us/builds/incr-upgrade/master-latest/incr-upgrade/incr-upgrade-VERSION.tgz --no-check-certificate --user=guest --password=XXX
+    tar xf incr-upgrade-VERSION.tgz
+    cd incr-upgrade-VERSION
 
     # become root
     p su -
 
     ./version-list.sh > rollback-images
+
+    # Either get a list of the latest versions of all roles, as follows,
+    # or manually create such a list with relevant roles and specific
+    # image UUIDs.
     ./get-latest.sh > upgrade-images
+
+    # Edit the following scripts to limit the upgrade to the intended
+    # roles:
+    vi download-all.sh   # the list of commands at the end
+    vi upgrade-setup.sh  # the ROLES var
+    vi upgrade-all.sh    # the list of commands at the end
+
     ./download-all.sh upgrade-images 2>&1 | tee download.out
     cp -r /usbkey/extra ./oldzones
     ./upgrade-setup.sh 2>&1 | tee setup.out
-    # Add new services if required:
-    # ./add-sdc.sh
+
+    # Add new roles if required, e.g.:
+    ./add-sdc.sh
+
     cp -rP /opt/smartdc/bin ./oldtools
     ./upgrade-tools.sh 2>&1 | tee tools.out
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
@@ -42,8 +60,7 @@ To make a changelog:
     # by default; it would need to be renamed to 'ca' for this script.
 
 
-
-# SAPI zone upgrade
+## SAPI zone upgrade
 
 Need this patch to setup.common for it:
 
@@ -68,7 +85,7 @@ initial headnode setup.
 
 
 
-# Trent's Notes (ignore for now)
+## Trent's Notes (ignore for now)
 
 A possible new flow here, using a JSON spec file for to upgrade.
 
