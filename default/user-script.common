@@ -13,6 +13,7 @@
 # background at the end of this script).
 #
 
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 # Can't use `set -e errexit` because we are selective warning on some
@@ -168,13 +169,16 @@ for file in setup.common configure.common setup; do
     fi
 done
 
-# Run setup in the background.
 export ASSETS_IP="${assets_ip}"
 export ZONE_ROLE="${zone_role}"
 
-(bash /var/svc/setup) >/var/svc/setup.log 2>&1 &
-if [[ $? != 0 ]]; then
-    fatal "Failed to setup ${zone_role} zone."
+chmod 755 /var/svc/setup
+/var/svc/setup >/var/svc/setup.log 2>&1
+setup_exit_code=$?
+if [[ ${setup_exit_code} != 0 ]]; then
+    fatal "Failed (${setup_exit_code}) to setup ${zone_role} zone."
+else
+    echo "Completed setup for ${zone_role} zone."
 fi
 
 exit 0
