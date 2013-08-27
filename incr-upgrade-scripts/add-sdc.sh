@@ -19,13 +19,19 @@ SAPIURL=$(sdc-sapi /services?name=redis | json -Ha 'metadata["sapi-url"]')
 ASSETSIP=$(sdc-sapi /services?name=redis | json -Ha 'metadata["assets-ip"]')
 USERSCRIPT=$(/usr/node/bin/node -e 'console.log(JSON.stringify(require("fs").readFileSync("/usbkey/default/user-script.common", "utf8")))')
 DOMAIN=$(sdc-sapi /applications?name=sdc | json -Ha metadata.datacenter_name).$(sdc-sapi /applications?name=sdc | json -Ha metadata.dns_domain)
+SDC_IMAGE_UUID=$(sdc-imgadm list name=sdc -H -o uuid | tail -1)
+
+if [[ -z "$SDC_IMAGE_UUID" ]]; then
+    echo "$0: fatal error: no 'sdc' image uuid in IMGAPI to use"
+    exit 1
+fi
 
 # We have a commited manually hacked version of the 'sdc' service JSON.
 # Some of those fields from usb-headnode/config/sapi/services/sdc/service.json
 # and some from fields that core zone setup would fill in from the package used.
 json -f ./sapi/sdc/sdc_svc.json \
     | json -e "application_uuid=\"$SDCAPP\"" \
-    | json -e 'params.image_uuid="9b7f624b-6980-4059-8942-6be33c4f54d6"' \
+    | json -e "params.image_uuid=\"$SDC_IMAGE_UUID\"" \
     | json -e "metadata[\"sapi-url\"]=\"$SAPIURL\"" \
     | json -e "metadata[\"assets-ip\"]=\"$ASSETSIP\"" \
     | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
@@ -105,5 +111,3 @@ sdc-sapi /applications/$sdc_app_uuid -X PUT -d@- <<EOP
     }
 }
 EOP
-
-
