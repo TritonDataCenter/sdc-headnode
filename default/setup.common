@@ -200,30 +200,11 @@ function registrar_setup
     fi
 }
 
-# we determine if SAPI is bootstrapping by checking its own IP against the
-# sapi-url passed in setup.
-function sapi_bootstrapping
-{
-    ## if we have the same IP as the sapi-url, then we need to skip
-    local this_zone_ip=$(mdata-get sdc:nics | json -a ip)
-    local sapi_zone_ip=$(mdata-get sapi-url | awk '{sub(/http:\/\//, ""); print}')
-    if [[ ${sapi_zone_ip} == ${this_zone_ip} ]]; then
-        echo "true"
-    else
-        echo "false"
-    fi
-}
-
 if [[ ! -f /var/svc/setup_complete ]]; then
     echo "Initializing SAPI metadata and config-agent"
 
     if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
         sapi_adopt
-    fi
-
-    # when SAPI is bootstrapping during setup, these are run by headnode.sh
-    # after binder completes (and DNS resolution is possible)
-    if [[ ${ZONE_ROLE} != "assets" && $(sapi_bootstrapping) == "false" ]]; then
         setup_config_agent
         upload_values
         download_metadata
@@ -233,6 +214,7 @@ if [[ ! -f /var/svc/setup_complete ]]; then
 else
     echo "Already setup, skipping SAPI and registrar initialization."
 fi
+
 
 # HEAD-1367 - Enable Cron. Since all zones using this are joyent-minimal,cron
 # is not enable by default. We want to enable it though, for log rotation.

@@ -655,7 +655,6 @@ function sdc_init_application
     update_setup_state "sapi_setup"
 }
 
-# Bootstraps SAPI once binder is in place and it can resolve itself.
 function bootstrap_sapi
 {
     local sapi_bootstrap=$(grep sapi_bootstrapped ${SETUP_FILE})

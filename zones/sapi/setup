@@ -49,10 +49,7 @@ mkdir -p /opt/smartdc/sapi/etc
 # that it requires IP addresses instead of DNS names (as binder is not expected
 # to be setup yet), it should be kept broadly in sync with the template at:
 # $USB_HEADNODE_ROOT/config/sapi/manifests/services/sapi/sapi/template
-
-# write out during bootstrap only; otherwise rely on config-agent.
-if [[ $(sapi_bootstrapping) == "true" ]]; then
-  cat > /opt/smartdc/sapi/etc/config.json <<HERE
+cat > /opt/smartdc/sapi/etc/config.json <<HERE
 {
   "log_options": {
     "name": "sapi",
@@ -91,7 +88,6 @@ if [[ $(sapi_bootstrapping) == "true" ]]; then
   }
 }
 HERE
-fi
 
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
