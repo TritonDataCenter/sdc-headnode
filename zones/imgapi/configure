@@ -24,10 +24,15 @@ ndd -set /dev/tcp tcp_conn_req_max_q0 8192
 zfs set mountpoint=/data zones/$(zonename)/data
 
 # We pull in our metadata on our own because 'setup.common' doesn't do it on
-# reboot.
+# reboot.  Keep trying until we have a successful download.
 metadata_path=/var/tmp/metadata.json
 sapi_url=$(mdata-get sapi-url)
-curl -fs ${sapi_url}/configs/$(zonename) | json metadata >${metadata_path}
+config_url="${sapi_url}/configs/$(zonename)"
+while ! curl -fsS -o /tmp/sapi_config.json ${config_url}; do
+	rm -f /tmp/sapi_config.json || true
+	sleep 1
+done
+json -f /tmp/sapi_config.json metadata >${metadata_path}
 
 # Note: Usage of "local" storage is only intended for bootstrapping.  Manta will
 # be required for full functionality.
