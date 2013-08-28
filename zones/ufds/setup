@@ -18,8 +18,6 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/ufds
 
-# eval $(cat /opt/smartdc/etc/zoneconfig)
-
 # Install UFDS
 mkdir -p /opt/smartdc/ufds/ssl
 chown -R nobody:nobody /opt/smartdc/ufds

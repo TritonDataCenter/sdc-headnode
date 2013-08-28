@@ -87,29 +87,6 @@ if [[ ! -d /opt/smartdc/etc ]]; then
     mkdir -p /opt/smartdc/etc || fatal "unable to create /opt/smartdc/etc"
 fi
 
-if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
-    if [[ ${zone_role} == "assets" ]]; then
-        if [[ -f /assets/extra/${zone_role}/zoneconfig ]]; then
-            cp /assets/extra/${zone_role}/zoneconfig \
-                /opt/smartdc/etc/zoneconfig \
-                || fatal "unable to copy zoneconfig file"
-        fi
-        touch /opt/smartdc/etc/zoneconfig
-    else
-        touch /opt/smartdc/etc/zoneconfig.new
-        curl -m 10 -k -o /opt/smartdc/etc/zoneconfig.new -s -S -f \
-            http://${assets_ip}/extra/${zone_role}/zoneconfig
-        if [[ $? == 0 ]]; then
-            cp /opt/smartdc/etc/zoneconfig.new /opt/smartdc/etc/zoneconfig \
-                && rm -f /opt/smartdc/etc/zoneconfig.new
-            chmod 644 /opt/smartdc/etc/zoneconfig*
-        fi
-        if [[ ! -f /opt/smartdc/etc/zoneconfig ]]; then
-            fatal "Missing zoneconfig"
-        fi
-    fi
-fi
-
 # Setup "/opt/smartdc/bin" from assets.
 if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc/bin || fatal "unable to create /opt/smartdc/bin"

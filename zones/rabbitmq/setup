@@ -39,7 +39,7 @@ fi
 echo "Importing SMF manifest"
 svccfg import ${manifest}
 
-# Apply configuration from /opt/smartdc/etc/zoneconfig now
+# Apply configuration
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 projadd -c "Rabbitmq settings" -U rabbitmq -G rabbitmq \

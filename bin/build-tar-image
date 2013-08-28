@@ -1046,14 +1046,6 @@ function get_core_zone_image
         cleanup_bit ${clean_pattern}
     fi
 
-    #
-
-    # HEAD-1507 - this should be temporary until we get proto-SAPI returning
-    # a payload for vmadm. This should allow headnode.sh:create_zone()
-    # and build_payload to handle the sdc images with less trouble until
-    # then.
-    echo "NO_FS_TARBALL=\"true\"" >> ${STAGE}/zones/${zone}/zoneconfig
-
     # HEAD-1371 - insert image uuid into config/services/${zone}/service.json
     # as param. Expect an IMAGE_UUID placeholder.
     local service=${STAGE}/services/${zone}/service.json

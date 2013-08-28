@@ -16,9 +16,6 @@ CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/binder
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-# Load variables
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 zone_uuid=$(zonename)
 zone_role="binder"
 app_name=${zone_role}

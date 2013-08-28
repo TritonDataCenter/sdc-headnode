@@ -24,7 +24,7 @@ mkdir -p /var/smartdc/napi
 echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/$role/node/bin:/opt/smartdc/$role/node_modules/.bin:/opt/smartdc/$role/bin" >>/root/.profile
 
-# Apply configuration from /opt/smartdc/etc/zoneconfig now
+# Apply configuration
 /opt/smartdc/bin/configure || fatal "Unable to configure zone."
 
 echo "Adding log rotation"

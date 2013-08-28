@@ -128,7 +128,6 @@ Important files, see README.zones for more details:
 
 /zones/$SERVICE/setup      - required
 /zones/$SERVICE/configure  - required
-/zones/$SERVICE/zoneconfig - required, deprecated, can be empty.
 
 /sapi/config/services/$SERVICE/service.json - required
 

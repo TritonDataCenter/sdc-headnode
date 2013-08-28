@@ -214,13 +214,6 @@ function copy_to_mount
     cp ${MNT_DIR}/boot_archive.manifest $STAGE
     chmod 444 $STAGE/*.manifest
 
-    # Since images can be built without configs we need to explicitly let
-    # headnode zones know they are of type COAL
-    LIST_OF_ZONE_CFGS=$(find $MNT_DIR -name 'zoneconfig')
-    for ZONE_CFG in $LIST_OF_ZONE_CFGS; do
-        echo "IMG_TYPE=coal" >> ${ZONE_CFG}
-    done
-
     # Also copy in devtools
     echo "==> Copying in devtools"
     cp -r $ROOT/devtools $MNT_DIR/devtools

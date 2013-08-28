@@ -11,15 +11,7 @@ PATH=/opt/smartdc/moray/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/
 # This includes the fatal function
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 role=moray
-
-# XXX is net0 admin nic?
-# ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
-# MORAY_MAIN_ADMIN_IP=$(echo "${MORAY_ADMIN_IPS}" | cut -d',' -f1)
-# BINDER_MAIN_ADMIN_IP=$(echo "${BINDER_ADMIN_IPS}" | cut -d',' -f1)
-
 
 ZONE_UUID=`/usr/bin/zonename`
 SVC_ROOT='/opt/smartdc/moray'

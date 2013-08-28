@@ -1,5 +1,0 @@
-DAPI_LDAP_ROOT_DN=${ufds_ldap_root_dn}
-DAPI_LDAP_ROOT_PW=${ufds_ldap_root_pw}
-
-UFDS_ADMIN_UUID=${ufds_admin_uuid}
-AMON_ADMIN_IPS=${amon_admin_ips}

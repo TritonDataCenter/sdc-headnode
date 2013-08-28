@@ -17,7 +17,7 @@ source /var/svc/setup.common
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/assets
 
-# Apply configuration from /opt/smartdc/etc/zoneconfig now
+# Apply configuration
 /opt/smartdc/bin/configure
 
 nginx_manifest="/opt/local/share/smf/nginx/manifest.xml"

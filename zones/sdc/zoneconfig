@@ -1,4 +1,0 @@
-MAIL_TO=${mail_to}
-MAIL_FROM=${mail_from}
-DATACENTER_NAME=${datacenter_name}
-

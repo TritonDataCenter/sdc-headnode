@@ -9,18 +9,11 @@ set -e
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 # The user-script is downloaded and executed on every zone boot. We take
 # advantage of this to maintain the cached config values post-setup.
 if [[ -e /var/svc/setup_complete ]]; then
     exit 0
 fi
-
-# XXX is net1 external nic?
-# EXT_IPADDR=`ifconfig net1 | nawk '{if ($1 == "inet") print $2}'`
-# usageapi_EXTERNAL_URL="https://$EXT_IPADDR"
-# ADMIN_IPADDR=`ifconfig net0 | nawk '{if ($1 == "inet") print $2}'`
 
 # Function calculates number of bit in a netmask
 #

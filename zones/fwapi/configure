@@ -9,15 +9,8 @@ set -o xtrace
 # This includes the fatal function
 source /var/svc/configure.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 INSTDIR=/opt/smartdc/fwapi
 CONF=${INSTDIR}/config.json
-
-# XXX for now use the first UFDS, soon we'll be switching to DNS
-UFDS_HOST=$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
-WF_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 
 echo "Importing fwapi SMF manifest"
 /usr/sbin/svccfg import ${INSTDIR}/smf/manifests/fwapi.xml

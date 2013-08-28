@@ -15,8 +15,6 @@ CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$role/sdc
 # This includes the fatal function and downloads and installs files.
 source /var/svc/setup.common
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/$role
 mkdir -p /opt/smartdc/$role/ssl

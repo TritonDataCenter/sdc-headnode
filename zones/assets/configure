@@ -9,9 +9,6 @@ set -o pipefail
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-# latest config will be in /opt/smartdc/etc/zoneconfig
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 cat >/opt/local/etc/nginx/nginx.conf <<NGINX
 user  www  www;
 worker_processes  1;

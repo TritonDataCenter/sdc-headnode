@@ -9,8 +9,6 @@ set -o xtrace
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 PATH=/opt/smartdc/adminui/build/node/bin:$PATH
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 host=`hostname`
 
 echo "Updating adminui service manifest"

@@ -395,37 +395,6 @@ function copy_extras
         rm -f ${dir}/bashrc
         ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
     fi
-
-    # HEAD-1371 - zoneconfig should shrink or disappear for most zones,
-    # depending on what is removed from their configure/setup scripts.
-    if [[ -f ${USB_COPY}/zones/${zone}/zoneconfig ]]; then
-        # This allows zoneconfig to use variables that exist in the <USB>/config
-        # file, by putting them in the environment then putting the zoneconfig
-        # in the environment, then printing all the variables from the file.  It
-        # is done in a subshell to avoid further namespace polution.
-        (
-            . ${USB_COPY}/config
-            . ${USB_COPY}/config.inc/generic
-            . ${USB_COPY}/zones/${zone}/zoneconfig
-            for var in $(cat ${USB_COPY}/zones/${zone}/zoneconfig \
-                | grep -v "^ *#" | grep "=" | cut -d'=' -f1); do
-
-                echo "${var}='${!var}'"
-            done
-        ) > ${dir}/zoneconfig
-
-        # HEAD-1371 - only used for ufds afaik - another way to flag that?
-        [[ $upgrading == 1 ]] && echo "IS_UPDATE='1'" >>${dir}/zoneconfig
-
-        if [[ "$zone" == "ufds" ]]; then
-            local fingerprint=$(ssh-keygen -lf /var/ssh/ssh_host_rsa_key.pub | \
-                cut -f 2 -d ' ')
-            local openssh=$(cat /var/ssh/ssh_host_rsa_key.pub)
-
-            echo "UFDS_ADMIN_KEY_FINGERPRINT=$fingerprint" >>${dir}/zoneconfig
-            echo "UFDS_ADMIN_KEY_OPENSSH=\"$openssh\"" >>${dir}/zoneconfig
-        fi
-    fi
 }
 
 # HOW THE CORE ZONE PROCESS WORKS:

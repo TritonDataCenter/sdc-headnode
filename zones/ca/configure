@@ -8,8 +8,6 @@ set -o xtrace
 
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 function cafail
 {
 	echo "fatal: $*" >&2

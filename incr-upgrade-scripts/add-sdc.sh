@@ -8,7 +8,6 @@ set -o errexit
 
 mkdir /usbkey/extra/sdc
 cp ./zones/sdc/* /usbkey/extra/sdc/
-# We're not filling in 'zoneconfig', but that is deprecated.
 cp /usbkey/default/setup.common /usbkey/extra/sdc/
 cp /usbkey/default/configure.common /usbkey/extra/sdc/
 cp /usbkey/rc/zone.root.bashrc /usbkey/extra/sdc/bashrc

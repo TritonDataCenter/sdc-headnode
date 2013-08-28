@@ -1,3 +1,0 @@
-CA_AMQP_HOST=${rabbitmq_admin_ip}
-VMAPI_ADMIN_IPS=${vmapi_admin_ips}
-CNAPI_ADMIN_IPS=${cnapi_admin_ips}

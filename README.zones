@@ -10,10 +10,7 @@ The rules are:
         doesn't need state other than config, optional)
 
     * 'configure' - this should be run by setup and will be run on every boot
-        of the zone after freshly populated zoneconfig is put in place to apply
-        all configuration values.  It should be possible to update zoneconfig
-        and reboot the zone and have this perform appropriate updates for all
-        changed config values.
+        of the zone.
 
     * 'restore' - this script takes a backup and restores the data to a freshly
         created zone, must handle backups back to 6.5.0 (if your zone doesn't
@@ -23,16 +20,9 @@ The rules are:
         configure and when it's successful, create the /var/svc/setup_complete
         file.  If unsuccessful it should create /var/svc/setup_failed.
 
-    * 'zoneconfig' - DEPRECATED all config options for the zone that can be
-        changed centrally (eg. ufds IPs) should be listed here see other zones
-        for examples. Replaced by SAPI config, see below.
-
   * All zones should use setup.common to do the common setup
     stuff that all zones need to do, this will be available at
     /var/svc/setup.common
-
-  * The configure script will be run on every boot of the zone to update the
-    configuration, the values should all come from the zoneconfig file
 
 # SAPI configuration
 

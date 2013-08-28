@@ -6,8 +6,6 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 known_state=0
 while [[ ${known_state} == 0 ]]; do
     status=$(svcs -Ho STA svc:/application/rabbitmq:default)

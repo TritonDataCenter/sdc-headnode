@@ -9,8 +9,6 @@ set -o xtrace
 # This script is run to configure and reconfigure the amon zone.
 PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
 
-eval $(cat /opt/smartdc/etc/zoneconfig)
-
 # Cookie to identify this as a SmartDC zone and its role
 mkdir -p /var/smartdc/amon
 

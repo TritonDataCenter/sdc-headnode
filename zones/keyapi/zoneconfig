@@ -1,4 +1,0 @@
-KEYAPI_LDAP_ROOT_DN=${ufds_ldap_root_dn}
-KEYAPI_LDAP_ROOT_PW=${ufds_ldap_root_pw}
-
-UFDS_ADMIN_IPS=${ufds_admin_ips}

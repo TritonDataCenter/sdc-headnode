@@ -3,8 +3,6 @@
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
-# eval $(cat /opt/smartdc/etc/zoneconfig)
-
 PATH=/opt/smartdc/manatee/build/node/bin:/opt/local/bin:/usr/sbin/:/usr/bin:$PATH
 PROFILE=/root/.bashrc
 REGISTRAR_CFG=/opt/smartdc/registrar/etc/config.json

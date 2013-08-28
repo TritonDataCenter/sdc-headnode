@@ -19,7 +19,7 @@ echo "export PATH=\$PATH:/opt/smartdc/booter/node/bin:/opt/smartdc/booter/node_m
 
 echo "Finishing setup of dhcpd zone"
 
-# Apply configuration from /opt/smartdc/etc/zoneconfig now
+# Apply configuration
 /opt/smartdc/bin/configure || fatal "Unable to configure zone"
 
 touch /var/svc/setup_complete

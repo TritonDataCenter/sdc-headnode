@@ -28,11 +28,36 @@ echo "" >>/root/.profile
 echo "export PATH=\$PATH:/opt/smartdc/sapi/build/node/bin:/opt/smartdc/sapi/node_modules/.bin" >>/root/.profile
 
 # bootstrap the config file once only.
-# this will get clobbered as soon as we enable the config-agent.
-eval $(cat /opt/smartdc/etc/zoneconfig)
 
 # During setup/bootstrapping, we do not expect binder to be available, and
-# reply on the pre-allocated IPs.
+# reply on the pre-allocated IPs.  We grab all the config from the usbkey_config
+# key in metadata which is assumed to have a copy of /usbkey/config for us.
+
+/usr/sbin/mdata-get usbkey_config > /var/tmp/usbkey.config
+if [[ $? -ne 0 ]]; then
+    echo "Unable to find usbkey/config in SAPI zone." >&2
+    exit 1
+fi
+
+eval $(
+. /var/tmp/usbkey.config
+cat <<EOF
+DATACENTER_NAME=${datacenter_name}
+IMGAPI_ADMIN_IPS=${imgapi_admin_ips}
+MORAY_ADMIN_IPS=${moray_admin_ips}
+NAPI_ADMIN_IPS=${napi_admin_ips}
+UFDS_ADMIN_IPS=${ufds_admin_ips}
+VMAPI_ADMIN_IPS=${vmapi_admin_ips}
+CNAPI_ADMIN_IPS=${cnapi_admin_ips}
+WORKFLOW_ADMIN_IPS=${workflow_admin_ips}
+UFDS_ADMIN_UUID=${ufds_admin_uuid}
+UFDS_LDAP_ROOT_DN=${ufds_ldap_root_dn}
+UFDS_LDAP_ROOT_PW=${ufds_ldap_root_pw}
+WFAPI_HTTP_ADMIN_USER=${workflow_http_admin_user}
+WFAPI_HTTP_ADMIN_PW=${workflow_http_admin_pw}
+EOF
+)
+
 IMGAPI_URL=http://$(echo "${IMGAPI_ADMIN_IPS}" | cut -d',' -f1)
 MORAY_HOST=$(echo "${MORAY_ADMIN_IPS}" | cut -d ',' -f1)
 NAPI_URL=http://$(echo "${NAPI_ADMIN_IPS}" | cut -d',' -f1)
@@ -40,7 +65,6 @@ UFDS_URL=ldaps://$(echo "${UFDS_ADMIN_IPS}" | cut -d ',' -f1)
 CNAPI_URL=http://$(echo "${CNAPI_ADMIN_IPS}" | cut -d',' -f1)
 VMAPI_URL=http://$(echo "${VMAPI_ADMIN_IPS}" | cut -d',' -f1)
 WFAPI_URL=http://$(echo "${WORKFLOW_ADMIN_IPS}" | cut -d',' -f1)
-UFDS_ADMIN_UUID=$(echo "${UFDS_ADMIN_UUID}")
 
 echo "Creating SAPI config file"
 mkdir -p /opt/smartdc/sapi/etc

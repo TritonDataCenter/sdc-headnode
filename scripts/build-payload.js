@@ -300,6 +300,33 @@ async.series([
         } else {
             cb();
         }
+    }, function (cb) {
+        // Special case for SAPI, we need the initial usbkey config in the zone
+        // so we can pull values for proto-SAPI.
+        if (zone !== 'sapi') {
+            cb();
+            return;
+        }
+
+        // load the user-script into metadata
+        fs.readFile('/usbkey/config',
+            function (error, data)
+            {
+                if (!obj.hasOwnProperty('customer_metadata')) {
+                    obj.customer_metadata = {};
+                }
+
+                if (error) {
+                    if (error.code !== 'ENOENT') {
+                        return cb(error);
+                    } else {
+                        return cb();
+                    }
+                }
+                obj.customer_metadata['usbkey_config'] = data.toString();
+                cb();
+            }
+        );
     }, function(cb) {
         obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
         obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
