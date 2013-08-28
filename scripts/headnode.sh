@@ -865,9 +865,12 @@ if [[ -n ${CREATEDZONES} ]]; then
     # the SDC deployment configuration persistently.
     #
     sapi_uuid=$(/opt/smartdc/bin/sdc-sapi /services?name=sapi | json -Ha uuid)
+    sapi_instance_uuid=$(vmadm lookup tags.smartdc_role=sapi)
+    svcadm -z ${sapi_instance_uuid} disable config-agent
     /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST
     /opt/smartdc/bin/sdc-sapi /services/${sapi_uuid} -X PUT \
         -d '{ "metadata" : { "SAPI_MODE" : "full" } }'
+    svcadm -z ${sapi_instance_uuid} enable config-agent
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
