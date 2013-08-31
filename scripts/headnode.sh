@@ -582,7 +582,7 @@ function bootstrap_sapi
 export ZONE_ROLE=sapi
 export ASSETS_IP=${CONFIG_assets_admin_ip}
 export CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/\${ZONE_ROLE}
-source /opt/smartdc/sdc-boot/scripts/util.sh
+source /opt/smartdc/sdc-boot/lib/util.sh
 sapi_adopt
 setup_config_agent
 upload_values
