@@ -670,6 +670,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone ufds
     create_zone workflow
     create_zone amon
+    create_zone sdc
     create_zone papi
     create_zone napi
     create_zone rabbitmq
@@ -679,7 +680,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone dapi
     create_zone fwapi
     create_zone vmapi
-    create_zone sdc
     create_zone ca
     create_zone adminui
     create_zone keyapi
