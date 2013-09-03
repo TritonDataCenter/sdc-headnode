@@ -1,0 +1,20 @@
+{
+    "name": "vcapi",
+    "params": {
+        "delegate_dataset": true,
+        "package_name": "sdc_1024",
+        "image_uuid": "IMAGE_UUID",
+        "networks": [
+            "admin"
+        ],
+        "tags": {
+            "smartdc_role": "vcapi"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "vcapi",
+        "VCAPI_READONLY": false,
+        "VCAPI_PLUGINS": []
+    },
+    "manifests": {}
+}

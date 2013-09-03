@@ -1,0 +1,60 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
+#
+
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+set -o xtrace
+
+role=vcapi
+PATH=/opt/smartdc/$role/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
+SVC_ROOT="/opt/smartdc/$role"
+
+# setup haproxy
+function setup_vcapi {
+    local vcapi_instances=4
+
+    #Build the list of ports.  That'll be used for everything else.
+    local ports
+    for (( i=1; i<=$vcapi_instances; i++ )); do
+        ports[$i]=`expr 8080 + $i`
+    done
+
+    #To preserve whitespace in echo commands...
+    IFS='%'
+
+    #haproxy
+    for port in "${ports[@]}"; do
+        hainstances="$hainstances        server vcapi-$port 127.0.0.1:$port check inter 10s slowstart 10s error-limit 3 on-error mark-down\n"
+    done
+
+    sed -e "s#@@VCAPI_INSTANCES@@#$hainstances#g" \
+        $SVC_ROOT/etc/haproxy.cfg.in > $SVC_ROOT/etc/haproxy.cfg || \
+        fatal "could not process $src to $dest"
+
+    svccfg import $SVC_ROOT/smf/manifests/haproxy.xml || \
+        fatal "unable to import haproxy"
+    svcadm enable "vcapi/haproxy" || fatal "unable to start haproxy"
+
+    #vcapi instances
+    local vcapi_xml_in=$SVC_ROOT/smf/manifests/vcapi.xml.in
+    for port in "${ports[@]}"; do
+        local vcapi_instance="vcapi-$port"
+        local vcapi_xml_out=$SVC_ROOT/smf/manifests/vcapi-$port.xml
+        sed -e "s#@@VCAPI_PORT@@#$port#g" \
+            -e "s#@@VCAPI_INSTANCE_NAME@@#$vcapi_instance#g" \
+            $vcapi_xml_in  > $vcapi_xml_out || \
+            fatal "could not process $vcapi_xml_in to $vcapi_xml_out"
+
+        svccfg import $vcapi_xml_out || \
+            fatal "unable to import $vcapi_instance: $vcapi_xml_out"
+        svcadm enable "$vcapi_instance" || \
+            fatal "unable to start $vcapi_instance"
+    done
+
+    unset IFS
+}
+
+setup_vcapi
+
+exit 0

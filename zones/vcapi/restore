@@ -1,0 +1,59 @@
+#!/usr/bin/bash
+#
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+#
+
+PATH=/usr/bin:/usr/sbin
+export PATH
+
+if [[ $# != 2 ]]; then
+    echo "Usage: $0 <zone_name> <src_directory>"
+    exit 1
+fi
+
+ROLE=vcapi
+UUID=$1
+SRC_DIR=$2
+CFG_FILE=/zones/${UUID}/root/opt/smartdc/vcapi/etc/config.json
+SSL_DIR=/zones/${UUID}/root/opt/smartdc/vcapi/ssl
+
+# Older backups may not have had this zone
+if [[ ! -d "${SRC_DIR}/${ROLE}" ]]; then
+	echo "Warning, backup missing $ROLE"
+	echo "==> Done"
+	exit 0
+fi
+
+if [[ ! -f "${SRC_DIR}/${ROLE}/config.json" ]]; then
+	echo "Warning, backup missing config file for $ROLE"
+	echo "==> Done"
+	exit 0
+fi
+
+echo "==> Restoring config file for zone '${ROLE}'"
+cp ${SRC_DIR}/${ROLE}/config.json $CFG_FILE
+
+mkdir -p /zones/${UUID}/root/opt/smartdc/vcapi/plugins
+if [[ -d "${SRC_DIR}/${ROLE}/plugins" ]]; then
+    for i in `ls ${SRC_DIR}/${ROLE}/plugins`
+    do
+        if [ -d ${SRC_DIR}/${ROLE}/plugins/$i ]; then
+            echo "==> Restoring plugin directory $i for zone '${ROLE}'"
+            cp -pr ${SRC_DIR}/${ROLE}/plugins/$i \
+                /zones/${UUID}/root/opt/smartdc/vcapi/plugins
+	elif [ ! -f /zones/${UUID}/root/opt/smartdc/vcapi/plugins/$i ]; then
+            echo "==> Restoring plugin $i for zone '${ROLE}'"
+            cp -p ${SRC_DIR}/${ROLE}/vcapi/$i \
+                /zones/${UUID}/root/opt/smartdc/vcapi/plugins
+        fi
+    done
+fi
+
+if [[ -d "${SRC_DIR}/${ROLE}/ssl" ]]; then
+    echo "==> Restoring SSL certs for zone '${ROLE}'"
+    mkdir -p $SSL_DIR
+    cp -p ${SRC_DIR}/${ROLE}/ssl/* $SSL_DIR
+fi
+
+echo "==> Done"
+exit 0

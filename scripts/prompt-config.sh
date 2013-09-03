@@ -1414,11 +1414,14 @@ echo >>$tmp_config
 if [[ -n ${external_nic} ]]; then
 	if [ -z "$external_vlan_id" ]; then
 		echo "# cloudapi_external_vlan=0" >>$tmp_config
+    echo "# vcapi_external_vlan=0" >>$tmp_config
 	else
 		echo "cloudapi_external_vlan=$external_vlan_id" >>$tmp_config
+    echo "vcapi_external_vlan=$external_vlan_id" >>$tmp_config
 	fi
 fi
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "vcapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to

@@ -688,6 +688,7 @@ if [[ -z ${skip_zones} ]]; then
     # copy extras for cloudapi, sdcsso, and manta (i.e. zones not created as
     # part of initial setup)
     copy_extras cloudapi
+    copy_extras vcapi
     copy_extras sdcsso
     copy_extras manta
 fi
