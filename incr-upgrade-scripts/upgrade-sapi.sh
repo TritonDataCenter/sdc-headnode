@@ -6,7 +6,7 @@ set -o xtrace
 set -o errexit
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: upgrade-all.sh imagefile.sh"
+    echo "Usage: upgrade-all.sh <upgrade-images-file>"
     exit 1
 fi
 

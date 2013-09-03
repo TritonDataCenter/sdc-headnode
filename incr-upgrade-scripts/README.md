@@ -16,20 +16,20 @@ See HEAD-1795 for intended improvements to this process.
 
     ./version-list.sh > rollback-images
 
-    # Either get a list of the latest versions of all roles, as follows,
+    # Either get a list of the latest versions of all roles via
+    #       ./get-latest.sh > upgrade-images
     # or manually create such a list with relevant roles and specific
-    # image UUIDs.
-    ./get-latest.sh > upgrade-images
-
-    # Edit the following scripts to limit the upgrade to the intended
-    # roles:
-    vi download-all.sh   # the list of commands at the end
-    vi upgrade-setup.sh  # the ROLES var
-    vi upgrade-all.sh    # the list of commands at the end
+    # image UUIDs in the format:
+    #       export ${ROLE}_IMAGE=$UUID
+    #       ...
+    # e.g.:
+    #       export IMGAPI_IMAGE=99bb26b5-cd93-9447-a1d0-70191d78690b
+    #       export VMAPI_IMAGE=f9b40a06-7e87-3b4d-832a-faf38eb34506
+    vi upgrade-images
 
     ./download-all.sh upgrade-images 2>&1 | tee download.out
     cp -r /usbkey/extra ./oldzones
-    ./upgrade-setup.sh 2>&1 | tee setup.out
+    ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
     ./add-sdc.sh
@@ -37,6 +37,9 @@ See HEAD-1795 for intended improvements to this process.
     cp -rP /opt/smartdc/bin ./oldtools
     ./upgrade-tools.sh 2>&1 | tee tools.out
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
+
+    # If upgrading sapi:
+    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
 To rollback:
 
