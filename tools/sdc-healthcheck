@@ -120,48 +120,6 @@ function check_end_to_end()
   res=1
 }
 
-cp_ssh()
-{
-    diff /var/smartdc/ssh/id_rsa.pub $ssh_dir/id_rsa.pub >/dev/null 2>&1
-    [[ $? -eq 0 ]] && return
-
-    mkdir -m700 -p $ssh_dir
-    cp -pr /var/smartdc/ssh/* $ssh_dir
-}
-
-key_to_ufds()
-{
-	# If existing key with our reserved healthcheck name, first remove it
-	local oldkey=`sdc-ldap search \
-	    -b "uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc" \
-	    objectclass=sdckey 2>/dev/null | \
-	    nawk -v dc="$CONFIG_datacenter_name sdc-healthcheck key" '{
-		if ($1 == "fingerprint:") {
-		    fp=$2
-		} else if ($1 == "name:") {
-		    nm = substr($0, 7)
-		    if (nm == dc) print fp
-		}
-	    }'`
-
-	if [[ -n "$oldkey" ]]; then
-	    sdc-ldap delete "fingerprint=$oldkey, uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc" >/dev/null 2>&1
-	fi
-
-	local key=`cat /var/smartdc/ssh/id_rsa.pub`
-
-	cat <<-KEY >/tmp/key.ldif
-	dn: fingerprint=$fprint, uuid=$CONFIG_ufds_admin_uuid, ou=users, o=smartdc
-	fingerprint: $fprint
-	name: $CONFIG_datacenter_name sdc-healthcheck key
-	objectclass: sdckey
-	openssh: $key
-
-	KEY
-
-	sdc-ldap add -f /tmp/key.ldif >/dev/null 2>&1
-}
-
 function check_cloudapi
 {
     CLOUDAPI_STATUS=0
@@ -177,38 +135,15 @@ function check_cloudapi
         return
     fi
 
-    ssh_dir=/zones/$sdc_zone/root/root/.ssh
+    ssh_file=/zones/$sdc_zone/root/root/.ssh/sdc.id_rsa.pub
 
-    # The sdc zone might never have been setup with the admin ssh key (i.e. this
-    # is the first time) or it might have been reprovisioned and need the key
-    # data copied back in. We normally only need to setup the key once and it
-    # will remain for subsequent healthcheck runs.
-    if [[ ! -d /var/smartdc/ssh ]]; then
-        # We're generating the key for the first time.
-        mkdir -m700 -p /var/smartdc/ssh
-        ssh-keygen -b 2048 -t rsa -N "" -f /var/smartdc/ssh/id_rsa \
-            >/dev/null 2>&1
-        if [[ $? -ne 0 || ! -f /var/smartdc/ssh/id_rsa.pub ]]; then
-            CLOUDAPI_STATUS=1
-            return
-        fi
-
-        # get the fingerprint to load into ufds
-        fprint=`ssh-keygen -l -f /var/smartdc/ssh/id_rsa.pub | \
-            awk '{printf("%s", $2)}'`
-        if [[ -z "$fprint" ]]; then
-            CLOUDAPI_STATUS=1
-            return
-        fi
-        key_to_ufds
-        # We need a couple seconds so cloudapi can see the ufds update
-        sleep 2
+    # The sdc zone might never have been setup with the admin ssh key.
+    if [[ ! -f $ssh_file ]]; then
+        CLOUDAPI_STATUS=1
+        return
     fi
 
-    cp_ssh
-
-    fingerprint=`ssh-keygen -l -f $ssh_dir/id_rsa.pub | \
-        awk '{printf("%s", $2)}'`
+    fingerprint=`ssh-keygen -l -f $ssh_file | awk '{printf("%s", $2)}'`
     if [[ -z "$fingerprint" ]]; then
         CLOUDAPI_STATUS=1
         return

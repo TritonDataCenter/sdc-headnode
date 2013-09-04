@@ -1,6 +1,9 @@
 #!/usr/bin/bash
 #
-# upgrade-all.sh: upgrade SDC zones to latest images
+# Upgrade given SDC zones to latest images
+#
+# Usage:
+#   ./upgrade-all.sh <upgrade-images-file>
 #
 
 set -o errexit
@@ -11,11 +14,6 @@ PATH=/opt/smartdc/bin:$PATH
 UPDATES_IMGADM='/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm'
 
 DC_NAME=$(sysinfo | json "Datacenter Name")
-
-IMAGE_LIST=$1
-if [[ -z $1 ]]; then
-    fatal "Usage: upgrade-all.sh imagefile.sh"
-fi
 
 function fatal {
     echo "$(basename $0): fatal error: $*" >&2
@@ -128,8 +126,17 @@ function upgrade_manifests
         ${service_name} ${manifest_name}
 }
 
-source ${IMAGE_LIST}
 
+#---- mainline
+
+IMAGE_LIST=$1
+if [[ -z $1 ]]; then
+    echo "Usage: upgrade-all.sh <update-images-file>"
+    echo ""
+    fatal "$0: error: no '<update-images-file>' given"
+fi
+[[ -f $IMAGE_LIST ]] || fatal "'$IMAGE_LIST' does not exist"
+source $IMAGE_LIST
 env | grep IMAGE
 
 # XXX Don't upgrade the following zones: binder, manatee, manta, moray, and
@@ -147,22 +154,22 @@ env | grep IMAGE
 # off a number of sysinfo jobs.
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
-# upgrade_zone sdc0 $SDC_IMAGE
-# upgrade_zone adminui0 $ADMINUI_IMAGE
-# upgrade_zone amon0 $AMON_IMAGE
-# upgrade_zone amonredis0 $AMONREDIS_IMAGE
-# upgrade_zone ca0 $CA_IMAGE
-upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
-upgrade_zone workflow0 $WORKFLOW_IMAGE
-upgrade_zone cnapi0 $CNAPI_IMAGE
-# upgrade_zone dhcpd0 $DHCPD_IMAGE
-# upgrade_zone fwapi0 $FWAPI_IMAGE
-upgrade_zone imgapi0 $IMGAPI_IMAGE
-# upgrade_zone napi0 $NAPI_IMAGE
-# upgrade_zone usageapi0 $USAGEAPI_IMAGE
-upgrade_zone vmapi0 $VMAPI_IMAGE
+[[ -n "$SDC_IMAGE" ]] && upgrade_zone sdc0 $SDC_IMAGE
+[[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui0 $ADMINUI_IMAGE
+[[ -n "$AMON_IMAGE" ]] && upgrade_zone amon0 $AMON_IMAGE
+[[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis0 $AMONREDIS_IMAGE
+[[ -n "$CA_IMAGE" ]] && upgrade_zone ca0 $CA_IMAGE
+[[ -n "$CLOUDAPI_IMAGE" ]] && upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
+[[ -n "$WORKFLOW_IMAGE" ]] && upgrade_zone workflow0 $WORKFLOW_IMAGE
+[[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi0 $CNAPI_IMAGE
+[[ -n "$DHCPD_IMAGE" ]] && upgrade_zone dhcpd0 $DHCPD_IMAGE
+[[ -n "$FWAPI_IMAGE" ]] && upgrade_zone fwapi0 $FWAPI_IMAGE
+[[ -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi0 $IMGAPI_IMAGE
+[[ -n "$NAPI_IMAGE" ]] && upgrade_zone napi0 $NAPI_IMAGE
+[[ -n "$USAGEAPI_IMAGE" ]] && upgrade_zone usageapi0 $USAGEAPI_IMAGE
+[[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi0 $VMAPI_IMAGE
+[[ -n "$UFDS_IMAGE" ]] && upgrade_zone ufds0 $UFDS_IMAGE
+[[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi0 $DAPI_IMAGE
 
-# upgrade_zone ufds0 $UFDS_IMAGE
-upgrade_zone dapi0 $DAPI_IMAGE
 
 exit 0
