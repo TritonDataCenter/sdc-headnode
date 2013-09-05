@@ -19,7 +19,7 @@ set -o pipefail
 
 SENTINEL=/var/svc/.ran-user-script
 
-DIR=/opt/smartdc/sdc-boot
+DIR=/opt/smartdc/boot
 
 if [[ ! -e ${SENTINEL} ]]; then
     if [[ -f ${DIR}/setup.sh ]]; then
