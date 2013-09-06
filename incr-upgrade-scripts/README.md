@@ -27,7 +27,10 @@ See HEAD-1795 for intended improvements to this process.
     #       export VMAPI_IMAGE=f9b40a06-7e87-3b4d-832a-faf38eb34506
     vi upgrade-images
 
+    # Pre-download all the images to be used if you like. If you skip this,
+    # it'll be lazily done by 'upgrade-all.sh'.
     ./download-all.sh upgrade-images 2>&1 | tee download.out
+
     cp -r /usbkey/extra ./oldzones
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 

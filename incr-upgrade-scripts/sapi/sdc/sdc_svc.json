@@ -4,8 +4,8 @@
     "package_name": "sdc_256",
     "image_uuid": "92199a42-8d21-41b9-a45d-1913cdccb745",
     "networks": [
-      "admin",
-      "external"
+      "external",
+      "admin"
     ],
     "firewall_enabled": true,
     "tags": {
