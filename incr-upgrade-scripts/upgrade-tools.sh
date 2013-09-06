@@ -26,15 +26,20 @@ function fatal
 
 #---- mainline
 
-[[ ! -d "./tools" ]] && fatal "there is no longer 'tools' dir!"
+[[ ! -d "./tools" ]] && fatal "there is no './tools' dir from which to upgrade!"
 
 for tool in $(ls -1 ./tools); do
     new=./tools/$tool
     old=/opt/smartdc/bin/$tool
-    if [[ -n "$(diff $old $new || true)" ]]; then
+    if [[ ! -f $old || -n "$(diff $old $new || true)" ]]; then
         echo ""
         echo "# upgrade tool '$old'"
-        diff -u $old $new || true
-        cp -rH $new $old
+        [[ -f $old ]] && diff -u $old $new || true
+        if [[ "$tool" == "sdc-imgadm" ]]; then
+            # In older SDC7, sdc-imgadm was a symlink. Remove the target
+            # to be sure we get the actual source file type.
+            rm -f $old
+        fi
+        cp -rP $new $old
     fi
 done
