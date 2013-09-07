@@ -3,7 +3,7 @@
 # Upgrade the tools from usb-headnode.git/tools/... to /opt/smartdc/bin
 # This requires a local copy of that 'tools/...' dir.
 #
-# Limitation: for now we are ignore updates to tools-modules/... and
+# Limitation: for now we are ignoring updates to tools-modules/... and
 # tools-man/...
 #
 
