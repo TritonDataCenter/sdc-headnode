@@ -64,6 +64,17 @@ cat <<EOM | sapiadm provision
 EOM
 
 
+# Workaround for HEAD-1813: Add an external nic that is the primary so it is the
+# default gateway, but NOT first so that its resolvers are not first.
+sdc-vmapi /vms/$(vmadm lookup -1 alias=sdc0)?action=add_nics -X POST -d@- <<EOP
+{
+    "networks": [{"uuid": "$(sdc-napi /networks?name=external | json -H 0.uuid)", "primary": true}]
+}
+EOP
+sleep 10
+
+
+
 # Add the new SDC *app* manifests for the sdc key that the 'sdc' zone creates.
 sdc_app_uuid=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 
