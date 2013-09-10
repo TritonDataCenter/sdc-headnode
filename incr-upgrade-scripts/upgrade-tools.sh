@@ -43,3 +43,17 @@ for tool in $(ls -1 ./tools); do
         cp -rP $new $old
     fi
 done
+
+[[ ! -d "./scripts" ]] && fatal "there is no './scripts' dir from which to upgrade!"
+
+/usbkey/scripts/mount-usbkey.sh
+if [[ ! -d "/mnt/usbkey/scripts" ]]; then
+    echo "unable to mount /mnt/usbkey" >&2
+    exit 1
+fi
+
+cp -Rp /usbkey/scripts pre-upgrade.scripts.$(date +%s)
+rm -rf /mnt/usbkey/scripts /usbkey/scripts
+cp -Rp scripts /mnt/usbkey/scripts
+cp -Rp scripts /usbkey/scripts
+

@@ -33,6 +33,7 @@ See HEAD-1795 for intended improvements to this process.
 
     cp -r /usbkey/extra ./oldzones
     cp -r /usbkey/default ./olddefault
+    cp -r /usbkey/scripts ./oldscripts
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
@@ -51,6 +52,8 @@ To rollback:
     mv oldzones zones
     mv default newdefault
     mv olddefault default
+    mv scripts newscripts
+    mv oldscripts scripts
     ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
 
     mv tools newtools
