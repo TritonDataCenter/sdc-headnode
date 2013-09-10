@@ -1422,6 +1422,10 @@ if [[ -n ${external_nic} ]]; then
 fi
 echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "vcapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "vcapi_admin_login=sdcvcapi" >>$tmp_config
+echo "vcapi_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "vcapi_admin_email=$mail_to" >>$tmp_config
+echo "vcapi_admin_uuid=f20b1521-81f9-4288-93fb-cfcc52e68375" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
