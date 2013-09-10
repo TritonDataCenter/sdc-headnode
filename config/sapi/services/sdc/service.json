@@ -3,7 +3,7 @@
     "params": {
         "package_name": "sdc_256",
         "image_uuid": "IMAGE_UUID",
-        "networks": [ "external", "admin" ],
+        "networks": [ "admin" ],
         "firewall_enabled": true,
         "tags": {
             "smartdc_role": "sdc",
