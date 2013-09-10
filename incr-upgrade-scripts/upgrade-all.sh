@@ -100,6 +100,14 @@ function upgrade_zone {
         fi
     fi
     /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} | vmadm update ${uuid}
+    # also update SAPI's idea of what the user-script should be for future
+    # provisions.
+    mkdir -p sapi-updates
+    service_uuid=$(sdc-sapi /instances/${uuid} | json -H service_uuid)
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} \
+        | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
+        > sapi-updates/${service_uuid}.update
+    sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
 
     echo '{}' | json -e "this.image_uuid = '${image_uuid}'" |
         vmadm reprovision ${instance_uuid}

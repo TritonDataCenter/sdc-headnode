@@ -44,6 +44,19 @@ echo "{
 SAPI_SVC_UUID=$(sdc-sapi /services?name=sapi | json -Ha uuid | head -n 1)
 sdc-sapi /services/${SAPI_SVC_UUID} -X PUT -T /tmp/changes.$$.json
 
+# (3.5) Since we're making a new zone, use the latest user-script.
+
+if [[ -f /usbkey/default/user-script.common ]]; then
+    NEW_USER_SCRIPT=/usbkey/default/user-script.common
+else
+    echo "Unable to find user-script for ${alias}" >&2
+    exit 1
+fi
+mkdir -p sapi-updates
+/usr/vm/sbin/add-userscript /usbkey/default/user-script.common \
+    | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
+    > sapi-updates/${SAPI_SVC_UUID}.update
+sdc-sapi /services/${SAPI_SVC_UUID} -X PUT -d @sapi-updates/${SAPI_SVC_UUID}.update
 
 # (4) Provision a new SAPI instance
 
