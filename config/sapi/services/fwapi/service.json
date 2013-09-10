@@ -11,7 +11,8 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "fwapi"
+        "SERVICE_NAME": "fwapi",
+        "FWAPI_LOG_LEVEL": "info"
     },
     "manifests": {
     }
