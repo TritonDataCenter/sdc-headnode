@@ -32,6 +32,7 @@ See HEAD-1795 for intended improvements to this process.
     ./download-all.sh upgrade-images 2>&1 | tee download.out
 
     cp -r /usbkey/extra ./oldzones
+    cp -r /usbkey/default ./olddefault
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
@@ -48,6 +49,8 @@ To rollback:
 
     mv zones newzones
     mv oldzones zones
+    mv default newdefault
+    mv olddefault default
     ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
 
     mv tools newtools

@@ -81,6 +81,26 @@ function upgrade_zone {
         zfs mount zones/cores/${instance_uuid}
     fi
 
+    # if we have a user-script for this zone/image here we must be doing a
+    # rollback so we want to use that user-script. If we don't have one, we
+    # save the current one for future rollback.
+    mkdir -p user-scripts
+    if [[ -f user-scripts/${alias}.${image_uuid}.user-script ]]; then
+        NEW_USER_SCRIPT=user-scripts/${alias}.${image_uuid}.user-script
+    else
+        vmadm get ${uuid} | json customer_metadata."user-script" \
+            > user-scripts/${alias}.${image_uuid}.user-script
+        [[ -s user-scripts/${alias}.${image_uuid}.user-script ]] \
+            || fatal "Failed to create ${alias}.${image_uuid}.user-script"
+
+        if [[ -f /usbkey/default/user-script.common ]]; then
+            NEW_USER_SCRIPT=/usbkey/default/user-script.common
+        else
+            fatal "Unable to find user-script for ${alias}"
+        fi
+    fi
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} | vmadm update ${uuid}
+
     echo '{}' | json -e "this.image_uuid = '${image_uuid}'" |
         vmadm reprovision ${instance_uuid}
 
