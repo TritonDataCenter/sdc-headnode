@@ -123,7 +123,10 @@ function backup_zones
     for zone in ${zones[@]}; do
         echo "==> Creating backup of zone '${zone}'"
         mkdir -p ${backup_dir}/zones/${zone}
-        if [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
+        if [[ -x /zones/${zone}/root/opt/smartdc/boot/backup.sh ]]; then
+            /zones/${zone}/root/opt/smartdc/boot/backup.sh ${zone} \
+                ${backup_dir}/zones/${zone}/
+        elif [[ -x /zones/${zone}/root/opt/smartdc/bin/backup ]]; then
             /zones/${zone}/root/opt/smartdc/bin/backup ${zone} \
                 ${backup_dir}/zones/${zone}/
         elif [[ -x ${usbcpy}/zones/${zone}/backup ]]; then
