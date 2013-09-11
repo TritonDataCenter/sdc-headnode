@@ -46,7 +46,7 @@ done
 
 [[ ! -d "./scripts" ]] && fatal "there is no './scripts' dir from which to upgrade!"
 
-/usbkey/scripts/mount-usbkey.sh
+/usbkey/scripts/mount-usb.sh
 if [[ ! -d "/mnt/usbkey/scripts" ]]; then
     echo "unable to mount /mnt/usbkey" >&2
     exit 1
@@ -56,4 +56,6 @@ cp -Rp /usbkey/scripts pre-upgrade.scripts.$(date +%s)
 rm -rf /mnt/usbkey/scripts /usbkey/scripts
 cp -Rp scripts /mnt/usbkey/scripts
 cp -Rp scripts /usbkey/scripts
+
+umount /mnt/usbkey
 

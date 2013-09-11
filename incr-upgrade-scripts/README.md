@@ -72,31 +72,6 @@ To make a changelog:
     # by default; it would need to be renamed to 'ca' for this script.
 
 
-## SAPI zone upgrade
-
-Need this patch to setup.common for it:
-
-    diff --git a/default/setup.common b/default/setup.common
-    index 00eaa7d..9b3cc01 100644
-    --- a/default/setup.common
-    +++ b/default/setup.common
-    @@ -205,6 +205,9 @@ if [[ ! -f /var/svc/setup_complete ]]; then
-
-         if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
-             sapi_adopt
-    +    fi
-    +
-    +    if [[ ${ZONE_ROLE} != "assets" ]]; then
-             setup_config_agent
-             upload_values
-             download_metadata
-
-
-Not sure how to best integrate that right now because this change breaks
-initial headnode setup.
-
-
-
 ## Trent's Notes (ignore for now)
 
 A possible new flow here, using a JSON spec file for to upgrade.
