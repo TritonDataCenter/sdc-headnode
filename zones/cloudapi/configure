@@ -16,4 +16,10 @@ if [[ -e /var/svc/setup_complete ]]; then
     exit 0
 fi
 
+echo "Updating SMF manifest"
+$(/opt/local/bin/gsed -i"" -e "s/@@PREFIX@@/\/opt\/smartdc\/cloudapi/g" /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml)
+
+echo Importing SMF manifest
+/usr/sbin/svccfg import /opt/smartdc/cloudapi/smf/manifests/cloudapi.xml
+
 exit 0
