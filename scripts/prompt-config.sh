@@ -494,9 +494,17 @@ promptpw()
 				echo
 			fi
 			if [ -n "$val" ]; then
-				if [ "$2" == "chklen" -a ${#val} -lt 6 ]; then
+				echo "$val" | nawk '{
+				    if (length($0) < 7) exit 1
+				    if (match($0, "[a-zA-Z]") == 0) exit 1
+				    if (match($0, "[0-9]") == 0) exit 1
+				    exit 0
+				}'
+				if [ $? -ne 0 -a "$2" == "chk" ]; then
 					echo "The password must be at least" \
-						"6 characters long."
+					    "7 characters long and" \
+					    "include 1 letter and"
+					echo "1 number."
 					val=""
 					preset_val=""
 				else
@@ -975,10 +983,10 @@ emails to a specific address. Each of these values will be configured below.
 		printf "$message"
 	fi
 
-	promptpw "Enter root password" "nolen" "$root_shadow" "root_password"
+	promptpw "Enter root password" "nochk" "$root_shadow" "root_password"
 	root_shadow="$val"
 
-	promptpw "Enter admin password" "chklen" "$zone_admin_pw" "admin_password"
+	promptpw "Enter admin password" "chk" "$zone_admin_pw" "admin_password"
 	zone_admin_pw="$val"
 
 	promptemail "Administrator email goes to" "$mail_to" "mail_to"
