@@ -17,17 +17,6 @@ set -o errexit
 
 role=papi
 
-# Step 1: Check we do have all the required files copied into
-# /usbkey/extras/$role.
-#
-# This assumes usb-headnode.git:/zones/$role files are available under
-# `pwd`/zones/$role
-mkdir -p /usbkey/extra/$role
-cp ./zones/$role/* /usbkey/extra/$role/
-cp /usbkey/default/setup.common /usbkey/extra/$role/
-cp /usbkey/default/configure.common /usbkey/extra/$role/
-cp /usbkey/rc/zone.root.bashrc /usbkey/extra/$role/bashrc
-
 # Get SDC Application UUID from SAPI
 SDC_APP_UUID=$(sdc-sapi --no-headers /applications?name=sdc|json 0.uuid)
 
@@ -47,7 +36,7 @@ fi
 # Grab image manifest and file from updates-imgadm:
 MANIFEST_TMP="$NEW_VERSION.imgmanifest.tmp"
 MANIFEST="$NEW_VERSION.imgmanifest"
- 
+
 IMG_FILE="$NEW_VERSION.gz"
 ADMIN_UUID=$(sdc-sapi --no-headers /applications?name=sdc | json -Ha metadata.ufds_admin_uuid)
 

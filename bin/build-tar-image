@@ -420,7 +420,8 @@ function copy_base
 
     if [[ -d "65-files" ]]; then
         echo "==> Copying in 65-files/"
-        cp -r 65-files ${STAGE}/65-files
+        mkdir -p ${STAGE}/65-files
+        cp 65-files/* ${STAGE}/65-files/
     fi
 
     echo "==> Copying in zones/"
@@ -428,9 +429,6 @@ function copy_base
 
     echo "==> Copying in default/"
     cp -r default ${STAGE}/default
-
-    echo "==> Copying in rc/"
-    cp -r rc ${STAGE}/rc
 
     echo "==> Copying in EULA"
     cp -r EULA ${STAGE}/EULA

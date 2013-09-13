@@ -105,7 +105,6 @@ function backup_usbkey
         config.inc \
         data \
         datasets/smartos.{uuid,filename} \
-        rc \
         scripts \
         ur-scripts \
         zoneinit \
