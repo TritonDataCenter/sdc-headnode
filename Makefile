@@ -52,7 +52,7 @@ sandwich:
 
 .PHONY: coal-and-open
 coal-and-open: coal
-	open $(shell ls -1td coal-*.vmwarevm | sort | head -1)
+	open $(shell grep Creating $(shell ls -1t log/build.log.coal.* | head -1) | cut -d' ' -f3 | cut -d/ -f1)*.vmwarevm
 
 .PHONY: update-tools-modules
 update-tools-modules:
