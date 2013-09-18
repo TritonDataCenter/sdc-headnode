@@ -198,6 +198,11 @@ env | grep IMAGE
 [[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi0 $VMAPI_IMAGE
 [[ -n "$UFDS_IMAGE" ]] && upgrade_zone ufds0 $UFDS_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi0 $DAPI_IMAGE
-
+[[ -n "$PAPI_IMAGE" ]] && upgrade_zone papi0 $PAPI_IMAGE
+[[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis0 $REDIS_IMAGE
+[[ -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq0 $RABBITMQ_IMAGE
+[[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets0 $ASSETS_IMAGE
+[[ -n "$KEYAPI_IMAGE" ]] && upgrade_zone keyapi0 $KEYAPI_IMAGE
+[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso0 $SDCSSO_IMAGE
 
 exit 0
