@@ -43,6 +43,20 @@ See HEAD-1795 for intended improvements to this process.
     ./upgrade-tools.sh 2>&1 | tee tools.out
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
+    # If you upgraded ufds, it's important that you also backfill missing column
+    # data as UFDS does not do this automatically. To do this you'll need to
+    # look at:
+    #
+    # git log -p sapi_manifests/ufds/template
+    #
+    # in the ufds.git repo to figure out which columns need to be backfilled,
+    # then run something like:
+    #
+    # /opt/smartdc/moray/node_modules/moy/bin]# ./backfill -i name -i version ufds_o_smartdc
+    #
+    # in the moray zone. See JPC-1302 for some more usage ideas.
+
+
     # If upgrading sapi:
     #
     # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
