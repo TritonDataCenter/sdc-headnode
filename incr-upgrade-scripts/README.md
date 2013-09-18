@@ -52,7 +52,7 @@ See HEAD-1795 for intended improvements to this process.
     # in the ufds.git repo to figure out which columns need to be backfilled,
     # then run something like:
     #
-    # /opt/smartdc/moray/node_modules/moy/bin]# ./backfill -i name -i version ufds_o_smartdc
+    # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
     #
     # in the moray zone. See JPC-1302 for some more usage ideas.
 
