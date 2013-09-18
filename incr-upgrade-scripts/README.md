@@ -44,6 +44,15 @@ See HEAD-1795 for intended improvements to this process.
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
     # If upgrading sapi:
+    #
+    # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
+    # you'll also need to edit:
+    #
+    #  /opt/smartdc/sapi/lib/server/attributes.js
+    #
+    # in the SAPI zone and add 'SAPI_MODE' to the allowed_keys in
+    # sanitizeMetadata() and restart the sapi service.
+    #
     ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
 To rollback:
