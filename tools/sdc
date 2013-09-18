@@ -24,7 +24,7 @@ fi
 # Get the admin user.
 admin_uuid=${CONFIG_ufds_admin_uuid}
 if [[ -z ${admin_uuid} ]]; then
-    echo "error: sdc: unable to find the UUID for admin"
+    echo "error: sdc: unable to find the UUID for admin" >&2
     exit 1
 fi
 
@@ -36,7 +36,7 @@ fi
 ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
 sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp -s create_timestamp owner_uuid=$ufds_admin_uuid | (grep '^sdc\>' || true) | tail -1 | awk '{print $2}')
 if [[ -z "${sdc_zone}" ]]; then
-    echo "error: sdc: unable to find a 'sdc' core zone on this node"
+    echo "error: sdc: unable to find a 'sdc' core zone on this node" >&2
     exit 1
 fi
 
