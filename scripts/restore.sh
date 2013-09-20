@@ -93,7 +93,11 @@ function restore_zones
     backup_dir=$1
     for zone in ${zones[@]}; do
         echo "==> Restoring backup of zone '${zone}'"
-        if [[ -x /zones/${zone}/root/opt/smartdc/bin/restore ]]; then
+        if [[ -x /zones/${zone}/root/opt/smartdc/boot/restore.sh ]]; then
+            cp /zones/${zone}/root/opt/smartdc/boot/restore.sh /tmp/restore$$
+            /tmp/restore$$ ${zone} ${backup_dir}/zones/${zone}/
+            rm -f /tmp/restore$$
+        elif [[ -x /zones/${zone}/root/opt/smartdc/bin/restore ]]; then
             cp /zones/${zone}/root/opt/smartdc/bin/restore /tmp/restore$$
             /tmp/restore$$ ${zone} ${backup_dir}/zones/${zone}/
             rm -f /tmp/restore$$

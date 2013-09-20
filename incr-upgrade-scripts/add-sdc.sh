@@ -6,12 +6,6 @@
 set -o xtrace
 set -o errexit
 
-mkdir /usbkey/extra/sdc
-cp ./zones/sdc/* /usbkey/extra/sdc/
-cp /usbkey/default/setup.common /usbkey/extra/sdc/
-cp /usbkey/default/configure.common /usbkey/extra/sdc/
-cp /usbkey/rc/zone.root.bashrc /usbkey/extra/sdc/bashrc
-
 # add sapi service:
 SDCAPP=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
 SAPIURL=$(sdc-sapi /services?name=redis | json -Ha 'metadata["sapi-url"]')

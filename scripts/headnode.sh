@@ -369,56 +369,6 @@ for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
     mv ${tmpmanifest} ${manifest}
 done
 
-function copy_extras
-{
-    local zone=$1
-    dir=${USB_COPY}/extra/${zone}
-    mkdir -p ${dir}
-
-    for file in configure backup restore setup; do
-        if [[ -f ${USB_COPY}/zones/${zone}/${file} ]]; then
-            rm -f ${dir}/${file}
-            ln ${USB_COPY}/zones/${zone}/${file} ${dir}/${file}
-        fi
-    done
-    if [[ -f ${USB_COPY}/default/setup.common ]]; then
-        # extra include file for core zones.
-        rm -f ${dir}/setup.common
-        ln ${USB_COPY}/default/setup.common ${dir}/setup.common
-    fi
-    if [[ -f ${USB_COPY}/default/configure.common ]]; then
-        # extra include file for core zones.
-        rm -f ${dir}/configure.common
-        ln ${USB_COPY}/default/configure.common ${dir}/configure.common
-    fi
-    if [[ -f ${USB_COPY}/rc/zone.root.bashrc ]]; then
-        rm -f ${dir}/bashrc
-        ln ${USB_COPY}/rc/zone.root.bashrc ${dir}/bashrc
-    fi
-}
-
-# HOW THE CORE ZONE PROCESS WORKS:
-#
-# In the /usbkey/zones/<zone> directory you can have any of:
-#
-# configure.sh backup restore setup user-script
-#
-# When creating we also hard link these files to /usbkey/extra if they exist.
-#
-# When the assets zone is created /usbkey/extra is mounted in as /assets/extra
-# and is exposed from there over HTTP.  The user-script is passed in as metadata
-# and run through the mdata service in the zone after reboot from zoneinit. The
-# user-script should just download the files above (to /opt/smartdc/bin) and run
-# setup.
-#
-# Most of the time these zones won't need their own user-script and can just use
-# the default one in /usbkey/default/user-script.common which will be applied by
-# build-payload.js if a zone-specific one is not found.
-#
-# The setup script usually does some initial setup and then runs through the
-# configuration.
-
-
 # Install the core headnode zones
 
 function create_zone {
@@ -485,8 +435,6 @@ function create_zone {
         printf "%s" "creating zone ${existing_uuid}${zone}... " \
             >&${CONSOLE_FD}
     fi
-
-    copy_extras ${zone}
 
     dtrace_pid=
     if [[ -x /usbkey/tools/zoneboot.d \
@@ -634,7 +582,7 @@ function bootstrap_sapi
 export ZONE_ROLE=sapi
 export ASSETS_IP=${CONFIG_assets_admin_ip}
 export CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/\${ZONE_ROLE}
-source /var/svc/setup.common
+source /opt/smartdc/boot/lib/util.sh
 sapi_adopt
 setup_config_agent
 upload_values
@@ -684,13 +632,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
     create_zone keyapi
     create_zone usageapi
-
-    # copy extras for cloudapi, sdcsso, and manta (i.e. zones not created as
-    # part of initial setup)
-    copy_extras cloudapi
-    copy_extras vcapi
-    copy_extras sdcsso
-    copy_extras manta
 fi
 
 update_setup_state "sdczones_created"

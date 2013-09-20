@@ -126,9 +126,6 @@ most interesting/helpful ones are:
 
 Important files, see README.zones for more details:
 
-/zones/$SERVICE/setup      - required
-/zones/$SERVICE/configure  - required
-
 /sapi/config/services/$SERVICE/service.json - required
 
  - SAPI manifests

@@ -14,13 +14,21 @@ function copy_setup_files
 {
     local role=$1
     rm -f /usbkey/extra/$role/setup
-    cp zones/$role/setup /usbkey/extra/$role/setup
+    if [[ -f zones/$role/setup ]]; then
+        cp zones/$role/setup /usbkey/extra/$role/setup
+    fi
     rm -f /usbkey/extra/$role/configure
-    cp zones/$role/configure /usbkey/extra/$role/configure
+    if [[ -f zones/$role/configure ]]; then
+        cp zones/$role/configure /usbkey/extra/$role/configure
+    fi
     rm -f /usbkey/extra/$role/setup.common
-    cp /usbkey/default/setup.common /usbkey/extra/$role/setup.common
+    if [[ -f /usbkey/default/setup.common ]]; then
+        cp /usbkey/default/setup.common /usbkey/extra/$role/setup.common
+    fi
     rm -f /usbkey/extra/$role/configure.common
-    cp /usbkey/default/configure.common /usbkey/extra/$role/configure.common
+    if [[ -f /usbkey/default/configure.common ]]; then
+        cp /usbkey/default/configure.common /usbkey/extra/$role/configure.common
+    fi
     #TODO: should update /usbkey/extras/bashrc from /usbkey/rc/
 }
 

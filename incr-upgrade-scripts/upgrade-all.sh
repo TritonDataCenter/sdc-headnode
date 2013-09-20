@@ -81,6 +81,34 @@ function upgrade_zone {
         zfs mount zones/cores/${instance_uuid}
     fi
 
+    # if we have a user-script for this zone/image here we must be doing a
+    # rollback so we want to use that user-script. If we don't have one, we
+    # save the current one for future rollback.
+    mkdir -p user-scripts
+    if [[ -f user-scripts/${alias}.${image_uuid}.user-script ]]; then
+        NEW_USER_SCRIPT=user-scripts/${alias}.${image_uuid}.user-script
+    else
+        vmadm get ${uuid} | json customer_metadata."user-script" \
+            > user-scripts/${alias}.${image_uuid}.user-script
+        [[ -s user-scripts/${alias}.${image_uuid}.user-script ]] \
+            || fatal "Failed to create ${alias}.${image_uuid}.user-script"
+
+        if [[ -f /usbkey/default/user-script.common ]]; then
+            NEW_USER_SCRIPT=/usbkey/default/user-script.common
+        else
+            fatal "Unable to find user-script for ${alias}"
+        fi
+    fi
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} | vmadm update ${uuid}
+    # also update SAPI's idea of what the user-script should be for future
+    # provisions.
+    mkdir -p sapi-updates
+    service_uuid=$(sdc-sapi /instances/${uuid} | json -H service_uuid)
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} \
+        | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
+        > sapi-updates/${service_uuid}.update
+    sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
+
     echo '{}' | json -e "this.image_uuid = '${image_uuid}'" |
         vmadm reprovision ${instance_uuid}
 
@@ -170,6 +198,11 @@ env | grep IMAGE
 [[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi0 $VMAPI_IMAGE
 [[ -n "$UFDS_IMAGE" ]] && upgrade_zone ufds0 $UFDS_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi0 $DAPI_IMAGE
-
+[[ -n "$PAPI_IMAGE" ]] && upgrade_zone papi0 $PAPI_IMAGE
+[[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis0 $REDIS_IMAGE
+[[ -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq0 $RABBITMQ_IMAGE
+[[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets0 $ASSETS_IMAGE
+[[ -n "$KEYAPI_IMAGE" ]] && upgrade_zone keyapi0 $KEYAPI_IMAGE
+[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso0 $SDCSSO_IMAGE
 
 exit 0

@@ -2,27 +2,31 @@ There are important rules to follow for all special zones with the smartdc role.
 
 The rules are:
 
-  * The following files/directories will work under your
-    usb-headnode/zones/:zonename directory (other files will be ignored!):
+  * Your zone's images should have the following files in /opt/smartdc/boot:
 
-    * 'backup' - this script will be run to do the backup of your zone, all
-        state that needs to be kept should get packed up by this (if your zone
-        doesn't need state other than config, optional)
+    * 'backup.sh' - this script will be run to do the backup of your zone, all
+      state that needs to be kept should get packed up by this. If your zone
+      doesn't need state other than config, including this script is
+      optional. IMPORTANT: this runs from the GZ.
 
-    * 'configure' - this should be run by setup and will be run on every boot
-        of the zone.
+    * 'configure.sh' - This will be run on every boot by the mdata-exec service
+      via the user-script. It will run after setup.sh on the first boot. If this
+      exits non-zero the mdata-execute service will fail.
 
-    * 'restore' - this script takes a backup and restores the data to a freshly
-        created zone, must handle backups back to 6.5.0 (if your zone doesn't
-        need state other than config, optional)
+    * 'restore.sh' - this script takes a backup and restores the data to a
+      freshly created zone, must handle backups back to 6.5.0. If your zone
+      doesn't need state other than config, including this script is
+      unnecessary. IMPORTANT: this will be run from the GZ.
 
-    * 'setup' - this gets run when the zone is initially setup, it must call
-        configure and when it's successful, create the /var/svc/setup_complete
-        file.  If unsuccessful it should create /var/svc/setup_failed.
+    * 'setup.sh' - this gets run when the zone is initially setup by user-script
+      which itself is called from the mdata-execute service in your zone.
+      When it's successful, it must create the /var/svc/setup_complete file.
+      If unsuccessful it should create /var/svc/setup_failed. On error it should
+      also exit non-zero which will cause mdata-execute service to fail and the
+      zone creation to be considered a failure.
 
-  * All zones should use setup.common to do the common setup
-    stuff that all zones need to do, this will be available at
-    /var/svc/setup.common
+  * Zones should use the scripts in /opt/smartdc/boot/lib to perform common
+    setup tasks. That code lives in the sdc-scripts.git repo.
 
 # SAPI configuration
 

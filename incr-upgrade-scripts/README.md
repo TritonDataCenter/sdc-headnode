@@ -32,6 +32,8 @@ See HEAD-1795 for intended improvements to this process.
     ./download-all.sh upgrade-images 2>&1 | tee download.out
 
     cp -r /usbkey/extra ./oldzones
+    cp -r /usbkey/default ./olddefault
+    cp -r /usbkey/scripts ./oldscripts
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
@@ -41,13 +43,40 @@ See HEAD-1795 for intended improvements to this process.
     ./upgrade-tools.sh 2>&1 | tee tools.out
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
+    # If you upgraded ufds, it's important that you also backfill missing column
+    # data as UFDS does not do this automatically. To do this you'll need to
+    # look at:
+    #
+    # git log -p sapi_manifests/ufds/template
+    #
+    # in the ufds.git repo to figure out which columns need to be backfilled,
+    # then run something like:
+    #
+    # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
+    #
+    # in the moray zone. See JPC-1302 for some more usage ideas.
+
+
     # If upgrading sapi:
+    #
+    # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
+    # you'll also need to edit:
+    #
+    #  /opt/smartdc/sapi/lib/server/attributes.js
+    #
+    # in the SAPI zone and add 'SAPI_MODE' to the allowed_keys in
+    # sanitizeMetadata() and restart the sapi service.
+    #
     ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
 To rollback:
 
     mv zones newzones
     mv oldzones zones
+    mv default newdefault
+    mv olddefault default
+    mv scripts newscripts
+    mv oldscripts scripts
     ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
 
     mv tools newtools
@@ -64,31 +93,6 @@ To make a changelog:
     # all the relevant service repos are present in subdirectories named
     # identically to their role. E.g., cloning CA creates 'cloud-analytics'
     # by default; it would need to be renamed to 'ca' for this script.
-
-
-## SAPI zone upgrade
-
-Need this patch to setup.common for it:
-
-    diff --git a/default/setup.common b/default/setup.common
-    index 00eaa7d..9b3cc01 100644
-    --- a/default/setup.common
-    +++ b/default/setup.common
-    @@ -205,6 +205,9 @@ if [[ ! -f /var/svc/setup_complete ]]; then
-
-         if [[ ${ZONE_ROLE} != "assets" && ${ZONE_ROLE} != "sapi" ]]; then
-             sapi_adopt
-    +    fi
-    +
-    +    if [[ ${ZONE_ROLE} != "assets" ]]; then
-             setup_config_agent
-             upload_values
-             download_metadata
-
-
-Not sure how to best integrate that right now because this change breaks
-initial headnode setup.
-
 
 
 ## Trent's Notes (ignore for now)

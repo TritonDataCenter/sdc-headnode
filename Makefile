@@ -68,6 +68,7 @@ incr-upgrade:
 		$(TOP)/zones \
 		$(TOP)/tools \
 		$(TOP)/default \
+		$(TOP)/scripts \
 		build/incr-upgrade-$(STAMP)
 	(cd build && tar czf ../incr-upgrade-$(STAMP).tgz incr-upgrade-$(STAMP))
 

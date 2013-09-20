@@ -139,7 +139,6 @@ function create_upgrade
 	firmware \
         datasets \
         manifests \
-        rc \
         scripts \
         services \
         tools \

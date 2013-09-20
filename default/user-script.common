@@ -1,161 +1,37 @@
-#!/bin/bash
+#!/usr/bin/bash
 #
-# Copyright (c) 2012, Joyent Inc. All rights reserved.
-#
-# The shared user-script for *core* SDC zones.
-#
-# This script exists to bootstrap the "setup" script (specific to each
-# zone, see usb-headnode.git/zones/$ZONE/setup) which does most of the
-# work of setting up the zone. Nothing time-expensive should go in here,
-# because the user-script is run synchronously by the "mdata:execute"
-# service which could then timeout and result in a failed provision.
-# Put expensive setup steps in "setup" instead (which is run in the
-# background at the end of this script).
+# Copyright (c) 2013 Joyent Inc., All Rights Reserved.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 set -o xtrace
+set -o errexit
+set -o pipefail
 
-# Can't use `set -e errexit` because we are selective warning on some
-# failures below.
+#
+# The presence of the /var/svc/.ran-user-script file indicates that the
+# instance has already been setup (i.e. the instance has booted previously).
+#
+# Upon first boot, run the setup.sh script if present. On all boots including
+# the first one, run the configure.sh script if present.
+#
 
+SENTINEL=/var/svc/.ran-user-script
 
-function fatal() {
-    echo "error: $*" >&2
+DIR=/opt/smartdc/boot
+
+if [[ ! -e ${SENTINEL} ]]; then
+    if [[ -f ${DIR}/setup.sh ]]; then
+        ${DIR}/setup.sh 2>&1 | tee /var/svc/setup.log
+    fi
+
+    touch ${SENTINEL}
+fi
+
+if [[ ! -f ${DIR}/configure.sh ]]; then
+    echo "Missing ${DIR}/configure.sh cannot configure."
     exit 1
-}
-
-
-PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin
-
-
-zone_uuid=$(zonename)
-zone_role=$(mdata-get sdc:tags.smartdc_role)
-if [[ -z ${zone_role} ]]; then
-    echo "Unable to find zone role in metadata."
-    exit 1
 fi
 
-
-# Setup "/.dcinfo": info about the datacenter in which this zone runs
-# (used for a more helpful PS1 prompt).
-dc_name=$(mdata-get sdc:datacenter_name)
-if [[ $? == 0 && -z ${dc_name} ]]; then
-    dc_name="UNKNOWN"
-fi
-[[ -n ${dc_name} ]] && echo "SDC_DATACENTER_NAME=\"${dc_name}\"" > /.dcinfo
-
-
-# On first boot we want to download the configure and other files from assets
-# if we don't have them.  On subsequent boots, we use the ones we already have.
-if [[ -f /var/svc/setup_complete ]]; then
-    # We already did setup (which ran configure last time), so just reconfigure.
-    /opt/smartdc/bin/configure || fatal "failed to configure zone."
-    exit 0
-fi
-
-# Only want to run this initial user-script once. Second time around we should
-# have just run 'configure' above, but this ensures we don't do setup twice in
-# case it's failing.
-if [[ -f /var/svc/.ran-user-script ]]; then
-    echo "Initial user-script has already been run."
-    exit 0
-fi
-touch /var/svc/.ran-user-script
-
-
-if [[ ${zone_role} != "assets" ]]; then
-    assets_ip=$(mdata-get assets-ip)
-    [[ -z ${assets_ip} ]] \
-        && fatal "Unable to find IP of assets server from metadata."
-    # ping assets so we can see in the log that networking is broken when
-    # that's what prevents us from getting the rest of the scripts. We loop
-    # forever because we can't continue without assets. Eventually smf will
-    # put us into maint if we never get through.
-    while ! ping ${assets_ip} ; do
-        sleep 1
-    done
-fi
-
-if [[ ${zone_role} != "sapi" ]]; then
-    sapi_url=$(mdata-get sapi-url)
-    [[ -z ${sapi_url} ]] && fatal "Unable to find IP of SAPI in metadata"
-fi
-
-# Setup "/opt/smartdc/etc" from assets.
-if [[ ! -d /opt/smartdc/etc ]]; then
-    mkdir -p /opt/smartdc/etc || fatal "unable to create /opt/smartdc/etc"
-fi
-
-# Setup "/opt/smartdc/bin" from assets.
-if [[ ! -d /opt/smartdc/bin ]]; then
-    mkdir -p /opt/smartdc/bin || fatal "unable to create /opt/smartdc/bin"
-fi
-
-if [[ ${zone_role} == "assets" ]]; then
-    for file in configure backup restore; do
-        if [[ -f /assets/extra/${zone_role}/${file} ]]; then
-            cp /assets/extra/${zone_role}/${file} /opt/smartdc/bin/${file}
-        fi
-    done
-    chmod 755 /opt/smartdc/bin/*
-else
-    for file in configure backup restore; do
-        # Get the file from assets, but don't blow away an existing file
-        # if assets is down.
-        curl -m 10 -k -o /opt/smartdc/bin/${file}.new -s -S -f \
-            http://${assets_ip}/extra/${zone_role}/${file}
-        if [[ $? != 0 ]]; then
-            echo "warning: Failed to get /opt/smartdc/bin/${file}"
-        else
-            cp /opt/smartdc/bin/${file}.new /opt/smartdc/bin/${file} && \
-                rm -f /opt/smartdc/bin/${file}.new
-        fi
-    done
-    chmod 755 /opt/smartdc/bin/*
-
-    # configure is required
-    if [[ ! -f /opt/smartdc/bin/configure ]]; then
-        fatal "Missing /opt/smartdc/bin/configure"
-    fi
-fi
-
-# Setup "~/.bashrc" from assets.
-if [[ ${zone_role} == "assets" ]]; then
-    if [[ -f /assets/extra/${zone_role}/bashrc ]]; then
-        cp /assets/extra/${zone_role}/bashrc /root/.bashrc
-    fi
-else
-    curl -m 10 -o /root/.bashrc -s -S -f \
-        http://${assets_ip}/extra/${zone_role}/bashrc
-    if [[ $? != 0 ]]; then
-        echo "warning: Failed to get /root/.bashrc from assets."
-    fi
-fi
-
-# Get setup scripts from assets.
-for file in setup.common configure.common setup; do
-    if [[ ${zone_role} == "assets" ]]; then
-        cp /assets/extra/${zone_role}/${file} /var/svc/${file}
-    else
-        curl -m 10 -k -o /var/svc/${file} -s -S -f \
-            http://${assets_ip}/extra/${zone_role}/${file}
-    fi
-    if [[ $? != 0 || ! -f /var/svc/${file} ]]; then
-        echo "warning: Failed to get /var/svc/${file} from assets."
-    fi
-done
-
-export ASSETS_IP="${assets_ip}"
-export ZONE_ROLE="${zone_role}"
-
-chmod 755 /var/svc/setup
-/var/svc/setup >/var/svc/setup.log 2>&1
-setup_exit_code=$?
-if [[ ${setup_exit_code} != 0 ]]; then
-    fatal "Failed (${setup_exit_code}) to setup ${zone_role} zone."
-else
-    echo "Completed setup for ${zone_role} zone."
-fi
-
-exit 0
+exec ${DIR}/configure.sh
