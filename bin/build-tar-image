@@ -1033,7 +1033,7 @@ function get_core_zone_image
         #   bit_cache_path '/.../cache/adminui-zfs-master-20130401T104924Z-g1695958.zfs.imgmanifest'
         #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
         # Note: We are hardcoding that sdc images use gzip compression here.
-        local file_pattern=${target%/*}/${manifest_base%.*manifest}.gz
+        local file_pattern=${target%/*}/${manifest_base%.*manifest}.*.gz
         bit_cache_path=$(get_bit $file_pattern)
         dst_file=${dst_dir}/$(basename $bit_cache_path)
         rm -f ${dst_file}
