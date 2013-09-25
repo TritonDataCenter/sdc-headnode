@@ -158,20 +158,49 @@ function outputServerData(data, callback)
             admin_ip = admin_nics[s.uuid];
         }
 
+        function outputLine() {
+            console.log(sprintf('%-20s %36s %7s %8s  %8s  %7d  %-15s',
+                s.hostname,
+                s.uuid,
+                sdc_version,
+                (setup_state ? setup_state : 'unknown'),
+                s.status,
+                s.ram,
+                admin_ip));
+        };
+
         if (s.setup === false && s.setting_up) {
             // setup job is currently running
             setup_state = 'running';
-        }
 
-        console.log(sprintf('%-20s %36s %7s %8s  %8s  %7d  %-15s',
-            s.hostname,
-            s.uuid,
-            sdc_version,
-            (setup_state ? setup_state : 'unknown'),
-            s.status,
-            s.ram,
-            admin_ip));
+            getJobs(s.uuid, function (err, jobs) {
+                var newest=0;
+
+                if (err) {
+                    callback(err);
+                    return;
+                }
+
+                jobs.forEach(function (job) {
+                    var start;
+
+                    if (job.name.match(/^server-setup/)) {
+			start = new Date(job.created_at).getTime();
+                        if (start > newest) {
+                            setup_state = job.execution;
+                            newest = start;
+                        }
+                    }
+                });
+
+                outputLine();
+            });
+
+        } else {
+            outputLine();
+        }
     });
+    callback();
 }
 
 function outputServerList(callback)
