@@ -37,7 +37,7 @@ See HEAD-1795 for intended improvements to this process.
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
-    ./add-sdc.sh
+    #  ./add-FOO.sh
 
     cp -rP /opt/smartdc/bin ./oldtools
     ./upgrade-tools.sh 2>&1 | tee tools.out
