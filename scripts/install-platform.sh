@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Joyent Inc., All rights reserved.
+# Copyright 2013, Joyent Inc., All rights reserved.
 #
 
 function usage()
@@ -13,6 +13,11 @@ function usage()
 function fatal()
 {
     printf "Error: %s\n" "$1" >/dev/stderr
+    if [ ${fatal_cleanup} -eq 1 ]; then
+        rm -rf ${usbmnt}/os/${version}
+        rm -rf ${usbcpy}/os/${version}
+        rm -f ${usbcpy}/os/tmp.$$.tgz
+    fi
     exit 1
 }
 
@@ -53,6 +58,7 @@ fi
 mounted="false"
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+fatal_cleanup=0
 
 . /lib/sdc/config.sh
 load_sdc_config
@@ -84,6 +90,7 @@ if [ ${force_replace} -eq 1 ]; then
     rm -rf ${usbcpy}/os/${version}
 fi
 
+fatal_cleanup=1
 if [[ ! -d ${usbmnt}/os/${version} ]]; then
     echo "==> Staging ${version}"
     curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
@@ -117,6 +124,7 @@ if [[ ! -d ${usbcpy}/os/${version} ]]; then
     (cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
     [ $? != 0 ] && fatal "copying image to ${usbmnt}/os"
 fi
+fatal_cleanup=0
 
 if [[ ${mounted} == "true" ]]; then
     echo "==> Unmounting USB Key"
