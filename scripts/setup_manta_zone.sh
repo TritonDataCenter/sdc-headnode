@@ -36,7 +36,8 @@ function add_external_nic {
     {
         \"networks\": [
             {
-                \"uuid\": \"${external_net_uuid}\"
+                \"uuid\": \"${external_net_uuid}\",
+                \"primary\": true
             }
         ]
     }" > ${tmpfile}
