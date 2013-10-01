@@ -6,6 +6,8 @@
 PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
+. /lib/sdc/config.sh
+
 function fatal
 {
     msg=$1
@@ -201,6 +203,13 @@ if [[ $COMMIT == 1 ]]; then
     rm -rf /var/usb_rollback
 
     zpool upgrade zones
+
+    echo "Updating smartlogin configuration on each compute node"
+    load_sdc_config
+    SLCFG=/opt/smartdc/agents/etc/smartlogin.cfg
+    sdc-oneachnode -c "sed -e \
+        \"s,^capi-url=.*,capi-url=$CONFIG_capi_client_url,\" \
+        < $SLCFG > $SLCFG.new; mv $SLCFG.new $SLCFG"
 
     # Skip this, not really needed and the key is almost full so there will
     # be no room for a new platform.
