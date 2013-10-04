@@ -5,7 +5,7 @@
 
 function usage()
 {
-    echo "Usage: $0 [-crRs] <platform URI>"
+    echo "Usage: $0 [-cr -R|-s] <platform URI>"
     echo "(URI can be file:///, http://, anything curl supports or a filename)"
     exit 1
 }
@@ -39,6 +39,10 @@ shift $(($OPTIND - 1))
 
 input=$1
 if [[ -z ${input} ]]; then
+    usage
+fi
+
+if [ ${force_replace} -eq 1 -a ${switch_platform} -eq 1 ]; then
     usage
 fi
 
