@@ -32,6 +32,7 @@ function get_instance_uuid {
         fatal "failed to get instance UUID"
 }
 
+# XXX - for non-headnode upgrades, break this out.
 function upgrade_zone {
     local alias=$1
     local image_uuid=$2

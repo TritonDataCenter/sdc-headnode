@@ -1,0 +1,8 @@
+{
+  "manatee": {
+    "servers": []
+  },
+  "zk": {
+    "servers": []
+  }
+}

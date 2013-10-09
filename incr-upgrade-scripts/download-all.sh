@@ -38,3 +38,6 @@ source $IMAGE_LIST
 [[ -n "$WORKFLOW_IMAGE" ]] && ./download-image.sh $WORKFLOW_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && ./download-image.sh $DAPI_IMAGE
 [[ -n "$SDCSSO_IMAGE" ]] && ./download-image.sh $SDCSSO_IMAGE
+[[ -n "$MORAY_IMAGE" ]] && ./download-image.sh $MORAY_IMAGE
+[[ -n "$MANATEE_IMAGE" ]] && ./download-image.sh $MANATEE_IMAGE
+[[ -n "$BINDER_IMAGE" ]] && ./download-image.sh $BINDER_IMAGE

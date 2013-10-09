@@ -1,0 +1,30 @@
+{
+  "name": "zookeeper",
+  "params": {
+    "archive_on_delete": true,
+    "package_name": "sdc_256",
+    "networks": [
+      "admin"
+    ],
+    "tags": {
+      "smartdc_role": "zookeeper",
+      "smartdc_type": "core"
+    },
+    "cpu_shares": 256,
+    "cpu_cap": 150,
+    "zfs_io_priority": 10,
+    "max_lwps": 1000,
+    "max_physical_memory": 256,
+    "max_locked_memory": 256,
+    "max_swap": 512,
+    "quota": "25",
+    "package_version": "1.0.0",
+    "customer_metadata": {}
+  },
+  "metadata": {
+    "SERVICE_NAME": "zookeeper",
+    "sapi-url": "http://10.99.99.34",
+    "assets-ip": "10.99.99.8",
+    "user-script": "#!/usr/bin/bash\n#\n# Copyright (c) 2013 Joyent Inc., All Rights Reserved.\n#\n\nexport PS4='[\\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'\n\nset -o xtrace\nset -o errexit\nset -o pipefail\n\n#\n# The presence of the /var/svc/.ran-user-script file indicates that the\n# instance has already been setup (i.e. the instance has booted previously).\n#\n# Upon first boot, run the setup.sh script if present. On all boots including\n# the first one, run the configure.sh script if present.\n#\n\nSENTINEL=/var/svc/.ran-user-script\n\nDIR=/opt/smartdc/boot\n\nif [[ ! -e ${SENTINEL} ]]; then\n    if [[ -f ${DIR}/setup.sh ]]; then\n        ${DIR}/setup.sh 2>&1 | tee /var/svc/setup.log\n    fi\n\n    touch ${SENTINEL}\nfi\n\nif [[ ! -f ${DIR}/configure.sh ]]; then\n    echo \"Missing ${DIR}/configure.sh cannot configure.\"\n    exit 1\nfi\n\nexec ${DIR}/configure.sh\n"
+  }
+}
