@@ -175,7 +175,6 @@ if [[ $COMMIT == 1 ]]; then
     zpool set feature@async_destroy=enabled zones
     zpool set feature@empty_bpobj=enabled zones
     zpool set feature@lz4_compress=enabled zones
-    zpool set feature@filesystem_limits=enabled zones
     zfs set compression=lz4 zones/cores
 
     for i in `zfs list -o name -H -t snapshot | egrep "rollback$"`
