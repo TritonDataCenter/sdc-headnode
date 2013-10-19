@@ -1,6 +1,7 @@
 {
     "name": "manta",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "networks": [ "admin" ],

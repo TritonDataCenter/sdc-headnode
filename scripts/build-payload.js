@@ -147,6 +147,9 @@ async.series([
                 + 'setting owner_uuid');
         }
 
+        // Per OS-2520 we always want to be setting archive_on_delete in SDC
+        obj.archive_on_delete = true;
+
         if (config.hasOwnProperty('binder_resolver_ips')) {
             if (!obj.hasOwnProperty('customer_metadata')) {
                 obj.customer_metadata = {};

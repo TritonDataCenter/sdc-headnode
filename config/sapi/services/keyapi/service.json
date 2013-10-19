@@ -1,6 +1,7 @@
 {
     "name": "keyapi",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_128",
         "image_uuid": "IMAGE_UUID",
         "networks": [ "admin", "external" ],

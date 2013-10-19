@@ -1,9 +1,10 @@
 {
     "name": "cnapi",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "cnapi",
             "smartdc_type": "core"

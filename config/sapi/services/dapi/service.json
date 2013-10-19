@@ -1,9 +1,10 @@
 {
     "name": "dapi",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_256",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "dapi",
             "smartdc_type": "core"

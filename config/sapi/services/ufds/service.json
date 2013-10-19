@@ -1,9 +1,10 @@
 {
     "name": "ufds",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_8192",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "ufds",
             "smartdc_type": "core"

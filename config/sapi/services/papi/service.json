@@ -1,9 +1,10 @@
 {
     "name": "papi",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "papi",
             "smartdc_type": "core"

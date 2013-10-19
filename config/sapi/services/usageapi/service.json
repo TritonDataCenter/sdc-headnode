@@ -1,6 +1,7 @@
 {
     "name": "usageapi",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_768",
         "image_uuid": "IMAGE_UUID",
         "networks": [ "admin" ],

@@ -1,9 +1,10 @@
 {
     "name": "workflow",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_8192",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "workflow",
             "smartdc_type": "core"
@@ -11,8 +12,8 @@
     },
     "metadata": {
         "SERVICE_NAME": "workflow",
-		"WORKFLOW_NUM_FORKS": 16,
-		"WORKFLOW_RUN_INTERVAL": 10
+        "WORKFLOW_NUM_FORKS": 16,
+        "WORKFLOW_RUN_INTERVAL": 10
     },
     "manifests": {
     }

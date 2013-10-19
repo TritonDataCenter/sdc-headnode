@@ -1,9 +1,10 @@
 {
     "name": "adminui",
     "params": {
+        "archive_on_delete": true,
         "package_name": "sdc_2048",
         "image_uuid": "IMAGE_UUID",
-		"networks": [ "admin" ],
+        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "adminui",
             "smartdc_type": "core"
