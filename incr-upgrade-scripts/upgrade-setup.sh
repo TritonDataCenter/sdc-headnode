@@ -63,6 +63,7 @@ ROLES=
 [[ -n "$VMAPI_IMAGE" ]] && ROLES="$ROLES vmapi"
 [[ -n "$WORKFLOW_IMAGE" ]] && ROLES="$ROLES workflow"
 [[ -n "$DAPI_IMAGE" ]] && ROLES="$ROLES dapi"
+[[ -n "$SDCSSO_IMAGE" ]] && ROLES="$ROLES sdcsso"
 
 cp default/* /usbkey/default
 for ROLE in $ROLES; do

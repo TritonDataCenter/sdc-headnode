@@ -37,3 +37,4 @@ source $IMAGE_LIST
 [[ -n "$VMAPI_IMAGE" ]] && ./download-image.sh $VMAPI_IMAGE
 [[ -n "$WORKFLOW_IMAGE" ]] && ./download-image.sh $WORKFLOW_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && ./download-image.sh $DAPI_IMAGE
+[[ -n "$SDCSSO_IMAGE" ]] && ./download-image.sh $SDCSSO_IMAGE

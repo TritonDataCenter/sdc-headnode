@@ -186,7 +186,8 @@ env | grep IMAGE
 [[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui0 $ADMINUI_IMAGE
 [[ -n "$AMON_IMAGE" ]] && upgrade_zone amon0 $AMON_IMAGE
 [[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis0 $AMONREDIS_IMAGE
-[[ -n "$CA_IMAGE" ]] && upgrade_zone ca0 $CA_IMAGE
+[[ -n "$KEYAPI_IMAGE" ]] && upgrade_zone keyapi0 $KEYAPI_IMAGE
+[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso0 $SDCSSO_IMAGE
 [[ -n "$CLOUDAPI_IMAGE" ]] && upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
 [[ -n "$WORKFLOW_IMAGE" ]] && upgrade_zone workflow0 $WORKFLOW_IMAGE
 [[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi0 $CNAPI_IMAGE
@@ -202,7 +203,6 @@ env | grep IMAGE
 [[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis0 $REDIS_IMAGE
 [[ -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq0 $RABBITMQ_IMAGE
 [[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets0 $ASSETS_IMAGE
-[[ -n "$KEYAPI_IMAGE" ]] && upgrade_zone keyapi0 $KEYAPI_IMAGE
-[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso0 $SDCSSO_IMAGE
+[[ -n "$CA_IMAGE" ]] && upgrade_zone ca0 $CA_IMAGE
 
 exit 0
