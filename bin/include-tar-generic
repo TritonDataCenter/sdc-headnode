@@ -11,7 +11,11 @@ case "$PLATFORM" in
   Darwin)
     # sudo is no longer required on OSX builds
     SUCMD=''
-    TAR=gnutar
+    if [[ $(uname -r | cut -d '.' -f1) -ge 13 ]]; then
+      TAR=tar
+    else
+      TAR=gnutar
+    fi
     TAR_ROOT=""
     PING="/sbin/ping -c 1"
     ;;
