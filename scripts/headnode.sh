@@ -631,7 +631,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone vmapi
     create_zone ca
     create_zone adminui
-    create_zone keyapi
     create_zone usageapi
 fi
 
@@ -804,6 +803,21 @@ if [[ -n ${CREATEDZONES} ]]; then
         fi
         echo "" >&${CONSOLE_FD}
     fi
+fi
+
+# add a keyapi key, if not currently extant
+if [[ $(/opt/smartdc/bin/sdc-ldap s "(objectclass=keyapiprivkey)") == "" ]]; then
+  key_uuid=$(uuid -v4)
+  hexchars="0123456789abcdef"
+  key=$(for i in {1..64} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done)
+  key_date=$(date "+%Y-%m-%dT%H:%M:%SZ")
+  /opt/smartdc/bin/sdc-ldap add << EOF
+dn: uuid=${key_uuid}, ou=keyapiprivkeys, o=smartdc
+key: ${key}
+objectclass: keyapiprivkey
+timestamp: ${key_date}
+uuid: ${key_uuid}
+EOF
 fi
 
 if [[ $upgrading == 1 ]]; then

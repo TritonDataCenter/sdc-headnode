@@ -929,9 +929,6 @@ function cleanup_config
 	papi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
-	keyapi_admin_ip="$ip_addr"
-
-	allocate_ip_addr
 	usageapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -1016,10 +1013,6 @@ function cleanup_config
 	papi_root_pw=$CONFIG_adminui_root_pw
 	papi_admin_ips=$papi_admin_ip
 	papi_domain=papi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
-
-	keyapi_root_pw=$CONFIG_adminui_root_pw
-	keyapi_admin_ips=$keyapi_admin_ip
-	keyapi_domain=keyapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	sdcsso_root_pw=$CONFIG_adminui_root_pw
 	sdcsso_domain=sdcsso.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
@@ -1179,7 +1172,6 @@ function cleanup_config
 	imgapi_pkg=${GENERIC_imgapi_pkg}
 	manatee_pkg=${GENERIC_manatee_pkg}
 	moray_pkg=${GENERIC_moray_pkg}
-	keyapi_pkg=${GENERIC_keyapi_pkg}
 	sdcsso_pkg=${GENERIC_sdcsso_pkg}
 	napi_pkg=${GENERIC_napi_pkg}
 	fwapi_pkg=${GENERIC_fwapi_pkg}

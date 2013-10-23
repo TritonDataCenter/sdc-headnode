@@ -57,7 +57,6 @@ usageapi_pkg=sdc_768
 workflow_pkg=sdc_1024
 manatee_pkg=sdc_db
 moray_pkg=sdc_1024
-keyapi_pkg=sdc_128
 vmapi_pkg=sdc_128
 dapi_pkg=sdc_128
 imgapi_pkg=sdc_imgapi

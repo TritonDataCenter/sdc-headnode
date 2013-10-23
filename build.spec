@@ -26,7 +26,6 @@
   "dhcpd-image": "dhcpd/dhcpd-zfs-.*manifest",
   "fwapi-image": "fwapi/fwapi-zfs-.*manifest",
   "imgapi-image": "imgapi/imgapi-zfs-.*manifest",
-  "keyapi-image": "keyapi/keyapi-zfs-.*manifest",
   "manatee-image": "manatee/manatee-zfs-.*manifest",
   "manta-image": "manta-deployment/manta-deployment-zfs-.*manifest",
   "moray-image": "moray/moray-zfs-.*manifest",
