@@ -35,7 +35,7 @@ HEADNODE_UUID=$(sysinfo | json UUID)
 
 core_zones="assets binder manatee moray redis ufds workflow amon napi"
 core_zones="$core_zones rabbitmq imgapi cnapi dhcpd dapi fwapi vmapi ca"
-core_zones="$core_zones adminui keyapi usageapi sapi"
+core_zones="$core_zones adminui usageapi sapi"
 
 usage()
 {

@@ -5,7 +5,7 @@
 # set -o errexit
 # set -o xtrace
 
-ROLES="adminui amon amonredis assets ca cloudapi cnapi dapi dhcpd fwapi imgapi keyapi napi papi rabbitmq redis sapi sdc sdcsso ufds usageapi vmapi workflow"
+ROLES="adminui amon amonredis assets ca cloudapi cnapi dapi dhcpd fwapi imgapi napi papi rabbitmq redis sapi sdc sdcsso ufds usageapi vmapi workflow"
 
 function print_latest
 {

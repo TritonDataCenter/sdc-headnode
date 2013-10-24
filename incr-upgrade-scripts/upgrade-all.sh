@@ -171,8 +171,6 @@ env | grep IMAGE
 # ufds.  Binder, manatee and moray will not work, manta is unnecessary, and
 # don't do UFDS to minimize customer impact.
 #
-# XXX I hear from John he doesn't want us to upgrade keyapi/sdcsso this time.
-#
 # XXX Marsell says it's pointless to upgrade rabbitmq.
 #
 # XXX JoshW says it's pointless to upgrade redis
