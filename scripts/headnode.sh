@@ -613,6 +613,8 @@ if [[ -z ${skip_zones} ]]; then
 
 
     create_zone manatee
+    # moray is a race-ist.
+    sleep 60
     create_zone moray
     create_zone amonredis
     create_zone redis
