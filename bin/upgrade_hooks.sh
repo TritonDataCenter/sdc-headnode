@@ -865,7 +865,8 @@ papi_tasks()
 {
     cp ${SDC_UPGRADE_DIR}/mapi_dump/papi_packages.moray /zones/$1/root/root
 
-    zlogin $1 /opt/smartdc/papi/bin/importer --json /root/papi_packages.moray 1>&4 2>&1
+    zlogin $1 /opt/smartdc/papi/build/node/bin/node /opt/smartdc/papi/bin/importer \
+        --json /root/papi_packages.moray 1>&4 2>&1
     [ $? != 0 ] && \
         saw_err "Error loading PAPI data into moray"
 }
