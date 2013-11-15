@@ -23,6 +23,12 @@ if [[ -z ${SYSINFO_SDC_Version} ]]; then
     ENABLE_6x_WORKAROUNDS="true"
 fi
 
+# Mock CN is used for creating "fake" Compute Nodes in SDC for testing.
+MOCKCN=
+if [[ $(zonename) != "global" && -n ${MOCKCN_SERVER_UUID} ]]; then
+    MOCKCN="true"
+fi
+
 fatal()
 {
     # Any error message should be redirected to stderr:
@@ -30,8 +36,10 @@ fatal()
     exit 1
 }
 
-
 SETUP_FILE=/var/lib/setup.json
+if [[ -n ${MOCKCN} ]]; then
+    SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
+fi
 
 function update_setup_state
 {
@@ -58,6 +66,16 @@ function mark_as_setup
         | tee ${SETUP_FILE}.new
     mv ${SETUP_FILE}.new $SETUP_FILE
     chmod 400 $SETUP_FILE
+
+    if [[ -n ${MOCKCN} ]]; then
+        json -e 'this.Setup = "true"' \
+            < /mockcn/${MOCKCN_SERVER_UUID}/sysinfo.json \
+            > /mockcn/${MOCKCN_SERVER_UUID}/sysinfo.json.new \
+            && mv /mockcn/${MOCKCN_SERVER_UUID}/sysinfo.json.new \
+            /mockcn/${MOCKCN_SERVER_UUID}/sysinfo.json
+        return
+    fi
+
     sysinfo -u
 }
 
@@ -95,6 +113,11 @@ setup_agents()
 
     mkdir -p /opt/smartdc/agents/log
     /usr/bin/bash $AGENTS_SHAR_PATH &>/opt/smartdc/agents/log/install.log
+
+    if [[ -n ${MOCKCN} && -f "/opt/smartdc/mockcn/bin/fix-agents.sh" ]]; then
+        /opt/smartdc/mockcn/bin/fix-agents.sh
+    fi
+
     result=$(tail -n 1 /opt/smartdc/agents/log/install.log)
 }
 
@@ -108,6 +131,12 @@ if [[ ! -d /opt/smartdc/agents/bin ]]; then
         update_setup_state "agents_installed"
         mark_as_setup
     fi
+elif [[ -n ${MOCKCN} ]]; then
+    # When we're mocking a CN we might already have agents installed,
+    # in the future, we'll want to have heartbeater and provisioner notice
+    # there's a new server too. For now we just pretend everything worked.
+    update_setup_state "agents_installed"
+    mark_as_setup
 fi
 
 # Return SmartDC services statuses on STDOUT:

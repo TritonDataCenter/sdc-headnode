@@ -46,6 +46,13 @@ for p in $*; do
     export arg_${k}=${v}
 done
 
+# Mock CN is used for creating "fake" Compute Nodes in SDC for testing.
+MOCKCN=
+if [[ $(zonename) != "global" && -n ${MOCKCN_SERVER_UUID} ]]; then
+    export SDC_CONFIG_FILENAME="/mockcn/${MOCKCN_SERVER_UUID}/node.config"
+    MOCKCN="true"
+fi
+
 # Load SYSINFO_* and CONFIG_* values
 . /lib/sdc/config.sh
 load_sdc_sysinfo
@@ -79,6 +86,11 @@ function check_ntp
 {
     # disable pipefail so we can catch our own errors
     set +o pipefail
+
+    if [[ -n ${MOCKCN} ]]; then
+        echo "Not checking NTP in mock CN."
+        return;
+    fi
 
     if [[ -z ${TEMP_CONFIGS} && -f /mnt/usbkey/config ]]; then
         # headnode
@@ -182,6 +194,9 @@ function boot_setup
 }
 
 SETUP_FILE=/var/lib/setup.json
+if [[ -n ${MOCKCN} ]]; then
+    SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
+fi
 
 function create_setup_file
 {
@@ -290,6 +305,15 @@ function create_zpool
     SYS_ZPOOL="$1"
     POOL_JSON="$2"
 
+    if [[ -n ${MOCKCN} ]]; then
+        # setup initial usage
+        json -e "this.usage = $(($RANDOM * $RANDOM))" \
+            < ${POOL_JSON} > ${POOL_JSON}.new \
+            && mv ${POOL_JSON}.new ${POOL_JSON}
+        echo "Not checking NTP in mock CN."
+        return;
+    fi
+
     if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
         if ! /usr/bin/mkzpool ${SYS_ZPOOL} ${POOL_JSON}; then
@@ -343,6 +367,11 @@ create_dump()
 setup_datasets()
 {
     datasets=$(zfs list -H -o name | xargs)
+
+    if [[ -n ${MOCKCN} ]]; then
+        echo "Not setting up datasets in mock CN."
+        return;
+    fi
 
     if ! echo $datasets | grep dump > /dev/null; then
         printf "%-56s" "adding volume: dump" >&4
@@ -420,6 +449,11 @@ setup_datasets()
 
 create_swap()
 {
+    if [[ -n ${MOCKCN} ]]; then
+        echo "Not setting up swap on mock CN."
+        return;
+    fi
+
     if [ -n "${arg_swap}" ]; then
         # From cmdline
         swapsize=$(swap_in_GiB ${arg_swap})
@@ -463,6 +497,19 @@ create_swap()
 #
 output_zpool_info()
 {
+    if [[ -n ${MOCKCN} ]]; then
+        pool="zones"
+        # XXX should generate one when we create the pool
+        guid="14134180013048896962"
+        used="$(json usage < ${POOL_JSON})"
+        total="$(json capacity < ${POOL_JSON})"
+        available=$((${total} - ${used}))
+        health="ONLINE"
+        mountpoint="/zones"
+        printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
+        return;
+    fi
+
     for pool in $(zpool list -H -o name); do
         guid=$(zpool list -H -o guid ${pool})
         used=$(zfs get -Hp -o value used ${pool})
@@ -493,6 +540,12 @@ install_configs()
             fatal "config files not present in $TEMP_CONFIGS"
         fi
 
+        if [[ -n ${MOCKCN} ]]; then
+            mv $TEMP_CONFIGS /mockcn/${MOCKCN_SERVER_UUID}/config
+            printf "%4s\n" "done" >&4
+            return
+        fi
+
         # mount /opt before doing this or changes are not going to be persistent
         mount -F zfs ${SYS_ZPOOL}/opt /opt || echo "/opt already mounted"
 
@@ -509,6 +562,11 @@ install_configs()
 
 setup_filesystems()
 {
+    if [[ -n ${MOCKCN} ]]; then
+        echo "Not setting up filesystems on mock CN."
+        return;
+    fi
+
     cd /
     svcadm disable -s filesystem/smartdc
     svcadm enable -s filesystem/smartdc
@@ -534,7 +592,9 @@ is_headnode()
     fi
 }
 
-if [[ "$(zpool list)" == "no pools available" ]]; then
+if [[ "$(zpool list)" == "no pools available" ]] \
+    || [[ -n ${MOCKCN} && ! -f ${SETUP_FILE} ]]; then
+
     if ! is_headnode; then
         # On headnodes we assume prompt-config already worked out a
         # valid ntp config, on compute nodes we make sure that it is
@@ -542,12 +602,17 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
         check_ntp
     fi
 
-    if ! /usr/bin/disklayout "${arg_disklayout}" > /tmp/pool.json; then
+    POOL_FILE=/tmp/pool.json
+    if [[ -n ${MOCKCN} ]]; then
+        POOL_FILE=/mockcn/${MOCKCN_SERVER_UUID}/pool.json
+    fi
+
+    if ! /usr/bin/disklayout "${arg_disklayout}" > ${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
-    check_disk_space /tmp/pool.json
-    create_zpool zones /tmp/pool.json
+    check_disk_space ${POOL_FILE}
+    create_zpool zones ${POOL_FILE}
 
     if is_headnode; then
         boot_setup
@@ -574,6 +639,12 @@ if [[ "$(zpool list)" == "no pools available" ]]; then
 
     setup_filesystems
     update_setup_state "filesystems_setup"
+
+    if [[ -n ${MOCKCN} ]]; then
+        # nothing below here needs to run for mock CN
+        update_setup_state "imgadm_setup"
+        exit 0
+    fi
 
     if ! is_headnode; then
         # On a CN we're not rebooting, so we want the following
