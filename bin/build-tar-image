@@ -1053,7 +1053,7 @@ function get_core_zone_image
     fi
 
     # PCFS, sigh.
-    echo $(basename $dst_manifest) | tr [:upper:] [:lower:] > ${STAGE}/zones/${zone}/dataset
+    echo $(basename $dst_manifest) | tr '[:upper:]' '[:lower:]' > ${STAGE}/zones/${zone}/dataset
 }
 
 function copy_zones
