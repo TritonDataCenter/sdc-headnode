@@ -3,15 +3,6 @@
   "brand": "joyent-minimal",
   "filesystems": [
     {
-      "source": "/usbkey/datasets",
-      "target": "/assets/datasets",
-      "type": "lofs",
-      "options": [
-        "ro",
-        "nodevices"
-      ]
-    },
-    {
       "source": "/usbkey/extra",
       "target": "/assets/extra",
       "type": "lofs",
