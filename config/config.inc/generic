@@ -53,7 +53,6 @@ cloudapi_pkg=sdc_256
 sdcsso_pkg=sdc_128
 adminui_pkg=sdc_512
 amon_pkg=sdc_256
-usageapi_pkg=sdc_768
 workflow_pkg=sdc_1024
 manatee_pkg=sdc_db
 moray_pkg=sdc_1024

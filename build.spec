@@ -37,7 +37,6 @@
   "sdc-image": "sdc/sdc-zfs-.*manifest",
   "sdcsso-image": "sdcsso/sdcsso-zfs-.*manifest",
   "ufds-image": "ufds/ufds-zfs-.*manifest",
-  "usageapi-image": "usageapi/usageapi-zfs-.*manifest",
   "vcapi-image": "vcapi/vcapi-zfs-.*manifest",
   "vmapi-image": "vmapi/vmapi-zfs-.*manifest",
   "workflow-image": "workflow/workflow-zfs-.*manifest",

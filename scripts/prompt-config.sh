@@ -1156,10 +1156,6 @@ adminui_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
-usageapi_admin_ip="$ip_addr"
-
-next_addr=$(($next_addr + 1))
-num_to_ip $next_addr
 sapi_admin_ip="$ip_addr"
 
 # Add 5 to leave some room
@@ -1434,11 +1430,6 @@ echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo "rabbitmq_domain=rabbitmq.${datacenter_name}.${dns_domain}" >>$tmp_config
-echo >>$tmp_config
-
-echo "usageapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "usageapi_admin_ips=$usageapi_admin_ip" >>$tmp_config
-echo "usageapi_domain=usageapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_master=true" >>$tmp_config

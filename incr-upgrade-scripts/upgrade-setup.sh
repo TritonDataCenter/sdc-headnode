@@ -59,7 +59,6 @@ ROLES=
 [[ -n "$IMGAPI_IMAGE" ]] && ROLES="$ROLES imgapi"
 [[ -n "$NAPI_IMAGE" ]] && ROLES="$ROLES napi"
 [[ -n "$SAPI_IMAGE" ]] && ROLES="$ROLES sapi"
-[[ -n "$USAGEAPI_IMAGE" ]] && ROLES="$ROLES usageapi"
 [[ -n "$VMAPI_IMAGE" ]] && ROLES="$ROLES vmapi"
 [[ -n "$WORKFLOW_IMAGE" ]] && ROLES="$ROLES workflow"
 [[ -n "$DAPI_IMAGE" ]] && ROLES="$ROLES dapi"

@@ -929,16 +929,7 @@ function cleanup_config
 	papi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
-	usageapi_admin_ip="$ip_addr"
-
-	allocate_ip_addr
 	sapi_admin_ip="$ip_addr"
-
-	if [[ -z "$CONFIG_adminui_external_vlan" ]]; then
-	   usage_ext_vlan="# usageapi_external_vlan=0"
-	else
-	   usage_ext_vlan="usageapi_external_vlan=$CONFIG_adminui_external_vlan"
-	fi
 
 	# Allocate 4 more IP addrs for binder instances
 	binder_resolver_ips=$binder_admin_ip
@@ -1032,11 +1023,6 @@ function cleanup_config
 	dsapi_url=https://datasets.joyent.com
 	dsapi_http_user=honeybadger
 	dsapi_http_pass=IEatSnakes4Fun
-
-	$usage_ext_vlan
-	usageapi_root_pw=$CONFIG_capi_root_pw
-	usageapi_admin_ips=$usageapi_admin_ip
-	usageapi_domain=usageapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
@@ -1163,7 +1149,6 @@ function cleanup_config
 	adminui_pkg=${GENERIC_adminui_pkg}
 	amon_pkg=${GENERIC_amon_pkg}
 	amonredis_pkg=${GENERIC_amonredis_pkg}
-	usageapi_pkg=${GENERIC_usageapi_pkg}
 	ca_pkg=${GENERIC_ca_pkg}
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
 	cnapi_pkg=${GENERIC_cnapi_pkg}

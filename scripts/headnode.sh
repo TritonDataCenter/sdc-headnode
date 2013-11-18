@@ -633,7 +633,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone vmapi
     create_zone ca
     create_zone adminui
-    create_zone usageapi
 fi
 
 update_setup_state "sdczones_created"
