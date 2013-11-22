@@ -2,13 +2,18 @@
 #
 # Copyright (c) 2013, Joyent, Inc. All rights reserved.
 #
-# setup_manta_zone.sh: bootstrap a manta deployment zone
+# add_external_nics.sh add an external nic to a zone.
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 PATH=/opt/smartdc/bin:$PATH
+
+function fatal {
+    echo "$(basename $0): fatal error: $*" >&2
+    exit 1
+}
 
 function add_external_nic {
     local zone_uuid=$1
@@ -17,9 +22,6 @@ function add_external_nic {
     local tmpfile=/tmp/update_nics.$$.json
 
     local num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
-    if [[ ${num_nics} == 2 ]]; then
-        return  # External NIC already present
-    fi
 
     echo "Adding external NIC to ${zone_uuid}"
 
@@ -36,9 +38,6 @@ function add_external_nic {
     sdc-vmapi /vms/${zone_uuid}?action=add_nics -X POST \
         -d @${tmpfile}
     [[ $? -eq 0 ]] || fatal "failed to add external NIC"
-
-    # The add_nics job takes about 20 seconds.
-    sleep 30
 
     rm -f ${tmpffile}
 }
