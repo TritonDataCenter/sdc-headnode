@@ -836,8 +836,8 @@ uuid: ${key_uuid}
 EOF
 fi
 
-# Install all AMON probes
-/opt/smartdc/bin/sdc-amonadm update
+# Install all AMON probes, but don't fail setup if it doesn't work
+/opt/smartdc/bin/sdc-amonadm update || /bin/true
 
 if [[ $upgrading == 1 ]]; then
     printf_log "%-58s\n" "running post-setup upgrade tasks... "
