@@ -163,7 +163,7 @@ function outputServerData(data, callback)
                 s.hostname,
                 s.uuid,
                 sdc_version,
-                (setup_state ? setup_state : 'unknown'),
+                (typeof (setup_state) === 'undefined' ? 'unknown': setup_state),
                 s.status,
                 s.ram,
                 admin_ip));
