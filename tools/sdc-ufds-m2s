@@ -1,0 +1,260 @@
+#!/bin/bash
+#
+# Copyright (c) 2013, Joyent, Inc. All rights reserved.
+#
+
+# This script converts a UFDS master HN into a slave.
+
+export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
+
+# Tests whether entire string is a number.
+isdigit ()
+{
+	[ $# -eq 1 ] || return 1
+
+	case $1 in
+  	*[!0-9]*|"") return 1;;
+	*) return 0;;
+	esac
+}
+
+# Tests network numner (num.num.num.num)
+is_net()
+{
+	NET=$1
+
+	OLDIFS=$IFS
+	IFS=.
+	set -- $NET
+	a=$1
+	b=$2
+	c=$3
+	d=$4
+	IFS=$OLDIFS
+
+	isdigit "$a" || return 1
+	isdigit "$b" || return 1
+	isdigit "$c" || return 1
+	isdigit "$d" || return 1
+
+	[ -z $a ] && return 1
+	[ -z $b ] && return 1
+	[ -z $c ] && return 1
+	[ -z $d ] && return 1
+
+	[ $a -lt 0 ] && return 1
+	[ $a -gt 255 ] && return 1
+	[ $b -lt 0 ] && return 1
+	[ $b -gt 255 ] && return 1
+	[ $c -lt 0 ] && return 1
+	[ $c -gt 255 ] && return 1
+	[ $d -lt 0 ] && return 1
+	return 0
+}
+
+# Input must be a valid network number (see is_net())
+promptnet()
+{
+	MASTER_UFDS_IP=""
+
+	while [ -z "$MASTER_UFDS_IP" ]; do
+		prmpt_str="$1: "
+		printf "$prmpt_str"
+		read MASTER_UFDS_IP
+		if [[ -n "${MASTER_UFDS_IP}" ]]; then
+			is_net "$MASTER_UFDS_IP" || MASTER_UFDS_IP=""
+		fi
+		[ -n "$MASTER_UFDS_IP" ] && break
+		echo "A valid network number (n.n.n.n) must be provided."
+	done
+}
+
+get_replicator_status()
+{
+    local log=/var/svc/log/smartdc-application-ufds-replicator:default.log
+
+    changelog_num=`nawk '{
+            pos = index($0, "Updated changenumber to")
+            if (pos == 0)
+                next
+            s = substr($0, pos + 24)
+            pos = index(s, "\"") - 1
+            n = substr(s, 1, pos)
+        }
+        END {print n}' /zones/$1/root/$log`
+
+    egrep -s "No new changelog entries" /zones/$1/root/$log
+    replicator_done=$?
+}
+
+# ufds-m2s only runs on headnodes.
+[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && exit 0
+
+source /lib/sdc/config.sh
+load_sdc_config
+
+# check if already a slave
+if [[ $CONFIG_ufds_is_master != "true" ]]; then
+	echo "Error: already converted"
+	exit 1
+fi
+
+if [[ -n "$CONFIG_ufds_remote_ip" ]]; then
+	echo "Error: already converted"
+	exit 1
+fi
+
+uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+if [[ -z "$uuid" ]]; then
+	echo "Error: UFDS zone not found"
+	exit 1
+fi
+
+# check if ufds zone has external nic
+has_ext=`vmadm get $uuid | grep nic_tag | grep external`
+if [[ -z "$has_ext" ]]; then
+	echo "Error: UFDS zone has not been setup with an external NIC"
+	exit 1
+fi
+
+echo "---------------------------------------------------------------"
+echo "Warning:"
+echo "This command will delete all existing UFDS data and reconfigure"
+echo "UFDS as a slave."
+echo "---------------------------------------------------------------"
+echo -n "Enter 'y' to continue: "
+read val
+[[ "$val" != "y" ]] && exit 0
+
+# read ufds master IP
+promptnet "UFDS master IP address"
+
+# check connectivity to ufds master
+zlogin $uuid curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
+if [ $? != 52 ]; then
+	echo "Error: local UFDS zone does not have connectivity to the master"
+	exit 1
+fi
+
+#
+# All validation complete, start converting
+#
+
+echo "Deleting local UFDS data"
+
+# Groups need to be removed since they're going to be replicated
+sdc-ldap delete "cn=readers, ou=groups, o=smartdc"
+sdc-ldap delete "cn=operators, ou=groups, o=smartdc"
+
+# We need to remove the admin entry and any of the sdcKeys associated to it.
+# Also, since we cannot remove an entry with children, we're going to backup
+# those child entries into an ldif file
+sdc-ldap search -b "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc" \
+    objectclass=* > /var/tmp/backup.ldif
+
+# Edit backup.ldif and remove each sdckey entry, as well as the admin user
+# entry
+nawk '{
+    if (length($0) == 0) {
+        # end of entry
+        save = 1
+        person = 0
+        if (objectclass == "sdckey")
+            save = 0
+        if (objectclass == "sdcperson") {
+            save = 0
+            person = 1
+        }
+
+        # We need to delete all local entries from ufds.
+        # We know the dn is the first line of the entry.
+        # We cant delete the admin user until we have deleted all of its
+        # dependencies, so we do that last, outside of this code.
+        if (! person) {
+            val = substr(entry[1], 5)
+            printf("sdc-ldap delete \"%s\"\n", val) > "/dev/stderr"
+        }
+
+        # save existing entry
+        if (save) {
+            for (i = 1; i <= ln; i++) {
+                printf("%s\n", entry[i])
+            }
+            printf("\n")
+        }
+
+        ln = 0
+        objectclass = ""
+    } else {
+        ln++
+        entry[ln] = $0
+        if ($1 == "objectclass:") objectclass = $2
+    }
+}' < /var/tmp/backup.ldif >/var/tmp/restore.ldif 2>/var/tmp/cleanup.ufds
+
+# The cleanup.ufds file now contains a set of commands to delete all existing
+# entries (except for the admin user) from ldap. Delete all these entries now.
+# This will temporarily remove amonprobegroups and amonprobe objects. We need
+# to remove them in order to be able to remove the admin user entry, which
+# needs to be replicated.
+bash /var/tmp/cleanup.ufds
+
+# Now delete the admin user entry itself
+sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
+
+# Configure and deploy the ufds-replicator service.
+zpath=/zones/$uuid/root/opt/smartdc/ufds
+cp $zpath/smf/manifests/ufds-replicator.xml.in \
+    $zpath/smf/manifests/ufds-replicator.xml
+zlogin $uuid svccfg import /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
+
+# finally, import the amonprobe and amonprobegroup data we have from our backup
+sdc-ldap add -f /var/tmp/restore.ldif
+
+echo "Setting up UFDS replicator"
+
+# fix ufds sapi config
+cat <<DONE >/tmp/fixufds
+{
+    "metadata": {
+        "ufds_is_master": "false",
+        "ufds_remote_ip": "${MASTER_UFDS_IP}"
+    }
+}
+DONE
+sdc_uuid=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
+sdc-sapi /applications/$sdc_uuid -X PUT -d@/tmp/fixufds
+
+# determine approx. how many changelog entries we need to replicate
+echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
+    >/zones/$uuid/root/tmp/cnt
+echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
+    "-H ldaps://$MASTER_UFDS_IP -D $CONFIG_ufds_ldap_root_dn" \
+    "-w $CONFIG_ufds_ldap_root_pw -b cn=changelogcount" \
+    "'(&(objetclass=*))'" >>/zones/$uuid/root/tmp/cnt
+
+totcl=`zlogin $uuid bash /tmp/cnt | nawk '{if ($1 == "count:") print $2}'`
+
+echo "There are $totcl changelog entries to be replicated"
+
+echo "Updating config files"
+
+# fix usbkey config
+/usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+if [ $? != 0 ]; then
+	echo "Error: unable to mount the USB stick"
+	exit 1
+fi
+
+sed -e '/^ufds_is_master=/d' </mnt/usbkey/config >/tmp/config.$$
+echo "ufds_is_master=false" >> /tmp/config.$$
+echo "ufds_remote_ip=$MASTER_UFDS_IP" >> /tmp/config.$$
+cp /tmp/config.$$ /mnt/usbkey/config
+
+# update the usbkey cache
+cp -p /mnt/usbkey/config /usbkey/config
+
+umount /mnt/usbkey
+
+echo "Done"
+exit 0

@@ -1,0 +1,18 @@
+# sdc-ufds-m2s(1) -- convert UFDS from master to slave
+
+
+## SYNOPSIS
+
+`sdc-ufds-m2s`
+
+
+## DESCRIPTION
+
+This utility converts the UFDS setup from a master to a 
+slave configuration. The utility will prompt for the
+IP address of the master.
+
+
+## COPYRIGHT
+
+sdc Copyright (c) 2013 Joyent Inc., All rights reserved.
