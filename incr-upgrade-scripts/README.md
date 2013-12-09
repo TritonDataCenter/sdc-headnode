@@ -71,19 +71,23 @@ See HEAD-1795 for intended improvements to this process.
 
 To rollback:
 
+    # WARNING: The 'rollback-images' generated above currently includes *all*
+    # roles. Not just the ones you've upgraded. Generally that is fine, the
+    # rollback will be a no-op, but you might want to edit this file first.
+
     mv zones newzones
     mv oldzones zones
     mv default newdefault
     mv olddefault default
     mv scripts newscripts
     mv oldscripts scripts
-    ./upgrade-setup.sh 2>&1 | tee rollback-setup.out
+    ./upgrade-setup.sh rollback-images 2>&1 | tee rollback-setup.out
 
     mv tools newtools
     mv oldtools tools
     ./upgrade-tools.sh 2>&1 | tee rollback-tools.out
 
-    ./upgrade-all rollback-images 2>&1 | tee rollback.out
+    ./upgrade-all.sh rollback-images 2>&1 | tee rollback.out
 
 To make a changelog:
 
@@ -93,6 +97,25 @@ To make a changelog:
     # all the relevant service repos are present in subdirectories named
     # identically to their role. E.g., cloning CA creates 'cloud-analytics'
     # by default; it would need to be renamed to 'ca' for this script.
+
+
+## Upgrading all agents
+
+First the 6.5 agents. Download the latest "agentsshar-upgrade" build
+from <https://bits.joyent.us/builds/agentsshar-upgrade/master-latest/agentsshar-upgrade/>
+then move it to a file named "agents65.sh" (as required by the upgrade script).
+
+    /usbkey/scripts/update_agents agents65.sh
+
+The SDC7 agents. Download the latest "agentsshar" build
+from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
+
+    /usbkey/scripts/update_agents agents-master-DATE-gSHA.sh
+
+
+## Upgrading just a specific agent
+
+TODO
 
 
 ## Trent's Notes (ignore for now)
