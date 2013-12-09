@@ -44,9 +44,9 @@ function upgrade_zone {
         return 0
     fi
 
-    local current=$(vmadm get ${instance_uuid} | json -H image_uuid)
+    local current_image_uuid=$(vmadm get ${instance_uuid} | json -H image_uuid)
 
-    if [[ ${current} == ${image_uuid} ]]; then
+    if [[ ${current_image_uuid} == ${image_uuid} ]]; then
         printf "Instance %s already using image %s." \
             ${instance_uuid} ${image_uuid}
         return 0
@@ -89,9 +89,9 @@ function upgrade_zone {
         NEW_USER_SCRIPT=user-scripts/${alias}.${image_uuid}.user-script
     else
         vmadm get ${uuid} | json customer_metadata."user-script" \
-            > user-scripts/${alias}.${image_uuid}.user-script
-        [[ -s user-scripts/${alias}.${image_uuid}.user-script ]] \
-            || fatal "Failed to create ${alias}.${image_uuid}.user-script"
+            > user-scripts/${alias}.${current_image_uuid}.user-script
+        [[ -s user-scripts/${alias}.${current_image_uuid}.user-script ]] \
+            || fatal "Failed to create ${alias}.${current_image_uuid}.user-script"
 
         if [[ -f /usbkey/default/user-script.common ]]; then
             NEW_USER_SCRIPT=/usbkey/default/user-script.common
