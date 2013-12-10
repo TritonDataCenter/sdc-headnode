@@ -150,7 +150,7 @@ sdc-ldap delete "cn=operators, ou=groups, o=smartdc"
 
 for i in `sdc-ldap search objectclass=keyapiprivkey dn | nawk '{print $2}'`
 do
-    sdc-ldap delete \"$i ou=keyapiprivkeys, o=smartdc\"
+    sdc-ldap delete "$i ou=keyapiprivkeys, o=smartdc"
 done
 
 # We need to remove the admin entry and any of the sdcKeys associated to it.
