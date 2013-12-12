@@ -573,7 +573,7 @@ function get_manta_bit
     while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
         if [[ ! -f $cache_path ]]; then
             echo "Downloading '${latest_name}' bit to cache." >&2
-            mget -o ${ROOT}/cache/${latest_filename} ${latest_name} \
+            mget --progress -o ${ROOT}/cache/${latest_filename} ${latest_name} \
                 || fatal "Unable to fetch '${latest_filename}'."
         fi
 
