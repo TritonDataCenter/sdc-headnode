@@ -55,6 +55,8 @@ else
   SUM='shasum'
 fi
 
+# Make sure we use the path to the manta tools we built with 'make deps'
+export PATH="${ROOT}/node_modules//manta/bin:${PATH}"
 
 # See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
@@ -435,12 +437,15 @@ function copy_base
 
     echo "==> Extracting platform boot bundle"
     (cd ${STAGE} && ${TAR} xzf ${platboot_path})
+    [[ $? == 0 ]] || fatal "Failed to extract boot bundle"
 
     echo "==> Extracting sdcboot bundle"
     (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})
+    [[ $? == 0 ]] || fatal "Failed to extract sdcboot bundle"
 
     echo "==> Extracting firmware bundle"
     (cd ${STAGE} && ${TAR} xzf ${firmware_path})
+    [[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
 }
 
 function copy_config {
@@ -509,19 +514,23 @@ function cleanup_logs
 
 function cleanup_bit
 {
-    local bits_pattern=$1
+    local bits_pattern="^$1"
 
     local bits_dir="${ROOT}/cache"
     local kept=0
     local keep_bits=$(build_spec keep-bits)
 
     if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
-        echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
+        [[ -n ${TRACE} ]] && echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
 
         local bit=
         for bit in $(ls -1t ${bits_dir} | grep "${bits_pattern}"); do
+            if [[ ! -f ${bits_dir}/${bit} ]]; then
+                # skip non-file
+                continue;
+            fi
             if [[ ${kept} -lt ${keep_bits} ]]; then
-                echo "KEEPING: ${bit}" >&2
+                [[ -n ${TRACE} ]] && echo "KEEPING: ${bit}" >&2
                 kept=$((${kept} + 1))
             else
                 echo "DELETING: ${bit}" >&2
@@ -553,6 +562,10 @@ function get_manta_bit
     local latest_filename=$(basename $latest_name)
     local cache_path=${ROOT}/cache/${latest_filename}
 
+    [[ -n ${manta_base_dir} ]] || fatal "Unable to find base dir for ${file_name}"
+    [[ -n ${latest_name} ]] || fatal "Unable to find latest path for ${file_name}"
+    [[ -n ${latest_filename} ]] || fatal "Unable to find latest filename for ${file_name}"
+
     local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null | grep $latest_filename | cut -d ' ' -f1)
 
     local ok=0
@@ -560,9 +573,8 @@ function get_manta_bit
     while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
         if [[ ! -f $cache_path ]]; then
             echo "Downloading '${latest_name}' bit to cache." >&2
-            (cd ${ROOT}/cache \
-                && mget -O ${latest_name} \
-                || fatal "Unable to fetch '${latest_name}'.")
+            mget -o ${ROOT}/cache/${latest_filename} ${latest_name} \
+                || fatal "Unable to fetch '${latest_filename}'."
         fi
 
         local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
@@ -579,7 +591,7 @@ function get_manta_bit
         fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
     fi
     get_bit_rv=${cache_path}
-    cleanup_bit "${pattern_base}"
+    cleanup_bit "${file_name}"
 
     echo "${get_bit_rv}"
 }

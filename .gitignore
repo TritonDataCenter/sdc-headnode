@@ -5,6 +5,7 @@
 /usb-*-*-*
 /boot-*-*-*
 /incr-upgrade-*-*-*
+/node_modules
 /upgrade-*.tgz
 /config/*.local
 /config/root.authorized_keys

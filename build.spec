@@ -13,6 +13,11 @@
 
   "use-images": true,
 
+  "// manta-*": "You can override these in your build.spec.local.",
+  "manta-base-path": "/Joyent_Dev/stor/builds",
+  "manta-user": "Joyent_Dev",
+  "manta-url": "https://us-east.manta.joyent.com",
+
   "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
   "adminui-image": "adminui/adminui-zfs-.*manifest",
   "amon-image": "amon/amon-zfs-.*manifest",

@@ -1,0 +1,13 @@
+{
+  "name": "usb-headnode",
+  "description": "Build SDC headnode images",
+  "version": "2.0.0",
+  "author": "Joyent (joyent.com)",
+  "private": true,
+  "dependencies": {
+    "manta": "git+ssh://git@github.com:joyent/node-manta.git#c01d4b2"
+  },
+  "engines": {
+    "node": ">=0.8"
+  }
+}

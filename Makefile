@@ -35,18 +35,25 @@ include ./buildtools/mk/Makefile.defs
 # usb-headnode-specific targets
 #
 
-.PHONY: all coal usb boot tar upgrade sandwich
+.PHONY: all coal deps usb boot tar upgrade sandwich
 all: coal
 
-coal:
+deps:
+	npm install
+
+coal: deps
 	bin/build-image coal
-usb:
+
+usb: deps
 	bin/build-image usb
-boot:
+
+boot: deps
 	bin/build-image tar
+
 tar: boot
 upgrade:
 	bin/build-upgrade-image $(shell ls boot-*.tgz | sort | tail -1)
+
 sandwich:
 	@open http://xkcd.com/149/
 
