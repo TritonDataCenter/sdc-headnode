@@ -56,7 +56,7 @@ else
 fi
 
 # Make sure we use the path to the manta tools we built with 'make deps'
-export PATH="${ROOT}/node_modules//manta/bin:${PATH}"
+export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
 
 # See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
@@ -453,6 +453,34 @@ function get_manta_bit
         pattern_dir=$(dirname $pattern_dir)
     fi
     local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
+
+    if [[ -n "${BITS_DIR}" ]]; then
+        # Local BITS_DIR example:
+        #   /home/jill/joy/mountain-gorilla/bits
+        # where pattern='agentsshar/agents-master-*' is at:
+        #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
+
+        local pattern_base="^$(basename $pattern)"
+        local latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
+           | grep "${pattern_base}" \
+           | sort \
+           | tail -1)
+        [[ -n "${latest_name}" ]] || fatal "'${BITS_DIR}/${pattern}' did not match any files."
+
+        local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
+        local latest_filename=$(basename $latest_path)
+        local cache_path=${ROOT}/cache/${latest_filename}
+        if [[ ! -f $cache_path ]]; then
+            echo "Copying '${latest_path}' bit to cache." >&2
+            cp ${latest_path} ${cache_path}
+        fi
+        get_bit_rv=${cache_path}
+        cleanup_bit "${file_name}"
+
+        echo "${get_bit_rv}"
+        return;
+    fi
+
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
     local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
