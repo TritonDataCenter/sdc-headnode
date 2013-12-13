@@ -150,97 +150,13 @@ if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
 fi
 
-# Determine BITS_URL, BITS_BRANCH and BITS_DIR. These determine where this
-# build will get its dependent pre-built bits.
-#
-# "BITS_URL" can either be a URL directory, e.g.
-# "https://bits.joyent.us/builds", or a local
-# directory. If an existing local dir, then "BITS_DIR" will be set to that
-# for the build code below.
-#
-# If BITS_URL is a URL, it is expected to be of the following structure:
-#       $BITS_URL/
-#           agentsshar/
-#               $branch-$date1/
-#               ...
-#               $branch-latest/
-#                   AGENTS SHAR PACKAGE
-#           ca/
-#               $branch-$date1/
-#               ...
-#               $branch-latest/
-#                   CA ZONE FS TARBALL PACKAGE
-#           amon/
-#               $branch-$date1/
-#               ...
-#               $branch-latest/
-#                   AMON ZONE FS TARBALL PACKAGE
-#           ... likewise for ufds and platform.
-#
-# This is the build structure created by the SDC "mountain-gorilla" build
-# system that is being run by Jenkins CI
-# (https://hub.joyent.com/wiki/display/dev/Jenkins) and uploaded
-# to <https://bits.joyent.us/builds>.
-#
-# As well, if BITS_URL is a URL, then BITS_BRANCH must also be specified.
-#
-# Ways to specify BITS_URL:
-# - BITS_URL envvar
-# - MASTER_PLATFORM_URL envvar (deprecated, backward-compat)
-# - "bits-url" entry in build.spec.local
-# - "master-url" entry in build.spec.local (deprecated, backward-compat)
-# - "bits-url" entry in build.spec
-#
-# Ways to specify BITS_BRANCH:
-# - BITS_BRANCH envvar
-# - "bits-branch" in build.spec.local
-# - "bits-branch" in build.spec
-
-# Get BITS_URL.
-if [[ -z "$BITS_URL" && ! -z "$MASTER_PLATFORM_URL" ]]; then
-    echo "WARNING: using 'MASTER_PLATFORM_URL' envvar is deprecated, use 'BITS_URL' instead"
-    BITS_URL=$MASTER_PLATFORM_URL
-fi
-if [[ -z "$BITS_URL" ]]; then
-    BITS_URL=$(build_spec bits-url)
-    if [[ ! -f ~/.sdcbuild.json ]]; then
-      (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o \
-        BatchMode=yes stuff@stuff.joyent.us:builds-etc/.sdcbuild.json ~/.sdcbuild.json || /usr/bin/true)
-    fi
-    if [[ -f ~/.sdcbuild.json ]]; then
-      username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
-      password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
-      BITS_URL=$(echo $BITS_URL | sed -e "s/\/\//\/\/${username}:${password}@/g")
-    else
-      BITS_URL=$(build_spec bits-url-open)
-    fi
-fi
-if [[ -z "$BITS_URL" && ! -z "$(build_spec master-url)" ]]; then
-    echo "WARNING: the 'master-url' key in build.spec.local is deprecated, use 'bits-url' instead"
-    BITS_URL=$(build_spec master-url)
-fi
-[[ -z "$BITS_URL" ]] && fatal "Could not determine a BITS_URL."
-
-# Validate BITS_URL and set BITS_DIR if it is a dir.
-if [[ "${BITS_URL:0:8}" == "https://" || "${BITS_URL:0:7}" == "http://" ]]; then
-    BITS_URL=$BITS_URL
-    BITS_DIR=
-elif [[ -d "${BITS_URL}" ]]; then
-    BITS_DIR=$BITS_URL
-    echo "BITS_DIR (BITS_URL is a local dir): $BITS_DIR"
-else
-    fatal "BITS_URL ($BITS_URL) is not a known protocol or an existing dir"
-fi
-
 # Get BITS_BRANCH if necessary.
-if [[ -z "$BITS_DIR" ]]; then
-    if [[ -z "$BITS_BRANCH" ]]; then
-        BITS_BRANCH=$(build_spec bits-branch)
-    fi
-
-    [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
-    echo "BITS_BRANCH: $BITS_BRANCH"
+if [[ -z "$BITS_BRANCH" ]]; then
+    BITS_BRANCH=$(build_spec bits-branch)
 fi
+
+[[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
+echo "BITS_BRANCH: $BITS_BRANCH"
 
 # See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
 # details on user used with DSAPI.
@@ -409,9 +325,9 @@ function copy_base
     [[ -z ${platbranch} ]] && platbranch="master"
     [[ -z ${ftbranch} ]] && ftbranch="master"
 
-    local sdcboot_path=$(get_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
-    local platboot_path=$(get_bit platform/boot-${platbranch}-.*\.tgz)
-    local firmware_path=$(get_bit \
+    local sdcboot_path=$(get_manta_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
+    local platboot_path=$(get_manta_bit platform/boot-${platbranch}-.*\.tgz)
+    local firmware_path=$(get_manta_bit \
         firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
@@ -463,25 +379,6 @@ function copy_config {
     # Flag SAPI for headnode.sh.
     # TODO:matt Is this still needed?
     echo "USE_SAPI=\"true\"" >> ${STAGE}/config.inc/generic
-}
-
-function pkgin_get
-{
-    local url=$1
-    local file=$2
-    local dest=$3
-    local ver=$(echo ${url} | cut -d '/' -f5-7)
-
-    if [[ -n $PKGSRC_DIR ]]; then
-        if [[ ${file} == "SHA512.bz2" ]]; then
-            # special case, since this file is in a weird spot
-            cp ${PKGSRC_DIR}/${ver}/../${file} ${dest}
-        else
-            cp ${PKGSRC_DIR}/${ver}/${file} ${dest}
-        fi
-    else
-        (cd ${dest} && curl -k -f0 ${CURL_OPTS} -O ${url}/${file})
-    fi
 }
 
 function valid_archive
@@ -596,143 +493,6 @@ function get_manta_bit
     echo "${get_bit_rv}"
 }
 
-# Get a bit (from BITS_URL/BITS_DIR/BITS_BRANCH) to the local "cache/" dir.
-# If the file base name already exists in the cache dir, then it is not
-# re-downloaded.
-function get_bit
-{
-    if [[ $(build_spec use-manta) == 'true' ]]; then
-        get_manta_bit $@
-        return 0
-    fi
-    # Presumption: This pattern is of the form:
-    # (a) "$single-level-dir/$file-regex-pattern", or
-    # (b) "$single-level-dir/$branch-override/$file-regex-pattern", or
-    # (c) A complete URL.
-    pattern=$1
-
-    local get_bit_rv=
-
-    local pattern_dir=$(dirname $pattern)
-    local pattern_base="^$(basename $pattern)"
-    if [[ ${pattern:0:7} == "http://" || ${pattern:0:8} == "https://" ]]; then
-        # Bit "pattern" is a full URL, download that.
-        local url=$pattern
-        local file_name=$(basename $url)
-        local cache_path=${ROOT}/cache/${file_name}
-        local hostname=$(echo $url | cut -f3 -d "/" | cut -f1 -d ":")
-        if [[ "$hostname" == "stuff.joyent.us"
-           || "$hostname" == "bits.joyent.us" ]]; then
-            echo "Adding auth info for {bits,stuff}.joyent.us in bit URL." >&2
-            if [[ ! -f "$HOME/.sdcbuild.json" ]]; then
-                fatal "No '$HOME/.sdcbuild.json' with {bits,stuff}.joyent.us auth info."
-            fi
-            local username=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json username)
-            local password=$(cat $HOME/.sdcbuild.json | ${ROOT}/bin/json password)
-            url=$(echo $url | sed -e "s|://|://${username}:${password}@|")
-        fi
-        if [[ ! -f $cache_path ]]; then
-            echo "Downloading '${url}' bit to cache." >&2
-            (cd ${ROOT}/cache && curl ${CURL_OPTS} --fail \
-                --connect-timeout 10 --progress-bar -k -O ${url} \
-                || fatal "Unable to download '${url}'.")
-        fi
-        get_bit_rv=${cache_path}
-    elif [[ ! -z "$BITS_DIR" ]]; then
-        # Local BITS_DIR example:
-        #   /home/jill/joy/mountain-gorilla/bits
-        # where pattern='agentsshar/agents-master-*' is at:
-        #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
-        local have_branch_override=$(dirname $pattern_dir)
-        if [[ "$have_branch_override" != "." ]]; then
-            # With a "BITS_DIR" the branch isn't used. Strip the
-            # "branch_override" if given.
-            pattern_dir=$(dirname $pattern_dir)
-        fi
-        local latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
-            | grep "${pattern_base}" \
-            | sort \
-            | tail -1)
-        if [[ -z "${latest_name}" ]]; then
-            fatal "'${BITS_DIR}/${pattern}' did not match any files."
-        fi
-        local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
-        local cache_path=${ROOT}/cache/${latest_name}
-        if [[ ! -f $cache_path ]]; then
-            echo "Copying '${latest_path}' bit to cache." >&2
-            cp ${latest_path} ${cache_path}
-        fi
-        get_bit_rv=${cache_path}
-        cleanup_bit "${pattern_base}"
-    elif [[ ${HAVE_INTERNET} == "true" ]]; then
-        # BITS_URL URL example:
-        #   https://user:pass@bits.joyent.us/builds
-        # where pattern='agentsshar/agents-master-*' is at:
-        #   https://user:pass@bits.joyent.us/builds/agentsshar/master-latest/agentsshar/agentsshar-master-*
-        # where the "master" in "master-latest" is "BITS_BRANCH"
-        # (or $branch_override).
-        local branch=${BITS_BRANCH}
-        local have_branch_override=$(dirname $pattern_dir)
-        if [[ "$have_branch_override" != "." ]]; then
-            branch=$(basename $pattern_dir)
-            pattern_dir=$(dirname $pattern_dir)
-        fi
-        local url_dir="${BITS_URL}/${pattern_dir}/${branch}-latest/${pattern_dir}"
-        local md5_url="${BITS_URL}/${pattern_dir}/${branch}-latest/md5sums.txt"
-        local latest_name=$(curl ${CURL_OPTS} --fail -k -sS ${url_dir}/ \
-            | grep "href=\"" \
-            | cut -d'"' -f2 \
-            | grep "${pattern_base}" \
-            | sort \
-            | tail -1)
-        if [[ -z "${latest_name}" ]]; then
-            fatal "Could not find '${pattern_base}' in '${url_dir}'."
-        fi
-        local correct_md5=$(curl --fail -k -sS ${md5_url} \
-            | grep "./${pattern_dir}/${latest_name}$" | cut -d ' ' -f1)
-        local cache_path=${ROOT}/cache/${latest_name}
-        local ok=0
-        local retries=0
-        while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
-            if [[ ! -f $cache_path ]]; then
-                echo "Downloading '${url_dir}/${latest_name}' bit to cache." >&2
-                (cd ${ROOT}/cache \
-                    && curl ${CURL_OPTS} --fail --connect-timeout 10 --progress-bar -k \
-                        -O ${url_dir}/${latest_name} \
-                    || fatal "Unable to download '${url_dir}/${latest_name}'.")
-            fi
-
-            local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
-            if [[ ${my_md5} == ${correct_md5} ]]; then
-                ok=1
-                continue
-            else
-                rm -f ${cache_path}
-                retries=$((${retries} + 1))
-                echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
-            fi
-        done
-        if [[ ${ok} -ne 1 ]]; then
-            fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
-        fi
-        get_bit_rv=${cache_path}
-        cleanup_bit "${pattern_base}"
-    else
-        local latest_name=$(ls -1 ${ROOT}/cache/ \
-            | grep "${pattern_base}" \
-            | sort \
-            | tail -1)
-        if [[ -z "${latest_name}" ]]; then
-            fatal "'${ROOT}/cache/${pattern}' did not match any files (and we have no Internet)."
-        fi
-        local latest_path=${ROOT}/cache/${latest_name}
-        echo "Use '${latest_path}' bit already in cache (no Internet)." >&2
-        get_bit_rv=${latest_path}
-        cleanup_bit "${pattern}"
-    fi
-    echo "${get_bit_rv}"
-}
-
 function _check_vpn
 {
     if [[ ${HAVE_INTERNET} == "true" ]]; then
@@ -772,7 +532,7 @@ function copy_platform
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
 
-        image=$(get_bit "platform${plat_suffix}/platform${plat_suffix}-${platform_release}-.*")
+        image=$(get_manta_bit "platform${plat_suffix}/platform${plat_suffix}-${platform_release}-.*")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
@@ -832,8 +592,8 @@ function get_agentsshar
         local agentsshar_path=${agentsshar_branch}
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
     else
-        local agentsshar_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
-        local agentsmd5_path=$(get_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+        local agentsshar_path=$(get_manta_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+        local agentsmd5_path=$(get_manta_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
     fi
 
     # Make sure it's not corrupt.
@@ -1033,7 +793,7 @@ function get_core_zone_image
         cleanup_bit ${clean_pattern}
     else
         # Not a local file, this is a pattern for 'get_bit'.
-        local bit_cache_path=$(get_bit ${target})
+        local bit_cache_path=$(get_manta_bit ${target})
         # XXX Normalize to '.imgmanifest' ext, which will be the eventual
         #     usage but is '.dsmanifest' in the builds at this time.
         manifest_base=$(basename $bit_cache_path)
@@ -1046,7 +806,7 @@ function get_core_zone_image
         #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
         # Note: We are hardcoding that sdc images use gzip compression here.
         local file_pattern=${target%/*}/${manifest_base%.*manifest}.*.gz
-        bit_cache_path=$(get_bit $file_pattern)
+        bit_cache_path=$(get_manta_bit $file_pattern)
         dst_file=${dst_dir}/$(basename $bit_cache_path)
         rm -f ${dst_file}
         ln ${bit_cache_path} ${dst_file}
@@ -1128,9 +888,9 @@ function copy_agents65
     local bit_cache_path
     mkdir -p ${STAGE}/agents65
 
-    bit_cache_path=$(get_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
+    bit_cache_path=$(get_manta_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
     cp $bit_cache_path ${STAGE}/agents65/agents65.sh
-    bit_cache_path=$(get_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
+    bit_cache_path=$(get_manta_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
     cp $bit_cache_path ${STAGE}/agents65/agents65.md5sum
 }
 

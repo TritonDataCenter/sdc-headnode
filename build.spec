@@ -3,8 +3,6 @@
   "coal-memsize": 4096,
   "coal-enable-serial": true,
 
-  "bits-url": "https://bits.joyent.us/builds",
-  "bits-url-open": "http://stuff:kie7Ooph@stuff.smartdatacenter.org",
   "bits-branch": "master",
   "platform-release": "master",
   "agents-shar": "master",
