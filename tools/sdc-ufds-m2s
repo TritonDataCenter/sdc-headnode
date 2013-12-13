@@ -82,9 +82,6 @@ get_replicator_status()
             n = substr(s, 1, pos)
         }
         END {print n}' /zones/$1/root/$log`
-
-    egrep -s "No new changelog entries" /zones/$1/root/$log
-    replicator_done=$?
 }
 
 # ufds-m2s only runs on headnodes.
@@ -210,6 +207,8 @@ bash /var/tmp/cleanup.ufds
 sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
 
 echo "Setting up UFDS replicator"
+jpath=/zones/$ufds_uuid/root/opt/smartdc/ufds/etc/replicator.json
+rm -f $jpath
 
 # fix ufds sapi config
 cat <<DONE >/tmp/fixufds
@@ -221,16 +220,29 @@ cat <<DONE >/tmp/fixufds
 }
 DONE
 sdc_uuid=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
-sdc-sapi /applications/$sdc_uuid -X PUT -d@/tmp/fixufds
+sdc-sapi /applications/$sdc_uuid -X PUT -d@/tmp/fixufds >/var/tmp/sapi.out 2>&1
+
+# Wait for SAPI to setup the replicator config
+loops=0
+while [ $loops -lt 36 ]; do
+    [ -f $jpath ] && break
+    echo "Waiting for SAPI to update the replicator configuration..."
+    sleep 5
+    loops=$((${loops} + 1))
+done
+
+if [ $loops -eq 36 ]; then
+    echo "Fatal error:"
+    echo "Timeout waiting for SAPI to setup the replicator configuration"
+    exit 1
+fi
 
 # Configure and deploy the ufds-replicator service.
 zpath=/zones/$ufds_uuid/root/opt/smartdc/ufds
 cp $zpath/smf/manifests/ufds-replicator.xml.in \
     $zpath/smf/manifests/ufds-replicator.xml
-zlogin $ufds_uuid svccfg import /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
-
-# Give the replicator a few seconds
-sleep 5
+zlogin $ufds_uuid svccfg import \
+    /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
 
 # determine approx. how many changelog entries we need to replicate
 echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
@@ -252,15 +264,17 @@ nadmin=0
 while [ $loops -lt 90 ]; do
     nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn 2>/dev/null | wc -l`
     [ $nadmin -ne 0 ] && break
+    changelog_num=""
     get_replicator_status $ufds_uuid
+    [[ -z "$changelog_num" ]] && changelog_num=0
     pct=$((($changelog_num * 100) / $totcl))
-    print_log "Waiting for the admin user to be replicated ($pct%)..."
+    echo "Waiting for the admin user to be replicated ($pct%)..."
     sleep 60
     loops=$((${loops} + 1))
 done
 
 [ $loops -eq 90 ] && \
-    print_log "admin user is still not replicated, continuing but" \
+    echo "admin user is still not replicated, continuing but" \
         "errors are likely"
 
 echo "Re-loading local amon probe data"
