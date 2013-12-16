@@ -407,7 +407,9 @@ function create_zone {
         [[ -z ${ds_name} ]] && fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
         ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name})
         [[ -z ${ds_manifest} ]] && fatal "No manifest found at ${ds_manifest}"
-        ds_filename=$(ls ${USB_COPY}/datasets/${ds_name%%\.@(ds|zfs\.img)manifest}.zfs+(.bz2|.gz))
+        ds_basename=$(echo "${ds_name}" | sed -e "s/\.zfs\.imgmanifest$//" \
+            -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
+        ds_filename=$(ls ${USB_COPY}/datasets/${ds_basename}.zfs+(.bz2|.gz) | head -1)
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
@@ -687,8 +689,15 @@ function import_smartdc_service_images {
                        | head -1 | awk '{print $2}')
         if [[ "${status}" == "404" ]]; then
             # The core images all have .zfs.imgmanifest extensions.
-            local file=$(ls -1 ${manifest%.zfs.imgmanifest}.* \
-                | grep -v 'manifest$')
+
+            local file_basename=$(echo "${manifest}" | sed -e "s/\.zfs\.imgmanifest$//" \
+                -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
+            local file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
+
+            if [[ -z ${file} ]]; then
+                fatal "Unable to find file for ${manifest} in: $(ls -l /usbkey/datasets)"
+            fi
+
             echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
             [[ -f ${file} ]] || fatal "Image file ${file} not found."
             # Skip the check that "owner" exists in UFDS during setup
