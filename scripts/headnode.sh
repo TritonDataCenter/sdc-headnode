@@ -596,6 +596,14 @@ HERE
 }
 
 if [[ -z ${skip_zones} ]]; then
+    # XXX IMPORTANT:
+    #
+    # If the zone image is incremental, you'll need to manually setup the import
+    # here for the origin dataset for now. This should be automated in the
+    # future. Current incrementals all use smartos-1.6.3.
+    imgadm install -f /usbkey/datasets/smartos-1.6.3.zfs.bz2 \
+        -m /usbkey/datasets/smartos-1.6.3.dsmanifest
+
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
@@ -610,7 +618,6 @@ if [[ -z ${skip_zones} ]]; then
     # here we bootstrap SAPI to be aware of itself, including writing out
     # its standard DNS config.
     bootstrap_sapi
-
 
     create_zone manatee
     # moray is a race-ist.
@@ -661,6 +668,12 @@ fi
 
 # Import the images used for SDC services into IMGAPI.
 function import_smartdc_service_images {
+
+    # XXX we need to import dependencies manually first
+    /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
+        -m /usbkey/datasets/smartos-1.6.3.dsmanifest \
+        -f /usbkey/datasets/smartos-1.6.3.zfs.bz2
+
     for manifest in $(ls -1 ${USB_COPY}/datasets/*.imgmanifest); do
         local is_smartdc_service=$(cat $manifest | json tags.smartdc_service)
         if [[ "$is_smartdc_service" != "true" ]]; then
