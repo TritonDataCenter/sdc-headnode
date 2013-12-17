@@ -599,13 +599,16 @@ HERE
 }
 
 if [[ -z ${skip_zones} ]]; then
-    # XXX IMPORTANT:
-    #
+
     # If the zone image is incremental, you'll need to manually setup the import
-    # here for the origin dataset for now. This should be automated in the
-    # future. Current incrementals all use smartos-1.6.3.
-    imgadm install -f /usbkey/datasets/smartos-1.6.3.zfs.bz2 \
-        -m /usbkey/datasets/smartos-1.6.3.dsmanifest
+    # here for the origin dataset for now. The way to do this is add the name
+    # and uuid to build.spec's datasets.
+    if [[ -f /usbkey/datasets/img_dependencies ]]; then
+        for name in $(cat /usbkey/datasets/img_dependencies); do
+            imgadm install -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
+                -m /usbkey/datasets/${name}.dsmanifest
+        done
+    fi
 
     # Create assets first since others will download stuff from here.
     export ASSETS_IP=${CONFIG_assets_admin_ip}
@@ -672,10 +675,16 @@ fi
 # Import the images used for SDC services into IMGAPI.
 function import_smartdc_service_images {
 
-    # XXX we need to import dependencies manually first
-    /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-        -m /usbkey/datasets/smartos-1.6.3.dsmanifest \
-        -f /usbkey/datasets/smartos-1.6.3.zfs.bz2
+    # If the zone image is incremental, you'll need to manually setup the import
+    # here for the origin dataset for now. The way to do this is add the name
+    # and uuid to build.spec's datasets.
+    if [[ -f /usbkey/datasets/img_dependencies ]]; then
+        for name in $(cat /usbkey/datasets/img_dependencies); do
+            /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
+                -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
+                -m /usbkey/datasets/${name}.dsmanifest
+        done
+    fi
 
     for manifest in $(ls -1 ${USB_COPY}/datasets/*.imgmanifest); do
         local is_smartdc_service=$(cat $manifest | json tags.smartdc_service)

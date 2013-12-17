@@ -47,9 +47,10 @@
   "datasets": [
     {
       "name": "smartos-1.6.3",
-      "uuid": "01b2c898-945f-11e1-a523-af1afbe22822",
-      "pkgsrc": "2011Q4",
-      "pkgsrc_url": "http://pkgsrc.joyent.com/sdc/2011Q4/gcc46/All/"
+      "uuid": "01b2c898-945f-11e1-a523-af1afbe22822"
+    }, {
+      "name": "multiarch-13.3.1",
+      "uuid": "4aec529c-55f9-11e3-868e-a37707fcbe86"
     }
   ]
 }

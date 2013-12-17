@@ -158,9 +158,7 @@ fi
 [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
 echo "BITS_BRANCH: $BITS_BRANCH"
 
-# See <https://hub.joyent.com/wiki/display/doc/Special+CAPI+Accounts> for
-# details on user used with DSAPI.
-DSAPI_URL="https://usbheadnode:shnek7bi3op5@datasets.joyent.com"
+IMAGES_URL="https://images.joyent.com/images"
 
 if [[ $1 == "-r" ]]; then
     # XXX - Temporary warning about recipes
@@ -682,8 +680,8 @@ function copy_datasets
     while [[ ${index} -lt ${num_datasets} ]]; do
         name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
         uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
-        manifest_url=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.manifest_url)
-        file_url=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.file_url)
+        manifest_url=${IMAGES_URL}/${uuid}
+        file_url=${IMAGES_URL}/${uuid}/file
         manifest="${ROOT}/cache/${name}.dsmanifest"
 
         if [[ ! -f $manifest ]] ; then
@@ -693,7 +691,7 @@ function copy_datasets
                 echo "==> Downloading ${name} manifest"
 
                 if [[ -z ${manifest_url} ]]; then
-                    manifest_url="${DSAPI_URL}/datasets/${uuid}"
+                    manifest_url="${IMAGES_URL}/datasets/${uuid}"
                 fi
                 (curl ${CURL_OPTS} \
                     -k -o ${manifest} ${manifest_url}) \
@@ -704,20 +702,25 @@ function copy_datasets
             fi
         fi
 
-        if [[ -z ${file_url} ]]; then
-            local path=$(cat ${manifest} | ${ROOT}/bin/json files[0].path)
-            local uri=$(cat ${manifest} | ${ROOT}/bin/json files[0].url)
-            if [[ -n $(echo "${uri}" | grep "datasets.joyent.com" 2>/dev/null) ]]; then
-                # use proper credentials when talking to datasets.joyent.com
-                file_url="${DSAPI_URL}/datasets/${uuid}/${path}"
+        compression_type=$(cat ${manifest} | ${ROOT}/bin/json files[0].compression)
+        if [[ ${compression_type} == "bzip2" ]]; then
+            compression=bz2
+        elif [[ ${compression_type} == "gzip" ]]; then
+            compression=gz
+        else
+            if [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path | grep ".gz$") ]]; then
+                compression=gz
+            elif [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path | grep ".bz2$") ]]; then
+                compression=bz2
             fi
         fi
-        if [[ -z ${file_url} ]]; then
-            fatal "Unable to find URL for ${name}"
+
+        if [[ -z ${compression} ]]; then
+            fatal "Unable to determine compression for ${name}"
         fi
 
         local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
-        copy_dataset ${name} ${file_url} ${sha1}
+        copy_dataset ${name} ${file_url} ${sha1} ${name}.zfs.${compression}
         # The all-zero's owner UUID will be changed to the actual admin
         # user UUID on headnode setup.
         echo "==> Copying ${name} manifest (with reset 'owner' UUID)"
@@ -728,6 +731,8 @@ function copy_datasets
                     this.owner = "00000000-0000-0000-0000-000000000000";
                 }' \
             > ${STAGE}/datasets/$(basename ${manifest})
+
+        echo "${name}" >> ${STAGE}/datasets/img_dependencies
 
         index=$((${index} + 1))
     done
@@ -740,8 +745,8 @@ function copy_dataset
   local dataset=$1
   local dataset_uri=$2
   local dataset_sha1=$3
+  local dataset_file=$4
 
-  dataset_file=$(basename ${dataset_uri})
   if [ -e ${ROOT}/cache/${dataset_file} ]; then
     if [[ ${dataset_file} =~ gz$ ]]; then
         if ! gzip -t ${ROOT}/cache/${dataset_file}; then
@@ -758,7 +763,7 @@ function copy_dataset
       if [[ ${HAVE_INTERNET} == "true" ]]; then
           echo "==> Downloading ${dataset_file}"
           (cd ${ROOT}/cache && curl ${CURL_OPTS} -k \
-              -O ${dataset_uri}) \
+              -o ${dataset_file} ${dataset_uri}) \
               || fatal "Unable to download ${dataset_file}"
       else
           fatal "Don't have Internet, and don't have valid " \
