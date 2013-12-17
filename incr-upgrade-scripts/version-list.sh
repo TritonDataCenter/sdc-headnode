@@ -21,7 +21,6 @@ sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 ROLES=$(sdc-sapi /services?application_uuid=$sdc_app \
     | json -H -a name \
     | grep -v '^manatee$' \
-    | grep -v '^moray$' \
     | sort | xargs)
 
 function print_version

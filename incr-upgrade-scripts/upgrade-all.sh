@@ -201,5 +201,6 @@ env | grep IMAGE
 [[ -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq0 $RABBITMQ_IMAGE
 [[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets0 $ASSETS_IMAGE
 [[ -n "$CA_IMAGE" ]] && upgrade_zone ca0 $CA_IMAGE
+[[ -n "$MORAY_IMAGE" ]] && upgrade_zone moray0 $MORAY_IMAGE
 
 exit 0

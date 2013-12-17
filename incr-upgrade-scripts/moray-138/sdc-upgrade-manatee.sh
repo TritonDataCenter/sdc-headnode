@@ -310,12 +310,14 @@ wait_for_manatee sync
 upgrade_manatee_instance_user_script ${async_server} ${async_manatee}
 reprovision_manatee ${async_server} ${async_manatee}
 wait_for_manatee full
+wait_for_ops "manatee ${async_manatee} upgraded, check for SAPI-186"
 
 disable_manatee ${sync_server} ${sync_manatee}
 wait_for_manatee sync
 upgrade_manatee_instance_user_script ${sync_server} ${sync_manatee}
 reprovision_manatee ${sync_server} ${sync_manatee}
 wait_for_manatee full
+wait_for_ops "manatee ${sync_manatee} upgraded, check for SAPI-186"
 
 disable_manatee ${primary_server} ${primary_manatee}
 wait_for_manatee sync
@@ -323,4 +325,5 @@ upgrade_manatee_instance_user_script ${primary_server} ${primary_manatee}
 wait_for_ops "Check reconnection: MORAY-194, ZAPI-434. [enter] to continue."
 reprovision_manatee ${primary_server} ${primary_manatee}
 wait_for_manatee full
+wait_for_ops  "manatee ${primary_manatee} upgraded, check for SAPI-186"
 
