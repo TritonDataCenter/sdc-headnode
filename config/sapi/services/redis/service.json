@@ -5,6 +5,7 @@
         "delegate_dataset": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
+        "maintain_resolvers": true,
         "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "redis",

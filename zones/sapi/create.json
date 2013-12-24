@@ -5,6 +5,7 @@
       "smartdc_role": "sapi",
       "smartdc_type": "core"
   },
+  "maintain_resolvers": true,
   "zfs_storage_pool_name": "zones",
   "registration": {
     "domain": "sapi",
