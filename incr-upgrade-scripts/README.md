@@ -7,13 +7,21 @@ See HEAD-1795 for intended improvements to this process.
 ## To run an upgrade
 
     # Get the latest 'incr-upgrade' package
-    wget https://bits.joyent.us/builds/incr-upgrade/master-latest/incr-upgrade/incr-upgrade-VERSION.tgz --no-check-certificate --user=guest --password=XXX
+    # 1. Where you have the node-manta client tools:
+    latest=$(mls /Joyent_Dev/stor/builds/incr-upgrade | grep 'master-2' | sort | tail -1)
+    pkg=$(mls /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade | grep tgz)
+    mget -O /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade/$pkg
+    scp $pkg us-beta-4:/var/tmp
+    # 2. Then crack it in the your working dir on the GZ:
+    ssh us-beta-4
+    cd /var/tmp
     tar xf incr-upgrade-VERSION.tgz
     cd incr-upgrade-VERSION
 
     # become root
     p su -
 
+    # Capture current image versions in case we need to rollback.
     ./version-list.sh > rollback-images
 
     # Either get a list of the latest versions of all roles via
