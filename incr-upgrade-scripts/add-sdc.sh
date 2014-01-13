@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Limitation: billing_id on the SDC service is probably wrong for other DCs.
+# Add a new 'sdc' core zone.
 #
 
 set -o xtrace
@@ -12,9 +12,10 @@ SAPIURL=$(sdc-sapi /services?name=redis | json -Ha 'metadata["sapi-url"]')
 ASSETSIP=$(sdc-sapi /services?name=redis | json -Ha 'metadata["assets-ip"]')
 USERSCRIPT=$(/usr/node/bin/node -e 'console.log(JSON.stringify(require("fs").readFileSync("/usbkey/default/user-script.common", "utf8")))')
 DOMAIN=$(sdc-sapi /applications?name=sdc | json -Ha metadata.datacenter_name).$(sdc-sapi /applications?name=sdc | json -Ha metadata.dns_domain)
-SDC_IMAGE_UUID=$(sdc-imgadm list name=sdc -H -o uuid | tail -1)
+IMAGE_UUID=$(sdc-imgadm list name=sdc -H -o uuid | tail -1)
+BILLING_ID=$(sdc-ldap search '(&(objectclass=sdcpackage)(name=sdc_768))' | grep '^uuid' | cut -d' ' -f2)
 
-if [[ -z "$SDC_IMAGE_UUID" ]]; then
+if [[ -z "$IMAGE_UUID" ]]; then
     echo "$0: fatal error: no 'sdc' image uuid in IMGAPI to use"
     exit 1
 fi
@@ -22,15 +23,19 @@ fi
 # We have a commited manually hacked version of the 'sdc' service JSON.
 # Some of those fields from usb-headnode/config/sapi/services/sdc/service.json
 # and some from fields that core zone setup would fill in from the package used.
+#
+# The *right* answer here is to pull many of the "params" from the appropriate
+# package.
 json -f ./sapi/sdc/sdc_svc.json \
     | json -e "application_uuid=\"$SDCAPP\"" \
-    | json -e "params.image_uuid=\"$SDC_IMAGE_UUID\"" \
+    | json -e "params.image_uuid=\"$IMAGE_UUID\"" \
+    | json -e "params.billing_id=\"$BILLING_ID\"" \
     | json -e "metadata[\"sapi-url\"]=\"$SAPIURL\"" \
     | json -e "metadata[\"assets-ip\"]=\"$ASSETSIP\"" \
     | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
     | json -e "metadata[\"SERVICE_DOMAIN\"]=\"sdc.${DOMAIN}\"" \
     >./sdc-service.json
-SDCSVC=$(sdc-sapi /services -X POST -d@./sdc-service.json | json -H uuid)
+SERVICE_UUID=$(sdc-sapi /services -X POST -d@./sdc-service.json | json -H uuid)
 
 cat <<EOM > ./update-sdc-app.json
 {
@@ -50,7 +55,7 @@ cp ./tools/sdc /opt/smartdc/bin/sdc
 # provision!
 cat <<EOM | sapiadm provision
 {
-    "service_uuid" : "$SDCSVC",
+    "service_uuid" : "$SERVICE_UUID",
     "params" : {
         "alias" : "sdc0"
     }

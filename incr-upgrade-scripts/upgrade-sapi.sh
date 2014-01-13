@@ -64,6 +64,7 @@ orig=$(vmadm get $(vmadm lookup alias=~sapi) | json alias |
     sed 's/sapi\([0-9]\)/\1/')
 new=$(( $orig + 1 ))
 
+#XXX hardcoded admin uuid
 echo "
 {
     \"service_uuid\": \"${SAPI_SVC_UUID}\",

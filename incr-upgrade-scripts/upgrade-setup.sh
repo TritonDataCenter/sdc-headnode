@@ -14,6 +14,7 @@ function copy_setup_files
 {
     local role=$1
     rm -f /usbkey/extra/$role/setup
+    mkdir -p /usbkey/extra/$role
     if [[ -f zones/$role/setup ]]; then
         cp zones/$role/setup /usbkey/extra/$role/setup
     fi

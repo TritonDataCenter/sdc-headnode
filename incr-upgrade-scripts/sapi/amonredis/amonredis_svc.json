@@ -1,10 +1,9 @@
 {
   "name": "amonredis",
-  "application_uuid": "f7f1d9b0-8c0f-45d9-a103-f3e5f54360cb",
   "params": {
     "delegate_dataset": true,
     "package_name": "sdc_1024",
-    "image_uuid": "9b7f624b-6980-4059-8942-6be33c4f54d6",
+    "image_uuid": "REPLACED BY SCRIPT",
     "networks": [
       "admin"
     ],

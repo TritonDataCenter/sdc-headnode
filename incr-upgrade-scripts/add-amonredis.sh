@@ -3,31 +3,37 @@
 set -o xtrace
 set -o errexit
 
-mkdir /usbkey/extra/amonredis
-cp /usbkey/extra/redis/* /usbkey/extra/amonredis
-cp /zones/mbs/upgrade/zones/amonredis/* /usbkey/extra/amonredis
+TOP=$(cd $(dirname $0)/; pwd)
+if [[ ! -f "$TOP/upgrade-all.sh" ]]; then
+    echo "$0: fatal error: must run this from the incr-upgrade dir" >&2
+    exit 1
+fi
 
-# add sapi service:
-# get sdc uuid
-SDC=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
+# Add the SAPI 'amonredis' service:
+SDCAPP=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
 SAPIURL=$(sdc-sapi /services?name=redis | json -Ha 'metadata["sapi-url"]')
 ASSETSIP=$(sdc-sapi /services?name=redis | json -Ha 'metadata["assets-ip"]')
 USERSCRIPT=$(/usr/node/bin/node -e 'console.log(JSON.stringify(require("fs").readFileSync("/usbkey/default/user-script.common", "utf8")))')
 DOMAIN=$(sdc-sapi /applications?name=sdc | json -Ha metadata.datacenter_name).$(sdc-sapi /applications?name=sdc | json -Ha metadata.dns_domain)
+IMAGE_UUID=$(sdc-imgadm list name=amonredis -H -o uuid | tail -1)
 
-# update application uuid & image uuid
-mkdir -p /zones/mbs/upgrade/tmp
-json -f /zones/mbs/upgrade/sapi/amonredis/amonredis_svc.json \
-    | json -e "application_uuid=\"$SDC\"" \
-    | json -e 'params.image_uuid="9b7f624b-6980-4059-8942-6be33c4f54d6"' \
+if [[ -z "$IMAGE_UUID" ]]; then
+    echo "$0: fatal error: no 'amonredis' image uuid in IMGAPI to use" >&2
+    exit 1
+fi
+
+json -f ./sapi/amonredis/amonredis_svc.json \
+    | json -e "application_uuid=\"$SDCAPP\"" \
+    | json -e "params.image_uuid=\"$IMAGE_UUID\"" \
     | json -e "metadata[\"sapi-url\"]=\"$SAPIURL\"" \
     | json -e "metadata[\"assets-ip\"]=\"$ASSETSIP\"" \
     | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
     | json -e "metadata[\"SERVICE_DOMAIN\"]=\"amonredis.${DOMAIN}\"" \
-    > /zones/mbs/upgrade/tmp/service.json
+    > ./amonredis-service.json
+SERVICE_UUID=$(sdc-sapi /services -X POST -d@./amonredis-service.json | json -H uuid)
 
 
-cat <<EOM > /zones/mbs/upgrade/tmp/svc.json
+cat <<EOM >./update-sdc-app.json
 {
     "metadata" : {
         "AMONREDIS_SERVICE" : "amonredis.$DOMAIN",
@@ -35,23 +41,19 @@ cat <<EOM > /zones/mbs/upgrade/tmp/svc.json
     }
 }
 EOM
-sapiadm update $SDC -f /zones/mbs/upgrade/tmp/svc.json
+sapiadm update $SDCAPP -f ./update-sdc-app.json
 
-# add new service
-S_UUID=$(sdc-sapi /services -X POST -d@/zones/mbs/upgrade/tmp/service.json | json -H uuid)
+# Add amonredis' manifest
+M_UUID=$(sdc-sapi /manifests -X POST -d@./sapi/amonredis/manifest.json | json -H uuid)
+sdc-sapi /services/$SERVICE_UUID -X PUT -d"{\"manifests\":{\"redis\":\"$M_UUID\"}}"
 
-# add manifest
-M_UUID=$(sdc-sapi /manifests -X POST -d@/zones/mbs/upgrade/sapi/amonredis/manifest.json | json -H uuid)
-sdc-sapi /services/$S_UUID -X PUT -d"{\"manifests\":{\"redis\":\"$M_UUID\"}}"
-
-# provision!
+# Provision.
 cat <<EOM | sapiadm provision
 {
-    "service_uuid" : "$S_UUID",
+    "service_uuid" : "$SERVICE_UUID",
     "params" : {
         "alias" : "amonredis0"
     }
 }
 EOM
 
-# check
