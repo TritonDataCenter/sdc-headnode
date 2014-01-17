@@ -109,6 +109,15 @@ function upgrade_zone {
         > sapi-updates/${service_uuid}.update
     sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
 
+    # Fix up SAPI's service to refer to new image.
+    cat <<EOM | sdc-sapi /services/$service_uuid -X PUT -d@-
+{
+    "params": {
+        "image_uuid": "${image_uuid}"
+    }
+}
+EOM
+
     echo '{}' | json -e "this.image_uuid = '${image_uuid}'" |
         vmadm reprovision ${instance_uuid}
 
@@ -120,39 +129,6 @@ function upgrade_zone {
     return 0
 }
 
-# posts a new manifest
-function upgrade_manifests
-{
-    local alias=$1
-    local manifest=$2
-
-    get_instance_uuid ${alias}
-    local instance_uuid=${uuid}
-
-    local manifest_name=$(json -f ${manifest} name)
-
-    if [[ -z ${instance_uuid} ]]; then
-        echo "No zone with alias ${alias}"
-        return 0
-    fi
-
-    # get service uuid.
-    local service_uuid=$(sapiadm get ${instance_uuid} \
-                         | json -H service_uuid)
-    local service_name=$(sapiadm get ${service_uuid} \
-                         | json -H name)
-    # POST new manifest
-    local manifest_uuid=$(sdc-sapi /manifests -X POST -d @${manifest} \
-                          | json -H uuid)
-
-    # PUT to service
-    local update=$(echo '{ "manifests" : {} }' \
-        | json -e "this.manifests.${manifest_name}=\"${manifest_uuid}\"")
-    sdc-sapi /services/${service_uuid} -X PUT -d "${update}"
-
-    printf "Service %s manifest %s updated." \
-        ${service_name} ${manifest_name}
-}
 
 
 #---- mainline
@@ -170,8 +146,6 @@ env | grep IMAGE
 # XXX Don't upgrade the following zones: binder, manatee, manta, moray, and
 # ufds.  Binder, manatee and moray will not work, manta is unnecessary, and
 # don't do UFDS to minimize customer impact.
-#
-# XXX Marsell says it's pointless to upgrade rabbitmq.
 #
 # XXX JoshW says it's pointless to upgrade redis
 # XXX Trent presumes it is currently pointless to upgrade amonredis
