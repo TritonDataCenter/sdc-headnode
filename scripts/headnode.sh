@@ -841,31 +841,6 @@ if [[ -n ${CREATEDZONES} ]]; then
     fi
 fi
 
-# add a keyapi key, if not currently extant
-i=0
-while [ $i -lt 45 ]; do
-  privkeys=$(/opt/smartdc/bin/sdc-ldap s "(objectclass=keyapiprivkey)" || echo "undefined")
-  if [[ $privkeys != "undefined" ]]; then
-    break
-  fi
-  i=`expr $i + 1`
-  sleep 1
-done
-
-if [[ $privkeys == "" ]]; then
-  key_uuid=$(uuid -v4)
-  hexchars="0123456789abcdef"
-  key=$(for i in {1..64} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done)
-  key_date=$(date "+%Y-%m-%dT%H:%M:%SZ")
-  /opt/smartdc/bin/sdc-ldap add << EOF
-dn: uuid=${key_uuid}, ou=keyapiprivkeys, o=smartdc
-key: ${key}
-objectclass: keyapiprivkey
-timestamp: ${key_date}
-uuid: ${key_uuid}
-EOF
-fi
-
 # Install all AMON probes, but don't fail setup if it doesn't work
 /opt/smartdc/bin/sdc-amonadm update || /bin/true
 
