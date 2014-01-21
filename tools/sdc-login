@@ -1,8 +1,11 @@
 #!/bin/bash
 #
-# Copyright (c) 2011 Joyent Inc., All rights reserved.
+# Copyright (c) 2013 Joyent Inc., All rights reserved.
 #
-# Allows you to login to a smartdc_role zone by name (or partial name)
+# Allows you to zlogin to a core SDC zone by alias, role or partial role name.
+#
+# Limitations:
+# - only works to SDC core zones *on the headnode*
 #
 # Future Enhancements:
 #   - add support to talk to MAPI and add an 'ssh <CN>' prefix if the zone is
@@ -17,22 +20,30 @@ zone=$1
 shift
 
 if [[ -z ${admin_uuid} ]]; then
-    echo "Unable to find UUID for admin."
+    echo "sdc-login: error: Unable to find UUID for admin."
     exit 1
 fi
 
 if [[ -z ${zone} ]]; then
-    echo "Usage: $0 <zone role>"
+    echo "Usage: $0 <zone role or alias>"
     exit 2
 fi
 
-zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null)
-if [[ -z ${zone_uuid} ]]; then
-    zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
-    if [[ -z ${zone_uuid} ]]; then
-            echo "Did not find exactly 1 zone matching: ${zone}"
-            exit 1
-    fi
+# Try by alias first.
+zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} alias=${zone} 2>/dev/null)
+
+# Next by exact role name.
+if [[ -z "${zone_uuid}" ]]; then
+    zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null)
 fi
 
+# Next by role prefix.
+if [[ -z "${zone_uuid}" ]]; then
+    zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
+fi
+
+if [[ -z ${zone_uuid} ]]; then
+    echo "sdc-login: error: did not find exactly 1 zone matching: ${zone}"
+    exit 1
+fi
 exec zlogin ${zone_uuid} $*
