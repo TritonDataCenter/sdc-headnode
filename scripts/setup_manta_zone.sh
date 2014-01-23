@@ -53,20 +53,6 @@ function add_external_nic {
 }
 
 
-function wait_for_sapi {
-    local tries=0
-
-    SAPI_UP=1
-    until [[ $SAPI_UP -eq 0 || $tries -gt 120 ]]; do
-        tries=$(( $tries + 1 ))
-
-        sleep 5
-        sdc-sapi /mode >/dev/null 2>&1
-        SAPI_UP=$?
-    done
-}
-
-
 function import_manta_image {
     local manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
     local file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
@@ -100,6 +86,13 @@ function deploy_manta_zone {
 }
 
 
+function enable_firewall {
+    local zone_uuid=$1
+    vmadm update ${zone_uuid} firewall_enabled=true
+    [[ $? -eq 0 ]] || fatal "failed to enable firewall for the manta zone"
+}
+
+
 # Wait for /opt/smartdc/manta-deployment/etc/config.json to be written out
 # by config-agent.
 function wait_for_config_agent {
@@ -120,9 +113,28 @@ function wait_for_config_agent {
     fi
 }
 
+
+function wait_for_manta_zone {
+    local zone_uuid=$1
+    local state="unknown"
+    for i in {1..60}; do
+        state=$(vmadm lookup -j alias alias=${ZONE_ALIAS} | json -ga zone_state)
+        if [[ "running" == "$state" ]]; then
+            break
+        fi
+        sleep 1
+    done
+    if [[ "$state" != "running" ]]; then
+        fatal "manta zone isn't running after reboot"
+    else
+        echo "manta zone running"
+    fi
+}
+
+
 # Copy manta tools into the GZ from the manta zone
 function copy_manta_tools {
-    zone_uuid=$(vmadm list | grep manta | head -n 1 | awk '{print $1}')
+    local zone_uuid=$1
     if [[ -n ${zone_uuid} ]]; then
         from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment
         to_dir=/opt/smartdc/bin
@@ -143,19 +155,15 @@ if [[ -n ${manta_uuid} ]]; then
     exit 0
 fi
 
-sapi_uuid=$(vmadm lookup alias=~sapi)
-add_external_nic ${sapi_uuid}
-
-#
-# The SAPI zone is rebooted as part of adding an external NIC.  Poll its /mode
-# endpoint until it returns something.
-#
-wait_for_sapi
-
 imgapi_uuid=$(vmadm lookup alias=imgapi0)
 add_external_nic ${imgapi_uuid}
+enable_firewall ${imgapi_uuid}
 
 import_manta_image
 deploy_manta_zone
 wait_for_config_agent
-copy_manta_tools
+manta_zone_uuid=$(vmadm lookup -1 alias=${ZONE_ALIAS})
+add_external_nic ${manta_zone_uuid}
+wait_for_manta_zone ${manta_zone_uuid}
+enable_firewall ${manta_zone_uuid}
+copy_manta_tools ${manta_zone_uuid}
