@@ -57,40 +57,6 @@ Get backup copies of /usbkey/... sections and tools in case of rollback:
     cp -rP /opt/smartdc/bin ./oldtools
 
 
-## upgrade zone: redis, amonredis
-
-TODO
-
-
-## upgrade zone: sapi
-
-TODO
-
-
-## upgrade zone: ufds
-
-TODO: upgrade-ufds.sh, rollback-ufds.sh
-
-
-## upgrade zone: rabbitmq
-
-TODO: upgrade-rabbitmq.sh
-
-
-## upgrade zone: assets, dhcpd
-
-TODO
-
-
-## upgrade zone: binder, manatee (MORAY-138)
-
-TODO: this is MORAY-138, talk to matt
-
-
-## upgrade zone: manatee (*after* MORAY-138)
-
-TODO
-
 
 ## upgrade zone: amon, sdc, napi, dapi, imgapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
 
@@ -168,12 +134,40 @@ TODO: move this up
     ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
 
-Future improvements:
-- Should we `dc-maint-{start,end}.sh` for provision pipeline upgrades?
-  I.e. for napi, dapi, imgapi, fwapi, papi, vmapi, cnapi.
-- We need an LB in front of cloudapi to maint-window it.
+
+## upgrade zone: redis, amonredis
+
+TODO
 
 
+## upgrade zone: sapi
+
+TODO
+
+
+## upgrade zone: ufds
+
+TODO: upgrade-ufds.sh, rollback-ufds.sh
+
+
+## upgrade zone: rabbitmq
+
+TODO: upgrade-rabbitmq.sh
+
+
+## upgrade zone: assets, dhcpd
+
+TODO
+
+
+## upgrade zone: binder, manatee (MORAY-138)
+
+TODO: this is MORAY-138, talk to matt
+
+
+## upgrade zone: manatee (*after* MORAY-138)
+
+TODO
 
 ## Upgrading all agents
 
@@ -204,3 +198,11 @@ TODO: describe editing the agentsshar manually
     # identically to their role. E.g., cloning CA creates 'cloud-analytics'
     # by default; it would need to be renamed to 'ca' for this script.
 
+
+
+## Future improvements
+
+- Should we `dc-maint-{start,end}.sh` for provision pipeline upgrades?
+  I.e. for napi, dapi, imgapi, fwapi, papi, vmapi, cnapi.
+
+- We need an LB in front of cloudapi to maint-window it.

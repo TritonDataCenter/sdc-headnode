@@ -8,34 +8,38 @@
 # - Presumes all core zones are on the HN.
 #
 
-#set -o xtrace
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o errexit
 set -o pipefail
 
 
-# This lists all SDC app services. However, not sure if some are not appropriate
-# for rollback.
-# - Skip 'moray' for now. 2 instances mucks this script up.
-# - Skip 'manatee' because Matt says so, for now.
-sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
-ROLES=$(sdc-sapi /services?application_uuid=$sdc_app \
-    | json -H -a name \
-    | grep -v '^manatee$' \
-    | grep -v '^moray$' \
-    | sort | xargs)
-
-function print_version
+function fatal
 {
-    local JSON=$1
-    local IMAGE_UUID=$(echo $JSON | json -a image_uuid)
-    [[ -z "$IMAGE_UUID" ]] && return
-    local VERSION=$(sdc-imgadm get $IMAGE_UUID | json version)
-    # echo $IMAGE_UUID $VERSION $ROLE
-    echo "export ${ROLE^^}_IMAGE=${IMAGE_UUID}"
+    echo "$0: fatal error: $*" >&2
+    exit 1
 }
 
-#echo "# ROLES: $ROLES"
-for ROLE in $ROLES; do
-    foo=$(vmadm lookup -j -o alias,uuid,image_uuid,tags tags.smartdc_role=$ROLE)
-    print_version "$foo"
+function warn
+{
+    echo "$0: warn: $*" >&2
+}
+
+
+ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+corezones=$(sdc-vmapi /vms?owner_uuid=$ufds_admin_uuid\&state=running \
+    | json -H -c 'this.tags && this.tags.smartdc_role' -e 'this.role=this.tags.smartdc_role')
+for line in $(echo "$corezones" | json -a role alias uuid image_uuid -d: | sort); do
+    role=$(echo "$line" | cut -d: -f1)
+    alias=$(echo "$line" | cut -d: -f2)
+    image_uuid=$(echo "$line" | cut -d: -f4)
+    echo $alias >&2
+    stamp=$((sdc-imgadm get $image_uuid || true) | json version)
+    if [[ -z "$stamp" ]]; then
+        stamp="(not found in imgapi)"
+    fi
+    echo "export $(echo $role | tr 'a-z' 'A-Z')_IMAGE=$image_uuid    # alias=$alias, stamp=$stamp"
 done
