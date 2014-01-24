@@ -3,7 +3,13 @@
 # Upgrade given SDC zones to latest images
 #
 # Usage:
-#   ./upgrade-all.sh <upgrade-images-file>
+#   ./upgrade-all.sh [-f] <upgrade-images-file>
+#
+# Options:
+#   -f      Force reprovision even if to the same image. This will also
+#           skip importing the possibly missing image into IMGAPI -- useful
+#           for dealing with a broken IMGAPI, but could surprise. Lesson:
+#           don't use '-f' lightly.
 #
 
 set -o errexit
@@ -46,13 +52,20 @@ function upgrade_zone {
 
     local current_image_uuid=$(vmadm get ${instance_uuid} | json -H image_uuid)
 
-    if [[ ${current_image_uuid} == ${image_uuid} ]]; then
+    if [[ ${current_image_uuid} == ${image_uuid} && -z "$force" ]]; then
         printf "Instance %s already using image %s." \
             ${instance_uuid} ${image_uuid}
         return 0
     fi
 
-    ./download-image.sh ${image_uuid} || fatal "failed to download image"
+    # If 'force=true' and we already have $image_uuid in the local zpool,
+    # then *skip* download-image.sh. This allows us to bypass IMGAPI in-case
+    # it is broken, at the cost of not having imported it to IMGAPI.
+    if [[ -n "$force" && -n "$( (imgadm get $image_uuid 2>/dev/null || true) )" ]]; then
+        echo "Have image $image_uuid in local zpool and force=$force, skipping image download."
+    else
+        ./download-image.sh ${image_uuid} || fatal "failed to download image"
+    fi
 
     set +o errexit
     imgadm get ${image_uuid} >/dev/null 2>&1
@@ -132,6 +145,13 @@ EOM
 
 
 #---- mainline
+
+
+force=
+if [[ "$1" == "-f" ]]; then
+    shift
+    force=true
+fi
 
 IMAGE_LIST=$1
 if [[ -z $1 ]]; then

@@ -131,7 +131,9 @@ EXTRA_IPS=$(dig $MORAY_DOMAIN +short | (grep -v $NEW_IP || true))
 [[ -z "$EXTRA_IPS" ]] || fatal "old $CURRENT_ALIAS zone is not out of DNS: 'dig $MORAY_DOMAIN +short'"
 
 
-# TODO: Destroy the original SAPI instance
+# TODO: Destroy the original Moray instance.
+# For now we just stop the origin moray zone and show the commands to fully
+# destroy it.
 vmadm stop $CURRENT_UUID
 MORAY_SVC_MANIFESTS=$(sdc-sapi /services/$MORAY_SVC | json -H  manifests \
     | json -e 'this._=Object.keys(this).map(function (k) { return this[k] })' _  \

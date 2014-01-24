@@ -64,12 +64,12 @@ orig=$(vmadm get $(vmadm lookup alias=~sapi) | json alias |
     sed 's/sapi\([0-9]\)/\1/')
 new=$(( $orig + 1 ))
 
-#XXX hardcoded admin uuid
+UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
 echo "
 {
     \"service_uuid\": \"${SAPI_SVC_UUID}\",
     \"params\": {
-        \"owner_uuid\": \"9dce1460-0c4c-4417-ab8b-25ca478c5a78\",
+        \"owner_uuid\": \"$UFDS_ADMIN_UUID\",
         \"alias\": \"sapi${new}\"
     }
 }" | sapiadm provision

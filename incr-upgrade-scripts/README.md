@@ -4,25 +4,33 @@ These scripts can be used to drive incremental upgrades of SDC 7 (as opposed
 to usb-headnode.git/bin/upgrade.sh which is about the major SDC 6.5 -> 7 upgrade).
 See HEAD-1795 for intended improvements to this process.
 
-## To run an upgrade
+## Prepare for upgrades (all zones)
 
-    # Get the latest 'incr-upgrade' package
-    # 1. Where you have the node-manta client tools:
+Get the latest 'incr-upgrade' package
+
+Where you have the node-manta client tools:
+
     latest=$(mls /Joyent_Dev/stor/builds/incr-upgrade | grep 'master-2' | sort | tail -1)
     pkg=$(mls /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade | grep tgz)
     mget -O /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade/$pkg
     scp $pkg us-beta-4:/var/tmp
-    # 2. Then crack it in the your working dir on the GZ:
+
+Then crack it in the your working dir on the GZ:
+
     ssh us-beta-4
     cd /var/tmp
     tar xf incr-upgrade-VERSION.tgz
     cd incr-upgrade-VERSION
 
-    # become root
+Become root if not already:
+
     p su -
 
-    # Capture current image versions in case we need to rollback.
+Capture current image versions in case we need to rollback.
+
     ./version-list.sh > rollback-images
+
+Specify the roles and images that will be upgraded in "upgrade-images" file:
 
     # Either get a list of the latest versions of all roles via
     #       ./get-latest.sh > upgrade-images
@@ -35,53 +43,81 @@ See HEAD-1795 for intended improvements to this process.
     #       export VMAPI_IMAGE=f9b40a06-7e87-3b4d-832a-faf38eb34506
     vi upgrade-images
 
-    # Pre-download all the images to be used if you like. If you skip this,
-    # it'll be lazily done by 'upgrade-all.sh'.
+Pre-download all the images to be used if you like. If you skip this,
+it'll be lazily done by 'upgrade-all.sh'.
+
     ./download-all.sh upgrade-images 2>&1 | tee download.out
+
+Get backup copies of /usbkey/... sections and tools in case of rollback:
 
     cp -r /usbkey/extra ./oldzones
     cp -r /usbkey/default ./olddefault
     cp -r /usbkey/scripts ./oldscripts
+
+    cp -rP /opt/smartdc/bin ./oldtools
+
+
+## upgrade zone: redis, amonredis
+
+TODO
+
+
+## upgrade zone: sapi
+
+TODO
+
+
+## upgrade zone: ufds
+
+TODO: upgrade-ufds.sh, rollback-ufds.sh
+
+
+## upgrade zone: rabbitmq
+
+TODO: upgrade-rabbitmq.sh
+
+
+## upgrade zone: assets, dhcpd
+
+TODO
+
+
+## upgrade zone: binder, manatee (MORAY-138)
+
+TODO: this is MORAY-138, talk to matt
+
+
+## upgrade zone: manatee (*after* MORAY-138)
+
+TODO
+
+
+## upgrade zone: amon, sdc, napi, dapi, imgapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
+
+
+The general procedure is:
+
     ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
 
     # Add new roles if required, e.g.:
     #  ./add-FOO.sh
+    # Currently this applies to 'amonredis', 'sdc' and 'papi' if you
+    # don't yet have them.
 
-    cp -rP /opt/smartdc/bin ./oldtools
+    # Upgrade tools in the GZ (in /opt/smartdc/bin).
     ./upgrade-tools.sh 2>&1 | tee tools.out
+
+    # Upgrade the zones.
     ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
 
-    # If you upgraded ufds, it's important that you also backfill missing column
-    # data as UFDS does not do this automatically. To do this you'll need to
-    # look at:
-    #
-    # git log -p sapi_manifests/ufds/template
-    #
-    # in the ufds.git repo to figure out which columns need to be backfilled,
-    # then run something like:
-    #
-    # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
-    #
-    # in the moray zone. See JPC-1302 for some more usage ideas.
 
-
-    # If upgrading sapi:
-    #
-    # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
-    # you'll also need to edit:
-    #
-    #  /opt/smartdc/sapi/lib/server/attributes.js
-    #
-    # in the SAPI zone and add 'SAPI_MODE' to the allowed_keys in
-    # sanitizeMetadata() and restart the sapi service.
-    #
-    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
 To rollback:
 
     # WARNING: The 'rollback-images' generated above currently includes *all*
     # roles. Not just the ones you've upgraded. Generally that is fine, the
-    # rollback will be a no-op, but you might want to edit this file first.
+    # rollback will be a no-op, but you might want to edit this file first
+    # to *just* include the zones in 'upgrade-images'.
 
     mv zones newzones
     mv oldzones zones
@@ -97,14 +133,46 @@ To rollback:
 
     ./upgrade-all.sh rollback-images 2>&1 | tee rollback.out
 
-To make a changelog:
 
-    ./get-changes.sh upgrade-images.sh > changelog.sh
+TODO: move this up
+Special follow up notes for 'ufds':
 
-    # changelog.sh is a script that assumes it runs in a directory where
-    # all the relevant service repos are present in subdirectories named
-    # identically to their role. E.g., cloning CA creates 'cloud-analytics'
-    # by default; it would need to be renamed to 'ca' for this script.
+    # If you upgraded ufds, it's important that you also backfill missing column
+    # data as UFDS does not do this automatically. To do this you'll need to
+    # look at:
+    #
+    # git log -p sapi_manifests/ufds/template
+    #
+    # in the ufds.git repo to figure out which columns need to be backfilled,
+    # then run something like:
+    #
+    # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
+    #
+    # in the moray zone. See JPC-1302 for some more usage ideas.
+
+
+
+TODO: move this up
+## 'sapi' upgrade
+
+    # If upgrading sapi:
+    #
+    # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
+    # you'll also need to edit:
+    #
+    #  /opt/smartdc/sapi/lib/server/attributes.js
+    #
+    # in the SAPI zone and add 'SAPI_MODE' to the allowed_keys in
+    # sanitizeMetadata() and restart the sapi service.
+    #
+    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
+
+
+Future improvements:
+- Should we `dc-maint-{start,end}.sh` for provision pipeline upgrades?
+  I.e. for napi, dapi, imgapi, fwapi, papi, vmapi, cnapi.
+- We need an LB in front of cloudapi to maint-window it.
+
 
 
 ## Upgrading all agents
@@ -123,67 +191,16 @@ from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
 
 ## Upgrading just a specific agent
 
-TODO
+TODO: describe editing the agentsshar manually
 
 
-## Trent's Notes (ignore for now)
 
-A possible new flow here, using a JSON spec file for to upgrade.
+## To make a changelog:
 
--   Write a upgrade spec JSON file
+    ./get-changes.sh upgrade-images.sh > changelog.sh
 
-        $ cat foo.json   # should have a meaningful name, this is the "foo" upgrade
-        {
-            "imgapi": "4803c1cd-5882-9c48-bc2a-fc81c1429a89",
-            "adminui": "latest"
-        }
+    # changelog.sh is a script that assumes it runs in a directory where
+    # all the relevant service repos are present in subdirectories named
+    # identically to their role. E.g., cloning CA creates 'cloud-analytics'
+    # by default; it would need to be renamed to 'ca' for this script.
 
-    Note: This doesn't capture agents, platforms.
-
--   Fill in the 'latest' markers in there. That is done lazily and cached
-    to ${specfile}.1
-
--   Prepare. Still presuming only one instance of each service
-    considered.
-
-        $ ./prepare.sh foo.json
-        ... make a clean fresh /var/tmp/upgrade-foo dir (or perhaps require it to be clean)
-        ... bail if we have two instances of any of the services listed
-        ... gets the current image for current instance of each image
-        Wrote '/var/tmp/upgrade-foo/rollback.json'
-        ... fills in "latest" markers in the spec file
-        ... order the images to be upgraded (hardcoded list of bottom stack to top)
-        Wrote '/var/tmp/upgrade-foo/spec.json'
-
--   Get the images.
-
-        $ ./download-images.sh foo[.json]
-        ... get each image in '/var/tmp/upgrade-foo/spec.json' into IMGAPI if necessary
-
--   Upgrade
-
-        $ ./upgrade.sh foo[.json]
-        ... perhaps bail if not healthy, or at least note starting healthcheck state
-        ... confirmation of what is going to be done
-        ... upgrade-setup and upgrade-zone for each service in order from spec.json
-        ... pause after each zone
-
--   Rollback if necessary. Rollback /usbkey/extra bits have been saves in
-    '/var/tmp/upgrade-foo'.
-
-        # Optionally can just roll back a particular service.
-        $ ./rollback.sh foo[.json] [<service> ...]
-        ... confirmation
-        ... rollback-setup and rollback-zone for each service in spec.json
-            backwards
-
-This should be a package on updates.joyent.com for self-update as first step of upgrade.
-The usb-headnode/{tools,default,zones,config} should be a "gzbits" (or
-whatever) release tarball and used to update bits in the headnode GZ (and perhaps on CNs?)
-as part of the upgrade.
-
-Should grab logs from the old zone before reprovision. Should perhaps snapshot and send
-to a file before reprovision.
-
-Reprovision of each zone should be followed up by waiting for setup_complete...
-and timeout on that (as headnode.sh).

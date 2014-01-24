@@ -3,6 +3,7 @@
 # download-image.sh: download and install an image from updates.joyent.com
 #
 
+set -o xtrace
 set -o errexit
 
 fatal()
@@ -17,15 +18,6 @@ REMOTE='/opt/smartdc/bin/updates-imgadm'
 LOCAL='/opt/smartdc/bin/sdc-imgadm'
 
 UUID=$1
-
-set +o errexit
-$LOCAL get ${UUID} >/dev/null 2>&1
-if [[ $? -eq 0 ]]; then
-    echo "Image $UUID already installed."
-    #exit 0
-fi
-set -o errexit
-
 
 manifest=/var/tmp/${UUID}.manifest
 file=/var/tmp/${UUID}.file
