@@ -12,14 +12,22 @@
 #           don't use '-f' lightly.
 #
 
-set -o errexit
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
+set -o errexit
+#set -o pipefail
+
+TOP=$(cd $(dirname $0)/; pwd)
+source $TOP/libupgrade.sh
+
 
 PATH=/opt/smartdc/bin:$PATH
 
 UPDATES_IMGADM='/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm'
 
 DC_NAME=$(sysinfo | json "Datacenter Name")
+
+
 
 function fatal {
     echo "$(basename $0): fatal error: $*" >&2
@@ -39,8 +47,9 @@ function get_instance_uuid {
 }
 
 function upgrade_zone {
-    local alias=$1
-    local image_uuid=$2
+    local role=$1
+    local alias=$2
+    local image_uuid=$3
 
     get_instance_uuid ${alias}
     local instance_uuid=${uuid}
@@ -73,6 +82,8 @@ function upgrade_zone {
         imgadm import ${image_uuid} || fatal "failed to install image"
     fi
     set -o errexit
+
+    copy_usbkey_extra_files $role
 
     # XXX work around OS-2275
     local quota=$(vmadm get ${instance_uuid} | json quota)
@@ -174,25 +185,30 @@ env | grep IMAGE
 # off a number of sysinfo jobs.
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
-[[ -n "$SDC_IMAGE" ]] && upgrade_zone sdc0 $SDC_IMAGE
-[[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui0 $ADMINUI_IMAGE
-[[ -n "$AMON_IMAGE" ]] && upgrade_zone amon0 $AMON_IMAGE
-[[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis0 $AMONREDIS_IMAGE
-[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso0 $SDCSSO_IMAGE
-[[ -n "$CLOUDAPI_IMAGE" ]] && upgrade_zone cloudapi0 $CLOUDAPI_IMAGE
-[[ -n "$WORKFLOW_IMAGE" ]] && upgrade_zone workflow0 $WORKFLOW_IMAGE
-[[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi0 $CNAPI_IMAGE
-[[ -n "$DHCPD_IMAGE" ]] && upgrade_zone dhcpd0 $DHCPD_IMAGE
-[[ -n "$FWAPI_IMAGE" ]] && upgrade_zone fwapi0 $FWAPI_IMAGE
-[[ -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi0 $IMGAPI_IMAGE
-[[ -n "$NAPI_IMAGE" ]] && upgrade_zone napi0 $NAPI_IMAGE
-[[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi0 $VMAPI_IMAGE
-[[ -n "$UFDS_IMAGE" ]] && upgrade_zone ufds0 $UFDS_IMAGE
-[[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi0 $DAPI_IMAGE
-[[ -n "$PAPI_IMAGE" ]] && upgrade_zone papi0 $PAPI_IMAGE
-[[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis0 $REDIS_IMAGE
-[[ -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq0 $RABBITMQ_IMAGE
-[[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets0 $ASSETS_IMAGE
-[[ -n "$CA_IMAGE" ]] && upgrade_zone ca0 $CA_IMAGE
+[[ -n "$SDC_IMAGE" ]] && upgrade_zone sdc sdc0 $SDC_IMAGE
+[[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui adminui0 $ADMINUI_IMAGE
+[[ -n "$AMON_IMAGE" ]] && upgrade_zone amon amon0 $AMON_IMAGE
+[[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis amonredis0 $AMONREDIS_IMAGE
+[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso sdcsso0 $SDCSSO_IMAGE
+[[ -n "$CLOUDAPI_IMAGE" ]] && upgrade_zone cloudapi cloudapi0 $CLOUDAPI_IMAGE
+[[ -n "$WORKFLOW_IMAGE" ]] && upgrade_zone workflow workflow0 $WORKFLOW_IMAGE
+[[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi cnapi0 $CNAPI_IMAGE
+[[ -n "$DHCPD_IMAGE" ]] && upgrade_zone dhcpd dhcpd0 $DHCPD_IMAGE
+[[ -n "$FWAPI_IMAGE" ]] && upgrade_zone fwapi fwapi0 $FWAPI_IMAGE
+[[ -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi imgapi0 $IMGAPI_IMAGE
+[[ -n "$NAPI_IMAGE" ]] && upgrade_zone napi napi0 $NAPI_IMAGE
+[[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi vmapi0 $VMAPI_IMAGE
+[[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi dapi0 $DAPI_IMAGE
+[[ -n "$PAPI_IMAGE" ]] && upgrade_zone papi papi0 $PAPI_IMAGE
+[[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis redis0 $REDIS_IMAGE
+[[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets assets0 $ASSETS_IMAGE
+[[ -n "$CA_IMAGE" ]] && upgrade_zone ca ca0 $CA_IMAGE
+
+# Guard on UFDS upgrade here so that "./upgrade-all.sh" is not used
+# *directly* to upgrade UFDS. Instead use "upgrade-ufds.sh" and
+# "rollback-ufds.sh".
+[[ -n "$REALLY_UPGRADE_UFDS" && -n "$UFDS_IMAGE" ]] && upgrade_zone ufds ufds0 $UFDS_IMAGE
+# Ditto for rabbitmq.
+[[ -n "$REALLY_UPGRADE_RABBITMQ" && -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq rabbitmq0 $RABBITMQ_IMAGE
 
 exit 0

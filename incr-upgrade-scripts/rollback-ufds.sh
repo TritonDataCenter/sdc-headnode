@@ -18,91 +18,8 @@ function fatal
 }
 
 
-function wait_for_wf_drain {
-    local running
-    local queued
-
-    echo "Wait up to 5 minutes for workflow to drain of running/queued jobs."
-    for i in {1..60}; do
-        sleep 5
-        echo -n '.'
-        # If sdc zone is rebooting, then can't call sdc-vmapi here, just
-        # presume the job is still running.
-        running="$(sdc-workflow /jobs?limit=20\&execution=running | json -Ha uuid)"
-        if [[ -n "$running" ]]; then
-            continue
-        fi
-        queued="$(sdc-workflow /jobs?limit=20\&execution=queued | json -Ha uuid)"
-        if [[ -n "$queued" ]]; then
-            continue
-        fi
-        break
-    done
-    echo ""
-    if [[ -n "$running" || -n "$queued" ]]; then
-        fatal "workflow did not drain of running and queued jobs"
-    fi
-    echo "Workflow cleared of running and queued jobs."
-}
-
-
-function wait_until_zone_in_dns() {
-    local uuid=$1
-    local alias=$2
-    local domain=$3
-    [[ -n "$uuid" ]] || fatal "wait_until_zone_in_dns: no 'uuid' given"
-    [[ -n "$alias" ]] || fatal "wait_until_zone_in_dns: no 'alias' given"
-    [[ -n "$domain" ]] || fatal "wait_until_zone_in_dns: no 'domain' given"
-
-    local ip=$(vmadm get $uuid | json nics.0.ip)
-    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
-
-    echo "Wait up to 2 minutes for $alias zone to enter DNS."
-    for i in {1..60}; do
-        sleep 2
-        echo -n '.'
-        in_dns=$(dig $domain +short | (grep $ip || true))
-        if [[ "$in_dns" == "$ip" ]]; then
-            break
-        fi
-    done
-    in_dns=$(dig $domain +short | (grep $ip || true))
-    if [[ "$in_dns" != "$ip" ]]; then
-        fatal "New $alias ($uuid) zone's IP $ip did not enter DNS: 'dig $domain +short | grep $ip'"
-    fi
-}
-
-
-function wait_until_zone_out_of_dns() {
-    local uuid=$1
-    local alias=$2
-    local domain=$3
-    [[ -n "$uuid" ]] || fatal "wait_until_zone_out_of_dns: no 'uuid' given"
-    [[ -n "$alias" ]] || fatal "wait_until_zone_out_of_dns: no 'alias' given"
-    [[ -n "$domain" ]] || fatal "wait_until_zone_out_of_dns: no 'domain' given"
-
-    local ip=$(vmadm get $uuid | json nics.0.ip)
-    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
-
-    echo "Wait up to 2 minutes for $alias zone to leave DNS."
-    for i in {1..60}; do
-        sleep 2
-        echo -n '.'
-        in_dns=$(dig $domain +short | (grep $ip || true))
-        if [[ -z "$in_dns" ]]; then
-            break
-        fi
-    done
-    in_dns=$(dig $domain +short | (grep $ip || true))
-    if [[ -n "$in_dns" ]]; then
-        fatal "New $alias ($uuid) zone's IP $ip did not leave DNS: 'dig $domain +short | grep $ip'"
-    fi
-}
-
-
 
 #---- mainline
-
 
 # -- Gather info
 
@@ -110,7 +27,7 @@ if [[ $# -ne 1 ]]; then
     fatal "Usage: rollback-ufds.sh <rollback-images>"
 fi
 [[ ! -f "$1" ]] && fatal "'$1' does not exist"
-UFDS_IMAGE=$(grep '^export UFDS_IMAGE' $1 | cut -d= -f2)
+UFDS_IMAGE=$(grep '^export UFDS_IMAGE' $1 | tail -1 | cut -d= -f2 | awk '{print $1}')
 if [[ -z ${UFDS_IMAGE} ]]; then
     fatal "\$UFDS_IMAGE not defined"
 fi
@@ -149,7 +66,7 @@ MORAY_ZONE=$(vmadm lookup alias=~moray | head -1)
 empty=/var/tmp/empty
 rm -f $empty
 touch $empty
-UFDS_IMAGE=$UFDS_IMAGE ./upgrade-all.sh -f $empty
+REALLY_UPGRADE_UFDS=1 UFDS_IMAGE=$UFDS_IMAGE ./upgrade-all.sh -f $empty
 
 # Restore the buckets.
 # 1. disable ufds services

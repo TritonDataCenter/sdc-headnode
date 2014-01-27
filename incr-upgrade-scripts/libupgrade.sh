@@ -18,6 +18,35 @@ function fatal
 }
 
 
+# Update /usbkey/extra/$role in prep for (re)provision of a zone with that
+# role.
+function copy_usbkey_extra_files
+{
+    local role=$1
+
+    cp default/* /usbkey/default
+
+    rm -f /usbkey/extra/$role/setup
+    mkdir -p /usbkey/extra/$role
+    if [[ -f zones/$role/setup ]]; then
+        cp zones/$role/setup /usbkey/extra/$role/setup
+    fi
+    rm -f /usbkey/extra/$role/configure
+    if [[ -f zones/$role/configure ]]; then
+        cp zones/$role/configure /usbkey/extra/$role/configure
+    fi
+    rm -f /usbkey/extra/$role/setup.common
+    if [[ -f /usbkey/default/setup.common ]]; then
+        cp /usbkey/default/setup.common /usbkey/extra/$role/setup.common
+    fi
+    rm -f /usbkey/extra/$role/configure.common
+    if [[ -f /usbkey/default/configure.common ]]; then
+        cp /usbkey/default/configure.common /usbkey/extra/$role/configure.common
+    fi
+    #TODO: should update /usbkey/extras/bashrc from /usbkey/rc/
+}
+
+
 function wait_for_wf_drain {
     local running
     local queued
@@ -44,6 +73,62 @@ function wait_for_wf_drain {
     fi
     echo "Workflow cleared of running and queued jobs."
 }
+
+
+
+function wait_until_zone_in_dns() {
+    local uuid=$1
+    local alias=$2
+    local domain=$3
+    [[ -n "$uuid" ]] || fatal "wait_until_zone_in_dns: no 'uuid' given"
+    [[ -n "$alias" ]] || fatal "wait_until_zone_in_dns: no 'alias' given"
+    [[ -n "$domain" ]] || fatal "wait_until_zone_in_dns: no 'domain' given"
+
+    local ip=$(vmadm get $uuid | json nics.0.ip)
+    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
+
+    echo "Wait up to 2 minutes for $alias zone to enter DNS."
+    for i in {1..24}; do
+        sleep 5
+        echo '.'
+        in_dns=$(dig $domain +short | (grep $ip || true))
+        if [[ "$in_dns" == "$ip" ]]; then
+            break
+        fi
+    done
+    in_dns=$(dig $domain +short | (grep $ip || true))
+    if [[ "$in_dns" != "$ip" ]]; then
+        fatal "New $alias ($uuid) zone's IP $ip did not enter DNS: 'dig $domain +short | grep $ip'"
+    fi
+}
+
+
+function wait_until_zone_out_of_dns() {
+    local uuid=$1
+    local alias=$2
+    local domain=$3
+    [[ -n "$uuid" ]] || fatal "wait_until_zone_out_of_dns: no 'uuid' given"
+    [[ -n "$alias" ]] || fatal "wait_until_zone_out_of_dns: no 'alias' given"
+    [[ -n "$domain" ]] || fatal "wait_until_zone_out_of_dns: no 'domain' given"
+
+    local ip=$(vmadm get $uuid | json nics.0.ip)
+    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
+
+    echo "Wait up to 2 minutes for $alias zone to leave DNS."
+    for i in {1..24}; do
+        sleep 5
+        echo '.'
+        in_dns=$(dig $domain +short | (grep $ip || true))
+        if [[ -z "$in_dns" ]]; then
+            break
+        fi
+    done
+    in_dns=$(dig $domain +short | (grep $ip || true))
+    if [[ -n "$in_dns" ]]; then
+        fatal "New $alias ($uuid) zone's IP $ip did not leave DNS: 'dig $domain +short | grep $ip'"
+    fi
+}
+
 
 
 # Set cloudapi readonly mode.

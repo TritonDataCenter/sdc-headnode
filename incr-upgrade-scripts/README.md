@@ -4,6 +4,22 @@ These scripts can be used to drive incremental upgrades of SDC 7 (as opposed
 to usb-headnode.git/bin/upgrade.sh which is about the major SDC 6.5 -> 7 upgrade).
 See HEAD-1795 for intended improvements to this process.
 
+
+
+## A note for ancient SDC7's
+
+You have an "ancient" SDC7 install if any of the following are true:
+
+- You don't have an 'amonredis' zone, i.e. `vmadm list | grep amonredis` on
+  the HN GZ is empty.
+- You don't have an 'sdc' zone, i.e. `vmadm list | grep sdc` on the HN GZ is
+  empty.
+
+If you have an ancient SDC7, then the following instructions have pitfalls.
+You need to speak with Trent Mick or others knowing SDC incr-upgrades to
+proceed.
+
+
 ## Prepare for upgrades (all zones)
 
 Get the latest 'incr-upgrade' package
@@ -48,34 +64,84 @@ it'll be lazily done by 'upgrade-all.sh'.
 
     ./download-all.sh upgrade-images 2>&1 | tee download.out
 
-Get backup copies of /usbkey/... sections and tools in case of rollback:
+Get backup copies of /usbkey/... sections in case of rollback:
 
     cp -r /usbkey/extra ./oldzones
     cp -r /usbkey/default ./olddefault
     cp -r /usbkey/scripts ./oldscripts
 
+Update GZ tools (in /opt/smartdc/bin) and headnode scripts (in /usbkey/scripts).
+WARNING: If you don't have an "sdc" zone (see "ancient" notes section above),
+then you cannot run this step until you've added it.
+
     cp -rP /opt/smartdc/bin ./oldtools
+    ./upgrade-tools.sh 2>&1 | tee tools.out
+
+
+
+## add new zone: amonredis, sdc, papi
+
+If you don't have one or more of the following zones, then you should add them:
+
+    ./add-sdc.sh 2>&1 | tee sdc.out
+    ./add-amonredis.sh 2>&1 | tee amonredis.out
+    ./add-papi.sh 2>&1 | tee papi.out
+
+Note: *currently* you can get away without PAPI. That will change with
+[PAPI-55](https://devhub.joyent.com/jira/browse/PAPI-55) and
+[PAPI-8](https://devhub.joyent.com/jira/browse/PAPI-8).
+
+
+
+## put the DC in maint mode (optional)
+
+The DC can be put in "maintenance mode": cloudapi in readonly mode, wait
+for workflow to clear finish its current queue of jobs. This is recommended
+for upgrades of the following: rabbitmq, ufds.
+
+    ./dc-maint-start.sh
+
+
+
+## upgrade zone: rabbitmq
+
+    ./upgrade-rabbitmq.sh upgrade-images 2>&1 | tee rabbitmq.out
+
+To rollback rabbitmq:
+
+    ./rollback-rabbitmq.sh rollback-images 2>&1 | tee rabbitmq-rollback.out
+
+
+
+## upgrade zone: ufds
+
+Currently the UFDS upgrade requires that the moray zone on the HN have
+a recent "backfill" script. Check that via:
+
+    for uuid in $(vmadm lookup state=running tags.smartdc_role=moray); do zlogin $uuid grep getPredicate /opt/smartdc/moray/node_modules/.bin/backfill >/dev/null && echo Moray zone $uuid is good || echo Moray zone $uuid needs a newer backfill script; done
+
+To upgrade the backfill script (where $moray_uuid is from the previous command):
+
+    cp ./backfill-for-ufds-upgrade /zones/$moray_uuid/root/opt/smartdc/moray/node_modules/moray/bin/backfill
+
+
+Upgrade:
+
+    ./upgrade-ufds.sh upgrade-images 2>&1 | tee ufds.out
+
+To rollback UFDS:
+
+    ./rollback-ufds.sh rollback-images 2>&1 | tee ufds-rollback.out
+
+TODO: for upgrades of UFDS where the *old* UFDS is already passed all the
+index updates... we will be wasting time doing unnecessary backfills. We should
+discover that and only backfill as necessary.
 
 
 
 ## upgrade zone: amon, sdc, napi, dapi, imgapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
 
-
-The general procedure is:
-
-    ./upgrade-setup.sh upgrade-images 2>&1 | tee setup.out
-
-    # Add new roles if required, e.g.:
-    #  ./add-FOO.sh
-    # Currently this applies to 'amonredis', 'sdc' and 'papi' if you
-    # don't yet have them.
-
-    # Upgrade tools in the GZ (in /opt/smartdc/bin).
-    ./upgrade-tools.sh 2>&1 | tee tools.out
-
-    # Upgrade the zones.
-    ./upgrade-all.sh upgrade-images 2>&1 | tee upgrade.out
-
+    ./upgrade-all.sh upgrade-images 2>&1 | tee other-zones.out
 
 
 To rollback:
@@ -100,59 +166,44 @@ To rollback:
     ./upgrade-all.sh rollback-images 2>&1 | tee rollback.out
 
 
-TODO: move this up
-Special follow up notes for 'ufds':
-
-    # If you upgraded ufds, it's important that you also backfill missing column
-    # data as UFDS does not do this automatically. To do this you'll need to
-    # look at:
-    #
-    # git log -p sapi_manifests/ufds/template
-    #
-    # in the ufds.git repo to figure out which columns need to be backfilled,
-    # then run something like:
-    #
-    # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
-    #
-    # in the moray zone. See JPC-1302 for some more usage ideas.
-
-
-
-TODO: move this up
-## 'sapi' upgrade
-
-    # If upgrading sapi:
-    #
-    # IMPORTANT: if this is the first upgrade to SAPI since HEAD-1804 changes
-    # you'll also need to edit:
-    #
-    #  /opt/smartdc/sapi/lib/server/attributes.js
-    #
-    # in the SAPI zone and add 'SAPI_MODE' to the allowed_keys in
-    # sanitizeMetadata() and restart the sapi service.
-    #
-    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
-
-
 
 ## upgrade zone: redis, amonredis
 
 TODO
 
 
+
+## upgrade zone: moray
+
+**Limitation:** Currently this just knows how to upgrade a moray zone on the
+headnode. If you have HA moray running on other CNs, this cannot yet upgrade
+them.
+
+    ./upgrade-moray.sh upgrade-images 2>&1 | tee moray.out
+
+To rollback moray:
+
+    ./upgrade-moray.sh rollback-images 2>&1 | tee moray-rollback.out
+
+
+
 ## upgrade zone: sapi
 
-TODO
+IMPORTANT: If this is upgrade a SAPI that dates from *before*
+[HEAD-1804](https://devhub.joyent.com/jira/browse/HEAD-1804) changes (where
+setup/boot scripts were moved *into* the images), you'll first need to tweak
+the existing old SAPI:
+
+    sdc-login sapi
+    vi /opt/smartdc/sapi/lib/server/attributes.js
+    # Add 'SAPI_MODE' to the allowed_keys in `sanitizeMetadata()`.
+    svcadm restart sapi
 
 
-## upgrade zone: ufds
+Then back in the GZ:
 
-TODO: upgrade-ufds.sh, rollback-ufds.sh
+    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
 
-
-## upgrade zone: rabbitmq
-
-TODO: upgrade-rabbitmq.sh
 
 
 ## upgrade zone: assets, dhcpd
@@ -160,14 +211,18 @@ TODO: upgrade-rabbitmq.sh
 TODO
 
 
+
 ## upgrade zone: binder, manatee (MORAY-138)
 
 TODO: this is MORAY-138, talk to matt
 
 
+
 ## upgrade zone: manatee (*after* MORAY-138)
 
 TODO
+
+
 
 ## Upgrading all agents
 
@@ -183,9 +238,16 @@ from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
     /usbkey/scripts/update_agents agents-master-DATE-gSHA.sh
 
 
+
 ## Upgrading just a specific agent
 
 TODO: describe editing the agentsshar manually
+
+
+
+## Remove the DC from maint mode
+
+    ./dc-maint-end.sh
 
 
 
@@ -202,7 +264,25 @@ TODO: describe editing the agentsshar manually
 
 ## Future improvements
 
+- upgrade-ufds.sh should automatically determine what backfilling needs to
+  be done. Old notes on this:
+
+        # If you upgraded ufds, it's important that you also backfill missing column
+        # data as UFDS does not do this automatically. To do this you'll need to
+        # look at:
+        #
+        # git log -p sapi_manifests/ufds/template
+        #
+        # in the ufds.git repo to figure out which columns need to be backfilled,
+        # then run something like:
+        #
+        # /opt/smartdc/moray/node_modules/moray/bin]# ./backfill -i name -i version ufds_o_smartdc
+        #
+        # in the moray zone. See JPC-1302 for some more usage ideas.
+
 - Should we `dc-maint-{start,end}.sh` for provision pipeline upgrades?
   I.e. for napi, dapi, imgapi, fwapi, papi, vmapi, cnapi.
 
 - We need an LB in front of cloudapi to maint-window it.
+
+-

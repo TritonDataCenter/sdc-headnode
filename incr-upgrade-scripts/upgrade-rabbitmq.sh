@@ -33,9 +33,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-IMAGE_LIST=$1
-source $IMAGE_LIST
-
+RABBITMQ_IMAGE=$(grep '^export RABBITMQ_IMAGE' $1 | tail -1 | cut -d'=' -f2 | awk '{print $1}')
 if [[ -z ${RABBITMQ_IMAGE} ]]; then
     fatal "\$RABBITMQ_IMAGE not defined"
 fi
@@ -59,7 +57,7 @@ fi
 empty=/var/tmp/empty
 rm -f $empty
 touch $empty
-RABBITMQ_IMAGE=$RABBITMQ_IMAGE ./upgrade-all.sh $empty
+REALLY_UPGRADE_RABBITMQ=1 RABBITMQ_IMAGE=$RABBITMQ_IMAGE ./upgrade-all.sh $empty
 
 echo ''
 echo '* * *'
@@ -67,5 +65,5 @@ echo 'Check agent health after rabbit upgrade (full log to agent-healthcheck.log
 bash sdc-agent-healthcheck.sh | tee agent-healthcheck.log | grep error || echo "(no errors)"
 echo '* * *'
 
-echo 'Done.'
+echo 'Done rabbitmq upgrade.'
 

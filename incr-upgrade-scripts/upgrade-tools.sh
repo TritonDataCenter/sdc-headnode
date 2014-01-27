@@ -26,7 +26,13 @@ function fatal
 
 #---- mainline
 
+[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
 [[ ! -d "./tools" ]] && fatal "there is no './tools' dir from which to upgrade!"
+
+# Guard on having an 'sdc' zone. If the HN doesn't have one, then the new
+# tools will all be broken.
+$(vmadm lookup -1 state=running tags.smartdc_role=sdc >/dev/null 2>&1) \
+    || fatal "this SDC headnode does not have an 'sdc' zone, cannot upgrade to the latest tools"
 
 for tool in $(ls -1 ./tools); do
     new=./tools/$tool
@@ -45,6 +51,9 @@ for tool in $(ls -1 ./tools); do
 done
 
 [[ ! -d "./scripts" ]] && fatal "there is no './scripts' dir from which to upgrade!"
+
+
+echo 'Mount USB key and upgrade [/mnt]/usbkey/scripts.'
 
 /usbkey/scripts/mount-usb.sh
 if [[ ! -d "/mnt/usbkey/scripts" ]]; then

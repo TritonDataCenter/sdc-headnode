@@ -5,9 +5,7 @@
 #     disable ufds-replicator until they themselves have been upgraded.
 #     Typically this should only be required for UFDS postgres schema
 #     migrations.
-#   - put cloudapi in RO
 #   - TODO: can we put portal in RO mode?
-#   - wait for WF queue to drain
 #   - moray backup of ufds buckets
 #   - provision ufds1 zone and wait until in DNS (presuming curr UFDS is 'ufds0')
 #   - stop ufds0 zone
@@ -15,14 +13,15 @@
 #     for newly added indexes in the UFDS bucket in moray)
 #   - upgrade ufds0 and wait until in DNS
 #   - stop ufds1 (we don't need it anymore, delete it eventually)
-#   - sdc-healthcheck
-#   - cloudapi out of RO mode
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 set -o errexit
 set -o pipefail
+
+TOP=$(cd $(dirname $0)/; pwd)
+source $TOP/libupgrade.sh
 
 
 #---- support routines
@@ -34,60 +33,7 @@ function fatal
 }
 
 
-function wait_until_zone_in_dns() {
-    local uuid=$1
-    local alias=$2
-    local domain=$3
-    [[ -n "$uuid" ]] || fatal "wait_until_zone_in_dns: no 'uuid' given"
-    [[ -n "$alias" ]] || fatal "wait_until_zone_in_dns: no 'alias' given"
-    [[ -n "$domain" ]] || fatal "wait_until_zone_in_dns: no 'domain' given"
-
-    local ip=$(vmadm get $uuid | json nics.0.ip)
-    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
-
-    echo "Wait up to 5 minutes for $alias zone to enter DNS."
-    for i in {1..30}; do
-        sleep 10
-        echo -n '.'
-        in_dns=$(dig $domain +short | (grep $ip || true))
-        if [[ "$in_dns" == "$ip" ]]; then
-            break
-        fi
-    done
-    in_dns=$(dig $domain +short | (grep $ip || true))
-    if [[ "$in_dns" != "$ip" ]]; then
-        fatal "New $alias ($uuid) zone's IP $ip did not enter DNS: 'dig $domain +short | grep $ip'"
-    fi
-}
-
-
-function wait_until_zone_out_of_dns() {
-    local uuid=$1
-    local alias=$2
-    local domain=$3
-    [[ -n "$uuid" ]] || fatal "wait_until_zone_out_of_dns: no 'uuid' given"
-    [[ -n "$alias" ]] || fatal "wait_until_zone_out_of_dns: no 'alias' given"
-    [[ -n "$domain" ]] || fatal "wait_until_zone_out_of_dns: no 'domain' given"
-
-    local ip=$(vmadm get $uuid | json nics.0.ip)
-    [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
-
-    echo "Wait up to 5 minutes for $alias zone to leave DNS."
-    for i in {1..30}; do
-        sleep 10
-        echo -n '.'
-        in_dns=$(dig $domain +short | (grep $ip || true))
-        if [[ -z "$in_dns" ]]; then
-            break
-        fi
-    done
-    in_dns=$(dig $domain +short | (grep $ip || true))
-    if [[ -n "$in_dns" ]]; then
-        fatal "New $alias ($uuid) zone's IP $ip did not leave DNS: 'dig $domain +short | grep $ip'"
-    fi
-}
-
-
+#XXX move this to libupgrade
 # Update the customer_metadata.user-script on a zone in preparation for
 # 'vmadm reprovision'. Also save it in "user-scripts/" for possible rollback.
 function update_svc_user_script {
@@ -207,7 +153,9 @@ vmadm stop $CUR_UUID
 
 
 # Backfill.
-MORAY_UUID=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=running | head -1)
+# Work around EPIPE in 'vmadm lookup' (OS-2604)
+MORAY_UUIDS=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=running)
+MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 echo "Backfill (stage 1)"
 zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
     /opt/smartdc/moray/node_modules/.bin/backfill \

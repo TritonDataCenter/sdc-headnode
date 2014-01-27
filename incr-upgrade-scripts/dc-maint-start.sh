@@ -11,7 +11,6 @@ set -o errexit
 set -o pipefail
 
 TOP=$(cd $(dirname $0)/; pwd)
-
 source $TOP/libupgrade.sh
 
 
@@ -29,4 +28,6 @@ function fatal
 [[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
 cloudapi_readonly_mode true
 wait_for_wf_drain
+
+echo "Done. DC is now in maint mode (cloudapi readonly, wf cleared)."
 

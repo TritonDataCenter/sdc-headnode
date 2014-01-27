@@ -42,7 +42,7 @@ ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
 json -f $manifest -e "this.owner = '$ufds_admin_uuid'" > $manifest.tmp
 mv $manifest.tmp $manifest
 
-${LOCAL} import -m ${manifest} -f ${file} || fatal "failed to import image"
+${LOCAL} import -m ${manifest} -f ${file} || fatal "failed to import image ${UUID}"
 
 set +o errexit
 imgadm get ${image_uuid} >/dev/null 2>&1
