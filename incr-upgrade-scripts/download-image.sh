@@ -10,24 +10,30 @@
 # database with the local DC.
 #
 
-export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o xtrace
 set -o errexit
 set -o pipefail
 
-TOP=$(cd $(dirname $0)/; pwd)
-source $TOP/libupgrade.sh
-
-UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
-SDC_IMGADM='/opt/smartdc/bin/sdc-imgadm'
-
 
 #---- support routines
+
+function fatal
+{
+    echo "$0: fatal error: $*" >&2
+    exit 1
+}
 
 function import_image() {
     local uuid=$1
     local manifest=/var/tmp/${uuid}.manifest.$$
     local file=/var/tmp/${uuid}.file.$$
+
+    UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
+    SDC_IMGADM='/opt/smartdc/bin/sdc-imgadm'
 
     set +o errexit
     if [[ -n "$(${SDC_IMGADM} get ${uuid} 2>/dev/null || true)" ]]; then
