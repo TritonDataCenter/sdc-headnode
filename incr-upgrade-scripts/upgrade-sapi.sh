@@ -1,102 +1,130 @@
 #!/usr/bin/bash
 #
-# upgrade-sapi.sh: provision a new SAPI instance
+# upgrade-sapi.sh:
+#   - provision sapi1 zone and wait until in DNS (presuming curr SAPI is 'sapi0')
+#   - stop sapi0 zone
+#   - upgrade sapi0 and wait until in DNS
+#   - destroy sapi1
+#
+# We do this dance because upgrading SAPI in "full" mode requires a SAPI around.
 
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 set -o errexit
+set -o pipefail
+
+TOP=$(cd $(dirname $0)/; pwd)
+source $TOP/libupgrade.sh
+
+
+#---- mainline
+
+# -- Check usage and skip out if no upgrade necessary.
 
 if [[ $# -ne 1 ]]; then
-    echo "Usage: upgrade-all.sh <upgrade-images-file>"
+    echo "Usage: upgrade-sapi.sh <upgrade-images-file>"
     exit 1
 fi
-
-IMAGE_LIST=$1
-source $IMAGE_LIST
-
-if [[ -z ${SAPI_IMAGE} ]] ; then
-    echo "error: \$SAPI_IMAGE not defined"
-    exit 1
+[[ ! -f "$1" ]] && fatal "'$1' does not exist"
+source $1
+if [[ -z ${SAPI_IMAGE} ]]; then
+    fatal "\$SAPI_IMAGE not defined"
 fi
+[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
 
 
-# (1) Check to make sure SAPI hasn't already been upgraded
+# Get the old zone. Assert we have exactly one on the HN.
+UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+CUR_UUID=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~^sapi)
+[[ -n "${CUR_UUID}" ]] \
+    || fatal "there is not exactly one running sapiN zone";
+CUR_ALIAS=$(vmadm get $CUR_UUID | json alias)
+CUR_IMAGE=$(vmadm get $CUR_UUID | json image_uuid)
 
-CURRENT_IMAGE=$(vmadm get $(vmadm lookup alias=~sapi)| json image_uuid)
-if [[ $CURRENT_IMAGE == $SAPI_IMAGE ]]; then
-    echo "SAPI already using image $CURRENT_IMAGE"
+# Don't bother if already on this image.
+if [[ $CUR_IMAGE == $SAPI_IMAGE ]]; then
+    echo "$0: already using image $CUR_IMAGE for zone $CUR_UUID ($CUR_ALIAS)"
     exit 0
 fi
 
 
-# (2) Install latest SAPI image
+SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+[[ -n "$SDC_APP" ]] || fatal "could not determine 'sdc' SAPI app"
+SAPI_SVC=$(sdc-sapi /services?name=sapi\&application_uuid=$SDC_APP | json -H 0.uuid)
+[[ -n "$SAPI_SVC" ]] || fatal "could not determine sdc 'sapi' SAPI service"
+SAPI_DOMAIN=$(bash /lib/sdc/config.sh -json | json sapi_domain)
+[[ -n "$SAPI_DOMAIN" ]] || fatal "no 'sapi_domain' in sdc config"
 
+
+CUR_MODE=$(sdc-sapi --no-headers /mode)
+[[ "$CUR_MODE" == "full" ]] \
+    || fatal "SAPI is not in 'full' mode ($CUR_MODE). Cannot upgrade this."
+
+
+
+# -- Get the new image.
 ./download-image.sh ${SAPI_IMAGE}
 
 
-# (3) Fix up SAPI's SAPI service to refer to new image
+# -- Provision a new upgraded zone.
 
-echo "{
-    \"params\": {
-        \"image_uuid\": \"${SAPI_IMAGE}\"
-    }
-}" > /tmp/changes.$$.json
+# Update service data in SAPI.
+sapiadm update $SAPI_SVC params.image_uuid=$SAPI_IMAGE
+update_svc_user_script $CUR_UUID $SAPI_IMAGE
 
-SAPI_SVC_UUID=$(sdc-sapi /services?name=sapi | json -Ha uuid | head -n 1)
-sdc-sapi /services/${SAPI_SVC_UUID} -X PUT -T /tmp/changes.$$.json
+# Workaround SAPI-199.
+SAPI_URL="http://$SAPI_DOMAIN"
+sapiadm update $SAPI_SVC metadata.sapi-url=$SAPI_URL   # workaround SAPI-199
+echo "{\"set_customer_metadata\": {\"sapi-url\": \"$SAPI_URL\"}}" |
+    vmadm update ${CUR_UUID}
 
-# (3.5) Since we're making a new zone, use the latest user-script.
-
-if [[ -f /usbkey/default/user-script.common ]]; then
-    NEW_USER_SCRIPT=/usbkey/default/user-script.common
-else
-    echo "Unable to find user-script for ${alias}" >&2
-    exit 1
-fi
-mkdir -p sapi-updates
-/usr/vm/sbin/add-userscript /usbkey/default/user-script.common \
-    | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
-    > sapi-updates/${SAPI_SVC_UUID}.update
-sdc-sapi /services/${SAPI_SVC_UUID} -X PUT -d @sapi-updates/${SAPI_SVC_UUID}.update
-
-# (4) Provision a new SAPI instance
-
-orig=$(vmadm get $(vmadm lookup alias=~sapi) | json alias |
-    sed 's/sapi\([0-9]\)/\1/')
-new=$(( $orig + 1 ))
-
-UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-echo "
+# Provision a new instance.
+CUR_N=$(echo $CUR_ALIAS | sed -E 's/sapi([0-9]+)/\1/')
+NEW_N=$(( $CUR_N + 1 ))
+NEW_ALIAS=sapi$NEW_N
+cat <<EOM | sapiadm provision
 {
-    \"service_uuid\": \"${SAPI_SVC_UUID}\",
-    \"params\": {
-        \"owner_uuid\": \"$UFDS_ADMIN_UUID\",
-        \"alias\": \"sapi${new}\"
+    "service_uuid": "$SAPI_SVC",
+    "params": {
+        "owner_uuid": "$UFDS_ADMIN_UUID",
+        "alias": "$NEW_ALIAS"
     }
-}" | sapiadm provision
+}
+EOM
+NEW_UUID=$(vmadm lookup -1 owner_uuid=$UFDS_ADMIN_UUID alias=$NEW_ALIAS)
+[[ -n "$NEW_UUID" ]] || fatal "could not find new $NEW_ALIAS zone"
+
+# Wait for new IP to enter DNS.
+wait_until_zone_in_dns $NEW_UUID $NEW_ALIAS $SAPI_DOMAIN
 
 
-# (5) Restart SAPI to workaround lack of appropriate post_cmd
+# -- Phase out the "NEW" ufds zone. Just want to keep the original "CUR" one.
 
-sleep 35
-SAPI1_UUID=$(vmadm lookup alias=sapi${new})
-zlogin ${SAPI1_UUID} svcadm restart sapi
+CUR_IP=$(vmadm get $CUR_UUID | json nics.0.ip)
+NEW_IP=$(vmadm get $NEW_UUID | json nics.0.ip)
 
+# TODO: instead of waiting to get out of DNS, then back in, would be faster
+#    to not bother and just wait until a ping check on the sapi service is
+#    up.
+zlogin ${CUR_UUID} svcadm disable registrar
+wait_until_zone_out_of_dns $CUR_UUID $CUR_ALIAS $SAPI_DOMAIN $CUR_IP
 
-# (6) Destroy the original SAPI instance
+# Workaround SAPI-197.
+echo '{"set_customer_metadata": {"SAPI_MODE": "full"}}' |
+    vmadm update ${CUR_UUID}
+echo '{}' | json -e "this.image_uuid = '${SAPI_IMAGE}'" |
+    vmadm reprovision ${CUR_UUID}
+wait_until_zone_in_dns $CUR_UUID $CUR_ALIAS $SAPI_DOMAIN $CUR_IP
 
-SAPI0_UUID=$(vmadm lookup alias=sapi${orig})
-SAPI1_IP=$(vmadm get $(vmadm lookup alias=sapi${new}) | json nics.0.ip)
-curl http://${SAPI1_IP}/instances/${SAPI0_UUID} -X DELETE
+vmadm delete $NEW_UUID
+wait_until_zone_out_of_dns $NEW_UUID $NEW_ALIAS $SAPI_DOMAIN $NEW_IP
 
-sleep 60  # to allow DNS record for sapi0 to expire
+# Because we shuffle back to sapi0 we don't need to update to 'sapiadm'
+# symlink. In case that fails and you are stuck with sapi1, this might be
+# useful:
+#    SAPI_UUID=$(vmadm lookup alias=~sapi)
+#    rm -f /opt/smartdc/bin/sapiadm
+#    ln -s /zones/${SAPI_UUID}/root/opt/smartdc/config-agent/cmd/sapiadm.js \
+#        /opt/smartdc/bin/sapiadm
 
-
-# (7) Fix up sapiadm symlink
-
-SAPI_UUID=$(vmadm lookup alias=~sapi)
-
-rm -f /opt/smartdc/bin/sapiadm
-
-ln -s \
-    /zones/${SAPI_UUID}/root/opt/smartdc/config-agent/cmd/sapiadm.js \
-    /opt/smartdc/bin/sapiadm
+echo "Done sapi upgrade."

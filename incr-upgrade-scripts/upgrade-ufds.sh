@@ -24,56 +24,7 @@ TOP=$(cd $(dirname $0)/; pwd)
 source $TOP/libupgrade.sh
 
 
-#---- support routines
-
-function fatal
-{
-    echo "$0: fatal error: $*" >&2
-    exit 1
-}
-
-
-#XXX move this to libupgrade
-# Update the customer_metadata.user-script on a zone in preparation for
-# 'vmadm reprovision'. Also save it in "user-scripts/" for possible rollback.
-function update_svc_user_script {
-    local uuid=$1
-    local image_uuid=$2
-    local current_image_uuid=$(vmadm get $uuid | json image_uuid)
-
-    # If we have a user-script for this zone/image here we must be doing a
-    # rollback so we want to use that user-script. If we don't have one, we
-    # save the current one for future rollback.
-    mkdir -p user-scripts
-    if [[ -f user-scripts/${alias}.${image_uuid}.user-script ]]; then
-        NEW_USER_SCRIPT=user-scripts/${alias}.${image_uuid}.user-script
-    else
-        vmadm get ${uuid} | json customer_metadata."user-script" \
-            > user-scripts/${alias}.${current_image_uuid}.user-script
-        [[ -s user-scripts/${alias}.${current_image_uuid}.user-script ]] \
-            || fatal "Failed to create ${alias}.${current_image_uuid}.user-script"
-
-        if [[ -f /usbkey/default/user-script.common ]]; then
-            NEW_USER_SCRIPT=/usbkey/default/user-script.common
-        else
-            fatal "Unable to find user-script for ${alias}"
-        fi
-    fi
-    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} | vmadm update ${uuid}
-
-    # Update user-script for future provisions.
-    mkdir -p sapi-updates
-    local service_uuid=$(sdc-sapi /instances/${uuid} | json -H service_uuid)
-    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} \
-        | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
-        > sapi-updates/${service_uuid}.update
-    sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
-}
-
-
-
 #---- mainline
-
 
 # -- Check usage and skip out if no upgrade necessary.
 

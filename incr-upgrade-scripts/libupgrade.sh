@@ -107,11 +107,13 @@ function wait_until_zone_out_of_dns() {
     local uuid=$1
     local alias=$2
     local domain=$3
+    local ip=$4
     [[ -n "$uuid" ]] || fatal "wait_until_zone_out_of_dns: no 'uuid' given"
     [[ -n "$alias" ]] || fatal "wait_until_zone_out_of_dns: no 'alias' given"
     [[ -n "$domain" ]] || fatal "wait_until_zone_out_of_dns: no 'domain' given"
-
-    local ip=$(vmadm get $uuid | json nics.0.ip)
+    if [[ -z "$ip" ]]; then
+        ip=$(vmadm get $uuid | json nics.0.ip)
+    fi
     [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
 
     echo "Wait up to 2 minutes for $alias zone to leave DNS."
@@ -164,4 +166,43 @@ function cloudapi_readonly_mode {
     svcs -z $CLOUDAPI_ZONE -Ho fmri cloudapi | xargs -n1 svcadm -z $CLOUDAPI_ZONE restart
 
     # TODO: add readonly status to /--ping on cloudapi and watch for that.
+}
+
+
+
+# Update the customer_metadata.user-script on a zone in preparation for
+# 'vmadm reprovision'. Also save it in "user-scripts/" for possible rollback.
+function update_svc_user_script {
+    local uuid=$1
+    local image_uuid=$2
+    local current_image_uuid=$(vmadm get $uuid | json image_uuid)
+    local alias=$(vmadm get $uuid | json alias)
+
+    # If we have a user-script for this zone/image here we must be doing a
+    # rollback so we want to use that user-script. If we don't have one, we
+    # save the current one for future rollback.
+    mkdir -p user-scripts
+    if [[ -f user-scripts/${alias}.${image_uuid}.user-script ]]; then
+        NEW_USER_SCRIPT=user-scripts/${alias}.${image_uuid}.user-script
+    else
+        vmadm get ${uuid} | json customer_metadata."user-script" \
+            > user-scripts/${alias}.${current_image_uuid}.user-script
+        [[ -s user-scripts/${alias}.${current_image_uuid}.user-script ]] \
+            || fatal "Failed to create ${alias}.${current_image_uuid}.user-script"
+
+        if [[ -f /usbkey/default/user-script.common ]]; then
+            NEW_USER_SCRIPT=/usbkey/default/user-script.common
+        else
+            fatal "Unable to find user-script for ${alias}"
+        fi
+    fi
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} | vmadm update ${uuid}
+
+    # Update user-script for future provisions.
+    mkdir -p sapi-updates
+    local service_uuid=$(sdc-sapi /instances/${uuid} | json -H service_uuid)
+    /usr/vm/sbin/add-userscript ${NEW_USER_SCRIPT} \
+        | json -e "this.payload={metadata: this.set_customer_metadata}" payload \
+        > sapi-updates/${service_uuid}.update
+    sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
 }
