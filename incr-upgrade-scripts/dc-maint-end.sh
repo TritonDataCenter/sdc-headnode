@@ -24,7 +24,9 @@ function fatal
 
 #---- mainline
 
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
+
 cloudapi_readonly_mode false
 
 echo 'Done. DC is now *out of* maint mode.'

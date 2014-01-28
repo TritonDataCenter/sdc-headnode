@@ -75,7 +75,7 @@ function check_end_to_end()
     cnapi)
       local got_name=`sdc-cnapi /servers?headnode=true 2>/dev/null | \
           json -H -a hostname`
-      [[ "$got_name" == "headnode" ]] && return
+      [[ "$got_name" == "$(hostname)" ]] && return
       ;;
     fwapi)
       local got_status=`sdc-fwapi /rules 2>/dev/null | \

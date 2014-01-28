@@ -25,7 +25,9 @@ function fatal
 
 #---- mainline
 
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
+
 cloudapi_readonly_mode true
 wait_for_wf_drain
 

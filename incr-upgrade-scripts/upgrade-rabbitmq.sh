@@ -37,8 +37,8 @@ RABBITMQ_IMAGE=$(grep '^export RABBITMQ_IMAGE' $1 | tail -1 | cut -d'=' -f2 | aw
 if [[ -z ${RABBITMQ_IMAGE} ]]; then
     fatal "\$RABBITMQ_IMAGE not defined"
 fi
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
-
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
 
 # Get the old rabbitmq zone. Assert we have exactly one on the HN.
 UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json |json ufds_admin_uuid)

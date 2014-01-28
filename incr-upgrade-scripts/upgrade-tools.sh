@@ -26,7 +26,8 @@ function fatal
 
 #---- mainline
 
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
 [[ ! -d "./tools" ]] && fatal "there is no './tools' dir from which to upgrade!"
 
 # Guard on having an 'sdc' zone. If the HN doesn't have one, then the new

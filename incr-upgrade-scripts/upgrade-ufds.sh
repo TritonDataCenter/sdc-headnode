@@ -37,7 +37,8 @@ source $1
 if [[ -z ${UFDS_IMAGE} ]]; then
     fatal "\$UFDS_IMAGE not defined"
 fi
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
 
 SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 [[ -n "$SDC_APP" ]] || fatal "could not determine 'sdc' SAPI app"

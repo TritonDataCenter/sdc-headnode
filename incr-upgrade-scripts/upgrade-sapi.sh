@@ -30,8 +30,8 @@ source $1
 if [[ -z ${SAPI_IMAGE} ]]; then
     fatal "\$SAPI_IMAGE not defined"
 fi
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
-
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
 
 # Get the old zone. Assert we have exactly one on the HN.
 UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)

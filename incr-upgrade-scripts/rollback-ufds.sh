@@ -31,7 +31,8 @@ UFDS_IMAGE=$(grep '^export UFDS_IMAGE' $1 | tail -1 | cut -d= -f2 | awk '{print 
 if [[ -z ${UFDS_IMAGE} ]]; then
     fatal "\$UFDS_IMAGE not defined"
 fi
-[[ $(hostname) == "headnode" ]] || fatal "not running on the headnode"
+[[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
+    || fatal "not running on the headnode"
 
 SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 [[ -n "$SDC_APP" ]] || fatal "could not determine 'sdc' SAPI app"
