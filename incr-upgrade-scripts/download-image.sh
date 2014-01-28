@@ -2,56 +2,74 @@
 #
 # download-image.sh: download and install an image from updates.joyent.com
 #
+# Note: We *should* just be using:
+#       sdc-imgadm import UUID -S https://updates.joyent.com
+# but we don't because we still haven't cleaned up 'owner' field handling in
+# images from public/private repos (e.g. from updates.joyent.com) where there
+# is no meaning user database, or at least meaningfully shareable user
+# database with the local DC.
+#
 
+export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 set -o errexit
+set -o pipefail
 
-fatal()
-{
-    echo "Error: $1"
-    exit 1
+TOP=$(cd $(dirname $0)/; pwd)
+source $TOP/libupgrade.sh
+
+UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
+SDC_IMGADM='/opt/smartdc/bin/sdc-imgadm'
+
+
+#---- support routines
+
+function import_image() {
+    local uuid=$1
+    local manifest=/var/tmp/${uuid}.manifest.$$
+    local file=/var/tmp/${uuid}.file.$$
+
+    set +o errexit
+    if [[ -n "$(${SDC_IMGADM} get ${uuid} 2>/dev/null || true)" ]]; then
+        echo "Image ${uuid} already installed."
+        return
+    fi
+
+    ${UPDATES_IMGADM} get $uuid >${manifest} \
+        || fatal "failed to get image $uuid manifest"
+    local origin=$(json -f $manifest origin)
+    if [[ -n "$origin" ]]; then
+        echo "Import origin image $origin"
+        import_image $origin
+    fi
+
+    bytes=$(json -f ${manifest} files.0.size)
+    name=$(json -f ${manifest} name)
+    version=$(json -f ${manifest} version)
+    printf "Downloading image $uuid ($name $version) file (%d MiB).\n" \
+        $(( ${bytes} / 1024 / 1024 ))
+    ${UPDATES_IMGADM} get-file $uuid > ${file} \
+        || fatal "failed to get image $uuid file from updates.joyent.com"
+
+    ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+    json -f $manifest -e "this.owner = '$ufds_admin_uuid'" > $manifest.tmp
+    mv $manifest.tmp $manifest
+
+    ${SDC_IMGADM} import -m ${manifest} -f ${file} \
+        || fatal "failed to import image ${uuid}"
+
+    if [[ -z "$(imgadm get $uuid 2>/dev/null)" ]]; then
+        imgadm import ${uuid} || fatal "failed to install image $uuid into zpool"
+    fi
+
+    rm -f ${manifest} ${file}
 }
 
+
+
+
+#---- mainline
+
 [[ $# -eq 1 ]] || fatal "usage: $0 <image uuid>"
-
-REMOTE='/opt/smartdc/bin/updates-imgadm'
-LOCAL='/opt/smartdc/bin/sdc-imgadm'
-
-UUID=$1
-
-manifest=/var/tmp/${UUID}.manifest
-file=/var/tmp/${UUID}.file
-
-set +o errexit
-${LOCAL} get ${UUID} >/dev/null 2>&1
-if [[ $? -eq 0 ]]; then
-    echo "Image ${UUID} already installed."
-    exit 0
-fi
-
-${REMOTE} get $UUID > ${manifest} || fatal "failed to get image manifest"
-
-bytes=$(json -f ${manifest} files.0.size)
-printf "Downloading image $UUID (%d MiB) ... " $(( ${bytes} / 1024 / 1024 ))
-
-${REMOTE} get-file $UUID > ${file} || fatal "failed to get image file"
-
-echo "done!"
-
-ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-json -f $manifest -e "this.owner = '$ufds_admin_uuid'" > $manifest.tmp
-mv $manifest.tmp $manifest
-
-${LOCAL} import -m ${manifest} -f ${file} || fatal "failed to import image ${UUID}"
-
-set +o errexit
-imgadm get ${image_uuid} >/dev/null 2>&1
-if [[ $? -ne 0 ]]; then
-    uuid=$(json -f ${manifest} uuid)
-    imgadm import ${uuid} || fatal "failed to install image"
-fi
-set -o errexit
-
-rm -f ${manifest} ${file}
-
+import_image $1
 exit 0
