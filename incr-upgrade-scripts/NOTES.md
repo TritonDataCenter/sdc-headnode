@@ -40,8 +40,7 @@ A possible new flow here, using a JSON spec file for to upgrade.
         ... upgrade-setup and upgrade-zone for each service in order from spec.json
         ... pause after each zone
 
--   Rollback if necessary. Rollback /usbkey/extra bits have been saves in
-    '/var/tmp/upgrade-foo'.
+-   Rollback if necessary.
 
         # Optionally can just roll back a particular service.
         $ ./rollback.sh foo[.json] [<service> ...]

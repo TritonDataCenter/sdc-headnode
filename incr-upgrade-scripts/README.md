@@ -64,16 +64,13 @@ it'll be lazily done by 'upgrade-all.sh'.
 
     ./download-all.sh upgrade-images 2>&1 | tee download.out
 
-Get backup copies of /usbkey/... sections in case of rollback:
-
-    cp -r /usbkey/extra ./oldzones
-    cp -r /usbkey/default ./olddefault
-    cp -r /usbkey/scripts ./oldscripts
-
-Update GZ tools (in /opt/smartdc/bin) and headnode scripts (in /usbkey/scripts).
+Update GZ tools (in /opt/smartdc/bin) and headnode scripts (in /usbkey/scripts)
+and zone defaults (/usbkey/default).
 WARNING: If you don't have an "sdc" zone (see "ancient" notes section above),
 then you cannot run this step until you've added it.
 
+    cp -r /usbkey/default ./olddefault
+    cp -r /usbkey/scripts ./oldscripts
     cp -rP /opt/smartdc/bin ./oldtools
     ./upgrade-tools.sh 2>&1 | tee tools.out
 
@@ -151,14 +148,10 @@ To rollback:
     # rollback will be a no-op, but you might want to edit this file first
     # to *just* include the zones in 'upgrade-images'.
 
-    mv zones newzones
-    mv oldzones zones
     mv default newdefault
     mv olddefault default
     mv scripts newscripts
     mv oldscripts scripts
-    ./upgrade-setup.sh rollback-images 2>&1 | tee rollback-setup.out
-
     mv tools newtools
     mv oldtools tools
     ./upgrade-tools.sh 2>&1 | tee rollback-tools.out

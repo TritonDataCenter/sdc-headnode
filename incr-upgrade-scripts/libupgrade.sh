@@ -18,35 +18,6 @@ function fatal
 }
 
 
-# Update /usbkey/extra/$role in prep for (re)provision of a zone with that
-# role.
-function copy_usbkey_extra_files
-{
-    local role=$1
-
-    cp default/* /usbkey/default
-
-    rm -f /usbkey/extra/$role/setup
-    mkdir -p /usbkey/extra/$role
-    if [[ -f zones/$role/setup ]]; then
-        cp zones/$role/setup /usbkey/extra/$role/setup
-    fi
-    rm -f /usbkey/extra/$role/configure
-    if [[ -f zones/$role/configure ]]; then
-        cp zones/$role/configure /usbkey/extra/$role/configure
-    fi
-    rm -f /usbkey/extra/$role/setup.common
-    if [[ -f /usbkey/default/setup.common ]]; then
-        cp /usbkey/default/setup.common /usbkey/extra/$role/setup.common
-    fi
-    rm -f /usbkey/extra/$role/configure.common
-    if [[ -f /usbkey/default/configure.common ]]; then
-        cp /usbkey/default/configure.common /usbkey/extra/$role/configure.common
-    fi
-    #TODO: should update /usbkey/extras/bashrc from /usbkey/rc/
-}
-
-
 function wait_for_wf_drain {
     local running
     local queued

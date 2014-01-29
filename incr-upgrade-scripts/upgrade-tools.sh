@@ -56,6 +56,7 @@ done
 
 echo 'Mount USB key and upgrade [/mnt]/usbkey/scripts.'
 
+
 /usbkey/scripts/mount-usb.sh
 if [[ ! -d "/mnt/usbkey/scripts" ]]; then
     echo "unable to mount /mnt/usbkey" >&2
@@ -66,6 +67,9 @@ cp -Rp /usbkey/scripts pre-upgrade.scripts.$(date +%s)
 rm -rf /mnt/usbkey/scripts /usbkey/scripts
 cp -Rp scripts /mnt/usbkey/scripts
 cp -Rp scripts /usbkey/scripts
+
+cp default/* /mnt/usbkey/default
+cp default/* /usbkey/default
 
 umount /mnt/usbkey
 
