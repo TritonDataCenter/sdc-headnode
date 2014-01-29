@@ -64,7 +64,7 @@ echo '* * *'
 echo 'Wait 30s (sleeps are lame) before running agent healthcheck.'
 sleep 30
 echo 'Check agent health after rabbit upgrade (full log to agent-healthcheck.log):'
-bash sdc-agent-healthcheck.sh | tee agent-healthcheck.log | grep error || echo "(no errors)"
+bash sdc-agent-healthcheck.sh | tee agent-healthcheck.log | (grep error || echo "(no errors)")
 echo '* * *'
 
 echo 'Done rabbitmq upgrade.'
