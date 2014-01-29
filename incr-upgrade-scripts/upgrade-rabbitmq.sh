@@ -61,6 +61,8 @@ REALLY_UPGRADE_RABBITMQ=1 RABBITMQ_IMAGE=$RABBITMQ_IMAGE ./upgrade-all.sh $empty
 
 echo ''
 echo '* * *'
+echo 'Wait 30s (sleeps are lame) before running agent healthcheck.'
+sleep 30
 echo 'Check agent health after rabbit upgrade (full log to agent-healthcheck.log):'
 bash sdc-agent-healthcheck.sh | tee agent-healthcheck.log | grep error || echo "(no errors)"
 echo '* * *'
