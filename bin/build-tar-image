@@ -158,8 +158,6 @@ fi
 [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
 echo "BITS_BRANCH: $BITS_BRANCH"
 
-IMAGES_URL="https://images.joyent.com/images"
-
 if [[ $1 == "-r" ]]; then
     # XXX - Temporary warning about recipes
     echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
@@ -479,6 +477,18 @@ function get_manta_bit
         return;
     fi
 
+    if [[ ${HAVE_INTERNET} == "false" ]]; then
+        local pattern_base="^$(basename $pattern)"
+        local latest_path=$(ls -1 ${ROOT}/cache/ \
+           | grep "${pattern_base}" \
+           | sort \
+           | tail -1)
+        [[ -n "${latest_path}" ]] \
+            || fatal "Don't have any '${pattern_base}' in '${ROOT}/cache' and no internet."
+        echo "${ROOT}/cache/${latest_path}"
+        return;
+    fi
+
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
     local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
@@ -678,23 +688,20 @@ function copy_datasets
     num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
     index=0
     while [[ ${index} -lt ${num_datasets} ]]; do
+        imgapi=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.imgapi)
         name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
         uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
-        manifest_url=${IMAGES_URL}/${uuid}
-        file_url=${IMAGES_URL}/${uuid}/file
+        manifest_url=${imgapi}/images/${uuid}
+        file_url=${imgapi}/images/${uuid}/file
         manifest="${ROOT}/cache/${name}.dsmanifest"
 
         if [[ ! -f $manifest ]] ; then
             if [[ -f ${ROOT}/datasets/${name}.dsmanifest ]]; then
                 cp ${ROOT}/datasets/${name}.dsmanifest ${manifest}
             elif [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${name} manifest"
-
-                if [[ -z ${manifest_url} ]]; then
-                    manifest_url="${IMAGES_URL}/datasets/${uuid}"
-                fi
+                echo "==> Downloading ${name} manifest (${manifest_url})"
                 (curl ${CURL_OPTS} \
-                    -k -o ${manifest} ${manifest_url}) \
+                    -ksSf -o ${manifest} ${manifest_url}) \
                     || fatal "Unable to download ${name} manifest"
             else
                 fatal "Don't have required '${name}' manifest" \
@@ -762,7 +769,7 @@ function copy_dataset
   if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
       if [[ ${HAVE_INTERNET} == "true" ]]; then
           echo "==> Downloading ${dataset_file}"
-          (cd ${ROOT}/cache && curl ${CURL_OPTS} -k \
+          (cd ${ROOT}/cache && curl ${CURL_OPTS} -kf \
               -o ${dataset_file} ${dataset_uri}) \
               || fatal "Unable to download ${dataset_file}"
       else

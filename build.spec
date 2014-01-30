@@ -9,8 +9,6 @@
   "sdcboot-release": "master",
   "firmware-tools-release": "master",
 
-  "use-images": true,
-
   "// manta-*": "You can override these in your build.spec.local.",
   "manta-base-path": "/Joyent_Dev/stor/builds",
   "manta-user": "Joyent_Dev",
@@ -46,11 +44,25 @@
 
   "datasets": [
     {
+      "imgapi": "https://images.joyent.com",
       "name": "smartos-1.6.3",
       "uuid": "01b2c898-945f-11e1-a523-af1afbe22822"
     }, {
+      "imgapi": "https://images.joyent.com",
       "name": "multiarch-13.3.1",
       "uuid": "4aec529c-55f9-11e3-868e-a37707fcbe86"
+    }, {
+      "imgapi": "https://updates.joyent.com",
+      "name": "sdc-smartos-1.6.3",
+      "uuid": "fd2cc906-8938-11e3-beab-4359c665ac99"
+    }, {
+      "imgapi": "https://updates.joyent.com",
+      "name": "sdc-multiarch-13.3.1",
+      "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
+    }, {
+      "imgapi": "https://updates.joyent.com",
+      "name": "sdc-base64-1.3.1",
+      "uuid": "aeb4e3e0-8937-11e3-b0bd-637363a89e49"
     }
   ]
 }
