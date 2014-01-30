@@ -25,8 +25,6 @@ PATH=/opt/smartdc/bin:$PATH
 
 UPDATES_IMGADM='/usr/node/bin/node /opt/smartdc/imgapi-cli/bin/updates-imgadm'
 
-DC_NAME=$(sysinfo | json "Datacenter Name")
-
 
 
 function fatal {
@@ -89,19 +87,6 @@ function upgrade_zone {
         printf "Adding default quota of 25GiB for instance %s." \
             ${instance_uuid}
         vmadm update ${instance_uuid} quota=25
-    fi
-
-    #XXX Ask matt/josh if we still want this.
-    if [[ ${DC_NAME} == "eu-ams-1" ]]; then
-        vmadm stop ${instance_uuid}
-
-        zfs unmount zones/cores/${instance_uuid}
-        zfs unmount -f zones/${instance_uuid}
-
-        # Both datasets should be unmounted
-
-        zfs mount zones/${instance_uuid}
-        zfs mount zones/cores/${instance_uuid}
     fi
 
     update_svc_user_script ${uuid} ${image_uuid}
