@@ -74,7 +74,7 @@ echo ">> Starting build at $(date)"
 
 function fatal
 {
-    echo "$(basename $0): fatal error: $*"
+    echo "$(basename $0): fatal error: $*" >&2
     exit 1
 }
 
@@ -126,6 +126,15 @@ CLEANED=0
 CURL_OPTS=$(build_spec curl-opts)
 SPEED_LIMIT=$(build_spec speed-limit)
 NO_INTERNET=$(build_spec no-internet)
+
+# Support for a regex pattern matched against bits to download from Manta for
+# the build. If the bit's pattern matches this regex, then "no-internet":true
+# is *ignored* for that bit. This is a way to do a usb-headnode build that
+# only gets the latest of a subset of the bits, e.g.:
+#       "no-internet": true
+#       "no-internet-exceptions": "(cnapi|imgapi)"
+NO_INTERNET_EXCEPTIONS=$(build_spec no-internet-exceptions)
+[[ -n "$NO_INTERNET_EXCEPTIONS" ]] || NO_INTERNET_EXCEPTIONS='^$'
 
 
 # --- Manta config
@@ -477,7 +486,8 @@ function get_manta_bit
         return;
     fi
 
-    if [[ ${HAVE_INTERNET} == "false" ]]; then
+    if [[ ${HAVE_INTERNET} == "false" \
+            && -z "$(echo "$pattern" | egrep "${NO_INTERNET_EXCEPTIONS}")"  ]]; then
         local pattern_base="^$(basename $pattern)"
         local latest_path=$(ls -1 ${ROOT}/cache/ \
            | grep "${pattern_base}" \
@@ -486,7 +496,7 @@ function get_manta_bit
         [[ -n "${latest_path}" ]] \
             || fatal "Don't have any '${pattern_base}' in '${ROOT}/cache' and no internet."
         echo "${ROOT}/cache/${latest_path}"
-        return;
+        return
     fi
 
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
@@ -611,6 +621,30 @@ function copy_platform
 
     rm -f ${LOGDIR}/latest
     ln -s ${LOGFILE} ${LOGDIR}/latest
+
+    loops=
+}
+
+
+# Copy the latest 'sdcadm' build into the usbkey stage dir.
+#
+# "sdcadm-release" in build.spec[.local] is either a branch build (default is
+# "master") or a full path to a sdcadm shar to use.
+#
+function copy_sdcadm
+{
+    [[ -z "${loops}" ]] && loops=0
+    loops=$((${loops} + 1))
+    [[ ${loops} -gt 2 ]] && fatal "Unable to download sdcadm, looping!"
+
+    local release=$(build_spec sdcadm-release)
+    local path=$release
+    if [[ ! -f "${path}" ]]; then
+        path=$(get_manta_bit "sdcadm/sdcadm-${release}-.*\.sh")
+    fi
+
+    echo "Copying $(basename $path) to \$stage/sdcadm-install.sh"
+    cp ${path} ${STAGE}/sdcadm-install.sh
 
     loops=
 }
@@ -870,7 +904,6 @@ function get_core_zone_image
 
 function copy_zones
 {
-
     for zone in $(ls ${STAGE}/zones); do
 
         # Symlinks aren't supported on pcfs, so we copy the files
@@ -959,6 +992,7 @@ load_buildspec
 copy_base
 generate_grub_menu
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
+copy_sdcadm
 copy_agentsshar
 copy_agents65
 copy_sapi_config

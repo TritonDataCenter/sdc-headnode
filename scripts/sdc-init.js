@@ -452,20 +452,6 @@ function filterServices(serviceList, cb) {
                     JSON.stringify(extras.metadata['CLOUDAPI_DATACENTERS']);
             }
 
-            // The VCAPI service's plugins each need the datacenter name
-            if (service === 'vcapi') {
-                var datacenter = self.config.datacenter_name;
-                var plugins = svcDef.metadata['VCAPI_PLUGINS'];
-
-                extras.metadata['VCAPI_PLUGINS'] = JSON.stringify(plugins);
-
-                extras.metadata['VCAPI_DATACENTERS'] = {};
-                extras.metadata['VCAPI_DATACENTERS'][datacenter] =
-                    'https://' + self.app.metadata['CLOUDAPI_SERVICE'];
-                extras.metadata['VCAPI_DATACENTERS'] =
-                    JSON.stringify(extras.metadata['VCAPI_DATACENTERS']);
-            }
-
             // *everything* needs customer_metadata
             if (!extras.params.hasOwnProperty('customer_metadata')) {
                 extras.params['customer_metadata'] = {};

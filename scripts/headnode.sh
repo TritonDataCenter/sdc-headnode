@@ -303,6 +303,10 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     (cd /opt/smartdc/node_modules && tar -xf /usbkey/tools-modules.tar)
 fi
 
+if [[ ! -d /opt/smartdc/sdcadm ]]; then
+    /usbkey/sdcadm-install.sh || /bin/true
+fi
+
 set_default_fw_rules
 
 printf_timer "%-58sdone (%ss)\n" "preparing for setup..."

@@ -8,6 +8,7 @@
   "agents-shar": "master",
   "sdcboot-release": "master",
   "firmware-tools-release": "master",
+  "sdcadm-release": "master",
 
   "// manta-*": "You can override these in your build.spec.local.",
   "manta-base-path": "/Joyent_Dev/stor/builds",
@@ -38,7 +39,6 @@
   "sdc-image": "sdc/sdc-zfs-.*manifest",
   "sdcsso-image": "sdcsso/sdcsso-zfs-.*manifest",
   "ufds-image": "ufds/ufds-zfs-.*manifest",
-  "vcapi-image": "vcapi/vcapi-zfs-.*manifest",
   "vmapi-image": "vmapi/vmapi-zfs-.*manifest",
   "workflow-image": "workflow/workflow-zfs-.*manifest",
 
