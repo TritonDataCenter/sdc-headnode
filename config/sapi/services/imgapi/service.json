@@ -15,7 +15,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "imgapi",
-        "LOCAL_DB_DIR": "/data/imgapi/images"
+        "STORAGE_LOCAL_BASEDIR": "/data/imgapi"
     },
     "manifests": {
     }
