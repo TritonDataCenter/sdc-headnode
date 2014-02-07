@@ -155,6 +155,18 @@ else
     export MANTA_USER="$(build_spec manta-user)"
 fi
 
+if [[ "$(build_spec builds-proxy)" == "true" ]]; then
+    BUILDS_PROXY_URL=$(build_spec builds-proxy-url)
+    [[ -n "$BUILDS_PROXY_URL" ]] || fatal "no 'builds-proxy-url' in build.spec.local"
+    BUILDS_PROXY_AUTH_FILE=$(build_spec builds-proxy-auth-file)
+    [[ -n "$BUILDS_PROXY_AUTH_FILE" ]] || fatal "no 'builds-proxy-auth-file' in build.spec.local"
+    BUILDS_PROXY_AUTH_FILE=$(echo $BUILDS_PROXY_AUTH_FILE | sed -e "s|^~/|$HOME/|")
+    BUILDS_PROXY_USER=$(json -f $BUILDS_PROXY_AUTH_FILE username)
+    [[ -n "$BUILDS_PROXY_USER" ]] || fatal "no 'username' field in '$BUILDS_PROXY_AUTH_FILE'"
+    BUILDS_PROXY_PASSWD=$(json -f $BUILDS_PROXY_AUTH_FILE password)
+    [[ -n "$BUILDS_PROXY_PASSWD" ]] || fatal "no 'password' field in '$BUILDS_PROXY_AUTH_FILE'"
+fi
+
 if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
 fi
@@ -457,7 +469,6 @@ function get_manta_bit
         branch=$(basename $pattern_dir)
         pattern_dir=$(dirname $pattern_dir)
     fi
-    local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
 
     if [[ -n "${BITS_DIR}" ]]; then
         # Local BITS_DIR example:
@@ -499,6 +510,49 @@ function get_manta_bit
         return
     fi
 
+    if [[ -n "$BUILDS_PROXY_URL" ]]; then
+        BUILDS_CURL="curl ${CURL_OPTS} -kSf -u $BUILDS_PROXY_USER:$BUILDS_PROXY_PASSWD"
+        local latest_file="$BUILDS_PROXY_URL/${pattern_dir}/${branch}-latest"
+        local latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
+        local latest_dir=$BUILDS_PROXY_URL/$pattern_dir/$(basename $latest_mdir)
+        local latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
+            | grep "$file_name" | head -1 \
+            | cut -d'"' -f2 | cut -d'"' -f1)
+        local latest_path=$latest_dir/$pattern_dir/$latest_filename
+        local cache_path=${ROOT}/cache/${latest_filename}
+
+        local md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null | grep $latest_filename | cut -d ' ' -f1)
+
+        local ok=0
+        local retries=0
+        while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
+            if [[ ! -f $cache_path ]]; then
+                echo "Downloading '${latest_filename}' bit to cache." >&2
+                $BUILDS_CURL --url $latest_path --progress-bar -o $cache_path \
+                    || fatal "Unable to fetch '${latest_path}'."
+            fi
+
+            local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
+            if [[ ${my_md5} == ${md5} ]]; then
+                ok=1
+                continue
+            else
+                rm -f ${cache_path}
+                retries=$((${retries} + 1))
+                echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
+            fi
+        done
+        if [[ ${ok} -ne 1 ]]; then
+            fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
+        fi
+        get_bit_rv=${cache_path}
+        cleanup_bit "${file_name}"
+
+        echo "${get_bit_rv}"
+        return
+    fi
+
+    local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
     local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
@@ -538,6 +592,7 @@ function get_manta_bit
 
     echo "${get_bit_rv}"
 }
+
 
 function _check_vpn
 {

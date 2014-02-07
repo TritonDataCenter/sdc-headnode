@@ -122,7 +122,75 @@ most interesting/helpful ones are:
           "coal-memsize": 3400
         }
 
-# Adding a new service:
+## build.spec.local
+
+All build.spec.local keys are optional.
+
+TODO: this is incomplete, please document a key below if you know the details.
+
+
+    {
+      // Set this to get the build to just use the latest bits in your "cache/".
+      "no-internet": true,
+
+      // A regex for exceptions to the "no-internet". This lets you get the
+      // latest one or more build bits, but just use what you alredy hve for
+      // others.
+      "no-internet-exceptions": "(sdcadm|cnapi)",
+
+      // TODO: doc
+      "console": "text",
+
+      // TODO: doc
+      "default-boot-option": 1,
+
+      // TODO: doc
+      "coal-zpool-disk-size": 150,
+
+      // TODO: doc
+      "coal-memsize": 6000,
+
+      // TODO: doc
+      "vmware_version": 5,
+
+      // Skip zipping up your COAL build. If you are just going to open the
+      // "coal-*.vmwarevm" file in VMWare, then this saves you some time.
+      "build-tgz": "false",
+
+      // Path to an "answers.json" file that is used to given default vaules
+      // for SDC boot configuration. TODO: give a starter answers.json file.
+      "answer-file": "answers.json",
+
+      // The number of bits of each type to keep in cache. Use this to keep
+      // the "cache/" for growing unboundedly.
+      "keep-bits": 3,
+
+      // The manta account info to use for downloading build bits from Manta.
+      // Defaults to the MANTA_* envvars.
+      "manta-user": "trent.mick",
+      "manta-key-id": "b3:f0:a1:6c:18:3b:47:63:ae:6e:57:22:74:71:d4:bc",
+
+      // Support for downloading build bits via a Manta proxy zone.
+      // Talk to Rob or Trent.
+      "builds-proxy": true,
+      "builds-proxy-url": "https://199.192.241.76/builds",
+      "builds-proxy-auth-file": "~/.sdcbuild.json",
+
+      // Override a particular component (e.g. manatee here) with the build
+      // of a particular branch.
+      "manatee-image": "manatee/MY-BRANCH-HERE/manatee-zfs-.*manifest",
+
+      // ... or specify a local file for a particular component (e.g. adminui
+      // here).
+      "adminui-image": "/Users/trentm/joy/usb-headnode/tmp/adminui-zfs-master-20130401T104924Z-g1695958.zfs.dsmanifest"
+
+      // Specify a local agentsshar build.
+      "agents-shar": "./agents-node6-20120221T174143Z-g9469fcf.sh",
+    }
+
+
+
+# Adding a new service
 
 Important files, see README.zones for more details:
 
