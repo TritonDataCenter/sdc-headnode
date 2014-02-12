@@ -238,6 +238,92 @@ TODO: describe editing the agentsshar manually
 
 
 
+## Upgrading a CN platform
+
+
+TODO
+
+
+## Upgrading the platform
+
+First you must make the platform available in the DC by (a) downloading it
+and (b) running the "install-platform.sh" script on the headnode.
+Internally, platforms builds are uploaded to Manta here:
+
+    [manta /Joyent_Dev/stor/builds/platform/master-20140211T152333Z/platform]$ ls
+    platform-master-20140211T152333Z.tgz
+    ...
+
+Then it is made available to the DC as follows:
+
+    [root@headnode (my-dc) /var/tmp]# /usbkey/scripts/install-platform.sh  ./platform-master-20140211T152333Z.tgz
+    ==> Mounting USB key
+    ==> Staging 20140211T152333Z
+    ######################################################################## 100.0%
+    ==> Unpacking 20140211T152333Z to /mnt/usbkey/os
+    ==> This may take a while...
+    ==> Copying 20140211T152333Z to /usbkey/os
+    ==> Unmounting USB Key
+    ==> Adding to list of available platforms
+    ==> Done!
+
+Then (c) you assign the node in question to boot to the new platform. If the
+target node is a compute node (CN) then this is done via CNAPI. For example:
+
+    [root@headnode (my-dc) /var/tmp/tmick/img-mgmt-v2]# sdc-cnapi /boot/00000000-0000-0000-0000-002590943670
+    HTTP/1.1 200 OK
+    ...
+    {
+      "platform": "20130111T180733Z",
+      "kernel_args": {
+        "hostname": "00-25-90-94-36-70",
+        "rabbitmq": "guest:guest:10.3.1.23:5672",
+        "rabbitmq_dns": "guest:guest:rabbitmq.my-dc.joyent.us:5672"
+      },
+      "default_console": "vga",
+      "serial": "ttyb"
+    }
+
+    [root@headnode (my-dc) /var/tmp]# sdc-cnapi /boot/00000000-0000-0000-0000-002590943670 -X POST -d '{"platform": "20131210T060639Z"}'
+    HTTP/1.1 204 No Content
+    ...
+
+    [root@headnode (my-dc) /var/tmp]# sdc-cnapi /boot/00000000-0000-0000-0000-002590943670
+    HTTP/1.1 200 OK
+    ...
+    {
+      "platform": "20131210T060639Z",
+      "kernel_args": {
+        "hostname": "00-25-90-94-36-70",
+        "rabbitmq": "guest:guest:10.3.1.23:5672",
+        "rabbitmq_dns": "guest:guest:rabbitmq.my-dc.joyent.us:5672"
+      },
+      "default_console": "vga",
+      "serial": "ttyb"
+    }
+
+If the target node is the headnode (HN), then:
+
+    [root@headnode (my-dc) /var/tmp]# /usbkey/scripts/switch-platform.sh 20140211T152333Z
+    ...
+
+
+Then (d) you reboot the platform. Typically you'd want to be watching the
+server boot on its console.
+
+    [root@headnode (my-dc) /var/tmp]# sdc-cnapi /servers/00000000-0000-0000-0000-002590943670/reboot -X POST
+    HTTP/1.1 202 Accepted
+    ...
+    {
+      "job_uuid": "4351dc6a-dd89-4fd9-9def-cd6b082b2c8b"
+    }
+
+or simply
+
+    [root@headnode (my-dc) /var/tmp]# shutdown -y -i6 -g0
+
+
+
 ## Remove the DC from maint mode
 
     ./dc-maint-end.sh
@@ -278,4 +364,3 @@ TODO: describe editing the agentsshar manually
 
 - We need an LB in front of cloudapi to maint-window it.
 
--
