@@ -18,6 +18,7 @@ pkg_7=sdc_db:2048:4096:51200:400:1000:20:b2cd4ca7-ad7f-4a98-adeb-7adc9978a875
 pkg_8=sdc_imgapi:768:1536:512000:250:1000:10:5dfe2cc2-cea2-0841-8e01-6cafbe5b7dbc
 pkg_9=sdc_4096:4096:8192:25600:400:1000:20:0ae33ebc-c216-11e2-9b84-6f7e2a82bc36
 pkg_10=sdc_8192:8192:16384:25600:400:1000:20:16425b42-b818-11e2-90d4-87477f18a688
+pkg_11=sdc_rabbitmq:2048:10240:25600:400:1000:20:dd16ed2f-e751-48f1-a5a4-571f93c8e65d
 
 # You can configure other headnode nics here (to bring up but not be used for
 # provisioning), eg:
@@ -67,7 +68,7 @@ ufds_pkg=sdc_8192
 manta_pkg=sdc_1024
 dhcpd_pkg=sdc_128
 binder_pkg=sdc_512
-rabbitmq_pkg=sdc_1024
+rabbitmq_pkg=sdc_rabbitmq
 redis_pkg=sdc_1024
 
 adminui_workers=8

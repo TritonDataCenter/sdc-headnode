@@ -2,7 +2,7 @@
     "name": "rabbitmq",
     "params": {
         "archive_on_delete": true,
-        "package_name": "sdc_1024",
+        "package_name": "sdc_rabbitmq",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
         "networks": [ "admin" ],
