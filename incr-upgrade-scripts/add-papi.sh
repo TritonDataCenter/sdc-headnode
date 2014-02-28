@@ -78,6 +78,7 @@ else
 
   json -f ./sapi/$role/"${role}"_svc.json \
     | json -e "application_uuid=\"$SDC_APP_UUID\"" \
+    | json -e "metadata.SERVICE_DOMAIN=\"papi.${DOMAIN}\"" \
     | json -e "params.image_uuid=\"$NEW_IMAGE\"" \
     | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
     >./"${role}"-service.json
