@@ -154,7 +154,6 @@ env | grep IMAGE
 [[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi cnapi0 $CNAPI_IMAGE
 [[ -n "$DHCPD_IMAGE" ]] && upgrade_zone dhcpd dhcpd0 $DHCPD_IMAGE
 [[ -n "$FWAPI_IMAGE" ]] && upgrade_zone fwapi fwapi0 $FWAPI_IMAGE
-[[ -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi imgapi0 $IMGAPI_IMAGE
 [[ -n "$NAPI_IMAGE" ]] && upgrade_zone napi napi0 $NAPI_IMAGE
 [[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi vmapi0 $VMAPI_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi dapi0 $DAPI_IMAGE
@@ -167,7 +166,8 @@ env | grep IMAGE
 # *directly* to upgrade UFDS. Instead use "upgrade-ufds.sh" and
 # "rollback-ufds.sh".
 [[ -n "$REALLY_UPGRADE_UFDS" && -n "$UFDS_IMAGE" ]] && upgrade_zone ufds ufds0 $UFDS_IMAGE
-# Ditto for rabbitmq.
+# Ditto for rabbitmq and others.
 [[ -n "$REALLY_UPGRADE_RABBITMQ" && -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq rabbitmq0 $RABBITMQ_IMAGE
+[[ -n "$REALLY_UPGRADE_IMGAPI" && -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi imgapi0 $IMGAPI_IMAGE
 
 exit 0

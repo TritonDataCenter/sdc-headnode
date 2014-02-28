@@ -76,6 +76,40 @@ then you cannot run this step until you've added it.
 
 
 
+
+## Upgrading all agents
+
+Getting the latest agentsshar:
+
+    latest=$(mls /Joyent_Dev/stor/builds/agentsshar | grep 'master-2' | sort | tail -1)
+    pkg=$(mls /Joyent_Dev/stor/builds/agentsshar/$latest/agentsshar | grep '\.sh$')
+    mget -O /Joyent_Dev/stor/builds/agentsshar/$latest/agentsshar/$pkg
+    scp $pkg us-beta-4:/var/tmp
+
+First the 6.5 agents. Download the latest "agentsshar-upgrade" build
+from <https://bits.joyent.us/builds/agentsshar-upgrade/master-latest/agentsshar-upgrade/>
+then move it to a file named "agents65.sh" (as required by the upgrade script).
+
+    /usbkey/scripts/update_agents agents65.sh
+
+The SDC7 agents. Download the latest "agentsshar" build
+from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
+
+    /usbkey/scripts/update_agents agents-master-DATE-gSHA.sh
+
+
+
+
+## other upgrades
+
+### HEAD-1910, OS-2654: maintain_resolvers=true
+
+OS-2654 added support for maintain_resolvers=true to maintain persistent routes
+on reboot... that we use for SDC core zones. This used to be the default, but is
+an *option* now. We need to turn on that option.
+
+
+
 ## add new zone: amonredis, sdc, papi
 
 If you don't have one or more of the following zones, then you should add them:
@@ -117,10 +151,10 @@ a recent "backfill" script. Check that via:
 
     for uuid in $(vmadm lookup state=running tags.smartdc_role=moray); do zlogin $uuid grep getPredicate /opt/smartdc/moray/node_modules/.bin/backfill >/dev/null && echo Moray zone $uuid is good || echo Moray zone $uuid needs a newer backfill script; done
 
-To upgrade the backfill script (where $moray_uuid is from the previous command):
+**Only if you get "Moray zone $uuid needs a newer backfill script"** then run
+this (where $moray_uuid is from the previous command):
 
     cp ./backfill-for-ufds-upgrade /zones/$moray_uuid/root/opt/smartdc/moray/node_modules/moray/bin/backfill
-
 
 Upgrade:
 
@@ -135,8 +169,25 @@ index updates... we will be wasting time doing unnecessary backfills. We should
 discover that and only backfill as necessary.
 
 
+## upgrade zone: imgapi
 
-## upgrade zone: amon, sdc, napi, dapi, imgapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
+    ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi.out
+
+Also this migration should be run once. It isn't *harmful* to run more than
+once, it just involves a number of unnecessary uploads to manta if run
+repeatedly for every upgrade:
+
+    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-010-backfill-archive.js'
+
+
+To rollback (however note that the imgapi migrations don't currently have
+rollback support):
+
+    ./rollback-imgapi.sh rollback-images 2>&1 | tee imgapi-rollback.out
+
+
+
+## upgrade zone: amon, sdc, napi, dapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
 
     ./upgrade-all.sh upgrade-images 2>&1 | tee other-zones.out
 
@@ -217,22 +268,7 @@ TODO
 
 
 
-## Upgrading all agents
-
-First the 6.5 agents. Download the latest "agentsshar-upgrade" build
-from <https://bits.joyent.us/builds/agentsshar-upgrade/master-latest/agentsshar-upgrade/>
-then move it to a file named "agents65.sh" (as required by the upgrade script).
-
-    /usbkey/scripts/update_agents agents65.sh
-
-The SDC7 agents. Download the latest "agentsshar" build
-from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
-
-    /usbkey/scripts/update_agents agents-master-DATE-gSHA.sh
-
-
-
-## Upgrading just a specific agent
+## Special case: Upgrading just a specific agent
 
 TODO: describe editing the agentsshar manually
 
