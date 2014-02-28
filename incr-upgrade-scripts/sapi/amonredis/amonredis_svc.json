@@ -4,6 +4,7 @@
     "delegate_dataset": true,
     "package_name": "sdc_1024",
     "image_uuid": "REPLACED BY SCRIPT",
+    "maintain_resolvers": true,
     "networks": [
       "admin"
     ],

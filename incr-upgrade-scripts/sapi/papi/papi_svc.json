@@ -12,6 +12,7 @@
         "package_name": "sdc_1024",
         "package_version": "1.0.0",
         "image_uuid": "06a881a0-4232-4400-a234-480b9ad24117",
+        "maintain_resolvers": true,
         "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "papi",

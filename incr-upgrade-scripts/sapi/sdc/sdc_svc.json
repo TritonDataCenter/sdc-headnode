@@ -3,6 +3,7 @@
   "params": {
     "package_name": "sdc_768",
     "image_uuid": "REPLACED IN SCRIPT",
+    "maintain_resolvers": true,
     "networks": [
       "admin"
     ],
