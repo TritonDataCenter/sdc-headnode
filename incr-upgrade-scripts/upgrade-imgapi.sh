@@ -65,6 +65,7 @@ if [[ -z "$SKIP_IMGAPI_MIGRATIONS" ]]; then
     echo 'Run imgapi migrations.'
     echo '* * *'
     echo ''
+    sdc-login imgapi svcadm disable imgapi
     echo 'migration-006-cleanup-manta-storage.js'
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-006-cleanup-manta-storage.js'
     echo ''
@@ -73,6 +74,7 @@ if [[ -z "$SKIP_IMGAPI_MIGRATIONS" ]]; then
     echo ''
     echo 'migration-008-new-storage-layout.js'
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-008-new-storage-layout.js'
+    sdc-login imgapi svcadm enable imgapi
 fi
 
 
