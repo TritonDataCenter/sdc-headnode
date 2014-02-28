@@ -59,3 +59,20 @@ else
     echo "Skip HEAD-1910 upgrade until VMAPI upgraded with ZAPI-472."
 fi
 
+
+# -- HEAD-1916: SERVICE_DOMAIN on papi svc, PAPI_SERVICE/papi_domain on sdc app
+
+SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+DOMAIN=$(sdc-sapi /applications/$SDC_APP | json -H metadata.datacenter_name).$(sdc-sapi /applications/$SDC_APP | json -H metadata.dns_domain)
+papi_domain=papi.$DOMAIN
+
+papi_service=$(sdc-sapi /services?name=papi | json -Ha 0.uuid)
+if [[ -n "$papi_service" ]]; then
+    has_it=$(sdc-sapi /services/$papi_service | json -H metadata.SERVICE_DOMAIN)
+    if [[ -z "$has_it" ]]; then
+        sapiadm update $papi_service metadata.SERVICE_DOMAIN=$papi_domain
+    fi
+    sapiadm update $SDC_APP metadata.PAPI_SERVICE=$papi_domain
+    sapiadm update $SDC_APP metadata.papi_domain=$papi_domain
+fi
+

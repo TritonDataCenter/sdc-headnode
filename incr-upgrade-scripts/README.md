@@ -102,11 +102,10 @@ from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
 
 ## other upgrades
 
-### HEAD-1910, OS-2654: maintain_resolvers=true
+This is a catch-all script that applies other upgrades (typically things
+like SAPI service definition tweaks):
 
-OS-2654 added support for maintain_resolvers=true to maintain persistent routes
-on reboot... that we use for SDC core zones. This used to be the default, but is
-an *option* now. We need to turn on that option.
+    ./upgrade-other.sh 2>&1 | tee other.out
 
 
 
