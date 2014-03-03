@@ -117,10 +117,20 @@ If you don't have one or more of the following zones, then you should add them:
     ./add-amonredis.sh 2>&1 | tee amonredis.out
     ./add-papi.sh 2>&1 | tee papi.out
 
-Note: *currently* you can get away without PAPI. That will change with
-[PAPI-55](https://devhub.joyent.com/jira/browse/PAPI-55) and
-[PAPI-8](https://devhub.joyent.com/jira/browse/PAPI-8).
 
+*One time* manual import of 'sdcpackage' data (see PAPI-72)
+
+    # in the GZ
+    cd /var/tmp
+    sdc-ldap s '(objectclass=sdcpackage)' > packages.ldif
+    cp packages.ldif /zones/$(vmadm lookup -1 alias=papi0)/root/var/tmp
+    sdc-login papi0
+    /opt/smartdc/papi/build/node/bin/node /opt/smartdc/papi/bin/importer --ldif=/var/tmp/packages.ldif
+
+Then (later if desired), all 'sdcpackage' objects should be removed from UFDS
+to ensure that other scripts are not depending on this being up to date.
+
+    TODO
 
 
 ## put the DC in maint mode (optional)
