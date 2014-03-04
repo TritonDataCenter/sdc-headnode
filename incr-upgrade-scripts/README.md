@@ -125,6 +125,8 @@ If you don't have one or more of the following zones, then you should add them:
     sdc-ldap s '(objectclass=sdcpackage)' > packages.ldif
     cp packages.ldif /zones/$(vmadm lookup -1 alias=papi0)/root/var/tmp
     sdc-login papi0
+
+    # in the papi0 zone
     /opt/smartdc/papi/build/node/bin/node /opt/smartdc/papi/bin/importer --ldif=/var/tmp/packages.ldif
 
 Then (later if desired), all 'sdcpackage' objects should be removed from UFDS
@@ -178,13 +180,14 @@ index updates... we will be wasting time doing unnecessary backfills. We should
 discover that and only backfill as necessary.
 
 
+
 ## upgrade zone: imgapi
 
     ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi.out
 
-Also this migration should be run once. It isn't *harmful* to run more than
-once, it just involves a number of unnecessary uploads to manta if run
-repeatedly for every upgrade:
+Also the following migration should be run once per DC. It isn't *harmful* to
+run more than once, it just involves a number of unnecessary uploads to manta if
+run repeatedly for every upgrade:
 
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-010-backfill-archive.js'
 

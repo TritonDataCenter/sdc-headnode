@@ -62,6 +62,16 @@ if [[ $CUR_IMAGE == $UFDS_IMAGE ]]; then
 fi
 
 
+# -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
+#    application is the current manatee primary IP
+manatee_primary_ip=$(sdc-login manatee 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
+manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
+if [[ "$manatee_primary_ip" != "$manatee_admin_ips" ]]; then
+    fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
+        "primary ip ($manatee_primary_ip). This will break on CAPI-364."
+fi
+
+
 # -- Get the new image.
 ./download-image.sh $UFDS_IMAGE || fatal "failed to download image $UFDS_IMAGE"
 

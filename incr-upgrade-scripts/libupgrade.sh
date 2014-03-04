@@ -58,8 +58,8 @@ function wait_until_zone_in_dns() {
     local ip=$(vmadm get $uuid | json nics.0.ip)
     [[ -n "$ip" ]] || fatal "no IP for the new $alias ($uuid) zone"
 
-    echo "Wait up to 2 minutes for $alias zone to enter DNS."
-    for i in {1..24}; do
+    echo "Wait up to 5 minutes for $alias zone to enter DNS."
+    for i in {1..60}; do
         sleep 5
         echo '.'
         in_dns=$(dig $domain +short | (grep $ip || true))
