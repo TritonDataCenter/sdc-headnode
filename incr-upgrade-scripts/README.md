@@ -62,7 +62,7 @@ Specify the roles and images that will be upgraded in "upgrade-images" file:
 Pre-download all the images to be used if you like. If you skip this,
 it'll be lazily done by 'upgrade-all.sh'.
 
-    ./download-all.sh upgrade-images 2>&1 | tee download.out
+    ./download-all.sh upgrade-images 2>&1 | tee download-$(date +%s).log
 
 Update GZ tools (in /opt/smartdc/bin) and headnode scripts (in /usbkey/scripts)
 and zone defaults (/usbkey/default).
@@ -72,7 +72,7 @@ then you cannot run this step until you've added it.
     cp -r /usbkey/default ./olddefault
     cp -r /usbkey/scripts ./oldscripts
     cp -rP /opt/smartdc/bin ./oldtools
-    ./upgrade-tools.sh 2>&1 | tee tools.out
+    ./upgrade-tools.sh 2>&1 | tee tools-$(date +%s).log
 
 
 
@@ -105,7 +105,7 @@ from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
 This is a catch-all script that applies other upgrades (typically things
 like SAPI service definition tweaks):
 
-    ./upgrade-other.sh 2>&1 | tee other.out
+    ./upgrade-other.sh 2>&1 | tee other.log
 
 
 
@@ -113,9 +113,9 @@ like SAPI service definition tweaks):
 
 If you don't have one or more of the following zones, then you should add them:
 
-    ./add-sdc.sh 2>&1 | tee sdc.out
-    ./add-amonredis.sh 2>&1 | tee amonredis.out
-    ./add-papi.sh 2>&1 | tee papi.out
+    ./add-sdc.sh 2>&1 | tee sdc-$(date +%s).log
+    ./add-amonredis.sh 2>&1 | tee amonredis-$(date +%s).log
+    ./add-papi.sh 2>&1 | tee papi-$(date +%s).log
 
 
 *One time* manual import of 'sdcpackage' data (see PAPI-72)
@@ -147,11 +147,11 @@ for upgrades of the following: rabbitmq, ufds.
 
 ## upgrade zone: rabbitmq
 
-    ./upgrade-rabbitmq.sh upgrade-images 2>&1 | tee rabbitmq.out
+    ./upgrade-rabbitmq.sh upgrade-images 2>&1 | tee rabbitmq-$(date +%s).log
 
 To rollback rabbitmq:
 
-    ./rollback-rabbitmq.sh rollback-images 2>&1 | tee rabbitmq-rollback.out
+    ./rollback-rabbitmq.sh rollback-images 2>&1 | tee rabbitmq-rollback-$(date +%s).log
 
 
 
@@ -169,11 +169,11 @@ this (where $moray_uuid is from the previous command):
 
 Upgrade:
 
-    ./upgrade-ufds.sh upgrade-images 2>&1 | tee ufds.out
+    ./upgrade-ufds.sh upgrade-images 2>&1 | tee ufds-$(date +%s).log
 
 To rollback UFDS:
 
-    ./rollback-ufds.sh rollback-images 2>&1 | tee ufds-rollback.out
+    ./rollback-ufds.sh rollback-images 2>&1 | tee ufds-rollback-$(date +%s).log
 
 TODO: for upgrades of UFDS where the *old* UFDS is already passed all the
 index updates... we will be wasting time doing unnecessary backfills. We should
@@ -183,7 +183,7 @@ discover that and only backfill as necessary.
 
 ## upgrade zone: imgapi
 
-    ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi.out
+    ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi-$(date +%s).log
 
 Also the following migration should be run once per DC. It isn't *harmful* to
 run more than once, it just involves a number of unnecessary uploads to manta if
@@ -195,13 +195,13 @@ run repeatedly for every upgrade:
 To rollback (however note that the imgapi migrations don't currently have
 rollback support):
 
-    ./rollback-imgapi.sh rollback-images 2>&1 | tee imgapi-rollback.out
+    ./rollback-imgapi.sh rollback-images 2>&1 | tee imgapi-rollback-$(date +%s).log
 
 
 
 ## upgrade zone: amon, sdc, napi, dapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
 
-    ./upgrade-all.sh upgrade-images 2>&1 | tee other-zones.out
+    ./upgrade-all.sh upgrade-images 2>&1 | tee all-other-zones-$(date +%s).log
 
 
 To rollback:
@@ -217,9 +217,9 @@ To rollback:
     mv oldscripts scripts
     mv tools newtools
     mv oldtools tools
-    ./upgrade-tools.sh 2>&1 | tee rollback-tools.out
+    ./upgrade-tools.sh 2>&1 | tee rollback-tools-$(date +%s).log
 
-    ./upgrade-all.sh rollback-images 2>&1 | tee rollback.out
+    ./upgrade-all.sh rollback-images 2>&1 | tee all-other-zones-rollback-$(date +%s).log
 
 
 
@@ -235,11 +235,11 @@ TODO
 headnode. If you have HA moray running on other CNs, this cannot yet upgrade
 them.
 
-    ./upgrade-moray.sh upgrade-images 2>&1 | tee moray.out
+    ./upgrade-moray.sh upgrade-images 2>&1 | tee moray-$(date +%s).log
 
 To rollback moray:
 
-    ./upgrade-moray.sh rollback-images 2>&1 | tee moray-rollback.out
+    ./upgrade-moray.sh rollback-images 2>&1 | tee moray-rollback-$(date +%s).log
 
 
 
@@ -258,7 +258,7 @@ the existing old SAPI:
 
 Then back in the GZ:
 
-    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi.out
+    ./upgrade-sapi.sh upgrade-images 2>&1 | tee upgrade-sapi-$(date +%s).log
 
 
 

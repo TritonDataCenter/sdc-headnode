@@ -58,10 +58,11 @@ function upgrade_zone {
     fi
 
     local current_image_uuid=$(vmadm get ${instance_uuid} | json -H image_uuid)
+    local current_alias=$(vmadm get ${instance_uuid} | json -H alias)
 
     if [[ ${current_image_uuid} == ${image_uuid} && -z "$force" ]]; then
-        printf "Instance %s already using image %s." \
-            ${instance_uuid} ${image_uuid}
+        printf "Instance %s (%s) already using image %s." \
+            ${instance_uuid} ${current_alias} ${image_uuid}
         return 0
     fi
 
@@ -104,8 +105,8 @@ EOM
     echo '{}' | json -e "this.image_uuid = '${image_uuid}'" |
         vmadm reprovision ${instance_uuid}
 
-    printf "Instance %s reprovisioned with image %s\n" \
-        ${instance_uuid} ${image_uuid}
+    printf "Instance %s (%s) reprovisioned with image %s\n" \
+        ${instance_uuid} ${current_alias} ${image_uuid}
 
     sleep 60  # To allow zone to start back up
 
