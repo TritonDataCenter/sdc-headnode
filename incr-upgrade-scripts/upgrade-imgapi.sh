@@ -49,6 +49,14 @@ if [[ $CURRENT_IMAGE == $IMGAPI_IMAGE ]]; then
     exit 0
 fi
 
+
+# Bail if the imgapi zone is so old it doesn't have a delegate dataset.
+num_imgapi_datasets=$(vmadm get $CURRENT_UUID | json datasets.length)
+if [[ "$num_imgapi_datasets" != 1 ]]; then
+    fatal "Current imgapi zone ($CURRENT_UUID) has no delegate dataset. Upgrading it would loose image file data!"
+fi
+
+
 empty=/var/tmp/empty
 rm -f $empty
 touch $empty

@@ -105,7 +105,7 @@ from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
 This is a catch-all script that applies other upgrades (typically things
 like SAPI service definition tweaks):
 
-    ./upgrade-other.sh 2>&1 | tee other.log
+    ./upgrade-other.sh 2>&1 | tee other-$(date +%s).log
 
 
 
