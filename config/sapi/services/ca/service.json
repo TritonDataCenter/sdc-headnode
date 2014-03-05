@@ -2,7 +2,7 @@
     "name": "ca",
     "params": {
         "archive_on_delete": true,
-        "package_name": "sdc_1024",
+        "package_name": "sdc_4096",
         "delegate_dataset": true,
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
