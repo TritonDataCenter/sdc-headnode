@@ -54,7 +54,6 @@ done
 #        | json -Ha uuid alias maintain_resolvers \
 #        | while read uuid alias maintain_resolvers; do
 #        if [[ "$maintain_resolvers" != "true" ]]; then
-#            echo ""
 #            echo "Set maintain_resolvers=true on VM $uuid ($alias)."
 #            sdc-vmapi /vms/$uuid?action=update -X POST -d '{"maintain_resolvers": true}' \
 #                | sdc sdc-waitforjob
@@ -74,7 +73,6 @@ papi_domain=papi.$DOMAIN
 sapi_url=$(sdc-sapi /applications/$SDC_APP | json -H metadata.sapi-url)
 papi_service=$(sdc-sapi /services?name=papi | json -H 0.uuid)
 if [[ -n "$papi_service" ]]; then
-    echo ""
     echo "Upgrade PAPI service vars in SAPI."
     sapiadm update $papi_service metadata.SERVICE_DOMAIN=$papi_domain
     sapiadm update $papi_service metadata.sapi-url=$sapi_url
@@ -82,3 +80,27 @@ if [[ -n "$papi_service" ]]; then
     sapiadm update $SDC_APP metadata.papi_domain=$papi_domain
 fi
 
+
+# -- INTRO-701, should have at last 4GiB mem cap on ca zone
+
+ca_svc=$(sdc-sapi /services?name=ca | json -H 0.uuid)
+ca_max_physical_memory=$(sdc-sapi /services/$ca_svc | json -H params.max_physical_memory)
+if [[ $ca_max_physical_memory != "4096" ]]; then
+    echo "Update 'ca' SAPI service max_physical_memory, etc."
+    sapiadm update $ca_svc params.max_physical_memory=4096
+    sapiadm update $ca_svc params.max_locked_memory=4096
+    sapiadm update $ca_svc params.max_swap=8192
+    sapiadm update $ca_svc params.zfs_io_priority=20
+    sapiadm update $ca_svc params.cpu_cap=400
+    sapiadm update $ca_svc params.package_name=sdc_4096
+fi
+ca_zone_uuid=$(vmadm lookup -1 state=running alias=ca0)
+ca_zone_max_physical_memory=$(vmadm get $ca_zone_uuid | json max_physical_memory)
+if [[ $ca_zone_max_physical_memory != "4096" ]]; then
+    echo "Update 'ca0' zone mem cap to 4096."
+    vmadm update $ca_zone_uuid max_physical_memory=4096
+    vmadm update $ca_zone_uuid max_locked_memory=4096
+    vmadm update $ca_zone_uuid max_swap=8192
+    vmadm update $ca_zone_uuid zfs_io_priority=20
+    vmadm update $ca_zone_uuid cpu_cap=400
+fi
