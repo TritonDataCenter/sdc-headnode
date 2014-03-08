@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012 Joyent Inc., All rights reserved.
+# Copyright (c) 2014 Joyent Inc., All rights reserved.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image.
@@ -17,19 +17,11 @@
 #
 # ./bin/reflash release-XXXXX <host> [<identityfile>]
 #
-#    To install the latest release-XXXXX version from your build.spec.* bits-url
-#
-# ./bin/reflash boot-master-20120530T021716Z-gaba5e72.tgz <host> [<identityfile>]
-#
-#    To install a specific tar image you created with './bin/build-image tar'
-#
-# ./bin/reflash https://foo.host.com/path/to/whatever.tgz <host> [<identityfile>]
-#
-#    To install an image from a remote URL
+#    To install the latest release-XXXXX version from your build.spec.*
+#    reflash-proxy-url, will fall back to builds-proxy-url if not set
 #
 
 DEBUG=0
-FORCE_65=0
 
 # need at least this much space to download the image and do a reflash
 MIN_TMP_FREE=3200
@@ -47,7 +39,7 @@ ROOT=$(cd $(dirname $0)/../; pwd)
 usage()
 {
     cat <<EOF
-Usage: $0 [-F|-6|-u] <filename|URL> <hostname>
+Usage: $0 [-p <proxy_url>] [-F] <filename|URL> <hostname>
 EOF
     exit 1
 }
@@ -56,16 +48,14 @@ if [[ $1 == "-?" ]]; then
     usage
 fi
 
-args=$(getopt F6uh $*)
+args=$(getopt Fh $*)
 if [[ $? != 0 ]]; then
     usage
 fi
 
 for i in $*; do
     case $i in
-        -6) FORCE_65=1; shift;;
         -F) LIVE_DANGEROUSLY=1; shift;;
-        -u) USB_MODE=1; shift;;
     esac
 done
 
@@ -76,16 +66,14 @@ bits_url=
 
 if [[ ${DEBUG} == 1 ]]; then
 cat <<EOF
-FORCE_65=${FORCE_65}
 LIVE_DANGEROUSLY=${LIVE_DANGEROUSLY}
-USB_MODE=${USB_MODE}
 filename=${filename}
 hostname=${hostname}
 identityfile=${identityfile}
 EOF
 fi
 
-SSH_OPTS=
+SSH_OPTS="-A "
 if [[ -f "$identityfile" ]]; then
   SSH_OPTS="-i $identityfile"
 fi
@@ -104,16 +92,18 @@ add_bits_creds()
 {
     bits_url=$1
 
-    local hostname=$(echo $bits_url | cut -f3 -d "/" | cut -f1 -d ":")
-    if [[ "$hostname" == "stuff.joyent.us"
-       || "$hostname" == "bits.joyent.us" ]]; then
-        echo "Adding auth to bits/stuff url from '~/.sdcbuild.json'." >&2
-        if [[ ! -f "${HOME}/.sdcbuild.json" ]]; then
-            echo "error: '~/.sdcbuild.json' does not exist" >&2
-            exit 1
-        fi
-        username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
-        password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+    if [[ -n $(echo "${bits_url}" | grep "@") ]]; then
+        # already have an @, assume password included
+        echo ${bits_url}
+        return;
+    fi
+
+    echo "Warning: adding credentials to ${bits_url} from ~/.sdcbuild.json" >&2
+
+    username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
+    password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+
+    if [[ -n ${username} && -n ${password} ]]; then
         bits_url=$(echo ${bits_url} | sed -e "s/\/\//\/\/${username}:${password}@/g")
     fi
 
@@ -127,8 +117,6 @@ get_bits_url()
         return 0
     fi
 
-    bits_url="https://stuff.smartdatacenter.org/"
-
     if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
         MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
         ${ROOT}/build.spec.local)
@@ -138,9 +126,20 @@ get_bits_url()
         MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
     fi
 
-    spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "bits-url")
+    spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "reflash-proxy-url")
     if [[ -n ${spec_bits_url} ]]; then
         bits_url=${spec_bits_url}
+    else
+        spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "builds-proxy-url")
+        if [[ -n ${spec_bits_url} ]]; then
+            bits_url=${spec_bits_url}
+        fi
+    fi
+
+    if [[ -z ${bits_url} ]]; then
+        echo "Unable to determine bits_url, check that reflash-proxy-url or" \
+            " builds-proxy-url in build.spec.local" >&2
+        exit 2
     fi
 
     bits_url=$(add_bits_creds ${bits_url})
@@ -153,37 +152,28 @@ get_latest()
     release=$1
     bits_url=$(get_bits_url)
 
+    [[ -z ${release} ]] && release="master"
+
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
-        if [[ ${USB_MODE} == 1 ]]; then
-            file=$(curl -f -s -k \
-                ${bits_url}/sdc/${release}-latest/usbheadnode/ \
-                | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
-        else
-            file=$(curl -f -s -k \
-                ${bits_url}/sdc/${release}-latest/usbheadnode/ \
-                | grep "href" | cut -d '"' -f2 | grep "^boot-")
-        fi
+        dir=$(curl -f -s -k \
+            ${bits_url}/sdc/${release}-latest \
+            | sed -e "s|^.*/stor/builds/||")
+        file=$(curl -f -s -k ${bits_url}/${dir}/usbheadnode/ \
+            | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/sdc/${release}-latest/usbheadnode/${file}"
+            echo "${bits_url}/${dir}/usbheadnode/${file}"
         fi
     else
-        if [[ ${USB_MODE} == 1 ]]; then
-            file=$(curl -f -sS -k \
-                ${bits_url}/usbheadnode/master-latest/usbheadnode/ \
-                | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
-            if [[ -n ${file} ]]; then
-                echo "${bits_url}/usbheadnode/master-latest/usbheadnode/${file}"
-            fi
-        else
-            file=$(curl -f -sS -k \
-                ${bits_url}/usbheadnodetar/master-latest/usbheadnode/ \
-                | grep "href" | cut -d '"' -f2 | grep "^boot-")
-            if [[ -n ${file} ]]; then
-                echo "${bits_url}/usbheadnodetar/master-latest/usbheadnode/${file}"
-            fi
+        dir=$(curl -f -sS -k \
+            ${bits_url}/usbheadnode/${release}-latest \
+            | sed -e "s|^.*/stor/builds/||")
+        file=$(curl -f -sS -k \
+            ${bits_url}/${dir}/usbheadnode/ \
+            | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
+        if [[ -n ${file} ]]; then
+            echo "${bits_url}/${dir}/usbheadnode/${file}"
         fi
-
     fi
 }
 
@@ -191,23 +181,17 @@ get_md5()
 {
     release=$1
     file=$2
+    url=$(dirname $3)
     bits_url=$(get_bits_url)
 
-    if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
-        md5=$(curl -f -s -k ${bits_url}/sdc/${release}-latest/md5sums.txt \
-            | grep "${file}" | cut -d ' ' -f1)
+    md5=$(curl -f -s -k ${url}/../md5sums.txt | grep "${file}" | cut -d ' ' -f1)
 
-        if [[ -n ${md5} ]]; then
-            echo "${md5}"
-        fi
-    else
-        md5=$(curl -f -sS -k ${bits_url}/usbheadnode/master-latest/md5sums.txt \
-            | grep "${file}" | cut -d ' ' -f1)
-
-        if [[ -n ${md5} ]]; then
-            echo "${md5}"
-        fi
+    if [[ -z ${md5} ]]; then
+        echo "Unable to find MD5 in ${url}/md5sums.txt" >&2
+        exit 2
     fi
+
+    echo "${md5}"
 }
 
 if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
@@ -215,6 +199,16 @@ if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
 fi
 
 echo "NOTE: If you're prompted for Password:, you need the current root password of ${hostname}"
+
+echo "Attempting to set SSH keys"
+ssh $SSH_OPTS -T root@${hostname} <<EOF
+if [[ ! -f /root/.ssh/authorized_keys ]]; then
+    mkdir -p /root/.ssh
+    ssh-add -L > /root/.ssh/authorized_keys
+    chmod 700 /root/.ssh
+    chmod 600 /root/.ssh/authorized_keys
+fi
+EOF
 
 MISSING_POOL=
 if [[ $(ssh $SSH_OPTS root@${hostname} "zpool list") == "no pools available" ]]; then
@@ -250,7 +244,7 @@ if [[ ${filename} == "latest" ]]; then
         exit 1
     fi
     FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "latest" "${FILENAME}")
+    MD5_SUM=$(get_md5 "latest" "${FILENAME}" "${URL}")
     echo "Latest is ${URL}..."
 elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
     echo "Finding latest ${filename} usbheadnode build..."
@@ -260,12 +254,13 @@ elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
         exit 1
     fi
     FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "${filename}" "${FILENAME}")
+    MD5_SUM=$(get_md5 "${filename}" "${FILENAME}" "${URL}")
     echo "Latest ${filename} is ${URL}..."
 elif [[ "${filename:0:4}" == "http" ]]; then
     URL=$(add_bits_creds ${filename})
     echo "Using URL ${URL}..."
     FILENAME=$(basename ${URL})
+    MD5_SUM=$(get_md5 $(basename ${URL}) $(basename ${URL}) ${URL})
 elif [[ ! -f ${filename} ]]; then
     usage
 else
@@ -302,413 +297,6 @@ fi
 
 set +o errexit
 
-# if we're flashing with 65 attempt to create a config if we have answers.json
-if [[ ${FILENAME} =~ "release-20110901" || ${FORCE_65} == 1 ]]; then
-echo "This looks like 6.5. Attempting to create config."
-ssh $SSH_OPTS -T root@${hostname} <<EOF65
-if [[ -n "${TRACE}" ]]; then
-    set -o xtrace
-fi
-
-rm -f ${WHICH_TMP}/config.flashing
-
-MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
-if [[ ! -f \${MOUNT_SCRIPT} ]]; then
-    MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
-fi
-
-\${MOUNT_SCRIPT} || /bin/true
-if [[ ! -f /mnt/usbkey/private/answers.json ]]; then
-    echo "No answers.json, not creating config."
-    exit 0
-fi
-
-#
-# Get the max. IP addr for the given field, based in the netmask.
-# That is, if netmask is 255, then its just the input field, otherwise its
-# the host portion of the netmask (e.g. netmask 224 -> 31).
-# Param 1 is the field and param 2 the mask for that field.
-#
-max_fld()
-{
-        comp=\$((255 & ~\$2))
-        fmax=\$((\${comp} | \$1))
-}
-
-#
-# Converts an IP and netmask to a network
-# For example: 10.99.99.7 + 255.255.255.0 -> 10.99.99.0
-# Each field is in the net_a, net_b, net_c and net_d variables.
-# Also, host_addr stores the address of the host w/o the network number (e.g.
-# 7 in the 10.99.99.7 example above).  Also, max_host stores the max. host
-# number (e.g. 10.99.99.254 in the example above).
-#
-ip_netmask_to_network()
-{
-        IP=\$1
-        NETMASK=\$2
-
-        OLDIFS=\$IFS
-        IFS=.
-        set -- \$IP
-        net_a=\$1
-        net_b=\$2
-        net_c=\$3
-        net_d=\$4
-        addr_d=\$net_d
-
-        set -- \$NETMASK
-
-        # Calculate the maximum host address
-        max_fld "\$net_a" "\$1"
-        max_a=\$fmax
-        max_fld "\$net_b" "\$2"
-        max_b=\$fmax
-        max_fld "\$net_c" "\$3"
-        max_c=\$fmax
-        max_fld "\$net_d" "\$4"
-        max_d=\$(expr \$fmax - 1)
-        max_host="\$max_a.\$max_b.\$max_c.\$max_d"
-
-        net_a=\$((\$net_a & \$1))
-        net_b=\$((\$net_b & \$2))
-        net_c=\$((\$net_c & \$3))
-        net_d=\$((\$net_d & \$4))
-
-        host_addr=\$((\$addr_d & ~\$4))
-        IFS=\$OLDIFS
-}
-
-
-# Sets two variables, use_lo and use_hi, which are the usable IP addrs for the
-# largest block of available host addresses on the subnet, based on the two
-# addrs the user has chosen for the GW and External Host IP.
-# We look at the three ranges (upper, middle, lower) defined by the two addrs.
-calc_ext_default_range()
-{
-        a1=\$1
-        a2=\$2
-
-        if [ \$a1 -lt \$a2 ]; then
-                lo=\$a1
-                hi=\$a2
-        else
-                lo=\$a2
-                hi=\$a1
-        fi
-
-        u_start=\`expr \$hi + 1\`
-        m_start=\`expr \$lo + 1\`
-        l_start=1
-
-        u_max=\$max_d
-        m_max=\`expr \$hi - 1\`
-        l_max=\`expr \$lo - 1\`
-
-        up_range=\`expr \$max_d - \$hi\`
-        mid_range=\`expr \$hi - \$lo\`
-        lo_range=\`expr \$lo - 2\`
-        [ \$lo_range -lt 1 ] && lo_range=0
-
-        if [ \$up_range -gt \$mid_range ]; then
-                use_lo=\$u_start
-                use_hi=\$u_max
-                range=\$up_range
-        else
-                use_lo=\$m_start
-                use_hi=\$m_max
-                range=\$mid_range
-        fi
-
-        if [ \$range -lt \$lo_range ]; then
-                use_lo=\$l_start
-                use_hi=\$l_max
-        fi
-}
-
-
-company_name=\$(json datacenter_company_name < /mnt/usbkey/private/answers.json)
-[[ -z \${company_name} ]] && company_name="Joyent"
-datacenter_name=\$(json datacenter_name < /mnt/usbkey/private/answers.json)
-[[ -z \${datacenter_name} ]] && datacenter_name="dc65"
-datacenter_location=\$(json datacenter_location < /mnt/usbkey/private/answers.json)
-[[ -z \${datacenter_location} ]] && datacenter_location="the cloud"
-datacenter_headnode_id=\$(json datacenter_headnode_id < /mnt/usbkey/private/answers.json)
-[[ -z \${datacenter_headnode_id} ]] && datacenter_headnode_id=0
-[[ \${datacenter_headnode_id} == "<default>" ]] && datacenter_headnode_id=0
-mail_to=\$(json mail_to < /mnt/usbkey/private/answers.json)
-[[ -z \${mail_to} || \${mail_to} == "<default>" ]] && mail_to="devs@joyent.com"
-mail_from=\$(json mail_from < /mnt/usbkey/private/answers.json)
-[[ -z \${mail_from} || \${mail_from} == "<default>" ]] && mail_from="devs@joyent.com"
-admin_nic=\$(json admin_nic < /mnt/usbkey/private/answers.json)
-admin_ip=\$(json admin_ip < /mnt/usbkey/private/answers.json)
-admin_netmask=\$(json admin_netmask < /mnt/usbkey/private/answers.json)
-admin_network=\$(json admin_network < /mnt/usbkey/private/answers.json)
-if [[ -z \${admin_network} ]]; then
-    ip_netmask_to_network "\${admin_ip}" "\${admin_netmask}"
-    admin_network="\${net_a}.\${net_b}.\${net_c}.\${net_d}"
-fi
-admin_provisionable_start=\$(json admin_provisionable_start < /mnt/usbkey/private/answers.json)
-if [[ \${admin_provisionable_start} == "<default>" ]]; then
-
-    ip_netmask_to_network "\${admin_ip}" "\${admin_netmask}"
-
-    next_addr=\$(expr \$host_addr + 1)
-    admin_provisionable_start="\$net_a.\$net_b.\$net_c.\$next_addr"
-fi
-
-if [[ -z \${admin_nic} || -z \${admin_ip} || -z \${admin_netmask} ]]; then
-    echo "ERROR: admin_nic, admin_ip and admin_netmask must all exist in answers.json"
-    exit 1
-fi
-
-external_nic=\$(json external_nic < /mnt/usbkey/private/answers.json)
-external_ip=\$(json external_ip < /mnt/usbkey/private/answers.json)
-external_netmask=\$(json external_netmask < /mnt/usbkey/private/answers.json)
-external_gateway=\$(json external_gateway < /mnt/usbkey/private/answers.json)
-external_network=\$(json external_network < /mnt/usbkey/private/answers.json)
-if [[ -z \${external_network} ]]; then
-    ip_netmask_to_network "\${external_ip}" "\${external_netmask}"
-    external_network="\${net_a}.\${net_b}.\${net_c}.\${net_d}"
-fi
-external_vlan_id=\$(json external_vlan_id < /mnt/usbkey/private/answers.json)
-[[ -z \${external_vlan_id} || \${external_vlan_id} == "<default>" ]] && external_vlan_id=0
-external_provisionable_start=\$(json external_provisionable_start < /mnt/usbkey/private/answers.json)
-external_provisionable_end=\$(json external_provisionable_end < /mnt/usbkey/private/answers.json)
-headnode_default_gateway=\$(json headnode_default_gateway < /mnt/usbkey/private/answers.json)
-[[ -z \${headnode_default_gateway} || \${headnode_default_gateway} == "<default>" ]] \
-    && headnode_default_gateway="\${external_gateway}"
-
-if [[ -z \${external_nic} || -z \${external_ip} || -z \${external_netmask} || -z \${external_gateway} ]]; then
-    echo "ERROR: external_nic, external_ip, external_netmask and external_gateway must all exist in answers.json"
-    exit 1
-fi
-
-if [[ -z \${external_provisionable_start} || -z \${external_provisionable_end} ]]; then
-    echo "ERROR: external_provisionable_start and external_provisionable_end must both be defined in answers.json"
-    exit 1
-fi
-
-if [[ "\${external_provisionable_start}" == "<default>" || "\${external_provisionable_end}" == "<default>" ]]; then
-    ip_netmask_to_network "\${external_ip}" "\${external_netmask}"
-    ip_host_addr=\${host_addr}
-    ip_netmask_to_network "\${external_gateway}" "\${external_netmask}"
-
-    # Get use_lo and use_hi values for defaults
-    calc_ext_default_range \${host_addr} \${ip_host_addr}
-
-    # External IPs for core zones.
-    # host_addr is the number of IPs above the subnet's start
-    # address, so convert these addresses to real (not relative)
-    # IPs:
-    next_addr=\$(expr \$net_d + \$use_lo)
-    adminui_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
-    next_addr=\$(expr \$next_addr + 1)
-    capi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
-    next_addr=\$(expr \$next_addr + 1)
-    portal_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
-    next_addr=\$(expr \$next_addr + 1)
-    billapi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
-    next_addr=\$(expr \$next_addr + 1)
-    cloudapi_external_ip="\$net_a.\$net_b.\$net_c.\$next_addr"
-
-    # Add 5 as a buffer (per the SDC 6.5 prompt-config.sh).
-    next_addr=\$(expr \$next_addr + 5)
-    if [[ \${external_provisionable_start} == "<default>" ]]; then
-        external_provisionable_start="\$net_a.\$net_b.\$net_c.\$next_addr"
-    fi
-    if [[ \${external_provisionable_end} == "<default>" ]]; then
-        external_provisionable_end="\$max_a.\$max_b.\$max_c.\$use_hi"
-    fi
-fi
-
-dns_resolver1=\$(json dns_resolver1 < /mnt/usbkey/private/answers.json)
-[[ -z \${dns_resolver1} || \${dns_resolver1} == "<default>" ]] && dns_resolver1="8.8.8.8"
-dns_resolver2=\$(json dns_resolver2 < /mnt/usbkey/private/answers.json)
-[[ -z \${dns_resolver2} || \${dns_resolver2} == "<default>" ]] && dns_resolver2="8.8.4.4"
-dns_domain=\$(json dns_domain < /mnt/usbkey/private/answers.json)
-[[ -z \${dns_domain} || \${dns_domain} == "<default>" ]] && dns_domain="joyent.us"
-
-ntp_hosts=\$(json ntp_host < /mnt/usbkey/private/answers.json)
-compute_node_ntp_hosts=\$(json compute_node_ntp_host < /mnt/usbkey/private/answers.json)
-[[ \${ntp_hosts} == "<default>" ]] && ntp_hosts=
-[[ \${compute_node_ntp_hosts} == "<default>" ]] && compute_node_ntp_hosts=
-[[ -z \${ntp_hosts} ]] && ntp_hosts="132.246.11.228"
-[[ -z \${compute_node_ntp_hosts} ]] && compute_node_ntp_hosts=\${admin_ip}
-
-#
-# Calculate admin network IP address for each core zone
-#
-ip_netmask_to_network "\$admin_provisionable_start" "\$admin_netmask"
-next_addr=\$host_addr
-assets_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-dhcpd_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-adminui_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-ca_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-capi_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-mapi_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-cloudapi_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-billapi_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-riak_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-rabbitmq_admin_ip="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 1)
-dhcp_next_server="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-next_addr=\$(expr \$next_addr + 5)
-dhcp_range_start="\$net_a.\$net_b.\$net_c.\$(expr \$net_d + \$next_addr)"
-dhcp_range_end="\$max_host"
-
-cat > ${WHICH_TMP}/config.flashing <<EOF
-
-swap=0.25x
-compute_node_swap=0.25x
-
-datacenter_name="\${datacenter_name}"
-datacenter_company_name="\${company_name}"
-datacenter_location="\${datacenter_location}"
-datacenter_headnode_id=\${datacenter_headnode_id}
-
-default_rack_name=RACK1
-default_rack_size=30
-default_server_role=pro
-default_package_sizes="128,256,512,1024"
-
-mail_to="\${mail_to}"
-mail_from="\${mail_from}"
-
-admin_nic=\${admin_nic}
-admin_ip=\${admin_ip}
-admin_netmask=\${admin_netmask}
-admin_network=\${admin_network}
-
-external_nic=\${external_nic}
-external_ip=\${external_ip}
-external_network=\${external_network}
-external_vlan_id=\${external_vlan_id}
-external_provisionable_start=\${external_provisionable_start}
-external_provisionable_end=\${external_provisionable_end}
-external_netmask=\${external_netmask}
-external_gateway=\${external_gateway}
-
-headnode_default_gateway=\${headnode_default_gateway}
-compute_node_default_gateway=\${admin_ip}
-
-dns_resolvers=\${dns_resolver1},\${dns_resolver2}
-dns_domain=\${dns_domain}
-
-dhcp_range_start=\${dhcp_range_start}
-dhcp_range_end=\${dhcp_range_end}
-dhcp_lease_time=2592000
-dhcp_next_server=\${dhcp_next_server}
-
-initial_script=scripts/headnode.sh
-
-root_shadow='\\\$5\\\$2HOHRnK3\\\$NvLlm.1KQBbB0WjoP7xcIwGnllhzp2HnT.mDO7DpxYA'
-admin_shadow='\\\$5\\\$f1mBmj6p\\\$oDDuYhLZzQIAZ5.QAAyr37lTN.K5FtLECvngsTLhWh5'
-
-ntp_hosts=\${ntp_hosts}
-compute_node_ntp_hosts=\${compute_node_ntp_hosts}
-
-adminui_admin_ip=\${adminui_admin_ip}
-adminui_external_ip=\${adminui_external_ip}
-adminui_external_vlan=\${external_vlan_id}
-adminui_root_pw=joypass123
-adminui_admin_pw=joypass123
-adminui_help_url=http://sdcdoc.joyent.com/
-
-assets_admin_ip=\${assets_admin_ip}
-assets_root_pw=joypass123
-assets_admin_pw=joypass123
-
-ca_admin_ip=\${ca_admin_ip}
-ca_root_pw=joypass123
-ca_admin_pw=joypass123
-ca_client_url=http://\${ca_admin_ip}:23181
-
-capi_is_local=true
-capi_admin_ip=\${capi_admin_ip}
-capi_client_url=http://\${capi_admin_ip}:8080
-capi_external_ip=\${capi_external_ip}
-capi_external_url=http://\${capi_external_ip}:8080
-capi_external_vlan=\${external_vlan_id}
-capi_root_pw=joypass123
-capi_http_admin_user=admin
-capi_http_admin_pw=tot@ls3crit
-capi_admin_login=admin
-capi_admin_pw=joypass123
-capi_admin_email=user@joyent.com
-capi_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853
-
-dhcpd_admin_ip=\${dhcpd_admin_ip}
-dhcpd_root_pw=joypass123
-dhcpd_admin_pw=joypass123
-
-dnsapi_http_port=8000
-dnsapi_http_user=admin
-dnsapi_http_pass=joypass123
-
-dsapi_url=https://datasets.joyent.com
-dsapi_http_user=honeybadger
-dsapi_http_pass=IEatSnakes4Fun
-
-mapi_admin_ip=\${mapi_admin_ip}
-mapi_client_url=http://\${mapi_admin_ip}:80
-mapi_root_pw=joypass123
-mapi_admin_pw=joypass123
-mapi_mac_prefix=90b8d0
-mapi_http_port=8080
-mapi_http_admin_user=admin
-mapi_http_admin_pw=tot@ls3crit
-mapi_datasets="smartos,nodejs"
-mapi_heartbeater_pool_instances=3
-
-portal_external_ip=\${portal_external_ip}
-portal_external_vlan=\${external_vlan_id}
-portal_root_pw=joypass123
-portal_admin_pw=joypass123
-portal_external_url=https://\${portal_external_ip}
-
-cloudapi_admin_ip=\${cloudapi_admin_ip}
-cloudapi_external_ip=\${cloudapi_external_ip}
-cloudapi_external_vlan=\${external_vlan_id}
-cloudapi_root_pw=joypass123
-cloudapi_admin_pw=joypass123
-cloudapi_external_url=https://\${cloudapi_external_ip}
-
-billapi_admin_ip=\${billapi_admin_ip}
-billapi_external_ip=\${billapi_external_ip}
-billapi_external_vlan=\${external_vlan_id}
-billapi_root_pw=joypass123
-billapi_admin_pw=joypass123
-billapi_external_url=https://\${billapi_external_ip}
-billapi_http_admin_user=admin
-billapi_http_admin_pw=joypass123
-
-riak_admin_ip=\${riak_admin_ip}
-riak_root_pw=joypass123
-riak_admin_pw=joypass123
-
-rabbitmq_admin_ip=\${rabbitmq_admin_ip}
-rabbitmq_root_pw=joypass123
-rabbitmq_admin_pw=joypass123
-rabbitmq=guest:guest:\${rabbitmq_admin_ip}:5672
-
-phonehome_automatic=true
-
-EOF
-
-EOF65
-fi
-
-
 ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
 if [[ -n "${TRACE}" ]]; then
@@ -723,40 +311,42 @@ sed -i "" "s/^hosts:.*/hosts:      files mdns dns/" /etc/nsswitch.conf
 # the IP is 10.2.X.X) so that we can switch the stuff/bits url to an IP
 # because the URL doesn't work in the lab.
 URL="${URL}"
-if [[ \$(sysinfo -p | grep "^Network_Interface.*IPv4_Address=" \
-    | cut -d "'" -f2 | grep 10\.2\. | wc -l | tr -d ' ') -gt 0 ]]; then
 
-    # assume we're in the lab
-    echo "Running in BH1, fixing URL..."
-    URL=\$(echo "\${URL}" | sed -e "s/stuff.joyent.us/10.2.0.190/")
-    network=\$(sysinfo | json "Virtual Network Interfaces".net0.ip4addr | cut -d '.' -f1-3)
-    # bits.joyent.us is on two IPs. The 10.2.172 address is to allow zones
-    # on the same network in the lab to access it directly without going
-    # through the (often overburdened) switch.
-    if [[ "\${network}" == "10.2.172" ]]; then
-        URL=\$(echo "\${URL}" | sed -e "s/bits.joyent.us/10.2.172.96/")
-    else
-        URL=\$(echo "\${URL}" | sed -e "s/bits.joyent.us/10.2.0.21/")
-    fi
-fi
+done=0
+retries=3
+while [[ \${done} == 0 && \${retries} -gt 0 ]]; do
 
-# Make sure we've got our file
-if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
-    echo "Downloading \${URL}"
-    curl -f -k -o ${WHICH_TMP}/${FILENAME} \${URL}
+    # Make sure we've got our file
     if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
-        echo "FAILED to download image." >&2
-        exit 1
+        echo "Downloading \${URL}"
+        curl -k -o ${WHICH_TMP}/${FILENAME} \${URL}
+        if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
+            echo "FAILED to download image." >&2
+            exit 1
+        fi
     fi
-fi
 
-# Check MD5 of image
-if [[ -n "${MD5_SUM}" ]]; then
-    MD5=\$(/usr/bin/sum -x md5 ${WHICH_TMP}/${FILENAME} | cut -d ' ' -f1)
-    if [[ \${MD5} != "${MD5_SUM}" ]]; then
-        echo "MD5 does not match." >&2
-        exit 1
+    # Check MD5 of image
+    if [[ -n "${MD5_SUM}" ]]; then
+        MD5=\$(/usr/bin/sum -x md5 ${WHICH_TMP}/${FILENAME} | cut -d ' ' -f1)
+        if [[ \${MD5} != "${MD5_SUM}" ]]; then
+            echo "MD5 does not match, deleting..." >&2
+            rm ${WHICH_TMP}/${FILENAME}
+        else
+            done=1
+        fi
     fi
+
+    if [[ \${done} == 0 ]]; then
+        echo "Trying again in 2 seconds." >&2
+        sleep 2
+        retries=\$((\${retries} - 1))
+    fi
+done
+
+if [[ \${done} != 1 ]]; then
+    echo "Unable to get ${FILENAME}." >&2
+    exit 1
 fi
 
 # let everyone who might be logged in know
@@ -798,41 +388,31 @@ if [[ -d /mnt/usbkey/devtools ]]; then
      cp -RP /mnt/usbkey/devtools ${WHICH_TMP}/devtools.flashing
 fi
 
-if [[ "${USB_MODE}" == "1" ]]; then
-
-    set -o xtrace
-    # We mounted above, check device now
-    USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
-    if [[ -z \${USB_DEV} ]]; then
-        echo "Unable to determine USB device."
-        exit 2
-    else
-        echo "USB Device is: \${USB_DEV}"
-    fi
-
-    # unmount the key while we dd over it
-    umount /mnt/usbkey || /bin/true
-
-    #set +o errexit
-    # dd over it
-    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
-        | time dd of=\${USB_DEV} bs=1024k
-    #set -o errexit
-
-    # mount it again
-    \${MOUNT_SCRIPT}
-
-    # move new devtools out of way so we can drop in old first
-    if [[ -d /mnt/usbkey/devtools ]]; then
-        mv /mnt/usbkey/devtools /mnt/usbkey/devtools.new
-    fi
-
+set -o xtrace
+# We mounted above, check device now
+USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
+if [[ -z \${USB_DEV} ]]; then
+    echo "Unable to determine USB device."
+    exit 2
 else
+    echo "USB Device is: \${USB_DEV}"
+fi
 
-    # Remove everything!
-    echo "Wiping /mnt/usbkey..."
-    rm -rf /mnt/usbkey/*
+# unmount the key while we dd over it
+umount -f /mnt/usbkey
 
+#set +o errexit
+# dd over it
+gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
+    | time dd of=\${USB_DEV} bs=1024k
+#set -o errexit
+
+# mount it again
+\${MOUNT_SCRIPT}
+
+# move new devtools out of way so we can drop in old first
+if [[ -d /mnt/usbkey/devtools ]]; then
+    mv /mnt/usbkey/devtools /mnt/usbkey/devtools.new
 fi
 
 # copy devtools back (we'll unpack new ones over old ones but keep custom ones)
@@ -840,24 +420,13 @@ if [[ -d ${WHICH_TMP}/devtools.flashing ]]; then
     cp -RP ${WHICH_TMP}/devtools.flashing /mnt/usbkey/devtools
 fi
 
-if [[ "${USB_MODE}" != "1" ]]; then
-    # Unpack the image
-    # XXX there doesn't appear to be a way to disable these permission warnings
-    # on SmartOS tar. They occur because we're writing to pcfs which doesn't
-    # support the permissions from the tarball.
-    echo "Unpacking new image..."
-    (cd /mnt/usbkey && tar -zxf ${WHICH_TMP}/${FILENAME}) 2>&1 \
-         | sed -e "s/tar: warning - file permissions have changed for //" \
-         | sed -e "s/ (are 0100.*, should be .*)$//"
-else
-    # just write over devtools
-    if [[ ! -d /mnt/usbkey/devtools ]]; then
-        mkdir /mnt/usbkey/devtools
-    fi
-    (cd /mnt/usbkey/devtools.new && tar -cpf - ./) \
-        | (cd /mnt/usbkey/devtools && tar -xf -)
-    rm -rf /mnt/usbkey/devtools.new
+# write over devtools with old ones
+if [[ ! -d /mnt/usbkey/devtools ]]; then
+    mkdir /mnt/usbkey/devtools
 fi
+(cd /mnt/usbkey/devtools.new && tar -cpf - ./) \
+    | (cd /mnt/usbkey/devtools && tar -xf -)
+rm -rf /mnt/usbkey/devtools.new
 
 # Restore the answers.json if we had one.
 if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
@@ -865,13 +434,6 @@ if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
     mkdir -p /mnt/usbkey/private
     cp ${WHICH_TMP}/answers.flashing /mnt/usbkey/private/answers.json
     rm -f ${WHICH_TMP}/answers.flashing
-fi
-
-# Copy over config if we created one
-if [[ ( "${FILENAME}" =~ "release-20110901" || ${FORCE_65} == 1 ) && -f ${WHICH_TMP}/config.flashing ]]; then
-    echo "Copying in created config..."
-    cp ${WHICH_TMP}/config.flashing /mnt/usbkey/config
-    rm -f ${WHICH_TMP}/config.flashing
 fi
 
 # Restore root.authorized_keys if we had one
@@ -905,27 +467,6 @@ SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)
 [[ -n \${SYS_ZPOOL} ]] || SYS_ZPOOL=zones
 if zfs list zones/var > /dev/null; then
     zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
-fi
-
-if [[ "${FILENAME}" =~ "release-20110901" || ${FORCE_65} == 1 ]]; then
-    echo "WARNING: Manually destroying zpool since target is 6.5"
-
-    # wipe the zpool out manually since we can't delete it on a 6.5 platform
-    # if it was created on a 7 platform.
-    for disk in \$(disklist -s); do
-        device=\${disk%%=*}
-        size=\${disk##*=}
-
-        if zpool status zones | grep " \${device} " > /dev/null; then
-            echo "WARNING: Wiping out zpool info on \${device}"
-            # wipe out first MiB and last MiB.
-            set +o errexit
-            dd if=/dev/zero of=/dev/rdsk/\${device} bs=\$((1024 * 1024)) count=1
-            dd if=/dev/zero of=/dev/rdsk/\${device} bs=\$((1024 * 1024)) \
-                seek=\$(((\${size} / (1024 * 1024)) - 1))
-            set -o errexit
-        fi
-    done
 fi
 
 # Good to go!
