@@ -1,0 +1,24 @@
+{
+  "alias": "mahi0",
+  "brand": "joyent-minimal",
+  "tags": {
+      "smartdc_role": "mahi",
+      "smartdc_type": "core"
+  },
+  "maintain_resolvers": true,
+  "zfs_storage_pool_name": "zones",
+  "registration": {
+    "domain": "mahi",
+    "type":  "rr_host",
+    "service": {
+      "type": "service",
+      "service": {
+        "srvce": "_mahi",
+        "proto": "_tcp",
+        "ttl": 60,
+        "port": 80
+      }
+    },
+    "ttl": 60
+  }
+}
