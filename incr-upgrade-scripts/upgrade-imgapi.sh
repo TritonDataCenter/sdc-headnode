@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 #
 # upgrade-imgapi.sh:
-#   - reprovision imgapi0 zone
-#   - run imgapi migrations
+#   - reprovision imgapi zone
+#   - run imgapi migrations (SKIP_IMGAPI_MIGRATIONS=1 envvar to skip that)
 #
 
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -60,7 +60,7 @@ fi
 empty=/var/tmp/empty
 rm -f $empty
 touch $empty
-REALLY_UPGRADE_IMGAPI=1 IMGAPI_IMAGE=$IMGAPI_IMAGE ./upgrade-all.sh $empty
+REALLY_UPGRADE_IMGAPI=1 IMGAPI_ALIAS=$CURRENT_ALIAS IMGAPI_IMAGE=$IMGAPI_IMAGE ./upgrade-all.sh $empty
 
 
 # "SKIP_IMGAPI_MIGRATIONS" is to allow rollback-imgapi.sh to use this script.

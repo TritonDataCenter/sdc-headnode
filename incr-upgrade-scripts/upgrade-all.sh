@@ -169,6 +169,6 @@ env | grep IMAGE
 [[ -n "$REALLY_UPGRADE_UFDS" && -n "$UFDS_IMAGE" ]] && upgrade_zone ufds ufds0 $UFDS_IMAGE
 # Ditto for rabbitmq and others.
 [[ -n "$REALLY_UPGRADE_RABBITMQ" && -n "$RABBITMQ_IMAGE" ]] && upgrade_zone rabbitmq rabbitmq0 $RABBITMQ_IMAGE
-[[ -n "$REALLY_UPGRADE_IMGAPI" && -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi imgapi0 $IMGAPI_IMAGE
+[[ -n "$REALLY_UPGRADE_IMGAPI" && -n "$IMGAPI_IMAGE" ]] && upgrade_zone imgapi "${IMGAPI_ALIAS:-imgapi0}" $IMGAPI_IMAGE
 
 exit 0

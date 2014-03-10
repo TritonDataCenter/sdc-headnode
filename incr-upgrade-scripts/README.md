@@ -185,11 +185,23 @@ discover that and only backfill as necessary.
 
     ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi-$(date +%s).log
 
+
 Also the following migration should be run once per DC. It isn't *harmful* to
 run more than once, it just involves a number of unnecessary uploads to manta if
 run repeatedly for every upgrade:
 
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-010-backfill-archive.js'
+
+
+After the switch from UFDS to moray is complete (after an upgrade to an
+imgapi build after 20140301) then old image manifest data in UFDS should be
+removed:
+
+    # Get a backup.
+    sdc-ldap search objectclass=sdcimage >sdcimage.dump
+    # Delete them all.
+    sdc sdc-ufds search objectclass=sdcimage | json -ga dn \
+        | while read dn; do sdc-ldap rm "$dn"; done
 
 
 To rollback (however note that the imgapi migrations don't currently have
