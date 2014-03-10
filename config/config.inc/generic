@@ -70,6 +70,7 @@ dhcpd_pkg=sdc_128
 binder_pkg=sdc_512
 rabbitmq_pkg=sdc_rabbitmq
 redis_pkg=sdc_1024
+mahi_pkg=sdc_1024
 
 adminui_workers=8
 
