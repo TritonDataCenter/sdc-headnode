@@ -159,6 +159,7 @@ env | grep IMAGE
 [[ -n "$VMAPI_IMAGE" ]] && upgrade_zone vmapi vmapi0 $VMAPI_IMAGE
 [[ -n "$DAPI_IMAGE" ]] && upgrade_zone dapi dapi0 $DAPI_IMAGE
 [[ -n "$PAPI_IMAGE" ]] && upgrade_zone papi papi0 $PAPI_IMAGE
+[[ -n "$MAHI_IMAGE" ]] && upgrade_zone mahi mahi0 $MAHI_IMAGE
 [[ -n "$REDIS_IMAGE" ]] && upgrade_zone redis redis0 $REDIS_IMAGE
 [[ -n "$ASSETS_IMAGE" ]] && upgrade_zone assets assets0 $ASSETS_IMAGE
 [[ -n "$CA_IMAGE" ]] && upgrade_zone ca ca0 $CA_IMAGE

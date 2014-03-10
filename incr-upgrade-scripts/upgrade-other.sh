@@ -81,6 +81,19 @@ if [[ -n "$papi_service" ]]; then
 fi
 
 
+mahi_domain=mahi.$DOMAIN
+
+sapi_url=$(sdc-sapi /applications/$SDC_APP | json -H metadata.sapi-url)
+mahi_service=$(sdc-sapi /services?name=mahi | json -H 0.uuid)
+if [[ -n "$mahi_service" ]]; then
+    echo "Upgrade MAHI service vars in SAPI."
+    sapiadm update $mahi_service metadata.SERVICE_DOMAIN=$mahi_domain
+    sapiadm update $mahi_service metadata.sapi-url=$sapi_url
+    sapiadm update $SDC_APP metadata.MAHI_SERVICE=$mahi_domain
+    sapiadm update $SDC_APP metadata.mahi_domain=$mahi_domain
+fi
+
+
 # -- INTRO-701, should have at last 4GiB mem cap on ca zone
 
 ca_svc=$(sdc-sapi /services?name=ca | json -H 0.uuid)

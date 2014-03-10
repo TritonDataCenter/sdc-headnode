@@ -1158,6 +1158,10 @@ next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
 sapi_admin_ip="$ip_addr"
 
+next_addr=$(($next_addr + 1))
+num_to_ip $next_addr
+mahi_admin_ip="$ip_addr"
+
 # Add 5 to leave some room
 next_addr=$(($next_addr + 5))
 num_to_ip $next_addr
@@ -1264,6 +1268,11 @@ echo >>$tmp_config
 echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
 echo "adminui_domain=adminui.${datacenter_name}.${dns_domain}" >>$tmp_config
+echo >>$tmp_config
+
+echo "mahi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "mahi_admin_ips=$mahi_admin_ip" >>$tmp_config
+echo "mahi_domain=mahi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
