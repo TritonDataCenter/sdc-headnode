@@ -814,7 +814,7 @@ if [[ -n ${CREATEDZONES} ]]; then
     sapi_uuid=$(/opt/smartdc/bin/sdc-sapi /services?name=sapi | json -Ha uuid)
     sapi_instance_uuid=$(vmadm lookup tags.smartdc_role=sapi)
     svcadm -z ${sapi_instance_uuid} disable config-agent
-    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST
+    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST --fail
     /opt/smartdc/bin/sdc-sapi /services/${sapi_uuid} -X PUT \
         -d '{ "metadata" : { "SAPI_MODE" : "full" } }'
     # SAPI writes its new mode to its own config file (which is config-agent's)
