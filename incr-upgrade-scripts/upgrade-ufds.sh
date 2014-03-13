@@ -64,9 +64,9 @@ fi
 
 # -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
 #    application is the current manatee primary IP
-manatee_primary_ip=$(sdc-login manatee 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
+MANATEE_PRIMARY_IP=$(sdc-login manatee 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
 manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
-if [[ "$manatee_primary_ip" != "$manatee_admin_ips" ]]; then
+if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
     fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
         "primary ip ($manatee_primary_ip). This will break on CAPI-364."
 fi
@@ -80,6 +80,44 @@ fi
 
 # Backup data.
 sdc-login manatee "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
+
+# We need moray details both, for backfill and to check ufds bucket version:
+
+# Work around EPIPE in 'vmadm lookup' (OS-2604)
+MORAY_UUIDS=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=running)
+MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
+
+# Upgrade DB if needed
+# This function takes care of SQL schema upgrades which must run before the
+# ufds-master service boots. It's very likely that each one of the upgrades
+# into this function will run only once into the whole setup lifecycle.
+# TODO: Remove from here once all the existing SDC7 setups have been upgraded
+# past this point.
+function update_ufds_sql_schema {
+  set +o errexit
+  local bucket=$(zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
+     /opt/smartdc/moray/node_modules/.bin/getbucket ufds_o_smartdc)
+  echo "Updating UFDS SQL schema if needed."
+  if [[ ! -n "$bucket" ]]; then
+    echo "Bucket ufds_o_smartdc does not exist. No need to upgrade."
+  else
+    VERSION=$(echo ${bucket} | json options.version)
+    if [ "$VERSION" -le "6" ]; then
+      echo "Upgrading ufds_o_smartdc bucket."
+      while read SQL
+      do
+        sdc-login manatee \
+          "psql -U moray -h $MANATEE_PRIMARY_IP -d moray -c \"${SQL}\""
+      done < ./capi-305.sql
+      echo "ufds_o_smartdc schema upgraded."
+    else
+      echo "Skipping capi-305 schema upgrade."
+    fi
+  fi
+  set -o errexit  
+}
+
+update_ufds_sql_schema
 
 
 # Update UFDS service in SAPI.
@@ -115,9 +153,6 @@ vmadm stop $CUR_UUID
 
 
 # Backfill.
-# Work around EPIPE in 'vmadm lookup' (OS-2604)
-MORAY_UUIDS=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=running)
-MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 echo "Backfill (stage 1)"
 zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
     /opt/smartdc/moray/node_modules/.bin/backfill \
