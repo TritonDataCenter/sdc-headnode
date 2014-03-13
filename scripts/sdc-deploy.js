@@ -1,9 +1,6 @@
 #!/usr/node/bin/node
-
 /*
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
- *
- * sdc-init-app.js: initializes sdc SAPI application definition.
  */
 
 var async = require('/usr/node/node_modules/async');

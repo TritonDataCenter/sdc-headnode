@@ -56,14 +56,14 @@ async.series([
             }
         );
     }, function (cb) {
-        if (!obj.hasOwnProperty('dataset_uuid')) {
+        if (!obj.hasOwnProperty('image_uuid')) {
             // find out which dataset we should use for these zones
             fs.readFile('/usbkey/zones/' + zone + '/dataset', function(error, data) {
                 if (error) {
                     return cb(new Error('Unable to find dataset name: ' + error.message));
                 }
-                obj.dataset_name = data.toString().split('\n')[0];
-                fs.readFile('/usbkey/datasets/' + obj.dataset_name
+                var image_file_name = data.toString().split('\n')[0];
+                fs.readFile('/usbkey/datasets/' + image_file_name
                 , function (err, data) {
 
                     var dsmanifest;
@@ -79,12 +79,12 @@ async.series([
                             + zone + ': ' + e.message));
                     }
 
-                    obj.dataset_uuid = dsmanifest.uuid;
+                    obj.image_uuid = dsmanifest.uuid;
                     cb();
                 });
             });
         } else {
-            // obj already has dataset_uuid so we'll use that.
+            // obj already has image_uuid so we'll use that.
             cb();
         }
     }, function (cb) {
