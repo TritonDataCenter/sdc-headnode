@@ -479,7 +479,7 @@ retval=$?
 set -o errexit
 
 if [[ $retval == 0 ]]; then
-    echo "Success! '${hostname}' should be running through setup shortly!"
+    echo "Success at $(date '+%Y-%m-%dT%H:%M:%SZ')! '${hostname}' should be running through setup shortly!"
     exit 0
 else
     echo "Uh-oh! Something failed (retval=$retval), good luck fixing it!" >&2
