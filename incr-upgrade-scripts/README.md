@@ -121,7 +121,6 @@ If you don't have one or more of the following zones, then you should add them:
 *One time* manual import of 'sdcpackage' data (see PAPI-72)
 
     # in the GZ
-    cd /var/tmp
     sdc-ldap s '(objectclass=sdcpackage)' > packages.ldif
     cp packages.ldif /zones/$(vmadm lookup -1 alias=papi0)/root/var/tmp
     sdc-login papi0
@@ -294,7 +293,11 @@ TODO
 
 ## Special case: Upgrading just a specific agent
 
-TODO: describe editing the agentsshar manually
+First get the latest agent tarball from /Joyent_Dev/builds/...
+and then use the "upgrade-one-agent.sh" tool:
+
+    ./upgrade-one-agent.sh <agent-tarball> 2>&1 | tee upgrade-one-agent-$(date +%s).log
+
 
 
 

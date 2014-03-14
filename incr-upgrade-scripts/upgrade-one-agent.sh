@@ -13,11 +13,13 @@ set -o errexit
 set -o pipefail
 
 
+NAME=$(basename $0)
+START=$(date +%s)
+
+
 #---- support functions
 
-NAME=$(basename $0)
-
-function usage() {
+function usage {
     if [[ -n "$1" ]]; then
         echo "error: $1"
         echo ""
@@ -43,9 +45,22 @@ function fatal {
     exit 1
 }
 
+function errexit {
+    if [[ $1 -eq 0 ]]; then
+        END=$(date +%s)
+        echo "$NAME: Success. Upgrade took $(($END - $START)) seconds." >&2
+        exit 0
+    else
+        echo "$NAME: Failed. Exit status: $1"
+        exit $1
+    fi
+}
+
 
 
 #---- mainline
+
+trap 'errexit $?' EXIT
 
 DO_6=false
 DO_7=
@@ -77,6 +92,12 @@ shift $((OPTIND - 1))
 TARBALL=$1
 [[ -z ${TARBALL} ]] && usage
 [[ ! -f ${TARBALL} ]] && fatal "file '${TARBALL}' not found"
+
+# Cannot be in /tmp, else we'll overwrite it during the upgrade of this
+# node.
+# TODO: this guard fails if relative path given.
+[[ "$(dirname $TARBALL)" == "/tmp" ]] \
+    && fatal "input agent tarball cannot be in /tmp: $TARBALL"
 
 
 FILENAME=$(basename ${TARBALL})
