@@ -114,7 +114,7 @@ function update_ufds_sql_schema {
       echo "Skipping capi-305 schema upgrade."
     fi
   fi
-  set -o errexit  
+  set -o errexit
 }
 
 update_ufds_sql_schema
