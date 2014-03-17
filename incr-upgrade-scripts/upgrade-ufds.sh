@@ -68,7 +68,7 @@ MANATEE_PRIMARY_IP=$(sdc-login manatee 'source .bashrc; manatee-stat' </dev/null
 manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
 if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
     fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
-        "primary ip ($manatee_primary_ip). This will break on CAPI-364."
+        "primary ip ($MANATEE_PRIMARY_IP). This will break on CAPI-364."
 fi
 
 
