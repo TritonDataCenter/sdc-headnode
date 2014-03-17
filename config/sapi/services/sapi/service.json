@@ -2,7 +2,7 @@
     "name": "sapi",
     "params": {
         "archive_on_delete": true,
-        "package_name": "sdc_256",
+        "package_name": "sdc_512",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
         "networks": [ "admin" ],
