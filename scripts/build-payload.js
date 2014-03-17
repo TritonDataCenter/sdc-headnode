@@ -1,5 +1,11 @@
 #!/usr/node/bin/node
 
+/**
+ * This generates the `vmadm create` payload for the early zones created at
+ * the start of headnode setup, before SAPI is used for this. Currently that
+ * just means the 'assets' and 'sapi' zones.
+ */
+
 var async = require('/usr/node/node_modules/async');
 var cp = require('child_process');
 var execFile = cp.execFile;
@@ -12,14 +18,13 @@ var config;
 var obj = {};
 
 async.series([
-    function (cb) {
-        // ensure we've got a zone argument
+    function ensureArgs(cb) {
         if (!zone) {
             return cb(new Error('Usage: ' + process.argv[1] + ' <zone> [uuid]'));
         }
         cb();
-    }, function (cb) {
-        // load the config
+    },
+    function loadConfig(cb) {
         execFile('/bin/bash', ['/lib/sdc/config.sh', '-json'],
             function (error, stdout, stderr)
             {
@@ -37,8 +42,8 @@ async.series([
                 cb();
             }
         );
-    }, function (cb) {
-        // load the zone's JSON template
+    },
+    function loadCreateJson(cb) {
         fs.readFile('/usbkey/zones/' + zone + '/create.json',
             function (error, data)
             {
@@ -55,7 +60,14 @@ async.series([
                 cb();
             }
         );
-    }, function (cb) {
+    },
+    function setOptionalUuid(cb) {
+        if (passed_uuid && passed_uuid.length > 0) {
+            obj.uuid = passed_uuid;
+        }
+        cb();
+    },
+    function setImageUuid(cb) {
         if (!obj.hasOwnProperty('image_uuid')) {
             // find out which dataset we should use for these zones
             fs.readFile('/usbkey/zones/' + zone + '/dataset', function(error, data) {
@@ -63,23 +75,19 @@ async.series([
                     return cb(new Error('Unable to find dataset name: ' + error.message));
                 }
                 var image_file_name = data.toString().split('\n')[0];
-                fs.readFile('/usbkey/datasets/' + image_file_name
-                , function (err, data) {
-
-                    var dsmanifest;
-
+                fs.readFile('/usbkey/datasets/' + image_file_name, function (err, data) {
                     if (err) {
-                        return cb(new Error('unable to load dsmanifest: ' + err.message));
+                        return cb(new Error('unable to load imgmanifest: ' + err.message));
                     }
 
                     try {
-                        dsmanifest = JSON.parse(data.toString());
+                        var imgmanifest = JSON.parse(data.toString());
                     } catch (e) {
-                        return cb(new Error('exception loading dsmanifest for '
+                        return cb(new Error('exception loading imgmanifest for '
                             + zone + ': ' + e.message));
                     }
 
-                    obj.image_uuid = dsmanifest.uuid;
+                    obj.image_uuid = imgmanifest.uuid;
                     cb();
                 });
             });
@@ -87,8 +95,8 @@ async.series([
             // obj already has image_uuid so we'll use that.
             cb();
         }
-    }, function (cb) {
-        // load and apply the package values
+    },
+    function setPackageValues(cb) {
         var k, v;
         var pkg, pkgdata;
 
@@ -133,23 +141,20 @@ async.series([
 
         cb(new Error('Cannot find package "'  + config[zone + '_pkg'] + '" ' +
             'for zone: ' + zone));
-    }, function (cb) {
-        var newobj;
-
-        // load and apply the parameters for this zone in the config
-        if (passed_uuid && passed_uuid.length > 0) {
-            obj.uuid = passed_uuid;
-        }
+    },
+    function setConfigValues(cb) {
         if (config.hasOwnProperty('ufds_admin_uuid')) {
             obj.owner_uuid = config['ufds_admin_uuid'];
         } else {
-            console.error('build-payload: no ufds_admin_uuid in config, not '
-                + 'setting owner_uuid');
+            return cb(new Error('no ufds_admin_uuid in config'));
         }
 
         // Per OS-2520 we always want to be setting archive_on_delete in SDC
         obj.archive_on_delete = true;
 
+        obj.resolvers = config['binder_admin_ips'].split(/,/g);
+
+        // TODO: is this customer_metadata.resolvers still used?
         if (config.hasOwnProperty('binder_resolver_ips')) {
             if (!obj.hasOwnProperty('customer_metadata')) {
                 obj.customer_metadata = {};
@@ -174,7 +179,7 @@ async.series([
             if (!obj.hasOwnProperty('nics')) {
                 obj.nics = [];
             }
-            newobj = {};
+            var newobj = {};
             // when there is more than one IP, we take the first one here.
             if (config.hasOwnProperty(zone + '_admin_ip')) {
                 newobj.ip = config[zone + '_admin_ip'].split(',')[0];
@@ -199,8 +204,7 @@ async.series([
             }
             obj.nics.push(newobj);
         } else {
-            console.error('build-payload: no ' + zone + '_admin_ip in config, '
-                + 'not adding NIC');
+            return cb(new Error('no "' + zone + '_admin_ip[s]" in config'));
         }
 
         if (!obj.hasOwnProperty('nics') || obj.nics.length < 1) {
@@ -213,7 +217,8 @@ async.series([
         }
 
         cb();
-    }, function (cb) {
+    },
+    function setRegistrarConfig(cb) {
         // create the registrar config and insert it into metadata.
         // expect 'registration' to contain a service description
         // for the zone per manta.
@@ -258,103 +263,44 @@ async.series([
             delete obj.registration; // tidy up
         }
         cb();
-    }, function (cb) {
-        // load the user-script into metadata
-        fs.readFile('/usbkey/zones/' + zone + '/user-script',
-            function (error, data)
-            {
-                if (!obj.hasOwnProperty('customer_metadata')) {
-                    obj.customer_metadata = {};
-                }
-                if (process.env.ASSETS_IP) {
-                    obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
-                }
-
-                obj.customer_metadata['sapi-url'] = 'http://' + config['sapi_admin_ips'];
-
-                if (error) {
-                    if (error.code !== 'ENOENT') {
-                        return cb(error);
-                    } else {
-                        return cb();
-                    }
-                }
-                obj.customer_metadata['user-script'] = data.toString();
-                cb();
-            }
-        );
-    }, function (cb) {
-        // load the user-script into metadata (if we didn't find already)
-        if (!obj.customer_metadata.hasOwnProperty('user-script')) {
-            fs.readFile('/usbkey/default/user-script.common',
-                function (error, data)
-                {
-                    if (error) {
-                        if (error.code !== 'ENOENT') {
-                            return cb(error);
-                        } else {
-                            return cb();
-                        }
-                    }
-                    obj.customer_metadata['user-script'] = data.toString();
-                    cb();
-                }
-            );
-        } else {
-            cb();
+    },
+    function setCustomerMetadata(cb) {
+        if (!obj.hasOwnProperty('customer_metadata')) {
+            obj.customer_metadata = {};
         }
-    }, function (cb) {
-        // Special case for SAPI, we need the initial usbkey config in the zone
-        // so we can pull values for proto-SAPI.
-        if (zone !== 'sapi') {
-            cb();
-            return;
+        if (process.env.ASSETS_IP) {
+            obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
         }
-
-        // load the user-script into metadata
-        fs.readFile('/usbkey/config',
-            function (error, data)
-            {
-                if (!obj.hasOwnProperty('customer_metadata')) {
-                    obj.customer_metadata = {};
-                }
-
-                if (error) {
-                    if (error.code !== 'ENOENT') {
-                        return cb(error);
-                    } else {
-                        return cb();
-                    }
-                }
-                obj.customer_metadata['usbkey_config'] = data.toString();
-                cb();
-            }
-        );
-    }, function(cb) {
+        obj.customer_metadata['sapi-url'] = 'http://' + config['sapi_admin_ips'];
         obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
         obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
         obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
         cb();
-    }, function (cb) {
-        // save the package values to the ufds zone
-        var k, v;
-        var packages = [];
-
-        if (zone === 'ufds') {
-            packages = [];
-
-            for (k in config) {
-                v = config[k];
-
-                // fields: # name:ram:swap:disk:cap:nlwp:iopri:uuid
-                if (k.match('^pkg_')) {
-                    packages.push(v);
-                }
+    },
+    function setUserScript(cb) {
+        fs.readFile('/usbkey/default/user-script.common', function (err, data) {
+            if (err) {
+                return cb(err);
             }
-
-            obj.customer_metadata.packages = packages.join("\n");
+            obj.customer_metadata['user-script'] = data.toString();
+            cb();
+        });
+    },
+    function setUsbkeyConfigMetadataForSapi(cb) {
+        // Special case for SAPI, we need the initial usbkey config in the zone
+        // so we can pull values for proto-SAPI.
+        if (zone !== 'sapi') {
+            return cb();
         }
-        return cb();
+
+        // load the user-script into metadata
+        fs.readFile('/usbkey/config', function (err, data) {
+            if (err) {
+                return cb(err);
+            }
+            obj.customer_metadata['usbkey_config'] = data.toString();
+            cb();
+        });
     }
 ], function (err) {
     if (err) {

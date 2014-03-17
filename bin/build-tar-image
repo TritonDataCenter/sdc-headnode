@@ -873,7 +873,7 @@ function copy_dataset
     fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
   fi
 
-  echo "==> Copying ${dataset_file}"
+  echo "==> Copying image ${dataset_file} to 'datasets/'."
   ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
 }
 

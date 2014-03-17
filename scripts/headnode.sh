@@ -454,9 +454,8 @@ function create_zone {
 
 
     local payload_file=/var/tmp/${zone}_payload.json
-    # HEAD-1371 - branch on SAPI here.
     if [[ ${USE_SAPI} && -f ${USB_COPY}/services/${zone}/service.json ]]; then
-        echo "deploying ${zone} via SAPI."
+        echo "Deploy zone ${zone} (payload via SAPI)"
         local sapi_url=http://${CONFIG_sapi_admin_ips}
         [[ $upgrading == 1 ]] && UPGRADING="yes"
 
@@ -473,13 +472,8 @@ function create_zone {
             export ONE_NODE_WRITE_MODE
         fi
     else
-        echo "XXX - deploy ${zone} via build-payload."
-        local tmp_file=/var/tmp/${zone}_payload.$$
-
-        # need to add resolvers.
-        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${tmp_file}
-        json -f ${tmp_file} -e "resolvers=[\"${CONFIG_binder_admin_ips}\"]" \
-            > ${payload_file}
+        echo "Deploy zone ${zone} (payload via build-payload.js)"
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${payload_file}
     fi
 
     cat ${payload_file} | vmadm create
