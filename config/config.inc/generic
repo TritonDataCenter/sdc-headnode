@@ -49,29 +49,6 @@ root_authorized_keys_file=root.authorized_keys
 assets_pkg=sdc_128
 sapi_pkg=sdc_512
 
-# These shouldn't be needed after sdc-role is using SAPI.
-cloudapi_pkg=sdc_256
-sdcsso_pkg=sdc_128
-adminui_pkg=sdc_512
-amon_pkg=sdc_256
-workflow_pkg=sdc_1024
-manatee_pkg=sdc_db
-moray_pkg=sdc_1024
-vmapi_pkg=sdc_128
-dapi_pkg=sdc_128
-imgapi_pkg=sdc_imgapi
-cnapi_pkg=sdc_768
-napi_pkg=sdc_128
-fwapi_pkg=sdc_128
-ca_pkg=sdc_1024
-ufds_pkg=sdc_8192
-manta_pkg=sdc_1024
-dhcpd_pkg=sdc_128
-binder_pkg=sdc_512
-rabbitmq_pkg=sdc_rabbitmq
-redis_pkg=sdc_1024
-mahi_pkg=sdc_1024
-
 adminui_workers=8
 
 dhcpd_dhcp_server=1
