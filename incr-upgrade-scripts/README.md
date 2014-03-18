@@ -210,7 +210,7 @@ rollback support):
 
 
 
-## upgrade zone: amon, sdc, napi, dapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui
+## upgrade zone: amon, sdc, napi, dapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui, sdcsso
 
     ./upgrade-all.sh upgrade-images 2>&1 | tee all-other-zones-$(date +%s).log
 

@@ -68,9 +68,9 @@ done
 
 SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 DOMAIN=$(sdc-sapi /applications/$SDC_APP | json -H metadata.datacenter_name).$(sdc-sapi /applications/$SDC_APP | json -H metadata.dns_domain)
-papi_domain=papi.$DOMAIN
-
 sapi_url=$(sdc-sapi /applications/$SDC_APP | json -H metadata.sapi-url)
+
+papi_domain=papi.$DOMAIN
 papi_service=$(sdc-sapi /services?name=papi | json -H 0.uuid)
 if [[ -n "$papi_service" ]]; then
     echo "Upgrade PAPI service vars in SAPI."
@@ -80,10 +80,7 @@ if [[ -n "$papi_service" ]]; then
     sapiadm update $SDC_APP metadata.papi_domain=$papi_domain
 fi
 
-
 mahi_domain=mahi.$DOMAIN
-
-sapi_url=$(sdc-sapi /applications/$SDC_APP | json -H metadata.sapi-url)
 mahi_service=$(sdc-sapi /services?name=mahi | json -H 0.uuid)
 if [[ -n "$mahi_service" ]]; then
     echo "Upgrade MAHI service vars in SAPI."
@@ -116,4 +113,78 @@ if [[ $ca_zone_max_physical_memory != "4096" ]]; then
     vmadm update $ca_zone_uuid max_swap=8192
     vmadm update $ca_zone_uuid zfs_io_priority=20
     vmadm update $ca_zone_uuid cpu_cap=400
+fi
+
+# XXX HEAD-1931. get min package values, perhaps with relevant files copied from
+#     usb-headnode.git to incr-upgrade pkg. Should we have a sdc_FOO package
+#     for each service, and then just update them and resize zones as
+#     appropriate?
+#
+#     TODO: Do current new build values match the following?
+#
+#     Until have that, then comment the following out.
+if false; then
+    # rabbit 2048
+    rabbitmq_svc=$(sdc-sapi /services?name=rabbitmq | json -H 0.uuid)
+    sapiadm update $rabbitmq_svc params.max_physical_memory=2048
+    sapiadm update $rabbitmq_svc params.max_locked_memory=2048
+    sapiadm update $rabbitmq_svc params.max_swap=4096
+    rabbitmq_zone_uuid=$(vmadm lookup -1 state=running alias=rabbitmq0)
+    vmadm update $rabbitmq_zone_uuid max_physical_memory=2048
+    vmadm update $rabbitmq_zone_uuid max_locked_memory=2048
+    vmadm update $rabbitmq_zone_uuid max_swap=4096
+    # manatee 16384
+    manatee_svc=$(sdc-sapi /services?name=manatee | json -H 0.uuid)
+    sapiadm update $manatee_svc params.max_physical_memory=16384
+    sapiadm update $manatee_svc params.max_locked_memory=16384
+    sapiadm update $manatee_svc params.max_swap=32768
+    manatee_zone_uuid=$(vmadm lookup -1 state=running alias=manatee0)
+    vmadm update $manatee_zone_uuid max_physical_memory=16384
+    vmadm update $manatee_zone_uuid max_locked_memory=16384
+    vmadm update $manatee_zone_uuid max_swap=32768
+    # dapi 512
+    dapi_svc=$(sdc-sapi /services?name=dapi | json -H 0.uuid)
+    sapiadm update $dapi_svc params.max_physical_memory=512
+    sapiadm update $dapi_svc params.max_locked_memory=512
+    sapiadm update $dapi_svc params.max_swap=1024
+    dapi_zone_uuid=$(vmadm lookup -1 state=running alias=dapi0)
+    vmadm update $dapi_zone_uuid max_physical_memory=512
+    vmadm update $dapi_zone_uuid max_locked_memory=512
+    vmadm update $dapi_zone_uuid max_swap=1024
+    # napi 1024
+    napi_svc=$(sdc-sapi /services?name=napi | json -H 0.uuid)
+    sapiadm update $napi_svc params.max_physical_memory=1024
+    sapiadm update $napi_svc params.max_locked_memory=1024
+    sapiadm update $napi_svc params.max_swap=2048
+    napi_zone_uuid=$(vmadm lookup -1 state=running alias=napi0)
+    vmadm update $napi_zone_uuid max_physical_memory=1024
+    vmadm update $napi_zone_uuid max_locked_memory=1024
+    vmadm update $napi_zone_uuid max_swap=2048
+    # amon 768
+    amon_svc=$(sdc-sapi /services?name=amon | json -H 0.uuid)
+    sapiadm update $amon_svc params.max_physical_memory=768
+    sapiadm update $amon_svc params.max_locked_memory=768
+    sapiadm update $amon_svc params.max_swap=1536
+    amon_zone_uuid=$(vmadm lookup -1 state=running alias=amon0)
+    vmadm update $amon_zone_uuid max_physical_memory=768
+    vmadm update $amon_zone_uuid max_locked_memory=768
+    vmadm update $amon_zone_uuid max_swap=1536
+    # sdc 1024
+    sdc_svc=$(sdc-sapi /services?name=sdc | json -H 0.uuid)
+    sapiadm update $sdc_svc params.max_physical_memory=1024
+    sapiadm update $sdc_svc params.max_locked_memory=1024
+    sapiadm update $sdc_svc params.max_swap=2048
+    sdc_zone_uuid=$(vmadm lookup -1 state=running alias=sdc0)
+    vmadm update $sdc_zone_uuid max_physical_memory=1024
+    vmadm update $sdc_zone_uuid max_locked_memory=1024
+    vmadm update $sdc_zone_uuid max_swap=2048
+    # dhcpd 256
+    dhcpd_svc=$(sdc-sapi /services?name=dhcpd | json -H 0.uuid)
+    sapiadm update $dhcpd_svc params.max_physical_memory=256
+    sapiadm update $dhcpd_svc params.max_locked_memory=256
+    sapiadm update $dhcpd_svc params.max_swap=512
+    dhcpd_zone_uuid=$(vmadm lookup -1 state=running alias=dhcpd0)
+    vmadm update $dhcpd_zone_uuid max_physical_memory=256
+    vmadm update $dhcpd_zone_uuid max_locked_memory=256
+    vmadm update $dhcpd_zone_uuid max_swap=512
 fi
