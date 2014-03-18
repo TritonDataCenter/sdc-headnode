@@ -28,7 +28,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-IMGAPI_IMAGE=$(grep '^export IMGAPI_IMAGE' $1 | tail -1 | cut -d'=' -f2 | awk '{print $1}')
+IMGAPI_IMAGE=$(egrep '^export +IMGAPI_IMAGE' $1 | tail -1 | cut -d'=' -f2 | awk '{print $1}')
 if [[ -z ${IMGAPI_IMAGE} ]]; then
     fatal "\$IMGAPI_IMAGE not defined"
 fi
