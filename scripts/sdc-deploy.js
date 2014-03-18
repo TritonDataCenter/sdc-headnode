@@ -10,15 +10,20 @@ var cp = require('child_process');
 var execFile = cp.execFile;
 var fs = require('fs');
 
-// Globals
-var sapiUrl = process.argv[2];
-var zone = process.argv[3];
-var passed_uuid = process.argv[4];
+
+
+// ---- globals
+
+var log;
 var config;
+var sapi;
+
+
+
+// ---- support functions
 
 // needed for nics, atm.
 function loadConfig(cb) {
-    var log = self.log;
     execFile('/bin/bash', ['/lib/sdc/config.sh', '-json'],
         function _loadConfig(err, stdout, stderr) {
             if (err) {
@@ -27,7 +32,7 @@ function loadConfig(cb) {
             }
 
             try {
-                self.config = JSON.parse(stdout);
+                config = JSON.parse(stdout); // intentionally global
             } catch (e) {
                 log.fatal(e, 'Could not parse config: ' + e.message)
                 return cb(e);
@@ -39,8 +44,8 @@ function loadConfig(cb) {
 }
 
 function initSapiClient(cb) {
-    self.sapi = new sdc.SAPI({
-        log: self.log,
+    sapi = new sdc.SAPI({ // intentionally global
+        log: log,
         url: sapiUrl,
         agent: false
     });
@@ -48,21 +53,20 @@ function initSapiClient(cb) {
 }
 
 function getService(cb) {
-    var log = self.log;
-    self.sapi.listServices({
+    sapi.listServices({
         name: zone
     }, function(err, services) {
         if (err) {
             log.fatal(err, 'Could not find service for %s', zone);
             return cb(err);
         }
+        log.info({services: services}, 'got service');
         // XXX assuming unambiguous search.
         return cb(null, services[0]);
     });
 }
 
 function createInstance(service, cb) {
-    var log = self.log;
     var opts = { params: {}, metadata : {} };
     opts.uuid = passed_uuid;
     opts.params.alias = zone + '0';
@@ -78,7 +82,7 @@ function createInstance(service, cb) {
     }
 
 
-    self.sapi.createInstance(service.uuid, opts, function(err, instance) {
+    sapi.createInstance(service.uuid, opts, function(err, instance) {
         if (err) {
             log.fatal(err, 'Could not create instance for %s', service.name);
             return cb(err);
@@ -89,8 +93,7 @@ function createInstance(service, cb) {
 }
 
 function getPayload(instance, cb) {
-    var log = self.log;
-    self.sapi.getInstancePayload(instance.uuid, function(err, payload) {
+    sapi.getInstancePayload(instance.uuid, function(err, payload) {
         if (err) {
             log.fatal(err, 'Could not get payload for instance %s', instance.uuid);
             return cb(err);
@@ -105,7 +108,6 @@ function addNic(payload, cb) {
     if (payload.hasOwnProperty('nics')) {
         return cb(null, payload);
     }
-    var config = self.config;
     var nic = {};
     payload.nics = [nic];
 
@@ -136,19 +138,27 @@ function outputPayload(payload, cb) {
     return cb(null);
 }
 
-/* -- Mainline -- */
 
+
+// ---- mainline
+
+var sapiUrl = process.argv[2];
+var zone = process.argv[3];
+
+log = new Logger({
+    name: 'sdc-deploy',
+    level: 'debug',
+    serializers: Logger.stdSerializers,
+    stream: process.stderr,
+    zone: zone
+});
+
+var passed_uuid = process.argv[4];
 if (!passed_uuid) {
-    self.log.fatal('No uuid passed to sdc-deploy');
+    log.fatal('No uuid passed to sdc-deploy');
     process.exit(1);
 }
 
-var self = this;
-self.log = new Logger({
-    name: 'sdc-deploy',
-    level: 'debug',
-    serializers: Logger.stdSerializers
-});
 
 async.waterfall([
     loadConfig,
@@ -160,7 +170,7 @@ async.waterfall([
     outputPayload
 ], function (err) {
     if (err) {
-        self.log.fatal('Failed to deploy %s', zone);
+        log.fatal('Failed to deploy %s', zone);
         process.exit(1);
     }
     process.exit(0);
