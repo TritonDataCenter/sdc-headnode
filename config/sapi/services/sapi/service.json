@@ -13,8 +13,7 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "sapi",
-        "SAPI_MODE": "proto"
+        "SERVICE_NAME": "sapi"
     },
     "manifests": {
     }

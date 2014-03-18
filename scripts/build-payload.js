@@ -286,14 +286,17 @@ async.series([
             cb();
         });
     },
-    function setUsbkeyConfigMetadataForSapi(cb) {
-        // Special case for SAPI, we need the initial usbkey config in the zone
-        // so we can pull values for proto-SAPI.
+    function setMetadataForSapi(cb) {
+        // Special cases for SAPI.
         if (zone !== 'sapi') {
             return cb();
         }
 
-        // load the user-script into metadata
+        // Explicitly put this first sapi in proto mode.
+        obj.customer_metadata['SAPI_PROTO_MODE'] = true;
+
+        // We need the initial usbkey config in the zone so we can pull values
+        // for proto-SAPI.
         fs.readFile('/usbkey/config', function (err, data) {
             if (err) {
                 return cb(err);

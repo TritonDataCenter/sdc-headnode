@@ -805,18 +805,7 @@ if [[ -n ${CREATEDZONES} ]]; then
     # SAPI that its dependent SDC services are ready and that it should store
     # the SDC deployment configuration persistently.
     #
-    sapi_uuid=$(/opt/smartdc/bin/sdc-sapi /services?name=sapi | json -Ha uuid)
-    sapi_instance_uuid=$(vmadm lookup tags.smartdc_role=sapi)
-    svcadm -z ${sapi_instance_uuid} disable config-agent
     /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST --fail
-    /opt/smartdc/bin/sdc-sapi /services/${sapi_uuid} -X PUT \
-        -d '{ "metadata" : { "SAPI_MODE" : "full" } }'
-    # SAPI writes its new mode to its own config file (which is config-agent's)
-    # domain. If that doesn't result in exactly the same bytes, then
-    # config-agent will replace and restart sapi sometime in the next 30s. Avoid
-    # that by getting config-agent to do that write synchronously.
-    zlogin ${sapi_instance_uuid} "/opt/smartdc/config-agent/build/node/bin/node /opt/smartdc/config-agent/agent.js -s"
-    svcadm -z ${sapi_instance_uuid} enable config-agent
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
