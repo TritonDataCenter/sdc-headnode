@@ -115,8 +115,7 @@ If you don't have one or more of the following zones, then you should add them:
 
     ./add-sdc.sh 2>&1 | tee sdc-$(date +%s).log
     ./add-amonredis.sh 2>&1 | tee amonredis-$(date +%s).log
-    ./add-papi.sh 2>&1 | tee papi-$(date +%s).log
-
+    ./add-papi.sh PAPI_IMAGE_UUID 2>&1 | tee papi-$(date +%s).log
 
 *One time* manual import of 'sdcpackage' data (see PAPI-72)
 
@@ -189,7 +188,7 @@ Also the following migration should be run once per DC. It isn't *harmful* to
 run more than once, it just involves a number of unnecessary uploads to manta if
 run repeatedly for every upgrade:
 
-    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-010-backfill-archive.js'
+    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-009-backfill-archive.js'
 
 
 After the switch from UFDS to moray is complete (after an upgrade to an

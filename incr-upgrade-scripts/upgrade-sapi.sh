@@ -98,7 +98,7 @@ NEW_UUID=$(vmadm lookup -1 owner_uuid=$UFDS_ADMIN_UUID alias=$NEW_ALIAS)
 wait_until_zone_in_dns $NEW_UUID $NEW_ALIAS $SAPI_DOMAIN
 
 
-# -- Phase out the "NEW" ufds zone. Just want to keep the original "CUR" one.
+# -- Phase out the "NEW" sapi zone. Just want to keep the original "CUR" one.
 
 CUR_IP=$(vmadm get $CUR_UUID | json nics.0.ip)
 NEW_IP=$(vmadm get $NEW_UUID | json nics.0.ip)
@@ -109,9 +109,12 @@ NEW_IP=$(vmadm get $NEW_UUID | json nics.0.ip)
 zlogin ${CUR_UUID} svcadm disable registrar
 wait_until_zone_out_of_dns $CUR_UUID $CUR_ALIAS $SAPI_DOMAIN $CUR_IP
 
-# Workaround SAPI-197.
+# Add "SAPI_MODE" to workaround SAPI-197. This will be unnecessary on SAPI
+# images after SAPI-167/SAPI-211 (where "SAPI_MODE" is replaced by
+# "SAPI_PROTO_MODE=true").
 echo '{"set_customer_metadata": {"SAPI_MODE": "full"}}' |
     vmadm update ${CUR_UUID}
+
 echo '{}' | json -e "this.image_uuid = '${SAPI_IMAGE}'" |
     vmadm reprovision ${CUR_UUID}
 wait_until_zone_in_dns $CUR_UUID $CUR_ALIAS $SAPI_DOMAIN $CUR_IP
