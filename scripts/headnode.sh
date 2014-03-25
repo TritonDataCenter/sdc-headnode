@@ -38,7 +38,7 @@ shopt -s extglob
 
 SETUP_FILE=/var/lib/setup.json
 
-function update_setup_state
+function setup_state_add
 {
     STATE=$1
 
@@ -52,7 +52,7 @@ function update_setup_state
     chmod 400 $SETUP_FILE
 }
 
-function mark_as_setup
+function setup_state_mark_complete
 {
     chmod 600 $SETUP_FILE
     # Update the setup state file with the new value
@@ -64,6 +64,26 @@ function mark_as_setup
     mv ${SETUP_FILE}.new $SETUP_FILE
     chmod 400 $SETUP_FILE
     sysinfo -u
+}
+
+# Return 0 if the given setup stage has NOT been done, 1 otherwise.
+# Usage:
+#
+#       if setup_state_not_seen "foo"; then
+#           ...
+#           setup_state_add "foo"
+#       fi
+function setup_state_not_seen
+{
+    local state=$1
+    local seen=$(json -f ${SETUP_FILE} -e \
+        "this.result = this.seen_states.filter(
+            function(e) { return e === '$state' })[0]" | json result)
+    if [[ -z "$seen" ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 
@@ -330,7 +350,7 @@ if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
         if [ $restore == 0 ]; then
             printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents})
-            update_setup_state "agents_installed"
+            setup_state_add "agents_installed"
         else
             printf_log "%-58s" "installing $(basename ${which_agents})... "
             (cd /var/tmp ; bash ${which_agents} >&4 2>&1)
@@ -565,19 +585,15 @@ function sdc_init_application
 {
     [[ -f ${USB_COPY}/application.json ]] || fatal "No application.json"
 
-    local sapi_setup=$(json -f ${SETUP_FILE} -e \
-        'result=this.seen_states.filter(function(e) { return e=="sapi_setup" })[0]' | json result)
-
-    [[ -n ${sapi_setup} ]] && return 0
-
-    ${USB_COPY}/scripts/sdc-init.js
-    update_setup_state "sapi_setup"
+    if setup_state_not_seen "sapi_setup"; then
+        ${USB_COPY}/scripts/sdc-init.js
+        setup_state_add "sapi_setup"
+    fi
 }
 
 function bootstrap_sapi
 {
-    local sapi_bootstrap=$(grep sapi_bootstrapped ${SETUP_FILE})
-    if [[ -z ${sapi_bootstrap} ]]; then
+    if setup_state_not_seen "sapi_bootstrap"; then
         echo "Bootstrapping SAPI into SAPI"
         local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
         zlogin ${sapi_uuid} /usr/bin/bash <<HERE
@@ -592,8 +608,8 @@ download_metadata
 write_initial_config
 registrar_setup
 HERE
+        setup_state_add "sapi_bootstrapped"
     fi
-    update_setup_state "sapi_bootstrapped"
 }
 
 if [[ -z ${skip_zones} ]]; then
@@ -608,8 +624,6 @@ if [[ -z ${skip_zones} ]]; then
         done
     fi
 
-    # Create assets first since others will download stuff from here.
-    export ASSETS_IP=${CONFIG_assets_admin_ip}
     # These are here in the order they'll be brought up.
     create_zone assets
     create_zone sapi
@@ -645,7 +659,7 @@ if [[ -z ${skip_zones} ]]; then
     create_zone adminui
 fi
 
-update_setup_state "sdczones_created"
+setup_state_add "sdczones_created"
 
 # copy sdc-manatee tools to GZ - see MANATEE-86
 echo "==> Copying manatee tools to GZ."
@@ -722,9 +736,10 @@ function import_smartdc_service_images {
 }
 
 
-# Import bootstrapped core images into IMGAPI.
-if [[ ${created_imgapi} == 1 ]]; then
+if setup_state_not_seen "import_smartdc_service_images"; then
+    # Import bootstrapped core images into IMGAPI.
     import_smartdc_service_images
+    setup_state_add "import_smartdc_service_images"
 fi
 
 
@@ -840,9 +855,9 @@ if [[ $upgrading == 1 ]]; then
     printf_timer "%4s (%ss)\n" "done"
 
     # Note: It is 'upgrade_hooks.sh's responsibility to do
-    # the equivalent of 'mark_as_setup' when it is done.
+    # the equivalent of 'setup_state_mark_complete' when it is done.
 else
-    mark_as_setup
+    setup_state_mark_complete
     rm -f /tmp/.ur-startup
     svcadm restart ur
 fi

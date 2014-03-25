@@ -43,7 +43,7 @@ EXTRA_ZONES="cloudapi sdcsso"
 
 SETUP_FILE=/var/lib/setup.json
 
-function update_setup_state
+function setup_state_add
 {
     STATE=$1
 
@@ -57,7 +57,7 @@ function update_setup_state
     chmod 400 $SETUP_FILE
 }
 
-function mark_as_setup
+function setup_state_mark_complete
 {
     chmod 600 $SETUP_FILE
     # Update the setup state file with the new value
@@ -302,7 +302,7 @@ pre_tasks()
         "}" >/var/lib/setup.json
     chmod 400 /var/lib/setup.json
 
-    update_setup_state "imgadm_setup"
+    setup_state_add "imgadm_setup"
 
     print_log \
         "If an unrecoverable error occurs, use sdc-rollback to return to 6.5"
@@ -637,7 +637,7 @@ post_tasks()
     fi
 
     print_log "- The upgrade logs are in $dname"
-    update_setup_state "upgrade_complete"
+    setup_state_add "upgrade_complete"
 
     if [ -f $dname/error_finalize.txt ]; then
         print_log "- ERRORS during upgrade:"
@@ -647,7 +647,7 @@ post_tasks()
         print_log "Use sdc-rollback if necessary"
         exit 1
     else
-        mark_as_setup
+        setup_state_mark_complete
     fi
     print_log "DONE"
     cp /tmp/upgrade_progress $dname
