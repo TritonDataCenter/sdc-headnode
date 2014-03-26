@@ -598,7 +598,6 @@ function bootstrap_sapi
         local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
         zlogin ${sapi_uuid} /usr/bin/bash <<HERE
 export ZONE_ROLE=sapi
-export ZONE_ALIAS=\$(mdata-get sdc:alias)
 export ASSETS_IP=${CONFIG_assets_admin_ip}
 export CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/\${ZONE_ROLE}
 source /opt/smartdc/boot/lib/util.sh
