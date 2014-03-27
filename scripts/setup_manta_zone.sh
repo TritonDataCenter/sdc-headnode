@@ -138,11 +138,32 @@ function copy_manta_tools {
     if [[ -n ${zone_uuid} ]]; then
         from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment
         to_dir=/opt/smartdc/bin
+
+        # remove any tools from a previous setup
         rm -f ${to_dir}/manta-status
-        mkdir -p /opt/smartdc/manta-deployment/log
-        ln -s ${from_dir}/cmd/manta-status.js ${to_dir}/manta-status
         rm -f ${to_dir}/manta-login
+        rm -f ${to_dir}/manta-adm
+
+        mkdir -p /opt/smartdc/manta-deployment/log
+        # manta-login is a bash script, so we can link it directly.
         ln -s ${from_dir}/bin/manta-login ${to_dir}/manta-login
+
+        #
+        # manta-status uses /usr/node/bin/node directly, so that just works too.
+        # It's not valid to use that node here, but manta-status is deprecated
+        # anyways.
+        #
+        ln -s ${from_dir}/cmd/manta-status.js ${to_dir}/manta-status
+
+        #
+        # manta-adm is a node program, so we must write a little wrapper that
+        # calls the real version using the node delivered in the manta zone.
+        #
+        cat <<-EOF > ${to_dir}/manta-adm
+	#!/bin/bash
+	exec ${from_dir}/build/node/bin/node ${from_dir}/bin/manta-adm "\$@"
+	EOF
+        chmod +x ${to_dir}/manta-adm
     fi
 }
 
