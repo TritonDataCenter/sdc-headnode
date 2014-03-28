@@ -1,15 +1,34 @@
 #!/bin/bash
 #
-# Call the tool of the same name in the 'sdc' zone.
+# Copyright (c) 2014 Joyent Inc., All rights reserved.
 #
-# Note: That tool needs to be runnable from the GZ, i.e. calculates
-# paths to files in the sdc zone *relative* to itself, etc.
+# Convenience wrapper for calling the Amon Relay Admin API on this node.
+# <https://mo.joyent.com/docs/amon/master/#relay-admin-api>
 #
-ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp -s create_timestamp owner_uuid=$ufds_admin_uuid | grep '^sdc\>' | tail -1 | awk '{print $2}')
-if [[ -z "${sdc_zone}" ]]; then
-    echo "error: $(basename $0): unable to find a 'sdc' core zone on this node" >&2
+
+if [ "$TRACE" != "" ]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
+TOP=$(cd $(dirname $0)/../ 2>/dev/null; pwd)
+
+
+# Arguments.
+path=$1
+if [[ -z "$path" ]]; then
+    echo "error: no PATH argument given"
+    echo ""
+    echo "Usage:"
+    echo "  sdc-amonrelay PATH [EXTRA-CURL-ARGS]"
     exit 1
 fi
-exec /zones/$sdc_zone/root/opt/smartdc/sdc/bin/$(basename $0) "$@"
+shift;
+
+curl --connect-timeout 10 -sS -i \
+    -H accept:application/json -H content-type:application/json \
+    --url "http://127.0.0.1:4307$path" "$@" \
+    | (json -q || true)
 
