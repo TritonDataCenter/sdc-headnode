@@ -685,6 +685,10 @@ if [[ "$(zpool list)" == "no pools available" ]] \
             mkdir -p /var/imgadm
             echo '{}' > /var/imgadm/imgadm.conf
         fi
+        json -f /var/imgadm/imgadm.conf \
+            -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
+            > /var/imgadm/imgadm.conf.new
+        mv /var/imgadm/imgadm.conf.new /var/imgadm/imgadm.conf
         if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
             imgadm sources -f -a http://$CONFIG_imgapi_domain
             imgadm sources -f -d https://images.joyent.com  # remove the default
