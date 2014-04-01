@@ -127,10 +127,14 @@ If you don't have one or more of the following zones, then you should add them:
     # in the papi0 zone
     /opt/smartdc/papi/build/node/bin/node /opt/smartdc/papi/bin/importer --ldif=/var/tmp/packages.ldif
 
-Then (later if desired), all 'sdcpackage' objects should be removed from UFDS
-to ensure that other scripts are not depending on this being up to date.
+Then, all 'sdcpackage' objects should be removed from UFDS to ensure that other
+scripts are not depending on this being up to date.
 
-    TODO
+    # This packages.ldif dump should be stored somewhere for backup.
+    sdc-ldap s '(objectclass=sdcpackage)' > packages.ldif
+
+    sdc-ufds search objectclass=sdcpackage dn | json -ga dn \
+        | while read dn; do sdc-ufds delete "$dn"; done
 
 
 ## put the DC in maint mode (optional)
