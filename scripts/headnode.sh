@@ -628,12 +628,6 @@ if [[ -z ${skip_zones} ]]; then
     create_zone assets
     create_zone sapi
 
-    touch /var/tmp/lock_setup
-    while [[ -f /var/tmp/lock_setup ]]; do
-        echo '/var/tmp/lock_setup exists.  sleeping'
-        sleep 1
-    done
-
     # get SAPI standing up, then use that.
     sdc_init_application
     export USE_SAPI="true"
