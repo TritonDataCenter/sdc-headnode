@@ -628,6 +628,12 @@ if [[ -z ${skip_zones} ]]; then
     create_zone assets
     create_zone sapi
 
+    touch /var/tmp/lock_setup
+    while [[ -f /var/tmp/lock_setup ]]; do
+        echo '/var/tmp/lock_setup exists.  sleeping'
+        sleep 1
+    done
+
     # get SAPI standing up, then use that.
     sdc_init_application
     export USE_SAPI="true"
@@ -831,7 +837,17 @@ if [[ -n ${CREATEDZONES} ]]; then
     # SAPI that its dependent SDC services are ready and that it should store
     # the SDC deployment configuration persistently.
     #
-    /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST --fail
+    i=0
+    sresult=1
+    while [[ ${sresult} -gt 0 && ${i} -lt 48 ]]; do
+        /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST -m 5 --fail
+        sresult=$?
+        if [[ ${sresult} -ne 0 ]]; then
+            printf_log "%-58s" "SAPI isn't in full mode yet..."
+            sleep 5
+        fi
+        i=$((${i} + 1))
+    done
 
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
