@@ -706,31 +706,42 @@ function import_smartdc_service_images {
             continue
         fi
         local uuid=$(cat ${manifest} | json uuid)
-        local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
-                       | head -1 | awk '{print $2}')
-        if [[ "${status}" == "404" ]]; then
-            # The core images all have .zfs.imgmanifest extensions.
 
-            local file_basename=$(echo "${manifest}" | sed -e "s/\.zfs\.imgmanifest$//" \
-                -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
-            local file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
+        # We'll retry up to 3 times on errors reaching IMGAPI.
+        local ok=false
+        local retries=0
+        while [[ ${ok} == "false" && ${retries} -lt 3 ]]; do
+            local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
+                           | head -1 | awk '{print $2}')
+            if [[ "${status}" == "404" ]]; then
+                # The core images all have .zfs.imgmanifest extensions.
 
-            if [[ -z ${file} ]]; then
-                fatal "Unable to find file for ${manifest} in: $(ls -l /usbkey/datasets)"
+                local file_basename=$(echo "${manifest}" | sed -e "s/\.zfs\.imgmanifest$//" \
+                    -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
+                local file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
+
+                if [[ -z ${file} ]]; then
+                    fatal "Unable to find file for ${manifest} in: $(ls -l /usbkey/datasets)"
+                fi
+
+                echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
+                [[ -f ${file} ]] || fatal "Image file ${file} not found."
+                # Skip the check that "owner" exists in UFDS during setup
+                # b/c if this is not the DC with the UFDS master, then the
+                # admin user will not have been replicated yet.
+                /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
+                    -m ${manifest} -f ${file}
+                ok=true
+            elif [[ "${status}" == "200" ]]; then
+                # exists
+                echo "Skipping import of SDC service image ${uuid}: already in IMGAPI."
+                ok=true
+            else
+                retries=$((${retries} + 1))
             fi
-
-            echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
-            [[ -f ${file} ]] || fatal "Image file ${file} not found."
-            # Skip the check that "owner" exists in UFDS during setup
-            # b/c if this is not the DC with the UFDS master, then the
-            # admin user will not have been replicated yet.
-            /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-                -m ${manifest} -f ${file}
-        elif [[ "${status}" == "200" ]]; then
-            # exists
-            echo "Skipping import of SDC service image ${uuid}: already in IMGAPI."
-        else
-            fatal "Can't reach IMGAPI - status ${status}"
+        done
+        if [[ ${ok} != "true" ]]; then
+            fatal "Unable to import image ${uuid} after ${retries} tries."
         fi
     done
 }
