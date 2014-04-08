@@ -337,13 +337,18 @@ function copy_base
     local sbbranch=$(build_spec sdcboot-release)
     local platbranch=$(build_spec sdcboot-release)
     local ftbranch=$(build_spec firmware-tools-release)
+    local plat_suffix=""
+
+    if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
+        plat_suffix="-debug"
+    fi
 
     [[ -z ${sbbranch} ]] && sbbranch="master"
     [[ -z ${platbranch} ]] && platbranch="master"
     [[ -z ${ftbranch} ]] && ftbranch="master"
 
     local sdcboot_path=$(get_manta_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
-    local platboot_path=$(get_manta_bit platform/boot-${platbranch}-.*\.tgz)
+    local platboot_path=$(get_manta_bit platform$plat_suffix/boot$plat_suffix-${platbranch}-.*\.tgz)
     local firmware_path=$(get_manta_bit \
         firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
 
