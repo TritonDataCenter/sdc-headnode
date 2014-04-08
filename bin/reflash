@@ -73,9 +73,9 @@ identityfile=${identityfile}
 EOF
 fi
 
-SSH_OPTS="-A "
+SSH_OPTS="-A -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
 if [[ -f "$identityfile" ]]; then
-  SSH_OPTS="-i $identityfile"
+  SSH_OPTS="${SSH_OPTS} -i $identityfile"
 fi
 
 MD5_SUM=
@@ -402,9 +402,17 @@ fi
 umount -f /mnt/usbkey
 
 #set +o errexit
-# dd over it
-gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
-    | time dd of=\${USB_DEV} bs=1024k
+# dd over it, using dirty hack to tell if we can have progress or not
+if strings /usr/bin/dd | grep "bytes transferred"; then
+    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
+        | dtrace -q -w -n 'BEGIN {need_info=0;} tick-10s {need_info=1;} syscall:::entry /pid == \$target && need_info == 1/ {raise(SIGINFO); need_info=0;}' \\
+        -c "/usr/bin/dd of=\${USB_DEV} bs=1024k"
+else
+    # no progress for you!
+    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
+        | /usr/bin/dd of=\${USB_DEV} bs=1024k
+fi
+#| dd of=\${USB_DEV} bs=1024k
 #set -o errexit
 
 # mount it again
