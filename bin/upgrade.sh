@@ -1020,10 +1020,6 @@ function cleanup_config
 	redis_root_pw=$CONFIG_adminui_root_pw
 	redis_domain=redis.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
-	dsapi_url=https://datasets.joyent.com
-	dsapi_http_user=honeybadger
-	dsapi_http_pass=IEatSnakes4Fun
-
 	cnapi_root_pw=$CONFIG_adminui_root_pw
 	cnapi_admin_ips=$cnapi_admin_ip
 	cnapi_client_url=http://${cnapi_admin_ip}:80
