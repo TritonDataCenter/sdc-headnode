@@ -105,7 +105,7 @@ function ensure_correct_config
 {
 
     svcadm -z ${manatee_instance} disable -s config-agent
-    zlogin ${manatee_instance} rm /opt/smartdc/manatee/etc/sitter.json
+    zlogin ${manatee_instance} rm -f /opt/smartdc/manatee/etc/sitter.json
     svcadm -z ${manatee_instance} enable -s config-agent
 
     # wait until config appears
@@ -158,7 +158,7 @@ function restart_sitter
     local final_state=
     if [[ ${state} == "online" ]]; then
         # assume this is for single-node restart.
-        svcadm -z ${manatee_instance} disable -s manatee-sitter
+        svcadm -z ${manatee_instance} disable manatee-sitter
         wait_for_manatee empty
         final_state="primary"
     elif [[ ${state} == "disabled" ]]; then

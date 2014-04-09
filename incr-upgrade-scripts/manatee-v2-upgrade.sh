@@ -107,8 +107,8 @@ function wait_for_manatee
             }' mode)
         if [[ ${result} == ${expect} ]]; then
             continue;
-        elif [[ ${count} -gt 24 ]]; then
-            fatal "Timeout (120s) waiting for manatee to reach ${target}"
+        elif [[ ${count} -gt 60 ]]; then
+            fatal "Timeout (300s) waiting for manatee to reach ${target}"
         else
             count=$((${count} + 1))
             sleep 5
@@ -190,34 +190,48 @@ echo "!! log file is ${LOG_FILENAME}"
 ./download-image.sh ${image_uuid}
 
 echo "Creating upgrade tarball."
-create_tarball
+create_tarball ${image_uuid}
 
 find_manatees
+
+echo "*** manatee upgrade initial state:"
+echo "  current primary: ${primary_manatee} on ${primary_server}"
+echo "     current sync: ${sync_manatee} on ${sync_server}"
+echo "    current async: ${async_manatee} on ${async_server}"
+
+echo "Disabling async ${async_manatee}"
 disable_manatee ${async_server} ${async_manatee}
 wait_for_manatee sync
+
+echo "Disabling sync ${sync_manatee}"
 disable_manatee ${sync_server} ${sync_manatee}
 wait_for_manatee primary
 
-echo "Upgrading primary manatee in place (1/5)"
+echo "(1/5) Upgrading primary manatee in place"
+echo "      ${primary_manatee} on ${primary_server}"
 ./manatee-v2-in-situ-upgrade.sh ${primary_server} ${primary_manatee} ${tarball}
 
-echo "Upgrading sync manatee in place (2/5)"
+echo "(2/5) Upgrading sync manatee in place"
+echo "      ${sync_manatee} on ${sync_server}"
 ./manatee-v2-in-situ-upgrade.sh ${sync_server} ${sync_manatee} ${tarball}
 
 # reprovision async
-echo "Reprovisioning async manatee (3/5)"
+echo "(3/5) Reprovisioning async manatee"
+echo "      ${async_manatee} on ${async_server}"
 disable_manatee ${async_server} ${async_manatee}
 wait_for_manatee sync
 reprovision_manatee ${async_server} ${async_manatee} ${image_uuid}
 wait_for_manatee async
 
-echo "Reprovisioning sync manatee (4/5)"
+echo "(4/5) Reprovisioning sync manatee"
+echo "      ${sync_manatee} on ${sync_server}"
 disable_manatee ${sync_server} ${sync_manatee}
 wait_for_manatee sync
 reprovision_manatee ${sync_server} ${sync_manatee} ${image_uuid}
 wait_for_manatee async
 
-echo "Reprovisioning (previously) primary manatee (5/5)"
+echo "(5/5) Reprovisioning (previously) primary manatee"
+echo "      ${primary_manatee} on ${primary_server}"
 disable_manatee ${primary_server} ${primary_manatee}
 wait_for_manatee sync
 reprovision_manatee ${primary_server} ${primary_manatee} ${image_uuid}

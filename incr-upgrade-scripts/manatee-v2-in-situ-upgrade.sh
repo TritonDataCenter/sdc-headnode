@@ -65,7 +65,7 @@ function run_script
 {
     local upgrade_path=$1
     local tarball_path=${upgrade_path}/$(basename ${tarball})
-    sdc-oneachnode -T 300 -n ${manatee_server} "bash ${upgrade_path}/manatee-remote-upgrade.sh ${manatee_instance} ${tarball_path}"
+    sdc-oneachnode -T 300 -n ${manatee_server} "bash ${upgrade_path}/manatee-v2-remote-upgrade.sh ${manatee_instance} ${tarball_path}"
 }
 
 # mainline
