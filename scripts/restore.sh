@@ -22,6 +22,7 @@ rm -f ${ERRORLOG}
 exec > >(tee -a ${ERRORLOG}) 2>&1
 exec 4>>${ERRORLOG}
 BASH_XTRACEFD=4
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o errexit
 set -o pipefail
@@ -41,9 +42,11 @@ function on_error
     exit 1
 }
 
-mounted_usb="false"
+# BEGIN BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+# END BASHSTYLED
+mounted_usb="false"
 zones=$(ls ${usbcpy}/zones)
 
 . /lib/sdc/config.sh
@@ -133,11 +136,13 @@ echo ${BACKUPDIR}
 cd ${BACKUPDIR}
 
 if [[ ! -d "${TEMPDIR}/${BACKUPDIR}/usbkey" ]]; then
+    # BASHSTYLED
     echo "--> FATAL: ${TEMPDIR}/${BACKUPDIR} contains no 'usbkey' directory.  Aborting!"
     exit 1
 fi
 
 if [[ ! -d "${TEMPDIR}/${BACKUPDIR}/zones" ]]; then
+    # BASHSTYLED
     echo "--> FATAL: ${TEMPDIR}/${BACKUPDIR} contains no 'zones' directory.  Aborting!"
     exit 1
 fi

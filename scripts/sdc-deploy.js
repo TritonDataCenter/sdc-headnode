@@ -34,13 +34,12 @@ function loadConfig(cb) {
             try {
                 config = JSON.parse(stdout); // intentionally global
             } catch (e) {
-                log.fatal(e, 'Could not parse config: ' + e.message)
+                log.fatal(e, 'Could not parse config: ' + e.message);
                 return cb(e);
             }
 
             return cb(null);
-        }
-    );
+        });
 }
 
 function initSapiClient(cb) {
@@ -55,7 +54,7 @@ function initSapiClient(cb) {
 function getService(cb) {
     sapi.listServices({
         name: zone
-    }, function(err, services) {
+    }, function withServices(err, services) {
         if (err) {
             log.fatal(err, 'Could not find service for %s', zone);
             return cb(err);
@@ -82,20 +81,20 @@ function createInstance(service, cb) {
     }
 
 
-    sapi.createInstance(service.uuid, opts, function(err, instance) {
+    sapi.createInstance(service.uuid, opts, function withInsts(err, instance) {
         if (err) {
             log.fatal(err, 'Could not create instance for %s', service.name);
             return cb(err);
         }
-        // log.debug({ instance: instance }, 'Created instance %s', instance.uuid);
-        return cb(null, instance)
+        return cb(null, instance);
     });
 }
 
 function getPayload(instance, cb) {
-    sapi.getInstancePayload(instance.uuid, function(err, payload) {
+    sapi.getInstancePayload(instance.uuid, function withPayload(err, payload) {
         if (err) {
-            log.fatal(err, 'Could not get payload for instance %s', instance.uuid);
+            log.fatal(err, 'Could not get payload for instance %s',
+                      instance.uuid);
             return cb(err);
         }
         // log.debug('Found payload for instance %s', instance.uuid);
@@ -122,7 +121,7 @@ function addNic(payload, cb) {
     nic.interface = 'net0';
     nic.primary = true;
 
-    if (zone == "dhcpd") {
+    if (zone == 'dhcpd') {
         nic.dhcp_server = true;
     }
 

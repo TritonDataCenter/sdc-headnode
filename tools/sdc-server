@@ -14,7 +14,7 @@ var exec = cp.exec;
 var readline = require('readline');
 var util = require('util');
 
-var SDC_MODULES='/opt/smartdc/node_modules'
+var SDC_MODULES = '/opt/smartdc/node_modules';
 var restify = require(SDC_MODULES + '/sdc-clients/node_modules/restify');
 var sprintf = require('/usr/node/node_modules/sprintf').sprintf;
 var sdcClients = require(SDC_MODULES + '/sdc-clients');
@@ -22,8 +22,9 @@ var sdcClients = require(SDC_MODULES + '/sdc-clients');
 // global
 var sdc_config;
 
-function usage ()
+function usage()
 {
+    /* BEGIN JSSTYLED */
     console.log([
         '',
         'Usage:',
@@ -45,6 +46,7 @@ function usage ()
         '    delete-nictags [-s] <uuid> [params]   - delete nic tags from this server',
         ''
     ].join('\n'));
+    /* END JSSTYLED */
 }
 
 function isUUID(str) {
@@ -61,7 +63,7 @@ function isUUID(str) {
 
 // TODO should pull this out to separate library. See OS-2065.
 
-function getConfig (callback)
+function getConfig(callback)
 {
     var cmd = '/bin/bash /lib/sdc/config.sh -json';
 
@@ -71,8 +73,6 @@ function getConfig (callback)
     }
 
     exec(cmd, function (err, stdout, stderr) {
-        var config = {};
-
         if (!err) {
             try {
                 sdc_config = JSON.parse(stdout);
@@ -125,9 +125,7 @@ function outputServerData(data, callback)
     var admin_nics = {};
     var n;
     var nics;
-    var s;
     var servers;
-    var setup_state;
 
     servers = data.servers;
     nics = data.nics;
@@ -168,14 +166,14 @@ function outputServerData(data, callback)
                 s.status,
                 s.ram,
                 admin_ip));
-        };
+        }
 
         if (s.setup === false && s.setting_up) {
             // setup job is currently running
             setup_state = 'running';
 
             getJobs(s.uuid, function (err, jobs) {
-                var newest=0;
+                var newest = 0;
 
                 if (err) {
                     callback(err);
@@ -340,6 +338,7 @@ function deleteServer(server_uuid, callback)
 function getJobs(server_uuid, callback)
 {
     var result_jobs = [];
+    var wfapi;
 
     async.series([
         function (cb) {
@@ -354,7 +353,8 @@ function getJobs(server_uuid, callback)
         }, function (cb) {
             var endpoint = '/jobs?server_uuid=' + server_uuid;
 
-            /* Note: WFAPI doesn't support querying on 'target' (WORKFLOW-91)
+            /*
+             * Note: WFAPI doesn't support querying on 'target' (WORKFLOW-91)
              * but it does support querying on params, so we look for all jobs
              * with server_uuid matching our server and then filter only those
              * results for the target also matching.
@@ -363,7 +363,6 @@ function getJobs(server_uuid, callback)
             wfapi.get(endpoint, function (err, req, res, jobs) {
                 if (err) {
                     err.api = 'WFAPI';
-                    clearInterval(ival);
                     cb(err);
                     return;
                 }
@@ -569,16 +568,17 @@ function runServerWorkflow(server_uuid, func, options, callback)
                         } else {
                             current_task = chain[0];
                         }
-                        if ((current_task.hasOwnProperty('result')
-                                && current_task.result.length === 0)
-                            && (current_task.hasOwnProperty('error')
-                                && current_task.error.length === 0)
-                            && chain.length > results.length) {
+                        if ((current_task.hasOwnProperty('result') &&
+                             current_task.result.length === 0) &&
+                            (current_task.hasOwnProperty('error') &&
+                             current_task.error.length === 0) &&
+                            chain.length > results.length) {
 
                             current_task = chain[results.length];
                         }
 
-                        if (execution === 'failed' || execution === 'cancelled') {
+                        if (execution === 'failed' ||
+                            execution === 'cancelled') {
                             if (results[results.length - 1].error.length > 0) {
                                 result = results[results.length - 1].name + ':'
                                     + results[results.length - 1].error;
@@ -647,8 +647,8 @@ function dispatchCommand(command, args, callback)
             break;
 
         case 'delete':
-            if ((args.length !== 1 && args.length !== 2)
-                || !isUUID(args[args.length - 1])) {
+            if ((args.length !== 1 && args.length !== 2) ||
+                !isUUID(args[args.length - 1])) {
                 usage();
                 callback(new Error('delete requires <uuid> argument'));
                 return;
@@ -668,7 +668,7 @@ function dispatchCommand(command, args, callback)
                 });
 
                 rl.question('Are you sure you want to delete ' + server_uuid
-                    + ' [Yes/No]? ', function(answer) {
+                    + ' [Yes/No]? ', function (answer) {
 
                     if (answer.match(/^yes$/i)) {
                         deleteServer(server_uuid, callback);
@@ -733,7 +733,7 @@ function dispatchCommand(command, args, callback)
             }
 
             var nics = {};
-            var remaining;
+            var remain;
             var setupOpts = { params: {} };
             var sync;
 
@@ -812,7 +812,7 @@ function dispatchCommand(command, args, callback)
     }
 }
 
-function main ()
+function main()
 {
     var args = process.argv.slice(3);
     var command = process.argv[2];

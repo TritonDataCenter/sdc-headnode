@@ -106,6 +106,7 @@ if [[ $REPL_STAT == 1 ]]; then
     load_sdc_config
 
     # determine approx. how many changelog entries we need to replicate
+    # BASHSTYLED
     echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
             >/zones/$ufds_uuid/root/tmp/cnt
     echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \

@@ -5,6 +5,7 @@
 #
 
 if [ "$TRACE" != "" ]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -69,8 +70,10 @@ next_alias()
     local zone=
     local idx=0
 
-    local all_zones=$(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
-        | json -H -e 'alias=(alias || "-")' -e 'smartdc_role=(tags.smartdc_role || "-")' \
+    local all_zones
+    all_zones=$(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+        | json -H -e 'alias=(alias || "-")' \
+        -e 'smartdc_role=(tags.smartdc_role || "-")' \
         -a smartdc_role alias | tr ' ' ',')
 
     # 100 here for runaway protection
@@ -108,7 +111,8 @@ sdc_list()
     #
     #  hostname_UUID=<hostname>
     #
-    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+    # with uuid's dashes changed to underscore to meet bash's variable
+    # name requirements.
     host_mappings=$(cnapi /servers \
         | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
         | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
@@ -116,6 +120,7 @@ sdc_list()
        eval ${host_mappings}
     fi
 
+    # BASHSTYLED
     for zone in $(vmapi "/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
         | json -H -e 'smartdc_role=(tags.smartdc_role || "-")' \
             -a alias smartdc_role state uuid ram server_uuid \
@@ -127,13 +132,17 @@ sdc_list()
         local uuid=$(echo "${zone}" | cut -d',' -f4)
         local ram=$(echo "${zone}" | cut -d',' -f5)
         local server_uuid=$(echo "${zone}" | cut -d',' -f6)
-        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
-        local admin_ip=$(napi /nics?belongs_to_uuid=${uuid} | json -H -a nic_tag ip | grep "^admin" | cut -d ' ' -f2)
+        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} \
+                            | tr '-' '_')})
+        local admin_ip=$(napi /nics?belongs_to_uuid=${uuid} \
+                         | json -H -a nic_tag ip | grep "^admin" \
+                         | cut -d ' ' -f2)
         [[ -z ${admin_ip} ]] && admin_ip="-"
         [[ -z ${server_name} ]] && server_name="-"
 
         printf "%-12s %-16s %-36s  %-7s %10s %16s %15s\n" \
-            "${alias}" "${server_name}" "${uuid}" "${ram}" "${state}" "${role}" "${admin_ip}"
+            "${alias}" "${server_name}" "${uuid}" "${ram}" \
+            "${state}" "${role}" "${admin_ip}"
     done
 
     return 0

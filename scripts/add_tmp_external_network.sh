@@ -29,7 +29,8 @@ JSON=$(cat $1 | json)
 VLAN=$2
 EXTERNAL_NIC=$(echo "$JSON" | json external_nic)
 : ${EXTERNAL_NIC?:"$0 doesn't contain an external_nic property"}
-EXTERNAL_INTERFACE=$(dladm show-phys -m | grep "$EXTERNAL_NIC" | cut -d ' ' -f 1)
+EXTERNAL_INTERFACE=$(dladm show-phys -m | \
+                     grep "$EXTERNAL_NIC" | cut -d ' ' -f 1)
 : ${EXTERNAL_INTERFACE?:"Unable to find external interface for $EXTERNAL_NIC"}
 EXTERNAL_IP=$(echo "$JSON" | json external_ip)
 : ${EXTERNAL_IP?:"$0 doesn't contain an external_ip property"}

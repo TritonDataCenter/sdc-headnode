@@ -10,10 +10,11 @@ var amqp = require('/smartdc/node_modules/amqp');
 var VM = require('/usr/vm/node_modules/VM.js');
 
 var VMS = {};
+var rabbit_ip;
+var routekey;
 
 function vmCompare(before, after)
 {
-    var member;
     var prop;
     var result = {'added': [], 'removed': [], 'changed': []};
 
@@ -28,7 +29,8 @@ function vmCompare(before, after)
         if (!after.hasOwnProperty(prop)) {
             result['removed'].push({'prop': prop, 'oldvalue': before[prop]});
         } else if (before[prop] !== after[prop]) {
-            result['changed'].push({'prop': prop, 'oldvalue': before[prop], 'newvalue': after[prop]});
+            result['changed'].push({'prop': prop, 'oldvalue': before[prop],
+                                    'newvalue': after[prop]});
         }
     }
     for (prop in after) {
@@ -42,21 +44,17 @@ function vmCompare(before, after)
 
 function watchHeartbeats(rabbitmq_ip, handler, callback)
 {
-    var buffer = '';
-    var chunks;
-    var watcher;
-    var watcher_pid;
-
     var aq_broker = { host: rabbit_ip };
     var aq_handle;
     var aq_queuename = 'heartbeatsnoop.' + Math.random() * 10000000;
 
     aq_handle = amqp.createConnection(aq_broker);
 
-    routekey = 'heartbeat.#'
+    routekey = 'heartbeat.#';
 
     aq_handle.on('ready', function () {
-        aq_queue = aq_handle.queue(aq_queuename, { exclusive: true }, function () {
+        var aq_queue = aq_handle.queue(aq_queuename, { exclusive: true },
+                                       function () {
             aq_queue.bind('amq.topic', 'heartbeat.#');
             aq_queue.subscribe(function (msg, headers, deliveryInfo) {
                 var obj;
@@ -69,7 +67,8 @@ function watchHeartbeats(rabbitmq_ip, handler, callback)
     });
 }
 
-VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true}, function (err, vmobjs) {
+VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true},
+          function (err, vmobjs) {
     if (err) {
         console.dir(err);
         return;
@@ -88,6 +87,7 @@ VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true}, function (err, vmobjs
         var count;
         var server_uuid = obj.server_uuid;
         var vms = obj.vms;
+        var vm;
 
         count = 0;
         for (vm in vms) {
@@ -96,8 +96,8 @@ VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true}, function (err, vmobjs
             count++;
         }
 
-        console.log('[heartbeat -- ' + server_uuid + ' -- ' + (new Date).toISOString()
-            + ' -- ' + count + ' vms]');
+        console.log('[heartbeat -- ' + server_uuid + ' -- ' +
+                    (new Date).toISOString() + ' -- ' + count + ' vms]');
 
         if (!VMS[server_uuid]) {
             VMS[server_uuid] = {};
@@ -121,18 +121,16 @@ VM.lookup({'tags.smartdc_role': 'rabbitmq'}, {full: true}, function (err, vmobjs
                 VMS[server_uuid][vm] = vms[vm];
             } else {
                 cmp = vmCompare(VMS[server_uuid][vm], vms[vm]);
-                if (cmp['added'].length === 0 && cmp['removed'].length === 0 && cmp['changed'].length === 0) {
-                    ;
-                    //console.log('UNCHANGED: ' + vm);
-                } else {
+                if (!cmp['added'].length === 0 ||
+                    !cmp['removed'].length === 0 ||
+                    !cmp['changed'].length === 0) {
                     console.log('  CHANGED VM [' + server_uuid + ']: ' + vm
                         + ': ' + JSON.stringify(vms[vm]));
                     VMS[server_uuid][vm] = vms[vm];
-                }
+                } // else unchanged.
             }
         }
     }, function () {
         console.log('[done]');
     });
 });
-

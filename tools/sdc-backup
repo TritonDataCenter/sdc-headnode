@@ -12,6 +12,7 @@ export PATH
 # This writes xtrace output and anything redirected to LOGFD to the log file.
 LOGFD=4
 exec 4>/tmp/backuplog.$$
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
@@ -22,6 +23,7 @@ echo "logs at /tmp/backuplog.$$"
 
 usage()
 {
+	# BASHSTYLED
 	printf "usage: $(basename $0) \n" >/dev/stderr
 	exit 1
 }
@@ -65,6 +67,7 @@ mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
 
 echo "Backing up Manatee"
 manatee=$(sdc-manatee-stat | json sdc.primary.zoneId)
+# BASHSTYLED
 /zones/$manatee/root/opt/smartdc/manatee/bin/manatee-backup.sh $destdir/manatee.zfs
 
 echo "Backing up USB Key Config"

@@ -71,13 +71,15 @@ if ! zfs list zones/$(zonename)/data; then
     exit 2
 fi
 
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
 set -o xtrace
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${ROOT}/bin/json-merge \
+                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
@@ -131,8 +133,10 @@ if [[ ${TAR_BUILD_IS_DIRECTORY} == 1 ]]; then
     dd if=${TAR_BUILD_FILENAME}/${TAR_BUILD_FILENAME}-4gb.img \
         of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
 else
-    gtar -O -zxf ${TAR_BUILD_FILENAME} $(basename ${TAR_BUILD_FILENAME} .tgz)-4gb.img \
-        | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
+    gtar -O -zxf ${TAR_BUILD_FILENAME} \
+        $(basename ${TAR_BUILD_FILENAME} .tgz)-4gb.img \
+        | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} \
+        bs=$((1024 * 1024))
 fi
 zfs snapshot ${DATASET}@sending
 filename=$(basename ${TAR_BUILD_FILENAME} .tgz).zvol.bz2
@@ -142,15 +146,16 @@ zfs send -p ${DATASET}@sending | pbzip2 >${filename}
 now=$(date -u +%Y-%m-%dT%H:%M.000Z)
 shasum=$(/usr/bin/sum -x sha1 ${filename} | cut -d' ' -f1)
 filesize=$(ls -l ${filename} | awk '{ print $5 }')
-version=$(basename ${TAR_BUILD_FILENAME} .tgz | sed -e "s/^usb-.*-20/20/") # fix in 2099 ;)
+# fix in 2099 ;)
+version=$(basename ${TAR_BUILD_FILENAME} .tgz | sed -e "s/^usb-.*-20/20/")
 manifest=$(basename ${TAR_BUILD_FILENAME} .tgz).dsmanifest
 
 # MG's ${TIMESTAMP} is in the wrong format, we need:
 #
 # "2012-08-31T16:04:51.970Z"
 #
-mangled_timestamp=$(echo ${TIMESTAMP} | \
-    sed -e "s/^\([0-9][0-9][0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)T\([0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)Z/\1-\2-\3T\4:\5:\6.000Z/")
+# BASHSTYLED
+mangled_timestamp=$(echo ${TIMESTAMP} | sed -e "s/^\([0-9][0-9][0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)T\([0-9][0-9]\)\([0-9][0-9]\)\([0-9][0-9]\)Z/\1-\2-\3T\4:\5:\6.000Z/")
 
 cat >${manifest} <<EOF
 {

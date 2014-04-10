@@ -51,7 +51,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
 fi
 #export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
+      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
@@ -152,9 +154,11 @@ function create_upgrade
     cp ${IMG_TMP_STAGE}/agents65/agents65.sh ${STAGE}/upgrade/agents65.sh
 
     PLATFORM_STAMP=$(ls -t $IMG_TMP_DIR/upgrade.$$/os/ | head -1)
-    cp -R $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ $IMG_TMP_DIR/platform-$PLATFORM_STAMP
+    cp -R $IMG_TMP_STAGE/os/$PLATFORM_STAMP/platform/ \
+        $IMG_TMP_DIR/platform-$PLATFORM_STAMP
     (cd $IMG_TMP_DIR && \
-        ${TAR} -cvzf $IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz platform-$PLATFORM_STAMP)
+        ${TAR} -cvzf $IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz \
+        platform-$PLATFORM_STAMP)
     USING_PLATFORM="$IMG_TMP_DIR/platform-$PLATFORM_STAMP.tgz"
 
     mkdir -p ${STAGE}/upgrade/platform

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+a#!/usr/bin/bash
 #
 # Copyright 2013 Joyent Inc., All rights reserved.
 #
@@ -152,6 +152,7 @@ function check_cloudapi
     admin_ip=`sdc-vmapi /vms/$cloudapi_zone | json -H nics | \
         json -a nic_tag ip | nawk '{if ($1 == "admin") print $2}'`
 
+    # BEGIN BASHSTYLED
     got=`zlogin $sdc_zone \
         PATH=/opt/smartdc/sdc/bin:/opt/smartdc/sdc/build/node/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin \
         SDC_TESTING=1 \
@@ -160,7 +161,7 @@ function check_cloudapi
         -u https://$admin_ip \
         -k $fingerprint 2>/dev/null | \
         json $CONFIG_datacenter_name | nawk '{print substr($0, 1, 8)}'`
-
+    # END BASHSTYLED
     # We may get back an IP or a DNS name. Just check the prefix
     [[ "$got" != "https://" ]] && CLOUDAPI_STATUS=1
 }

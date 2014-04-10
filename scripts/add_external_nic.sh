@@ -5,6 +5,7 @@
 # add_external_nics.sh add an external nic to a zone.
 #
 
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 

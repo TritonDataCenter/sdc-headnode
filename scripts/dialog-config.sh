@@ -23,7 +23,7 @@ fi
 : ${DIALOG_LABEL=2}
 
 # Extra FDs
-exec 3>&1 4>&2 
+exec 3>&1 4>&2
 
 . network-include.sh
 
@@ -36,8 +36,8 @@ CONFIG_DOMAIN=''
 CONFIG_NET_IPADDR=''
 CONFIG_NET_IPMASK=''
 CONFIG_NET_IPGW=''
-CONFIG_DNS1='' 
-CONFIG_DNS2='' 
+CONFIG_DNS1=''
+CONFIG_DNS2=''
 CONFIG_DNS_SEARCH=''
 CONFIG_NTP=''
 CONFIG_PHONEHOME=false
@@ -76,16 +76,16 @@ set_title() {
 }
 
 print_welcome() {
-	set_title "Welcome"
+  set_title "Welcome"
   dialog --backtitle "$title" \
     --msgbox "This setup wizard will guide you through \
 installing SDC to your server. \
 You will have the option of editing your changes prior \
 to applying the installation." 10 44
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
     exit 1
-  fi  
+  fi
 
   callback
 
@@ -93,18 +93,18 @@ to applying the installation." 10 44
 
 print_eula() {
   if [ ! -f $EULA_FILE ] ; then
-    return 0 
+    return 0
   fi
 
-	set_title "License Agreement"
+  set_title "License Agreement"
   dialog --backtitle "$title" --begin 2 4 \
     --title "License Agreement" \
     --exit-label "AGREE" \
     --textbox $EULA_FILE 20 72
-  
+
   if [ $? -eq $DIALOG_CANCEL ] ; then
     exit 1
-  fi  
+  fi
 
   callback
 }
@@ -131,7 +131,7 @@ setup_datacenter() {
   "Datacenter ID" 2 2 "$CONFIG_DCID"    2 16 24 20 0 \
   "City"          3 2 "$CONFIG_CITY"    3 16 24 30 0 \
   "State"         4 2 "$CONFIG_STATE"   4 16 24 30 0 \
-   2>&1 1>&3 ) ) 
+   2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
    launch_menu
@@ -140,18 +140,18 @@ setup_datacenter() {
   CONFIG_COMPANY="${out[0]}"
   CONFIG_DCID="${out[1]}"
   CONFIG_CITY="${out[2]}"
-  CONFIG_STATE="${out[3]}" 
+  CONFIG_STATE="${out[3]}"
 
   if [ -z $CONFIG_COMPANY ] ; then
     set_callback "setup_datacenter"
     required "company"
   fi
- 
+
   if [ -z $CONFIG_DCID ] ; then
     set_callback "setup_datacenter"
     required "DCID"
   fi
-  
+
   if [ -z $CONFIG_CITY ] ; then
     set_callback "setup_datacenter"
     required "city"
@@ -174,16 +174,16 @@ get_passwords() {
   OLDIFS=$IFS
   IFS=$'\n'
 
-	set_title "User Setup"
+  set_title "User Setup"
   out=( $(dialog --backtitle "$title" \
-	  --visit-items \
-	  --insecure \
-	  --passwordform "User Setup" 14 40 6 \
-	  "root password" 2 2 "" 3 2 32 32 \
-	  "root password" 4 2 "" 5 2 32 32 \
+    --visit-items \
+    --insecure \
+    --passwordform "User Setup" 14 40 6 \
+    "root password" 2 2 "" 3 2 32 32 \
+    "root password" 4 2 "" 5 2 32 32 \
     2>&1 1>&3 ) )
 
-  
+
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
@@ -197,72 +197,73 @@ get_passwords() {
 # both required fields, validation performed
 set_hostname() {
   local out
-	
+
   set_title "Hostname"
-	out=$(dialog --backtitle "$title" \
-	  --title "Set Hostname" --nocancel \
-		--inputbox "Please enter hostname for this machine" 0 0 $(hostname) \
-    2>&1 1>&3 )
-
-	if [ $? -eq $DIALOG_CANCEL ] ; then
-		launch_menu
-	fi
-
-  # TODO Validate 
-  CONFIG_HOSTNAME=$out
-
-  set_title "Domain Name"
-	out=$(dialog --backtitle "$title" \
-	  --title "Set Domain Name" --nocancel \
-		--inputbox "Please enter Domain Name for this machine" 0 0 $(hostname) \
-    2>&1 1>&3 )
-
-	if [ $? -eq $DIALOG_CANCEL ] ; then
-		launch_menu
-	fi
-  
-  # TODO Validate
-  CONFIG_DOMAIN=$out
-
-  callback 
-}
-
-# presents a list of all physical devices on the system
-# and prompts the user to select one for use as the 
-# 'management' / 'admin' network. Only one network needs
-# to be setup at install time
-select_networks() {
-  local out
-  local interfaces
-  
-  set_title "Networking"
-  interfaces=$(dladm show-phys -mo link,address | grep -v LINK | awk '{print $1 " "$2}')
-
-	if [ -z "$interfaces" ] ; then
-		dialog --backtitle "$title" \
-		  --title "Network Configuration Error" \
-			--msgbox "No network interfaces present to configure." 0 0
-		exit 1
-	fi
-
-	out=$(echo $interfaces | xargs dialog --backtitle "$title" \
-	  --title "Network Configuration" \
-		--menu "Please select a network interface to configure: " 0 0 0 \
+  out=$(dialog --backtitle "$title" \
+    --title "Set Hostname" --nocancel \
+    --inputbox "Please enter hostname for this machine" 0 0 $(hostname) \
     2>&1 1>&3 )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
   fi
 
-	dialog --backtitle "$title" \
+  # TODO Validate
+  CONFIG_HOSTNAME=$out
+
+  set_title "Domain Name"
+  out=$(dialog --backtitle "$title" \
+    --title "Set Domain Name" --nocancel \
+    --inputbox "Please enter Domain Name for this machine" 0 0 $(hostname) \
+    2>&1 1>&3 )
+
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+
+  # TODO Validate
+  CONFIG_DOMAIN=$out
+
+  callback
+}
+
+# presents a list of all physical devices on the system
+# and prompts the user to select one for use as the
+# 'management' / 'admin' network. Only one network needs
+# to be setup at install time
+select_networks() {
+  local out
+  local interfaces
+
+  set_title "Networking"
+  interfaces=$(dladm show-phys -mo link,address | grep -v LINK | \
+               awk '{print $1 " "$2}')
+
+  if [ -z "$interfaces" ] ; then
+    dialog --backtitle "$title" \
+      --title "Network Configuration Error" \
+      --msgbox "No network interfaces present to configure." 0 0
+    exit 1
+  fi
+
+  out=$(echo $interfaces | xargs dialog --backtitle "$title" \
+    --title "Network Configuration" \
+    --menu "Please select a network interface to configure: " 0 0 0 \
+    2>&1 1>&3 )
+
+  if [ $? -eq $DIALOG_CANCEL ] ; then
+    launch_menu
+  fi
+
+  dialog --backtitle "$title" \
     --title "Network Configuration" \
     --yesno "Would you like to configure IPv4 for this interface?" 0 0
-	
-	if [ $? -eq $DIALOG_OK ] ; then
-		netconfig_ipv4 $out
+
+  if [ $? -eq $DIALOG_OK ] ; then
+    netconfig_ipv4 $out
   else
     select_networks
-	fi
+  fi
 
 }
 
@@ -274,7 +275,7 @@ netconfig_ipv4() {
   local out
   local ipaddr
   local ip_mask
-  local gateway 
+  local gateway
 
   interface=$1
   set_title "Network Configuration"
@@ -283,7 +284,7 @@ netconfig_ipv4() {
       --title "Network Configuration Error" \
       --msgbox "No interface specified for IPv4 configuration." 0 0
     exit 1
-  fi 
+  fi
 
   gateway=$(netstat -rn -f inet | awk '/default/ {printf("%s\n", $2); }')
   ip_addr=$(ifconfig $interface | awk '/inet/ {printf("%s\n", $2); }')
@@ -302,8 +303,8 @@ netconfig_ipv4() {
     2>&1 1>&3 ) )
 
   if [ $? -eq $DIALOG_CANCEL ] ; then
-    launch_menu 
-  fi  
+    launch_menu
+  fi
 
   CONFIG_NET_IPADDR="${out[0]}"
   CONFIG_NET_IPMASK="${out[1]}"
@@ -337,11 +338,11 @@ netconfig_ipv6() {
     exit 0
   fi
 
-  ip_addr=$(ifconfig $interface inet6) 
+  ip_addr=$(ifconfig $interface inet6)
 
 }
 
-# prompts the user as to whether or not they want to be able to 
+# prompts the user as to whether or not they want to be able to
 # automatically phone home for reporting issues / usage / etc
 set_phonehome() {
   local title
@@ -353,7 +354,7 @@ set_phonehome() {
     --title "Help & Troubleshooting" \
     --yesno "SDC can automatically report usage and issues to Joyent on
 a periodic basis. This information is kept strictly confidential and is
-only used to improve future versions of SDC.\n\n 
+only used to improve future versions of SDC.\n\n
 Would you like to automatically report issues to Joyent?" 0 0 \
     2>&1 1>&3 )
 
@@ -363,7 +364,7 @@ Would you like to automatically report issues to Joyent?" 0 0 \
     echo "false"
   fi
 
-  callback 
+  callback
 
 }
 
@@ -376,7 +377,7 @@ set_resolvers() {
 
   if [ -z $search_domain ] ; then
     search_domain=$CONFIG_DOMAIN
-  fi 
+  fi
 
   local OLDIFS=$IFS
   IFS=$'\n'
@@ -404,16 +405,16 @@ set_resolvers() {
 # NTP client configuration. NTP server is queried using dig and
 # if validated / reachable is stored in the config
 set_ntp() {
-	set_title "NTP Configuration"
-	
+  set_title "NTP Configuration"
+
   out=$(dialog --backtitle "$title" \
-	  --title "NTP Client Configuration" --nocancel \
-		--inputbox "Please specify an NTP Server" 0 0 "$CONFIG_NTP" \
+    --title "NTP Client Configuration" --nocancel \
+    --inputbox "Please specify an NTP Server" 0 0 "$CONFIG_NTP" \
     2>&1 1>&3 )
 
-	if [ $? -eq $DIALOG_CANCEL ] ; then
+  if [ $? -eq $DIALOG_CANCEL ] ; then
     launch_menu
-	fi
+  fi
 
   #TODO dig this and save the IP address
   CONFIG_NTP="${out}"
@@ -427,7 +428,7 @@ set_ntp() {
 services_menu() {
   set_callback "expert_menu" # return to menu after selection complete
   set_title "Services (expert)"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Services Configuration Menu" \
     --cancel-label "Back" \
@@ -460,7 +461,7 @@ services_menu() {
 expert_menu() {
   set_callback "expert_menu" # return to menu after selection complete
   set_title "Expert Mode"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Services Configuration Menu" \
     --cancel-label "Back" \
@@ -475,7 +476,7 @@ expert_menu() {
 
   case $out in
     services)
-      services_menu 
+      services_menu
       ;;
     edit)
       vim /tmp/config
@@ -489,7 +490,7 @@ expert_menu() {
 launch_menu() {
   set_callback "launch_menu" # return to menu after selection complete
   set_title "Welcome"
-  
+
   out=$(dialog --backtitle "$title" \
     --title "Configuration Menu" \
     --cancel-label "Quit" \
@@ -518,7 +519,7 @@ launch_menu() {
       ;;
     networks)
       select_networks
-      ;; 
+      ;;
     resolvers)
       set_resolvers
       ;;
@@ -534,7 +535,7 @@ launch_menu() {
     rescue)
       clear
       echo "Launching emergency rescue shell..."
-      bash 
+      bash
       callback
       ;;
     apply)
@@ -583,4 +584,3 @@ setup_datacenter
 #set_ntp
 #set_phonehome
 #apply_config
-

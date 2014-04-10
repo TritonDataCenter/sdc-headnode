@@ -22,6 +22,7 @@
 
 LOG_FILENAME=/tmp/manatee-scaler.$$.log
 exec 4>${LOG_FILENAME}
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
 PATH=/opt/smartdc/bin:/usr/sbin:/usr/bin
@@ -393,7 +394,8 @@ disable_flag "${first_instance}" "ONE_NODE_WRITE_MODE"
 disable_flag "${second_instance}" "DISABLE_SITTER"
 
 # ensure the flags were disabled (prevent races w/ config-agent ala HEAD-1679)
-wait_for_disabled "${first_server}" "${first_instance}" "postgresMgrCfg.oneNodeWriteMode"
+wait_for_disabled "${first_server}" "${first_instance}" \
+    "postgresMgrCfg.oneNodeWriteMode"
 wait_for_disabled "${second_server}" "${second_instance}" "disableSitter"
 
 echo "!! IMPORTANT: DB will now become temporarily read-only !!"

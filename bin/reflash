@@ -27,6 +27,7 @@ DEBUG=0
 MIN_TMP_FREE=3200
 
 if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -104,7 +105,8 @@ add_bits_creds()
     password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
 
     if [[ -n ${username} && -n ${password} ]]; then
-        bits_url=$(echo ${bits_url} | sed -e "s/\/\//\/\/${username}:${password}@/g")
+        bits_url=$(echo ${bits_url} \
+                   | sed -e "s/\/\//\/\/${username}:${password}@/g")
     fi
 
     echo ${bits_url}
@@ -130,7 +132,8 @@ get_bits_url()
     if [[ -n ${spec_bits_url} ]]; then
         bits_url=${spec_bits_url}
     else
-        spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "builds-proxy-url")
+        spec_bits_url=$(echo ${MERGED_SPEC} \
+                        | ${ROOT}/bin/json "builds-proxy-url")
         if [[ -n ${spec_bits_url} ]]; then
             bits_url=${spec_bits_url}
         fi
@@ -198,6 +201,7 @@ if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
     usage
 fi
 
+# BASHSTYLED
 echo "NOTE: If you're prompted for Password:, you need the current root password of ${hostname}"
 
 echo "Attempting to set SSH keys"
@@ -211,6 +215,7 @@ fi
 EOF
 
 MISSING_POOL=
+# BASHSTYLED
 if [[ $(ssh $SSH_OPTS root@${hostname} "zpool list") == "no pools available" ]]; then
     echo "No pool on remote host, applying countermeasures."
     MISSING_POOL="true"
@@ -223,12 +228,14 @@ if [[ -n ${MISSING_POOL} ]]; then
     WHICH_TMP="/tmp"
 fi
 
-TMP_FREE=$(ssh ${SSH_OPTS} root@${hostname} "echo \$((\$(df -b ${WHICH_TMP} | tail -1 | awk '{ print \$2 }') / 1000))")
+TMP_FREE=$(ssh ${SSH_OPTS} root@${hostname} \
+    "echo \$((\$(df -b ${WHICH_TMP} | tail -1 | awk '{ print \$2 }') / 1000))")
 if [[ -z ${TMP_FREE} ]]; then
     echo "Unable to find free space in ${WHICH_TMP} on ${hostname}" >&2
     exit 1
 fi
 if [[ ${TMP_FREE} -lt ${MIN_TMP_FREE} ]]; then
+    # BASHSTYLED
     echo "Not enough space in ${WHICH_TMP} to start reflash, you must fix before continuing." >&2
     echo "Have: ${TMP_FREE} Need: ${MIN_TMP_FREE}"
     exit 1
@@ -296,7 +303,7 @@ echo "Continuing!                                "
 fi
 
 set +o errexit
-
+# BEGIN BASHSTYLED
 ssh $SSH_OPTS -T root@${hostname} <<EOF
 set -o errexit
 if [[ -n "${TRACE}" ]]; then
@@ -483,10 +490,12 @@ echo "Rebooting..."
 
 exit 0
 EOF
+# END BASHSTYLED
 retval=$?
 set -o errexit
 
 if [[ $retval == 0 ]]; then
+    # BASHSTYLED
     echo "Success at $(date '+%Y-%m-%dT%H:%M:%SZ')! '${hostname}' should be running through setup shortly!"
     exit 0
 else

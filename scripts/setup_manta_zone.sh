@@ -5,6 +5,7 @@
 # setup_manta_zone.sh: bootstrap a manta deployment zone
 #
 
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 

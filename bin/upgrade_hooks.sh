@@ -19,6 +19,7 @@ PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
 BASH_XTRACEFD=4
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
@@ -128,6 +129,7 @@ create_extra_zones()
             ${SDC_UPGRADE_DIR}/ext_addrs.txt`
 
         local service_uuid=$(sdc-sapi /services?name=$i | json -H 0.uuid)
+        # BEGIN BASHSTYLED
         local payload="{
             \"service_uuid\": \"$service_uuid\",
             \"params\": {
@@ -146,7 +148,9 @@ create_extra_zones()
                 \"primary\": true
             })")
         fi
+        # END BASHSTYLED
         echo "$payload" | sapiadm provision
+
 
         res=$?
         if [ $res != 0 ]; then
@@ -350,7 +354,8 @@ add_ext_net()
     local resolvers="{
         \"resolvers\": $(sdc-napi /networks?name=admin | json -H 0.resolvers)
     }"
-    resolvers=$(echo $resolvers | json -e "this.resolvers = this.resolvers.concat( \
+    resolvers=$(echo $resolvers \
+                | json -e "this.resolvers = this.resolvers.concat( \
         $(sdc-napi /networks?name=external | json -H 0.resolvers) \
         )")
 
@@ -413,11 +418,13 @@ add_notes()
     do
 	d=`echo "$i" | nawk '{sub("\047", "\047\\\\\047\047"); print $0}'`
 
+    # BEGIN BASHSTYLED
 	cat <<- PROG >/zones/$moray_uuid/root/root/addnote
 	export PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/moray/build/node/bin:/opt/smartdc/moray/node_modules/.bin:/opt/smartdc/moray/node_modules/moray/bin
 
 	putobject -d '$d' sdcnotes $(uuid)
 	PROG
+    # END BASHSTYLED
         zlogin $moray_uuid "bash /root/addnote"
     done
     IFS=$old_ifs
@@ -540,6 +547,7 @@ post_tasks()
 
     if [[ $CONFIG_ufds_is_master != "true" ]]; then
         # determine approx. how many changelog entries we need to replicate
+        # BASHSTYLED
         echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
             >/zones/$ufds_uuid/root/tmp/cnt
         echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
@@ -728,8 +736,10 @@ vmapi_tasks()
 {
     cp ${SDC_UPGRADE_DIR}/mapi_dump/vmapi*.moray /zones/$1/root/root
 
-    zlogin $1 /opt/smartdc/vmapi/bin/moray-import -f /root/vmapi_zones.moray 1>&4 2>&1
-    zlogin $1 /opt/smartdc/vmapi/bin/moray-import -f /root/vmapi_vms.moray 1>&4 2>&1
+    zlogin $1 /opt/smartdc/vmapi/bin/moray-import \
+        -f /root/vmapi_zones.moray 1>&4 2>&1
+    zlogin $1 /opt/smartdc/vmapi/bin/moray-import \
+        -f /root/vmapi_vms.moray 1>&4 2>&1
     [ $? != 0 ] && \
         saw_err "Error loading VMAPI data into moray"
 }
@@ -744,7 +754,8 @@ imgapi_tasks()
     while [ $i -lt $numImages ]; do
         print_log "image $(($i + 1)) of $numImages"
         local imageFile=$(echo "$images" | json $i._local_path)
-        local image=$(echo "$images" | json -e 'this._local_path = undefined' $i)
+        local image=$(echo "$images" \
+                      | json -e 'this._local_path = undefined' $i)
         local uuid=$(echo "$image" | json uuid)
         local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
             | head -1 | awk '{print $2}')
@@ -755,6 +766,7 @@ imgapi_tasks()
                     -q -f $imageFile --skip-owner-check
                 local res=$?
                 if [[ $res != 0 ]]; then
+                    # BASHSTYLED
                     saw_err "Error importing image $uuid ($imageFile) into IMGAPI."
                 fi
             else
@@ -779,8 +791,8 @@ napi_tasks()
         saw_err "Error loading NAPI data into moray"
 
     # reserve the IP addrs we stole out of the dhcp range for the new zones
-    local admin_net_uuid=`zlogin $1 /opt/smartdc/napi/bin/napictl network-list | \
-        json -a name uuid | nawk '{if ($1 == "admin") print $2}'`
+    local admin_net_uuid=`zlogin $1 /opt/smartdc/napi/bin/napictl network-list \
+        | json -a name uuid | nawk '{if ($1 == "admin") print $2}'`
     if [ -z "$admin_net_uuid" ]; then
         saw_err "Error, missing uuid for admin network"
         return
@@ -847,12 +859,14 @@ fwapi_tasks()
     fi
 
     netmask_to_cidr $CONFIG_admin_netmask
+    # BEGIN BASHSTYLED
     cat <<-FW_DONE >/zones/$fwapi_uuid/root/root/fwrules.json
 	{ "enabled": true,
 	  "owner_uuid": "${CONFIG_ufds_admin_uuid}",
 	  "rule": "FROM (subnet ${CONFIG_admin_network}/$cidr OR $ips) TO vm $ufds_uuid ALLOW tcp (port 8080 AND port 636)"
 	}
 	FW_DONE
+    # END BASHSTYLED
     zlogin $fwapi_uuid /opt/smartdc/fwapi/bin/fwapi add -f /root/fwrules.json \
         >${SDC_UPGRADE_DIR}/fw_setup.txt 2>&1
     [ $? -ne 0 ] && saw_err "Error, setting up firewall rules for ufds zone"
@@ -865,7 +879,8 @@ papi_tasks()
 {
     cp ${SDC_UPGRADE_DIR}/mapi_dump/papi_packages.moray /zones/$1/root/root
 
-    zlogin $1 /opt/smartdc/papi/build/node/bin/node /opt/smartdc/papi/bin/importer \
+    zlogin $1 /opt/smartdc/papi/build/node/bin/node \
+        /opt/smartdc/papi/bin/importer \
         --json /root/papi_packages.moray 1>&4 2>&1
     [ $? != 0 ] && \
         saw_err "Error loading PAPI data into moray"

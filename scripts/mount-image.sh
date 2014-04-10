@@ -11,6 +11,7 @@
 #
 
 current_image=$(uname -v | cut -d '_' -f2)
+# BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 image="${usbmnt}/os/${current_image}/platform/i86pc/amd64/boot_archive"
 mnt=/image
@@ -30,6 +31,7 @@ if [[ ! -d $mnt ]]; then
 	mkdir $mnt || fatal "could not make $mnt"
 fi
 
+# BASHSTYLED
 usbcp="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 
 mount | grep "^${usbmnt}" >/dev/null 2>&1 || bash $usbcp/scripts/mount-usb.sh
@@ -46,9 +48,11 @@ echo "done."
 echo -n "Mounting archived usr on (writable=${writable_usr}) ${mnt}/usr ... "
 if [[ ${writable_usr} == 1 ]]; then
 	[[ -e /var/tmp/usr.lgz ]] && fatal \
-	    "fatal: /var/tmp/usr.lgz already exists, please remove and try again."
-	cp /image/usr.lgz /var/tmp/usr.lgz || fatal "failed to copy to /var/tmp/"
-	lofiadm -U /var/tmp/usr.lgz || fatal "failed to uncompress /var/tmp/usr.lgz"
+	"fatal: /var/tmp/usr.lgz already exists, please remove and try again."
+	cp /image/usr.lgz /var/tmp/usr.lgz || \
+	    fatal "failed to copy to /var/tmp/"
+	lofiadm -U /var/tmp/usr.lgz || \
+	    fatal "failed to uncompress /var/tmp/usr.lgz"
 	mount -F ufs -o rw /var/tmp/usr.lgz $mnt/usr || \
 	    fatal "could not mount usr /var/tmp/usr.lgz"
 else

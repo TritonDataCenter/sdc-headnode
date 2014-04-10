@@ -30,15 +30,18 @@ if [[ -z ${zone} ]]; then
 fi
 
 # Try by alias first.
+# BASHSTYLED
 zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} alias=${zone} 2>/dev/null)
 
 # Next by exact role name.
 if [[ -z "${zone_uuid}" ]]; then
+    # BASHSTYLED
     zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null)
 fi
 
 # Next by role prefix.
 if [[ -z "${zone_uuid}" ]]; then
+    # BASHSTYLED
     zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
 fi
 

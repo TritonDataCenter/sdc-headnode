@@ -39,10 +39,11 @@
 #
 #
 # Examples:
-#       ./mk-sdc-clients-light.sh master node_modules/sdc-clients imgapi.js amon.js
+#   ./mk-sdc-clients-light.sh master node_modules/sdc-clients imgapi.js amon.js
 #
 
 if [ "$TRACE" != "" ]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -141,7 +142,8 @@ npm install clone@$VER
 VER=$(json -f package.json dependencies.verror)
 npm install verror@$VER
 (cd node_modules/verror \
-    && rm -rf .[a-z]* node_modules README.md examples Makefile* jsl.node.conf tests)
+    && rm -rf .[a-z]* node_modules README.md examples \
+    Makefile* jsl.node.conf tests)
 
 # extsprintf (used by verror)
 VER=$(json -f node_modules/verror/package.json dependencies.extsprintf)
@@ -219,6 +221,7 @@ touch node_modules/semver.js
 # bunyan
 # Patch bunyan usages to use the platform one, because it has dtrace-provider
 # hooked up.
+# BEGIN BASHSTYLED
 patch -p0 <<PATCH
 --- node_modules/restify/lib/bunyan_helper.js.orig  2013-02-05 15:39:13.000000000 -0800
 +++ node_modules/restify/lib/bunyan_helper.js   2013-02-05 15:40:49.000000000 -0800
@@ -258,7 +261,7 @@ patch -p0 <<PATCH
                  } catch (e) {
                          PROVIDER = {
 PATCH
-
+# END BASHSTYLED
 
 rm -rf node_modules/.bin
 rm -rf _repos

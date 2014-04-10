@@ -5,6 +5,7 @@
 
 set -o errexit
 set -o pipefail
+# BASHSTYLED
 #export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -o xtrace
 
@@ -22,9 +23,11 @@ fi
 
 current_version=$(uname -v | cut -d '_' -f 2)
 
-mounted="false"
+# BEGIN BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+# END BASHSTYLED
+mounted="false"
 hashfile="/platform/i86pc/amd64/boot_archive.hash"
 menulst="${usbmnt}/boot/grub/menu.lst"
 

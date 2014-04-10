@@ -5,6 +5,7 @@
 
 exec 4>>/var/log/prompt-config.log
 echo "=== Starting prompt-config on $(tty) at $(date) ===" >&4
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] $(tty): ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
 set -o xtrace
@@ -194,10 +195,11 @@ is_net()
 
 # Tests if input is an email address
 is_email() {
-  regex="^[a-z0-9!#\$%&'*+/=?^_\`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_\`{|}~-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.?)+[a-z0-9]([a-z0-9-]*[a-z0-9])?\$"
-  ADDRESS=$1
+	# BASHSTYLED
+	regex="^[a-z0-9!#\$%&'*+/=?^_\`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_\`{|}~-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.?)+[a-z0-9]([a-z0-9-]*[a-z0-9])?\$"
+	ADDRESS=$1
 
-  [[ $ADDRESS =~ $regex ]] && return 0
+	[[ $ADDRESS =~ $regex ]] && return 0
 	return 1
 }
 
@@ -218,9 +220,11 @@ getanswer()
 
 	# json does not distingush between an empty string and a key that's not
 	# there with the normal output, so we fix that so we can distinguish.
+	# BEGIN BASHSTYLED
 	answer=$(/usr/bin/cat ${answer_file} \
 		| /usr/bin/json -e "if (this['${key}'] === undefined) this['${key}'] = '<<undefined>>';" \
 		"${key}" 2>&1)
+	# END BASHSTYLED
 	if [[ $? != 0 ]]; then
 		if [[ -n $(echo "${answer}" | grep "input is not JSON") ]]; then
 			return ${EBADJSON}
@@ -486,7 +490,8 @@ promptpw()
 				if [ -z "$def" ]; then
 					printf "%s: " "$1"
 				else
-					printf "%s [enter to keep existing]: " "$1"
+					printf "%s [enter to keep existing]: " \
+					    "$1"
 				fi
 				stty -echo
 				read val
@@ -553,24 +558,23 @@ updatenicstates()
 
 printheader()
 {
-  local newline=
-  local cols=`tput cols`
-  local subheader=$1
+	local newline=
+	local cols=`tput cols`
+	local subheader=$1
 
-  if [[ $(getanswer "simple_headers") == "true" ]]; then
-    echo "> ${subheader}"
-    return
-  fi
+	if [[ $(getanswer "simple_headers") == "true" ]]; then
+		echo "> ${subheader}"
+		return
+	fi
 
-  if [ $cols -gt 80 ] ;then
-    newline='\n'
-  fi
+	if [ $cols -gt 80 ] ;then
+		newline='\n'
+	fi
 
-  clear
-  printf " %-40s\n" "Smart Data Center (SDC) Setup"
-  printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
-  for i in {1..80} ; do printf "-" ; done && printf "$newline"
-
+	clear
+	printf " %-40s\n" "Smart Data Center (SDC) Setup"
+	printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
+	for i in {1..80} ; do printf "-" ; done && printf "$newline"
 }
 
 print_warning()
@@ -598,7 +602,8 @@ nicsup() {
 
 		dladm create-vnic -l $external_iface $vlan_opts external0
 		ifconfig external0 plumb
-		ifconfig external0 inet $external_ip netmask $external_netmask up
+		ifconfig external0 inet $external_ip netmask \
+		    $external_netmask up
 	fi
 
 	if [[ -n ${headnode_default_gateway}
@@ -649,7 +654,7 @@ while IFS=: read -r link addr ; do
 	((nic_cnt++))
 	nics[$nic_cnt]=$link
 	macs[$nic_cnt]=`echo $addr | sed 's/\\\:/:/g'`
-	# reformat the nic so that it's in the proper 00:00:ab... form not 0:0:ab...
+	# reformat the nic so that it's in the proper 00:00:ab... not 0:0:ab...
 	macs[$nic_cnt]=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" \
 	    $(echo "${macs[${nic_cnt}]}" \
 	    | tr ':' ' ' | sed -e "s/\([A-Fa-f0-9]*\)/0x\1/g"))
@@ -725,15 +730,18 @@ as help with management of distributed systems.\n\n"
 		printf "$message"
 	fi
 
-	promptval "Enter the company name" "$datacenter_company_name" "datacenter_company_name"
+	promptval "Enter the company name" "$datacenter_company_name" \
+	    "datacenter_company_name"
 	datacenter_company_name="$val"
 
+	# BASHSTYLED
 	promptval "Enter a region for this datacenter" "$region_name" "region_name"
 	region_name="$val"
 
 	while [ true ]; do
 		key="datacenter_name"
-		promptval "Enter a name for this datacenter" "$datacenter_name" "${key}"
+		promptval "Enter a name for this datacenter" \
+		    "$datacenter_name" "${key}"
 		if [ "$val" != "ca" ]; then
 			datacenter_name="$val"
 			break
@@ -771,7 +779,8 @@ network will be used to automatically provision new compute nodes and there are
 several application zones which are assigned sequential IP addresses on this
 network. It is important that this network be used exclusively for SDC
 management. Note that DHCP traffic will be present on this network following
-the installation and that this network is connected in VLAN ACCESS mode only.\n\n"
+the installation and that this network is connected in VLAN ACCESS mode only.
+\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
@@ -930,7 +939,8 @@ other networks. This will almost certainly be the router connected to your
 	[[ -z "$headnode_default_gateway" ]] && \
 	    headnode_default_gateway="none"
 
-	promptnet "Enter the default gateway IP" "$headnode_default_gateway" "headnode_default_gateway"
+	promptnet "Enter the default gateway IP" "$headnode_default_gateway" \
+	    "headnode_default_gateway"
 	headnode_default_gateway="$val"
 
 	# Bring the admin and external nics up now: they need to be for the
@@ -946,9 +956,11 @@ provisioned on the 'external' network.\n\n"
 		printf "$message"
 	fi
 
-	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1" "dns_resolver1"
+	prompt_host_ok_val "Enter the Primary DNS server IP" "$dns_resolver1" \
+	    "dns_resolver1"
 	dns_resolver1="$val"
-	prompt_host_ok_val "Enter the Secondary DNS server IP" "$dns_resolver2" "dns_resolver2"
+	prompt_host_ok_val "Enter the Secondary DNS server IP" \
+	    "$dns_resolver2" "dns_resolver2"
 	dns_resolver2="$val"
 	promptval "Enter the headnode domain name" "$domainname" "dns_domain"
 	domainname="$val"
@@ -1026,14 +1038,17 @@ emails to a specific address. Each of these values will be configured below.
 		printf "%8s %17s %15s %15s %15s %4s\n" "Admin" $admin_nic \
 		    $admin_ip $admin_netmask "none" "none"
 		if [[ -n ${external_nic} ]]; then
-			printf "%8s %17s %15s %15s %15s %4s\n" "External" $external_nic \
-			    $external_ip $external_netmask $external_gateway $ext_vlanid
+			printf "%8s %17s %15s %15s %15s %4s\n" "External" \
+			    $external_nic $external_ip $external_netmask \
+			    $external_gateway $ext_vlanid
 		fi
 		echo
-		printf "Admin net zone IP addresses start at: %s\n" $admin_zone_ip
+		printf "Admin net zone IP addresses start at: %s\n" \
+		    $admin_zone_ip
 		if [[ -n ${external_nic} ]]; then
 			printf "Provisionable IP range: %s - %s\n" \
-			    $external_provisionable_start $external_provisionable_end
+			    $external_provisionable_start\
+			    $external_provisionable_end
 		fi
 		printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
 		    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
@@ -1288,6 +1303,7 @@ echo "default_server_role=pro" >>$tmp_config
 echo "default_package_sizes=\"128,256,512,1024\"" >>$tmp_config
 echo >>$tmp_config
 
+# BASHSTYLED
 echo "# These settings are used by all services in your cloud for email messages" \
     >>$tmp_config
 echo "mail_to=$mail_to" >>$tmp_config
@@ -1303,6 +1319,7 @@ echo "admin_network=$admin_network" >>$tmp_config
 echo >>$tmp_config
 
 if [[ -n ${external_nic} ]]; then
+	# BASHSTYLED
 	echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
 	    >>$tmp_config
 	echo "external_nic=$external_nic" >>$tmp_config
@@ -1315,8 +1332,10 @@ if [[ -n ${external_nic} ]]; then
 		echo "external_vlan_id=$external_vlan_id" >>$tmp_config
 	fi
 	echo "external_network=$external_network" >>$tmp_config
-	echo "external_provisionable_start=$external_provisionable_start" >>$tmp_config
-	echo "external_provisionable_end=$external_provisionable_end" >>$tmp_config
+	echo "external_provisionable_start=$external_provisionable_start" \
+	    >>$tmp_config
+	echo "external_provisionable_end=$external_provisionable_end" \
+	    >>$tmp_config
 	echo >>$tmp_config
 fi
 
@@ -1374,6 +1393,7 @@ if [[ -n ${external_nic} ]]; then
 		echo "adminui_external_vlan=$external_vlan_id" >>$tmp_config
 	fi
 fi
+# BASHSTYLED
 echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
 echo >>$tmp_config
 

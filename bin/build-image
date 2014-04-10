@@ -7,7 +7,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
     BASH_IS_NOT_ANCIENT='true'
 fi
 
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
+      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
@@ -20,6 +22,7 @@ export GZIP=-1
 CONFIG_OPTS=
 if [[ $1 == "-c" ]]; then
     shift
+    # BASHSTYLED
     echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 

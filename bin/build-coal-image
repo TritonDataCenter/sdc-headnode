@@ -17,6 +17,7 @@ set -o pipefail
 
 if [[ $1 == "-c" ]]; then
     shift
+    # BASHSTYLED
     echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
@@ -69,7 +70,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
 fi
 #export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
+      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
@@ -77,7 +80,8 @@ fi
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${ROOT}/bin/json-merge \
+                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
@@ -161,10 +165,12 @@ function expand_image
 {
     echo -n "==> Expanding USB image for VMWare... "
 
-    if [[ -f $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} && -n ${USB_SKIP} && -n ${USB_PADDING} ]]; then
+    if [[ -f $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} && \
+          -n ${USB_SKIP} && -n ${USB_PADDING} ]]; then
         echo ""
         local file=$IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG}
-        dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} bs=512 count=${USB_PADDING}
+        dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} \
+           bs=512 count=${USB_PADDING}
     else
         echo "skipped."
     fi
@@ -176,7 +182,8 @@ function mount_image
     if [[ "$PLATFORM" == "Darwin" ]]; then
         [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
         hdiutil attach $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
-            >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
+            >/tmp/output.hdiattach.$$ \
+            -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
         LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
             | awk '{ print $1 }'`
         MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
@@ -206,6 +213,7 @@ function copy_to_mount
     THIS_BUILDSTAMP=$THIS_VERSION
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
+    # BASHSTYLED
     cp ${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest $STAGE
 
     rm -f $STAGE/usb_key.manifest || true
@@ -272,11 +280,13 @@ function create_output
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
         if [[ ${coal_memsize} < 4096 ]]; then
+            # BEGIN BASHSTYLED
             echo "* * *"
             echo "* Warning: Your COAL memory size (coal-memsize) is set to <4096 MiB."
             echo "* That is likely to cause problems in your COAL. Consider a larger"
             echo "* value for 'coal-memsize' in 'build.spec.local'."
             echo "* * *"
+            # END BASHSTYLED
             sleep 5
         fi
         echo -n "==> Setting COAL HN memory to: ${coal_memsize} MiB... "
@@ -311,6 +321,7 @@ function create_output
     echo "done."
 
     coal_zpool_disk_size=$(build_spec coal-zpool-disk-size)
+    # BEGIN BASHSTYLED
     if [[ -n ${coal_zpool_disk_size} ]]; then
         if [[ -x "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskmanager" ]]; then
             /Applications/VMware\ Fusion.app/Contents/Library/vmware-vdiskmanager \
@@ -319,20 +330,24 @@ function create_output
             echo " !!! WARNING !!! Cannot resize zpool disk with missing vmware-vdiskmanager!" >&2
         fi
     fi
+    # END BASHSTYLED
 
     if [[ "$BUILD_TGZ" == "false" ]]; then
         echo "==> Creating coal-${THIS_BUILDSTAMP}/"
         [[ -d $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE} ]] \
             && rm -rf $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
         (cd $STAGE \
-            && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm)
+            && mv USB-headnode.vmwarevm \
+            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm)
         mv $STAGE $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
     else
         echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
         (cd $STAGE \
-            && mv USB-headnode.vmwarevm coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+            && mv USB-headnode.vmwarevm \
+            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
             && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
-            root.password.${LIVEIMG_VERSION} coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
+            root.password.${LIVEIMG_VERSION} \
+            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     fi
 

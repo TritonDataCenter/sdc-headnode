@@ -13,6 +13,7 @@ if [[ $1 == "--no-headers" ]]; then
     CURL_OPTS="-m 10 -sS -H accept:application/json"
     shift
 else
+    # BASHSTYLED
     CURL_OPTS="-m 10 -sS -i -H accept:application/json -H content-type:application/json"
 fi
 
@@ -125,26 +126,33 @@ watch_job()
 
     local job=$(json -H job_uuid < ${filename})
     if [[ -z ${job} ]]; then
+        # BASHSTYLED
         echo "+ FAILED! Result has no Job-Location: header. See ${filename}." >&2
         return 2
     fi
 
     echo "+ Job is /jobs/${job}"
 
-    while [[ ${execution} == "running" || ${execution} == "queued" || ${execution} == "unknown" ]] \
+    while [[ ${execution} == "running" || ${execution} == "queued" || \
+        ${execution} == "unknown" ]] \
         && [[ ${loop} -lt 120 ]]; do
 
         local output=$(workflow /jobs/${job})
-        local http_result=$(echo "${output}" | grep "^HTTP/1.1 [0-9][0-9][0-9] " | tail -1)
+        local http_result=$(echo "${output}" | \
+                            grep "^HTTP/1.1 [0-9][0-9][0-9] " | tail -1)
         local http_code=$(echo "${http_result}" | cut -d' ' -f2)
         local http_message=$(echo "${http_result}" | cut -d' ' -f3-)
 
         if echo "${http_code}" | grep "^[45]" >/dev/null; then
+            # BASHSTYLED
             echo "+ Failed to get status (will retry), workflow said: ${http_code} ${http_message}"
         else
             job_status=$(echo "${output}" | json -H)
-            echo "${job_status}" | json chain_results | json -a result > /tmp/job_status.$$.new
-            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | grep -v "No differences encountered" | grep "^+[^+]" | sed -e "s/^+/+ /"
+            echo "${job_status}" | json chain_results | json -a result \
+                > /tmp/job_status.$$.new
+            diff -u /tmp/job_status.$$.old /tmp/job_status.$$.new | \
+                grep -v "No differences encountered" | grep "^+[^+]" | \
+                sed -e "s/^+/+ /"
             mv /tmp/job_status.$$.new /tmp/job_status.$$.old
             execution=$(echo "${job_status}" | json execution)
             if [[ ${execution} != ${prev_execution} ]]; then
@@ -172,7 +180,8 @@ provision_zone_from_payload()
     local tmpfile=$1
     local verbose="$2"
 
-    vmapi /vms -X POST -H "Content-Type: application/json" --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
+    vmapi /vms -X POST -H "Content-Type: application/json" \
+        --data-binary @${tmpfile} >/tmp/provision.$$ 2>&1
     return_code=$?
     if [[ ${return_code} != 0 ]]; then
         echo "VMAPI FAILED with:" >&2
@@ -182,10 +191,12 @@ provision_zone_from_payload()
     provisioned_uuid=$(json -H vm_uuid < /tmp/provision.$$)
     if [[ -z ${provisioned_uuid} ]]; then
         if [[ -n $verbose ]]; then
+            # BASHSTYLED
             echo "+ FAILED: Unable to get uuid for new ${zrole} VM (see /tmp/provision.$$)."
             cat /tmp/provision.$$ | json -H
             exit 1
         else
+            # BASHSTYLED
             fatal "+ FAILED: Unable to get uuid for new ${zrole} VM (see /tmp/provision.$$)."
         fi
     fi

@@ -19,6 +19,7 @@ PATH=/usr/bin:/usr/sbin:/image/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
 BASH_XTRACEFD=4
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
@@ -30,6 +31,7 @@ export SDC_UPGRADE_DIR=/var/upgrade_in_progress
 # upgradeable version.
 VERS_6_5_4=20120523
 
+# BASHSTYLED
 ZONES6X="adminui assets billapi ca capi cloudapi dhcpd mapi portal rabbitmq riak"
 
 declare -A ADMIN_IP=()
@@ -239,6 +241,7 @@ function dump_mapi_live
     [ $? != 0 ] && fatal "getting MAPI datasets failed"
 
     echo "Transforming MAPI datasets to IMGAPI manifest format"
+    # BEGIN BASHSTYLED
     DUMP_DIR=$SDC_UPGRADE_DIR/mapi_dump node -e '
         var fs = require("fs");
         var path = require("path");
@@ -289,6 +292,7 @@ function dump_mapi_live
             JSON.stringify(d, null, 2) + "\n");
         "Done transforming MAPI datasets."
         '
+    # END BASHSTYLED
     [ $? != 0 ] && fatal "transforming MAPI datasets failed"
 }
 
@@ -943,6 +947,7 @@ function cleanup_config
 		dhcp_lease_time=2592000
 	fi
 
+        # BEGIN BASHSTYLED
 	cat <<-DONE >>/tmp/config.$$
 
 	# UUIDs for the admin and external networks
@@ -1051,6 +1056,7 @@ function cleanup_config
 	capi_client_url=http://$ufds_admin_ip:8080
 	ufds_domain=ufds.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 	DONE
+        # END BASHSTYLED
 
 	if [[ $CAPI_FOUND == 1 ]]; then
 		cat <<-UDONE1 >>/tmp/config.$$
@@ -1303,6 +1309,7 @@ function update_vm_attrs
 
     echo "" >>/tmp/upd_cn
 
+    # BEGIN BASHSTYLED
     cat <<-"PROG" >>/tmp/upd_cn
 	rm -f /tmp/upd.log
 	chmod +x /tmp/fixmd
@@ -1375,6 +1382,7 @@ function update_vm_attrs
 	  fi
 	done
 	PROG
+    # END BASHSTYLED
 
     sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_cn" >/dev/null
     [ $? != 0 ] && fatal "setting up compute node update"

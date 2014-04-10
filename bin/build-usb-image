@@ -17,6 +17,7 @@ set -o pipefail
 
 if [[ $1 == "-c" ]]; then
     shift
+    # BASHSTYLED
     echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
@@ -61,7 +62,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
 fi
 #export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
+      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
@@ -69,7 +72,8 @@ fi
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
+                  ${ROOT}/build.spec.local);
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
@@ -142,7 +146,8 @@ function mount_image
         # REVIEW - [ blah ] ?
         [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
         hdiutil attach $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
-            >/tmp/output.hdiattach.$$ -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
+            >/tmp/output.hdiattach.$$ \
+            -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
         LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
             | awk '{ print $1 }'`
         MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
@@ -167,6 +172,7 @@ function copy_config {
 
     ANSWER_FILE=$(build_spec answer-file)
     if [[ -n ${ANSWER_FILE} && -f ${ANSWER_FILE} ]]; then
+        # BASHSTYLED
         echo "WARNING: Copying in ${ANSWER_FILE}, remove answer-file from build.spec* to disable."
         mkdir -p ${MNT_DIR}/private
         cp ${ANSWER_FILE} ${MNT_DIR}/private/answers.json
@@ -181,7 +187,8 @@ function copy_to_mount
             && tar -c . | tar -C $MNT_DIR -xovf -) \
             || fatal "Unable to copy files to mount"
     else
-        (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvzf $TAR_BUILD_FILENAME) \
+        (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner \
+         -xvzf $TAR_BUILD_FILENAME) \
             || fatal "Unable to copy files to mount"
     fi
 
@@ -191,6 +198,7 @@ function copy_to_mount
     THIS_BUILDSTAMP=$THIS_VERSION
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
     cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
+    # BASHSTYLED
     cp ${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest $STAGE
 
     rm -f $STAGE/usb_key.manifest || true
@@ -226,16 +234,20 @@ function create_output
 {
     if [[ "$BUILD_TGZ" == "false" ]]; then
         echo "==> Creating usb-${THIS_BUILDSTAMP}/"
-        [[ -d $ROOT/usb-${THIS_BUILDSTAMP} ]] && rm -rf $ROOT/usb-${THIS_BUILDSTAMP}
+        [[ -d $ROOT/usb-${THIS_BUILDSTAMP} ]] \
+            && rm -rf $ROOT/usb-${THIS_BUILDSTAMP}
         (cd $STAGE \
-            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG})
+            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
+            usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG})
         mv $STAGE $ROOT/usb-${THIS_BUILDSTAMP}
     else
         echo "==> Creating usb-${THIS_BUILDSTAMP}.tgz"
         (cd $STAGE \
-            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
+            && mv $IMG_TMP_DIR/$$.${OUTPUT_IMG} \
+            usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
             && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
-            root.password.${LIVEIMG_VERSION} usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
+            root.password.${LIVEIMG_VERSION} \
+            usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
 
     fi

@@ -10,7 +10,9 @@ var path = require('path');
 
 var Types = ['customers', 'keys', 'blacklists', 'limits', 'metadatum'];
 var CustomerIdMap = {};
+var admin_uuid;
 var blacklist_email = {};
+var directory;
 var email_addrs = {};
 var cust_uuids = {};
 var cust_logins = {};
@@ -66,6 +68,7 @@ function transform_customers(file, callback) {
       return err_and_exit('Error loading customers file: %s', err.toString());
 
     var changes = [];
+    /* jsl:ignore */
     lines.forEach(function(line) {
       var pieces = line.split('\t');
       if (pieces.length < 26)
@@ -95,6 +98,7 @@ function transform_customers(file, callback) {
       cust_logins[pieces[6]] = 1;
 
       // handle duplicate email addresses
+      var eaddr;
       if (pieces[13] in email_addrs) {
          var ecomp = pieces[13].split('@');
          if (ecomp.length != 2)
@@ -155,6 +159,7 @@ function transform_customers(file, callback) {
         });
       }
     });
+    /* jsl:end */
 
     return callback(changes);
   });
@@ -176,7 +181,7 @@ function transform_keys(file, callback) {
       if (!(pieces[1] in CustomerIdMap))
         return;
 
-      cuuid = CustomerIdMap[pieces[1]];
+      var cuuid = CustomerIdMap[pieces[1]];
 
       // skip duplicate key fingerprints
       if (pieces[1] in key_fingerprints) {
@@ -339,7 +344,7 @@ function transform_blacklist(file, callback) {
 ///--- Mainline
 
 process_argv();
-
+/* jsl:ignore */
 fs.readdir(directory, function(err, files) {
   if(err)
     return err_and_exit('Unable to read %s: %s', directory, err.toString());
@@ -351,7 +356,7 @@ fs.readdir(directory, function(err, files) {
         if (Array.isArray(change[k])) {
           change[k].forEach(function(v) {
             console.log(k + ': ' + v);
-          })
+          });
         } else {
           console.log(k + ': ' + change[k]);
         }
@@ -390,8 +395,10 @@ fs.readdir(directory, function(err, files) {
           break;
         default:
           console.error('Skipping %s', f);
+          break;
         }
       });
     });
   });
 });
+/* jsl:end */

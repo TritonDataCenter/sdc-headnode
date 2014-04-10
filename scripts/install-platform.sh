@@ -59,9 +59,11 @@ else
     fi
 fi
 
-mounted="false"
+# BEGIN BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+# END BASHSTYLED
+mounted="false"
 fatal_cleanup=0
 
 . /lib/sdc/config.sh
@@ -76,8 +78,10 @@ fi
 platform_type=smartos
 
 # this should result in something like 20110318T170209Z
-version=$(basename "${input}" .tgz | tr [:lower:] [:upper:] | sed -e "s/.*\-\(2.*Z\)$/\1/")
-if [[ -n $(echo $(basename "${input}") | grep -i "HVM-${version}" 2>/dev/null) ]]; then
+version=$(basename "${input}" .tgz | tr [:lower:] [:upper:] | \
+          sed -e "s/.*\-\(2.*Z\)$/\1/")
+if [[ -n $(echo $(basename "${input}") | \
+    grep -i "HVM-${version}" 2>/dev/null) ]]; then
     version="HVM-${version}"
     platform_type=hvm
 fi

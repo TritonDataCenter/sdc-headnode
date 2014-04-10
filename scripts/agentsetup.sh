@@ -7,6 +7,7 @@ exec 4>/dev/console
 
 set -o errexit
 set -o pipefail
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
@@ -90,14 +91,16 @@ setup_agents()
         AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest-65-initial
         AGENTS_SHAR_PATH=./agents-installer-initial.sh
 
-        /usr/bin/curl --silent --show-error ${AGENTS_SHAR_URL} -o $AGENTS_SHAR_PATH
+        /usr/bin/curl --silent --show-error ${AGENTS_SHAR_URL} \
+            -o $AGENTS_SHAR_PATH
 
         if [[ ! -f $AGENTS_SHAR_PATH ]]; then
             fatal "failed to download agents setup script"
         fi
 
         mkdir -p /opt/smartdc/agents/log
-        /usr/bin/bash $AGENTS_SHAR_PATH &>/opt/smartdc/agents/log/initial-install.log
+        /usr/bin/bash $AGENTS_SHAR_PATH \
+            &>/opt/smartdc/agents/log/initial-install.log
         result=$(tail -n 1 /opt/smartdc/agents/log/initial-install.log)
 
         # fall through to the normal logic but for upgrade

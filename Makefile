@@ -9,15 +9,14 @@
 DOC_FILES = index.restdown
 
 BASH_FILES = \
-    $(shell find scripts -name '*.sh') \
-    $(shell find tools -depth -name "*.d" -prune -o -name "\.*" -prune -o \
-        -name tools -prune -o -print) \
-    bin/upgrade.sh \
-    bin/upgrade_hooks.sh \
-    scripts/chk_agents \
-    scripts/update_agents
+	$(shell find scripts -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find tools -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find bin -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print)
 
-JS_FILES = $(shell find scripts -name '*.js')
+JS_FILES = \
+	$(shell find scripts -exec sh -c "file {} | grep -q 'node script'" \; -print) \
+	$(shell find tools -exec sh -c "file {} | grep -q 'node script'" \; -print)
+
 JSL_FILES_NODE = $(JS_FILES)
 JSSTYLE_FILES = $(JS_FILES)
 

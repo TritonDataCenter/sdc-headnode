@@ -5,6 +5,7 @@
 #
 
 if [ "$TRACE" != "" ]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -40,7 +41,8 @@ vm_destroy()
 {
     local uuid=$1
 
-    [[ -z ${uuid} ]] && fatal "destroy: unable to find uuid for zone matching '${arg}'"
+    [[ -z ${uuid} ]] && \
+        fatal "destroy: unable to find uuid for zone matching '${arg}'"
 
     vmapi /vms/${uuid} -X DELETE > /tmp/destroy.$$ 2>&1
 
@@ -59,7 +61,8 @@ vm_list()
     #
     #  hostname_UUID=<hostname>
     #
-    # with uuid's dashes changed to underscore to meet bash's variable name requirements.
+    # with uuid's dashes changed to underscore to meet bash's variable
+    # name requirements.
     host_mappings=$(cnapi /servers \
         | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
         | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
@@ -79,6 +82,7 @@ vm_list()
         local uuid=$(echo "${zone}" | cut -d',' -f4)
         local ram=$(echo "${zone}" | cut -d',' -f5)
         local server_uuid=$(echo "${zone}" | cut -d',' -f6)
+        # BASHSTYLED
         local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
         [[ -z ${server_name} ]] && server_name="-"
 

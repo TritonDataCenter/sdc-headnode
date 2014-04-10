@@ -11,8 +11,10 @@ function fatal
 
 current_image=$(uname -v | cut -d '_' -f2)
 mnt=/image
+# BEGIN BASHSTYLED
 usb="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcopy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
+# END BASHSTYLED
 image_subdir="/os/${current_image}/platform/i86pc/amd64"
 image="${usb}${image_subdir}/boot_archive"
 writable_usr=0
@@ -37,7 +39,8 @@ if [[ ${writable_usr} == 1 ]]; then
 	lofiadm -C /var/tmp/usr.lgz || fatal "could not recompress /usr"
 	rm -f $mnt/usr.lgz || fatal "could not remove old ${mnt}/usr.lgz"
 	sync
-	cp /var/tmp/usr.lgz $mnt/usr.lgz || fatal "could not copy usr.lgz to $mnt"
+	cp /var/tmp/usr.lgz $mnt/usr.lgz || \
+	    fatal "could not copy usr.lgz to $mnt"
 	rm -f /var/tmp/usr.lgz \
 	    || echo "Warning: could not remove /var/tmp/usr.lgz" >&2
 	sync

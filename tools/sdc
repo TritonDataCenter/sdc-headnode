@@ -17,6 +17,7 @@ set -o pipefail
 load_sdc_config
 
 if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -34,7 +35,9 @@ fi
 # Why this long 'vmadm list'? Because `vmadm lookup` doesn't have
 # sorting, 'vmadm list' filter by 'tags.FOO' is broken (OS-2246).
 ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp -s create_timestamp owner_uuid=$ufds_admin_uuid | (grep '^sdc\>' || true) | tail -1 | awk '{print $2}')
+sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp \
+           -s create_timestamp owner_uuid=$ufds_admin_uuid | \
+           (grep '^sdc\>' || true) | tail -1 | awk '{print $2}')
 if [[ -z "${sdc_zone}" ]]; then
     echo "error: sdc: unable to find a 'sdc' core zone on this node" >&2
     exit 1
@@ -51,4 +54,3 @@ if [[ -z "$C" ]]; then
 else
     exec zlogin $sdc_zone "source .bash_profile; $C"
 fi
-

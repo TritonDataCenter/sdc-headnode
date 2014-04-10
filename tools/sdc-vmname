@@ -21,7 +21,8 @@ if [[ -z ${zone} ]]; then
     exit 2
 fi
 
-zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
+zone_uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} \
+            tags.smartdc_role=~^${zone})
 if [[ -z ${zone_uuid} ]]; then
     echo "Did not find exactly 1 zone matching: ${zone}"
     exit 1

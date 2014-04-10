@@ -36,7 +36,9 @@ if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
 fi
 #export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 #set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
+      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=4
     set -o xtrace
@@ -58,7 +60,8 @@ fi
 # Make sure we use the path to the manta tools we built with 'make deps'
 export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
 
-# See MGs Package Versioning for details (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
+# See MGs Package Versioning for details
+# (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
 THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
@@ -105,7 +108,8 @@ function check_nodejs
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${ROOT}/bin/json-merge \
+                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
@@ -139,7 +143,8 @@ NO_INTERNET_EXCEPTIONS=$(build_spec no-internet-exceptions)
 
 # --- Manta config
 if [[ -z "$(build_spec manta-key-id)" ]]; then
-    export MANTA_KEY_ID=`ssh-keygen -l -f ~/.ssh/id_rsa.pub | awk '{print $2}' | tr -d '\n'`
+    export MANTA_KEY_ID=`ssh-keygen -l -f ~/.ssh/id_rsa.pub \
+                         | awk '{print $2}' | tr -d '\n'`
 else
     export MANTA_KEY_ID=$(build_spec manta-key-id)
 fi
@@ -157,14 +162,19 @@ fi
 
 if [[ "$(build_spec builds-proxy)" == "true" ]]; then
     BUILDS_PROXY_URL=$(build_spec builds-proxy-url)
-    [[ -n "$BUILDS_PROXY_URL" ]] || fatal "no 'builds-proxy-url' in build.spec.local"
+    [[ -n "$BUILDS_PROXY_URL" ]] \
+        || fatal "no 'builds-proxy-url' in build.spec.local"
     BUILDS_PROXY_AUTH_FILE=$(build_spec builds-proxy-auth-file)
-    [[ -n "$BUILDS_PROXY_AUTH_FILE" ]] || fatal "no 'builds-proxy-auth-file' in build.spec.local"
-    BUILDS_PROXY_AUTH_FILE=$(echo $BUILDS_PROXY_AUTH_FILE | sed -e "s|^~/|$HOME/|")
+    [[ -n "$BUILDS_PROXY_AUTH_FILE" ]] \
+        || fatal "no 'builds-proxy-auth-file' in build.spec.local"
+    BUILDS_PROXY_AUTH_FILE=$(echo $BUILDS_PROXY_AUTH_FILE \
+                             | sed -e "s|^~/|$HOME/|")
     BUILDS_PROXY_USER=$(json -f $BUILDS_PROXY_AUTH_FILE username)
-    [[ -n "$BUILDS_PROXY_USER" ]] || fatal "no 'username' field in '$BUILDS_PROXY_AUTH_FILE'"
+    [[ -n "$BUILDS_PROXY_USER" ]] \
+        || fatal "no 'username' field in '$BUILDS_PROXY_AUTH_FILE'"
     BUILDS_PROXY_PASSWD=$(json -f $BUILDS_PROXY_AUTH_FILE password)
-    [[ -n "$BUILDS_PROXY_PASSWD" ]] || fatal "no 'password' field in '$BUILDS_PROXY_AUTH_FILE'"
+    [[ -n "$BUILDS_PROXY_PASSWD" ]] \
+        || fatal "no 'password' field in '$BUILDS_PROXY_AUTH_FILE'"
 fi
 
 if [[ -n ${SPEED_LIMIT} ]]; then
@@ -181,6 +191,7 @@ echo "BITS_BRANCH: $BITS_BRANCH"
 
 if [[ $1 == "-r" ]]; then
     # XXX - Temporary warning about recipes
+    # BASHSTYLED
     echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
     sleep 30
     shift
@@ -189,6 +200,7 @@ fi
 
 if [[ $1 == "-c" ]]; then
     shift
+    # BASHSTYLED
     echo "NOTICE: building without config is the only option now, -c is unnecessary."
 fi
 
@@ -348,7 +360,8 @@ function copy_base
     [[ -z ${ftbranch} ]] && ftbranch="master"
 
     local sdcboot_path=$(get_manta_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
-    local platboot_path=$(get_manta_bit platform$plat_suffix/boot$plat_suffix-${platbranch}-.*\.tgz)
+    local platboot_path=$(get_manta_bit \
+                    platform$plat_suffix/boot$plat_suffix-${platbranch}-.*\.tgz)
     local firmware_path=$(get_manta_bit \
         firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
 
@@ -440,7 +453,8 @@ function cleanup_bit
     local keep_bits=$(build_spec keep-bits)
 
     if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
-        [[ -n ${TRACE} ]] && echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
+        [[ -n ${TRACE} ]] \
+            && echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
 
         local bit=
         for bit in $(ls -1t ${bits_dir} | grep "${bits_pattern}"); do
@@ -486,7 +500,8 @@ function get_manta_bit
            | grep "${pattern_base}" \
            | sort \
            | tail -1)
-        [[ -n "${latest_name}" ]] || fatal "'${BITS_DIR}/${pattern}' did not match any files."
+        [[ -n "${latest_name}" ]] \
+            || fatal "'${BITS_DIR}/${pattern}' did not match any files."
 
         local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
         local latest_filename=$(basename $latest_path)
@@ -503,30 +518,36 @@ function get_manta_bit
     fi
 
     if [[ ${HAVE_INTERNET} == "false" \
-            && -z "$(echo "$pattern" | egrep "${NO_INTERNET_EXCEPTIONS}")"  ]]; then
+            && -z "$(echo "$pattern" | \
+                     egrep "${NO_INTERNET_EXCEPTIONS}")"  ]]; then
         local pattern_base="^$(basename $pattern)"
         local latest_path=$(ls -1 ${ROOT}/cache/ \
            | grep "${pattern_base}" \
            | sort \
            | tail -1)
+        # BEGIN BASHSTYLED
         [[ -n "${latest_path}" ]] \
             || fatal "Don't have any '${pattern_base}' in '${ROOT}/cache' and no internet."
+        # END BASHSTYLED
         echo "${ROOT}/cache/${latest_path}"
         return
     fi
 
     if [[ -n "$BUILDS_PROXY_URL" ]]; then
+        # BASHSTYLED
         BUILDS_CURL="curl ${CURL_OPTS} -kSf -u $BUILDS_PROXY_USER:$BUILDS_PROXY_PASSWD"
         local latest_file="$BUILDS_PROXY_URL/${pattern_dir}/${branch}-latest"
         local latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
         local latest_dir=$BUILDS_PROXY_URL/$pattern_dir/$(basename $latest_mdir)
+        # BASHSTYLED
         local latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
             | grep "$file_name" | head -1 \
             | cut -d'"' -f2 | cut -d'"' -f1)
         local latest_path=$latest_dir/$pattern_dir/$latest_filename
         local cache_path=${ROOT}/cache/${latest_filename}
 
-        local md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null | grep $latest_filename | cut -d ' ' -f1)
+        local md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null \
+                    | grep $latest_filename | cut -d ' ' -f1)
 
         local ok=0
         local retries=0
@@ -537,17 +558,20 @@ function get_manta_bit
                     || fatal "Unable to fetch '${latest_path}'."
             fi
 
-            local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
+            local my_md5=$(openssl dgst -md5 < ${cache_path} \
+                           | awk '{print $NF}')
             if [[ ${my_md5} == ${md5} ]]; then
                 ok=1
                 continue
             else
                 rm -f ${cache_path}
                 retries=$((${retries} + 1))
+                # BASHSTYLED
                 echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
             fi
         done
         if [[ ${ok} -ne 1 ]]; then
+            # BASHSTYLED
             fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
         fi
         get_bit_rv=${cache_path}
@@ -557,6 +581,7 @@ function get_manta_bit
         return
     fi
 
+    # BASHSTYLED
     local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
@@ -564,11 +589,15 @@ function get_manta_bit
     local latest_filename=$(basename $latest_name)
     local cache_path=${ROOT}/cache/${latest_filename}
 
-    [[ -n ${manta_base_dir} ]] || fatal "Unable to find base dir for ${file_name}"
-    [[ -n ${latest_name} ]] || fatal "Unable to find latest path for ${file_name}"
-    [[ -n ${latest_filename} ]] || fatal "Unable to find latest filename for ${file_name}"
+    [[ -n ${manta_base_dir} ]] \
+        || fatal "Unable to find base dir for ${file_name}"
+    [[ -n ${latest_name} ]] \
+        || fatal "Unable to find latest path for ${file_name}"
+    [[ -n ${latest_filename} ]] \
+        || fatal "Unable to find latest filename for ${file_name}"
 
-    local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null | grep $latest_filename | cut -d ' ' -f1)
+    local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null \
+                | grep $latest_filename | cut -d ' ' -f1)
 
     local ok=0
     local retries=0
@@ -586,10 +615,12 @@ function get_manta_bit
         else
             rm -f ${cache_path}
             retries=$((${retries} + 1))
+            # BASHSTYLED
             echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
         fi
     done
     if [[ ${ok} -ne 1 ]]; then
+        # BASHSTYLED
         fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
     fi
     get_bit_rv=${cache_path}
@@ -629,7 +660,8 @@ function copy_platform
     if [[ -z ${platform_file} ]]; then
 
         # Check for using a debug platform
-        if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
+        if [[ "$(build_spec debug-platform)" == "true" \
+              || -n "$DEBUG_BUILD" ]]; then
             plat_suffix="-debug"
             echo "Using DEBUG platform"
         fi
@@ -638,6 +670,7 @@ function copy_platform
             && fatal "Must define 'platform_file' or 'platform_release' " \
                      "for call to 'copy_platform()'."
 
+        # BASHSTYLED
         image=$(get_manta_bit "platform${plat_suffix}/platform${plat_suffix}-${platform_release}-.*")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
@@ -661,7 +694,8 @@ function copy_platform
         | sed -e "s/platform.*-\([0-9TZ]*\)\.tgz/\1/"`
 
     echo "==> Unpacking `basename ${image}`"
-    (set -e; cd ${STAGE}/; ${TAR} -zxf ${image}; mkdir -p os/${LIVEIMG_VERSION}; \
+    (set -e; cd ${STAGE}/; ${TAR} -zxf ${image}; \
+        mkdir -p os/${LIVEIMG_VERSION}; \
         mv platform-* os/${LIVEIMG_VERSION}/platform) \
         || fatal "Unable to unpack platform"
     if [[ -f ${STAGE}/os/${LIVEIMG_VERSION}/platform/root.password ]]; then
@@ -722,8 +756,10 @@ function get_agentsshar
         local agentsshar_path=${agentsshar_branch}
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
     else
-        local agentsshar_path=$(get_manta_bit "agentsshar/agents-${agentsshar_branch}-.*\.sh")
-        local agentsmd5_path=$(get_manta_bit "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+        local agentsshar_path=$(get_manta_bit \
+                        "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+        local agentsmd5_path=$(get_manta_bit \
+                        "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
     fi
 
     # Make sure it's not corrupt.
@@ -803,15 +839,18 @@ function copy_datasets
             fi
         fi
 
-        compression_type=$(cat ${manifest} | ${ROOT}/bin/json files[0].compression)
+        compression_type=$(cat ${manifest} \
+                           | ${ROOT}/bin/json files[0].compression)
         if [[ ${compression_type} == "bzip2" ]]; then
             compression=bz2
         elif [[ ${compression_type} == "gzip" ]]; then
             compression=gz
         else
-            if [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path | grep ".gz$") ]]; then
+            if [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
+                  | grep ".gz$") ]]; then
                 compression=gz
-            elif [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path | grep ".bz2$") ]]; then
+            elif [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
+                    | grep ".bz2$") ]]; then
                 compression=bz2
             fi
         fi
@@ -872,9 +911,11 @@ function copy_dataset
       fi
   fi
 
-  local cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
+  local cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} \
+                              | awk '{print $1}')
   if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
     rm -f ${ROOT}/cache/${dataset_file}
+    # BASHSTYLED
     fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
   fi
 
@@ -903,9 +944,11 @@ function get_core_zone_image
     local dst_dir=$3
 
     if [[ -z "${target}" ]]; then
+        # BASHSTYLED
         fatal "get_core_zone_image(): empty target for zone '$zone' (Is '$zone-image' set in build.spec?)"
     fi
     if [[ -z "${dst_dir}" ]] || [[ ! -d ${dst_dir} ]]; then
+        # BASHSTYLED
         fatal "get_core_zone_image(): No destination dir specified or not a directory."
     fi
 
@@ -923,7 +966,8 @@ function get_core_zone_image
         local src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
         dst_file=${dst_dir}/$(basename $src_file)
         ln ${src_file} ${dst_file}
-        clean_pattern=$(echo "$(basename $dst_file)" | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
+        clean_pattern=$(echo "$(basename $dst_file)" \
+                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
         cleanup_bit ${clean_pattern}
     else
         # Not a local file, this is a pattern for 'get_bit'.
@@ -934,11 +978,13 @@ function get_core_zone_image
         dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
         rm -f ${dst_manifest}
         ln ${bit_cache_path} ${dst_manifest}
+        # BEGIN BASHSTYLED
         # Example of getting get_bit pattern for the image *file*:
         #   target 'adminui/adminui-zfs.*manifest'
         #   bit_cache_path '/.../cache/adminui-zfs-master-20130401T104924Z-g1695958.zfs.imgmanifest'
         #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
         # Note: We are hardcoding that sdc images use gzip compression here.
+        # END BASHSTYLED
         local file_pattern=${target%/*}/${manifest_base%.*manifest}.*.gz
         bit_cache_path=$(get_manta_bit $file_pattern)
         dst_file=${dst_dir}/$(basename $bit_cache_path)
@@ -946,7 +992,8 @@ function get_core_zone_image
         ln ${bit_cache_path} ${dst_file}
         gzip -t ${dst_file} \
             || fatal "Corrupt ${dst_file}, please remove and re-run."
-        clean_pattern=$(echo "$(basename $bit_cache_path)" | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
+        clean_pattern=$(echo "$(basename $bit_cache_path)" \
+                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
         cleanup_bit ${clean_pattern}
     fi
 
@@ -959,7 +1006,8 @@ function get_core_zone_image
     fi
 
     # PCFS, sigh.
-    echo $(basename $dst_manifest) | tr '[:upper:]' '[:lower:]' > ${STAGE}/zones/${zone}/dataset
+    echo $(basename $dst_manifest) | tr '[:upper:]' '[:lower:]' \
+        > ${STAGE}/zones/${zone}/dataset
 }
 
 function copy_zones
@@ -994,7 +1042,8 @@ function copy_tools
 
     if [[ -x ${RONNJS} ]]; then
         for file in $(find ${ROOT}/tools-man/ -name "*.ronn"); do
-            ${RONNJS} --roff --build ${file} --date `git log -1 --date=short --pretty=format:'%cd' ${file}` `date +%Y`
+            ${RONNJS} --roff --build ${file} --date `git log -1 \
+                --date=short --pretty=format:'%cd' ${file}` `date +%Y`
         done
     else
         fatal "unable to build man pages, missing: ${RONNJS}"
@@ -1003,7 +1052,8 @@ function copy_tools
     mkdir -p ${STAGE}/tools-man
     for file in $(cd ${ROOT}/tools-man && find . -type f -name "*.roff"); do
         mkdir -p ${STAGE}/tools-man/$(dirname ${file})
-        cp ${ROOT}/tools-man/${file} ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
+        cp ${ROOT}/tools-man/${file} \
+        ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
     done
 }
 
@@ -1021,9 +1071,11 @@ function copy_agents65
     local bit_cache_path
     mkdir -p ${STAGE}/agents65
 
-    bit_cache_path=$(get_manta_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
+    bit_cache_path=$(get_manta_bit \
+        "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
     cp $bit_cache_path ${STAGE}/agents65/agents65.sh
-    bit_cache_path=$(get_manta_bit "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
+    bit_cache_path=$(get_manta_bit \
+        "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
     cp $bit_cache_path ${STAGE}/agents65/agents65.md5sum
 }
 
@@ -1037,6 +1089,7 @@ function add_manifests
     [[ $? -eq 0 ]] || fatal "Unable to add manifests"
     rm -f $STAGE/boot_archive.manifest || true
 
+    # BASHSTYLED
     cp ${STAGE}/os/${LIVEIMG_VERSION}/platform/i86pc/amd64/boot_archive.manifest \
         $STAGE/boot_archive.manifest
     chmod 444 $STAGE/*.manifest

@@ -31,6 +31,7 @@ exec 2>&1
 
 set -o errexit
 set -o pipefail
+# BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
@@ -427,9 +428,9 @@ setup_datasets()
         chmod 755 /${VARDS}
         cd /var
 
-        # since we created /var, we setup so that we keep a copy of the joysetup log
-        # as log messages written after this will otherwise not be logged due to
-        # the cpio moving them to the new /var
+        # since we created /var, we setup so that we keep a copy of the joysetup
+        # log as log messages written after this will otherwise not be logged
+        # due to the cpio moving them to the new /var
         mkdir -p /var/log
         trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
 
@@ -506,6 +507,7 @@ output_zpool_info()
         available=$((${total} - ${used}))
         health="ONLINE"
         mountpoint="/zones"
+        # BASHSTYLED
         printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
         return;
     fi
@@ -518,7 +520,7 @@ output_zpool_info()
         mountpoint=$(zfs get -Hp -o value mountpoint ${pool})
 
         total=$((${used} + ${available}))
-
+        # BASHSTYLED
         printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
     done
 }
@@ -664,7 +666,8 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     if [[ -n ${ENABLE_6x_WORKAROUNDS} ]]; then
         set +o errexit
         set +o pipefail
-        for iface in $(ifconfig -a | grep ^[a-z] | cut -d':' -f1 | grep -v "^lo" | sort | uniq); do
+        for iface in $(ifconfig -a | grep ^[a-z] | cut -d':' -f1 | \
+                       grep -v "^lo" | sort | uniq); do
             ifconfig ${iface} down
             ifconfig ${iface} unplumb
             dladm remove-bridge -l ${iface} vmwarebr

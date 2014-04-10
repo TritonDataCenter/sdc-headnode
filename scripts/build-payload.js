@@ -20,16 +20,18 @@ var obj = {};
 async.series([
     function ensureArgs(cb) {
         if (!zone) {
-            return cb(new Error('Usage: ' + process.argv[1] + ' <zone> [uuid]'));
+            return cb(new Error('Usage: ' +
+                      process.argv[1] + ' <zone> [uuid]'));
         }
-        cb();
+        return cb();
     },
     function loadConfig(cb) {
         execFile('/bin/bash', ['/lib/sdc/config.sh', '-json'],
             function (error, stdout, stderr)
             {
                 if (error) {
-                    return cb(new Error('FATAL: failed to get config: ' + stderr));
+                    return cb(new Error('FATAL: failed to get config: ' +
+                              stderr));
                 }
 
                 try {
@@ -39,9 +41,8 @@ async.series([
                         JSON.stringify(e)));
                 }
 
-                cb();
-            }
-        );
+                return cb();
+            });
     },
     function loadCreateJson(cb) {
         fs.readFile('/usbkey/zones/' + zone + '/create.json',
@@ -57,43 +58,46 @@ async.series([
                     return cb(new Error('exception parsing create.json for ' +
                         zone));
                 }
-                cb();
-            }
-        );
+                return cb();
+            });
     },
     function setOptionalUuid(cb) {
         if (passed_uuid && passed_uuid.length > 0) {
             obj.uuid = passed_uuid;
         }
-        cb();
+        return cb();
     },
     function setImageUuid(cb) {
         if (!obj.hasOwnProperty('image_uuid')) {
             // find out which dataset we should use for these zones
-            fs.readFile('/usbkey/zones/' + zone + '/dataset', function(error, data) {
-                if (error) {
-                    return cb(new Error('Unable to find dataset name: ' + error.message));
+            return fs.readFile('/usbkey/zones/' + zone + '/dataset',
+                               function readDataset(err, data) {
+                if (err) {
+                    return cb(new Error('Unable to find dataset name: ' +
+                              err.message));
                 }
                 var image_file_name = data.toString().split('\n')[0];
-                fs.readFile('/usbkey/datasets/' + image_file_name, function (err, data) {
-                    if (err) {
-                        return cb(new Error('unable to load imgmanifest: ' + err.message));
+                return fs.readFile('/usbkey/datasets/' + image_file_name,
+                                   function readImgmanifest(_err, _data) {
+                    if (_err) {
+                        return cb(new Error('unable to load imgmanifest: ' +
+                                  _err.message));
                     }
 
                     try {
-                        var imgmanifest = JSON.parse(data.toString());
+                        var imgmanifest = JSON.parse(_data.toString());
                     } catch (e) {
                         return cb(new Error('exception loading imgmanifest for '
                             + zone + ': ' + e.message));
                     }
 
                     obj.image_uuid = imgmanifest.uuid;
-                    cb();
+                    return cb();
                 });
             });
         } else {
             // obj already has image_uuid so we'll use that.
-            cb();
+            return cb();
         }
     },
     function setPackageValues(cb) {
@@ -120,7 +124,6 @@ async.series([
                     pkg.nlwp = pkgdata[5];
                     pkg.iopri = pkgdata[6];
                     pkg.uuid = pkgdata[7];
-                    //console.log('pkg: ' + JSON.stringify(pkg, null, 2));
                     obj.cpu_shares = Number(pkg.ram); // what MAPI would do.
                     obj.cpu_cap = Number(pkg.cap);
                     obj.zfs_io_priority = Number(pkg.iopri);
@@ -139,8 +142,8 @@ async.series([
             }
         }
 
-        cb(new Error('Cannot find package "'  + config[zone + '_pkg'] + '" ' +
-            'for zone: ' + zone));
+        return cb(new Error('Cannot find package "'  + config[zone + '_pkg'] +
+                  '" ' + 'for zone: ' + zone));
     },
     function setConfigValues(cb) {
         if (config.hasOwnProperty('ufds_admin_uuid')) {
@@ -152,6 +155,7 @@ async.series([
         // Per OS-2520 we always want to be setting archive_on_delete in SDC
         obj.archive_on_delete = true;
 
+        /* JSSTYLED */
         obj.resolvers = config['binder_admin_ips'].split(/,/g);
 
         // TODO: is this customer_metadata.resolvers still used?
@@ -166,15 +170,15 @@ async.series([
                 resolvers.concat(config['dns_resolvers'].split(','));
             }
 
-            resolvers = resolvers.map(function(e) { return e.trim(); })
-                .filter(function(e) { return e.length > 0 })
+            resolvers = resolvers.map(function trim(e) { return e.trim(); })
+                .filter(function nonEmpty(e) { return e.length > 0; })
                 .join(' ');
 
             obj.customer_metadata.resolvers = resolvers;
         }
 
-        if (config.hasOwnProperty(zone + '_admin_ip')
-            || config.hasOwnProperty(zone + '_admin_ips')) {
+        if (config.hasOwnProperty(zone + '_admin_ip') ||
+            config.hasOwnProperty(zone + '_admin_ips')) {
 
             if (!obj.hasOwnProperty('nics')) {
                 obj.nics = [];
@@ -209,14 +213,13 @@ async.series([
 
         if (!obj.hasOwnProperty('nics') || obj.nics.length < 1) {
             console.error('build-payload: obj: ' + JSON.stringify(obj));
-            cb(new Error('obj has no NICs'));
-            return;
+            return cb(new Error('obj has no NICs'));
         } else {
             // make the last nic 'primary'
             obj.nics.slice(-1)[0].primary = true;
         }
 
-        cb();
+        return cb();
     },
     function setRegistrarConfig(cb) {
         // create the registrar config and insert it into metadata.
@@ -229,13 +232,13 @@ async.series([
                 zkServers;
 
             if (!obj.hasOwnProperty('alias'))
-                return cb(new Error("No alias provided for " + zone));
+                return cb(new Error('No alias provided for ' + zone));
 
             if (!config.hasOwnProperty('dns_domain'))
-                return cb(new Error("No dns_domain in config"));
+                return cb(new Error('No dns_domain in config'));
 
             if (!config.hasOwnProperty('binder_resolver_ips'))
-                return cb(new Error("No binder resolver IPs in config"));
+                return cb(new Error('No binder resolver IPs in config'));
 
             // by convention, the service name is the alphabetic part of the
             // alias (i.e., 'moray0' -> 'moray') - this is slightly fragile.
@@ -250,7 +253,7 @@ async.series([
                     return {
                         host : e,
                         port : 2181
-                    }
+                    };
                 });
             regConfig.zookeeper = {};
             regConfig.zookeeper.servers = zkServers;
@@ -259,10 +262,11 @@ async.series([
             if (!obj.hasOwnProperty('customer_metadata'))
                 obj.customer_metadata = {};
 
-            obj.customer_metadata['registrar-config'] = JSON.stringify(regConfig);
+            obj.customer_metadata['registrar-config'] =
+                JSON.stringify(regConfig);
             delete obj.registration; // tidy up
         }
-        cb();
+        return cb();
     },
     function setCustomerMetadata(cb) {
         if (!obj.hasOwnProperty('customer_metadata')) {
@@ -271,11 +275,14 @@ async.series([
         if (process.env.ASSETS_IP) {
             obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
         }
-        obj.customer_metadata['sapi-url'] = 'http://' + config['sapi_admin_ips'];
-        obj.customer_metadata['ufds_ldap_root_dn'] = config['ufds_ldap_root_dn'];
-        obj.customer_metadata['ufds_ldap_root_pw'] = config['ufds_ldap_root_pw'];
+        obj.customer_metadata['sapi-url'] =
+            'http://' + config['sapi_admin_ips'];
+        obj.customer_metadata['ufds_ldap_root_dn'] =
+            config['ufds_ldap_root_dn'];
+        obj.customer_metadata['ufds_ldap_root_pw'] =
+            config['ufds_ldap_root_pw'];
         obj.customer_metadata['ufds_admin_ips'] = config['ufds_admin_ips'];
-        cb();
+        return cb();
     },
     function setUserScript(cb) {
         fs.readFile('/usbkey/default/user-script.common', function (err, data) {
@@ -283,7 +290,7 @@ async.series([
                 return cb(err);
             }
             obj.customer_metadata['user-script'] = data.toString();
-            cb();
+            return cb();
         });
     },
     function setMetadataForSapi(cb) {
@@ -297,12 +304,12 @@ async.series([
 
         // We need the initial usbkey config in the zone so we can pull values
         // for proto-SAPI.
-        fs.readFile('/usbkey/config', function (err, data) {
+        return fs.readFile('/usbkey/config', function (err, data) {
             if (err) {
                 return cb(err);
             }
             obj.customer_metadata['usbkey_config'] = data.toString();
-            cb();
+            return cb();
         });
     }
 ], function (err) {

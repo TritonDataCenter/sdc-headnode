@@ -6,6 +6,7 @@
 #
 
 if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
@@ -23,6 +24,7 @@ if [ "$1" == "-v" ]; then
     verbose=1
 fi
 command=$1
+# BEGIN BASHSTYLED
 if [[ -z "$command" ]]; then
     echo "sdc-ldap -- light wrapper around ldap* commands for this datacenter's LDAP"
     echo ""
@@ -38,6 +40,7 @@ if [[ -z "$command" ]]; then
     exit 0
 fi
 shift;
+# END BASHSTYLED
 
 
 # Determine connection and auth info.
@@ -70,9 +73,10 @@ fi
 # This is necessary for OpenLDAP commands to be able to use ldaps over SSL.
 export LDAPTLS_REQCERT=allow
 
-
+# BEGIN BASHSTYLED
 export ldap_opts="-H ldaps://$UFDS_HOST:$UFDS_PORT -x -D ${ufds_dn} -w ${ufds_pw}"
 export ldap_opts_masked="-H ldaps://$UFDS_HOST:$UFDS_PORT -x -D ${ufds_dn} -w ***"
+# END BASHSTYLED
 
 
 # Run the command.
@@ -81,6 +85,7 @@ case $command in
 # Currently this does LDIF flattening of results as per:
 # <http://richmegginson.livejournal.com/18726.html?view=27430#t27430>
 # Is an option necessary to remove this?
+# BEGIN BASHSTYLED
 search|s)
     [ "$verbose" == "1" ] && echo "# LDAPTLS_REQCERT=allow ldapsearch $ldap_opts_masked -LLL -b o=smartdc $@" >&2
     ldapsearch $ldap_opts -LLL -b o=smartdc "$@" | sed -n '1 {h; $ !d;}; $ {H; g; s/\n //g; p; q;}; /^ / {H; d;}; /^ /! {x; s/\n //g; p;}'
@@ -111,3 +116,4 @@ whoami)
     exit 1
     ;;
 esac
+# END BASHSTYLED

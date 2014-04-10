@@ -55,6 +55,7 @@ if [[ $headnode == "true" ]]; then
 	exec > >(tee -a ${ERRORLOG}) 2>&1
 	exec 4>>${ERRORLOG}
 	BASH_XTRACEFD=4
+	# BASHSTYLED
 	export PS4='+(${BASH_SOURCE}:${LINENO}): ${SECONDS} ${FUNCNAME[0]:+${FUNCNAME[0]
 	}(): }'
 	set -o errexit

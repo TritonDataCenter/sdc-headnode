@@ -101,7 +101,8 @@ filesize=$(ls -l ${filename} | awk '{ print $5 }')
 
 function get_capi_uuid
 {
-    uuid=$(/smartdc/bin/sdc-capi /customers/${capi_user} | /usr/bin/json -H uuid)
+    uuid=$(/smartdc/bin/sdc-capi /customers/${capi_user} \
+           | /usr/bin/json -H uuid)
     if [[ $? != 0 || -z ${uuid} ]]; then
         echo "Unable to find UUID for user '${capi_user}'" >&2
         usage

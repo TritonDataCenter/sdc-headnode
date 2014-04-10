@@ -168,7 +168,8 @@ function printf_log
 set_default_fw_rules() {
     [[ -f /var/fw/.default_rules_setup ]] && return
 
-    local admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network $CONFIG_admin_netmask)
+    local admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network \
+                       $CONFIG_admin_netmask)
     /usr/sbin/fwadm add -f - <<RULES
 {
   "rules": [
@@ -214,13 +215,16 @@ if [ $# == 0 ]; then
 else
     exec 4>>/dev/stdout
     restore=1
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     export BASH_XTRACEFD=2
     set -o xtrace
 fi
 
+# BEGIN BASHSTYLED
 USB_PATH=/mnt/`svcprop -p "joyentfs/usb_mountpoint" svc:/system/filesystem/smartdc:default`
 USB_COPY=`svcprop -p "joyentfs/usb_copy_path" svc:/system/filesystem/smartdc:default`
+# END BASHSTYLED
 
 # Load config variables with CONFIG_ prefix
 . /lib/sdc/config.sh
@@ -429,12 +433,14 @@ function create_zone {
     if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
         # PCFS casing. sigh.
         ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
-        [[ -z ${ds_name} ]] && fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
+        [[ -z ${ds_name} ]] && \
+            fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
         ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name})
         [[ -z ${ds_manifest} ]] && fatal "No manifest found at ${ds_manifest}"
         ds_basename=$(echo "${ds_name}" | sed -e "s/\.zfs\.imgmanifest$//" \
             -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
-        ds_filename=$(ls ${USB_COPY}/datasets/${ds_basename}.zfs+(.bz2|.gz) | head -1)
+        ds_filename=$(ls ${USB_COPY}/datasets/${ds_basename}.zfs+(.bz2|.gz) \
+                      | head -1)
         [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
         ds_uuid=$(json uuid < ${ds_manifest})
         [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
@@ -468,7 +474,8 @@ function create_zone {
     if [[ -x /usbkey/tools/zoneboot.d \
         && ${CONFIG_dtrace_zone_setup} == "true" ]]; then
 
-        /usbkey/tools/zoneboot.d ${new_uuid} >/var/log/${new_uuid}.setup.json 2>&1 &
+        /usbkey/tools/zoneboot.d ${new_uuid} \
+            >/var/log/${new_uuid}.setup.json 2>&1 &
         dtrace_pid=$!
     fi
 
@@ -484,6 +491,7 @@ function create_zone {
             export ONE_NODE_WRITE_MODE="true"
         fi
 
+        # BASHSTYLED
         UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
 
         # don't pollute things for everybody else
@@ -493,7 +501,8 @@ function create_zone {
         fi
     else
         echo "Deploy zone ${zone} (payload via build-payload.js)"
-        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} > ${payload_file}
+        ${USB_COPY}/scripts/build-payload.js ${zone} ${new_uuid} \
+        > ${payload_file}
     fi
 
     cat ${payload_file} | vmadm create
@@ -530,6 +539,7 @@ function create_zone {
         if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
             printf_log "timeout\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+            # BASHSTYLED
             fatal "Failed to create ${zone}: setup timed out after ${delta_t} seconds."
         elif [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
             printf_timer "%4s (%ss)\n" "done"
@@ -537,14 +547,17 @@ function create_zone {
         elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
             printf_log "failed\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+            # BASHSTYLED
             fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
         elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
             printf_log "svcs-fail\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+            # BASHSTYLED
             fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
         else
             printf_log "timeout\n"
             [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+            # BASHSTYLED
             fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
         fi
     fi
@@ -619,7 +632,8 @@ if [[ -z ${skip_zones} ]]; then
     # and uuid to build.spec's datasets.
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
-            imgadm install -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
+            imgadm install -f \
+                "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
                 -m /usbkey/datasets/${name}.dsmanifest
         done
     fi
@@ -711,14 +725,17 @@ function import_smartdc_service_images {
             if [[ "${status}" == "404" ]]; then
                 # The core images all have .zfs.imgmanifest extensions.
 
+                # BASHSTYLED
                 local file_basename=$(echo "${manifest}" | sed -e "s/\.zfs\.imgmanifest$//" \
                     -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
                 local file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
 
                 if [[ -z ${file} ]]; then
+                    # BASHSTYLED
                     fatal "Unable to find file for ${manifest} in: $(ls -l /usbkey/datasets)"
                 fi
 
+                # BASHSTYLED
                 echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
                 [[ -f ${file} ]] || fatal "Image file ${file} not found."
                 # Skip the check that "owner" exists in UFDS during setup
@@ -729,6 +746,7 @@ function import_smartdc_service_images {
                 ok=true
             elif [[ "${status}" == "200" ]]; then
                 # exists
+            # BASHSTYLED
                 echo "Skipping import of SDC service image ${uuid}: already in IMGAPI."
                 ok=true
             else
@@ -785,14 +803,16 @@ if [[ -n ${CREATEDZONES} ]]; then
         fi
 
         if [ $nstarting -gt 1 ]; then
-            printf_log "Warning: services in the following zones are still not running:\n"
+            printf_log \
+            "Warning: services in the following zones are still not running:\n"
             svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u | \
                 tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
         fi
 
         # The SMF services should now be up, so we wait for the setup scripts
         # in each of the created zones to be completed (these run in the
-        # background for all but assets so may not have finished with the services)
+        # background for all but assets so may not have finished with
+        # the services)
         i=0
         nsettingup=$(num_not_setup ${CREATEDUUIDS})
         while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do

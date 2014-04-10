@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-
+# BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 
 USBKEYS=`/usr/bin/disklist -a`
@@ -18,5 +18,3 @@ for key in ${USBKEYS}; do
 done
 
 mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
-
-
