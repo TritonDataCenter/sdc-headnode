@@ -280,9 +280,43 @@ Then back in the GZ:
 
 TODO
 
+## Upgrade zone: Manatee
 
+For a standard upgrade, this is a manual process (for now):
+1. check sdc-manatee-stat to get the current manatee status.
+2. Starting with the async replica, do the following to each:
+    a. disable manatee-sitter
+    b. wait for zone to disappear completely from sdc-manatee-stat
+    c. reprovision with new image
+    d. wait for the zone to reappear in sdc-manatee-stat
+3. repeat for the sync replica
+4. repeat for the primary
 
-## upgrade zone: binder, manatee (MORAY-138)
+After disabling the primary, there will be a very brief period where the stack
+is unavailable as components reconnect. Otherwise there is no downtime.
+
+### MANATEE-133
+
+MANATEE-133 presents a flag day that breaks backwards-compatibility with
+older versions of manatee, and requires a complete restart of manatee. In SDC,
+this would ordinarily prevent provisioning entirely. We get around this by
+upgrading two existing manatees in-place, the reprovisioning the entire cluster
+as above. The procedure for this is:
+
+    ./manatee-v2-upgrade.sh <image_uuid>
+
+In more detail, what goes on is:
+1. disable async, sync replicas
+2. upgrade primary using tarball of new manatee code
+3. disable primary, bring it back up
+4. upgrade sync using tarball
+    (at this point the stack is back up, and we have a minimal writable
+     manatee cluster)
+5. upgrade async using full reprovision
+6. upgrade sync using full reprovision
+7. upgrade primary using full reprovision
+
+## upgrade zone: binder
 
 TODO: this is MORAY-138, talk to matt
 
