@@ -49,12 +49,19 @@ Capture current image versions in case we need to rollback.
 Specify the roles and images that will be upgraded in "upgrade-images" file:
 
     # Either get a list of the latest versions of all roles via
-    #       ./get-latest.sh > upgrade-images
+    #       ./gen-upgrade-images.sh [SERVICES...] | tee upgrade-images
+    #
+    # E.g.: If you just want to upgrade the sdc and amon zones:
+    #
+    ./gen-upgrade-images.sh amon sdc | tee upgrade-images
+
     # or manually create such a list with relevant roles and specific
     # image UUIDs in the format:
+    #
     #       export ${ROLE}_IMAGE=$UUID
     #       ...
-    # e.g.:
+    #
+    # E.g.:
     #       export IMGAPI_IMAGE=99bb26b5-cd93-9447-a1d0-70191d78690b
     #       export VMAPI_IMAGE=f9b40a06-7e87-3b4d-832a-faf38eb34506
     vi upgrade-images
