@@ -97,8 +97,11 @@ function crack_tarball
 
 function swap_code
 {
+    # this can race with config-agent
+    svcadm -z ${manatee_instance} disable config-agent
     zlogin ${manatee_instance} mv /opt/smartdc/manatee /opt/smartdc/manatee-old
     zlogin ${manatee_instance} mv /opt/smartdc/manatee-new /opt/smartdc/manatee
+    svcadm -z ${manatee_instance} enable config-agent
 }
 
 function ensure_correct_config
@@ -187,6 +190,7 @@ echo "!! log file is ${LOG_FILENAME}"
 # mainline
 
 crack_tarball
+disable_config_agent
 swap_code
 ensure_correct_config
 import_smf
