@@ -41,3 +41,4 @@ source $IMAGE_LIST
 [[ -n "$MORAY_IMAGE" ]] && ./download-image.sh $MORAY_IMAGE
 [[ -n "$RABBITMQ_IMAGE" ]] && ./download-image.sh $RABBITMQ_IMAGE
 [[ -n "$PAPI_IMAGE" ]] && ./download-image.sh $PAPI_IMAGE
+[[ -n "$MAHI_IMAGE" ]] && ./download-image.sh $MAHI_IMAGE

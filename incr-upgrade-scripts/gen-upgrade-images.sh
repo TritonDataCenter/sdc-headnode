@@ -80,6 +80,8 @@ for service in $services; do
         image_name=manta-nameservice
     elif [[ $service == "manatee" ]]; then
         image_name=sdc-postgres
+    elif [[ $service == "mahi" ]]; then
+        image_name=manta-authcache
     fi
     #echo "# get latest '$image_name' image for service '$service'" 2>&1
     image_data=$(updates-imgadm list --latest -j version=~master name=$image_name | json -- -1)
