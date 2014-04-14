@@ -5,6 +5,7 @@
     "skip_final_confirm": true,
     "skip_edit_config": true,
     "datacenter_company_name": "Joyent",
+    "region_name": "coal",
     "datacenter_name": "coal",
     "datacenter_location": "My Laptop",
     "datacenter_headnode_id": "<default>",

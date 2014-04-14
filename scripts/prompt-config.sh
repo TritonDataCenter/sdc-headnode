@@ -728,6 +728,9 @@ as help with management of distributed systems.\n\n"
 	promptval "Enter the company name" "$datacenter_company_name" "datacenter_company_name"
 	datacenter_company_name="$val"
 
+	promptval "Enter a region for this datacenter" "$region_name" "region_name"
+	region_name="$val"
+
 	while [ true ]; do
 		key="datacenter_name"
 		promptval "Enter a name for this datacenter" "$datacenter_name" "${key}"
@@ -1005,8 +1008,8 @@ emails to a specific address. Each of these values will be configured below.
 
 	if [[ $(getanswer "skip_final_summary") != "true" ]]; then
 		printf "Company name: $datacenter_company_name\n"
-		printf "Datacenter Name: %s, Location: %s\n" \
-		    "$datacenter_name" "$datacenter_location"
+		printf "Datacenter Region: %s, Name: %s, Location: %s\n" \
+		    "$region_name" "$datacenter_name" "$datacenter_location"
 		printf "Email Admin Address: %s, From: %s\n" \
 		    "$mail_to" "$mail_from"
 		printf "Domain name: %s, Gateway IP address: %s\n" \
@@ -1278,6 +1281,9 @@ echo >>$tmp_config
 echo "sdcsso_root_pw=$zone_admin_pw" >>$tmp_config
 echo "sdcsso_domain=sdcsso.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
+
+echo "# multiple datacenters exist within one region" >>$tmp_config
+echo "region_name=\"$region_name\"" >>$tmp_config
 
 echo "# datacenter_name should be unique in your cloud" >>$tmp_config
 echo "datacenter_name=\"$datacenter_name\"" >>$tmp_config
