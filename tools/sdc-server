@@ -1,6 +1,6 @@
 #!/usr/node/bin/node
 //
-// Copyright (c) 2013 Joyent Inc.
+// Copyright (c) 2014 Joyent Inc.
 //
 // Summary:
 //
@@ -36,6 +36,7 @@ function usage ()
         '    jobs <uuid>                           - list all jobs for this server',
         '    list                                  - list all servers in this DC',
         '    nics <uuid>                           - output the nics for this server',
+        '    admin-ip <uuid>                       - output the admin IP address for this server',
         '    setup [-s] <uuid> [params]            - setup a new server in this DC',
         '    sysinfo <uuid>                        - output the latest `sysinfo` from',
         '                                            the server',
@@ -185,7 +186,7 @@ function outputServerData(data, callback)
                     var start;
 
                     if (job.name.match(/^server-setup/)) {
-			start = new Date(job.created_at).getTime();
+                        start = new Date(job.created_at).getTime();
                         if (start > newest) {
                             setup_state = job.execution;
                             newest = start;
@@ -258,6 +259,55 @@ function outputServerList(callback)
             return;
         }
         outputServerData({servers: servers, nics: nics}, callback);
+    });
+}
+
+function outputAdminIP(server_uuid, callback)
+{
+    var nics;
+    var napi;
+
+    async.series([
+        function (cb) {
+            createClient('NAPI', function (err, handle) {
+                if (!err) {
+                    napi = handle;
+                } else {
+                    err.api = 'NAPI';
+                }
+                cb(err);
+            });
+        }, function (cb) {
+            var listParams = {
+                belongs_to_uuid: server_uuid,
+                nic_tags_provided: ['admin']
+            };
+            napi.listNics(listParams, function (err, n) {
+                if (err) {
+                    err.api = 'NAPI';
+                } else {
+                    nics = n;
+                }
+                cb(err);
+            });
+        }
+    ], function (err) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        if (!nics || nics.length === 0) {
+            callback(new Error('No admin nic found'));
+            return;
+        }
+
+        if (!nics[0].ip) {
+            callback(new Error('No admin IP found'));
+            return;
+        }
+
+        console.log(nics[0].ip);
     });
 }
 
@@ -586,6 +636,16 @@ function dispatchCommand(command, args, callback)
     var server_uuid;
 
     switch (command) {
+        case 'admin-ip':
+            if (args.length !== 1 || !isUUID(args[0])) {
+                usage();
+                callback(new Error('admin-ip requires <uuid> argument'));
+                return;
+            }
+            server_uuid = args[0];
+            outputAdminIP(server_uuid, callback);
+            break;
+
         case 'delete':
             if ((args.length !== 1 && args.length !== 2)
                 || !isUUID(args[args.length - 1])) {
