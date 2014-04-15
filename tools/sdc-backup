@@ -2,6 +2,7 @@
 
 #
 # Copyright (c) 2013, Joyent, Inc. All rights reserved.
+# This backs up the SDC Manatee zone datasets and the USB config.
 #
 
 unset LD_LIBRARY_PATH
@@ -14,10 +15,14 @@ exec 4>/tmp/backuplog.$$
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=${LOGFD}
 set -o xtrace
+set -o pipefail
+set -o errexit
+
+echo "logs at /tmp/backuplog.$$"
 
 usage()
 {
-	printf "usage: $(basename $0) [-d directory | -l | -U device | -s zone]\n" >/dev/stderr
+	printf "usage: $(basename $0) \n" >/dev/stderr
 	exit 1
 }
 
@@ -35,291 +40,7 @@ fatal()
 cleanup()
 {
 	cd /zones
-	rm -rf $dest
-}
-
-# Refresh the backup/restore scripts in the assets zone so compute nodes
-# use up-to-date code.
-refresh_assets()
-{
-	# get mapi owner UUID - this is the "admin" user
-	admin_uuid=$CONFIG_ufds_admin_uuid
-
-	for i in `ls -d /usbkey/zones/*`
-	do
-		zone=${i##*/}
-
-		# This only returns if there's exactly 1, if we want to support
-		# multiple zones with the same role on one VM, this needs to be fixed.
-		uuid=$(vmadm lookup -1 owner_uuid=${admin_uuid} \
-		    tags.smartdc_role=${zone} 2>/dev/null)
-		# Assume that if we have backup, we have restore too.
-		[ ! -e /usbkey/zones/${uuid}/backup ] && continue
-
-		assetdir=/usbkey/extra/$zone
-		mkdir -p $assetdir
-		cp /usbkey/zones/${uuid}/backup \
-		    /usbkey/zones/${uuid}/restore $assetdir
-	done
-}
-
-# Get list of all smartdc role zones on this node.
-get_smartdc_zones()
-{
-	smartdc_zones=""
-
-	# get ufds admin UUID - this is the "admin" user
-	if [[ -z ${CONFIG_ufds_admin_uuid} ]]; then
-		. /lib/sdc/config.sh
-		load_sdc_config
-	fi
-	admin_uuid=${CONFIG_ufds_admin_uuid}
-	if [[ -z ${admin_uuid} ]]; then
-		echo "Failed to get admin_uuid, check your config." >&2
-		exit 1
-	fi
-
-	smartdc_zones=$(for zone in \
-	    $(vmadm lookup owner_uuid=${admin_uuid} tags.smartdc_role=~^[a-z])
-	do
-		values=$(vmadm list -p -o tags.smartdc_role,uuid uuid=${zone})
-		uuid=${values##*:}
-		role=${values%%:*}
-		echo "${uuid},${role}"
-	done)
-
-	echo ${smartdc_zones}
-}
-
-# $1 zone
-# $2 tag
-backup()
-{
-	# Pull over the role's backup script
-	mkdir /tmp/backup.$$
-	curl -k -o /tmp/backup.$$/backup \
-	    -s http://$CONFIG_assets_admin_ip/extra/$2/backup
-
-	# Check if we got an <html> file not found.
-	# That means that this role has no backup script.
-	hd=$(dd if=/tmp/backup.$$/backup bs=1 count=6 2>/dev/null)
-	if [ "$hd" == "<html>" ]; then
-		echo "Skipping zone $2 ($1), stateless"
-		rm -rf /tmp/backup.$$
-		return
-	fi
-
-	echo "Backing up the $2 zone $1"
-
-	chmod +x /tmp/backup.$$/backup
-	/tmp/backup.$$/backup $1 $dest 2>&1
-	res=$?
-	[ $res != 0 ] && fatal "$res backing up $1"
-
-	rm -rf /tmp/backup.$$
-}
-
-# We mount the usb using this function instead of the CLI so we can ensure
-# there is no conflict with our disk (in case it already has a backup on it
-# and we are overwriting it) and so we can mount without foldcase. That is
-# necessary so that the file system names match the GRUB menu entries (which
-# use upper-case characters).
-mount_usb()
-{
-	zfs_disks=`zpool status | nawk '{
-		if ($1 == "pool:") next
-		if ($1 == "state:") next
-		if ($1 == "scan:") next
-		if ($1 == "config:") next
-		if ($1 == "NAME") {
-			skip_next=1
-			next
-		}
-		if ($1 == "errors:") next
-
-		if (skip_next)
-			skip_next=0
-		else
-			print $1
-	}'`
-
-	USBKEYS=`/usr/bin/disklist -a`
-	for key in ${USBKEYS}; do
-		[[ "$key" == "$DISK" ]] && continue
-
-		skip=0
-		for zd in $zfs_disks; do
-			[ "$zd" == "$key" ] && skip=1
-		done
-		[ $skip == 1 ] && continue
-
-		if [[ `/usr/sbin/fstyp /dev/dsk/${key}p1` == 'pcfs' ]]; then
-			mount -F pcfs -o noatime /dev/dsk/${key}p1 /mnt/usbkey
-			if [[ $? == "0" ]]; then
-				if [[ ! -f /mnt/usbkey/.joyliveusb ]]; then
-					umount /mnt/usbkey
-				else
-					echo "mounting USB disk $key"
-					break;
-				fi
-			fi
-		fi
-	done
-
-	mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
-	[ -z "$mounted" ] && fatal "could not mount the USB key"
-}
-
-copy_usb()
-{
-	# check if usb key already mounted
-	mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
-	[ -n "$mounted" ] && fatal "the USB key is currently mounted"
-
-	if [ "$usbdev" == "-" ]; then
-		mount_usb 1>&2
-		echo "copying files" 1>&2
-		(cd /mnt/usbkey; tar cbfE 512 - * .joyliveusb)
-		umount /mnt/usbkey 1>&2
-		rm -f /tmp/exclude.$$
-		echo "done" 1>&2
-		exit 0
-	fi
-
-	# Strip name down to cXtXdX name no matter how it was input
-	# (with raw or block or no path, or with pX or sX or no suffix).
-	bname=${usbdev##*/}
-	bname=${bname%p[0-9]}
-	DISK=${bname%s[0-9]}
-
-	RDISK=/dev/rdsk/${DISK}p0
-	RDISK1=/dev/rdsk/${DISK}p1
-	BDISK=/dev/dsk/${DISK}p0
-	BDISK1=/dev/dsk/${DISK}p1
-
-	[ ! -c "$RDISK" ] && fatal "the device $RDISK does not exist"
-	[ ! -b "$BDISK" ] && fatal "the device $BDISK does not exist"
-
-	# Note: entire disk will be cleared, all data lost and a new image
-	# created.  Confirm unless -F given.
-	if [ $FORCE != 1 ]; then
-		printf \
-		    "Disk %sp0 will relabled, reformatted %s"\
-		    ${DISK} \
-		    "and all data will be lost [y/n] "
-
-		read resp
-		[ "$resp" != "y" ] && exit 0
-	fi
-
-	echo "labeling disk"
-	# First clear label since fdisk -g fails on a labeled disk
-	dd if=/dev/zero of=$RDISK count=2 >/dev/null 2>&1 || \
-	    fatal "unable to clear old label"
-
-	nsect=`fdisk -g $RDISK | nawk '{
-	    if ($1 == "*") next
-		print $1 * $5 * $6
-	}'`
-
-	[[ $nsect -lt 7800000 ]] && fatal "disk must be at least 4GB"
-
-	# fdisk input: 12 (id) is FAT32 Ext., 128 is active
-	printf "12 128 0 0 0 0 0 0 4096 %d\n" $nsect >/tmp/fdisk$$.in
-
-	fdisk -F /tmp/fdisk$$.in $RDISK || fatal "labeling disk"
-
-	rm -f /tmp/fdisk$$.in
-
-	echo "creating PCFS file system"
-	echo "y" | \
-	    mkfs -F pcfs -o B=/usbkey/boot/grub/stage1,fat=32 ${RDISK1} || \
-	    fatal "making PCFS file system"
-	echo "mounting target disk $DISK"
-	mkdir -p /key
-	mount -F pcfs -o noatime ${BDISK1} /key || \
-	   fatal "mounting file system"
-
-	mount_usb
-
-	echo "copying files"
-	(cd /mnt/usbkey; tar cbfE 512 - *) | (cd /key; tar xbf 512 -)
-	[ $? != 0 ] && fatal "copying files"
-	touch /key/.joyliveusb
-
-	umount /key
-	umount /mnt/usbkey
-
-	echo "setting up grub"
-	printf "(hd0) %s\n" $BDISK >/tmp/grub$$.map
-	printf "root (hd0,0)\nsetup (hd0)\n" | grub --device-map=/tmp/grub$$.map
-	[ $? != 0 ] && fatal "installing grub boot blocks"
-	rm -f /tmp/grub$$.map
-
-	echo "done"
-	exit 0
-}
-
-check_disk_master()
-{
-	master=""
-
-	local ftype=`fstyp /dev/dsk/$1 2>/dev/null`
-	[[ "$ftype" != "pcfs" ]] && return
-
-	mount -F pcfs -o foldcase,noatime /dev/dsk/$1 /mnt/usbkey
-	[[ $? != 0 ]] && return
-
-	[[ -f /mnt/usbkey/.joyliveusb ]] && master="(master)"
-	umount /mnt/usbkey
-}
-
-#
-# We include code to support the coal non-usb bootable device.
-# Note that multiple disks can be marked "master" if they are setup that way.
-#
-show_usb()
-{
-	# check if usb key already mounted
-	local mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
-	[ -n "$mounted" ] && fatal "the USB key is currently mounted"
-
-	# If in a VM, handle the simulated coal USB disk.
-	local platform=$(smbios -t1 | nawk '{if ($1 == "Product:") print $2}')
-	if [ "$platform" == "VMware" ]; then
-		local DISKS=`disklist -a`
-		for key in ${DISKS}; do
-			local dname="${key}p1"
-
-			check_disk_master "$dname"
-			[ -n "$master" ] && echo "$dname $master"
-		done
-	fi
-
-	# Now try to get the actual removable disks via rmformat.
-	local DISKS=`rmformat | nawk '{
-		if ( $1 ~ /[0-9]+\./ ) {
-			n = split($4, f, "/")
-			dname = f[n]
-			sub(/p0$/, "p1", dname)
-			skip = 0
-		}
-
-		if ($1 == "Bus:" && $2 != "USB")
-			skip = 1
-		if ($1 == "Device" && $3 != "Removable")
-			skip = 1
-
-		if ($1 == "Access" && ! skip)
-			printf("%s ", dname)
-
-	}'`
-	for dname in ${DISKS}; do
-		check_disk_master "$dname"
-		echo "$dname $master"
-	done
-
-	exit 0
+	rm -rf $destdir
 }
 
 #
@@ -330,123 +51,34 @@ show_usb()
 . /lib/sdc/config.sh
 load_sdc_config
 
-headnode=1
-[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && \
-    headnode=0
+if [[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]]
+then
+	fatal "backup can only be run from the headnode"
+fi
 
-destdir=/zones
-doshow=0
-FORCE=0
-skip_zones=""
 
-while getopts "d:Fls:U:" opt
-do
-	case "$opt" in
-		d)	destdir=$OPTARG;;
-		F)	FORCE=1;;
-		l)	doshow=1;;
-		s)	skip_zones="$OPTARG $skip_zones";;
-		U)	usbdev=$OPTARG;;
-		*)	usage;;
-	esac
-done
+destdir=/zones/backups/$(uuid -v4)
 
-[ $headnode == 0 -a $doshow == 1 ] && \
-    fatal "-l is only valid on the headnode"
-[ $headnode == 0 -a -n "$usbdev" ] && \
-    fatal "-U is only valid on the headnode"
-
-[ $destdir != "/zones" -a -n "$usbdev" ] && usage
-[ $doshow == 1 -a $destdir != "/zones" ] && usage
-[ $doshow == 1 -a -n "$usbdev" ] && usage
-
-[ $doshow == 1 ] && show_usb
-
-[ -n "$usbdev" ] && copy_usb
-
-dest=/zones/tmp_bu.$$
 trap cleanup EXIT
 
-mkdir -p ${dest} || fatal "unable to create backup directory $dest"
-mkdir -p ${dest}/global || \
-    fatal "unable to create backup directory $dest/global"
+mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
 
-#
-# If on the headnode, backup datasets, USB key config and GZ config.
-#
-if [ $headnode == 1 ]; then
-	#
-	# Whenever we backup the headnode, refresh the backup scripts in the
-	# assets zone so compute node backups use up to date code.
-	#
-	refresh_assets
+echo "Backing up Manatee"
+manatee=$(sdc-manatee-stat | json sdc.primary.zoneId)
+/zones/$manatee/root/opt/smartdc/manatee/bin/manatee-backup.sh $destdir/manatee.zfs
 
-	# Make sure config files are up to date
-	sdc-image-sync
+echo "Backup USB Key Config"
+cp /usbkey/config $destdir/usbkey.confg
 
-	cp -pr /usbkey/config* $dest || \
-	    fatal "unable to copy configuration to $dest"
-	[ ! -f "$dest/config" ] && fatal "missing headnode config file"
-
-	do_backup=1
-	for skip in $skip_zones
-	do
-		if [ $skip == "datasets" ]; then
-			do_backup=0
-			break
-		fi
-	done
-	if [ $do_backup == 1 ]; then
-		echo "Backing up datasets"
-		cp -pr /usbkey/datasets $dest || \
-		    fatal "unable to copy datasets to $dest"
-	else
-		echo "Skipping datasets"
-	fi
-
-	# Backup GZ config
-	[ -f /opt/smartdc/agents/etc/smartlogin.cfg ] && \
-	    cp /opt/smartdc/agents/etc/smartlogin.cfg ${dest}/global
-fi
-
-# Now backup any extra zones on this node
-for i in $(get_smartdc_zones); do # we get a tuple of uuid,tag
-	uuid=${i%%,*}
-	tag=${i##*,}
-
-	do_backup=1
-	for skip in $skip_zones
-	do
-		if [ $skip == $tag ]; then
-			do_backup=0
-			break
-		fi
-	done
-
-	echo $tag >>${dest}/zones.lst
-	if [ $do_backup == 1 ]; then
-		backup $uuid $tag
-	else
-		echo "Skipping $tag (${uuid})"
-	fi
-done
-
-if [ $headnode == 1 ]; then
-	# Create a signature we can use in sdc-restore to validate the backup
-	sum -x md5 /usbkey/config | cut -d' ' -f1 >$dest/backup.sum
-	# Save the major version for cross-release restore checking
-	echo "7" >$dest/major.vers
-fi
-
-get_smartdc_zones >$dest/zones.uuids
+#XXX backup local images or just have local images go to manta?
 
 echo "Creating backup file"
-(cd $dest && tar cbfE 512 - *) | gzip >/zones/tmp_bu.$$.tgz || \
-    fatal "writing to file /zones/tmp_bu.$$.tgz"
+(cd $destdir && tar cbfE 512 - *) | gzip >$destdir/backup.tgz || \
+    fatal "writing to file $destdir/backup.tgz"
 
-fname=$destdir/backup-$(date +%Y-%m-%d-%H-%M-%S).tgz
+fname=/zones/backups/backup-$(date +%Y-%m-%d-%H-%M-%S).tgz
 echo "Moving backup file to destination"
-mv /zones/tmp_bu.$$.tgz $fname || fatal "writing to file $fname"
+mv $destdir/backup.tgz $fname || fatal "writing to file $fname"
 
 cleanup
 
