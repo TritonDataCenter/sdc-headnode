@@ -67,7 +67,7 @@ echo "Backing up Manatee"
 manatee=$(sdc-manatee-stat | json sdc.primary.zoneId)
 /zones/$manatee/root/opt/smartdc/manatee/bin/manatee-backup.sh $destdir/manatee.zfs
 
-echo "Backup USB Key Config"
+echo "Backing up USB Key Config"
 cp /usbkey/config $destdir/usbkey.confg
 
 #XXX backup local images or just have local images go to manta?
