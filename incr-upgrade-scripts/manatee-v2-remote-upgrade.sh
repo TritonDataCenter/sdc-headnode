@@ -190,7 +190,6 @@ echo "!! log file is ${LOG_FILENAME}"
 # mainline
 
 crack_tarball
-disable_config_agent
 swap_code
 ensure_correct_config
 import_smf

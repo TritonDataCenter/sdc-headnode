@@ -107,8 +107,8 @@ function wait_for_manatee
             }' mode)
         if [[ ${result} == ${expect} ]]; then
             continue;
-        elif [[ ${count} -gt 60 ]]; then
-            fatal "Timeout (300s) waiting for manatee to reach ${target}"
+        elif [[ ${count} -gt 180 ]]; then
+            fatal "Timeout (15m) waiting for manatee to reach ${target}"
         else
             count=$((${count} + 1))
             sleep 5
