@@ -914,9 +914,6 @@ function cleanup_config
 	amon_admin_ip="$ip_addr"
 
 	allocate_ip_addr
-	dapi_admin_ip="$ip_addr"
-
-	allocate_ip_addr
 	fwapi_admin_ip="$ip_addr"
 
 	allocate_ip_addr
@@ -988,10 +985,6 @@ function cleanup_config
 	imgapi_root_pw=$CONFIG_adminui_root_pw
 	imgapi_admin_ips=$imgapi_admin_ip
 	imgapi_domain=imgapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
-
-	dapi_root_pw=$CONFIG_adminui_root_pw
-	dapi_admin_ips=$dapi_admin_ip
-	dapi_domain=dapi.${CONFIG_datacenter_name}.${CONFIG_dns_domain}
 
 	vmapi_root_pw=$CONFIG_adminui_root_pw
 	vmapi_admin_ips=$vmapi_admin_ip
@@ -1148,7 +1141,6 @@ function cleanup_config
 	ca_pkg=${GENERIC_ca_pkg}
 	cloudapi_pkg=${GENERIC_cloudapi_pkg}
 	cnapi_pkg=${GENERIC_cnapi_pkg}
-	dapi_pkg=${GENERIC_dapi_pkg}
 	dhcpd_pkg=${GENERIC_dhcpd_pkg}
 	imgapi_pkg=${GENERIC_imgapi_pkg}
 	manatee_pkg=${GENERIC_manatee_pkg}

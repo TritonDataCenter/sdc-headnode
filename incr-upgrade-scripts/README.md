@@ -220,7 +220,7 @@ rollback support):
 
 
 
-## upgrade zone: amon, sdc, napi, dapi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui, sdcsso
+## upgrade zone: amon, sdc, napi, fwapi, papi, cloudapi, ca, vmapi, cnapi, adminui, sdcsso
 
     ./upgrade-all.sh upgrade-images 2>&1 | tee all-other-zones-$(date +%s).log
 
@@ -467,7 +467,7 @@ or simply
         # in the moray zone. See JPC-1302 for some more usage ideas.
 
 - Should we `dc-maint-{start,end}.sh` for provision pipeline upgrades?
-  I.e. for napi, dapi, imgapi, fwapi, papi, vmapi, cnapi.
+  I.e. for napi, imgapi, fwapi, papi, vmapi, cnapi.
 
 - We need an LB in front of cloudapi to maint-window it.
 
