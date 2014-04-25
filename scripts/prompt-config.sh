@@ -1130,10 +1130,6 @@ amon_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
-dapi_admin_ip="$ip_addr"
-
-next_addr=$(($next_addr + 1))
-num_to_ip $next_addr
 fwapi_admin_ip="$ip_addr"
 fwapi_client_url="http://${fwapi_admin_ip}:80"
 
@@ -1236,11 +1232,6 @@ echo >>$tmp_config
 echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
 echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
 echo "cnapi_domain=cnapi.${datacenter_name}.${dns_domain}" >>$tmp_config
-echo >>$tmp_config
-
-echo "dapi_root_pw=$zone_admin_pw" >>$tmp_config
-echo "dapi_admin_ips=$dapi_admin_ip" >>$tmp_config
-echo "dapi_domain=dapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config

@@ -18,7 +18,7 @@ fi
 IMAGE_LIST=$1
 source ${IMAGE_LIST}
 
-ROLES="cnapi dapi vmapi workflow"
+ROLES="cnapi vmapi workflow"
 
 function get_git_sha
 {

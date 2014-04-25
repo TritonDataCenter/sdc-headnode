@@ -24,7 +24,6 @@
   "ca-image": "ca/ca-zfs-.*manifest",
   "cloudapi-image": "cloudapi/cloudapi-zfs-.*manifest",
   "cnapi-image": "cnapi/cnapi-zfs-.*manifest",
-  "dapi-image": "dapi/dapi-zfs-.*manifest",
   "dhcpd-image": "dhcpd/dhcpd-zfs-.*manifest",
   "fwapi-image": "fwapi/fwapi-zfs-.*manifest",
   "imgapi-image": "imgapi/imgapi-zfs-.*manifest",

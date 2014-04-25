@@ -25,9 +25,6 @@ VMAPI_URL="http://${CONFIG_vmapi_domain}"
 # NAPI!
 NAPI_URL="http://${CONFIG_napi_domain}"
 
-# DAPI!
-DAPI_URL="http://${CONFIG_dapi_domain}"
-
 # FWAPI!
 FWAPI_URL="http://${CONFIG_fwapi_domain}"
 

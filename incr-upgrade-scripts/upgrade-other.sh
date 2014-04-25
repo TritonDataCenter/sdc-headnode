@@ -154,16 +154,6 @@ if false; then
     vmadm update $moray_zone_uuid max_physical_memory=8192
     vmadm update $moray_zone_uuid max_locked_memory=8192
     vmadm update $moray_zone_uuid max_swap=16384
-    # dapi 512
-    sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
-    dapi_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=dapi | json -H 0.uuid)
-    sapiadm update $dapi_svc params.max_physical_memory=512
-    sapiadm update $dapi_svc params.max_locked_memory=512
-    sapiadm update $dapi_svc params.max_swap=1024
-    dapi_zone_uuid=$(vmadm lookup -1 state=running alias=dapi0)
-    vmadm update $dapi_zone_uuid max_physical_memory=512
-    vmadm update $dapi_zone_uuid max_locked_memory=512
-    vmadm update $dapi_zone_uuid max_swap=1024
     # napi 1024
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
     napi_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=napi | json -H 0.uuid)

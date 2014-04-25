@@ -36,7 +36,6 @@ source $IMAGE_LIST
 [[ -n "$USAGEAPI_IMAGE" ]] && ./download-image.sh $USAGEAPI_IMAGE
 [[ -n "$VMAPI_IMAGE" ]] && ./download-image.sh $VMAPI_IMAGE
 [[ -n "$WORKFLOW_IMAGE" ]] && ./download-image.sh $WORKFLOW_IMAGE
-[[ -n "$DAPI_IMAGE" ]] && ./download-image.sh $DAPI_IMAGE
 [[ -n "$SDCSSO_IMAGE" ]] && ./download-image.sh $SDCSSO_IMAGE
 [[ -n "$MORAY_IMAGE" ]] && ./download-image.sh $MORAY_IMAGE
 [[ -n "$RABBITMQ_IMAGE" ]] && ./download-image.sh $RABBITMQ_IMAGE
