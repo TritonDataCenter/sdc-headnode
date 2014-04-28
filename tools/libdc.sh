@@ -60,16 +60,6 @@ napi()
     return 0
 }
 
-dapi()
-{
-    path=$1
-    shift
-    (curl ${CURL_OPTS} --url "${DAPI_URL}${path}" \
-        "$@") || return $?
-    echo ""  # sometimes the result is not terminated with a newline
-    return 0
-}
-
 fwapi()
 {
     path=$1
