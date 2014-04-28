@@ -41,7 +41,6 @@ repo_url_from_service=$(cat <<EOM
   "ufds": "git@git.joyent.com:ufds.git",
   "workflow": "git@git.joyent.com:workflow.git",
   "vmapi": "git@git.joyent.com:vmapi.git",
-  "dapi": "git@git.joyent.com:dapi.git",
   "papi": "git@git.joyent.com:papi.git",
   "imgapi": "git@git.joyent.com:imgapi.git",
   "sdc": "git@git.joyent.com:sdc.git",
