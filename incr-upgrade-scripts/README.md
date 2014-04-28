@@ -437,6 +437,28 @@ or simply
 
 
 
+## To remove the DAPI zone and service:
+
+The independent DAPI zone has been replaced by a copy of DAPI living inside
+CNAPI as a library. First check that we have a copy of CNAPI supporting
+/allocate:
+
+    [root@headnode (coal) ~]# sdc-cnapi --no-headers /allocate -X POST | json message
+    Request parameters failed validation
+
+Then check we have a provision workflow with a VERSION at least 7.0.32:
+
+    [root@headnode (coal) ~]# UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+    [root@headnode (coal) ~]# VMAPI=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~vmapi)
+    [root@headnode (coal) ~]# grep 'var VERSION' /zones/$VMAPI/root/opt/smartdc/vmapi/lib/workflows/provision.js
+    var VERSION = '7.0.32';
+
+If both conditions are met, then:
+
+    ./delete-dapi.sh
+
+
+
 ## To make a changelog:
 
     ./get-changes.sh upgrade-images.sh > changelog.sh
