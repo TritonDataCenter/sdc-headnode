@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2012, Joyent, Inc. All rights reserved.
+# Copyright (c) 2014, Joyent, Inc. All rights reserved.
 #
 # Exit codes:
 #
@@ -385,6 +385,7 @@ CREATEDUUIDS=
 create_latest_link
 
 
+# TODO(trent): lots of time spent on these on reboot
 # Update /usbkey/datasets/ manifests usage of the all-zero's owner UUID
 # placeholder, to the actual admin UUID for this DC.
 for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
@@ -606,7 +607,7 @@ function sdc_init_application
 
 function bootstrap_sapi
 {
-    if setup_state_not_seen "sapi_bootstrap"; then
+    if setup_state_not_seen "sapi_bootstrapped"; then
         echo "Bootstrapping SAPI into SAPI"
         local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
         zlogin ${sapi_uuid} /usr/bin/bash <<HERE
@@ -625,15 +626,16 @@ HERE
     fi
 }
 
-if [[ -z ${skip_zones} ]]; then
 
+if setup_state_not_seen "sdczones_created"; then
     # If the zone image is incremental, you'll need to manually setup the import
     # here for the origin dataset for now. The way to do this is add the name
     # and uuid to build.spec's datasets.
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
             imgadm install -f \
-                "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
+                "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
+                    | head -1)" \
                 -m /usbkey/datasets/${name}.dsmanifest
         done
     fi
@@ -670,9 +672,10 @@ if [[ -z ${skip_zones} ]]; then
     create_zone ca
     create_zone mahi
     create_zone adminui
+
+    setup_state_add "sdczones_created"
 fi
 
-setup_state_add "sdczones_created"
 
 # copy sdc-manatee tools to GZ - see MANATEE-86
 echo "==> Copying manatee tools to GZ."
@@ -701,7 +704,8 @@ function import_smartdc_service_images {
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
             /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-                -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} | head -1)" \
+                -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
+                    | head -1)" \
                 -m /usbkey/datasets/${name}.dsmanifest
         done
     fi
@@ -760,10 +764,14 @@ function import_smartdc_service_images {
 }
 
 
+# 'import_smartdc_service_images' setup state was added after some still-
+# supported headnodes were setup, therefore guard on 'setup_complete' as well.
 if setup_state_not_seen "import_smartdc_service_images"; then
+if setup_state_not_seen "setup_complete"; then
     # Import bootstrapped core images into IMGAPI.
     import_smartdc_service_images
     setup_state_add "import_smartdc_service_images"
+fi
 fi
 
 
@@ -893,9 +901,11 @@ if [[ $upgrading == 1 ]]; then
     # Note: It is 'upgrade_hooks.sh's responsibility to do
     # the equivalent of 'setup_state_mark_complete' when it is done.
 else
-    setup_state_mark_complete
-    rm -f /tmp/.ur-startup
-    svcadm restart ur
+    if setup_state_not_seen "setup_complete"; then
+        setup_state_mark_complete
+        rm -f /tmp/.ur-startup
+        svcadm restart ur
+    fi
 fi
 
 exit 0
