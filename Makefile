@@ -22,6 +22,7 @@ JSSTYLE_FILES = $(JS_FILES)
 
 JSL_CONF_NODE = buildtools/jsl.node.conf
 JSSTYLE_FLAGS = -o indent=4,doxygen,unparenthesized-return=0
+BASHSTYLE := buildtools/bashstyle
 
 
 #

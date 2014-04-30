@@ -70,9 +70,6 @@
 #				(default: "--with-dtrace" on SmartOS; empty
 #				otherwise.)
 #
-#	NPM_FLAGS		extra flags to pass to npm invocations
-#				(default: empty)
-#
 
 TOP ?= $(error You must include Makefile.defs before this makefile)
 
@@ -96,4 +93,4 @@ NPM_EXEC	= $(NODE_INSTALL)/bin/npm
 # from a dir other than the project top.
 NODE		:= $(TOP)/$(NODE_EXEC)
 NODE_WAF	:= $(TOP)/$(NODE_WAF_EXEC)
-NPM		:= PATH=$(TOP)/$(NODE_INSTALL)/bin:$(PATH) $(TOP)/$(NPM_EXEC) $(NPM_FLAGS)
+NPM		:= PATH=$(TOP)/$(NODE_INSTALL)/bin:$(PATH) node $(TOP)/$(NPM_EXEC)

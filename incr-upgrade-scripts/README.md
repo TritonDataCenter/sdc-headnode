@@ -150,7 +150,7 @@ The DC can be put in "maintenance mode": cloudapi in readonly mode, wait
 for workflow to clear finish its current queue of jobs. This is recommended
 for upgrades of the following: rabbitmq, ufds.
 
-    ./dc-maint-start.sh
+    ./dc-maint-start.sh 2>&1 | tee dc-main-start-$(date +%s).log
 
 
 
@@ -433,7 +433,7 @@ or simply
 
 ## Remove the DC from maint mode
 
-    ./dc-maint-end.sh
+    ./dc-maint-end.sh 2>&1 | tee dc-main-end-$(date +%s).log
 
 
 
