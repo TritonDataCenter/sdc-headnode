@@ -114,6 +114,8 @@ like SAPI service definition tweaks):
 
     ./upgrade-other.sh 2>&1 | tee other-$(date +%s).log
 
+This script *can* block and prompt for information.
+
 
 
 ## add new zone: amonredis, sdc, papi

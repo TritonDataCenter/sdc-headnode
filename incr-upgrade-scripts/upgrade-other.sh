@@ -195,3 +195,47 @@ if false; then
     vmadm update $dhcpd_zone_uuid max_locked_memory=256
     vmadm update $dhcpd_zone_uuid max_swap=512
 fi
+
+# -- HEAD-1958/HEAD-1961 region_name
+
+grep region_name /usbkey/config >/dev/null 2>&1
+if [ $? != 0 ]; then
+    # Prompt for the region_name
+    echo "A region name for this datacenter is required for upgrade."
+    while [ -z "$region_name" ]; do
+        echo -n "Enter region name: "
+        read region_name
+
+        echo -n "Is ${region_name} correct [y/N]? "
+        read region_correct
+        if [ "$region_correct" != "y" ]; then
+            unset region_name
+        fi
+    done
+
+    # Update the usbkey
+    /usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+    if [ $? != 0 ]; then
+        echo "Error: unable to mount the USB stick"
+        exit 1
+    fi
+
+    cp /mnt/usbkey/config /tmp/config.$$
+    echo "region_name=$region_name" >> /tmp/config.$$
+    cp /tmp/config.$$ /mnt/usbkey/config
+
+    # Update the usbkey cache
+    cp -p /mnt/usbkey/config /usbkey/config
+
+    umount /mnt/usbkey
+
+    # Update SAPI
+    sapi_sdc_uuid=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
+    if [ -z "$sapi_sdc_uuid" ]; then
+        fatal "Unable to fetch the sapi application uuid."
+    fi
+    sapiadm update $sapi_sdc_uuid metadata.region_name=$region_name
+    if [ $? != 0 ]; then
+        fatal "Unable to update the sapi sdc application with $region_name."
+    fi
+fi
