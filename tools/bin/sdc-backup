@@ -21,74 +21,339 @@ set -o errexit
 
 echo "logs at /tmp/backuplog.$$"
 
-usage()
+# readonly destdir=/zones/backups/$(uuid -v4)
+
+readonly backup_key=/tmp/usbkey-backup
+liveimage=
+
+readonly dc_name=$(sysinfo | json '["Datacenter Name"]')
+readonly timestamp=$(date -u "+%Y%m%dT%H%M%SZ")
+readonly tmpdir=/tmp/backups.$$/
+readonly destdir=/zones/backups/
+
+readonly usb=${dc_name}-backup-usb-${timestamp}.img.tgz
+readonly manatee=${dc_name}-backup-manatee-${timestamp}.gz
+readonly imgs=${dc_name}-backup-local-iamges-${timestamp}.tar
+
+readonly tmp_usb=${tmpdir}/${usb}
+readonly tmp_manatee=${tmpdir}/${manatee}
+readonly tmp_imgs=${tmpdir}/${imgs}
+
+readonly dest_usb=${destdir}/${usb}
+readonly dest_manatee=${destdir}/${manatee}
+readonly dest_imgs=${destdir}/${imgs}
+
+CLEANED=0
+
+
+
+
+function usage
 {
-	# BASHSTYLED
-	printf "usage: $(basename $0) \n" >/dev/stderr
-	exit 1
+    # BASHSTYLED
+    printf "usage: $(basename $0) \n" >/dev/stderr
+    exit 1
 }
 
-warn()
+function warn
 {
-	printf "Warning: %s\n" "$1" >/dev/stderr
+    printf "Warning: %s\n" "$1" >/dev/stderr
 }
 
-fatal()
+function fatal
 {
-	printf "Error: %s\n" "$1" >/dev/stderr
-	exit 1
+    printf "Error: %s\n" "$1" >/dev/stderr
+    exit 1
 }
 
-cleanup()
+function cleanup
 {
-	cd /zones
-	rm -rf $destdir
+    if [[ ${CLEANED} -eq 0 ]]; then
+        rm -rf ${tmpdir}
+        CLEANED=1
+    fi
+}
+
+function mount_image
+{
+    pfexec mkdir -p ${backup_key}
+    LOOPBACK=$(pfexec lofiadm -a ${IMG_TMP_DIR}/$$.${IMG})
+    pfexec mount -f pcfs -o foldcase ${LOOPBACK}:c ${backup_key}
+}
+
+function umount_image
+{
+    if [[ -n ${LOOPBACK} ]]; then
+        pfexec umount ${backup_key} || /usr/bin/true
+        pfexec lofiadm -d ${LOOPBACK}
+    fi
+    sync; sync
+    LOOPBACK=
+}
+
+function copy_platform
+{
+    echo -n "Copying in current platform..."
+    liveimage=$(sysinfo | json '["Live Image"]')
+    if [[ -d /usbkey/os/${liveimage} ]]; then
+        cp -r /usbkey/os/${liveimage} \
+            ${backup_key}/os/${liveimage}
+    else
+        fatal "Can't find ${liveimage} in /usbkey/os"
+    fi
+    echo "Done"
+}
+
+function copy_image
+{
+    local image_uuid=$1
+    local destdir=$2
+    local is_origin=$3
+    local origin_uuid=
+    local manifest=
+    local name=
+    local file=
+    local compression=
+
+
+    manifest=${tmpdir}/${image_uuid}.imgmanifest
+
+    sdc-imgadm get ${image_uuid} > ${manifest}
+
+    compression=$(json -f ${manifest} manifest.files[0].compression)
+    case ${compression} in
+        gzip) compression=".gz" ;;
+        bzip2) compression=".bz2" ;;
+        none) compression="" ;;
+        *) fatal "Unknown compression for image ${manifest}: ${compression}"
+    esac
+
+    name=$(json -f ${manifest} manifest.name)-zfs-\
+$(json -f ${manifest} manifest.version)
+
+    # XXX - do we already have that one? stop now.
+    if [[ -f ${destdir}/${name}.zfs${compression} ]]; then
+        echo "Skipping ${name} - already present"
+    else
+        echo "Writing ${name} to backup-usbkey"
+
+        cp ${manifest} ${destdir}/${name}.imgmanifest
+        imgadm get-file -o ${destdir}/${name}.zfs${compression}
+
+        if [[ -n ${is_origin} ]]; then
+            echo ${name} >> ${destdir}/img_dependencies
+        fi
+
+        origin_uuid=$(json -f ${manifest} origin)
+        if [[ -n ${origin_uuid} ]]; then
+            copy_image ${origin_uuid} "yes"
+        fi
+    fi
+}
+
+# XXX - don't forget origins
+function copy_images
+{
+    echo -n "Copying current zone images..."
+    local core_zones=
+    local destdir=
+    local image_uuid=
+
+    core_zones=$(vmadm lookup tags.smartdc_type=core state=running)
+    destdir=${backup_key}/datasets
+    mkdir -p ${destdir}
+
+    # actual zones
+    for zone in ${core_zones}; do
+        image_uuid=$(vmadm get ${zone} | json image_uuid)
+        copy_image ${image_uuid} ${destdir}
+    done
+    echo "Done."
+}
+
+function backup_payloads
+{
+    local core_zones=
+    local destdir=
+    local name=
+
+    echo -n "Backing up zone creation payloads..."
+
+    core_zones=$(vmadm lookup tags.smartdc_type=core state=running)
+
+    destdir=${tmpdir}/payloads
+    mkdir -p ${destdir}
+
+    # XXX - only `vmadm get` atm.
+    for zone in ${core_zones}; do
+        vmadm get ${zone} > ${destdir}/${zone}.json
+        process_payload ${destdir}/${zone}.json
+    done
+
+    mkdir -p ${backup_key}/payloads
+    tar zcf ${backup_key}/payloads/payloads.tgz -C ${destdir} *.json
+
+    echo "Done."
+}
+
+function add_manifests
+{
+    echo -n "Creating usbkey manifests..."
+    # build manifest of USB files + move in boot_archive manifest
+    rm -f ${backup_key}/usb_key.manifest || true
+    (cd ${backup_key} \
+        && find . -type f -exec openssl dgst -md5 {} \; | awk '{print $NF}') \
+        > ${backup_key}/usb_key.manifest
+
+    rm -f ${backup_key}/boot_archive.manifest || true
+
+    # BASHSTYLED
+    cp ${backup_key}/os/${liveimage}/platform/i86pc/amd64/boot_archive.manifest \
+        ${backup_key}/boot_archive.manifest
+
+    chmod 444 ${backup_key}/*.manifest
+    echo "Done."
+}
+
+function backup_usbkey
+{
+    local top_level=
+
+    echo "Creating restoration usbkey..."
+    mount_image
+    /usbkey/scripts/mount-usb.sh
+    local src=/mnt/usbkey
+
+    # current top-level contents of usbkey, and inclusion in backup
+    # application.json       n - in SAPI (or grab from SAPI)
+    # banner                 y
+    # boot                   n - use template image
+    # boot_archive.manifest  n - modify?
+    # config                 y
+    # config.inc             y
+    # datasets               n - get current ones from IMGAPI
+    # default                y
+    # devtools               y
+    # dos                    y
+    # eula                   y
+    # firmware               y
+    # manifests              n - SAPI information
+    # os                     y? update platform? is/should this be current?
+    # private                y
+    # scripts                y
+    # sdcadm-install.sh      y
+    # services               n - SAPI information
+    # tools                  y
+    # tools-man              y
+    # tools-modules.tar      y
+    # ur-scripts             y
+    # usb_key.manifest       n - regenerate
+    # version                y - modify?
+    # zones                  ?? - maybe? might need dataset updates? depends
+    #                             on how we structure the restoration.
+
+    top_level=$(ls -1 ${src}) \
+        | grep -v application.json \
+        | grep -v boot_archive.manifest \
+        | grep -v datasets \
+        | grep -v manifests \
+        | grep -v os \
+        | grep -v services \
+        | grep -v usb_key.manifest
+
+    for item in ${top_level}; do
+        cp -r ${src}/${item} ${backup_key}/${item}
+    done
+
+    copy_platform
+    copy_images
+    add_manifests
+
+    umount_image
+    umount /mnt/usbkey
+    echo "Done."
+}
+
+# XXX - first: how could this work? primary isn't necessarily on HN?
+#       second: sdc-oneachnode, then get.
+function backup_manatee
+{
+    echo -n "Backing up Manatee..."
+    local uuid=$(sdc-manatee-stat | json sdc.primary.zoneId)
+    /zones/${uuid}/root/opt/smartdc/manatee/bin/manatee-backup.sh \
+        ${tmpdir}/manatee.zfs
+    gzip -c ${tmpdir}/manatee.zfs > ${tmp_manatee}
+    echo "Done."
+}
+
+function backup_local_images
+{
+    echo -n "Backing up local images..."
+    local image_list=
+    local destdir=${tmpdir}/local_images
+
+    mkdir -p ${destdir}
+
+    image_list=$(imgadm list -o uuid)
+    for image in image_list; do
+        copy_image ${destdir}
+    done
+
+    # extraneous file created for backup-usbkey
+    rm ${destdir}/img_dependencies
+
+    # tar it all up.
+    tar cf ${tmp_imgs} -C ${destdir} .
+    echo "Done."
+}
+
+function process_payload
+{
+    local orig=$0
+    local tmp0=${orig}.tmp0
+    local tmp1=${orig}.tmp1
+    touch ${tmp0}
+    touch ${tmp1}
+
+    # XXX - what needs doing TBD
+    # json -f ${orig}
+
+    rm *.tmp{0,1}
+}
+
+function wrap_up
+{
+    mkdir -p ${destdir}
+    mv ${tmp_usb} ${dest_usb}
+    mv ${tmp_manatee} ${dest_manatee}
+    mv ${tmp_imgs} ${dest_images}
+    echo "Backup complete:"
+    echo "  backup usbkey image: ${dest_usb}"
+    echo "       manatee backup: ${dest_manatee}"
+    echo "   local image backup: ${dest_imgs}"
+    echo "Copy or move these files to the backup medium"
 }
 
 #
-# Main body
+# Mainline
 #
 
-# Load config variables with CONFIG_ prefix
-. /lib/sdc/config.sh
-load_sdc_config
-
-if [[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]]
+if [[ $(sysinfo | json '["Boot Parameters"].headnode') != "true" ]]
 then
-	fatal "backup can only be run from the headnode"
+    fatal "backup can only be run from the headnode"
 fi
 
 
-destdir=/zones/backups/$(uuid -v4)
 
 trap cleanup EXIT
 
 mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
 
-echo "Backing up Manatee"
-manatee=$(sdc-manatee-stat | json sdc.primary.zoneId)
-# BASHSTYLED
-/zones/$manatee/root/opt/smartdc/manatee/bin/manatee-backup.sh $destdir/manatee.zfs
-
-echo "Backing up USB Key Config"
-cp /usbkey/config $destdir/usbkey.confg
-
-#XXX backup local images or just have local images go to manta?
-
-echo "Creating backup file"
-(cd $destdir && tar cbfE 512 - *) | gzip >$destdir/backup.tgz || \
-    fatal "writing to file $destdir/backup.tgz"
-
-fname=/zones/backups/backup-$(date +%Y-%m-%d-%H-%M-%S).tgz
-echo "Moving backup file to destination"
-mv $destdir/backup.tgz $fname || fatal "writing to file $fname"
+backup_usbkey
+backup_manatee
+backup_local_images
+wrap_up
 
 cleanup
-
-sz=`ls -lh $fname | nawk '{print $5}'`
-echo "The backup file (size $sz) is $fname"
-
-[ "$destdir" == "/zones" ] && \
-    echo "Copy or move this file to your backup medium."
 
 exit 0
