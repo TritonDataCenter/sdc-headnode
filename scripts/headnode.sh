@@ -625,10 +625,11 @@ if setup_state_not_seen "sdczones_created"; then
     # and uuid to build.spec's datasets.
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
-            imgadm install -f \
-                "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
-                    | head -1)" \
-                -m /usbkey/datasets/${name}.dsmanifest
+            imgadm install \
+                -f $(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
+                    | head -1) \
+                -m $(ls -1 /usbkey/datasets/${name}.{imgmanifest,dsmanifest} \
+                     2>/dev/null | head -1)
         done
     fi
 
@@ -695,9 +696,10 @@ function import_smartdc_service_images {
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
             /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-                -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
-                    | head -1)" \
-                -m /usbkey/datasets/${name}.dsmanifest
+                -f $(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
+                    | head -1) \
+                -m $(ls -1 /usbkey/datasets/${name}.{imgmanifest,dsmanifest} \
+                     2>/dev/null | head -1)
         done
     fi
 
