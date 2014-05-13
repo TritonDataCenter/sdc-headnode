@@ -198,8 +198,8 @@ fi
 
 # -- HEAD-1958/HEAD-1961 region_name
 
-grep region_name /usbkey/config >/dev/null 2>&1
-if [ $? != 0 ]; then
+grep region_name /usbkey/config >/dev/null 2>&1 && rc=$? || rc=$?
+if [ $rc != 0 ]; then
     # Prompt for the region_name
     echo "A region name for this datacenter is required for upgrade."
     while [ -z "$region_name" ]; do
