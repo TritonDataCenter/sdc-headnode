@@ -96,6 +96,11 @@ if [[ $CONFIG_ufds_is_master != "true" ]]; then
 	exit 1
 fi
 
+if [[ -z "$CONFIG_region_name" ]]; then
+	echo "Error: config doesn't have region_name"
+	exit 1
+fi
+
 if [[ -n "$CONFIG_ufds_remote_ip" ]]; then
 	echo "Error: already converted"
 	exit 1
@@ -206,6 +211,15 @@ bash /var/tmp/cleanup.ufds
 # Now delete the admin user entry itself
 sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
 
+# We also need to remove any of the region information from the new slave since
+# that will get replicated from the master.
+zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-find-dns \
+    \"region=${CONFIG_region_name}, o=smartdc\"" | while read l; do
+    sdc-ldap delete "${l}"
+done
+
+sdc-ldap delete "region=${CONFIG_region_name}, o=smartdc"
+
 echo "Setting up UFDS replicator"
 jpath=/zones/$ufds_uuid/root/opt/smartdc/ufds/etc/replicator.json
 rm -f $jpath
@@ -283,6 +297,27 @@ echo "Re-loading local amon probe data"
 # now that the admin user is replicated, import the amonprobe and
 # amonprobegroup data we have from our backup
 sdc-ldap add -f /var/tmp/restore.ldif
+
+# We have to wait until the region data is migrated over
+loops=0
+nregion=0
+while [ $loops -lt 90 ]; do
+    nregion=`sdc-ldap search -b "o=smartdc" "objectclass=region" dn \
+        2>/dev/null | wc -l`
+    [ $nregion -ne 0 ] && break
+    get_replicator_status $ufds_uuid
+    [[ -z "$changelog_num" ]] && changelog_num=0
+    pct=$((($changelog_num * 100) / $totcl))
+    echo "Waiting for the region entries to be replicated ($pct%)..."
+    sleep 60
+    loops=$((${loops} + 1))
+done
+
+[ $loops -eq 90 ] && \
+    echo "region is still not replicated, continuing but" \
+        "errors are likely"
+
+zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-reconcile-data"
 
 echo "Updating config files"
 
