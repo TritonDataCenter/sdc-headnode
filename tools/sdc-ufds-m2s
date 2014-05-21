@@ -211,14 +211,17 @@ bash /var/tmp/cleanup.ufds
 # Now delete the admin user entry itself
 sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
 
-# We also need to remove any of the region information from the new slave since
-# that will get replicated from the master.
+# Remove any of the region information from the new slave since that will get
+# replicated from the master.
 zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-find-dns \
     \"region=${CONFIG_region_name}, o=smartdc\"" | while read l; do
     sdc-ldap delete "${l}"
 done
 
 sdc-ldap delete "region=${CONFIG_region_name}, o=smartdc"
+
+# Finally, remove the local version.  The master's version is what counts.
+sdc-ldap delete "cn=version, o=smartdc"
 
 echo "Setting up UFDS replicator"
 jpath=/zones/$ufds_uuid/root/opt/smartdc/ufds/etc/replicator.json
