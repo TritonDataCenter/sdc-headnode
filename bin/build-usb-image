@@ -184,7 +184,7 @@ function copy_to_mount
 {
     if [[ $TAR_BUILD_IS_DIRECTORY == 1 ]]; then
         (cd $TAR_BUILD_FILENAME \
-            && tar -c . | tar -C $MNT_DIR -xovf -) \
+            && ${TAR} -c .[a-zA-Z]* * | ${TAR} -C $MNT_DIR -xovf -) \
             || fatal "Unable to copy files to mount"
     else
         (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner \

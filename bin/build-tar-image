@@ -1061,7 +1061,7 @@ function copy_to_mount
 {
     echo "${THIS_BUILDSTAMP}" > ${STAGE}/version
 
-    (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - ./) \
+    (cd ${STAGE} && ${TAR} ${TAR_ROOT} -cf - * .[a-zA-Z]*) \
         | (cd ${MNT_DIR} && ${SUCMD} ${TAR} --no-same-owner -xvf -) \
         || fatal "Unable to copy files to mount"
 }
