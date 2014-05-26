@@ -23,6 +23,7 @@ echo "logs at /tmp/backuplog.$$"
 
 # readonly destdir=/zones/backups/$(uuid -v4)
 
+readonly min_version=joyent_20140507T234920Z
 readonly backup_key=/tmp/usbkey-backup
 liveimage=
 
@@ -74,6 +75,18 @@ function cleanup
     fi
 }
 
+# mainline functions
+
+# XXX - need to encode actual checks here.
+function preflight
+{
+    local version=$(uname -v)
+    if [[ ${version} < ${min_version} ]]; then
+        fatal "Cannot back up, doesn't meet minimum required version."
+    fi
+}
+
+
 function mount_image
 {
     pfexec mkdir -p ${backup_key}
@@ -118,6 +131,8 @@ function copy_image
 
     manifest=${tmpdir}/${image_uuid}.imgmanifest
 
+    # XXX could fail if image has been deleted; zfs send & compress here.
+    # or possibly always send & compress?
     sdc-imgadm get ${image_uuid} > ${manifest}
 
     compression=$(json -f ${manifest} manifest.files[0].compression)
@@ -151,7 +166,6 @@ $(json -f ${manifest} manifest.version)
     fi
 }
 
-# XXX - don't forget origins
 function copy_images
 {
     echo -n "Copying current zone images..."
@@ -343,11 +357,11 @@ then
     fatal "backup can only be run from the headnode"
 fi
 
-
+mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
 
 trap cleanup EXIT
 
-mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
+preflight
 
 backup_usbkey
 backup_manatee
