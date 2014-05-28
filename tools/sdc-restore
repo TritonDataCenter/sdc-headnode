@@ -327,8 +327,8 @@ recreate_extra_zones()
     url="$url?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active"
 
     curl -i -sS --url "$url" | json -H \
-        -e 'role=(tags.smartdc_role || "-")' \
-        -e 'ztype=(tags.smartdc_type || "-")' \
+        -e 'this.role=(this.tags.smartdc_role || "-")' \
+        -e 'this.ztype=(this.tags.smartdc_type || "-")' \
         -a role server_uuid ztype uuid | \
         while read role srv_uuid ztype z
         do

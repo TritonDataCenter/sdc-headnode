@@ -41,8 +41,8 @@ network_list()
     printf "%-12s %36s  %4s %16s %16s\n" \
         $(napi /networks \
             | json -H \
-            -e 'gateway = (this.hasOwnProperty("gateway") ? gateway : "-")' \
-            -e 'vlan_id = (this.hasOwnProperty("vlan_id") ? vlan_id : "-")' \
+            -e 'this.gateway = (this.hasOwnProperty("gateway") ? this.gateway : "-")' \
+            -e 'this.vlan_id = (this.hasOwnProperty("vlan_id") ? this.vlan_id : "-")' \
             -a name uuid vlan_id subnet gateway)
 }
 
