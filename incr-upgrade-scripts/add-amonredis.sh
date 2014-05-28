@@ -23,12 +23,12 @@ if [[ -z "$IMAGE_UUID" ]]; then
 fi
 
 json -f ./sapi/amonredis/amonredis_svc.json \
-    | json -e "application_uuid=\"$SDCAPP\"" \
-    | json -e "params.image_uuid=\"$IMAGE_UUID\"" \
-    | json -e "metadata[\"sapi-url\"]=\"$SAPIURL\"" \
-    | json -e "metadata[\"assets-ip\"]=\"$ASSETSIP\"" \
-    | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
-    | json -e "metadata[\"SERVICE_DOMAIN\"]=\"amonredis.${DOMAIN}\"" \
+    | json -e "this.application_uuid=\"$SDCAPP\"" \
+    | json -e "this.params.image_uuid=\"$IMAGE_UUID\"" \
+    | json -e "this.metadata[\"sapi-url\"]=\"$SAPIURL\"" \
+    | json -e "this.metadata[\"assets-ip\"]=\"$ASSETSIP\"" \
+    | json -e "this.metadata[\"user-script\"]=$USERSCRIPT" \
+    | json -e "this.metadata[\"SERVICE_DOMAIN\"]=\"amonredis.${DOMAIN}\"" \
     > ./amonredis-service.json
 SERVICE_UUID=$(sdc-sapi /services -X POST -d@./amonredis-service.json | json -H uuid)
 

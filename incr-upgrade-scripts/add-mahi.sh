@@ -49,7 +49,7 @@ else
   if [[ ! -e /var/tmp/$MANIFEST_TMP ]]; then
     echo "Fetching image manifest"
     updates-imgadm get "$NEW_IMAGE" > "$MANIFEST_TMP"
-    json -f $MANIFEST_TMP -e "owner=\"$ADMIN_UUID\"" > $MANIFEST
+    json -f $MANIFEST_TMP -e "this.owner=\"$ADMIN_UUID\"" > $MANIFEST
   else
     echo "Image Manifest already downloaded, moving into next step"
   fi
@@ -77,10 +77,10 @@ if [[ -n "$SERVICE_UUID" ]]; then
 else
 
   json -f ./sapi/$role/"${role}"_svc.json \
-    | json -e "application_uuid=\"$SDC_APP_UUID\"" \
-    | json -e "metadata.SERVICE_DOMAIN=\"mahi.${DOMAIN}\"" \
-    | json -e "params.image_uuid=\"$NEW_IMAGE\"" \
-    | json -e "metadata[\"user-script\"]=$USERSCRIPT" \
+    | json -e "this.application_uuid=\"$SDC_APP_UUID\"" \
+    | json -e "this.metadata.SERVICE_DOMAIN=\"mahi.${DOMAIN}\"" \
+    | json -e "this.params.image_uuid=\"$NEW_IMAGE\"" \
+    | json -e "this.metadata[\"user-script\"]=$USERSCRIPT" \
     >./"${role}"-service.json
 
   echo "Service $role does not exist. Attempting to create it"

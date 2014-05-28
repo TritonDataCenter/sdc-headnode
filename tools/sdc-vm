@@ -64,7 +64,7 @@ vm_list()
     # with uuid's dashes changed to underscore to meet bash's variable
     # name requirements.
     host_mappings=$(cnapi /servers \
-        | json -H -e 'uuid=uuid.replace(/\-/g, "_");' -a uuid hostname \
+        | json -H -e 'this.uuid=this.uuid.replace(/\-/g, "_");' -a uuid hostname \
         | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
     if [[ -n ${host_mappings} ]]; then
        eval ${host_mappings}
@@ -72,7 +72,7 @@ vm_list()
 
     for zone in $(vmapi /vms?state=active \
 	    | json -H \
-        -e 'alias=(alias || "-")' \
+        -e 'this.alias=(this.alias || "-")' \
         -a alias brand state uuid ram server_uuid \
         | tr ' ' ',' | sort); do
 

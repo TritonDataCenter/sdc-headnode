@@ -27,8 +27,8 @@ fi
 
 vmadm_filter="nics.*.nic_tag=admin nics.*.vlan_id=0"
 for line in $(vmadm lookup -j ${vmadm_filter} | json -e '
-    this.admin_nic = this.nics[0].nic_tag == "admin" ?  nics[0].mac :
-        ((this.nics[1] && this.nics[1].nic_tag == "admin") ? nics[1].mac :
+    this.admin_nic = this.nics[0].nic_tag == "admin" ? this.nics[0].mac :
+        ((this.nics[1] && this.nics[1].nic_tag == "admin") ? this.nics[1].mac :
         "-");' -a uuid admin_nic brand -d '='); do
     fields=(${line//=/ })
     uuid=${fields[0]}
