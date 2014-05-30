@@ -93,18 +93,9 @@ Getting the latest agentsshar:
     mget -O /Joyent_Dev/stor/builds/agentsshar/$latest/agentsshar/$pkg
     scp $pkg us-beta-4:/var/tmp
 
-First the 6.5 agents. Download the latest "agentsshar-upgrade" build
-from <https://bits.joyent.us/builds/agentsshar-upgrade/master-latest/agentsshar-upgrade/>
-then move it to a file named "agents65.sh" (as required by the upgrade script).
-
-    /usbkey/scripts/update_agents agents65.sh
-
-The SDC7 agents. Download the latest "agentsshar" build
-from <https://bits.joyent.us/builds/agentsshar/master-latest/agentsshar/>.
+Upgrade the SDC7 agents.
 
     /usbkey/scripts/update_agents agents-master-DATE-gSHA.sh
-
-
 
 
 ## other upgrades
