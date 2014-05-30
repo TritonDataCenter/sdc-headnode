@@ -38,6 +38,7 @@ source $IMAGE_LIST
 [[ -n "$WORKFLOW_IMAGE" ]] && ./download-image.sh $WORKFLOW_IMAGE
 [[ -n "$SDCSSO_IMAGE" ]] && ./download-image.sh $SDCSSO_IMAGE
 [[ -n "$MORAY_IMAGE" ]] && ./download-image.sh $MORAY_IMAGE
+[[ -n "$MANATEE_IMAGE" ]] && ./download-image.sh $MANATEE_IMAGE
 [[ -n "$RABBITMQ_IMAGE" ]] && ./download-image.sh $RABBITMQ_IMAGE
 [[ -n "$PAPI_IMAGE" ]] && ./download-image.sh $PAPI_IMAGE
 [[ -n "$MAHI_IMAGE" ]] && ./download-image.sh $MAHI_IMAGE
