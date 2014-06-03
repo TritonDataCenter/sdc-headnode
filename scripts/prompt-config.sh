@@ -573,7 +573,7 @@ printheader()
 
 	clear
 	printf " %-40s\n" "Smart Data Center (SDC) Setup"
-	printf " %-40s%38s\n" "$subheader" "http://wiki.joyent.com/sdcinstall"
+	printf " %-40s%38s\n" "$subheader" "http://docs.joyent.com/sdc7"
 	for i in {1..80} ; do printf "-" ; done && printf "$newline"
 }
 
@@ -678,16 +678,27 @@ stty erase ^H
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2013, Joyent, Inc."
+printheader "Copyright 2014, Joyent, Inc."
 
 message="
-You must answer the following questions to configure the headnode.
-You will have a chance to review and correct your answers, as well as a
-chance to edit the final configuration, before it is applied.
+Before proceeding with the installation of SDC please familiarise yourself with
+the architecture and components of SDC by reviewing the SDC 7 Overview:
 
-At the prompts, if you type ^C you will be placed into a shell. When you
-exit the shell the configuration process will resume from where it was
-interrupted.
+http://docs.joyent.com/sdc7/overview-of-smartdatacenter-7.
+
+Please also read through the installation instructions:
+
+http://docs.joyent.com/sdc7/installing-sdc7
+
+paying particular attention to the "Preparation" section and the networking
+requirements.
+
+You must answer the following questions to configure the head node. You will
+have a chance to review and correct your answers, as well as a chance to edit
+the final configuration, before it is applied.
+
+At the prompts, if you type ^C you will be placed into a shell. When you exit
+the shell the configuration process will resume from where it was interrupted.
 
 Press [enter] to continue"
 
