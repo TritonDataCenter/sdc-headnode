@@ -34,7 +34,7 @@ function manatee_stat
     # manatee-stat exists in different places depending on the manatee version
     local m_stat=
     if [[ -f /zones/${manatee_instance}/root/opt/smartdc/manatee/bin/manatee-stat ]]; then
-        m_stat="/opt/smartdc/manatee/bin/manatee-stat"
+        m_stat="/opt/smartdc/manatee/bin/manatee-stat -p \$ZK_IPS"
     elif [[ -f /zones/${manatee_instance}/root/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat ]]; then
         m_stat="/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat -p \$ZK_IPS"
     else
