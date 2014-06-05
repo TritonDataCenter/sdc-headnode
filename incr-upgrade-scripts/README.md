@@ -133,8 +133,8 @@ scripts are not depending on this being up to date.
     # This packages.ldif dump should be stored somewhere for backup.
     sdc-ldap s '(objectclass=sdcpackage)' > packages.ldif
 
-    sdc-ufds search objectclass=sdcpackage dn | json -ga dn \
-        | while read dn; do sdc-ufds delete "$dn"; done
+    sdc sdc-ufds search objectclass=sdcpackage dn | json -ga dn \
+        | while read dn; do sdc sdc-ufds delete "$dn"; done
 
 
 ## put the DC in maint mode (optional)

@@ -64,7 +64,7 @@ fi
 
 # -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
 #    application is the current manatee primary IP
-MANATEE_PRIMARY_IP=$(sdc-login manatee 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
+MANATEE_PRIMARY_IP=$(sdc-login manatee0 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
 manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
 if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
     fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
@@ -79,7 +79,7 @@ fi
 # -- Do the UFDS upgrade.
 
 # Backup data.
-sdc-login manatee "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
+sdc-login manatee0 "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
 
 # We need moray details both, for backfill and to check ufds bucket version:
 
@@ -106,7 +106,7 @@ function update_ufds_sql_schema {
       echo "Upgrading ufds_o_smartdc bucket."
       while read SQL
       do
-        sdc-login manatee \
+        sdc-login manatee0 \
           "psql -U moray -h $MANATEE_PRIMARY_IP -d moray -c \"${SQL}\""
       done < ./capi-305.sql
       echo "ufds_o_smartdc schema upgraded."
