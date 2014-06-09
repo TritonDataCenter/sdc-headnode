@@ -1041,7 +1041,7 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 	# Support for "ntp_host" (singular) in the answers file is for
 	# backward compat. Using the plural "ntp_hosts" is now preferred.
 	prompt_hosts_ok_val \
-	    "Enter an NTP server IP address or hostname" "$ntp_hosts" \
+	    "Enter NTP server IP address(es) or hostname(s)" "$ntp_hosts" \
 	    "ntp_hosts" "ntp_host"
 	ntp_hosts="$val"
 
