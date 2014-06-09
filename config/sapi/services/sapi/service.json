@@ -10,7 +10,8 @@
         "tags": {
             "smartdc_role": "sapi",
             "smartdc_type": "core"
-        }
+        },
+        "delegate_dataset": true
     },
     "metadata": {
         "SERVICE_NAME": "sapi"

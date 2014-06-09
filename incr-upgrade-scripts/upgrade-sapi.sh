@@ -50,20 +50,61 @@ fi
 
 SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 [[ -n "$SDC_APP" ]] || fatal "could not determine 'sdc' SAPI app"
-SAPI_SVC=$(sdc-sapi /services?name=sapi\&application_uuid=$SDC_APP | json -H 0.uuid)
+SAPI_JSON=$(sdc-sapi /services?name=sapi\&application_uuid=$SDC_APP | json -Ha)
+[[ -n "$SAPI_JSON" ]] || fatal "could not fetch sdc 'sapi' SAPI service"
+SAPI_SVC=$(echo "$SAPI_JSON" | json uuid)
 [[ -n "$SAPI_SVC" ]] || fatal "could not determine sdc 'sapi' SAPI service"
 SAPI_DOMAIN=$(bash /lib/sdc/config.sh -json | json sapi_domain)
 [[ -n "$SAPI_DOMAIN" ]] || fatal "no 'sapi_domain' in sdc config"
-
 
 CUR_MODE=$(sdc-sapi --no-headers /mode)
 [[ "$CUR_MODE" == "full" ]] \
     || fatal "SAPI is not in 'full' mode ($CUR_MODE). Cannot upgrade this."
 
 
+# -- Get sapi past SAPI-219 (adding a delegate dataset)
+HAS_DATASET=$(echo "$SAPI_JSON" | json params.delegate_dataset)
+if [[ "$HAS_DATASET" != "true" ]]; then
+    echo '{ "params": { "delegate_dataset": true } }' | \
+        sapiadm update "$SAPI_SVC"
+    [[ $? == 0 ]] || fatal "Unable to set delegate_dataset on sapi service."
+
+    # -- Verify it got there
+    SAPI_JSON=$(sdc-sapi /services?name=sapi\&application_uuid=$SDC_APP | \
+        json -Ha)
+    [[ -n "$SAPI_JSON" ]] || fatal "could not fetch sdc 'sapi' SAPI service"
+    HAS_DATASET=$(echo "$SAPI_JSON" | json params.delegate_dataset)
+    [[ "$HAS_DATASET" == "true" ]] || \
+        fatal "sapiadm updated the sapi service but it didn't take"
+fi
+
+# -- Add a delegated dataset to current sapi, if needed (more SAPI-219).
+DATASET="zones/$CUR_UUID/data"
+VMAPI_DATASET=$(sdc-vmapi /vms/$CUR_UUID | json -Ha datasets.0)
+if [[ "$DATASET" != "$VMAPI_DATASET" ]]; then
+    zfs list "$DATASET" && rc=$? || rc=$?
+    if [[ $rc != 0 ]]; then
+        zfs create $DATASET
+        [[ $? == 0 ]] || fatal "Unable to create sapi zfs dataset"
+    fi
+
+    zfs set zoned=on $DATASET
+    [[ $? == 0 ]] || fatal "Unable to set zoned=on on sapi dataset"
+
+    zonecfg -z $CUR_UUID "add dataset; set name=${DATASET}; end"
+    [[ $? == 0 ]] || fatal "Unable to set dataset on sapi zone"
+
+    VMADM_DATASET=$(vmadm get $CUR_UUID | json datasets.0)
+    [[ "$DATASET" == "$VMADM_DATASET" ]] || \
+        fatal "Set dataset on sapi zone, but getting did not work"
+
+    # The reprovision will mount it on restart.
+fi
+
 
 # -- Get the new image.
 ./download-image.sh ${SAPI_IMAGE}
+[[ $? == 0 ]] || fatal "Unable to download/install sapi image $SAPI_IMAGE"
 
 
 # -- Provision a new upgraded zone.
