@@ -22,7 +22,7 @@ EUNKNOWN=3
 mail_to="root@localhost"
 # Temporarily use IPs until HEAD-1417 allows hostname usage.
 #ntp_hosts="ntp01.joyent.com,ntp02.joyent.com"
-ntp_hosts="132.246.11.228"
+ntp_hosts="206.253.165.93,173.255.118.107,205.233.73.201,199.199.208.25,107.170.242.27"
 dns_resolver1="8.8.8.8"
 dns_resolver2="8.8.4.4"
 
@@ -340,6 +340,58 @@ prompt_host_ok_val()
 			else
 				printf "OK\n"
 			fi
+			trap sig_doshell SIGINT
+			break
+		else
+			echo "A value must be provided."
+		fi
+	done
+}
+
+function prompt_hosts_ok_val()
+{
+	val=""
+	local prompt="$1"
+	shift
+	local def="$1"
+	shift
+	local keys="$*"
+
+	local key=
+	for key in ${keys}; do
+		if [[ -n ${key} ]]; then
+			val=$(getanswer "${key}")
+			if [[ ${val} == "<default>" && -n ${def} ]]; then
+				val=${def}
+			fi
+			if [[ -n "${val}" ]]; then
+				break
+			fi
+		fi
+	done
+
+	while [ -z "$val" ]; do
+		if [ -n "$def" ]; then
+			prmpt_str="${prompt} [$def]: "
+		else
+			prmpt_str="${prompt}: "
+		fi
+		printf "$prmpt_str"
+		read val
+		[ -z "$val" ] && val="$def"
+		if [ -n "$val" ]; then
+			trap "" SIGINT
+			val=$(echo "$val" | sed -e 's/ *//g') # clean space
+			local host
+			for host in $(echo "$val" | sed -e 's/,/ /g'); do
+				printf "Checking ${host} connectivity..."
+				ping $host >/dev/null 2>&1
+				if [ $? != 0 ]; then
+					printf "UNREACHABLE\n"
+				else
+					printf "OK\n"
+				fi
+			done
 			trap sig_doshell SIGINT
 			break
 		else
@@ -986,15 +1038,21 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 		printf "$message"
 	fi
 
-	prompt_host_ok_val \
-	    "Enter an NTP server IP address or hostname" "$ntp_hosts" "ntp_host"
+	# Support for "ntp_host" (singular) in the answers file is for
+	# backward compat. Using the plural "ntp_hosts" is now preferred.
+	prompt_hosts_ok_val \
+	    "Enter an NTP server IP address or hostname" "$ntp_hosts" \
+	    "ntp_hosts" "ntp_host"
 	ntp_hosts="$val"
 
-skip_ntp=$(getanswer "skip_ntp_check")
-if [[ -z ${skip_ntp} || ${skip_ntp} != "true" ]]; then
-		ntpdate -b $ntp_hosts >/dev/null 2>&1
-		[ $? != 0 ] && print_warning "NTP failure setting date and time"
-fi
+	skip_ntp=$(getanswer "skip_ntp_check")
+	if [[ -z ${skip_ntp} || ${skip_ntp} != "true" ]]; then
+		for ntp_host in $(echo "$val" | sed -e 's/,/ /g'); do
+			ntpdate -q $ntp_host >/dev/null 2>&1
+			[ $? != 0 ] && print_warning \
+				"Failure querying NTP host '$ntp_host'"
+		done
+	fi
 
 	printheader "Account Information"
 	message="
