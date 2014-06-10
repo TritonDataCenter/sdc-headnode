@@ -37,6 +37,8 @@ function manatee_stat
         m_stat="/opt/smartdc/manatee/bin/manatee-stat -p \$ZK_IPS"
     elif [[ -f /zones/${manatee_instance}/root/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat ]]; then
         m_stat="/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat -p \$ZK_IPS"
+    elif [[ -f /zones/${manatee_instance}/root/opt/smartdc/manatee/node_modules/.bin/manatee-stat ]]; then
+        m_stat="/opt/smartdc/manatee/node_modules/.bin/manatee-stat -p \$ZK_IPS"
     else
         fatal "Can't find manatee-stat."
     fi
@@ -77,7 +79,7 @@ function wait_for_manatee
         if [[ ${result} == ${expect} ]]; then
             continue;
         elif [[ ${count} -gt 24 ]]; then
-            fatal "Timeout (120s) waiting for manatee to reach ${target}"
+            fatal "Timeout (120s) waiting for manatee to reach ${expect}"
         else
             count=$((${count} + 1))
             sleep 5
@@ -121,6 +123,18 @@ function ensure_correct_config
             sleep 5
         fi
     done
+}
+
+# postgres.sdc.conf has a @@SHARED_BUFFERS@@ variable that requires replacement
+function ensure_postgres_conf
+{
+    cp /zones/${manatee_instance}/root/opt/smartdc/manatee/etc/postgresql.sdc.conf \
+       /zones/${manatee_instance}/root/opt/smartdc/manatee/etc/postgresql.sdc.conf.in
+
+    local shared_buffers="$(( $(zlogin ${manatee_instance} prtconf -m) / 4 ))MB"
+    sed -e "s#@@SHARED_BUFFERS@@#$shared_buffers#g" \
+       /zones/${manatee_instance}/root/opt/smartdc/manatee/etc/postgresql.sdc.conf.in \
+       > /zones/${manatee_instance}/root/opt/smartdc/manatee/etc/postgresql.sdc.conf
 }
 
 function import_smf
@@ -192,6 +206,7 @@ echo "!! log file is ${LOG_FILENAME}"
 crack_tarball
 swap_code
 ensure_correct_config
+ensure_postgres_conf
 import_smf
 touch_sync_state
 node_version

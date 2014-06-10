@@ -60,6 +60,8 @@ function manatee_stat
         m_stat="/opt/smartdc/manatee/bin/manatee-stat -p \$ZK_IPS"
     elif [[ -f /zones/${local_manatee}/root/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat ]]; then
         m_stat="/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat -p \$ZK_IPS"
+    elif [[ -f /zones/${local_manatee}/root/opt/smartdc/manatee/node_modules/.bin/manatee-stat ]]; then
+        m_stat="/opt/smartdc/manatee/node_modules/.bin/manatee-stat -p \$ZK_IPS"
     else
         fatal "Can't find manatee-stat."
     fi
