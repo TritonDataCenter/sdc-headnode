@@ -7,6 +7,7 @@
   },
   "maintain_resolvers": true,
   "zfs_storage_pool_name": "zones",
+  "delegate_dataset": true,
   "registration": {
     "domain": "sapi",
     "type":  "rr_host",
