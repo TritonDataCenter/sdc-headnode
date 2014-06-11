@@ -14,7 +14,7 @@
     "metadata": {
         "SERVICE_NAME": "workflow",
         "WORKFLOW_NUM_FORKS": 16,
-        "WORKFLOW_RUN_INTERVAL": 250
+        "WORKFLOW_RUN_INTERVAL": 1000
     },
     "manifests": {
     }
