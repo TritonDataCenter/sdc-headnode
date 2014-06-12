@@ -1121,7 +1121,7 @@ emails to a specific address. Each of these values will be configured below.
 		fi
 		printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
 		    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
-		printf "NTP server: $ntp_hosts\n"
+		printf "NTP servers: $ntp_hosts\n"
 		echo
 	fi
 
