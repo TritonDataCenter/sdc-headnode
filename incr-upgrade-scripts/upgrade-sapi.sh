@@ -160,7 +160,7 @@ echo '{}' | json -e "this.image_uuid = '${SAPI_IMAGE}'" |
     vmadm reprovision ${CUR_UUID}
 wait_until_zone_in_dns $CUR_UUID $CUR_ALIAS $SAPI_DOMAIN $CUR_IP
 
-vmadm delete $NEW_UUID
+curl http://$CUR_IP/instances/$NEW_UUID -X DELETE
 wait_until_zone_out_of_dns $NEW_UUID $NEW_ALIAS $SAPI_DOMAIN $NEW_IP
 
 # Because we shuffle back to sapi0 we don't need to update to 'sapiadm'
