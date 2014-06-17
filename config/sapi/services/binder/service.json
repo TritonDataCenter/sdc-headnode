@@ -10,6 +10,7 @@
             "smartdc_role": "binder",
             "smartdc_type": "core"
         },
+        "delegate_dataset": true,
         "resolvers": [],
         "internal_metadata": {
             "set_resolvers": false
