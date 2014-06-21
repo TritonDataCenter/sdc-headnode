@@ -12,7 +12,13 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "manta"
+        "SERVICE_NAME": "manta",
+        "MANTAMON_ALERT": [
+            { "contact": "email", "last": true }
+        ],
+        "MANTAMON_INFO": [
+            { "contact": "email", "last": true }
+        ]
     },
     "manifests": {
     }
