@@ -21,8 +21,9 @@
 /recipe.*
 /*.tar.bz2
 /answers.json
-/tools-man/man1/*.roff
+/tools.tar.gz
 /build
+/proto
 /docs/*.html
 /docs/*.json
 boot_archive.manifest

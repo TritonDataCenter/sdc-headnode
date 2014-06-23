@@ -315,16 +315,10 @@ if [[ -f /usbkey/banner && ! -x /opt/smartdc/agents/bin/apm ]]; then
     echo "" >&${CONSOLE_FD}
 fi
 
-# HEAD-1371 is tool setup going to have to come after SAPI/config?
+# Install GZ tools from tarball
 if [[ ! -d /opt/smartdc/bin ]]; then
-    mkdir -p /opt/smartdc/bin
-    cp /usbkey/tools/* /opt/smartdc/bin
-    chmod 755 /opt/smartdc/bin/*
-    mkdir -p /opt/smartdc/man
-    cp -R /usbkey/tools-man/* /opt/smartdc/man/
-    find /opt/smartdc/man/ -type f -exec chmod 444 {} \;
-    mkdir -p /opt/smartdc/node_modules
-    (cd /opt/smartdc/node_modules && tar -xf /usbkey/tools-modules.tar)
+    mkdir -p /opt/smartdc &&
+    /usr/bin/tar xzof /usbkey/tools.tar.gz -C /opt/smartdc
 fi
 
 if [[ ! -d /opt/smartdc/sdcadm ]]; then
@@ -571,6 +565,13 @@ function create_zone {
         /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
             4>/var/upgrade_headnode/finish_${zone}.log
         printf_timer "%4s (%ss)\n" "done"
+    fi
+
+    if [[ ${zone} == "sdc" ]]; then
+        # (Re)create the /opt/smartdc/sdc symlink into the sdc zone:
+        rm -f /opt/smartdc/sdc || true
+        mkdir -p /opt/smartdc &&
+        ln -s /zones/${new_uuid}/root/opt/smartdc/sdc /opt/smartdc/sdc
     fi
 
     # Success, set created_${zone}=1 in case there are other things we want

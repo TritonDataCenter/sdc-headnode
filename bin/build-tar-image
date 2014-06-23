@@ -1032,29 +1032,10 @@ function copy_zones
 
 function copy_tools
 {
-    if [[ -d ${ROOT}/tools ]]; then
-        cp -r ${ROOT}/tools ${STAGE}/tools
+    if [[ ! -f ${ROOT}/tools.tar.gz ]]; then
+        fatal "could not find tools.tar.gz; did 'make tools.tar.gz' run?"
     fi
-
-    if [[ -d ${ROOT}/tools-modules ]]; then
-        (cd ${ROOT}/tools-modules && ${TAR} -cf ${STAGE}/tools-modules.tar ./)
-    fi
-
-    if [[ -x ${RONNJS} ]]; then
-        for file in $(find ${ROOT}/tools-man/ -name "*.ronn"); do
-            ${RONNJS} --roff --build ${file} --date `git log -1 \
-                --date=short --pretty=format:'%cd' ${file}` `date +%Y`
-        done
-    else
-        fatal "unable to build man pages, missing: ${RONNJS}"
-    fi
-
-    mkdir -p ${STAGE}/tools-man
-    for file in $(cd ${ROOT}/tools-man && find . -type f -name "*.roff"); do
-        mkdir -p ${STAGE}/tools-man/$(dirname ${file})
-        cp ${ROOT}/tools-man/${file} \
-        ${STAGE}/tools-man/$(dirname ${file})/$(basename ${file} .roff)
-    done
+    cp ${ROOT}/tools.tar.gz ${STAGE}/tools.tar.gz
 }
 
 function copy_to_mount

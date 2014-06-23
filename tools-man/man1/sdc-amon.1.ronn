@@ -1,6 +1,0 @@
-# sdc-amon(1) -- call the Amon Master API for this datacenter
-
-
-## SEE ALSO
-
-`sdc-amon` has been moved to the 'sdc' zone. Run `sdc man sdc-amon`.

@@ -32,24 +32,18 @@ function fatal
 
 # Guard on having an 'sdc' zone. If the HN doesn't have one, then the new
 # tools will all be broken.
-$(vmadm lookup -1 state=running tags.smartdc_role=sdc >/dev/null 2>&1) \
-    || fatal "this SDC headnode does not have an 'sdc' zone, cannot upgrade to the latest tools"
+sdc_zone_uuid=$(vmadm lookup -1 state=running tags.smartdc_role=sdc)
+if [[ -z ${sdc_zone_uuid} ]]; then
+    fatal "this SDC headnode does not have an 'sdc' zone, cannot upgrade" \
+      "to the latest tools"
+fi
 
-for tool in $(ls -1 ./tools); do
-    new=./tools/$tool
-    old=/opt/smartdc/bin/$tool
-    if [[ ! -f $old || -n "$(diff $old $new || true)" ]]; then
-        echo ""
-        echo "# upgrade tool '$old'"
-        [[ -f $old ]] && diff -u $old $new || true
-        if [[ "$tool" == "sdc-imgadm" ]]; then
-            # In older SDC7, sdc-imgadm was a symlink. Remove the target
-            # to be sure we get the actual source file type.
-            rm -f $old
-        fi
-        cp -rP $new $old
-    fi
-done
+# Ensure the /opt/smartdc/sdc symlink exists, and points to the 'sdc' zone
+rm -rf /opt/smartdc/sdc
+ln -s /zones/${sdc_zone_uuid}/root/opt/smartdc/sdc /opt/smartdc/sdc
+
+# Upgrade tools from the bundled tools tarball
+/usr/bin/tar xzof tools.tar.gz -C /opt/smartdc
 
 [[ ! -d "./scripts" ]] && fatal "there is no './scripts' dir from which to upgrade!"
 
@@ -67,6 +61,12 @@ cp -Rp /usbkey/scripts pre-upgrade.scripts.$(date +%s)
 rm -rf /mnt/usbkey/scripts /usbkey/scripts
 cp -Rp scripts /mnt/usbkey/scripts
 cp -Rp scripts /usbkey/scripts
+
+if [[ -f /usbkey/tools.tar.gz ]]; then
+    cp /usbkey/tools.tar.gz pre-upgrade.tools.$(date +%s).tar.gz
+fi
+cp tools.tar.gz /usbkey/tools.tar.gz
+cp tools.tar.gz /mnt/usbkey/tools.tar.gz
 
 cp default/* /mnt/usbkey/default
 cp default/* /usbkey/default
