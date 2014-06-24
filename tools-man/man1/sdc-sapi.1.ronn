@@ -1,7 +1,0 @@
-# sdc-sapi(1) -- call the Services API (SAPI)
-
-
-## SEE ALSO
-
-`sdc-sapi` has been moved to the 'sdc' zone. Run `man sdc-sapi` there.
-(You can login to the sdc zone via `sdc`.)

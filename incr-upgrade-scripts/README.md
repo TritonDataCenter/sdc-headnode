@@ -78,7 +78,8 @@ then you cannot run this step until you've added it.
 
     cp -r /usbkey/default ./olddefault
     cp -r /usbkey/scripts ./oldscripts
-    cp -rP /opt/smartdc/bin ./oldtools
+    (cd /opt/smartdc && /usr/bin/tar cvf - bin lib man node_modules | gzip) \
+        > ./oldtools.tar.gz
     ./upgrade-tools.sh 2>&1 | tee tools-$(date +%s).log
 
 
@@ -229,8 +230,8 @@ To rollback:
     mv olddefault default
     mv scripts newscripts
     mv oldscripts scripts
-    mv tools newtools
-    mv oldtools tools
+    mv tools.tar.gz newtools.tar.gz
+    mv oldtools.tar.gz tools.tar.gz
     ./upgrade-tools.sh 2>&1 | tee rollback-tools-$(date +%s).log
 
     ./upgrade-all.sh rollback-images 2>&1 | tee all-other-zones-rollback-$(date +%s).log

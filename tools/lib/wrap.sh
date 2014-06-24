@@ -1,4 +1,8 @@
 #!/bin/bash
+
+set -o errexit
+set -o pipefail
+
 #
 # Call the tool of the same name in the 'sdc' zone.
 #

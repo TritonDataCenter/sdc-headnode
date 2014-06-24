@@ -1,7 +1,0 @@
-# sdc-imgapi(1) -- call the Image API for this datacenter
-
-
-## SEE ALSO
-
-`sdc-imgapi` has been moved to the 'sdc' zone. Run `man sdc-imgapi` there.
-(You can login to the sdc zone via `sdc`.)
