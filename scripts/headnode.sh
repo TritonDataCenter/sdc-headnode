@@ -78,7 +78,7 @@ function setup_state_not_seen
     local state=$1
     local seen=$(json -f ${SETUP_FILE} -e \
         "this.result = this.seen_states.filter(
-            function(e) { return e === '$state' })[0]" | json result)
+            function(e) { return e === '$state' })[0]" result)
     if [[ -z "$seen" ]]; then
         return 0
     else
@@ -379,21 +379,6 @@ CREATEDUUIDS=
 create_latest_link
 
 
-# TODO(trent): lots of time spent on these on reboot
-# Update /usbkey/datasets/ manifests usage of the all-zero's owner UUID
-# placeholder, to the actual admin UUID for this DC.
-for manifest in $(ls -1 ${USB_COPY}/datasets/*manifest); do
-    tmpmanifest=/var/tmp/$(basename manifest)
-    json -f ${manifest} \
-        -e "if (this.creator_uuid === '00000000-0000-0000-0000-000000000000')
-                this.creator_uuid = '$CONFIG_ufds_admin_uuid';
-            if (this.owner === '00000000-0000-0000-0000-000000000000')
-                this.owner = '$CONFIG_ufds_admin_uuid';" \
-        > ${tmpmanifest}
-    [[ $? != 0 ]] && fatal "Could not update owner in $manifest"
-    mv ${tmpmanifest} ${manifest}
-done
-
 # Install the core headnode zones
 
 function create_zone {
@@ -674,25 +659,24 @@ if setup_state_not_seen "sdczones_created"; then
     create_zone mahi
     create_zone adminui
 
+    # copy sdc-manatee tools to GZ - see MANATEE-86
+    echo "==> Copying manatee tools to GZ."
+    manatee=$(vmadm lookup tags.smartdc_role=manatee | tail -1)
+    for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc*); do
+	tool=$(basename ${file} .js)
+	mv ${file} /opt/smartdc/bin/${tool}
+    done
+
+    # Copy sapiadm into the GZ from the SAPI zone
+    zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
+    if [[ -n ${zone_uuid} ]]; then
+	from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
+	to_dir=/opt/smartdc/bin
+	rm -f ${to_dir}/sapiadm
+	ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
+    fi
+
     setup_state_add "sdczones_created"
-fi
-
-
-# copy sdc-manatee tools to GZ - see MANATEE-86
-echo "==> Copying manatee tools to GZ."
-manatee=$(vmadm lookup tags.smartdc_role=manatee | tail -1)
-for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc*); do
-    tool=$(basename ${file} .js)
-    mv ${file} /opt/smartdc/bin/${tool}
-done
-
-# Copy sapiadm into the GZ from the SAPI zone
-zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
-if [[ -n ${zone_uuid} ]]; then
-    from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
-    to_dir=/opt/smartdc/bin
-    rm -f ${to_dir}/sapiadm
-    ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
 fi
 
 
@@ -867,6 +851,9 @@ if [[ -n ${CREATEDZONES} ]]; then
         i=$((${i} + 1))
     done
 
+    # Install all AMON probes, but don't fail setup if it doesn't work
+    /opt/smartdc/bin/sdc-amonadm update || /bin/true
+
     # Run a post-install script. This feature is not formally supported in SDC
     if [ -f ${USB_COPY}/scripts/post-install.sh ]; then
         printf_log "%-58s" "Executing post-install script..."
@@ -888,9 +875,6 @@ if [[ -n ${CREATEDZONES} ]]; then
         echo "" >&${CONSOLE_FD}
     fi
 fi
-
-# Install all AMON probes, but don't fail setup if it doesn't work
-/opt/smartdc/bin/sdc-amonadm update || /bin/true
 
 if [[ $upgrading == 1 ]]; then
     printf_log "%-58s\n" "running post-setup upgrade tasks... "
