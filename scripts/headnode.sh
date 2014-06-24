@@ -327,7 +327,9 @@ fi
 
 set_default_fw_rules
 
-printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
+if setup_state_not_seen "setup_complete"; then
+    printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
+fi
 
 if [[ -x /var/upgrade_headnode/upgrade_hooks.sh ]]; then
     upgrading=1
