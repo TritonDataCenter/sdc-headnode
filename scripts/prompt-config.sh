@@ -1045,8 +1045,11 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 	    "ntp_hosts" "ntp_host"
 	ntp_hosts="$val"
 
-	skip_ntp=$(getanswer "skip_ntp_check")
-	if [[ -z ${skip_ntp} || ${skip_ntp} != "true" ]]; then
+	# By default we skip the NTP check because we have multiple
+	# NTP servers for a reason. One of them failing shouldn't block
+	# headnode setup.
+	skip_ntp_check=$(getanswer "skip_ntp_check")
+	if [[ -n "${skip_ntp_check}" && ${skip_ntp_check} != "true" ]]; then
 		for ntp_host in $(echo "$val" | sed -e 's/,/ /g'); do
 			ntpdate -q $ntp_host >/dev/null 2>&1
 			[ $? != 0 ] && print_warning \
