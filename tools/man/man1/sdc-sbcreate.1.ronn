@@ -1,0 +1,78 @@
+# sdc-sbcreate(1) -- service bundle create
+
+
+## SYNOPSIS
+
+`sdc-sbcreate [-d DIR] [-o OUTPUT] [-c CONTENT] [-aiu]`
+
+
+## DESCRIPTION
+
+This utility creates a service bundle.
+
+
+## OPTIONS
+
+`-a`            grab all cores and crash dumps instead of only
+              the ones from the past week
+
+`-d dir`        output directory, defaults to /var/tmp
+
+`-i`            immediate operation, otherwise pause before
+              beginning
+
+`-o output`     service bundle filename, defaults to
+              `sdc-support.{hostname}.{date}.tar.bz`
+
+`-u`            upload using `sdc-sbupload(1)`
+
+`-c CONTENT`
+              Comma-separated list of specific content to
+              include in the service bundle. By default all
+              content is included.  The list may include any
+              of:
+
+        agents
+        app_config
+        auditlog
+        castatus
+        cores
+        df
+        disk_list
+        dlinfo
+        dumps
+        fmd
+        fmdump
+        headnode_info
+        hw_config
+        ifconfig
+        images
+        logs
+        modinfo
+        phonehome
+        platform_md5
+        ps
+        rabbitmq_info
+        routes
+        servers
+        svcs
+        sysinfo
+        vminfo
+        vmlogs
+        vms
+        zfsinfo
+        zoneconfigs
+        zoneinfo
+        zonelogs
+        zpool_history
+
+
+
+## COPYRIGHT
+
+sdc-sbcreate Copyright (c) 2013 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+sdc-sbupload(1)

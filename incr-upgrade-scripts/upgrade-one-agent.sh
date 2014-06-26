@@ -101,10 +101,10 @@ TARBALL=$1
 
 
 FILENAME=$(basename ${TARBALL})
-OEN_ARGS="-t 30 -T 600"
+OEN_ARGS="-a -t 10 -T 600"
 
 echo "Copy $FILENAME to /tmp on all CNs."
-sdc-oneachnode $OEN_ARGS rm -f /tmp/${FILENAME} || true
+sdc-oneachnode $OEN_ARGS "rm -f /tmp/${FILENAME}" || true
 sdc-oneachnode $OEN_ARGS -g $TARBALL -d /tmp
 
 if [[ "$DO_6" == "true" ]]; then

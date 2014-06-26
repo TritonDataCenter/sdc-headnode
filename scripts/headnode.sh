@@ -263,8 +263,12 @@ fi
 
 if [[ ! -d /usbkey/extra/joysetup ]]; then
     mkdir -p /usbkey/extra/joysetup
-    cp /usbkey/scripts/joysetup.sh /usbkey/extra/joysetup
-    cp /usbkey/scripts/agentsetup.sh /usbkey/extra/joysetup
+    cp \
+        /usbkey/scripts/joysetup.sh \
+        /usbkey/scripts/agentsetup.sh \
+        /usbkey/cn_tools.tar.gz \
+        \
+        /usbkey/extra/joysetup/
 
     # Create a subset of the headnode config which will be downloaded by
     # compute nodes when they are setting up for the first time.

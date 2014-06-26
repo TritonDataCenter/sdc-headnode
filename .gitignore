@@ -22,6 +22,7 @@
 /*.tar.bz2
 /answers.json
 /tools.tar.gz
+/cn_tools.tar.gz
 /build
 /proto
 /docs/*.html

@@ -95,13 +95,13 @@ if /bin/false; then
             echo "Updating configuration on all compute nodes..."
             sdc-oneachnode -c -g /tmp/node.config.new -d /opt/smartdc/config
             rm -f /tmp/node.config.new
-            sdc-oneachnode -c mv /opt/smartdc/config/node.config.new \
-                /opt/smartdc/config/node.config
+            sdc-oneachnode -c 'mv /opt/smartdc/config/node.config.new \
+                /opt/smartdc/config/node.config'
             echo "Done updating configuration on all compute nodes"
 fi
 
             echo "Restarting smartlogin svc on all compute nodes"
-            sdc-oneachnode -c svcadm restart smartlogin
+            sdc-oneachnode -c 'svcadm restart smartlogin'
         fi
     else
         # no admin_ip, remove these keys

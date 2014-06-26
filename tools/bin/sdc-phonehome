@@ -32,7 +32,7 @@ function gather
 	/usr/bin/echo ',\n"vms": '
 	sdc-vmapi --no-headers /vms
 	/usr/bin/echo ',\n"nodes": '
-	sdc-oneachnode -jT 10 -t 10 kstat -pn system_misc
+	sdc-oneachnode -j -T 10 -t 10 'kstat -pn system_misc'
 	/usr/bin/echo '}'
 }
 

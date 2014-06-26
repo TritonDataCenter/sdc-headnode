@@ -3,7 +3,7 @@
 # Copyright (c) 2013, Joyent Inc., All rights reserved.
 #
 
-OEN_ARGS="-t 30 -T 120"
+OEN_ARGS="-a -t 10 -T 120"
 
 outfile=/tmp/agent_list.txt
 summary=/tmp/agent_summary.txt

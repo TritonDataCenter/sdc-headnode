@@ -129,7 +129,7 @@ if [[ -n "$UPDATE_CN" ]]; then
     . /lib/sdc/config.sh
     load_sdc_config
 
-    OEN_ARGS="-t 30 -T 120 -c -n $UPDATE_CN"
+    OEN_ARGS="-t 10 -T 120 -n $UPDATE_CN"
 
     role_uuid=`vmadm lookup -1 tags.smartdc_role=assets`
 
@@ -147,12 +147,12 @@ if [[ -n "$UPDATE_CN" ]]; then
 
     cp $ROOT/upd_cn /tmp
 
-    sdc-oneachnode $OEN_ARGS "rm -f /tmp/upd_cn" >/dev/null
-    [ $? != 0 ] && fatal "setting up compute node update"
-    sdc-oneachnode $OEN_ARGS -g /tmp/upd_cn >/dev/null
-    [ $? != 0 ] && fatal "copying compute node update file"
+    sdc-oneachnode -q $OEN_ARGS "rm -f /tmp/upd_cn" \
+        || fatal "setting up compute node update"
+    sdc-oneachnode -q $OEN_ARGS -g /tmp/upd_cn -d /tmp \
+        || fatal "copying compute node update file"
 
-    sdc-oneachnode $OEN_ARGS "bash /tmp/upd_cn &" >/dev/null
+    sdc-oneachnode -q $OEN_ARGS "bash /tmp/upd_cn &"
     # ignore errors which are expected on a re-run
 
     echo "Compute node VM update is complete"

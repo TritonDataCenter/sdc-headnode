@@ -1,0 +1,83 @@
+#!/bin/ksh
+
+set -o errexit
+set -o pipefail
+
+DIR=$(dirname $(whence $0))
+
+function usage
+{
+    printf "Usage: %s: [-p PROXY_URL] FILENAME\n" "$0"
+    exit 1
+}
+
+function fatal
+{
+    printf "ERROR: %s\n" "$*"
+    exit 1
+}
+
+#
+# Option parsing:
+#
+PROXY_ARGS=
+while getopts "p:" name; do
+    case "${name}" in
+    p)
+        PROXY_ARGS="--proxy ${OPTARG}"
+        ;;
+    ?)
+        usage
+        ;;
+    esac
+done
+
+#
+# Read filename from arguments:
+#
+shift $((OPTIND - 1))
+if [[ $# -ne 1 ]]; then
+    usage
+fi
+FILENAME="${1}"
+
+#
+# Read configuration
+#
+. /lib/sdc/config.sh
+load_sdc_config
+load_sdc_sysinfo
+
+[[ -n "${CONFIG_sbapi_http_user}" ]] \
+  || fatal "sbapi_http_user not in config"
+[[ -n "${CONFIG_sbapi_http_pass}" ]] \
+  || fatal "sbapi_http_pass not in config"
+[[ -n "${CONFIG_sbapi_url}" ]] \
+  || fatal "sbapi_http_url not in config"
+[[ -n "${CONFIG_datacenter_company_name}" ]] \
+  || fatal "sbapi_http_url not in config"
+[[ -n "${SYSINFO_UUID}" ]] \
+  || fatal "cannot determine system uuid"
+
+SBAPI_CREDS="${CONFIG_sbapi_http_user}:${CONFIG_sbapi_http_pass}"
+SBAPI_URL="${CONFIG_sbapi_url}"
+
+JOYENT_KEY=${DIR}/../share/supportbundle/pubkey.key
+
+DC_NAME="$(echo "${CONFIG_datacenter_company_name}" | tr -cd [:alnum:] | tr [:upper:] [:lower:])"
+ENCRYPTED_FILE="$(dirname ${FILENAME})/${DC_NAME}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
+
+#
+# Encrypt the support bundle
+#
+gpg --import "${JOYENT_KEY}"
+gpg --encrypt --recipient 'support@joyent.com' --always-trust --armor \
+  --output "${ENCRYPTED_FILE}" \
+  "${FILENAME}"
+
+#
+# Upload the support bundle
+#
+curl ${PROXY_ARGS} -k -L -T "${ENCRYPTED_FILE}" \
+  -u "${SBAPI_CREDS}" "${SBAPI_URL}"
+

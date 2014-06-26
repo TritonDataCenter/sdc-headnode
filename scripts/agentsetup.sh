@@ -56,6 +56,20 @@ function update_setup_state
     chmod 400 $SETUP_FILE
 }
 
+function setup_state_not_seen
+{
+    STATE=$1
+
+    IS_SEEN=$(json -f ${SETUP_FILE} -e \
+        "this.result = this.seen_states.filter(
+            function(e) { return e === '$state' })[0]" result)
+    if [[ -z "$IS_SEEN" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function mark_as_setup
 {
     chmod 600 $SETUP_FILE
@@ -124,8 +138,34 @@ setup_agents()
     result=$(tail -n 1 /opt/smartdc/agents/log/install.log)
 }
 
+setup_tools()
+{
+    TOOLS_URL="${ASSETS_URL}/extra/joysetup/cn_tools.tar.gz"
+    TOOLS_FILE="/tmp/cn_tools.$$.tar.gz"
+
+    if ! /usr/bin/curl -sSf "${TOOLS_URL}" -o "${TOOLS_FILE}"; then
+        rm -f "${TOOLS_FILE}"
+        fatal "failed to download tools tarball"
+    fi
+
+    mkdir -p /opt/smartdc
+    if ! /usr/bin/tar xzof "${TOOLS_FILE}" -C /opt/smartdc; then
+        rm -f "${TOOLS_FILE}"
+        fatal "failed to extract tools tarball"
+    fi
+
+    rm -f "${TOOLS_FILE}"
+}
+
 if [[ -z "$ASSETS_URL" ]]; then
     fatal "ASSETS_URL environment variable must be set"
+fi
+
+if setup_state_not_seen "tools_installed"; then
+    if [[ -z ${MOCKCN} ]]; then
+        setup_tools
+    fi
+    update_setup_state "tools_installed"
 fi
 
 if [[ ! -d /opt/smartdc/agents/bin ]]; then

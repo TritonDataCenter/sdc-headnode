@@ -1,0 +1,124 @@
+#!/bin/ksh
+#
+# Copyright (c) 2014, Joyent Inc., All rights reserved.
+#
+
+set -o errexit
+set -o pipefail
+
+function usage
+{
+    printf "Usage: %s [-f TAR_FILE]\n" "$0"
+    exit 1
+}
+
+function fatal
+{
+    printf "ERROR: %s\n" "$1" >/dev/stderr
+    exit 1
+}
+
+#
+# Option parsing:
+#
+NEW_TARBALL=
+while getopts "f:" name; do
+    case "${name}" in
+    f)
+        NEW_TARBALL="${OPTARG}"
+        ;;
+    ?)
+        usage
+        ;;
+    esac
+done
+
+#
+# If we were provided a new tarball, copy it into place:
+#
+if [[ -n "${NEW_TARBALL}" ]]; then
+    if [[ ! -f "${NEW_TARBALL}" ]]; then
+        fatal "could not find ${NEW_TARBALL}"
+    fi
+
+    printf "Copying new tools tarball..."
+
+    #
+    # Backup existing tarball, if it exists:
+    #
+    if [[ -f /usbkey/extra/joysetup/cn_tools.tar.gz ]]; then
+        DATE=$(TZ=UTC date +%Y%m%d%H%M%S)
+        mv /usbkey/extra/joysetup/cn_tools.tar.gz \
+          "/usbkey/extra/joysetup/cn_tools.${DATE}.tar.gz"
+    fi
+
+    mkdir -p /usbkey/extra/joysetup
+    cp "${NEW_TARBALL}" /usbkey/extra/joysetup/cn_tools.tar.gz
+
+    printf " ok\n"
+fi
+
+#
+# Read configuration:
+#
+. /lib/sdc/config.sh
+load_sdc_config
+
+ASSETS_URL="http://${CONFIG_assets_admin_ip}"
+TOOLS_URL="${ASSETS_URL}/extra/joysetup/cn_tools.tar.gz"
+
+
+printf "Updating tools on all compute nodes...\n"
+
+if ! sdc-oneachnode -J -t 10 -T 60 -c "
+    TOOLS_URL=\"${ASSETS_URL}/extra/joysetup/cn_tools.tar.gz\"
+    TOOLS_FILE=\"/tmp/cn_tools.\$\$.tar.gz\"
+
+    if ! /usr/bin/curl -sSf \"\${TOOLS_URL}\" -o \"\${TOOLS_FILE}\"; then
+        rm -f \"\${TOOLS_FILE}\"
+        echo 'failed to download tools tarball'
+        exit 1
+    fi
+
+    mkdir -p /opt/smartdc
+    if ! /usr/bin/tar xzof \"\${TOOLS_FILE}\" -C /opt/smartdc; then
+        rm -f \"\${TOOLS_FILE}\"
+        echo 'failed to extract tools tarball'
+        exit 2
+    fi
+    rm -f \"\${TOOLS_FILE}\"
+
+    exit 0
+" > "/tmp/update_cn_tools.$$.json"; then
+    printf "WARNING: sdc-oneachnode invocation failure, exit status %d\n" \
+      $? 2>&1
+fi
+
+count=$(json -ga -f "/tmp/update_cn_tools.$$.json" hostname | wc -l)
+if (( count < 1 )); then
+    echo
+    echo "Complete, but did nothing."
+    echo
+    rm -f "/tmp/update_cn_tools.$$.json"
+    exit 0
+fi
+
+printf "\nComplete, on %d servers.  Upgrade status summary:\n\n" ${count}
+
+json -ga -f "/tmp/update_cn_tools.$$.json" -e '
+    if (this.result) {
+        if (this.result.exit_status === 0) {
+            this._ = "upgrade ok";
+        } else {
+            this._ = "failure: " + (this.result.stdout || "unknown").trim();
+        }
+    } else {
+        this._ = "failure: " + ((this.error || {}).message || "unknown");
+    }
+' _ | sort | uniq -c | sort -n
+
+printf "\n"
+
+rm -f "/tmp/update_cn_tools.$$.json"
+
+exit 0

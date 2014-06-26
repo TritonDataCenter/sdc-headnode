@@ -28,7 +28,7 @@ function fatal
 
 [[ $(sysinfo | json "Boot Parameters.headnode") == "true" ]] \
     || fatal "not running on the headnode"
-[[ ! -d "./tools" ]] && fatal "there is no './tools' dir from which to upgrade!"
+[[ ! -f "./tools.tar.gz" ]] && fatal "there is no './tools.tar.gz' from which to upgrade!"
 
 # Guard on having an 'sdc' zone. If the HN doesn't have one, then the new
 # tools will all be broken.
@@ -61,6 +61,8 @@ cp -Rp /usbkey/scripts pre-upgrade.scripts.$(date +%s)
 rm -rf /mnt/usbkey/scripts /usbkey/scripts
 cp -Rp scripts /mnt/usbkey/scripts
 cp -Rp scripts /usbkey/scripts
+cp scripts/joysetup.sh /usbkey/extra/joysetup/
+cp scripts/agentsetup.sh /usbkey/extra/joysetup/
 
 if [[ -f /usbkey/tools.tar.gz ]]; then
     cp /usbkey/tools.tar.gz pre-upgrade.tools.$(date +%s).tar.gz

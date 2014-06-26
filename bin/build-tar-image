@@ -1026,7 +1026,12 @@ function copy_tools
     if [[ ! -f ${ROOT}/tools.tar.gz ]]; then
         fatal "could not find tools.tar.gz; did 'make tools.tar.gz' run?"
     fi
+    if [[ ! -f ${ROOT}/cn_tools.tar.gz ]]; then
+        fatal "could not find cn_tools.tar.gz; did " \
+            "'make cn_tools.tar.gz' run?"
+    fi
     cp ${ROOT}/tools.tar.gz ${STAGE}/tools.tar.gz
+    cp ${ROOT}/cn_tools.tar.gz ${STAGE}/cn_tools.tar.gz
 }
 
 function copy_to_mount

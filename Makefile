@@ -82,6 +82,8 @@ TOOLS_BIN_FILES = \
 	sdc-restore \
 	sdc-role \
 	sdc-rollback \
+	sdc-sbcreate \
+	sdc-sbupload \
 	sdc-server \
 	sdc-setconsole \
 	sdc-ufds-m2s \
@@ -94,9 +96,14 @@ TOOLS_BIN_FILES = \
 TOOLS_LIB_FILES = \
 	wrap.sh
 
+TOOLS_SHARE_FILES = \
+	servicebundle/pubkey.key
+
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
 	man1/sdc-ldap.1.ronn \
+	man1/sdc-sbcreate.1.ronn \
+	man1/sdc-sbupload.1.ronn \
 	man1/sdc-ufds-m2s.1.ronn \
 	man1/sdc.1.ronn
 
@@ -112,10 +119,24 @@ PROTO_BIN_FILES = \
 PROTO_LIB_FILES = \
 	$(TOOLS_LIB_FILES:%=$(PROTO)/opt/smartdc/lib/%)
 
+PROTO_SHARE_FILES = \
+	$(TOOLS_SHARE_FILES:%=$(PROTO)/opt/smartdc/share/%)
+
 PROTO_MAN_FILES = \
 	$(TOOLS_RONN_FILES:%.ronn=$(PROTO)/opt/smartdc/man/%) \
 	$(SDC_ZONE_MAN_LINKS)
 
+#
+# This subset of files from the proto/ area is included in the
+# cn_tools.tar.gz package for deployment onto Compute Nodes
+#
+CN_TOOLS_FILES = \
+	bin/sdc-sbcreate \
+	man/man1/sdc-sbcreate.1
+
+TOOLS_DEPS = \
+	tools.tar.gz \
+	cn_tools.tar.gz
 
 #
 # Included definitions
@@ -133,17 +154,17 @@ all: coal
 deps:
 	npm install
 
-coal: deps tools.tar.gz
+coal: deps $(TOOLS_DEPS)
 	bin/build-image coal
 
-usb: deps tools.tar.gz
+usb: deps $(TOOLS_DEPS)
 	bin/build-image usb
 
-boot: deps tools.tar.gz
+boot: deps $(TOOLS_DEPS)
 	bin/build-image tar
 
 tar: boot
-upgrade: tools.tar.gz
+upgrade: $(TOOLS_DEPS)
 	bin/build-upgrade-image $(shell ls boot-*.tgz | sort | tail -1)
 
 sandwich:
@@ -158,7 +179,7 @@ update-tools-modules:
 	./bin/mk-sdc-clients-light.sh da0a1080feb tools/node_modules/sdc-clients
 
 .PHONY: incr-upgrade
-incr-upgrade: tools.tar.gz
+incr-upgrade: $(TOOLS_DEPS)
 	@echo building incr-upgrade-$(STAMP).tgz
 	rm -rf build/incr-upgrade
 	mkdir -p build
@@ -166,6 +187,7 @@ incr-upgrade: tools.tar.gz
 	cp -r \
 		$(TOP)/zones \
 		$(TOP)/tools.tar.gz \
+		$(TOP)/cn_tools.tar.gz \
 		$(TOP)/default \
 		$(TOP)/scripts \
 		build/incr-upgrade-$(STAMP)
@@ -179,22 +201,44 @@ CLEAN_FILES += build/incr-upgrade
 
 tools.tar.gz: tools
 	rm -f $(TOP)/tools.tar.gz
-	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/tools.tar.gz \
-	    bin lib man node_modules
+	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
+	    bin share lib man node_modules
+
+#
+# Compute Node Tools subset tarball
+#
+
+cn_tools.tar.gz: tools
+	rm -f $(TOP)/cn_tools.tar.gz
+	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
+	    $(CN_TOOLS_FILES)
+
+#
+# Tools
+#
 
 .PHONY: tools
-tools: man $(PROTO_LIB_FILES) $(PROTO_BIN_FILES)
+tools: man $(PROTO_LIB_FILES) $(PROTO_BIN_FILES) $(PROTO_SHARE_FILES)
 	rm -rf $(PROTO)/opt/smartdc/node_modules
 	cp -RP tools/node_modules $(PROTO)/opt/smartdc/node_modules
 
 $(PROTO)/opt/smartdc/lib/%: tools/lib/%
 	mkdir -p $(@D)
+	rm -f $@
 	cp $^ $@
 	chmod 755 $@
 	touch $@
 
+$(PROTO)/opt/smartdc/share/%: tools/share/%
+	mkdir -p $(@D)
+	rm -f $@
+	cp $^ $@
+	chmod 444 $@
+	touch $@
+
 $(PROTO)/opt/smartdc/bin/%: tools/bin/%
 	mkdir -p $(@D)
+	rm -f $@
 	cp $^ $@
 	chmod 755 $@
 	touch $@
@@ -204,7 +248,7 @@ $(SDC_ZONE_BIN_LINKS):
 	rm -f $@
 	ln -s ../lib/wrap.sh $@
 
-CLEAN_FILES += proto tools.tar.gz
+CLEAN_FILES += proto tools.tar.gz cn_tools.tar.gz
 
 #
 # Tools manual pages
@@ -215,6 +259,7 @@ man: $(PROTO_MAN_FILES)
 
 $(PROTO)/opt/smartdc/man/%: tools/man/%.ronn
 	mkdir -p $(@D)
+	rm -f $@
 	$(TOP)/bin/ronnjs/bin/ronn.js \
 	    --roff $^ \
 	    --date `git log -1 --date=short --pretty=format:$(PERCENT)cd $^` \

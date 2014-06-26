@@ -1,0 +1,28 @@
+# sdc-sbupload(1) -- upload a service bundle
+
+
+## SYNOPSIS
+
+`sdc-sbupload [ -p PROXY_URL ] FILENAME`
+
+
+## DESCRIPTION
+
+This utility encrypts and uploads the given service bundle to the site
+specified in the `sbapi_url` setting in the site's headnode configuration.
+
+## OPTIONS
+
+`-p PROXY_URL`
+
+A proxy URL suitable for use with the `curl` `--proxy` option, used when
+uploading the support bundle.
+
+## COPYRIGHT
+
+sdc-sbupload Copyright (c) 2014 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+sdc-sbcreate(1), curl(1)

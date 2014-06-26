@@ -24,7 +24,7 @@ file=$(basename ${shar})
 . /lib/sdc/config.sh
 load_sdc_config
 
-OEN_ARGS="-t 30 -T 600"
+OEN_ARGS="-a -t 10 -T 600"
 
 if [[ "$file" == "agents65.sh" ]]; then
     echo "Updating agents on all 6.5.x compute nodes"

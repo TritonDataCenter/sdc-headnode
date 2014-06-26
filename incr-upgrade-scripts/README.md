@@ -238,6 +238,19 @@ To rollback:
 
 
 
+## Upgrading Compute Node tools
+
+Update GZ tools on CNs (in /opt/smartdc/bin).
+
+    cp /usbkey/extra/joysetup/cn_tools.tar.gz ./old_cn_tools.tar.gz
+    /usbkey/scripts/update_cn_tools -f ./cn_tools.tar.gz
+
+To rollback:
+
+    /usbkey/scripts/update_cn_tools -f ./old_cn_tools.tar.gz
+
+
+
 ## upgrade zone: redis, amonredis
 
 TODO
