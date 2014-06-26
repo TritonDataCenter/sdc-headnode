@@ -40,7 +40,7 @@ MANIFEST="$NEW_VERSION.imgmanifest"
 IMG_FILE="$NEW_VERSION.gz"
 ADMIN_UUID=$(sdc-sapi --no-headers /applications?name=sdc | json -Ha metadata.ufds_admin_uuid)
 
-IS_IMAGE_IMPORTED=$(sdc-imgadm list -o uuid name=manta-authcache)
+IS_IMAGE_IMPORTED=$(sdc-imgadm list -o uuid name=manta-authcache | grep uuid || true)
 
 if [[ -n "$IS_IMAGE_IMPORTED" ]]; then
   echo "Image is already imported, moving into next step"
