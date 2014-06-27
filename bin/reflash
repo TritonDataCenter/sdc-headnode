@@ -155,27 +155,33 @@ get_latest()
     release=$1
     bits_url=$(get_bits_url)
 
+    suffix=
+
     [[ -z ${release} ]] && release="master"
+    if [[ ${release} == "-debug" ]]; then
+        release="master"
+        suffix="-debug"
+    fi
 
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
         dir=$(curl -f -s -k \
             ${bits_url}/sdc/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -s -k ${bits_url}/${dir}/usbheadnode/ \
+        file=$(curl -f -s -k ${bits_url}/${dir}/usbheadnode${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/usbheadnode/${file}"
+            echo "${bits_url}/${dir}/usbheadnode${suffix}/${file}"
         fi
     else
         dir=$(curl -f -sS -k \
-            ${bits_url}/usbheadnode/${release}-latest \
+            ${bits_url}/usbheadnode${suffix}/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
         file=$(curl -f -sS -k \
-            ${bits_url}/${dir}/usbheadnode/ \
+            ${bits_url}/${dir}/usbheadnode${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/usbheadnode/${file}"
+            echo "${bits_url}/${dir}/usbheadnode${suffix}/${file}"
         fi
     fi
 }
@@ -253,6 +259,16 @@ if [[ ${filename} == "latest" ]]; then
     FILENAME=$(basename ${URL})
     MD5_SUM=$(get_md5 "latest" "${FILENAME}" "${URL}")
     echo "Latest is ${URL}..."
+elif [[ ${filename} == "latest-debug" ]]; then
+    echo "Finding latest usbheadnode-debug build..."
+    URL=$(get_latest -debug)
+    if [[ -z ${URL} ]]; then
+        echo "Failed to find latest from ${URL}!" >&2
+        exit 1
+    fi
+    FILENAME=$(basename ${URL})
+    MD5_SUM=$(get_md5 "latest-debug" "${FILENAME}" "${URL}")
+    echo "Latest (debug) is ${URL}..."
 elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
     echo "Finding latest ${filename} usbheadnode build..."
     URL=$(get_latest ${filename})
