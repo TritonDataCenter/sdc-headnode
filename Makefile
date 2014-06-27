@@ -33,6 +33,7 @@ BASHSTYLE := buildtools/bashstyle
 # to create dangling symlinks to manual pages.
 #
 SDC_ZONE_COMMANDS = \
+	amqpsnoop \
 	sdc-amon \
 	sdc-amonadm \
 	sdc-cnapi \
