@@ -359,11 +359,11 @@ function copy_base
     [[ -z ${platbranch} ]] && platbranch="master"
     [[ -z ${ftbranch} ]] && ftbranch="master"
 
-    local sdcboot_path=$(get_manta_bit sdcboot/sdcboot-${sbbranch}-.*\.tgz)
+    local sdcboot_path=$(get_manta_bit sdcboot/${sbbranch}/sdcboot-${sbbranch}-.*\.tgz)
     local platboot_path=$(get_manta_bit \
-                    platform$plat_suffix/boot$plat_suffix-${platbranch}-.*\.tgz)
+                    platform$plat_suffix/${platbranch}/boot$plat_suffix-${platbranch}-.*\.tgz)
     local firmware_path=$(get_manta_bit \
-        firmware-tools/firmware-tools-${ftbranch}-.*\.tgz)
+        firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
@@ -584,17 +584,16 @@ function get_manta_bit
     # BASHSTYLED
     local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
     local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
+    [[ -n ${manta_base_dir} ]] \
+        || fatal "get_manta_bit: unable to find manta_base_dir for ${file_name}"
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
     local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
-    local latest_filename=$(basename $latest_name)
-    local cache_path=${ROOT}/cache/${latest_filename}
-
-    [[ -n ${manta_base_dir} ]] \
-        || fatal "Unable to find base dir for ${file_name}"
     [[ -n ${latest_name} ]] \
-        || fatal "Unable to find latest path for ${file_name}"
+        || fatal "get_manta_bit: unable to find latest_name for ${file_name}"
+    local latest_filename=$(basename $latest_name)
     [[ -n ${latest_filename} ]] \
-        || fatal "Unable to find latest filename for ${file_name}"
+        || fatal "get_manta_bit: unable to find latest_filename for ${file_name}"
+    local cache_path=${ROOT}/cache/${latest_filename}
 
     local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null \
                 | grep $latest_filename | cut -d ' ' -f1)
@@ -671,7 +670,7 @@ function copy_platform
                      "for call to 'copy_platform()'."
 
         # BASHSTYLED
-        image=$(get_manta_bit "platform${plat_suffix}/platform${plat_suffix}-${platform_release}-.*")
+        image=$(get_manta_bit "platform${plat_suffix}/${platform_release}/platform${plat_suffix}-${platform_release}-.*")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
@@ -731,10 +730,10 @@ function copy_sdcadm
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download sdcadm, looping!"
 
-    local release=$(build_spec sdcadm-release)
-    local path=$release
+    local sdcadm_branch=$(build_spec sdcadm-release)
+    local path=$sdcadm_branch
     if [[ ! -f "${path}" ]]; then
-        path=$(get_manta_bit "sdcadm/sdcadm-${release}-.*\.sh")
+        path=$(get_manta_bit "sdcadm/${sdcadm_branch}/sdcadm-${sdcadm_branch}-.*\.sh")
     fi
 
     echo "Copying $(basename $path) to \$stage/sdcadm-install.sh"
@@ -757,9 +756,9 @@ function get_agentsshar
         local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
     else
         local agentsshar_path=$(get_manta_bit \
-                        "agentsshar/agents-${agentsshar_branch}-.*\.sh")
+                        "agentsshar/${agentsshar_branch}/agents-${agentsshar_branch}-.*\.sh")
         local agentsmd5_path=$(get_manta_bit \
-                        "agentsshar/agents-${agentsshar_branch}-.*\.md5sum")
+                        "agentsshar/${agentsshar_branch}/agents-${agentsshar_branch}-.*\.md5sum")
     fi
 
     # Make sure it's not corrupt.
