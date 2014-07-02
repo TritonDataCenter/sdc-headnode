@@ -148,7 +148,6 @@ $(json -f ${manifest} manifest.version)
         echo "Skipping ${name} - already present"
     else
         echo "Writing ${name} to backup-usbkey"
-
         cp ${manifest} ${destdir}/${name}.imgmanifest
         imgadm get-file -o ${destdir}/${name}.zfs${compression}
 
@@ -378,7 +377,6 @@ on node ${manatee_server}"
 
     echo "Done."
 }
-
 
 function backup_local_images
 {
