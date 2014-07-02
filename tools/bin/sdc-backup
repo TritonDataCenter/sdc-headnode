@@ -46,9 +46,6 @@ readonly dest_imgs=${destdir}/${imgs}
 
 CLEANED=0
 
-
-
-
 function usage
 {
     # BASHSTYLED
@@ -86,7 +83,7 @@ function preflight
     fi
 }
 
-
+# Shouldn't we have a real backup image here?
 function mount_image
 {
     pfexec mkdir -p ${backup_key}
@@ -288,17 +285,100 @@ function backup_usbkey
     echo "Done."
 }
 
-# XXX - first: how could this work? primary isn't necessarily on HN?
-#       second: sdc-oneachnode, then get.
+local_manatee=$(vmadm lookup state=running tags.smartdc_role=manatee | tail -1)
+
+function manatee_stat
+{
+    # manatee-stat exists in different places depending on the manatee version,
+    # and therefore on the stage of the upgrade; find it explicitly.
+    local m_stat=
+    local result=
+    if [[ -f /zones/${local_manatee}/root/opt/smartdc/manatee/bin/manatee-stat ]]; then
+        m_stat="/opt/smartdc/manatee/bin/manatee-stat -p \$ZK_IPS"
+    elif [[ -f /zones/${local_manatee}/root/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat ]]; then
+        m_stat="/opt/smartdc/manatee/node_modules/manatee/bin/manatee-stat -p \$ZK_IPS"
+    elif [[ -f /zones/${local_manatee}/root/opt/smartdc/manatee/node_modules/.bin/manatee-stat ]]; then
+        m_stat="/opt/smartdc/manatee/node_modules/.bin/manatee-stat -p \$ZK_IPS"
+    else
+        fatal "Can't find manatee-stat."
+    fi
+    if [[ ! -f /zones/${local_manatee}/root/opt/smartdc/etc/zk_ips.sh ]]; then
+        # race condition on the creation of zk_ips when the local manatee
+        # is reprovisioning/rebooting.
+        result="{}"
+    else
+        result=$(zlogin ${local_manatee} "source /opt/smartdc/etc/zk_ips.sh; ${m_stat}");
+    fi
+    echo ${result}
+}
+
+
+function find_sync_manatee
+{
+    manatee_instance=$(manatee_stat | json -Ha sdc.sync.zoneId)
+    if [[ -z ${manatee_instance} ]]; then
+        echo "Can't find sync manatee"
+        find_primary_manatee
+    fi
+    manatee_server=$(sdc-vmapi /vms/${manatee_instance} | json -Ha server_uuid)
+    if [[ $? != 0 || -z ${manatee_server} ]]; then
+        echo "Can't find server for sync manatee: ${manatee_instance}"
+        find_primary_manatee
+    fi
+
+}
+
+function find_primary_manatee
+{
+    manatee_instance=$(manatee_stat | json -Ha sdc.primary.zoneId)
+    if [[ -z ${manatee_instance} ]]; then
+        echo ""
+        fatal "Can't find primary manatee"
+    fi
+    manatee_server=$(sdc-vmapi /vms/${manatee_instance} | json -Ha server_uuid)
+    if [[ $? != 0 || -z ${manatee_server} ]]; then
+        echo ""
+        fatal "Can't find server for primary manatee: ${manatee_instance}"
+    fi
+}
+
 function backup_manatee
 {
-    echo -n "Backing up Manatee..."
-    local uuid=$(sdc-manatee-stat | json sdc.primary.zoneId)
-    /zones/${uuid}/root/opt/smartdc/manatee/bin/manatee-backup.sh \
-        ${tmpdir}/manatee.zfs
-    gzip -c ${tmpdir}/manatee.zfs > ${tmp_manatee}
+    # In case of not finding the sync manatee, it will automatically try to
+    # find primary manatee or will fail
+    find_sync_manatee
+    echo "Backing up Manatee ..."
+    echo "Creating backup for manatee instance ${manatee_instance} \
+on node ${manatee_server}"
+
+    sdc-oneachnode -n ${manatee_server} \
+      "mkdir -p ${tmpdir}"
+
+    # TODO: What is a good value for the exec timeout of a manatee backup?
+    sdc-oneachnode -n ${manatee_server} -T 600 \
+    "/zones/${manatee_instance}/root/opt/smartdc/manatee/bin/manatee-backup.sh \
+        ${tmpdir}/manatee.zfs;"
+
+    # This is awesomely slow: 17GB => 14 mins. Give it an hour to complete?
+    echo "Compressing backup on node ${manatee_server}"
+    sdc-oneachnode -n ${manatee_server} -T 3600 \
+    "/usr/bin/gzip -c ${tmpdir}/manatee.zfs > ${tmp_manatee}"
+
+    # If our HN is also $manatee_server, we don't need to copy anything else:
+    if [[ ! -f ${tmp_manatee} ]]; then
+        echo "Copying manatee backup from node ${manatee_server}"
+        sdc-oneachnode -n ${manatee_server} -p ${tmp_manatee} -T 600
+        # The file will be copied to $(pwd) as "${manatee_server}". We want it
+        # moved to our ${tmp_manatee} location
+        mv $(pwd)/${manatee_server} ${tmp_manatee}
+    fi
+
+    # Finally, remove the .zfs file:
+    sdc-oneachnode -n ${manatee_server} "rm ${tmpdir}/manatee.zfs"
+
     echo "Done."
 }
+
 
 function backup_local_images
 {
