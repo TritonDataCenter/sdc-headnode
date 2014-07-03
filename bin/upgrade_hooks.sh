@@ -117,7 +117,8 @@ create_extra_zones()
     local ext_ip=
     local ext_ip_arg=
     local res=
-    local hn_uuid=$(sysinfo | json UUID)
+    local hn_uuid
+    hn_uuid=$(sysinfo | json UUID)
 
     for i in $EXTRA_ZONES
     do
@@ -128,7 +129,8 @@ create_extra_zones()
         ext_ip=`nawk -v role=$i '{if ($1 == role) print $2 }' \
             ${SDC_UPGRADE_DIR}/ext_addrs.txt`
 
-        local service_uuid=$(sdc-sapi /services?name=$i | json -H 0.uuid)
+        local service_uuid
+        service_uuid=$(sdc-sapi /services?name=$i | json -H 0.uuid)
         # BEGIN BASHSTYLED
         local payload="{
             \"service_uuid\": \"$service_uuid\",
@@ -332,7 +334,8 @@ add_ext_net()
     fi
 
     local key="${role}_external_ips"
-    local ext_ip=$(eval "echo \${CONFIG_${key}}")
+    local ext_ip
+    ext_ip=$(eval "echo \${CONFIG_${key}}")
     if [ -z "$ext_ip" ]; then
         ext_ip=`sdc-login napi /opt/smartdc/napi/bin/napictl nic-provision \
             ${ext_uuid} \
@@ -347,7 +350,8 @@ add_ext_net()
     fi
 
     key="${role}_external_vlan"
-    local ext_vlan=$(eval "echo \${CONFIG_${key}}")
+    local ext_vlan
+    ext_vlan=$(eval "echo \${CONFIG_${key}}")
     [ -z "$ext_vlan" ] && ext_vlan=$CONFIG_external_vlan_id
     [ -z "$ext_vlan" ] && ext_vlan=0
 
@@ -748,16 +752,17 @@ vmapi_tasks()
 imgapi_tasks()
 {
     # Load all the images in SDC_UPGRADE_DIR/mapi_dump/images.json.
-    local images=$(cat $SDC_UPGRADE_DIR/mapi_dump/images.json)
-    local numImages=$(echo "$images" | json length)
+    local images numImages imageFile image uuid status
+    images=$(cat $SDC_UPGRADE_DIR/mapi_dump/images.json)
+    numImages=$(echo "$images" | json length)
     local i=0
     while [ $i -lt $numImages ]; do
         print_log "image $(($i + 1)) of $numImages"
-        local imageFile=$(echo "$images" | json $i._local_path)
-        local image=$(echo "$images" \
+        imageFile=$(echo "$images" | json $i._local_path)
+        image=$(echo "$images" \
                       | json -e 'this._local_path = undefined' $i)
-        local uuid=$(echo "$image" | json uuid)
-        local status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
+        uuid=$(echo "$image" | json uuid)
+        status=$(/opt/smartdc/bin/sdc-imgapi /images/$uuid \
             | head -1 | awk '{print $2}')
         if [[ "$status" == "404" ]]; then
             echo "Importing image $uuid ($imageFile) into IMGAPI."
@@ -997,7 +1002,8 @@ cloudapi_tasks()
         fs.writeFileSync(tmpPath, JSON.stringify(changes));
     ' $ocfg $cfgfile $tmpfile
 
-    local service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
+    local service_uuid
+    service_uuid=$(sdc-sapi /services?name=cloudapi | json -Ha uuid)
     sdc-sapi /services/${service_uuid} -T ${tmpfile}
     [[ $? != 0 ]] && saw_err "Error updating CloudAPI plugins and datacenters"
     rm -f $tmpfile

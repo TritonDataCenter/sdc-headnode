@@ -23,9 +23,10 @@ if [[ $1 == "-r" ]]; then
 fi
 
 function rel2abs () {
-  local abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
+  local abs_path end
+  abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
   [[ -z "$abs_path" ]] && return 1
-  local end=$(basename $1)
+  end=$(basename $1)
   echo "${abs_path%*/}/$end"
 }
 

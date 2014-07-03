@@ -29,9 +29,10 @@ if [[ $1 == "-r" ]]; then
 fi
 
 function rel2abs () {
-  local abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
+  local abs_path end
+  abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
   [[ -z "$abs_path" ]] && return 1
-  local end=$(basename $1)
+  end=$(basename $1)
   echo "${abs_path%*/}/$end"
 }
 
@@ -253,7 +254,8 @@ function create_output
 {
     local vmxfile="${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx"
     local vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.tbz2"
-    local vmware_ver=$(build_spec vmware_version)
+    local vmware_ver
+    vmware_ver=$(build_spec vmware_version)
 
     if [[ -n ${vmware_ver} && ${vmware_ver} -ge 5 ]]; then
         vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.5.tbz2"
@@ -296,13 +298,15 @@ function create_output
         echo "done."
     fi
 
-    local coal_enable_serial=$(build_spec coal-enable-serial)
+    local coal_enable_serial
+    coal_enable_serial=$(build_spec coal-enable-serial)
     sed -e "/^serial[0-1]\./d" "${vmxfile}" > "${vmxfile}.new"
     mv "${vmxfile}.new" "${vmxfile}"
     if [[ "${coal_enable_serial}" == "true" ]]; then
         echo -n "==> Adding serial ports to VMware configuration..."
         for i in 0 1; do
-            local coal_serial_path=$(build_spec coal-serial${i}-path)
+            local coal_serial_path
+            coal_serial_path=$(build_spec coal-serial${i}-path)
             if [[ -z ${coal_serial_path} ]]; then
               coal_serial_path="socket.serial${i}"
             fi

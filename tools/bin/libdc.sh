@@ -124,7 +124,8 @@ watch_job()
     local http_code=
     local http_message=
 
-    local job=$(json -H job_uuid < ${filename})
+    local job
+    job=$(json -H job_uuid < ${filename})
     if [[ -z ${job} ]]; then
         # BASHSTYLED
         echo "+ FAILED! Result has no Job-Location: header. See ${filename}." >&2
@@ -137,11 +138,15 @@ watch_job()
         ${execution} == "unknown" ]] \
         && [[ ${loop} -lt 120 ]]; do
 
-        local output=$(workflow /jobs/${job})
-        local http_result=$(echo "${output}" | \
-                            grep "^HTTP/1.1 [0-9][0-9][0-9] " | tail -1)
-        local http_code=$(echo "${http_result}" | cut -d' ' -f2)
-        local http_message=$(echo "${http_result}" | cut -d' ' -f3-)
+        local output
+        output=$(workflow /jobs/${job})
+        local http_result
+        http_result=$(echo "${output}" | \
+            grep "^HTTP/1.1 [0-9][0-9][0-9] " | tail -1)
+        local http_code
+        http_code=$(echo "${http_result}" | cut -d' ' -f2)
+        local http_message
+        http_message=$(echo "${http_result}" | cut -d' ' -f3-)
 
         if echo "${http_code}" | grep "^[45]" >/dev/null; then
             # BASHSTYLED

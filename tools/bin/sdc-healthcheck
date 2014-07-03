@@ -239,7 +239,8 @@ function check_agents() {
   done
 
   # Smartlogin is different, and suboptimal
-  local sl_status=$(/usr/bin/svcs -H -o STATE smartlogin)
+  local sl_status
+  sl_status=$(/usr/bin/svcs -H -o STATE smartlogin)
   if [ $parseflag == true ] ; then
     printf "%s:%s:%s:%s\n" "global" "running" "smartlogin" "$sl_status"
   else

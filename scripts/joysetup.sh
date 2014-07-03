@@ -239,8 +239,10 @@ function check_disk_space
 {
     local pool_json="$1"
     local RAM_MiB=${SYSINFO_MiB_of_Memory}
-    local space=$(/usr/bin/json capacity < ${pool_json})
-    local Disk_MiB=$(( $space / 1024 / 1024 ))
+    local space
+    space=$(/usr/bin/json capacity < ${pool_json})
+    local Disk_MiB
+    Disk_MiB=$(( $space / 1024 / 1024 ))
     local msg
 
     msg='Cannot setup: system has %dG memory but %dG disk (>= %dG expected)'
@@ -248,9 +250,10 @@ function check_disk_space
     Min_Disk_MiB=$(( $RAM_MiB * $MIN_DISK_TO_RAM ))
 
     if [[ ${Disk_MiB} -lt ${Min_Disk_MiB} ]]; then
-        local RAM_GiB=$(( $RAM_MiB / 1024 ))
-        local Disk_GiB=$(( $Disk_MiB / 1024 ))
-        local Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
+        local RAM_GiB Disk_GiB Min_Disk_GiB
+        RAM_GiB=$(( $RAM_MiB / 1024 ))
+        Disk_GiB=$(( $Disk_MiB / 1024 ))
+        Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
 
         msg=$(printf "${msg}" $RAM_GiB $Disk_GiB $Min_Disk_GiB)
         fatal "${msg}"
@@ -355,7 +358,8 @@ function create_zpool
 #
 create_dump()
 {
-    local dumpsize=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
+    local dumpsize
+    dumpsize=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
 
     # Create the dump zvol
     zfs create -V ${dumpsize}mb -o checksum=noparity ${SYS_ZPOOL}/dump || \

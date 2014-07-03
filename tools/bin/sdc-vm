@@ -64,7 +64,8 @@ vm_list()
     # with uuid's dashes changed to underscore to meet bash's variable
     # name requirements.
     host_mappings=$(cnapi /servers \
-        | json -H -e 'this.uuid=this.uuid.replace(/\-/g, "_");' -a uuid hostname \
+        | json -H -e 'this.uuid=this.uuid.replace(/\-/g, "_")' \
+            -a uuid hostname \
         | tr ' ' '=' | sed -e "s/^\([0-9a-f].*$\)/local hostname_\\1/")
     if [[ -n ${host_mappings} ]]; then
        eval ${host_mappings}
@@ -76,14 +77,15 @@ vm_list()
         -a alias brand state uuid ram server_uuid \
         | tr ' ' ',' | sort); do
 
-        local alias=$(echo "${zone}" | cut -d',' -f1)
-        local brand=$(echo "${zone}" | cut -d',' -f2)
-        local state=$(echo "${zone}" | cut -d',' -f3)
-        local uuid=$(echo "${zone}" | cut -d',' -f4)
-        local ram=$(echo "${zone}" | cut -d',' -f5)
-        local server_uuid=$(echo "${zone}" | cut -d',' -f6)
-        # BASHSTYLED
-        local server_name=$(eval echo \${hostname_$(echo ${server_uuid} | tr '-' '_')})
+        local alias brand state uuid ram server_uuid server_name
+        alias=$(echo "${zone}" | cut -d',' -f1)
+        brand=$(echo "${zone}" | cut -d',' -f2)
+        state=$(echo "${zone}" | cut -d',' -f3)
+        uuid=$(echo "${zone}" | cut -d',' -f4)
+        ram=$(echo "${zone}" | cut -d',' -f5)
+        server_uuid=$(echo "${zone}" | cut -d',' -f6)
+        server_name=$(eval echo \${hostname_$(echo ${server_uuid} \
+            | tr '-' '_')})
         [[ -z ${server_name} ]] && server_name="-"
 
         printf "%-12s %-16s %-36s  %-14s %7s  %-16s\n" \

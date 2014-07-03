@@ -372,8 +372,10 @@ Would you like to automatically report issues to Joyent?" 0 0 \
 # validated and required
 set_resolvers() {
   set_title "Network Configuration"
-  local resolvers=$(awk '/nameserver/ {printf("%s\n", $2); }' /etc/resolv.conf)
-  local search_domain=$(grep domain /etc/resolv.conf)
+  local resolvers
+  resolvers=$(awk '/nameserver/ {printf("%s\n", $2); }' /etc/resolv.conf)
+  local search_domain
+  search_domain=$(grep domain /etc/resolv.conf)
 
   if [ -z $search_domain ] ; then
     search_domain=$CONFIG_DOMAIN

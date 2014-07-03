@@ -356,7 +356,8 @@ recreate_extra_zones()
             [[ -n ${external_ip} ]] && \
                 set_ip_arg="$set_ip_arg -o external_ip=${external_ip}"
 
-            local zname=$(sdc-role create ${set_ip_arg} ${role} \
+            local zname
+            zname=$(sdc-role create ${set_ip_arg} ${role} \
                 2>/tmp/setuperr.$$ 4>&${LOGFD} | \
                 nawk '/Sent provision to VMAPI for/{print $NF}')
 

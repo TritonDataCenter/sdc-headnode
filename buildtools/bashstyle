@@ -1,18 +1,24 @@
 #!/usr/bin/env node
 
 /*
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  *
  * bashstyle: check bash scripts for adherence to style guidelines, including:
  *
  *    o no lines longer than 80 characters
  *    o file does not end with a blank line
+ *    o Do not use 'local' and var initialization *using a subshell* in the
+ *      same statement. See
+ *      <http://www.tldp.org/LDP/abs/html/localvar.html#EXITVALANOMALY01>
+ *      for why not. Arguably this belongs in a separate 'bashlint'.
  *
  * Future enhancements could include:
  *    o indents consistent with respect to tabs, spaces
  *    o indents consistently sized (all are some multiple of the smallest
  *      indent, which must be a tab or 4 or 8 spaces)
  */
+
+var VERSION = '2.0.0';
 
 var mod_assert = require('assert');
 var mod_fs = require('fs');
@@ -70,6 +76,17 @@ function checkFile(filename)
 				            filename, i);
 			}
 			styled = false;
+		}
+
+		if (!styled && line.match(/^\s*local\s+(\w+)\s*=.*\$\(/)) {
+			nerrors++;
+			var m = line.match(/^\s*local\s+(\w+)\s*=/);
+			console.log('%s: %d: declaring and setting a "local" ' +
+				'var in the same statement ' +
+				'ignores a subshell return code ' +
+				'<http://www.tldp.org/LDP/abs/html/localvar.html#EXITVALANOMALY01>: ' +
+				'local %s=...',
+				filename, i, m[1]);
 		}
 
 		if (!styled && line.length > 80) {

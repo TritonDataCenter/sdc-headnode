@@ -76,9 +76,9 @@ function setup_state_mark_complete
 function setup_state_not_seen
 {
     local state=$1
-    local seen=$(json -f ${SETUP_FILE} -e \
-        "this.result = this.seen_states.filter(
-            function(e) { return e === '$state' })[0]" result)
+    local seen
+    seen=$(json -f ${SETUP_FILE} -e "this.result = this.seen_states.filter(
+        function(e) { return e === '$state' })[0]" result)
     if [[ -z "$seen" ]]; then
         return 0
     else
@@ -168,8 +168,8 @@ function printf_log
 set_default_fw_rules() {
     [[ -f /var/fw/.default_rules_setup ]] && return
 
-    local admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network \
-                       $CONFIG_admin_netmask)
+    local admin_cidr
+    admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network $CONFIG_admin_netmask)
     /usr/sbin/fwadm add -f - <<RULES
 {
   "rules": [
@@ -601,7 +601,8 @@ function bootstrap_sapi
 {
     if setup_state_not_seen "sapi_bootstrapped"; then
         echo "Bootstrapping SAPI into SAPI"
-        local sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
+        local sapi_uuid
+        sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
         zlogin ${sapi_uuid} /usr/bin/bash <<HERE
 export ZONE_ROLE=sapi
 export ASSETS_IP=${CONFIG_assets_admin_ip}
@@ -702,28 +703,33 @@ function import_smartdc_service_images {
     fi
 
     for manifest in $(ls -1 ${USB_COPY}/datasets/*.imgmanifest); do
-        local is_smartdc_service=$(cat $manifest | json tags.smartdc_service)
+        local is_smartdc_service
+        is_smartdc_service=$(cat $manifest | json tags.smartdc_service)
         if [[ "$is_smartdc_service" != "true" ]]; then
             # /usbkey/datasets often has non-core images. Don't import those
             # here. This includes any additional datasets included in
             # build.spec#datasets.
             continue
         fi
-        local uuid=$(cat ${manifest} | json uuid)
+        local uuid
+        uuid=$(cat ${manifest} | json uuid)
 
         # We'll retry up to 3 times on errors reaching IMGAPI.
         local ok=false
         local retries=0
         while [[ ${ok} == "false" && ${retries} -lt 3 ]]; do
-            local status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
-                           | head -1 | awk '{print $2}')
+            local status
+            status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
+                | head -1 | awk '{print $2}')
             if [[ "${status}" == "404" ]]; then
                 # The core images all have .zfs.imgmanifest extensions.
 
-                # BASHSTYLED
-                local file_basename=$(echo "${manifest}" | sed -e "s/\.zfs\.imgmanifest$//" \
-                    -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
-                local file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
+                local file_basename
+                file_basename=$(echo "${manifest}" \
+                    | sed -e "s/\.zfs\.imgmanifest$//" \
+                        -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
+                local file
+                file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
 
                 if [[ -z ${file} ]]; then
                     # BASHSTYLED

@@ -147,10 +147,13 @@ function upgrade_pools
     # device size.  Let's fix that.  The dump device should be half the size of
     # available physical memory.
     #
-    local system_pool=$(svcprop -p config/zpool smartdc/init)
-    local dumpsize=$(zfs get -Hp -o value volsize ${system_pool}/dump)
+    local system_pool
+    system_pool=$(svcprop -p config/zpool smartdc/init)
+    local dumpsize
+    dumpsize=$(zfs get -Hp -o value volsize ${system_pool}/dump)
     if [[ $dumpsize -eq 4294967296 ]]; then
-        local newsize_in_MiB=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
+        local newsize_in_MiB
+        newsize_in_MiB=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
         zfs set volsize=${newsize_in_MiB}m ${system_pool}/dump
     fi
 }
@@ -587,7 +590,8 @@ function upgrade_usbkey
     # The datasets subdir is almost 3GB and takes forever to copy to the key.
     # We really only need the datasets in the cache dir to proceed.
 
-    local usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
+    local usbupdate
+    usbupdate=$(ls ${ROOT}/usbkey/*.tgz | tail -1)
     (cd ${usbmnt} && gzcat ${usbupdate} | \
          gtar --no-same-owner --exclude=datasets -xf -)
     [ $? != 0 ] && fatal_rb "upgrading USB key"
@@ -1178,7 +1182,8 @@ function cleanup_config
 # We expect the usbkey to already be mounted when we run this
 function install_platform
 {
-	local platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
+	local platformupdate
+        platformupdate=$(ls ${ROOT}/platform/platform-*.tgz | tail -1)
 	if [[ -n ${platformupdate} && -f ${platformupdate} ]]; then
 		# 'platformversion' is intentionally global.
 		platformversion=$(basename "${platformupdate}" | \

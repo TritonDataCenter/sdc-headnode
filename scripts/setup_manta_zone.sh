@@ -22,11 +22,13 @@ function fatal {
 
 function add_external_nic {
     local zone_uuid=$1
-    local external_net_uuid=$(sdc-napi /networks?nic_tag=external |
+    local external_net_uuid
+    external_net_uuid=$(sdc-napi /networks?nic_tag=external |
         json -Ha uuid)
     local tmpfile=/tmp/update_nics.$$.json
 
-    local num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
+    local num_nics
+    num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
     if [[ ${num_nics} == 2 ]]; then
         return  # External NIC already present
     fi
@@ -55,9 +57,12 @@ function add_external_nic {
 
 
 function import_manta_image {
-    local manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
-    local file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
-    local uuid=$(json -f ${manifest} uuid)
+    local manifest
+    manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
+    local file
+    file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
+    local uuid
+    uuid=$(json -f ${manifest} uuid)
 
     echo $(basename ${manifest}) > /usbkey/zones/manta/dataset
 
@@ -73,7 +78,8 @@ function import_manta_image {
 
 
 function deploy_manta_zone {
-    local service_uuid=$(sdc-sapi /services?name=manta | json -Ha uuid)
+    local service_uuid
+    service_uuid=$(sdc-sapi /services?name=manta | json -Ha uuid)
 
     echo "
     {
@@ -98,7 +104,8 @@ function enable_firewall {
 # by config-agent.
 function wait_for_config_agent {
     local CONFIG_PATH=/opt/smartdc/manta-deployment/etc/config.json
-    local MANTA_ZONE=$(vmadm lookup -1 alias=${ZONE_ALIAS})
+    local MANTA_ZONE
+    MANTA_ZONE=$(vmadm lookup -1 alias=${ZONE_ALIAS})
     echo "Wait up to a minute for config-agent to write '$CONFIG_PATH'."
     local ZONE_CONFIG_PATH=/zones/$MANTA_ZONE/root$CONFIG_PATH
     for i in {1..30}; do

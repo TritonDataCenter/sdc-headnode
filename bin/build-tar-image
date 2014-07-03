@@ -259,9 +259,12 @@ function create_directories
 function generate_grub_menu
 {
     local unit=
-    local serial_dev=$(build_spec serial-dev)
-    local console=$(build_spec console)
-    local default_boot_option=$(build_spec default-boot-option)
+    local serial_dev
+    serial_dev=$(build_spec serial-dev)
+    local console
+    console=$(build_spec console)
+    local default_boot_option
+    default_boot_option=$(build_spec default-boot-option)
 
     echo "==> Generating grub menu"
 
@@ -346,23 +349,32 @@ function generate_grub_menu
 
 function copy_base
 {
-    local sbbranch=$(build_spec sdcboot-release)
-    local platbranch=$(build_spec sdcboot-release)
-    local ftbranch=$(build_spec firmware-tools-release)
-    local plat_suffix=""
+    local sbbranch
+    sbbranch=$(build_spec sdcboot-release)
+    local platbranch
+    platbranch=$(build_spec sdcboot-release)
+    local ftbranch
+    ftbranch=$(build_spec firmware-tools-release)
 
+    local plat_suf
     if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
-        plat_suffix="-debug"
+        plat_suf="-debug"
+    else
+        plat_suf=""
     fi
 
     [[ -z ${sbbranch} ]] && sbbranch="master"
     [[ -z ${platbranch} ]] && platbranch="master"
     [[ -z ${ftbranch} ]] && ftbranch="master"
 
-    local sdcboot_path=$(get_manta_bit sdcboot/${sbbranch}/sdcboot-${sbbranch}-.*\.tgz)
-    local platboot_path=$(get_manta_bit \
-                    platform$plat_suffix/${platbranch}/boot$plat_suffix-${platbranch}-.*\.tgz)
-    local firmware_path=$(get_manta_bit \
+    local sdcboot_path
+    sdcboot_path=$(get_manta_bit \
+        sdcboot/${sbbranch}/sdcboot-${sbbranch}-.*\.tgz)
+    local platboot_path
+    platboot_path=$(get_manta_bit \
+        platform$plat_suf/${platbranch}/boot$plat_suf-${platbranch}-.*\.tgz)
+    local firmware_path
+    firmware_path=$(get_manta_bit \
         firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz)
 
     echo "==> Creating .joyliveusb file"
@@ -429,7 +441,8 @@ function valid_archive
 function cleanup_logs
 {
     local kept=0
-    local keep_logs=$(build_spec keep-logs)
+    local keep_logs=
+    keep_logs=$(build_spec keep-logs)
 
     if [[ -n ${keep_logs} && ${keep_logs} -gt 0 ]]; then
         for log in $(ls -1t ${LOGDIR}); do
@@ -450,7 +463,8 @@ function cleanup_bit
 
     local bits_dir="${ROOT}/cache"
     local kept=0
-    local keep_bits=$(build_spec keep-bits)
+    local keep_bits=
+    keep_bits=$(build_spec keep-bits)
 
     if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
         [[ -n ${TRACE} ]] \
@@ -479,11 +493,14 @@ function get_manta_bit
     pattern=$1
     local get_bit_rv=
 
-    local pattern_dir=$(dirname $pattern)
-    local file_name=$(basename $pattern)
+    local pattern_dir
+    pattern_dir=$(dirname $pattern)
+    local file_name
+    file_name=$(basename $pattern)
 
     local branch=${BITS_BRANCH}
-    local have_branch_override=$(dirname $pattern_dir)
+    local have_branch_override
+    have_branch_override=$(dirname $pattern_dir)
     if [[ "$have_branch_override" != "." ]]; then
         branch=$(basename $pattern_dir)
         pattern_dir=$(dirname $pattern_dir)
@@ -495,8 +512,10 @@ function get_manta_bit
         # where pattern='agentsshar/agents-master-*' is at:
         #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
 
-        local pattern_base="^$(basename $pattern)"
-        local latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
+        local pattern_base
+        pattern_base="^$(basename $pattern)"
+        local latest_name
+        latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
            | grep "${pattern_base}" \
            | sort \
            | tail -1)
@@ -504,7 +523,8 @@ function get_manta_bit
             || fatal "'${BITS_DIR}/${pattern}' did not match any files."
 
         local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
-        local latest_filename=$(basename $latest_path)
+        local latest_filename
+        latest_filename=$(basename $latest_path)
         local cache_path=${ROOT}/cache/${latest_filename}
         if [[ ! -f $cache_path ]]; then
             echo "Copying '${latest_path}' bit to cache." >&2
@@ -520,8 +540,10 @@ function get_manta_bit
     if [[ ${HAVE_INTERNET} == "false" \
             && -z "$(echo "$pattern" | \
                      egrep "${NO_INTERNET_EXCEPTIONS}")"  ]]; then
-        local pattern_base="^$(basename $pattern)"
-        local latest_path=$(ls -1 ${ROOT}/cache/ \
+        local pattern_base
+        pattern_base="^$(basename $pattern)"
+        local latest_path
+        latest_path=$(ls -1 ${ROOT}/cache/ \
            | grep "${pattern_base}" \
            | sort \
            | tail -1)
@@ -537,16 +559,20 @@ function get_manta_bit
         # BASHSTYLED
         BUILDS_CURL="curl ${CURL_OPTS} -kSf -u $BUILDS_PROXY_USER:$BUILDS_PROXY_PASSWD"
         local latest_file="$BUILDS_PROXY_URL/${pattern_dir}/${branch}-latest"
-        local latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
-        local latest_dir=$BUILDS_PROXY_URL/$pattern_dir/$(basename $latest_mdir)
+        local latest_mdir
+        latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
+        local latest_dir
+        latest_dir=$BUILDS_PROXY_URL/$pattern_dir/$(basename $latest_mdir)
         # BASHSTYLED
-        local latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
+        local latest_filename
+        latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
             | grep "$file_name" | head -1 \
             | cut -d'"' -f2 | cut -d'"' -f1)
         local latest_path=$latest_dir/$pattern_dir/$latest_filename
         local cache_path=${ROOT}/cache/${latest_filename}
 
-        local md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null \
+        local md5
+        md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null \
                     | grep $latest_filename | cut -d ' ' -f1)
 
         local ok=0
@@ -558,8 +584,8 @@ function get_manta_bit
                     || fatal "Unable to fetch '${latest_path}'."
             fi
 
-            local my_md5=$(openssl dgst -md5 < ${cache_path} \
-                           | awk '{print $NF}')
+            local my_md5
+            my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
             if [[ ${my_md5} == ${md5} ]]; then
                 ok=1
                 continue
@@ -581,21 +607,25 @@ function get_manta_bit
         return
     fi
 
-    # BASHSTYLED
-    local latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
-    local manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
+    local latest_dir
+    latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
+    local manta_base_dir
+    manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     [[ -n ${manta_base_dir} ]] \
         || fatal "get_manta_bit: unable to find manta_base_dir for ${file_name}"
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
-    local latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
+    local latest_name
+    latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
     [[ -n ${latest_name} ]] \
         || fatal "get_manta_bit: unable to find latest_name for ${file_name}"
-    local latest_filename=$(basename $latest_name)
+    local latest_filename
+    latest_filename=$(basename $latest_name)
     [[ -n ${latest_filename} ]] \
-        || fatal "get_manta_bit: unable to find latest_filename for ${file_name}"
+        || fatal "get_manta_bit: unable to get latest_filename for ${file_name}"
     local cache_path=${ROOT}/cache/${latest_filename}
 
-    local md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null \
+    local md5
+    md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null \
                 | grep $latest_filename | cut -d ' ' -f1)
 
     local ok=0
@@ -607,7 +637,8 @@ function get_manta_bit
                 || fatal "Unable to fetch '${latest_filename}'."
         fi
 
-        local my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
+        local my_md5
+        my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
         if [[ ${my_md5} == ${md5} ]]; then
             ok=1
             continue
@@ -730,10 +761,11 @@ function copy_sdcadm
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download sdcadm, looping!"
 
-    local sdcadm_branch=$(build_spec sdcadm-release)
-    local path=$sdcadm_branch
+    local path
+    path=$(build_spec sdcadm-release)
     if [[ ! -f "${path}" ]]; then
-        path=$(get_manta_bit "sdcadm/${sdcadm_branch}/sdcadm-${sdcadm_branch}-.*\.sh")
+        # Try 'sdcadm-release' as a branch.
+        path=$(get_manta_bit "sdcadm/${path}/sdcadm-${path}-.*\.sh")
     fi
 
     echo "Copying $(basename $path) to \$stage/sdcadm-install.sh"
@@ -749,21 +781,25 @@ function get_agentsshar
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
 
-    local agentsshar_branch=$1
+    local branch=$1
 
-    if [[ -f ${agentsshar_branch} && -f ${agentsshar_branch/%sh/md5sum} ]]; then
-        local agentsshar_path=${agentsshar_branch}
-        local agentsmd5_path=${agentsshar_branch/%sh/md5sum}
+    if [[ -f ${branch} && -f ${branch/%sh/md5sum} ]]; then
+        local agentsshar_path=${branch}
+        local agentsmd5_path=${branch/%sh/md5sum}
     else
-        local agentsshar_path=$(get_manta_bit \
-                        "agentsshar/${agentsshar_branch}/agents-${agentsshar_branch}-.*\.sh")
-        local agentsmd5_path=$(get_manta_bit \
-                        "agentsshar/${agentsshar_branch}/agents-${agentsshar_branch}-.*\.md5sum")
+        local agentsshar_path
+        agentsshar_path=$(get_manta_bit \
+            "agentsshar/${branch}/agents-${branch}-.*\.sh")
+        local agentsmd5_path
+        agentsmd5_path=$(get_manta_bit \
+            "agentsshar/${branch}/agents-${branch}-.*\.md5sum")
     fi
 
     # Make sure it's not corrupt.
-    local MD5=$(cat ${agentsmd5_path})
-    local ACTUAL_MD5=$(openssl dgst -md5 ${agentsshar_path} | awk '{print $NF}')
+    local MD5
+    MD5=$(cat ${agentsmd5_path})
+    local ACTUAL_MD5
+    ACTUAL_MD5=$(openssl dgst -md5 ${agentsshar_path} | awk '{print $NF}')
     if [[ -z ${MD5} ]] \
         || [[ -z ${ACTUAL_MD5} ]] \
         || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
@@ -858,7 +894,8 @@ function copy_datasets
             fatal "Unable to determine compression for ${name}"
         fi
 
-        local sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
+        local sha1
+        sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
         copy_dataset ${name} ${file_url} ${sha1} ${name}.zfs.${compression}
         cp ${manifest} ${STAGE}/datasets/$(basename ${manifest})
 
@@ -901,8 +938,8 @@ function copy_dataset
       fi
   fi
 
-  local cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} \
-                              | awk '{print $1}')
+  local cached_dataset_sha1
+  cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
   if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
     rm -f ${ROOT}/cache/${dataset_file}
     # BASHSTYLED
@@ -953,7 +990,8 @@ function get_core_zone_image
         if [[ "${target}" != "${dst_manifest}" ]]; then
             ln ${target} ${dst_manifest}
         fi
-        local src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
+        local src_file
+        src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
         dst_file=${dst_dir}/$(basename $src_file)
         ln ${src_file} ${dst_file}
         clean_pattern=$(echo "$(basename $dst_file)" \
@@ -961,7 +999,8 @@ function get_core_zone_image
         cleanup_bit ${clean_pattern}
     else
         # Not a local file, this is a pattern for 'get_bit'.
-        local bit_cache_path=$(get_manta_bit ${target})
+        local bit_cache_path
+        bit_cache_path=$(get_manta_bit ${target})
         # XXX Normalize to '.imgmanifest' ext, which will be the eventual
         #     usage but is '.dsmanifest' in the builds at this time.
         manifest_base=$(basename $bit_cache_path)
@@ -991,7 +1030,8 @@ function get_core_zone_image
     # as param. Expect an IMAGE_UUID placeholder.
     local service=${STAGE}/services/${zone}/service.json
     if [[ -f ${service} ]]; then
-        local image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
+        local image_uuid
+        image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
         sed -i'' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
     fi
 
@@ -1014,7 +1054,8 @@ function copy_zones
             cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
         fi
 
-        local image_pattern=$(build_spec ${zone}-image)
+        local image_pattern
+        image_pattern=$(build_spec ${zone}-image)
         mkdir -p ${STAGE}/datasets
         get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
     done

@@ -18,11 +18,12 @@ function fatal {
 
 function add_external_nic {
     local zone_uuid=$1
-    local external_net_uuid=$(sdc-napi /networks?nic_tag=external |
-        json -Ha uuid)
+    local external_net_uuid
+    external_net_uuid=$(sdc-napi /networks?nic_tag=external | json -Ha uuid)
     local tmpfile=/tmp/update_nics.$$.json
 
-    local num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
+    local num_nics
+    num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
 
     echo "Adding external NIC to ${zone_uuid}"
 

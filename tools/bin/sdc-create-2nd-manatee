@@ -179,7 +179,8 @@ function preflight_check
 #
 function create_second_instance
 {
-    local new_uuid=$(uuid -v4)
+    local new_uuid
+    new_uuid=$(uuid -v4)
     if [[ -z ${new_uuid} ]]; then
         echo ""
         fatal "unable to generate UUID for new instance"
@@ -342,7 +343,8 @@ function wait_for_ha
     echo -n "Waiting for Manatee to be HA .."
     set +o errexit
     local tries=0
-    local mode=$(get_manatee_status "${server_uuid}" "${instance}")
+    local mode
+    mode=$(get_manatee_status "${server_uuid}" "${instance}")
     while [[ ${mode} != "HA" ]]; do
         if [[ ${tries} -eq 12 ]]; then
             # if we've waited this long we're probably racing w/ config-agent
