@@ -21,7 +21,7 @@ set -o errexit
 
 echo "logs at /tmp/backuplog.$$"
 
-# readonly destdir=/zones/backups/$(uuid -v4)
+# readonly destdirectory=/zones/backups/$(uuid -v4)
 
 readonly min_version=joyent_20140507T234920Z
 readonly backup_key=/tmp/usbkey-backup
@@ -30,7 +30,7 @@ liveimage=
 readonly dc_name=$(sysinfo | json '["Datacenter Name"]')
 readonly timestamp=$(date -u "+%Y%m%dT%H%M%SZ")
 readonly tmpdir=/tmp/backups.$$/
-readonly destdir=/zones/backups/
+readonly destdirectory=/zones/backups/
 
 readonly usb=${dc_name}-backup-usb-${timestamp}.img.tgz
 readonly manatee=${dc_name}-backup-manatee-${timestamp}.gz
@@ -40,9 +40,9 @@ readonly tmp_usb=${tmpdir}/${usb}
 readonly tmp_manatee=${tmpdir}/${manatee}
 readonly tmp_imgs=${tmpdir}/${imgs}
 
-readonly dest_usb=${destdir}/${usb}
-readonly dest_manatee=${destdir}/${manatee}
-readonly dest_imgs=${destdir}/${imgs}
+readonly dest_usb=${destdirectory}/${usb}
+readonly dest_manatee=${destdirectory}/${manatee}
+readonly dest_imgs=${destdirectory}/${imgs}
 
 CLEANED=0
 
@@ -417,7 +417,7 @@ function process_payload
 
 function wrap_up
 {
-    mkdir -p ${destdir}
+    mkdir -p ${destdirectory}
     mv ${tmp_usb} ${dest_usb}
     mv ${tmp_manatee} ${dest_manatee}
     mv ${tmp_imgs} ${dest_images}
@@ -437,7 +437,7 @@ then
     fatal "backup can only be run from the headnode"
 fi
 
-mkdir -p ${destdir} || fatal "unable to create backup directory $destdir"
+mkdir -p ${destdirectory} || fatal "unable to create backup directory $destdir"
 
 trap cleanup EXIT
 
