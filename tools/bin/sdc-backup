@@ -24,12 +24,12 @@ echo "logs at /tmp/backuplog.$$"
 # readonly destdirectory=/zones/backups/$(uuid -v4)
 
 readonly min_version=joyent_20140507T234920Z
-readonly backup_key=/tmp/usbkey-backup
+readonly backup_key=/var/tmp/usbkey-backup
 liveimage=
 
 readonly dc_name=$(sysinfo | json '["Datacenter Name"]')
 readonly timestamp=$(date -u "+%Y%m%dT%H%M%SZ")
-readonly tmpdir=/tmp/backups.$$/
+readonly tmpdir=/var/tmp/backups.$$/
 readonly destdirectory=/zones/backups/
 
 readonly usb=${dc_name}-backup-usb-${timestamp}.img.tgz
@@ -141,8 +141,7 @@ function copy_image
         *) fatal "Unknown compression for image ${manifest}: ${compression}"
     esac
 
-    name=$(json -f ${manifest} manifest.name)-zfs-\
-$(json -f ${manifest} manifest.version)
+    name=$(json -f ${manifest} name)-zfs-$(json -f ${manifest} version)
 
     # XXX - do we already have that one? stop now.
     if [[ -f ${destdir}/${name}.zfs${compression} ]]; then
@@ -150,7 +149,8 @@ $(json -f ${manifest} manifest.version)
     else
         echo "Writing ${name} to backup-usbkey"
         cp ${manifest} ${destdir}/${name}.imgmanifest
-        imgadm get-file -o ${destdir}/${name}.zfs${compression}
+        sdc-imgadm get-file -o ${destdir}/${name}.zfs${compression} \
+          ${image_uuid}
 
         if [[ -n ${is_origin} ]]; then
             echo ${name} >> ${destdir}/img_dependencies
@@ -158,7 +158,7 @@ $(json -f ${manifest} manifest.version)
 
         origin_uuid=$(json -f ${manifest} origin)
         if [[ -n ${origin_uuid} ]]; then
-            copy_image ${origin_uuid} "yes"
+            copy_image ${origin_uuid} ${destdir} "yes"
         fi
     fi
 }
