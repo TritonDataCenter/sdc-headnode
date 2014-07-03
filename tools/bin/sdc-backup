@@ -387,17 +387,19 @@ function backup_local_images
 {
     echo -n "Backing up local images..."
     local image_list=
-    local destdir=${tmpdir}/local_images
+    local destdir=${tmpdir}local_images
 
     mkdir -p ${destdir}
 
-    image_list=$(imgadm list -o uuid)
-    for image in image_list; do
-        copy_image ${destdir}
+    image_list=$(sdc-imgadm list -H -o uuid)
+    for image in ${image_list}; do
+        copy_image ${image} ${destdir}
     done
 
     # extraneous file created for backup-usbkey
-    rm ${destdir}/img_dependencies
+    if [ -d ${destdir}img_dependencies ]; then
+        rm ${destdir}img_dependencies
+    fi
 
     # tar it all up.
     tar cf ${tmp_imgs} -C ${destdir} .
@@ -440,7 +442,7 @@ then
     fatal "backup can only be run from the headnode"
 fi
 
-mkdir -p ${destdirectory} || fatal "unable to create backup directory $destdir"
+mkdir -p ${destdirectory} || fatal "unable to create backup directory $destdirectory"
 
 trap cleanup EXIT
 
