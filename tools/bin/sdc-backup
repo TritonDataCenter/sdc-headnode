@@ -106,8 +106,9 @@ function copy_platform
     echo -n "Copying in current platform..."
     liveimage=$(sysinfo | json '["Live Image"]')
     if [[ -d /usbkey/os/${liveimage} ]]; then
+        mkdir -p ${backup_key}/os/${liveimage}
         cp -r /usbkey/os/${liveimage} \
-            ${backup_key}/os/${liveimage}
+            ${backup_key}/os
     else
         fatal "Can't find ${liveimage} in /usbkey/os"
     fi
@@ -230,6 +231,7 @@ function backup_usbkey
     local top_level=
 
     echo "Creating restoration usbkey..."
+    pfexec mkdir -p ${backup_key}
     # mount_image
     /usbkey/scripts/mount-usb.sh
     local src=/mnt/usbkey
