@@ -286,6 +286,9 @@ function backup_usbkey
 
     # Backup sapi applications:
     sdc-sapi --no-headers /applications > ${backup_key}/sapi-applications.json
+    sdc-sapi --no-headers /services > ${backup_key}/sapi-services.json
+    sdc-sapi --no-headers /instances > ${backup_key}/sapi-instances.json
+    sdc-sapi --no-headers /manifests > ${backup_key}/sapi-manifests.json
     # umount_image
     umount /mnt/usbkey
     echo "Done."
