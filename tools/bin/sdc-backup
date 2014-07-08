@@ -251,6 +251,35 @@ function dump_sapi_information
     sdc-sapi --no-headers /manifests > ${dest}/sapi-manifests.json
 }
 
+function dump_vmapi_vms
+{
+    local dest=${mnt_dir}/vmapi_dump
+    mkdir -p ${dest}
+    local num_machines=$(sdc-vmapi /vms -X HEAD | \
+      grep x-joyent-resource-count | awk {'print $2'})
+    # Fetching machines in groups of 1000 makes everything go OK. Attempts
+    # to fetch everything at once result into errors from VMAPI
+    local completed=0
+    local following=1000
+    while [[ ${completed} -lt ${num_machines} ]]; do
+      sdc-vmapi --no-headers /vms?offset=${completed}\&limit=1000 > \
+        ${dest}/vmapi-vms-${completed}-${following}.json
+      let completed+=1000
+      let following+=1000
+    done
+}
+
+function dump_cnapi_cns
+{
+    # XXX: This assumes we will not need to paginate b/c we don't have more
+    # than 1000 CNs. Additionally, CNAPI didn't provide a way to retrieve
+    # the total number of CNs using HTTP HEAD method, like VMAPI does. We
+    # should consider adding it.
+    local dest=${mnt_dir}/cnapi_dump
+    mkdir -p ${dest}
+    sdc-cnapi /servers?extras=sysinfo,capacity > ${dest}/cnapi.json
+}
+
 # XXX - don't change anything except the title.
 # XXX - even that might not be necessary.
 function setup_grub
@@ -319,6 +348,8 @@ function backup_usbkey
     copy_images
     add_manifests
     dump_sapi_information
+    dump_vmapi_vms
+    dump_cnapi_cns
 
     # XXX - flag. Is this a good place for it; after restore we want things to
     # behave "normally" on the next reboot. But that should also be a manual
@@ -407,6 +438,7 @@ on node ${manatee_server}"
 
     # This is awesomely slow: 17GB => 14 mins. Give it an hour to complete?
     # XXX - how much space does this save us?
+    # YYY - It compresses 17GB into 3.5GB for my tests.
     echo "Compressing backup on node ${manatee_server}"
     sdc-oneachnode -n ${manatee_server} -T 3600 \
     "/usr/bin/gzip -c ${tmpdir}/manatee.zfs > ${tmp_manatee}"
