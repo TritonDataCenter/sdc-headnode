@@ -302,13 +302,13 @@ function backup_usbkey
     #                             on how we structure the restoration.
 
     top_level=$(ls -1 ${src} \
-        | grep -v application.json \
-        | grep -v boot_archive.manifest \
-        | grep -v datasets \
-        | grep -v manifests \
-        | grep -v os \
-        | grep -v services \
-        | grep -v usb_key.manifest)
+        | grep -v ^application.json \
+        | grep -v ^boot_archive.manifest \
+        | grep -v ^datasets \
+        | grep -v ^manifests \
+        | grep -v ^os \
+        | grep -v ^services \
+        | grep -v ^usb_key.manifest)
 
     for item in ${top_level}; do
         cp -r ${src}/${item} ${mnt_dir}/${item}
