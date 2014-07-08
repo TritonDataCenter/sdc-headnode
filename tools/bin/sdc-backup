@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 #
-# Copyright (c) 2013, Joyent, Inc. All rights reserved.
+# Copyright (c) 2014, Joyent, Inc. All rights reserved.
 # This backs up the SDC Manatee zone datasets and the USB config.
 #
 
@@ -21,18 +21,17 @@ set -o errexit
 
 echo "logs at /tmp/backuplog.$$"
 
-# readonly destdirectory=/zones/backups/$(uuid -v4)
-
 readonly min_version=joyent_20140507T234920Z
-readonly backup_key=/var/tmp/usbkey-backup
 liveimage=
 
 readonly dc_name=$(sysinfo | json '["Datacenter Name"]')
 readonly timestamp=$(date -u "+%Y%m%dT%H%M%SZ")
-readonly tmpdir=/var/tmp/backups.$$/
-readonly destdirectory=/zones/backups/
+readonly mnt_dir=/mnt/tmp
+readonly tmpdir=/var/tmp/backups.$$
+readonly destdirectory=/zones/backups
 
-readonly usb=${dc_name}-backup-usb-${timestamp}.img.tgz
+readonly template_image=/opt/smartdc/share/4gb.img.tgz
+readonly usb=${dc_name}-backup-usb-${timestamp}.img
 readonly manatee=${dc_name}-backup-manatee-${timestamp}.gz
 readonly imgs=${dc_name}-backup-local-iamges-${timestamp}.tar
 
@@ -48,7 +47,6 @@ CLEANED=0
 
 function usage
 {
-    # BASHSTYLED
     printf "usage: $(basename $0) \n" >/dev/stderr
     exit 1
 }
@@ -61,15 +59,22 @@ function warn
 function fatal
 {
     printf "Error: %s\n" "$1" >/dev/stderr
+    echo ""
+    echo "*** BACKUP FAILED - see logs at ${/tmp/backuplog.$$} ***"
+    echo ""
     exit 1
 }
 
 function cleanup
 {
+    local USB_MOUNTED
     if [[ ${CLEANED} -eq 0 ]]; then
         rm -rf ${tmpdir}
         CLEANED=1
     fi
+    umount_backup_image
+    USBKEY_MOUNTED=$(mount | grep '/mnt/usbkey' || true)
+    [[ -n ${USBKEY_MOUNTED} ]] && umount /mnt/usbkey
 }
 
 # mainline functions
@@ -81,20 +86,27 @@ function preflight
     if [[ ${version} < ${min_version} ]]; then
         fatal "Cannot back up, doesn't meet minimum required version."
     fi
+
+    mkdir -p ${tmpdir}
 }
 
 # Shouldn't we have a real backup image here?
-function mount_image
+function mount_backup_image
 {
-    pfexec mkdir -p ${backup_key}
-    LOOPBACK=$(pfexec lofiadm -a ${IMG_TMP_DIR}/$$.${IMG})
-    pfexec mount -f pcfs -o foldcase ${LOOPBACK}:c ${backup_key}
+    local OUTPUT
+    OUTPUT=$(gtar -C ${tmpdir} -xzvf ${template_image})
+    mv ${tmpdir}/${OUTPUT} ${tmp_usb}
+    mkdir -p ${mnt_dir}
+
+    LOOPBACK=$(pfexec lofiadm -a ${tmp_usb})
+    # XXX - /usbkey/scripts uses noatime here?
+    pfexec mount -f pcfs -o foldcase ${LOOPBACK}:c ${mnt_dir}
 }
 
-function umount_image
+function umount_backup_image
 {
     if [[ -n ${LOOPBACK} ]]; then
-        pfexec umount ${backup_key} || /usr/bin/true
+        pfexec umount ${mnt_dir} || /usr/bin/true
         pfexec lofiadm -d ${LOOPBACK}
     fi
     sync; sync
@@ -106,9 +118,9 @@ function copy_platform
     echo -n "Copying in current platform..."
     liveimage=$(sysinfo | json '["Live Image"]')
     if [[ -d /usbkey/os/${liveimage} ]]; then
-        mkdir -p ${backup_key}/os/${liveimage}
+        mkdir -p ${mnt_dir}/os/${liveimage}
         cp -r /usbkey/os/${liveimage} \
-            ${backup_key}/os
+            ${mnt_dir}/os
     else
         fatal "Can't find ${liveimage} in /usbkey/os"
     fi
@@ -127,7 +139,7 @@ function copy_image
     local compression=
 
 
-    manifest=${tmpdir}${image_uuid}.imgmanifest
+    manifest=${tmpdir}/${image_uuid}.imgmanifest
 
     # XXX could fail if image has been deleted; zfs send & compress here.
     # or possibly always send & compress?
@@ -143,13 +155,12 @@ function copy_image
 
     name=$(json -f ${manifest} name)-zfs-$(json -f ${manifest} version)
 
-    # XXX - do we already have that one? stop now.
     if [[ -f ${destdir}/${name}.zfs${compression} ]]; then
         echo "Skipping ${name} - already present"
     else
-        echo "Writing ${name} to backup-usbkey"
+        echo "Writing ${name} to ${destdir}"
         cp ${manifest} ${destdir}/${name}.imgmanifest
-        sdc-imgadm get-file -o ${destdir}/${name}.zfs${compression} \
+        sdc-imgadm get-file -q -o ${destdir}/${name}.zfs${compression} \
           ${image_uuid}
 
         if [[ -n ${is_origin} ]]; then
@@ -171,12 +182,9 @@ function copy_images
     local image_uuid=
 
     core_zones=$(vmadm lookup tags.smartdc_type=core state=running)
-    destdir=${backup_key}/datasets
+    destdir=${mnt_dir}/datasets
     mkdir -p ${destdir}
 
-    if [ ! -d ${tmpdir} ]; then
-        mkdir -p ${tmpdir}
-    fi
     # actual zones
     for zone in ${core_zones}; do
         image_uuid=$(vmadm get ${zone} | json image_uuid)
@@ -204,8 +212,8 @@ function backup_payloads
         process_payload ${destdir}/${zone}.json
     done
 
-    mkdir -p ${backup_key}/payloads
-    tar zcf ${backup_key}/payloads/payloads.tgz -C ${destdir} *.json
+    mkdir -p ${tmp_usb}/payloads
+    tar zcf ${tmp_usb}/payloads/payloads.tgz -C ${destdir} *.json
 
     echo "Done."
 }
@@ -214,36 +222,62 @@ function add_manifests
 {
     echo -n "Creating usbkey manifests..."
     # build manifest of USB files + move in boot_archive manifest
-    rm -f ${backup_key}/usb_key.manifest || true
-    (cd ${backup_key} \
+    rm -f ${mnt_dir}/usb_key.manifest || true
+    (cd ${mnt_dir} \
         && find . -type f -exec openssl dgst -md5 {} \; | awk '{print $NF}') \
-        > ${backup_key}/usb_key.manifest
+        > ${mnt_dir}/usb_key.manifest
 
-    rm -f ${backup_key}/boot_archive.manifest || true
+    rm -f ${mnt_dir}/boot_archive.manifest || true
 
     # BASHSTYLED
-    cp ${backup_key}/os/${liveimage}/platform/i86pc/amd64/boot_archive.manifest \
-        ${backup_key}/boot_archive.manifest
+    cp ${mnt_dir}/os/${liveimage}/platform/i86pc/amd64/boot_archive.manifest \
+        ${mnt_dir}/boot_archive.manifest
 
-    chmod 444 ${backup_key}/*.manifest
+    chmod 444 ${mnt_dir}/*.manifest
     echo "Done."
+}
+
+function dump_sapi_information
+{
+    # XXX - may need post-processing to:
+    #   a) insert into restore-key/services
+    #   b) inject into sapi some other way
+    # Backup sapi applications:
+    local dest=${mnt_dir}/sapi_dump
+    mkdir -p ${dest}
+    sdc-sapi --no-headers /applications > ${dest}/sapi-applications.json
+    sdc-sapi --no-headers /services > ${dest}/sapi-services.json
+    sdc-sapi --no-headers /instances > ${dest}/sapi-instances.json
+    sdc-sapi --no-headers /manifests > ${dest}/sapi-manifests.json
+}
+
+# XXX - don't change anything except the title.
+# XXX - even that might not be necessary.
+function setup_grub
+{
+    cp -r /mnt/usbkey/boot/grub/bin ${mnt_dir}/boot/grub/bin
+
+    sed -e "s/^Title Live 64-bit/Title Live 64-bit (${dc_name} disaster recovery ${timestamp})/" \
+        /mnt/usbkey/boot/grub/menu.lst > ${mnt_dir}/boot/grub/menu.lst
 }
 
 function backup_usbkey
 {
     local top_level=
+    local USBKEY_MOUNTED=
 
     echo "Creating restoration usbkey..."
-    pfexec mkdir -p ${backup_key}
-    # mount_image
-    /usbkey/scripts/mount-usb.sh
+    # pfexec mkdir -p ${tmp_usb}
+    mount_backup_image
+    USBKEY_MOUNTED=$(mount | grep '/mnt/usbkey' || true)
+    [[ -z ${USBKEY_MOUNTED} ]] && /usbkey/scripts/mount-usb.sh
     local src=/mnt/usbkey
 
     # current top-level contents of usbkey, and inclusion in backup
     # application.json       n - in SAPI (or grab from SAPI)
     # banner                 y
     # boot                   n - use template image
-    # boot_archive.manifest  n - modify?
+    # boot_archive.manifest  n - modify? regenerate?
     # config                 y
     # config.inc             y
     # datasets               n - get current ones from IMGAPI
@@ -277,20 +311,23 @@ function backup_usbkey
         | grep -v usb_key.manifest)
 
     for item in ${top_level}; do
-        cp -r ${src}/${item} ${backup_key}/${item}
+        cp -r ${src}/${item} ${mnt_dir}/${item}
     done
 
     copy_platform
+    setup_grub
     copy_images
     add_manifests
+    dump_sapi_information
 
-    # Backup sapi applications:
-    sdc-sapi --no-headers /applications > ${backup_key}/sapi-applications.json
-    sdc-sapi --no-headers /services > ${backup_key}/sapi-services.json
-    sdc-sapi --no-headers /instances > ${backup_key}/sapi-instances.json
-    sdc-sapi --no-headers /manifests > ${backup_key}/sapi-manifests.json
-    # umount_image
-    umount /mnt/usbkey
+    # XXX - flag. Is this a good place for it; after restore we want things to
+    # behave "normally" on the next reboot. But that should also be a manual
+    # step and/or a "clear" tool.
+    touch ${mnt_dir}/RESTORE_IMAGE
+
+    umount_backup_image
+    umount ${src}
+
     echo "Done."
 }
 
@@ -369,6 +406,7 @@ on node ${manatee_server}"
         ${tmpdir}/manatee.zfs;"
 
     # This is awesomely slow: 17GB => 14 mins. Give it an hour to complete?
+    # XXX - how much space does this save us?
     echo "Compressing backup on node ${manatee_server}"
     sdc-oneachnode -n ${manatee_server} -T 3600 \
     "/usr/bin/gzip -c ${tmpdir}/manatee.zfs > ${tmp_manatee}"
@@ -392,7 +430,7 @@ function backup_local_images
 {
     echo -n "Backing up local images..."
     local image_list=
-    local destdir=${tmpdir}local_images
+    local destdir=${tmpdir}/local_images
 
     mkdir -p ${destdir}
 
@@ -402,8 +440,8 @@ function backup_local_images
     done
 
     # extraneous file created for backup-usbkey
-    if [ -d ${destdir}img_dependencies ]; then
-        rm ${destdir}img_dependencies
+    if [ -d ${destdir}/img_dependencies ]; then
+        rm ${destdir}/img_dependencies
     fi
 
     # tar it all up.
@@ -428,14 +466,16 @@ function process_payload
 function wrap_up
 {
     mkdir -p ${destdirectory}
-    mv ${tmp_usb} ${dest_usb}
+    gzip -c ${tmp_usb} > ${dest_usb}.gz
     mv ${tmp_manatee} ${dest_manatee}
-    mv ${tmp_imgs} ${dest_images}
+    mv ${tmp_imgs} ${dest_imgs}
     echo "Backup complete:"
-    echo "  backup usbkey image: ${dest_usb}"
+    echo "  backup usbkey image: ${dest_usb}.gz"
     echo "       manatee backup: ${dest_manatee}"
     echo "   local image backup: ${dest_imgs}"
-    echo "Copy or move these files to the backup medium"
+    echo "*****************************************"
+    echo "* COPY OR MOVE THESE FILES OFF SITE NOW *"
+    echo "*****************************************"
 }
 
 #
@@ -446,8 +486,6 @@ if [[ $(sysinfo | json '["Boot Parameters"].headnode') != "true" ]]
 then
     fatal "backup can only be run from the headnode"
 fi
-
-mkdir -p ${destdirectory} || fatal "unable to create backup directory $destdirectory"
 
 trap cleanup EXIT
 
