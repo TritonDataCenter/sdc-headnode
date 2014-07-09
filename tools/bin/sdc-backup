@@ -280,6 +280,20 @@ function dump_cnapi_cns
     sdc-cnapi /servers?extras=sysinfo,capacity > ${dest}/cnapi.json
 }
 
+function backup_sapi_dataset
+{
+    local dest=${mnt_dir}/sapi_dump
+    mkdir -p ${dest}
+    # errexit should take care of any exception here:
+    sdc-sapi --no-headers /cache -X POST
+    UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+    CUR_UUID=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~^sapi)
+    DS_NAME=$(zfs list -o name | grep $CUR_UUID | grep data)
+    SNAP_NAME="${DS_NAME}@$(date -u "+%s")"
+    zfs snapshot $SNAP_NAME
+    zfs send $SNAP_NAME > ${dest}/sapi.zfs
+}
+
 # XXX - don't change anything except the title.
 # XXX - even that might not be necessary.
 function setup_grub
