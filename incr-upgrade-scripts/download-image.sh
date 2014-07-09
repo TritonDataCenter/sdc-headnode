@@ -29,7 +29,10 @@ function fatal
 function import_image() {
     local uuid=$1
     local manifest=/var/tmp/${uuid}.manifest.$$
-    local file=/var/tmp/${uuid}.file.$$
+    local file=$2
+    if [[ -z $file ]]; then
+        file=/var/tmp/${uuid}.file.$$
+    fi
 
     UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
     SDC_IMGADM='/opt/smartdc/bin/sdc-imgadm'
@@ -51,10 +54,18 @@ function import_image() {
     bytes=$(json -f ${manifest} files.0.size)
     name=$(json -f ${manifest} name)
     version=$(json -f ${manifest} version)
-    printf "Downloading image $uuid ($name $version) file (%d MiB).\n" \
-        $(( ${bytes} / 1024 / 1024 ))
-    ${UPDATES_IMGADM} get-file $uuid > ${file} \
-        || fatal "failed to get image $uuid file from updates.joyent.com"
+
+    if [[ -e $file ]]; then
+        local fsize=$(stat -c%s "$file")
+        if [[ $fsize != $bytes ]]; then
+            fatal "$file size mismatch: Manifest size $bytes, File size $fsize"
+        fi
+    else
+        printf "Downloading image $uuid ($name $version) file (%d MiB).\n" \
+            $(( ${bytes} / 1024 / 1024 ))
+        ${UPDATES_IMGADM} get-file $uuid > ${file} \
+            || fatal "failed to get image $uuid file from updates.joyent.com"
+    fi
 
     ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
     json -f $manifest -e "this.owner = '$ufds_admin_uuid'" > $manifest.tmp
@@ -75,6 +86,6 @@ function import_image() {
 
 #---- mainline
 
-[[ $# -eq 1 ]] || fatal "usage: $0 <image uuid>"
-import_image $1
+[[ $# -gt 0 ]] || fatal "usage: $0 <image uuid> [image file]"
+import_image $1 $2
 exit 0
