@@ -847,20 +847,20 @@ if [[ -n ${CREATEDZONES} ]]; then
     fi
 
     #
-    # Once SDC has finished setup, upgrade SAPI to full mode.  This call informs
-    # SAPI that its dependent SDC services are ready and that it should store
-    # the SDC deployment configuration persistently.
+    # Once SDC has finished setup, upgrade SAPI to full mode.  This call
+    # informs SAPI that its dependent SDC services are ready and that it should
+    # store the SDC deployment configuration persistently.
     #
-    i=0
-    sresult=1
-    while [[ ${sresult} -gt 0 && ${i} -lt 48 ]]; do
-        /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST -m 5 --fail
-        sresult=$?
-        if [[ ${sresult} -ne 0 ]]; then
-            printf_log "%-58s" "SAPI isn't in full mode yet..."
-            sleep 5
+    (( i = 0 )) || true
+    while :; do
+        if /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST -m 5 --fail; then
+            break
         fi
-        i=$((${i} + 1))
+        if (( i++ >= 48 )); then
+            fatal "Could not upgrade SAPI to full mode"
+        fi
+        printf_log "%-58s" "SAPI isn't in full mode yet..."
+        sleep 5
     done
 
     # Install all AMON probes, but don't fail setup if it doesn't work
