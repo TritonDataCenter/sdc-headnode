@@ -107,6 +107,7 @@ if [[ -e /zones/$CUR_UUID/root/var/db/zookeeper/myid ]]; then
     zlogin $CUR_UUID "svcadm disable -s zookeeper && \
                       touch /var/db/zookeeper/.moved && \
                       cp -a /var/db/zookeeper /$DATASET/. && \
+                      rm /zones/$CUR_UUID/root/var/db/zookeeper/myid && \
                       svcadm enable -s zookeeper"
 fi
 
