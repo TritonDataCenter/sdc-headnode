@@ -33,6 +33,7 @@ readonly destdirectory=/zones/backups
 readonly template_image=/opt/smartdc/share/4gb.img.tgz
 readonly usb=${dc_name}-backup-usb-${timestamp}.img
 readonly manatee=${dc_name}-backup-manatee-${timestamp}.gz
+readonly sapi=${dc_name}-backup-sapi-${timestamp}.gz
 readonly imgs=${dc_name}-backup-local-iamges-${timestamp}.tar
 
 readonly tmp_usb=${tmpdir}/${usb}
@@ -237,20 +238,6 @@ function add_manifests
     echo "Done."
 }
 
-function dump_sapi_information
-{
-    # XXX - may need post-processing to:
-    #   a) insert into restore-key/services
-    #   b) inject into sapi some other way
-    # Backup sapi applications:
-    local dest=${mnt_dir}/sapi_dump
-    mkdir -p ${dest}
-    sdc-sapi --no-headers /applications > ${dest}/sapi-applications.json
-    sdc-sapi --no-headers /services > ${dest}/sapi-services.json
-    sdc-sapi --no-headers /instances > ${dest}/sapi-instances.json
-    sdc-sapi --no-headers /manifests > ${dest}/sapi-manifests.json
-}
-
 function dump_vmapi_vms
 {
     local dest=${mnt_dir}/vmapi_dump
@@ -292,6 +279,9 @@ function backup_sapi_dataset
     SNAP_NAME="${DS_NAME}@$(date -u "+%s")"
     zfs snapshot $SNAP_NAME
     zfs send $SNAP_NAME > ${dest}/sapi.zfs
+    /usr/bin/gzip -c ${dest}/sapi.zfs > ${dest}/${sapi}
+    # Cleanup the zfs file once it has been gzipped:
+    rm ${dest}/sapi.zfs
 }
 
 # XXX - don't change anything except the title.
