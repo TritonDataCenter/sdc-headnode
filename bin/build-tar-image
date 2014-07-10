@@ -266,6 +266,12 @@ function generate_grub_menu
     local default_boot_option
     default_boot_option=$(build_spec default-boot-option)
 
+    # Feature flag for HEAD-2093
+    local enable_dr
+    enable_dr=$(build_spec enable-disaster-recovery)
+    local DR_VAL='#DR '
+    [[ ${enable_dr} == "true" ]] && DR_VAL=''
+
     echo "==> Generating grub menu"
 
     [[ -z "${serial_dev}" ]] && serial_dev=ttyb
@@ -343,6 +349,7 @@ function generate_grub_menu
         -e "s/^#SERIAL/serial ${serial_string}/" \
         -e "s/DEFAULT_CONSOLE/${console}/g" \
         -e "s/^default.*$/default ${default_boot_option}/" \
+        -e "s/^#DR /${DR_VAL}/" \
         boot/grub/menu.lst.tmpl \
         > ${STAGE}/boot/grub/menu.lst.tmpl
 }
