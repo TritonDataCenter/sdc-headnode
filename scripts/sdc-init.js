@@ -372,6 +372,10 @@ function prepareServices(cb) {
 
                 if (svcDef.params.hasOwnProperty('package_name')) {
                     extras.params = self.packages[svcDef.params.package_name];
+                } else if (svcDef.type === 'agent') {
+                    log.info('No package name needed for service of type ' +
+                        ' agent: %s', service);
+                    extras.type = svcDef.type;
                 } else {
                     log.error('No package name for %s', service);
                     return _cb(new Error('No package name for ' + service));

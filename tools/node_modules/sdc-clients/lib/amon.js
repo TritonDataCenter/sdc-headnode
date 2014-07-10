@@ -31,6 +31,11 @@ function Amon(options) {
 }
 
 
+Amon.prototype.close = function close() {
+    this.client.close();
+};
+
+
 /**
  * Ping Amon server.
  *

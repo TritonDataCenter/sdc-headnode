@@ -178,6 +178,18 @@ npm install keep-alive-agent@$VER
 (cd node_modules/keep-alive-agent \
     && rm -rf .[a-z]* node_modules README.md test)
 
+# tunnel-agent (used by restify)
+VER=$(json -f node_modules/restify/package.json dependencies.tunnel-agent)
+npm install tunnel-agent@$VER
+(cd node_modules/tunnel-agent \
+    && rm -rf .[a-z]* node_modules README.md)
+
+# semver (used by restify)
+VER=$(json -f node_modules/restify/package.json dependencies.semver)
+npm install semver@$VER
+(cd node_modules/semver \
+    && rm -rf .[a-z]* node_modules README.md test)
+
 # lru-cache
 VER=$(json -f package.json dependencies.lru-cache)
 npm install lru-cache@$VER
@@ -214,10 +226,6 @@ npm install ctype@$VER
 (cd node_modules/ctype \
     && rm -rf .[a-z]* node_modules README* tools man tst CHANGELOG)
 
-# Drop this hack when <https://github.com/mcavage/node-restify/pull/313>
-# is pulled.
-touch node_modules/semver.js
-
 # bunyan
 # Patch bunyan usages to use the platform one, because it has dtrace-provider
 # hooked up.
@@ -251,15 +259,15 @@ patch -p0 <<PATCH
          var bunyan = require('./bunyan_helper');
 --- node_modules/restify/lib/dtrace.js
 +++ node_modules/restify/lib/dtrace.js
-@@ -38,7 +38,7 @@
+@@ -36,7 +36,7 @@
  module.exports = function exportStaticProvider() {
-         if (!PROVIDER) {
-                 try {
--                        var dtrace = require('dtrace-provider');
-+                        var dtrace = require('/usr/node/node_modules/dtrace-provider');
-                         PROVIDER = dtrace.createDTraceProvider('restify');
-                 } catch (e) {
-                         PROVIDER = {
+     if (!PROVIDER) {
+         try {
+-            var dtrace = require('dtrace-provider');
++            var dtrace = require('/usr/node/node_modules/dtrace-provider');
+             PROVIDER = dtrace.createDTraceProvider('restify');
+         } catch (e) {
+             PROVIDER = {
 PATCH
 # END BASHSTYLED
 
