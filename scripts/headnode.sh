@@ -619,6 +619,140 @@ HERE
     fi
 }
 
+# just run the config-agent in synchronous mode to write initial configs and
+# let agents start running before creating core zones
+setup_config_agent()
+{
+    if setup_state_not_seen "config_agent_setup"; then
+        AGENTS_DIR=/opt/smartdc/agents
+        CONFIGURABLE_AGENTS="net-agent vm-agent"
+
+        local sapi_url=http://${CONFIG_sapi_admin_ips}
+        local prefix=$AGENTS_DIR/lib/node_modules/config-agent
+        local tmpfile=/tmp/agent.$$.xml
+
+        sed -e "s#@@PREFIX@@#${prefix}#g" \
+            ${prefix}/smf/manifests/config-agent.xml > ${tmpfile}
+        mv ${tmpfile} $AGENTS_DIR/smf/config-agent.xml
+
+        mkdir -p ${prefix}/etc
+        local file=${prefix}/etc/config.json
+        cat >${file} <<EOF
+{
+    "logLevel": "info",
+    "pollInterval": 15000,
+    "sapi": {
+        "url": "${sapi_url}"
+    }
+}
+EOF
+
+        for agent in $CONFIGURABLE_AGENTS; do
+            local instance_uuid=$(cat /opt/smartdc/agents/etc/$agent)
+            local tmpfile=/tmp/add_dir.$$.json
+
+            if [[ -z ${instance_uuid} ]]; then
+                fatal "Unable to get instance_uuid from /opt/smartdc/agents/etc/$agent"
+            fi
+
+            cat ${file} | json -e "
+                this.instances = this.instances || [];
+                this.instances.push('$instance_uuid');
+                this.localManifestDirs = this.localManifestDirs || {};
+                this.localManifestDirs['$instance_uuid'] = ['$AGENTS_DIR/lib/node_modules/$agent'];
+            " >${tmpfile}
+            mv ${tmpfile} ${file}
+        done
+
+        ${prefix}/build/node/bin/node ${prefix}/agent.js -s -f /opt/smartdc/agents/lib/node_modules/config-agent/etc/config.json
+
+        setup_state_add "config_agent_setup"
+    fi
+}
+
+enable_config_agent()
+{
+    if setup_state_not_seen "config_agent_enabled"; then
+        AGENTS_DIR=/opt/smartdc/agents
+
+        # new SAPI url to use
+        local sapi_url=http://${CONFIG_sapi_domain}
+
+        local prefix=$AGENTS_DIR/lib/node_modules/config-agent
+        local file=${prefix}/etc/config.json
+        local tmpfile=/tmp/add_url.$$.json
+
+        cat ${file} | json -e "this.sapi = { url: '${sapi_url}' };" >${tmpfile}
+        mv ${tmpfile} ${file}
+
+        svccfg import $AGENTS_DIR/smf/config-agent.xml
+        svcadm enable config-agent
+
+        setup_state_add "config_agent_enabled"
+    fi
+}
+
+# "sapi_adopt" means adding an agent "instance" to SAPI
+# $1: service_name
+# $2: instance_uuid
+function sapi_adopt()
+{
+    local service_name=$1
+    local sapi_url=http://${CONFIG_sapi_admin_ips}
+
+    local service_uuid=""
+    local sapi_instance=""
+    local i=0
+    while [[ -z ${service_uuid} && ${i} -lt 48 ]]; do
+        service_uuid=$(curl "${sapi_url}/services?type=agent&name=${service_name}"\
+            -sS -H accept:application/json | json -Ha uuid)
+        if [[ -z ${service_uuid} ]]; then
+            echo "Unable to get server_uuid from sapi yet.  Sleeping..."
+            sleep 5
+        fi
+        i=$((${i} + 1))
+    done
+    [[ -n ${service_uuid} ]] || \
+    fatal "Unable to get service_uuid for role ${service_name} from SAPI"
+
+    uuid=$2
+
+    i=0
+    while [[ -z ${sapi_instance} && ${i} -lt 48 ]]; do
+        sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
+            -H content-type:application/json \
+            -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
+        | json -H uuid)
+        if [[ -z ${sapi_instance} ]]; then
+            echo "Unable to adopt ${service_name} ${uuid} into sapi yet.  Sleeping..."
+            sleep 5
+        fi
+        i=$((${i} + 1))
+    done
+
+    [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${uuid} into SAPI"
+    echo "Adopted service ${service_name} to instance ${uuid}"
+}
+
+# For adopting agent instances on SAPI we first generate a UUID and then create
+# an instance with that UUID. The instance UUID should written to a place where
+# it doesn't get removed on upgrades so agents keep their UUIDs. Also, when
+# setting up config-agent we write the instances UUIDs to its config file
+function adopt_agents()
+{
+    if setup_state_not_seen "agents_adopted"; then
+        AGENTS_DIR=/opt/smartdc/agents
+        CONFIGURABLE_AGENTS="net-agent vm-agent"
+
+        for agent in $CONFIGURABLE_AGENTS; do
+            instance_uuid=$(uuid -v4)
+            echo $instance_uuid > $AGENTS_DIR/etc/$agent
+            sapi_adopt $agent $instance_uuid
+        done
+
+        setup_state_add "agents_adopted"
+    fi
+}
 
 if setup_state_not_seen "sdczones_created"; then
     # If the zone image is incremental, you'll need to manually setup the import
@@ -646,6 +780,10 @@ if setup_state_not_seen "sdczones_created"; then
     # its standard DNS config.
     bootstrap_sapi
 
+    # once SAPI is ready we configure the CN config agents before core zones
+    adopt_agents
+    setup_config_agent
+
     create_zone manatee
     create_zone moray
     create_zone amonredis
@@ -665,6 +803,10 @@ if setup_state_not_seen "sdczones_created"; then
     create_zone ca
     create_zone mahi
     create_zone adminui
+
+    # first we write the agents config in synchronous mode, then we update the
+    # config-agent config with SAPI's domain and import the config-agent smf
+    enable_config_agent
 
     # copy sdc-manatee tools to GZ - see MANATEE-86
     echo "==> Copying manatee tools to GZ."
