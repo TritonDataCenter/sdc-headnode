@@ -294,6 +294,7 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         imgapi_admin_ips
         imgapi_domain
         fwapi_domain
+        sapi_domain
         vmapi_admin_ips
         vmapi_domain
         '
