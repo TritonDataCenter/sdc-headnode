@@ -204,6 +204,10 @@ EOF
 
     ${prefix}/build/node/bin/node ${prefix}/agent.js -s -f /opt/smartdc/agents/lib/node_modules/config-agent/etc/config.json
 
+    for agent in $CONFIGURABLE_AGENTS; do
+        svccfg import $AGENTS_DIR/smf/$agent.xml
+    done
+
     svccfg import $AGENTS_DIR/smf/config-agent.xml
     svcadm enable config-agent
 }
