@@ -45,6 +45,12 @@ ln -s /zones/${sdc_zone_uuid}/root/opt/smartdc/sdc /opt/smartdc/sdc
 # Upgrade tools from the bundled tools tarball
 /usr/bin/tar xzof tools.tar.gz -C /opt/smartdc
 
+# Remove problematic files from old sdc-clients-light versions
+EMPTY_FILES="/opt/smartdc/node_modules/sdc-clients/node_modules/semver.js"
+for empty_file in $EMPTY_FILES; do
+    [[ -f $empty_file ]] && rm $empty_file
+done
+
 [[ ! -d "./scripts" ]] && fatal "there is no './scripts' dir from which to upgrade!"
 
 
