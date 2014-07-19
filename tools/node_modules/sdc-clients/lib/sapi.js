@@ -904,7 +904,7 @@ function loadManifest(dirname, cb) {
 
     async.waterfall([
         function (subcb) {
-            readManifest(dirname, subcb);
+            self.readManifest(dirname, subcb);
         },
         function (manifest, subcb) {
             assert.object(manifest);
