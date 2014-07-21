@@ -1,17 +1,22 @@
 #!/bin/bash
-
-set -o errexit
-set -o pipefail
-
 #
 # Call the tool of the same name in the 'sdc' zone.
 #
 # Note: That tool needs to be runnable from the GZ, i.e. calculates
 # paths to files in the sdc zone *relative* to itself, etc.
 #
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
+
 ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
 sdc_zone=$(vmadm list -H -o tags.smartdc_role,uuid,create_timestamp \
-           -s create_timestamp owner_uuid=$ufds_admin_uuid | grep '^sdc\>' | \
+           -s create_timestamp owner_uuid=$ufds_admin_uuid | \
+           (grep '^sdc\>' || true) | \
            tail -1 | awk '{print $2}')
 if [[ -z "${sdc_zone}" ]]; then
     # BASHSTYLED
