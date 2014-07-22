@@ -20,10 +20,7 @@ EUNKNOWN=3
 
 # Defaults
 mail_to="root@localhost"
-# Temporarily use IPs until HEAD-1417 allows hostname usage.
-#ntp_hosts="ntp01.joyent.com,ntp02.joyent.com"
-# BASHSTYLED
-ntp_hosts="206.253.165.93,173.255.118.107,205.233.73.201,199.199.208.25,107.170.242.27"
+ntp_hosts="0.smartos.pool.ntp.org"
 dns_resolver1="8.8.8.8"
 dns_resolver2="8.8.4.4"
 
