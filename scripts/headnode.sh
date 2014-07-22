@@ -703,10 +703,11 @@ function sapi_adopt()
 
     local service_uuid=""
     local sapi_instance=""
+
     local i=0
     while [[ -z ${service_uuid} && ${i} -lt 48 ]]; do
         service_uuid=$(curl "${sapi_url}/services?type=agent&name=${service_name}"\
-            -sS -H accept:application/json | json -Ha uuid)
+            -sS -H accept:application/json | json -Ha uuid || true)
         if [[ -z ${service_uuid} ]]; then
             echo "Unable to get server_uuid from sapi yet.  Sleeping..."
             sleep 5
@@ -723,7 +724,7 @@ function sapi_adopt()
         sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
             -H content-type:application/json \
             -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
-        | json -H uuid)
+        | json -H uuid || true)
         if [[ -z ${sapi_instance} ]]; then
             echo "Unable to adopt ${service_name} ${uuid} into sapi yet.  Sleeping..."
             sleep 5
