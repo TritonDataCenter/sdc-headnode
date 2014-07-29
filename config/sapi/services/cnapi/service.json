@@ -12,7 +12,8 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "cnapi"
+        "SERVICE_NAME": "cnapi",
+        "USE_CN_AGENT": true
     },
     "manifests": {
     }

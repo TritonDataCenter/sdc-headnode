@@ -1520,6 +1520,7 @@ echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo "rabbitmq_domain=rabbitmq.${datacenter_name}.${dns_domain}" >>$tmp_config
+echo "die_rabbit_die=true" >>$tmp_config
 echo >>$tmp_config
 
 echo "ufds_is_master=true" >>$tmp_config

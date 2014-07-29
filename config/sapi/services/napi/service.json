@@ -13,7 +13,8 @@
     },
     "metadata": {
         "SERVICE_NAME": "napi",
-        "NAPI_LOG_LEVEL": "info"
+        "NAPI_LOG_LEVEL": "info",
+        "USE_NET_AGENT": true
     },
     "manifests": {
     }

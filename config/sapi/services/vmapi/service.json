@@ -12,7 +12,8 @@
         }
     },
     "metadata": {
-        "SERVICE_NAME": "vmapi"
+        "SERVICE_NAME": "vmapi",
+        "USE_VM_AGENT": true
     },
     "manifests": {
     }
