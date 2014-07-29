@@ -239,3 +239,14 @@ if [ $rc != 0 ]; then
         fatal "Unable to update the sapi sdc application with $region_name."
     fi
 fi
+
+# -- HEAD-2127: Add sapi_domain to /usbkey/extra/joysetup/node.config
+
+grep sapi_domain /usbkey/extra/joysetup/node.config >/dev/null 2>&1 && rc=$? || rc=$?
+if [ $rc != 0 ]; then
+    sapi_domain=sapi.$DOMAIN
+
+    cp /usbkey/extra/joysetup/node.config /tmp/node.config.$$
+    echo "sapi_domain='$sapi_domain'" >> /tmp/node.config.$$
+    cp /tmp/node.config.$$ /usbkey/extra/joysetup/node.config
+fi
