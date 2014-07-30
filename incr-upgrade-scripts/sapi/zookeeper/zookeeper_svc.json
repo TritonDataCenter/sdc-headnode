@@ -12,10 +12,6 @@
       "smartdc_type": "core"
     },
     "delegate_dataset": true,
-    "resolvers": [],
-    "internal_metadata": {
-      "set_resolvers": false
-    },
     "cpu_shares": 256,
     "cpu_cap": 150,
     "zfs_io_priority": 10,
