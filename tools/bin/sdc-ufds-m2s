@@ -134,10 +134,11 @@ read val
 promptnet "UFDS master IP address"
 
 # check connectivity to ufds master
-zlogin $ufds_uuid curl -f $MASTER_UFDS_IP:636/ >/dev/null 2>&1
-if [ $? != 52 ]; then
-	echo "Error: local UFDS zone does not have connectivity to the master"
-	exit 1
+zlogin $ufds_uuid LDAPTLS_REQCERT=allow /opt/local/bin/ldapsearch \
+    -H ldaps://$MASTER_UFDS_IP -x -b '' 'objectclass=*' >/dev/null 2>&1
+if [ $? != 0 ]; then
+    echo "Error: local UFDS zone does not have connectivity to the master"
+    exit 1
 fi
 
 #
