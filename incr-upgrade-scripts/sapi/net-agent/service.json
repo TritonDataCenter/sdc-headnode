@@ -1,0 +1,16 @@
+{
+    "name": "net-agent",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "net-agent",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "net-agent",
+        "NET_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}
