@@ -1040,6 +1040,7 @@ function get_core_zone_image
         local image_uuid
         image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
         sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
+        rm ${service}.tmp
     fi
 
     # PCFS, sigh.
