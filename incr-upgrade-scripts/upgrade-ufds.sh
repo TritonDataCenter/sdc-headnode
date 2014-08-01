@@ -64,7 +64,9 @@ fi
 
 # -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
 #    application is the current manatee primary IP
-MANATEE_PRIMARY_IP=$(sdc-login manatee0 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
+LOCAL_MANATEE_UUID=$(vmadm lookup -1 state=running alias=~manatee)
+LOCAL_MANATEE_ALIAS=$(sdc-vmapi /vms/$LOCAL_MANATEE_UUID|json -H alias)
+MANATEE_PRIMARY_IP=$(sdc-login $LOCAL_MANATEE_ALIAS 'source .bashrc; manatee-stat' </dev/null | json sdc.primary.ip)
 manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
 if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
     fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
@@ -79,7 +81,7 @@ fi
 # -- Do the UFDS upgrade.
 
 # Backup data.
-sdc-login manatee0 "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
+sdc-login $LOCAL_MANATEE_ALIAS "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
 
 # We need moray details both, for backfill and to check ufds bucket version:
 
