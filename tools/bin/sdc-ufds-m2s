@@ -10,63 +10,63 @@ export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
 # Tests whether entire string is a number.
 isdigit ()
 {
-	[ $# -eq 1 ] || return 1
+    [ $# -eq 1 ] || return 1
 
-	case $1 in
-  	*[!0-9]*|"") return 1;;
-	*) return 0;;
-	esac
+    case $1 in
+    *[!0-9]*|"") return 1;;
+    *) return 0;;
+    esac
 }
 
 # Tests network numner (num.num.num.num)
 is_net()
 {
-	NET=$1
+    NET=$1
 
-	OLDIFS=$IFS
-	IFS=.
-	set -- $NET
-	a=$1
-	b=$2
-	c=$3
-	d=$4
-	IFS=$OLDIFS
+    OLDIFS=$IFS
+    IFS=.
+    set -- $NET
+    a=$1
+    b=$2
+    c=$3
+    d=$4
+    IFS=$OLDIFS
 
-	isdigit "$a" || return 1
-	isdigit "$b" || return 1
-	isdigit "$c" || return 1
-	isdigit "$d" || return 1
+    isdigit "$a" || return 1
+    isdigit "$b" || return 1
+    isdigit "$c" || return 1
+    isdigit "$d" || return 1
 
-	[ -z $a ] && return 1
-	[ -z $b ] && return 1
-	[ -z $c ] && return 1
-	[ -z $d ] && return 1
+    [ -z $a ] && return 1
+    [ -z $b ] && return 1
+    [ -z $c ] && return 1
+    [ -z $d ] && return 1
 
-	[ $a -lt 0 ] && return 1
-	[ $a -gt 255 ] && return 1
-	[ $b -lt 0 ] && return 1
-	[ $b -gt 255 ] && return 1
-	[ $c -lt 0 ] && return 1
-	[ $c -gt 255 ] && return 1
-	[ $d -lt 0 ] && return 1
-	return 0
+    [ $a -lt 0 ] && return 1
+    [ $a -gt 255 ] && return 1
+    [ $b -lt 0 ] && return 1
+    [ $b -gt 255 ] && return 1
+    [ $c -lt 0 ] && return 1
+    [ $c -gt 255 ] && return 1
+    [ $d -lt 0 ] && return 1
+    return 0
 }
 
 # Input must be a valid network number (see is_net())
 promptnet()
 {
-	MASTER_UFDS_IP=""
+    MASTER_UFDS_IP=""
 
-	while [ -z "$MASTER_UFDS_IP" ]; do
-		prmpt_str="$1: "
-		printf "$prmpt_str"
-		read MASTER_UFDS_IP
-		if [[ -n "${MASTER_UFDS_IP}" ]]; then
-			is_net "$MASTER_UFDS_IP" || MASTER_UFDS_IP=""
-		fi
-		[ -n "$MASTER_UFDS_IP" ] && break
-		echo "A valid network number (n.n.n.n) must be provided."
-	done
+    while [ -z "$MASTER_UFDS_IP" ]; do
+        prmpt_str="$1: "
+        printf "$prmpt_str"
+        read MASTER_UFDS_IP
+        if [[ -n "${MASTER_UFDS_IP}" ]]; then
+            is_net "$MASTER_UFDS_IP" || MASTER_UFDS_IP=""
+        fi
+        [ -n "$MASTER_UFDS_IP" ] && break
+        echo "A valid network number (n.n.n.n) must be provided."
+    done
 }
 
 get_replicator_status()
@@ -92,31 +92,31 @@ load_sdc_config
 
 # check if already a slave
 if [[ $CONFIG_ufds_is_master != "true" ]]; then
-	echo "Error: already converted"
-	exit 1
+    echo "Error: already converted"
+    exit 1
 fi
 
 if [[ -z "$CONFIG_region_name" ]]; then
-	echo "Error: config doesn't have region_name"
-	exit 1
+    echo "Error: config doesn't have region_name"
+    exit 1
 fi
 
 if [[ -n "$CONFIG_ufds_remote_ip" ]]; then
-	echo "Error: already converted"
-	exit 1
+    echo "Error: already converted"
+    exit 1
 fi
 
 ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
 if [[ -z "$ufds_uuid" ]]; then
-	echo "Error: UFDS zone not found"
-	exit 1
+    echo "Error: UFDS zone not found"
+    exit 1
 fi
 
 # check if ufds zone has external nic
 has_ext=`vmadm get $ufds_uuid | grep nic_tag | grep external`
 if [[ -z "$has_ext" ]]; then
-	echo "Error: UFDS zone has not been setup with an external NIC"
-	exit 1
+    echo "Error: UFDS zone has not been setup with an external NIC"
+    exit 1
 fi
 
 echo "---------------------------------------------------------------"
@@ -328,8 +328,8 @@ echo "Updating config files"
 # fix usbkey config
 /usbkey/scripts/mount-usb.sh >/dev/null 2>&1
 if [ $? != 0 ]; then
-	echo "Error: unable to mount the USB stick"
-	exit 1
+    echo "Error: unable to mount the USB stick"
+    exit 1
 fi
 
 sed -e '/^ufds_is_master=/d' </mnt/usbkey/config >/tmp/config.$$
