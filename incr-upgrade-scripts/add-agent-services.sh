@@ -26,7 +26,7 @@ valid_sapi=$(sdc-imgadm get $(sdc-vmapi /vms/$(vmadm lookup alias=~^sapi) | json
     if (splitVersion[0] === 'master') {
         this.validSapi = splitVersion[1].substr(0, 8) >= '$MIN_VALID_SAPI_VERSION';
     } else if (splitVersion[0] === 'release') {
-        this.validSapi = this.validSapi = splitVersion[1] >= '$MIN_VALID_SAPI_VERSION';;
+        this.validSapi = splitVersion[1] >= '$MIN_VALID_SAPI_VERSION';
     } else {
         this.validSapi = false;
     }
