@@ -89,6 +89,9 @@ sdc-login $LOCAL_MANATEE_ALIAS "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds
 MORAY_UUIDS=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=running)
 MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 
+# We can get ufds version from the config file of the ufds running instance:
+VERSION=$(sdc-login $CUR_ALIAS 'cat /opt/smartdc/ufds/etc/config.json' | json moray.version)
+
 # Upgrade DB if needed
 # This function takes care of SQL schema upgrades which must run before the
 # ufds-master service boots. It's very likely that each one of the upgrades
@@ -97,25 +100,19 @@ MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 # past this point.
 function update_ufds_sql_schema {
   set +o errexit
-  local bucket=$(zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
-     /opt/smartdc/moray/node_modules/.bin/getbucket ufds_o_smartdc)
-  echo "Updating UFDS SQL schema if needed."
-  if [[ ! -n "$bucket" ]]; then
-    echo "Bucket ufds_o_smartdc does not exist. No need to upgrade."
+
+  if [ "$VERSION" -le "6" ]; then
+    echo "Upgrading ufds_o_smartdc bucket."
+    while read SQL
+    do
+      sdc-login manatee0 \
+        "psql -U moray -h $MANATEE_PRIMARY_IP -d moray -c \"${SQL}\""
+    done < ./capi-305.sql
+    echo "ufds_o_smartdc schema upgraded."
   else
-    VERSION=$(echo ${bucket} | json options.version)
-    if [ "$VERSION" -le "6" ]; then
-      echo "Upgrading ufds_o_smartdc bucket."
-      while read SQL
-      do
-        sdc-login manatee0 \
-          "psql -U moray -h $MANATEE_PRIMARY_IP -d moray -c \"${SQL}\""
-      done < ./capi-305.sql
-      echo "ufds_o_smartdc schema upgraded."
-    else
-      echo "Skipping capi-305 schema upgrade."
-    fi
+    echo "Skipping capi-305 schema upgrade."
   fi
+
   set -o errexit
 }
 
@@ -155,39 +152,44 @@ vmadm stop $CUR_UUID
 
 
 # Backfill.
-echo "Backfill (stage 1)"
-zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
-    /opt/smartdc/moray/node_modules/.bin/backfill \
-    -i name -i version -i givenname -i expires_at -i company \
-    -P objectclass=sdcimage \
-    -P objectclass=sdcpackage \
-    -P objectclass=amonprobe \
-    -P objectclass=amonprobegroup \
-    -P objectclass=datacenter \
-    -P objectclass=authdev \
-    -P objectclass=foreigndc \
-    ufds_o_smartdc </dev/null
+if [ "$VERSION" -le "6" ]; then
+  echo "Backfill (stage 1)"
+  zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
+      /opt/smartdc/moray/node_modules/.bin/backfill \
+      -i name -i version -i givenname -i expires_at -i company \
+      -P objectclass=sdcimage \
+      -P objectclass=sdcpackage \
+      -P objectclass=amonprobe \
+      -P objectclass=amonprobegroup \
+      -P objectclass=datacenter \
+      -P objectclass=authdev \
+      -P objectclass=foreigndc \
+      ufds_o_smartdc </dev/null
 
-echo "Backfill (stage 2)"
-zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
-    /opt/smartdc/moray/node_modules/.bin/backfill \
-    -i name -i version -i givenname -i expires_at -i company \
-    -P objectclass=sdckey \
-    ufds_o_smartdc </dev/null
-
+  echo "Backfill (stage 2)"
+  zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
+      /opt/smartdc/moray/node_modules/.bin/backfill \
+      -i name -i version -i givenname -i expires_at -i company \
+      -P objectclass=sdckey \
+      ufds_o_smartdc </dev/null
+else
+  echo "Skipping backfill, given bucket version is greater than 6"
+fi
 
 # Upgrade "old" ufds zone.
 # TODO: I *believe* we can have two UFDS' running during backfill.
 echo '{}' | json -e "this.image_uuid = '${UFDS_IMAGE}'" |
     vmadm reprovision ${CUR_UUID}
 
-
-echo "Backfill (stage 3)"
-zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
-    /opt/smartdc/moray/node_modules/.bin/backfill \
-    -i name -i version -i givenname -i expires_at -i company \
-    ufds_o_smartdc </dev/null
-
+if [ "$VERSION" -le "6" ]; then
+  echo "Backfill (stage 3)"
+  zlogin $MORAY_UUID /opt/smartdc/moray/build/node/bin/node \
+      /opt/smartdc/moray/node_modules/.bin/backfill \
+      -i name -i version -i givenname -i expires_at -i company \
+      ufds_o_smartdc </dev/null
+else
+  echo "Skipping backfill, given bucket version is greater than 6"
+fi
 
 # -- Phase out the "NEW" ufds zone. Just want to keep the original "CUR" one.
 wait_until_zone_in_dns $CUR_UUID $CUR_ALIAS $UFDS_DOMAIN
