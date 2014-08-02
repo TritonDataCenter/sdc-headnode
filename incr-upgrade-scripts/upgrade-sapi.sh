@@ -171,4 +171,11 @@ wait_until_zone_out_of_dns $NEW_UUID $NEW_ALIAS $SAPI_DOMAIN $NEW_IP
 #    ln -s /zones/${SAPI_UUID}/root/opt/smartdc/config-agent/cmd/sapiadm.js \
 #        /opt/smartdc/bin/sapiadm
 
+# Run the SAPI backfill script if available
+zlogin ${CUR_UUID} /usr/bin/bash <<HERE
+if [[ -f /opt/smartdc/sapi/tools/sapi-backfill-service-type.js ]]; then
+    /opt/smartdc/sapi/build/node/bin/node /opt/smartdc/sapi/tools/sapi-backfill-service-type.js
+fi
+HERE
+
 echo "Done sapi upgrade."
