@@ -158,6 +158,20 @@ To rollback rabbitmq:
 
 
 
+## upgrade zone: moray
+
+**Limitation:** Currently this just knows how to upgrade a moray zone on the
+headnode. If you have HA moray running on other CNs, this cannot yet upgrade
+them.
+
+    ./upgrade-moray.sh upgrade-images 2>&1 | tee moray-$(date +%s).log
+
+To rollback moray:
+
+    ./upgrade-moray.sh rollback-images 2>&1 | tee moray-rollback-$(date +%s).log
+
+
+
 ## upgrade zone: ufds
 
 Currently the UFDS upgrade requires that the moray zone on the HN have
@@ -248,26 +262,6 @@ Update GZ tools on CNs (in /opt/smartdc/bin).
 To rollback:
 
     /usbkey/scripts/update_cn_tools -f ./old_cn_tools.tar.gz
-
-
-
-## upgrade zone: redis, amonredis
-
-TODO
-
-
-
-## upgrade zone: moray
-
-**Limitation:** Currently this just knows how to upgrade a moray zone on the
-headnode. If you have HA moray running on other CNs, this cannot yet upgrade
-them.
-
-    ./upgrade-moray.sh upgrade-images 2>&1 | tee moray-$(date +%s).log
-
-To rollback moray:
-
-    ./upgrade-moray.sh rollback-images 2>&1 | tee moray-rollback-$(date +%s).log
 
 
 
