@@ -24,7 +24,14 @@ file=$(basename ${shar})
 . /lib/sdc/config.sh
 load_sdc_config
 
-OEN_ARGS="-a -t 10 -T 600"
+if [[ -n "$(sdc-oneachnode 2>&1 | (grep -- --allnodes || true))" ]]; then
+    # This is the modern sdc-oneachnode.
+    OEN_ARGS="--allnodes -t 10 -T 600"
+else
+    # This is the old sdc-oneachnode before '-a' required arg was added.
+    OEN_ARGS="-t 10 -T 600"
+fi
+
 
 if [[ "$file" == "agents65.sh" ]]; then
     echo "Updating agents on all 6.5.x compute nodes"

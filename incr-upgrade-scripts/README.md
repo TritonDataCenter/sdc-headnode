@@ -290,10 +290,6 @@ Then back in the GZ:
 
 
 
-## upgrade zone: assets, dhcpd
-
-TODO
-
 ## Upgrade zone: Manatee
 
 For a standard upgrade, this is a manual process (for now):
