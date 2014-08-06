@@ -322,7 +322,13 @@ In more detail, what goes on is:
 
 ## upgrade zone: binder
 
-TODO: this is MORAY-138, talk to matt
+1. Ensure manatee is in "one node write mode".
+   TODO: why? To avoid MANATEE-188?
+
+2. Run this:
+
+        ./upgrade-binder.sh upgrade-images 2>&1 | tee upgrade-binder-$(date +%s).log
+
 
 
 

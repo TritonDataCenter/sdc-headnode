@@ -43,3 +43,4 @@ source $IMAGE_LIST
 [[ -n "$PAPI_IMAGE" ]] && ./download-image.sh $PAPI_IMAGE
 [[ -n "$MAHI_IMAGE" ]] && ./download-image.sh $MAHI_IMAGE
 [[ -n "$ASSETS_IMAGE" ]] && ./download-image.sh $ASSETS_IMAGE
+[[ -n "$BINDER_IMAGE" ]] && ./download-image.sh $BINDER_IMAGE
