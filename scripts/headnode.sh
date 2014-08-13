@@ -649,9 +649,11 @@ setup_config_agent()
 EOF
 
         for agent in $CONFIGURABLE_AGENTS; do
-            local instance_uuid=$(cat /opt/smartdc/agents/etc/$agent)
+            local instance_uuid
+            instance_uuid=$(cat /opt/smartdc/agents/etc/$agent)
             local tmpfile=/tmp/add_dir.$$.json
 
+            # BEGIN BASHSTYLED
             if [[ -z ${instance_uuid} ]]; then
                 fatal "Unable to get instance_uuid from /opt/smartdc/agents/etc/$agent"
             fi
@@ -663,9 +665,11 @@ EOF
                 this.localManifestDirs['$instance_uuid'] = ['$AGENTS_DIR/lib/node_modules/$agent'];
             " >${tmpfile}
             mv ${tmpfile} ${file}
+            # END BASHSTYLED
         done
 
-        ${prefix}/build/node/bin/node ${prefix}/agent.js -s -f /opt/smartdc/agents/lib/node_modules/config-agent/etc/config.json
+        ${prefix}/build/node/bin/node ${prefix}/agent.js -s -f \
+            /opt/smartdc/agents/lib/node_modules/config-agent/etc/config.json
 
         setup_state_add "config_agent_setup"
     fi
@@ -704,6 +708,7 @@ function sapi_adopt()
     local service_uuid=""
     local sapi_instance=""
 
+    # BEGIN BASHSTYLED
     local i=0
     while [[ -z ${service_uuid} && ${i} -lt 48 ]]; do
         service_uuid=$(curl "${sapi_url}/services?type=agent&name=${service_name}"\
@@ -731,6 +736,7 @@ function sapi_adopt()
         fi
         i=$((${i} + 1))
     done
+    # END BASHSTYLED
 
     [[ -n ${sapi_instance} ]] || fatal "Unable to adopt ${uuid} into SAPI"
     echo "Adopted service ${service_name} to instance ${uuid}"
