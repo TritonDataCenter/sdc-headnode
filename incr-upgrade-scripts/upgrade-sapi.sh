@@ -176,6 +176,10 @@ zlogin ${CUR_UUID} /usr/bin/bash <<HERE
 if [[ -f /opt/smartdc/sapi/tools/sapi-backfill-service-type.js ]]; then
     /opt/smartdc/sapi/build/node/bin/node /opt/smartdc/sapi/tools/sapi-backfill-service-type.js
 fi
+
+if [[ -f /opt/smartdc/sapi/tools/sapi-backfill-instance-type.js ]]; then
+    /opt/smartdc/sapi/build/node/bin/node /opt/smartdc/sapi/tools/sapi-backfill-instance-type.js
+fi
 HERE
 
 echo "Done sapi upgrade."
