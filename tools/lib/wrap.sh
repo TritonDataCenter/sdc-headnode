@@ -7,7 +7,7 @@
 #
 
 if [[ -n "$TRACE" ]]; then
-	# BASHSTYLED
+    # BASHSTYLED
     export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
     set -o xtrace
 fi
