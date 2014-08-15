@@ -44,6 +44,11 @@ if [[ $CUR_IMAGE == $BINDER_IMAGE ]]; then
 fi
 
 
+# -- Get the new image.
+./download-image.sh ${BINDER_IMAGE}
+[[ $? == 0 ]] || fatal "Unable to download/install binder image $BINDER_IMAGE"
+
+
 SDC_APP=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
 [[ -n "$SDC_APP" ]] || fatal "could not determine 'sdc' BINDER app"
 BINDER_JSON=$(sdc-sapi /services?name=binder\&application_uuid=$SDC_APP | json -Ha)
@@ -91,10 +96,6 @@ if [[ "$DATASET" != "$VMAPI_DATASET" ]]; then
     vmadm reboot $CUR_UUID
 fi
 
-
-# -- Get the new image.
-./download-image.sh ${BINDER_IMAGE}
-[[ $? == 0 ]] || fatal "Unable to download/install binder image $BINDER_IMAGE"
 
 # -- Update service data in BINDER.
 update_svc_user_script $CUR_UUID $BINDER_IMAGE

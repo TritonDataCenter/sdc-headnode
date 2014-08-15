@@ -321,6 +321,8 @@ In more detail, what goes on is:
 6. upgrade sync using full reprovision
 7. upgrade primary using full reprovision
 
+
+
 ## upgrade zone: binder
 
 1. Ensure manatee is in "one node write mode".
