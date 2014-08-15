@@ -11,7 +11,7 @@
         "zfs_io_priority": 10,
         "package_name": "sdc_1024",
         "package_version": "1.0.0",
-        "image_uuid": "cc8317cb-190a-cc43-d967-808e03189578",
+        "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
         "networks": [ "admin" ],
         "tags": {

@@ -110,13 +110,14 @@ This script *can* block and prompt for information.
 
 
 
-## add new zone: amonredis, sdc, papi
+## add new zone: amonredis, sdc, papi, mahi
 
 If you don't have one or more of the following zones, then you should add them:
 
     ./add-sdc.sh 2>&1 | tee sdc-$(date +%s).log
     ./add-amonredis.sh 2>&1 | tee amonredis-$(date +%s).log
     ./add-papi.sh PAPI_IMAGE_UUID 2>&1 | tee papi-$(date +%s).log
+    ./add-mahi.sh $(source upgrade-images; echo $MAHI_IMAGE) 2>&1 | tee mahi-$(date +%s).log
 
 *One time* manual import of 'sdcpackage' data (see PAPI-72)
 
