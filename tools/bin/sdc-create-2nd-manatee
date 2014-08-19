@@ -67,7 +67,7 @@ function get_manatee_status
 
     mode=$(sdc-oneachnode -n ${server_uuid} \
         "zlogin ${vm_uuid} \"source ~/.bashrc; manatee-stat \
-        | json -e 'if (this.sdc.primary && this.sdc.sync && this.sdc.registrar \
+        | json -e 'if (this.sdc.primary && this.sdc.sync \
         && this.sdc.primary.repl.sync_state === \\\"sync\\\") { \
             this.mode = \\\"HA\\\" \
         } else { \
