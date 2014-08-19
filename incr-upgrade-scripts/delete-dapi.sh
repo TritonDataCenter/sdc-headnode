@@ -22,9 +22,8 @@ for uuid in $PROBES; do
     sdc-amon /pub/admin/probes/$uuid -X DELETE
 done
 
-# remove dapi image
-IMG=$(sdc-imgadm list -o name,uuid | grep '^dapi' | awk '{ print $2 }')
-sdc-imgadm delete $IMG
+# remove dapi image(s)
+sdc-imgadm list name=dapi -H -o uuid | xargs -n1 sdc-imgadm delete
 
 # remove instance
 sdc-sapi /instances/$DAPI -X DELETE

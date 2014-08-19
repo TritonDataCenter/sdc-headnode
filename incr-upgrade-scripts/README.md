@@ -446,29 +446,12 @@ or simply
 ## To remove the DAPI zone and service:
 
 Once versions of CNAPI and VMAPI have been installed which support DAPI living
-inside CNAPI as a library, the independent DAPI zone is no longer needed. Run
-the following script to clean up:
+inside CNAPI as a library, the independent DAPI zone is no longer needed.
+Note: we need to have a VMAPI with a provision workflow at least 7.0.32.
 
-    ./delete-dapi.sh
+Run the following script to clean up:
 
-The script will check the above requirements are met before attempting deletion.
-If you're paranoid and don't want to take chances, you can check the
-preconditions manually:
-
-1) check that we have a copy of CNAPI supporting /allocate:
-
-    [root@headnode (coal) ~]# sdc-cnapi --no-headers /allocate -X POST | json message
-    Request parameters failed validation
-
-(the above message is what's expected if CNAPI supports that endpoint)
-
-2) check we have a provision workflow with a VERSION at least 7.0.32:
-
-    [root@headnode (coal) ~]# UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-    [root@headnode (coal) ~]# VMAPI=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~vmapi)
-    [root@headnode (coal) ~]# grep 'var VERSION' /zones/$VMAPI/root/opt/smartdc/vmapi/lib/workflows/provision.js
-    var VERSION = '7.0.32';
-
+    ./delete-dapi.sh 2>&1 | tee delete-dapi-$(date +%s).log
 
 
 ## To make a changelog:
