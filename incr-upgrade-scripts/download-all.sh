@@ -44,3 +44,4 @@ source $IMAGE_LIST
 [[ -n "$MAHI_IMAGE" ]] && ./download-image.sh $MAHI_IMAGE
 [[ -n "$ASSETS_IMAGE" ]] && ./download-image.sh $ASSETS_IMAGE
 [[ -n "$BINDER_IMAGE" ]] && ./download-image.sh $BINDER_IMAGE
+[[ -n "$ZOOKEEPER_IMAGE" ]] && ./download-image.sh $ZOOKEEPER_IMAGE
