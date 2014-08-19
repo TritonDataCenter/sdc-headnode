@@ -11,15 +11,10 @@ set -o xtrace
 set -o errexit
 
 UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-DAPI=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~dapi)
-VMAPI=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~vmapi)
+DAPI=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=dapi0)
 
 # check that we can support DAPI's removal
 sdc-cnapi --no-headers /allocate -X POST | json message | grep -q 'validation'
-
-VERSION=$(grep 'var VERSION' /zones/$VMAPI/root/opt/smartdc/vmapi/lib/workflows/provision.js |
-          awk 'match($4, /[0-9][0-9]/) { print substr($4, RSTART, RLENGTH ) }')
-[ $VERSION -ge 32 ]
 
 # remove amon probes for the zone
 PROBES=$(sdc-amon /pub/admin/probes | json -Hc "this.agent === '$DAPI'" -a uuid)
