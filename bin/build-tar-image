@@ -359,7 +359,7 @@ function copy_base
     local sbbranch
     sbbranch=$(build_spec sdcboot-release)
     local platbranch
-    platbranch=$(build_spec sdcboot-release)
+    platbranch=$(build_spec platform-release)
     local ftbranch
     ftbranch=$(build_spec firmware-tools-release)
 
