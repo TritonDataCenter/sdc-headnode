@@ -16,6 +16,10 @@ set -o pipefail
 TOP=$(cd $(dirname $0)/; pwd)
 source $TOP/libupgrade.sh
 
+if [[ ! -f "$TOP/add-agent-services.sh" ]]; then
+    echo "$0: fatal error: add-agent-services.sh not found on the incr-upgrade dir" >&2
+    exit 1
+fi
 
 #---- mainline
 
@@ -181,5 +185,8 @@ if [[ -f /opt/smartdc/sapi/tools/sapi-backfill-instance-type.js ]]; then
     /opt/smartdc/sapi/build/node/bin/node /opt/smartdc/sapi/tools/sapi-backfill-instance-type.js
 fi
 HERE
+
+# Run the add-agent-services.sh script
+./add-agent-services.sh
 
 echo "Done sapi upgrade."
