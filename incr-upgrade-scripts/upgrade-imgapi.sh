@@ -39,7 +39,7 @@ fi
 UFDS_ADMIN_UUID=$(bash /lib/sdc/config.sh -json |json ufds_admin_uuid)
 CURRENT_UUID=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~imgapi)
 [[ -n "${CURRENT_UUID}" ]] \
-    || fatal "there is not exactly one running rabbitmqN zone";
+    || fatal "there is not exactly one running imgapi zone";
 CURRENT_ALIAS=$(vmadm get $CURRENT_UUID | json alias)
 CURRENT_IMAGE=$(vmadm get $CURRENT_UUID | json image_uuid)
 
