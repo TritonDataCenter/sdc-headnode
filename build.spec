@@ -2,6 +2,7 @@
   "build-tgz": "true",
   "coal-memsize": 4096,
   "coal-enable-serial": true,
+  "// joyent-build": "set to true to enable ancillary repository use",
 
   "bits-branch": "master",
   "platform-release": "master",

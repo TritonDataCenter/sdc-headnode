@@ -360,8 +360,6 @@ function copy_base
     sbbranch=$(build_spec sdcboot-release)
     local platbranch
     platbranch=$(build_spec platform-release)
-    local ftbranch
-    ftbranch=$(build_spec firmware-tools-release)
 
     local plat_suf
     if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
@@ -370,9 +368,17 @@ function copy_base
         plat_suf=""
     fi
 
+    local is_joyent
+    is_joyent="$(build_spec joyent-build)"
+
     [[ -z ${sbbranch} ]] && sbbranch="master"
     [[ -z ${platbranch} ]] && platbranch="master"
-    [[ -z ${ftbranch} ]] && ftbranch="master"
+
+    if [[ "${is_joyent}" == "true" ]]; then
+	local ftbranch
+	ftbranch=$(build_spec firmware-tools-release)
+	[[ -z ${ftbranch} ]] && ftbranch="master"
+    fi
 
     local sdcboot_path
     sdcboot_path=$(get_manta_bit \
@@ -380,9 +386,12 @@ function copy_base
     local platboot_path
     platboot_path=$(get_manta_bit \
         platform$plat_suf/${platbranch}/boot$plat_suf-${platbranch}-.*\.tgz)
-    local firmware_path
-    firmware_path=$(get_manta_bit \
-        firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz)
+
+    if [[ "${is_joyent}" == "true" ]]; then
+	local firmware_path
+	firmware_path=$(get_manta_bit \
+	    firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz)
+    fi
 
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
@@ -413,9 +422,11 @@ function copy_base
     (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})
     [[ $? == 0 ]] || fatal "Failed to extract sdcboot bundle"
 
-    echo "==> Extracting firmware bundle"
-    (cd ${STAGE} && ${TAR} xzf ${firmware_path})
-    [[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
+    if [[ "${is_joyent}" == "true" ]]; then
+	echo "==> Extracting firmware bundle"
+	(cd ${STAGE} && ${TAR} xzf ${firmware_path})
+	[[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
+    fi
 }
 
 function copy_config {

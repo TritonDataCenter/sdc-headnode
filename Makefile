@@ -10,14 +10,20 @@ PERCENT := %
 #
 DOC_FILES = index.restdown
 
+ifeq ($(shell uname -s),Darwin)
+GREP = grep
+else
+GREP = /usr/xpg4/bin/grep
+endif
+
 BASH_FILES = \
-	$(shell find scripts -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print) \
-	$(shell find tools -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print) \
-	$(shell find bin -exec sh -c "file {} | grep -q -E '(bash)|(Bourne)'" \; -print)
+	$(shell find scripts -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find tools -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find bin -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
 
 JS_FILES = \
-	$(shell find scripts -exec sh -c "file {} | grep -q 'node script'" \; -print) \
-	$(shell find tools/bin -exec sh -c "file {} | grep -q 'node script'" \; -print)
+	$(shell find scripts -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print) \
+	$(shell find tools/bin -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print)
 
 JSL_FILES_NODE = $(JS_FILES)
 JSSTYLE_FILES = $(JS_FILES)
@@ -173,7 +179,7 @@ sandwich:
 
 .PHONY: coal-and-open
 coal-and-open: coal
-	open $(shell grep Creating $(shell ls -1t log/build.log.coal.* | head -1) | cut -d' ' -f3 | cut -d/ -f1)*.vmwarevm
+	open $(shell $(GREP) Creating $(shell ls -1t log/build.log.coal.* | head -1) | cut -d' ' -f3 | cut -d/ -f1)*.vmwarevm
 
 .PHONY: update-tools-modules
 update-tools-modules:

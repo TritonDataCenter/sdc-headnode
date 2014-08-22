@@ -186,6 +186,9 @@ TODO: this is incomplete, please document a key below if you know the details.
 
       // Specify a local agentsshar build.
       "agents-shar": "./agents-node6-20120221T174143Z-g9469fcf.sh",
+
+      // Specify that Joyent-only ancillary repos should be used
+      "joyent-build": true,
     }
 
 
