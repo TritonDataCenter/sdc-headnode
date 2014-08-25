@@ -1,3 +1,14 @@
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2014, Joyent, Inc.
+#
+
+
 How to build a new image (Linux only)
 =====================================
 
@@ -69,7 +80,7 @@ jill@headnode:~$ ln -s /dev/loop1 /tmp/mkimg/grubdev1
 jill@headnode:~$ sudo mount /tmp/mkimg/grubdev1 /mnt
 jill@headnode:~$ sudo mkdir -p /mnt/boot/grub
 jill@headnode:~$ sudo cp -a /usr/lib/grub/x86_64-pc/* /mnt/boot/grub/
-jill@headnode:~$ printf "device (hd0) /tmp/mkimg/grubdev\ngeometry (hd0) 121 255 63\nroot (hd0,0)\nsetup (hd0)\n" | sudo grub --device-map=/dev/null 
+jill@headnode:~$ printf "device (hd0) /tmp/mkimg/grubdev\ngeometry (hd0) 121 255 63\nroot (hd0,0)\nsetup (hd0)\n" | sudo grub --device-map=/dev/null
 
        [ Minimal BASH-like line editing is supported.   For
          the   first   word,  TAB  lists  possible  command
@@ -96,4 +107,4 @@ jill@headnode:~$ GZIP=-9 tar -Szcf 1gb.img.tgz 1gb.img
 jill@headnode:~$ ls -lh 1gb.img*
 -rw-r--r-- 1 root root 954M 2011-01-03 16:38 1gb.img
 -rw-r--r-- 1 jill jill 153K 2011-01-03 16:45 1gb.img.tgz
-jill@headnode:~$ 
+jill@headnode:~$

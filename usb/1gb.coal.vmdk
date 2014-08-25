@@ -1,3 +1,13 @@
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2014, Joyent, Inc.
+#
+
 # Disk DescriptorFile
 version=1
 encoding= #"UTF-8"
@@ -9,7 +19,7 @@ createType="monolithicFlat"
 # Extent description
 RW 1953125 FLAT "<USB_IMAGE_FILE>" 0
 
-# The Disk Data Base 
+# The Disk Data Base
 #DDB
 
 ddb.geometry.cylinders = "1937"

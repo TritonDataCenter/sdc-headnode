@@ -2,11 +2,19 @@
 /**
  * -*- mode: js -*-
  * vim: set filetype=javascript :
- *
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
- *
- *
- * Backfill a bucket in moray with data for a new index column.
+ */
+
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright (c) 2014, Joyent, Inc.
+ */
+
+/* Backfill a bucket in moray with data for a new index column.
  *
  * When a new field is to be indexed in a Moray bucket, a new column is added
  * for that field. Moray uses the value in that column for (a) indexed searching

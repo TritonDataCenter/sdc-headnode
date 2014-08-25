@@ -1,8 +1,16 @@
 @echo off
+rem #
+rem # This Source Code Form is subject to the terms of the Mozilla Public
+rem # License, v. 2.0. If a copy of the MPL was not distributed with this
+rem # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+rem #
+
+rem #
+rem # Copyright (c) 2014, Joyent, Inc.
+rem #
+
 rem coal-vmware-setup.bat: sets up VMWare Workstation / Player
 rem so you can use CoaL (Cloud on a Laptop) with it.
-rem
-rem Copyright (c) 2011 Joyent Inc., All rights reserved.
 
 reg query "HKU\S-1-5-19" >nul 2>nul
 if "%errorlevel%" NEQ "0" (
@@ -36,7 +44,7 @@ start /wait vnetlib.exe -- update dhcp vmnet8
 start /wait vnetlib.exe -- update nat vmnet8
 start /wait vnetlib.exe -- update adapter vmnet8
 
-start /wait vnetlib.exe -- set vnet vmnet1 mask 255.255.255.0 
+start /wait vnetlib.exe -- set vnet vmnet1 mask 255.255.255.0
 start /wait vnetlib.exe -- set vnet vmnet1 addr 10.99.99.0
 start /wait vnetlib.exe -- remove dhcp vmnet1
 start /wait vnetlib.exe -- remove nat vmnet1

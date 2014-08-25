@@ -1,6 +1,14 @@
 #!/usr/bin/bash
 #
-# Copyright (c) 2014, Joyent, Inc. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2014, Joyent, Inc.
+#
+
 #
 # add_tmp_external_network.sh sets up access to the external world before the
 # host has gone through configuration.

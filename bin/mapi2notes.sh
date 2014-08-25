@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 // -*- mode: js -*-
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
 
-// Copyright (c) 2013, Joyent, Inc., All rights reserved.
+/*
+ * Copyright (c) 2014, Joyent, Inc.
+ */
+
 // Export tag data from MAPI PostgreSQL dump
 
 var fs = require('fs');
@@ -128,7 +136,7 @@ function transform_uuids(table) {
 //          item_uuid: {server/zone/vm uuid},
 //          owner_uuid: pieces[4],
 //          note: pieces[1],
-//          created: pieces[5] 
+//          created: pieces[5]
 //      }
 //
 function transform_comments(file) {
@@ -155,7 +163,7 @@ function transform_comments(file) {
             item_uuid: uuid,
             owner_uuid: pieces[4],
             note: pieces[1],
-            created: pieces[5] 
+            created: pieces[5]
         };
 
         console.log(JSON.stringify(note));
