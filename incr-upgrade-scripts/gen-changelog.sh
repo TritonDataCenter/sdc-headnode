@@ -48,7 +48,7 @@ repo_url_from_service=$(cat <<EOM
   "rabbitmq": "git@git.joyent.com:rabbitmq.git",
   "cloudapi": "git@github.com:joyent/sdc-cloudapi.git",
   "usageapi": "git@git.joyent.com:usageapi.git",
-  "ufds": "git@git.joyent.com:ufds.git",
+  "ufds": "git@github.com:joyent/sdc-ufds.git",
   "workflow": "git@github.com:joyent/sdc-workflow.git",
   "vmapi": "git@git.joyent.com:vmapi.git",
   "papi": "git@github.com:joyent/sdc-papi.git",
