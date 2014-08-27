@@ -36,7 +36,7 @@ TOP=$(cd $(dirname $0)/; pwd)
 #   json -f targets.json -e 'var s=this; Object.keys(s).forEach(function (k) { if (s[k].repos) s[k] = s[k].repos[0].url });'
 repo_url_from_service=$(cat <<EOM
 {
-  "smartlogin": "git@git.joyent.com:smart-login.git",
+  "smartlogin": "git@github.com:joyent/sdc-smart-login.git",
   "incr-upgrade": "git@git.joyent.com:usb-headnode.git",
   "ca": "git@git.joyent.com:cloud-analytics.git",
   "amon": "git@git.joyent.com:amon.git",
@@ -46,12 +46,12 @@ repo_url_from_service=$(cat <<EOM
   "redis": "git@git.joyent.com:redis.git",
   "amonredis": "git@git.joyent.com:amonredis.git",
   "rabbitmq": "git@git.joyent.com:rabbitmq.git",
-  "cloudapi": "git@git.joyent.com:cloudapi.git",
+  "cloudapi": "git@github.com:joyent/sdc-cloudapi.git",
   "usageapi": "git@git.joyent.com:usageapi.git",
   "ufds": "git@git.joyent.com:ufds.git",
-  "workflow": "git@git.joyent.com:workflow.git",
+  "workflow": "git@github.com:joyent/sdc-workflow.git",
   "vmapi": "git@git.joyent.com:vmapi.git",
-  "papi": "git@git.joyent.com:papi.git",
+  "papi": "git@github.com:joyent/sdc-papi.git",
   "imgapi": "git@git.joyent.com:imgapi.git",
   "sdc": "git@git.joyent.com:sdc.git",
   "imgapi-cli": "git@git.joyent.com:imgapi-cli.git",
