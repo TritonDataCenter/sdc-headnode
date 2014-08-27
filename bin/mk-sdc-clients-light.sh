@@ -100,10 +100,10 @@ cd $D
 
 # sdc-clients (stripped of ldap-using clients)
 mkdir _repos
-(cd _repos && git clone git@git.joyent.com:node-sdc-clients.git)
+(cd _repos && git clone git@github.com:joyent/node-sdc-clients.git)
 (cd _repos/node-sdc-clients && git checkout $SHA)
 mv _repos/node-sdc-clients/{package.json,lib} .
-(cd lib && rm -f config.js package.js ufds.js mapi.javascript assertions.js)
+(cd lib && rm -f config.js package.js ufds.js assertions.js)
 
 if [[ -n "$LIBS" ]]; then
     for LIB in $(cd lib && ls -1 *api.js) amon.js ca.js; do
