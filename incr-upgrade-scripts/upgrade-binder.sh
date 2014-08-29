@@ -104,6 +104,8 @@ if [[ "$DATASET" != "$VMAPI_DATASET" ]]; then
 
     # Reboot to make the delegated dataset appear in the zone.
     vmadm reboot $CUR_UUID
+    echo 'Sleeping to let ZK come back'
+    sleep 90
 fi
 
 
@@ -119,7 +121,8 @@ if [[ -e /zones/$CUR_UUID/root/var/db/zookeeper/myid ]]; then
                       touch /var/db/zookeeper/.moved && \
                       cp -a /var/db/zookeeper /$DATASET/. && \
                       svcadm enable -s zookeeper"
-    sleep 30
+    echo 'Sleeping to let ZK come back'
+    sleep 90
 fi
 
 sapiadm reprovision $CUR_UUID $BINDER_IMAGE
