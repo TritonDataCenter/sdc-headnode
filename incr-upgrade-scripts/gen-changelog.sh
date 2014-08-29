@@ -60,7 +60,7 @@ repo_url_from_service=$(cat <<EOM
   "zonetracker": "git@git.joyent.com:zonetracker.git",
   "hagfish-watcher": "git@git.joyent.com:hagfish-watcher.git",
   "firewaller": "git@github.com:joyent/sdc-firewaller-agent.git",
-  "cnapi": "git@git.joyent.com:cnapi.git",
+  "cnapi": "git@github.com:joyent/sdc-cnapi.git",
   "fwapi": "git@github.com:joyent/sdc-fwapi.git",
   "napi": "git@github.com:joyent/sdc-napi.git",
   "sapi": "git@git.joyent.com:sapi.git",
