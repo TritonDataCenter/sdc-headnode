@@ -8,251 +8,132 @@
     Copyright (c) 2014, Joyent, Inc.
 -->
 
-# USB headnode
+# SDC Headnode
 
-This is the main repo for building USB headnode images for SmartDataCenter.
+This repository is part of the Joyent SmartDataCenter project (SDC).  For
+contribution guidelines, issues, and general documentation, visit the main
+[SDC](http://github.com/joyent/sdc) project page.
 
-- repo: <git@git.joyent.com:usb-headnode.git>
-- browsing: <https://mo.joyent.com/usb-headnode>
-- bugs/issues: <https://devhub.joyent.com/jira/browse/HEAD>
+This is the repository for building headnode images for SDC, and the intial
+setup and configuration of the headnode itself.
 
+## Quickstart (on OS X)
 
+To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-# Building
+  - **One time only**: install VMWare Fusion, run it at least once to all it to establish its initial config, quit it and run `coal/coal-vmware-setup`.
 
-There are four main build outputs from this repo:
+  - Optionally, to automate setup:
+    - create a `build.spec.local` file with the following contents: `{"answers-file": "answers.json"}`
+    - copy one of the answers.json templates: `cp answers.json.tmpl.external answers.json`
+    - see the 'Optional Coniguration & Automated Setup' section below for more information.
 
-- `./bin/build-image <tar|usb|coal>`: wrapper around other tools
-- `./bin/build-tar-image`: outputs a tarball boot-<branch/buildstamp>.tgz
-- `./bin/build-usb-image boot-*.tgz`: outputs a usb tarball
-  usb-<branch/buildstamp>-4gb.tgz
-- `./bin/build-upgrade-image boot-*.tgz`: outputs an upgrade tarball
-  upgrade-<branch/buildstamp>.tgz
-- `./bin/build-coal-image usb-*.tgz`: outputs a coal tarball
-  coal-<branch/buildstamp>.tgz
+  - `make coal` - this requires an internet connection, and will download images of all services. This can take quite some time. If this fails, please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
-If you are just developing on your Mac, you probably want:
+  - open `coal-master-TIMESTAMP-gSHA.vmwarevm`, select 'Live 64-bit' at the grub menu, and work through the interactive installer referring to [this documentation](). **Important**: while many answers are arbitrary, the networking questions require specific values for local development.
 
-    make coal
+  - when setup completes, you can access the headnode via ssh: `ssh root@10.99.99.7` using the root password specified during setup.
 
-and occasionally:
+## Less-quick start
 
-    make sandwich
+There are three main build products from this repo:
 
+  - `make usb` - outputs a usb image tarball
+  - `make coal` - outputs a coal image for use with VMWare
+  - `make incr-upgrade` - outputs a tarball with scripts and tools for incremental upgrades of services on existing headnodes.
 
-# Build Prerequisites
+### Build prerequisites
 
-You can build usb-headnode either on your Mac or on a SmartOS zone.
+On OS X:
 
-Mac setup:
+  - A recent version of node (>= 0.10.26, preferably latest).
+  - The [json](http://trentm.com/json/) CLI tool.
+  - the [XCode Command Line Tools](https://developer.apple.com/downloads/index.action) [Apple sign-in required]. Alternately, any setup of the GNU toolchain sufficient to build a moderately-complex project should also work.
 
-- Install Xcode (not sure about versions now).
+On SmartOS:
 
-- Install VMWare Fusion. Run VMWare Fusion at least once (to create some
-  first time config files). Then shut it down and run the following to setup
-  VMWare networking required for COAL:
+First you must create a suitable build zone:
+  - vmapi or GZ vmadm access to set filesystem permissions on the build zone
+  - provision a zone, params XXX
 
-        ./coal/coal-vmware-setup
+Then to set up the zone:
+  - A recent version of node (>= 0.10.26, preferably latest).
+  - The [json](http://trentm.com/json/) CLI tool.
 
-- You need nodejs >=0.4.9 and npm 1.x installed and on your path. I typically
-  build my own something like this:
+### Optional configuration & automated setup
 
-        # Nodejs build.
-        mkdir ~/opt ~/src
-        cd ~/src
-        git clone -b v0.4.11 git@github.com:joyent/node.git
-        cd node
-        ./configure --prefix=$HOME/opt/node-0.4.11 && make && make install
-        export PATH=$HOME/opt/node-0.4.11:$PATH  # <--- put this in ~/.bashrc
+The default build should produce a usable result, but there are a number of parameters you can configure for specific behaviour or performance reasons. The two main files involved are:
 
-        # npm install
-        curl http://npmjs.org/install.sh | sh
+  - `build.spec.local` which controls aspects of the build
+  - `answers.json` which can automate the setup of the headnode
 
-SmartOS setup:
+Both files are JSON.
 
-- Get VPN access to BH-1. Presumably you want to do this on hardware, and the
-  best current place for that is in the Joyent Development Lab in Bellingham,
-  aka BH-1 (see <https://hub.joyent.com/wiki/display/dev/Development+Lab>).
+#### `build.spec` and `build.spec.local`
 
-- Create a dev zone on one of the "bh1-build*" boxes (I've used bh1-build0)
-  and set it up as per
-  <https://hub.joyent.com/wiki/display/dev/Building+the+SmartOS+live+image+in+a+SmartOS+zone#BuildingtheSmartOSliveimageinaSmartOSzone-HiddenWIPinstructionsfromJoshforsettingthisuponbh1build2>.
+Keys in `build.spec` can be overridden in `build.spec.local` to customize the behaviour of the build. A useful example for local developement is:
 
-  Currently, you need to follow the steps all the way to running "./configure"
-  in the illumos-live clone. This updates your system as required for
-  building the platform -- some of which is also required for building
-  usb-headnode.
+```
+{
+    "answer-file": "answers.json",
+    "build-tgz": "false",
+    "coal-memsize": 8192,
+    "vmware_version": 5,
+    "keep-bits": 1,
+    "default-boot-option": 1
+}
+```
+Respectively, this file:
 
-- You need nodejs >=0.4.9 and npm 1.x installed and on your path. Here is one
-  way to do it:
+  - specifies where to find the setup answers file
+  - does not tar/gzip the results of the build
+  - sets the vmware memory size to 8192MB (recommended if you plan to install a [Manta](https://github.com/joyent/manta) test environment.)
+  - specifies the vmware version to target
+  - keeps only the most-recently downloaded images (to save space)
+  - configures grub to boot as a headnode by default
 
-        pkgin -y in nodejs-0.4.9
-        curl http://npmjs.org/install.sh | sh
+Some other useful settings are:
 
-  WARNING: Installing npm 1.x into /opt/local like this collides with the
-  npm 0.2.x from pkgsrc. Agents builds like CA and the agents.git repos
-  require npm 0.2.x first on the PATH, so if you plan to build those
-  as well, then you can follow the layout used by MG builds
-  (see <https://mo.joyent.com/mountain-gorilla/blob/master/README.md>)
-  which is to install npm 1.x in "$HOME/opt/npm":
+```
+    "moray-image": "moray/moray-zfs-.*manifest",
+    "napi-image": "napi/napi-zfs-.*manifest",
+    "papi-image": "papi/papi-zfs-.*manifest",
+```
+And similarly for all the images used on the headnode. The images used in the build default to the latest available builds of those services, but can be overridden to use branch builds, or images on the local filesystem:
+```
+   "moray-image": "moray/BRANCH-NAME/moray-zfs-.*manifest",
+   "napi-image": "/Users/mbs/headnode-cache/moray-zfs-master-20130401T104924Z-g1695958.zfs.dsmanifest"
+```
 
-        pkgin -y in nodejs-0.4.9
-        mkdir -p $HOME/opt/npm
-        curl http://npmjs.org/install.sh | npm_config_prefix=$HOME/opt/npm clean=no sh
+#### `answers.json`
 
-  then if you want that one to be the default:
+`answers.json` provides information required for headnode setup that is otherwise gathered by the interactive installer. Particularly for local development work, it can be convenient to specify these in advance. The `answers.json.tmpl` and `answers.json.tmpl.external` files provide usable examples for local developement; the former configures only the admin network on setup, the latter configures an external network as well.
 
-        npm config set prefix $HOME/opt/npm
-        cat >> $HOME/.bashrc <<ADDNPM
-        export PATH=$HOME/opt
-        ADDNPM
+### Debugging build failures
 
+Build logs are located in `sdc-headnode/log/build.log.TIMESTAMP`, and the logs of the latest *successful* build are symlinked at `sdc-headnode/log/latest`.
 
+Setting `TRACE=true` in the environment will produce verbose output from bash.
 
-# Configuration
+### Debugging setup failures
 
-This is optional. Without any configuration of your usb-headnode build you'll
-get a reasonable build, but there are a number of knobs you can turn. The
-most interesting/helpful ones are:
+Headnode setup is run by the `/system/smartdc/init` SMF service, and its logs can be accessed at:
+```
+[root@headnode (coal) ~]# svcs -L init
+/var/svc/log/system-smartdc-init:default.log
+```
 
-- Add your public ssh key to "config/config.inc/root.authorized_keys".
-  This file will get used for the root user so you can ssh into your running
-  VM.
+The failure may have occurred in one of the zones being installed, rather than in the setup process itself. In that case, the relevant logs are often inside the zone (accessible via first `zlogin $UUID`):
+  - `svcs -L mdata:fetch` -- fetches the user-script
+  - `svcs -L mdata:execute` -- executes the user-script
+  - `/var/svc/setup.log` -- the output from the setup script
+  - `/var/svc/setup_complete` -- if this file exists (should be empty) setup thinks it succeeded
 
-- You can override keys in "build.spec" with a "build.spec.local" file.
-  Popular "build.spec.local" keys are (obviously you have to remove
-  the comments):
+## Developing for the headnode
 
-        {
-          // Don't bother tar'ing up the vmware image.
-          "build-tgz": "false",
+Development in this repo is typically to alter setup and bootstrap of the system. Setup scripts reside on a USB key typically mounted at `/mnt/usbkey`, and are copied onto the headnode at `/usbkey`.
 
-          // Give your VMWare VM 3400 MiB (or whatever you want) instead of
-          // the default 2816 MiB.
-          "coal-memsize": 3400
-        }
-
-## build.spec.local
-
-All build.spec.local keys are optional.
-
-TODO: this is incomplete, please document a key below if you know the details.
-
-
-    {
-      // Set this to get the build to just use the latest bits in your "cache/".
-      "no-internet": true,
-
-      // A regex for exceptions to the "no-internet". This lets you get the
-      // latest one or more build bits, but just use what you alredy hve for
-      // others.
-      "no-internet-exceptions": "(sdcadm|cnapi)",
-
-      // TODO: doc
-      "console": "text",
-
-      // TODO: doc
-      "default-boot-option": 1,
-
-      // TODO: doc
-      "coal-zpool-disk-size": 150,
-
-      // TODO: doc
-      "coal-memsize": 6000,
-
-      // TODO: doc
-      "vmware_version": 5,
-
-      // Skip zipping up your COAL build. If you are just going to open the
-      // "coal-*.vmwarevm" file in VMWare, then this saves you some time.
-      "build-tgz": "false",
-
-      // Path to an "answers.json" file that is used to given default vaules
-      // for SDC boot configuration. TODO: give a starter answers.json file.
-      "answer-file": "answers.json",
-
-      // The number of bits of each type to keep in cache. Use this to keep
-      // the "cache/" for growing unboundedly.
-      "keep-bits": 3,
-
-      // The manta account info to use for downloading build bits from Manta.
-      // Defaults to the MANTA_* envvars.
-      "manta-user": "trent.mick",
-      "manta-key-id": "b3:f0:a1:6c:18:3b:47:63:ae:6e:57:22:74:71:d4:bc",
-
-      // Support for downloading build bits via a Manta proxy zone.
-      // Talk to Rob or Trent.
-      "builds-proxy": true,
-      "builds-proxy-url": "https://199.192.241.76/builds",
-      "builds-proxy-auth-file": "~/.sdcbuild.json",
-
-      // Override a particular component (e.g. manatee here) with the build
-      // of a particular branch.
-      "manatee-image": "manatee/MY-BRANCH-HERE/manatee-zfs-.*manifest",
-
-      // ... or specify a local file for a particular component (e.g. adminui
-      // here).
-      "adminui-image": "/Users/trentm/joy/usb-headnode/tmp/adminui-zfs-master-20130401T104924Z-g1695958.zfs.dsmanifest"
-
-      // Specify a local agentsshar build.
-      "agents-shar": "./agents-node6-20120221T174143Z-g9469fcf.sh",
-
-      // Specify that Joyent-only ancillary repos should be used
-      "joyent-build": true,
-    }
-
-
-
-# Adding a new service
-
-Important files, see README.zones for more details:
-
-/sapi/config/services/$SERVICE/service.json - required
-
- - SAPI manifests
-Manifests should exist in the image, typically at
-/opt/smartdc/$SERVICE/sapi_manifests, and that directory (or directories)
-should be specified in the setup file before setup.common is sourced, in the
-env var similar to this:
-CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/$SERVICE
-
-The structure of that directory assumes the following:
-/opt/smartdc/$SERVICE/sapi_manifests/$MANIFEST_NAME
-  Where each $MANIFEST_NAME has two files:
-$MANIFEST_NAME/manifest.json
-$MANIFEST_NAME/template
-
-See SAPI docs at https://mo.joyent.com/docs/sapi/master/ and examples COAL for
-more information on these files.
-
-# Using specific images
-
-# Re-building a single zone
-
-to be updated - pending SAPI-80, others.
-
-# Testing upgrade
-
-1. Download 6.5.5: <https://stuff.joyent.us/releases/6.5.5/>
-   You want the coal-*.tgz package if it wasn't obvious.
-
-2. Open that in VMWare. Let is setup. Create a VMWare snapshot of that
-   to fallback to.
-
-3. Make an upgrade package.  Get the latest usb-headnode ("master"
-   branch). Then run `make boot upgrade` to build an upgrade-*.tgz.
-
-4. Get that to your coal:   scp upgrade-*.tgz coal:/var/tmp
-
-5. Upgrade:
-
-        ssh coal
-        /usbkey/scripts/perform-upgrade.sh /var/tmp/upgrade-*.tgz
-
-6. Watch progress in (a) the console and (b) files in /var/upgrade_*
-   (This is a directory with all the logs and dump files. The dir name
-   changes depending on the upgrade phase.)
-
-If you are working on the upgrade process, the main relevant files on
-bin/upgrade.sh, bin/upgrade_hooks.sh, bin/\* (a number of othre files)
-in usb-headnode.git.
+To test changes to setup procedures without a complete rebuild, you can:
+  - mount the usbkey (if required) using `/usbkey/scripts/mount-usb.sh`
+  - copy your modifications over the existing scripts
+  - run `sdc-factory-reset` to re-run the setup process

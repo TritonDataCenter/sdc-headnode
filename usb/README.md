@@ -1,16 +1,22 @@
-#
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#
+<!--
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
+-->
 
-#
-# Copyright (c) 2014, Joyent, Inc.
-#
+<!--
+    Copyright (c) 2014, Joyent, Inc.
+-->
 
+# Template USB images
 
-How to build a new image (Linux only)
-=====================================
+These images are used as templates to produce the sdc-headnode usbkey image.
+
+## GRUB use & Licensing
+
+The image templates contain a copy of the grub bootloader licensed under the GPLv2, a copy of which is available at `grub-LICENSE` or [online](http://www.gnu.org/licenses/gpl-2.0.html). The grub source code used is available at the [Ubuntu package archive](http://packages.ubuntu.com/lucid/grub)
+
+## How to build a new image (Linux only)
 
 IMPORTANT NOTES:
 
@@ -108,3 +114,23 @@ jill@headnode:~$ ls -lh 1gb.img*
 -rw-r--r-- 1 root root 954M 2011-01-03 16:38 1gb.img
 -rw-r--r-- 1 jill jill 153K 2011-01-03 16:45 1gb.img.tgz
 jill@headnode:~$
+
+## Altering `.vmdk` files for a new image
+
+The values that need to change in the vmdk file for the different images are:
+
+RW 3906250 FLAT "<USB_IMAGE_FILE>" 0 (the second field here)
+
+ - and -
+
+ddb.geometry.cylinders = "3875"
+
+to calculate the size (assuming your raw image is 2000000000 bytes):
+
+    echo $((2000000000 / 512))
+
+To calculate the cylinders:
+
+    echo $((2000000000 / 512 / (16 * 63)))
+
+And update these lines in a Xgb.coal.vmdk file.
