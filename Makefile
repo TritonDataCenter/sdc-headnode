@@ -14,7 +14,6 @@ PERCENT := %
 #
 # Files
 #
-DOC_FILES = index.restdown
 
 ifeq ($(shell uname -s),Darwin)
 GREP = grep
