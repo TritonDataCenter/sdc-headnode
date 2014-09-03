@@ -53,7 +53,7 @@ repo_url_from_service=$(cat <<EOM
   "vmapi": "git@github.com:joyent/sdc-vmapi.git",
   "papi": "git@github.com:joyent/sdc-papi.git",
   "imgapi": "git@github.com:joyent/sdc-imgapi.git",
-  "sdc": "git@git.joyent.com:sdc.git",
+  "sdc": "git@git.joyent.com:sdc-sdc.git",
   "imgapi-cli": "git@git.joyent.com:imgapi-cli.git",
   "heartbeater": "git@git.joyent.com:heartbeater.git",
   "provisioner": "git@git.joyent.com:provisioner.git",
