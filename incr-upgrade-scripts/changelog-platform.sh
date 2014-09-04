@@ -44,8 +44,8 @@ repo_url_from_var=$(cat <<EOM
     "ILLUMOS_EXTRA_SHA": {"name": "illumos-extra", "url": "git@github.com:joyent/illumos-extra.git"},
     "ILLUMOS_KVM_SHA": {"name": "illumos-kvm", "url": "git@github.com:joyent/illumos-kvm.git"},
     "ILLUMOS_KVM_CMD_SHA": {"name": "illumos-kvm-cmd", "url": "git@github.com:joyent/illumos-kvm-cmd.git"},
-    "UR_AGENT_SHA": {"name": "ur-agent", "url": "git@git.joyent.com:ur-agent.git"},
-    "SDC_PLATFORM_SHA": {"name": "sdc-platform", "url": "git@git.joyent.com:sdc-platform.git"},
+    "UR_AGENT_SHA": {"name": "ur-agent", "url": "git@github.com:joyent/sdc-ur-agent.git"},
+    "SDC_PLATFORM_SHA": {"name": "sdc-platform", "url": "git@github.com:joyent/sdc-platform.git"},
     "MDATA_CLIENT_SHA": {"name": "mdata-client", "url": "git@github.com:joyent/mdata-client.git"}
 }
 EOM)
