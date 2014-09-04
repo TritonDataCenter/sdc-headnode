@@ -75,10 +75,8 @@ fi
 # -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
 #    application is the current manatee primary IP
 LOCAL_MANATEE_UUID=$(vmadm lookup -1 state=running alias=~manatee)
-MANATEE_PRIMARY_IP=$(zlogin $LOCAL_MANATEE_UUID '
-	source .bashrc;
-	/opt/smartdc/manatee/build/node/bin/node /opt/smartdc/manatee/bin/manatee-stat  -p $ZK_IPS
-	' </dev/null | json sdc.primary.ip)
+MANATEE_PRIMARY_IP=$(zlogin $LOCAL_MANATEE_UUID 'source .bashrc; manatee-stat' \
+    </dev/null | json sdc.primary.ip)
 manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
 if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
     fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
