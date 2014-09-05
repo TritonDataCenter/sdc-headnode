@@ -33,7 +33,6 @@ set -o pipefail
 TOP=$(cd $(dirname $0)/; pwd)
 source $TOP/libupgrade.sh
 
-
 #---- mainline
 
 # -- Check usage and skip out if no upgrade necessary.
@@ -71,19 +70,6 @@ if [[ $CUR_IMAGE == $UFDS_IMAGE ]]; then
     exit 0
 fi
 
-
-# -- Assert (until CAPI-364 fixed) that 'manatee_admin_ips' in the 'sdc'
-#    application is the current manatee primary IP
-LOCAL_MANATEE_UUID=$(vmadm lookup -1 state=running alias=~manatee)
-MANATEE_PRIMARY_IP=$(zlogin $LOCAL_MANATEE_UUID 'source .bashrc; manatee-stat' \
-    </dev/null | json sdc.primary.ip)
-manatee_admin_ips=$(sdc-sapi /applications?name=sdc | json -H 0.metadata.manatee_admin_ips)
-if [[ "$MANATEE_PRIMARY_IP" != "$manatee_admin_ips" ]]; then
-    fatal "SDC app 'manatee_admin_ips' ($manatee_admin_ips) != Manatee " \
-        "primary ip ($MANATEE_PRIMARY_IP). This will break on CAPI-364."
-fi
-
-
 # -- Get the new image.
 ./download-image.sh $UFDS_IMAGE || fatal "failed to download image $UFDS_IMAGE"
 
@@ -111,12 +97,43 @@ VERSION=$(sdc-login $CUR_ALIAS 'cat /opt/smartdc/ufds/etc/config.json' | json mo
 function update_ufds_sql_schema {
   set +o errexit
 
-  if [ "$VERSION" -le "6" ]; then
+  if [[ "$VERSION" -le "6" ]]; then
+
+    # primary manatee must be on the headnode for the following
+    local HN_MANATEE_UUID
+    HN_MANATEE_UUID=$(vmadm lookup -1 state=running alias=~manatee)
+    local MANATEE_STAT
+
+    # BEGIN BASHSTYLED
+    # manatee zones of certain vintages prevent bare 'manatee-stat' from
+    # working. Other vintages have the tool in a different location, but
+    # work OK.
+    if [[ -f /zones/${HN_MANATEE_UUID}/root/opt/smartdc/manatee/bin/manatee-stat ]]; then
+        MANATEE_STAT=$(zlogin $HN_MANATEE_UUID '
+            source .bashrc;
+            /opt/smartdc/manatee/build/node/bin/node /opt/smartdc/manatee/bin/manatee-stat
+            ' </dev/null)
+    else
+        MANATEE_STAT=$(zlogin $HN_MANATEE_UUID '
+            source .bashrc; manatee-stat' </dev/null)
+    fi
+    # END BASHSTYLED
+
+    local PRIMARY_MANATEE_UUID
+    PRIMARY_MANATEE_UUID=$(echo ${MANATEE_STAT} | json sdc.primary.zoneId)
+    if [[ $PRIMARY_MANATEE_UUID != $HN_MANATEE_UUID ]]; then
+        fatal "The primary manatee must be on the headnode for this ugprade"
+    fi
+
+    local PRIMARY_MANATEE_IP
+    PRIMARY_MANATEE_IP=$(echo $MANATEE_STAT | json sdc.primary.ip)
+
     echo "Upgrading ufds_o_smartdc bucket."
     while read SQL
     do
-      sdc-login manatee0 \
-        "psql -U moray -h $MANATEE_PRIMARY_IP -d moray -c \"${SQL}\""
+      zlogin $PRIMARY_MANATEE_UUID \
+        "psql -U moray -h $PRIMARY_MANATEE_IP -d moray -c \"${SQL}\"" \
+        </dev/null
     done < ./capi-305.sql
     echo "ufds_o_smartdc schema upgraded."
   else
