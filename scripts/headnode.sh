@@ -145,32 +145,18 @@ function printf_timer
     if [[ -n ${CONFIG_show_setup_timers} ]]; then
         cr_once
 
-        # This mess just runs printf again with the same args we were passed
-        # adding the delta argument.
-        if [[ $upgrading == 1 ]]; then
-            eval printf \
-                $(for arg in "$@"; do
-                    echo "\"${arg}\""
-                done; echo \"${delta_t}\") | \
-                tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
-        else
-            eval printf \
-                $(for arg in "$@"; do
-                    echo "\"${arg}\""
-                done; echo \"${delta_t}\") \
-            >&${CONSOLE_FD}
-        fi
+        eval printf \
+            $(for arg in "$@"; do
+                echo "\"${arg}\""
+            done; echo \"${delta_t}\") \
+        >&${CONSOLE_FD}
     fi
     prev_t=${now}
 }
 
 function printf_log
 {
-    if [[ $upgrading == 1 ]]; then
-        printf "$@" | tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
-    else
-        printf "$@" >&${CONSOLE_FD}
-    fi
+    printf "$@" >&${CONSOLE_FD}
 }
 
 set_default_fw_rules() {
@@ -216,7 +202,7 @@ trap 'errexit $?' EXIT
 # output.
 #
 restore=0
-if [ $# == 0 ]; then
+if [[ $# == 0 ]]; then
     DEBUG="true"
     exec 4>>/dev/console
     set -o xtrace
@@ -344,15 +330,6 @@ if setup_state_not_seen "setup_complete"; then
     printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 fi
 
-if [[ -x /var/upgrade_headnode/upgrade_hooks.sh ]]; then
-    upgrading=1
-    printf_log "%-58s\n" "running pre-setup upgrade tasks... "
-    /var/upgrade_headnode/upgrade_hooks.sh "pre" \
-        4>/var/upgrade_headnode/finish_pre.log
-    printf_log "%-58s" "completed pre-setup upgrade tasks... "
-    printf_timer "%4s (%ss)\n" "done"
-fi
-
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
     cr_once
@@ -449,14 +426,6 @@ function create_zone {
         fi
     fi
 
-    if [[ "$CONFIG_coal" == "true" && "$zone" == "ufds" && $upgrading == 1 ]]
-    then
-        printf_log "%-58s" "coal pre-ufds sleep... "
-        sleep 30
-        printf_log "done (30)\n" >&${CONSOLE_FD}
-        prev_t=$(date +%s)
-    fi
-
     if [[ ${restore} == 0 ]]; then
         printf_log "%-58s" "creating zone ${existing_uuid}${zone}... "
     else
@@ -479,7 +448,6 @@ function create_zone {
     if [[ ${USE_SAPI} && -f ${USB_COPY}/services/${zone}/service.json ]]; then
         echo "Deploy zone ${zone} (payload via SAPI)"
         local sapi_url=http://${CONFIG_sapi_admin_ips}
-        [[ $upgrading == 1 ]] && UPGRADING="yes"
 
         # HEAD-1327 for the first manatee, we want ONE_NODE_WRITE_MODE turned on
         if [[ ${zone} == "manatee" ]]; then
@@ -487,7 +455,8 @@ function create_zone {
         fi
 
         # BASHSTYLED
-        UPGRADING=${UPGRADING} ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} > ${payload_file}
+        ${USB_COPY}/scripts/sdc-deploy.js ${sapi_url} ${zone} ${new_uuid} \
+            > ${payload_file}
 
         # don't pollute things for everybody else
         if [[ ${zone} == "manatee" ]]; then
@@ -559,13 +528,6 @@ function create_zone {
 
     CREATEDZONES="${CREATEDZONES} ${zone}"
     CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
-
-    if [[ $upgrading == 1 ]]; then
-        printf_log "%-58s" "upgrading zone $zone... "
-        /var/upgrade_headnode/upgrade_hooks.sh ${zone} ${new_uuid} \
-            4>/var/upgrade_headnode/finish_${zone}.log
-        printf_timer "%4s (%ss)\n" "done"
-    fi
 
     if [[ ${zone} == "sdc" ]]; then
         # (Re)create the /opt/smartdc/sdc symlink into the sdc zone:
@@ -1035,32 +997,17 @@ if [[ -n ${CREATEDZONES} ]]; then
 
     if [ $restore == 0 ]; then
         echo "" >&${CONSOLE_FD}
-        if [[ $upgrading == 1 ]]; then
-            printf_timer "FROM_START" \
-                "initial setup complete (in %s seconds).\n"
-        else
-            printf_timer "FROM_START" \
+        printf_timer "FROM_START" \
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
-        fi
         echo "" >&${CONSOLE_FD}
     fi
 fi
 
-if [[ $upgrading == 1 ]]; then
-    printf_log "%-58s\n" "running post-setup upgrade tasks... "
-    /var/upgrade_headnode/upgrade_hooks.sh "post" \
-        4>/var/upgrade_headnode/finish_post.log
-    printf_log "%-58s" "completed post-setup upgrade tasks... "
-    printf_timer "%4s (%ss)\n" "done"
-
-    # Note: It is 'upgrade_hooks.sh's responsibility to do
-    # the equivalent of 'setup_state_mark_complete' when it is done.
-else
-    if setup_state_not_seen "setup_complete"; then
-        setup_state_mark_complete
-        rm -f /tmp/.ur-startup
-        svcadm restart ur
-    fi
+if setup_state_not_seen "setup_complete"; then
+    setup_state_mark_complete
+    rm -f /tmp/.ur-startup
+    svcadm restart ur
 fi
+
 
 exit 0

@@ -89,7 +89,6 @@ TOOLS_BIN_FILES = \
 	sdc-login \
 	sdc-network \
 	sdc-phonehome \
-	sdc-post-upgrade \
 	sdc-rabbitstat \
 	sdc-restore \
 	sdc-role \
@@ -99,7 +98,6 @@ TOOLS_BIN_FILES = \
 	sdc-server \
 	sdc-setconsole \
 	sdc-ufds-m2s \
-	sdc-upgrade \
 	sdc-vm \
 	sdc-vmmanifest \
 	sdc-vmname \
@@ -160,7 +158,7 @@ include ./buildtools/mk/Makefile.defs
 # usb-headnode-specific targets
 #
 
-.PHONY: all coal deps usb boot tar upgrade sandwich
+.PHONY: all coal deps usb boot tar sandwich
 all: coal
 
 deps:
@@ -176,8 +174,6 @@ boot: deps $(TOOLS_DEPS)
 	bin/build-image tar
 
 tar: boot
-upgrade: $(TOOLS_DEPS)
-	bin/build-upgrade-image $(shell ls boot-*.tgz | sort | tail -1)
 
 sandwich:
 	@open http://xkcd.com/149/

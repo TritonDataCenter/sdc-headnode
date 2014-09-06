@@ -75,9 +75,6 @@ function createInstance(service, cb) {
     var opts = { params: {}, metadata : {} };
     opts.uuid = passed_uuid;
     opts.params.alias = zone + '0';
-    if (process.env['UPGRADING']) {
-        opts.metadata['IS_UPDATE'] = '1';
-    }
     if (process.env['ONE_NODE_WRITE_MODE']) {
         opts.metadata['ONE_NODE_WRITE_MODE'] = 'true';
     }
