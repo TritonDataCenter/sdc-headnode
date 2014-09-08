@@ -39,7 +39,7 @@ repo_url_from_service=$(cat <<EOM
   "smartlogin": "git@github.com:joyent/sdc-smart-login.git",
   "incr-upgrade": "git@github.com:joyent/sdc-headnode.git",
   "ca": "git@github.com:joyent/sdc-cloud-analytics.git",
-  "amon": "git@git.joyent.com:amon.git",
+  "amon": "git@github.com:joyent/sdc-amon.git",
   "assets": "git@github.com:joyent/sdc-assets.git",
   "adminui": "git@github.com:joyent/sdc-adminui.git",
   "dhcpd": "git@github.com:joyent/sdc-booter.git",
