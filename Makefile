@@ -92,7 +92,6 @@ TOOLS_BIN_FILES = \
 	sdc-rabbitstat \
 	sdc-restore \
 	sdc-role \
-	sdc-rollback \
 	sdc-sbcreate \
 	sdc-sbupload \
 	sdc-server \
