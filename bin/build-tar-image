@@ -1108,19 +1108,6 @@ function copy_to_mount
         || fatal "Unable to copy files to mount"
 }
 
-function copy_agents65
-{
-    local bit_cache_path
-    mkdir -p ${STAGE}/agents65
-
-    bit_cache_path=$(get_manta_bit \
-        "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.sh")
-    cp $bit_cache_path ${STAGE}/agents65/agents65.sh
-    bit_cache_path=$(get_manta_bit \
-        "agentsshar-upgrade/master/agents-release-20110901-upgrade-.*\.md5sum")
-    cp $bit_cache_path ${STAGE}/agents65/agents65.md5sum
-}
-
 function add_manifests
 {
     # build manifest of USB files + move in boot_archive manifest
@@ -1149,7 +1136,6 @@ generate_grub_menu
 copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
 copy_sdcadm
 copy_agentsshar
-copy_agents65
 copy_sapi_config
 copy_datasets
 copy_zones
