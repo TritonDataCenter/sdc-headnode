@@ -43,7 +43,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-RABBITMQ_IMAGE=$(egrep '^export +RABBITMQ_IMAGE' $1 | tail -1 | cut -d'=' -f2 | awk '{print $1}')
+RABBITMQ_IMAGE=$(source $1 >/dev/null; echo $RABBITMQ_IMAGE)
 if [[ -z ${RABBITMQ_IMAGE} ]]; then
     fatal "\$RABBITMQ_IMAGE not defined"
 fi
