@@ -173,23 +173,23 @@ get_latest()
 
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
         dir=$(curl -f -s -k \
-            ${bits_url}/sdc/${release}-latest \
+            ${bits_url}/headnode-joyent/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -s -k ${bits_url}/${dir}/usbheadnode${suffix}/ \
+        file=$(curl -f -s -k ${bits_url}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/usbheadnode${suffix}/${file}"
+            echo "${bits_url}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     else
         dir=$(curl -f -sS -k \
-            ${bits_url}/usbheadnode${suffix}/${release}-latest \
+            ${bits_url}/headnode-joyent${suffix}/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
         file=$(curl -f -sS -k \
-            ${bits_url}/${dir}/usbheadnode${suffix}/ \
+            ${bits_url}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/usbheadnode${suffix}/${file}"
+            echo "${bits_url}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     fi
 }
@@ -258,7 +258,7 @@ fi
 URL=
 FILENAME=
 if [[ ${filename} == "latest" ]]; then
-    echo "Finding latest usbheadnode build..."
+    echo "Finding latest headnode-joyent build..."
     URL=$(get_latest)
     if [[ -z ${URL} ]]; then
         echo "Failed to find latest from ${URL}!" >&2
@@ -268,7 +268,7 @@ if [[ ${filename} == "latest" ]]; then
     MD5_SUM=$(get_md5 "latest" "${FILENAME}" "${URL}")
     echo "Latest is ${URL}..."
 elif [[ ${filename} == "latest-debug" ]]; then
-    echo "Finding latest usbheadnode-debug build..."
+    echo "Finding latest headnode-joyent-debug build..."
     URL=$(get_latest -debug)
     if [[ -z ${URL} ]]; then
         echo "Failed to find latest from ${URL}!" >&2
@@ -278,7 +278,7 @@ elif [[ ${filename} == "latest-debug" ]]; then
     MD5_SUM=$(get_md5 "latest-debug" "${FILENAME}" "${URL}")
     echo "Latest (debug) is ${URL}..."
 elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
-    echo "Finding latest ${filename} usbheadnode build..."
+    echo "Finding latest ${filename} headnode-joyent build..."
     URL=$(get_latest ${filename})
     if [[ -z ${URL} ]]; then
         echo "Failed to find latest ${filename} from ${URL}!" >&2
