@@ -202,6 +202,21 @@ incr-upgrade: $(TOOLS_DEPS)
 
 CLEAN_FILES += build/incr-upgrade
 
+.PHONY: gz-tools
+gz-tools: $(TOOLS_DEPS)
+	@echo building gz-tools-$(STAMP).tgz
+	rm -rf build/gz-tools
+	mkdir -p build
+	cp -r $(TOP)/scripts build/gz-tools-$(STAMP)
+	cp -r \
+		$(TOP)/tools.tar.gz \
+		$(TOP)/cn_tools.tar.gz \
+		$(TOP)/default \
+		build/gz-tools-$(STAMP)
+	(cd build && tar czf ../gz-tools-$(STAMP).tgz gz-tools-$(STAMP))
+
+CLEAN_FILES += build/gz-tools
+
 #
 # Tools tarball
 #
