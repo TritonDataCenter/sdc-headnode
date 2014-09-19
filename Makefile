@@ -202,20 +202,47 @@ incr-upgrade: $(TOOLS_DEPS)
 
 CLEAN_FILES += build/incr-upgrade
 
+
+GZ_TOOLS_STAMP := gz-tools-$(STAMP)
+GZ_TOOLS_MANIFEST := $(GZ_TOOLS_STAMP).manifest
+GZ_TOOLS_TARBALL := $(GZ_TOOLS_STAMP).tgz
+
+# NOTE: gz-tools package version comes from package.json
 .PHONY: gz-tools
 gz-tools: $(TOOLS_DEPS)
-	@echo building gz-tools-$(STAMP).tgz
+	@echo "building $(GZ_TOOLS_TARBALL)"
 	rm -rf build/gz-tools
-	mkdir -p build
-	cp -r $(TOP)/scripts build/gz-tools-$(STAMP)
+	mkdir -p build/gz-tools
+	cp -r $(TOP)/scripts build/gz-tools/$(GZ_TOOLS_STAMP)
 	cp -r \
 		$(TOP)/tools.tar.gz \
 		$(TOP)/cn_tools.tar.gz \
 		$(TOP)/default \
-		build/gz-tools-$(STAMP)
-	(cd build && tar czf ../gz-tools-$(STAMP).tgz gz-tools-$(STAMP))
+		build/gz-tools/$(GZ_TOOLS_STAMP)
+	(cd build/gz-tools && tar czf ../../$(GZ_TOOLS_TARBALL) $(GZ_TOOLS_STAMP))
+	uuid -v4 > build/gz-tools/image_uuid
+	cat $(TOP)/manifests/gz-tools.manifest.tmpl | sed \
+		-e "s/UUID/$$(cat build/gz-tools/image_uuid)/" \
+		-e "s/NAME/gz-tools/" \
+		-e "s/VERSION/$$(json version < $(TOP)/package.json)/" \
+		-e "s/SIZE/$$(stat --printf="%s" $(GZ_TOOLS_TARBALL))/" \
+		-e "s/BUILDSTAMP/$(STAMP)/" \
+		-e "s/SHA/$$(openssl sha1 $(GZ_TOOLS_TARBALL) \
+		    | cut -d ' ' -f2)/" \
+		> $(TOP)/$(GZ_TOOLS_MANIFEST)
 
 CLEAN_FILES += build/gz-tools
+
+.PHONY: gz-tools-publish
+gz-tools-publish: gz-tools
+	@if [[ -z "$(BITS_DIR)" ]]; then \
+		@echo "error: 'BITS_DIR' must be set for 'gz-tools-publish' target"; \
+		exit 1; \
+	fi
+	mkdir -p $(BITS_DIR)/gz-tools
+	cp $(TOP)/$(GZ_TOOLS_TARBALL) $(BITS_DIR)/gz-tools/$(GZ_TOOLS_TARBALL)
+	cp $(TOP)/$(GZ_TOOLS_MANIFEST) $(BITS_DIR)/gz-tools/$(GZ_TOOLS_MANIFEST)
+
 
 #
 # Tools tarball
