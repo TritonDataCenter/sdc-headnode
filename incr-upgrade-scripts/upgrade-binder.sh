@@ -46,6 +46,7 @@ CUR_UUID=$(vmadm lookup -1 state=running owner_uuid=$UFDS_ADMIN_UUID alias=~^bin
     || fatal "there is not exactly one running binderN zone";
 CUR_ALIAS=$(vmadm get $CUR_UUID | json alias)
 CUR_IMAGE=$(vmadm get $CUR_UUID | json image_uuid)
+DATASET="zones/$CUR_UUID/data"
 
 # Don't bother if already on this image.
 if [[ $CUR_IMAGE == $BINDER_IMAGE ]]; then
@@ -66,47 +67,10 @@ BINDER_JSON=$(sdc-sapi /services?name=binder\&application_uuid=$SDC_APP | json -
 BINDER_SVC=$(echo "$BINDER_JSON" | json uuid)
 [[ -n "$BINDER_SVC" ]] || fatal "could not determine sdc 'binder' BINDER service"
 
+
 # -- Get binder past MANTA-2297 (adding a delegate dataset)
-HAS_DATASET=$(echo "$BINDER_JSON" | json params.delegate_dataset)
-if [[ "$HAS_DATASET" != "true" ]]; then
-    echo '{ "params": { "delegate_dataset": true } }' | \
-        sapiadm update "$BINDER_SVC"
-    [[ $? == 0 ]] || fatal "Unable to set delegate_dataset on binder service."
-
-    # -- Verify it got there
-    BINDER_JSON=$(sdc-sapi /services?name=binder\&application_uuid=$SDC_APP | \
-        json -Ha)
-    [[ -n "$BINDER_JSON" ]] || fatal "could not fetch sdc 'binder' BINDER service"
-    HAS_DATASET=$(echo "$BINDER_JSON" | json params.delegate_dataset)
-    [[ "$HAS_DATASET" == "true" ]] || \
-        fatal "sapiadm updated the binder service but it didn't take"
-fi
-
-# -- Add a delegated dataset to current binder, if needed (more MANTA-2297).
-DATASET="zones/$CUR_UUID/data"
-VMAPI_DATASET=$(sdc-vmapi /vms/$CUR_UUID | json -Ha datasets.0)
-if [[ "$DATASET" != "$VMAPI_DATASET" ]]; then
-    zfs list "$DATASET" && rc=$? || rc=$?
-    if [[ $rc != 0 ]]; then
-        zfs create $DATASET
-        [[ $? == 0 ]] || fatal "Unable to create binder zfs dataset"
-    fi
-
-    zfs set zoned=on $DATASET
-    [[ $? == 0 ]] || fatal "Unable to set zoned=on on binder dataset"
-
-    zonecfg -z $CUR_UUID "add dataset; set name=${DATASET}; end"
-    [[ $? == 0 ]] || fatal "Unable to set dataset on binder zone"
-
-    VMADM_DATASET=$(vmadm get $CUR_UUID | json datasets.0)
-    [[ "$DATASET" == "$VMADM_DATASET" ]] || \
-        fatal "Set dataset on binder zone, but getting did not work"
-
-    # Reboot to make the delegated dataset appear in the zone.
-    vmadm reboot $CUR_UUID
-    echo 'Sleeping to let ZK come back'
-    sleep 90
-fi
+ensure_delegated_dataset "binder" "true"
+[[ $? == 0 ]] || fatal "could not ensure binder delegated dataset"
 
 
 # -- Update service data in BINDER.

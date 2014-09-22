@@ -187,3 +187,74 @@ function update_svc_user_script {
         > sapi-updates/${service_uuid}.update
     sdc-sapi /services/${service_uuid} -X PUT -d @sapi-updates/${service_uuid}.update
 }
+
+# Check for a delegated dataset and add one if none exists.
+
+# Usage:
+#   ensure_delegated_dataset binder true    # reboot zone if dataset was added
+#   ensure_delegated_dataset sapi false     # do not reboot
+function ensure_delegated_dataset {
+    local service_name=$1
+    local reboot_after=$2
+
+    [[ -n "$service_name" ]] || \
+        fatal "ensure_delegated_dataset: no 'service_name' given"
+
+    if [[ "$reboot_after" != "true" && "$reboot_after" != "false" ]]; then
+        fatal "invalid argument: $reboot_after (must be 'true' or 'false')"
+    fi
+
+    local sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+    [[ -n "$sdc_app" ]] || \
+        fatal "ensure_delegated_dataset: could not determine 'sdc' app"
+
+    local service_json=$(sdc-sapi /services?name=$service_name\&application_uuid=$sdc_app | json -Ha)
+    [[ -n "service_json" ]] || \
+        fatal "ensure_delegated_dataset: could not fetch sdc $service_name service"
+
+    local service_uuid=$(echo "$service_json" | json uuid)
+    [[ -n "service_uuid" ]] || \
+        fatal "ensure_delegated_dataset: could not determine sdc $service_name service uuid"
+
+    local has_dataset=$(echo "$service_json" | json params.delegate_dataset)
+
+    if [[ "$has_dataset" != "true" ]]; then
+        echo '{ "params": { "delegate_dataset": true } }' | \
+            sapiadm update "$service_uuid"
+    [[ $? == 0 ]] || fatal "ensure_delegated_dataset: unable to set delegate_dataset on $service_name service."
+
+
+        # -- Verify it got there
+        local verify_dataset=$(sdc-sapi /services?name=$service_name\&application_uuid=$sdc_app | json -Ha params.delegate_dataset)
+        [[ "$verify_dataset" == "true" ]] || \
+            fatal "sapiadm updated the $service_name service but it didn't take"
+    fi
+
+    # Add a delegated dataset to the existing zone, if needed
+    local ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
+    local cur_uuid=$(vmadm lookup -1 state=running owner_uuid=$ufds_admin_uuid alias=~^$service_name)
+    local dataset="zones/$cur_uuid/data"
+    local vmapi_dataset=$(sdc-vmapi /vms/$cur_uuid | json -Ha datasets.0)
+
+    if [[ "$dataset" != "$vmapi_dataset" ]]; then
+        zfs list "$dataset" && rc=$? || rc=$?
+        if [[ $rc != 0 ]]; then
+            zfs create $dataset
+            [[ $? == 0 ]] || fatal "Unable to create $service_name zfs dataset"
+        fi
+
+        zfs set zoned=on $dataset
+        [[ $? == 0 ]] || fatal "Unable to set zoned=on on $service_name dataset"
+
+        zonecfg -z $cur_uuid "add dataset; set name=${dataset}; end"
+        [[ $? == 0 ]] || fatal "Unable to set dataset on $service_name zone"
+
+        VMADM_dataset=$(vmadm get $cur_uuid | json datasets.0)
+        [[ "$dataset" == "$VMADM_dataset" ]] || \
+            fatal "Set dataset on $service_name zone, but getting did not work"
+
+        if [[ "$reboot_after" == "true" ]]; then
+            vmadm reboot $cur_uuid
+        fi
+    fi
+}

@@ -64,6 +64,7 @@ else
       | json -e "this.metadata.SERVICE_DOMAIN=\"mahi.${DOMAIN}\"" \
       | json -e "this.params.image_uuid=\"$NEW_IMAGE\"" \
       | json -e "this.metadata[\"user-script\"]=$USERSCRIPT" \
+      | json -e "this.params.delegate_dataset=true" \
       >./"${role}"-service.json
 
     echo "Service $role does not exist. Attempting to create it"
