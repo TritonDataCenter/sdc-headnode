@@ -217,6 +217,7 @@ gz-tools: $(TOOLS_DEPS)
 		$(TOP)/tools.tar.gz \
 		$(TOP)/cn_tools.tar.gz \
 		$(TOP)/default \
+		$(TOP)/scripts \
 		build/$(GZ_TOOLS_STAMP)/gz-tools
 	(cd build/$(GZ_TOOLS_STAMP) && tar czf ../../$(GZ_TOOLS_TARBALL) gz-tools)
 	uuid -v4 > build/$(GZ_TOOLS_STAMP)/image_uuid
