@@ -159,7 +159,6 @@ env | grep IMAGE
 [[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui adminui0 $ADMINUI_IMAGE
 [[ -n "$AMON_IMAGE" ]] && upgrade_zone amon amon0 $AMON_IMAGE
 [[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis amonredis0 $AMONREDIS_IMAGE
-[[ -n "$SDCSSO_IMAGE" ]] && upgrade_zone sdcsso sdcsso0 $SDCSSO_IMAGE
 [[ -n "$CLOUDAPI_IMAGE" ]] && upgrade_zone cloudapi cloudapi0 $CLOUDAPI_IMAGE
 [[ -n "$WORKFLOW_IMAGE" ]] && upgrade_zone workflow workflow0 $WORKFLOW_IMAGE
 [[ -n "$CNAPI_IMAGE" ]] && upgrade_zone cnapi cnapi0 $CNAPI_IMAGE

@@ -38,7 +38,6 @@
   "redis-image": "redis/redis-zfs-.*manifest",
   "sapi-image": "sapi/sapi-zfs-.*manifest",
   "sdc-image": "sdc/sdc-zfs-.*manifest",
-  "sdcsso-image": "sdcsso/sdcsso-zfs-.*manifest",
   "ufds-image": "ufds/ufds-zfs-.*manifest",
   "vmapi-image": "vmapi/vmapi-zfs-.*manifest",
   "workflow-image": "workflow/workflow-zfs-.*manifest",
