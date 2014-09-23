@@ -211,19 +211,17 @@ GZ_TOOLS_TARBALL := $(GZ_TOOLS_STAMP).tgz
 .PHONY: gz-tools
 gz-tools: $(TOOLS_DEPS)
 	@echo "building $(GZ_TOOLS_TARBALL)"
-	rm -rf build/gz-tools
-	mkdir -p build/gz-tools
-	cp -r $(TOP)/scripts build/gz-tools/$(GZ_TOOLS_STAMP)
+	mkdir -p build/$(GZ_TOOLS_STAMP)
+	cp -r $(TOP)/scripts build/$(GZ_TOOLS_STAMP)/gz-tools
 	cp -r \
 		$(TOP)/tools.tar.gz \
 		$(TOP)/cn_tools.tar.gz \
 		$(TOP)/default \
-		$(TOP)/scripts \
-		build/gz-tools/$(GZ_TOOLS_STAMP)
-	(cd build/gz-tools && tar czf ../../$(GZ_TOOLS_TARBALL) $(GZ_TOOLS_STAMP))
-	uuid -v4 > build/gz-tools/image_uuid
+		build/$(GZ_TOOLS_STAMP)/gz-tools
+	(cd build/$(GZ_TOOLS_STAMP) && tar czf ../../$(GZ_TOOLS_TARBALL) gz-tools)
+	uuid -v4 > build/$(GZ_TOOLS_STAMP)/image_uuid
 	cat $(TOP)/manifests/gz-tools.manifest.tmpl | sed \
-		-e "s/UUID/$$(cat build/gz-tools/image_uuid)/" \
+		-e "s/UUID/$$(cat build/$(GZ_TOOLS_STAMP)/image_uuid)/" \
 		-e "s/NAME/gz-tools/" \
 		-e "s/VERSION/$$(json version < $(TOP)/package.json)/" \
 		-e "s/SIZE/$$(stat --printf="%s" $(GZ_TOOLS_TARBALL))/" \
@@ -231,6 +229,7 @@ gz-tools: $(TOOLS_DEPS)
 		-e "s/SHA/$$(openssl sha1 $(GZ_TOOLS_TARBALL) \
 		    | cut -d ' ' -f2)/" \
 		> $(TOP)/$(GZ_TOOLS_MANIFEST)
+	rm -rf build/$(GZ_TOOLS_STAMP)
 
 CLEAN_FILES += build/gz-tools
 
