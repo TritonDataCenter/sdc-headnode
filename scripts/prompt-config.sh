@@ -211,6 +211,20 @@ is_email() {
 	return 1
 }
 
+is_dns_label() {
+	# http://en.wikipedia.org/wiki/Domain_Name_System#Domain_name_syntax
+	# Max 63 chars, alphanumeric and hypen, can't start or end with hyphen,
+	# can't be *all* numeric.
+	if [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] \
+	    && ! [[ "$1" =~ -$ ]] \
+	    && ! [[ "$1" =~ ^[0-9]+$ ]] \
+	    && [[ "${#1}" -le 63 ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 # You can call this like:
 #
 #  value=$(getanswer "foo")
@@ -405,6 +419,37 @@ function prompt_hosts_ok_val()
 		else
 			echo "A value must be provided."
 		fi
+	done
+}
+
+promptdnslabel()
+{
+	val=""
+	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+			is_dns_label "$val" || val=""
+		elif [[ -n ${val} ]]; then
+			is_dns_label "$val" || val=""
+		fi
+	fi
+
+	while [ -z "$val" ]; do
+		if [ -n "$def" ]; then
+			prmpt_str="$1 [$def]: "
+		else
+			prmpt_str="$1: "
+		fi
+		printf "$prmpt_str"
+		read val
+		[ -z "$val" ] && val="$def"
+		is_dns_label "$val" || val=""
+		[ -n "$val" ] && break
+		echo "A valid DNS label must be provided ('a-zA-Z0-9-', max 63 characters)."
 	done
 }
 
@@ -795,23 +840,29 @@ while [ /usr/bin/true ]; do
 	message="
 The following questions will be used to configure your headnode identity.
 This identity information is used to uniquely identify your headnode as well
-as help with management of distributed systems.\n\n"
+as help with management of distributed systems.
+
+The datacenter *region* and *name* will be used in DNS names. Typically
+the region will be a part of datacenter name, e.g. region_name=us-west,
+datacenter_name=us-west-1, but this isn't required.
+\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
 	fi
 
-	promptval "Enter the company name" "$datacenter_company_name" \
+	promptval "Enter a company name" "$datacenter_company_name" \
 	    "datacenter_company_name"
 	datacenter_company_name="$val"
 
 	# BASHSTYLED
-	promptval "Enter a region for this datacenter" "$region_name" "region_name"
+	promptdnslabel "Enter a region for this datacenter" \
+	    "$region_name" "region_name"
 	region_name="$val"
 
 	while [ true ]; do
 		key="datacenter_name"
-		promptval "Enter a name for this datacenter" \
+		promptdnslabel "Enter a name for this datacenter" \
 		    "$datacenter_name" "${key}"
 		if [ "$val" != "ca" ]; then
 			datacenter_name="$val"
