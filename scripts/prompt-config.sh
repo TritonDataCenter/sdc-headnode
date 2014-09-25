@@ -449,7 +449,8 @@ promptdnslabel()
 		[ -z "$val" ] && val="$def"
 		is_dns_label "$val" || val=""
 		[ -n "$val" ] && break
-		echo "A valid DNS label must be provided ('a-zA-Z0-9-', max 63 characters)."
+		echo "A valid DNS label must be provided" \
+		    "('a-zA-Z0-9-', max 63 characters)."
 	done
 }
 
