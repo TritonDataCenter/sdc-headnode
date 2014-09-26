@@ -96,6 +96,7 @@ update_sdc_zone_pkgs()
 	local vmurl="http://${CONFIG_vmapi_domain}"
 
 	curl -sS \
+	    # BASHSTYLED
 	    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
