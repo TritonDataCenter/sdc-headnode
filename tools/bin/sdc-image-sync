@@ -98,9 +98,9 @@ update_sdc_zone_pkgs()
 	curl -sS \
 	    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
-	    -c 'this.smartdc_role' \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
 	    -e 'this.package_name=(this.package_name || "-")' \
+	    -c 'this.tags.smartdc_role' \
 	    -a smartdc_role package_name | \
 	    while read role pkg
 	    do
