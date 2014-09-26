@@ -96,9 +96,11 @@ update_sdc_zone_pkgs()
 	local vmurl="http://${CONFIG_vmapi_domain}"
 
 	curl -sS \
-    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+	    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
+	    -c 'this.smartdc_role' \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
+	    -e 'this.package_name=(this.package_name || "-")' \
 	    -a smartdc_role package_name | \
 	    while read role pkg
 	    do
