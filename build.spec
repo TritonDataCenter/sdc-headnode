@@ -28,6 +28,7 @@
   "dhcpd-image": "dhcpd/dhcpd-zfs-.*manifest",
   "fwapi-image": "fwapi/fwapi-zfs-.*manifest",
   "imgapi-image": "imgapi/imgapi-zfs-.*manifest",
+  "loadbalancer-image": "muppet/muppet-zfs-.*manifest",
   "mahi-image": "mahi/mahi-zfs-.*manifest",
   "manatee-image": "sdc-manatee/sdc-manatee-zfs-.*manifest",
   "manta-image": "manta-deployment/manta-deployment-zfs-.*manifest",

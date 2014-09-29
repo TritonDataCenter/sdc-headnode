@@ -762,6 +762,7 @@ if setup_state_not_seen "sdczones_created"; then
     adopt_agents
     setup_config_agent
 
+    create_zone loadbalancer
     create_zone manatee
     create_zone moray
     create_zone amonredis

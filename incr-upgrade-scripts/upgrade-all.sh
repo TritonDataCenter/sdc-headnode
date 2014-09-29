@@ -156,6 +156,7 @@ env | grep IMAGE
 # SAPI is upgraded separately through upgrade-sapi.sh.
 
 [[ -n "$SDC_IMAGE" ]] && upgrade_zone sdc sdc0 $SDC_IMAGE
+[[ -n "$LOADBALANCER_IMAGE" ]] && upgrade_zone loadbalancer loadbalancer0 $LOADBALANCER_IMAGE
 [[ -n "$ADMINUI_IMAGE" ]] && upgrade_zone adminui adminui0 $ADMINUI_IMAGE
 [[ -n "$AMON_IMAGE" ]] && upgrade_zone amon amon0 $AMON_IMAGE
 [[ -n "$AMONREDIS_IMAGE" ]] && upgrade_zone amonredis amonredis0 $AMONREDIS_IMAGE
