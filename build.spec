@@ -12,7 +12,7 @@
   "sdcadm-release": "master",
 
   "// manta-*": "You can override these in your build.spec.local.",
-  "manta-base-path": "/Joyent_Dev/stor/builds",
+  "manta-base-path": "/Joyent_Dev/stor/public",
   "manta-user": "Joyent_Dev",
   "manta-url": "https://us-east.manta.joyent.com",
 
