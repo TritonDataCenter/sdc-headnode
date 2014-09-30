@@ -13,6 +13,7 @@
 
   "// manta-*": "You can override these in your build.spec.local.",
   "manta-base-path": "/Joyent_Dev/public/builds",
+  "joyent-manta-base-path": "/Joyent_Dev/stor/builds",
   "manta-user": "Joyent_Dev",
   "manta-url": "https://us-east.manta.joyent.com",
 

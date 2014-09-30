@@ -396,7 +396,8 @@ function copy_base
     if [[ "${is_joyent}" == "true" ]]; then
 	local firmware_path
 	firmware_path=$(get_manta_bit \
-	    firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz)
+	    firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz \
+	    "joyent-manta-base-path")
     fi
 
     echo "==> Creating .joyliveusb file"
@@ -515,6 +516,7 @@ function cleanup_bit
 function get_manta_bit
 {
     pattern=$1
+    alternate_base_path_var=$2
     local get_bit_rv=
 
     local pattern_dir
@@ -632,7 +634,11 @@ function get_manta_bit
     fi
 
     local latest_dir
-    latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
+    if [[ -n ${alternate_base_path_var} ]]; then
+        latest_dir="$(build_spec ${alternate_base_path_var})/${pattern_dir}/${branch}-latest"
+    else
+        latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
+    fi
     local manta_base_dir
     manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     [[ -n ${manta_base_dir} ]] \
