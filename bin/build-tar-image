@@ -524,6 +524,13 @@ function get_manta_bit
     local file_name
     file_name=$(basename $pattern)
 
+    local base_path=
+    if [[ -n ${alternate_base_path_var} ]]; then
+        base_path=$(build_spec ${alternate_base_path_var})
+    else
+        base_path=$(build_spec manta-base-path)
+    fi
+
     local branch=${BITS_BRANCH}
     local have_branch_override
     have_branch_override=$(dirname $pattern_dir)
@@ -584,11 +591,13 @@ function get_manta_bit
     if [[ -n "$BUILDS_PROXY_URL" ]]; then
         # BASHSTYLED
         BUILDS_CURL="curl ${CURL_OPTS} -kSf -u $BUILDS_PROXY_USER:$BUILDS_PROXY_PASSWD"
-        local latest_file="$BUILDS_PROXY_URL/${pattern_dir}/${branch}-latest"
+        # BASHSTYLED
+        local latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
         local latest_mdir
         latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
         local latest_dir
-        latest_dir=$BUILDS_PROXY_URL/$pattern_dir/$(basename $latest_mdir)
+        # BASHSTYLED
+        latest_dir=$BUILDS_PROXY_URL/${base_path}/$pattern_dir/$(basename $latest_mdir)
         # BASHSTYLED
         local latest_filename
         latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
@@ -634,11 +643,7 @@ function get_manta_bit
     fi
 
     local latest_dir
-    if [[ -n ${alternate_base_path_var} ]]; then
-        latest_dir="$(build_spec ${alternate_base_path_var})/${pattern_dir}/${branch}-latest"
-    else
-        latest_dir="$(build_spec manta-base-path)/${pattern_dir}/${branch}-latest"
-    fi
+    latest_dir="${base_path}/${pattern_dir}/${branch}-latest"
     local manta_base_dir
     manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
     [[ -n ${manta_base_dir} ]] \
