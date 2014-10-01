@@ -314,21 +314,24 @@ if [[ -f /usbkey/banner && ! -x /opt/smartdc/agents/bin/apm ]]; then
     echo "" >&${CONSOLE_FD}
 fi
 
+if setup_state_not_seen "setup_complete"; then
+    printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
+fi
+
 # Install GZ tools from tarball
 if [[ ! -d /opt/smartdc/bin ]]; then
     mkdir -p /opt/smartdc &&
     /usr/bin/tar xzof /usbkey/tools.tar.gz -C /opt/smartdc
+    printf_timer "%-58sdone (%ss)\n" "installing tools to /opt/smartdc/bin..."
 fi
 
 if [[ ! -d /opt/smartdc/sdcadm ]]; then
+    printf_log "%-58s" "installing sdcadm... "
     /usbkey/sdcadm-install.sh || /bin/true
+    printf_timer "%4s (%ss)\n" "done"
 fi
 
 set_default_fw_rules
-
-if setup_state_not_seen "setup_complete"; then
-    printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
-fi
 
 # For dev/debugging, you can set the SKIP_AGENTS environment variable.
 if [[ -z ${SKIP_AGENTS} && ! -x "/opt/smartdc/agents/bin/apm" ]]; then
