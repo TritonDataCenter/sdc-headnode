@@ -127,15 +127,6 @@ get_bits_url()
         return 0
     fi
 
-    if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-        MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
-        ${ROOT}/build.spec.local)
-    elif [[ -f "${ROOT}/build.spec" ]]; then
-        MERGED_SPEC=$(cat ${ROOT}/build.spec)
-    elif [[ -f "${ROOT}/build.spec.local" ]]; then
-        MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
-    fi
-
     spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "reflash-proxy-url")
     if [[ -n ${spec_bits_url} ]]; then
         bits_url=${spec_bits_url}
@@ -158,10 +149,29 @@ get_bits_url()
     echo ${bits_url}
 }
 
+get_manta_base_path()
+{
+    if [[ -n ${manta_base_path} ]]; then
+        echo ${manta_base_path}
+        return 0
+    fi
+    manta_base_path=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "joyent-manta-base-path")
+
+    if [[ -z ${manta_base_path} ]]; then
+        echo "Unable to find manta_base_path, check that " \
+            "joyent-manta-base-path is set in your build.spec or " \
+            "build.spec.local" >&2
+        exit 2
+    fi
+
+    echo ${manta_base_path}
+}
+
 get_latest()
 {
     release=$1
     bits_url=$(get_bits_url)
+    manta_base_path=$(get_manta_base_path)
 
     suffix=
 
@@ -173,23 +183,23 @@ get_latest()
 
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
         dir=$(curl -f -s -k \
-            ${bits_url}/headnode-joyent/${release}-latest \
+            ${bits_url}/${manta_base_path}/headnode-joyent/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -s -k ${bits_url}/${dir}/headnode-joyent${suffix}/ \
+        file=$(curl -f -s -k ${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/headnode-joyent${suffix}/${file}"
+            echo "${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     else
         dir=$(curl -f -sS -k \
-            ${bits_url}/headnode-joyent${suffix}/${release}-latest \
+            ${bits_url}/${manta_base_path}/headnode-joyent${suffix}/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
         file=$(curl -f -sS -k \
-            ${bits_url}/${dir}/headnode-joyent${suffix}/ \
+            ${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${dir}/headnode-joyent${suffix}/${file}"
+            echo "${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     fi
 }
@@ -213,6 +223,15 @@ get_md5()
 
 if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
     usage
+fi
+
+if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
+    ${ROOT}/build.spec.local)
+elif [[ -f "${ROOT}/build.spec" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec)
+elif [[ -f "${ROOT}/build.spec.local" ]]; then
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
 fi
 
 # BASHSTYLED
