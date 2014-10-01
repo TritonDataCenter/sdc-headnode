@@ -71,7 +71,7 @@ load_sdc_sysinfo
 SBAPI_CREDS="${CONFIG_sbapi_http_user}:${CONFIG_sbapi_http_pass}"
 SBAPI_URL="${CONFIG_sbapi_url}"
 
-JOYENT_KEY=${DIR}/../share/supportbundle/pubkey.key
+JOYENT_KEY=${DIR}/../share/servicebundle/pubkey.key
 
 DC_NAME="$(echo "${CONFIG_datacenter_company_name}" | tr -cd [:alnum:] | tr [:upper:] [:lower:])"
 ENCRYPTED_FILE="$(dirname ${FILENAME})/${DC_NAME}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
