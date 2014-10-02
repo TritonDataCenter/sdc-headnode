@@ -17,22 +17,36 @@ contribution guidelines, issues, and general documentation, visit the main
 This is the repository for building headnode images for SDC, and the intial
 setup and configuration of the headnode itself.
 
+
 ## Quickstart (on OS X)
 
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-  - **One time only**: install VMWare Fusion, run it at least once to all it to establish its initial config, quit it and run `coal/coal-vmware-setup`.
+  - **One time only**: install VMWare Fusion, run it at least once to all it to
+    establish its initial config, quit it and run the "CoaL vmware setup" script
+    from the sdc.git repo:
+
+            git clone git@github.com:joyent/sdc.git
+            cd sdc
+            ./tools/coal-mac-vmware-setup
 
   - Optionally, to automate setup:
     - create a `build.spec.local` file with the following contents: `{"answers-file": "answers.json"}`
     - copy one of the answers.json templates: `cp answers.json.tmpl.external answers.json`
     - see the 'Optional Coniguration & Automated Setup' section below for more information.
 
-  - `make coal` - this requires an internet connection, and will download images of all services. This can take quite some time. If this fails, please see the 'Build Prerequisites' and/or 'Debugging' sections below.
+  - `make coal` - this requires an internet connection, and will download
+    images of all services. This can take quite some time. If this fails,
+    please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
-  - open `coal-master-TIMESTAMP-gSHA.vmwarevm`, select 'Live 64-bit' at the grub menu, and work through the interactive installer referring to [this documentation](). **Important**: while many answers are arbitrary, the networking questions require specific values for local development.
+  - open `coal-master-TIMESTAMP-gSHA.vmwarevm`, select 'Live 64-bit' at the
+    grub menu, and work through the interactive installer referring to [this
+    documentation](). **Important**: while many answers are arbitrary, the
+    networking questions require specific values for local development.
 
-  - when setup completes, you can access the headnode via ssh: `ssh root@10.99.99.7` using the root password specified during setup.
+  - when setup completes, you can access the headnode via ssh: `ssh
+    root@10.99.99.7` using the root password specified during setup.
+
 
 ## Less-quick start
 
@@ -41,6 +55,7 @@ There are three main build products from this repo:
   - `make usb` - outputs a usb image tarball
   - `make coal` - outputs a coal image for use with VMWare
   - `make incr-upgrade` - outputs a tarball with scripts and tools for incremental upgrades of services on existing headnodes.
+
 
 ### Build prerequisites
 
