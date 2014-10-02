@@ -155,6 +155,7 @@ get_manta_base_path()
         echo ${manta_base_path}
         return 0
     fi
+    # BASHSTYLED
     manta_base_path=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "joyent-manta-base-path")
 
     if [[ -z ${manta_base_path} ]]; then
@@ -171,7 +172,7 @@ get_latest()
 {
     release=$1
     bits_url=$(get_bits_url)
-    manta_base_path=$(get_manta_base_path)
+    mbase=$(get_manta_base_path)
 
     suffix=
 
@@ -183,23 +184,24 @@ get_latest()
 
     if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
         dir=$(curl -f -s -k \
-            ${bits_url}/${manta_base_path}/headnode-joyent/${release}-latest \
+            ${bits_url}/${mbase}/headnode-joyent/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -s -k ${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/ \
+        file=$(curl -f -s -k \
+            ${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
 
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/${file}"
+            echo "${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     else
         dir=$(curl -f -sS -k \
-            ${bits_url}/${manta_base_path}/headnode-joyent${suffix}/${release}-latest \
+            ${bits_url}/${mbase}/headnode-joyent${suffix}/${release}-latest \
             | sed -e "s|^.*/stor/builds/||")
         file=$(curl -f -sS -k \
-            ${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/ \
+            ${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/ \
             | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
         if [[ -n ${file} ]]; then
-            echo "${bits_url}/${manta_base_path}/${dir}/headnode-joyent${suffix}/${file}"
+            echo "${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/${file}"
         fi
     fi
 }
