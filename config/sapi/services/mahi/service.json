@@ -2,6 +2,7 @@
     "name": "mahi",
     "params": {
         "archive_on_delete": true,
+        "delegate_dataset": true,
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
