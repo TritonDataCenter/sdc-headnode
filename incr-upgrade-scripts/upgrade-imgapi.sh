@@ -92,6 +92,12 @@ if [[ -z "$SKIP_IMGAPI_MIGRATIONS" ]]; then
     echo ''
     echo 'migration-008-new-storage-layout.js'
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-008-new-storage-layout.js'
+    echo ''
+    echo 'migration-010-backfill-billing_tags.js'
+    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-010-backfill-billing_tags.js'
+    echo ''
+    echo 'migration-011-backfill-published_at.js'
+    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-011-backfill-published_at.js'
     sdc-login imgapi svcadm enable imgapi
 fi
 
