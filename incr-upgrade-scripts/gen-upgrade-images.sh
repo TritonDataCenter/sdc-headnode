@@ -57,7 +57,7 @@ if [[ -z "$services" ]]; then
     # SAPI.
     elif [[ -n "$(sdc-sapi /applications?name=sdc | json -H 0.uuid || true)" ]]; then
         sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
-        services=$(sdc-sapi /services?application_uuid=$sdc_app | json -Ha name)
+        services=$(sdc-sapi "/services?application_uuid=$sdc_app&type=vm" | json -Ha name)
     fi
     # Excluded by default:
     # - redis, amonredis: typically don't need to upgrade these
@@ -65,6 +65,7 @@ if [[ -z "$services" ]]; then
     # - manatee, moray: typically HA, don't have automatic upgrade logic for
     #   those upgrades
     # - manta: typically handled for manta upgrade handling
+    # - sdcsso: no longer part of sdc core
     services=$(echo "$services" \
         | grep -v amonredis \
         | grep -v binder \
@@ -73,6 +74,7 @@ if [[ -z "$services" ]]; then
         | grep -v manatee \
         | grep -v moray \
         | grep -v redis \
+        | grep -v sdcsso \
         | sort \
         | xargs)
 fi
