@@ -76,8 +76,6 @@ fi
 
 # -- Do the UFDS upgrade.
 
-# Backup data.
-zlogin $LOCAL_MANATEE_UUID "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
 
 # We need moray details both, for backfill and to check ufds bucket version:
 
@@ -88,21 +86,11 @@ MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 # We can get ufds version from the config file of the ufds running instance:
 VERSION=$(sdc-login $CUR_ALIAS 'cat /opt/smartdc/ufds/etc/config.json' | json moray.version)
 
-# Upgrade DB if needed
-# This function takes care of SQL schema upgrades which must run before the
-# ufds-master service boots. It's very likely that each one of the upgrades
-# into this function will run only once into the whole setup lifecycle.
-# TODO: Remove from here once all the existing SDC7 setups have been upgraded
-# past this point.
-function update_ufds_sql_schema {
-  set +o errexit
-
-  if [[ "$VERSION" -le "6" ]]; then
-
-    # primary manatee must be on the headnode for the following
-    local HN_MANATEE_UUID
+# Fetches the uuid/ip of the primary manatee, required for backup and
+# sql schema migrations.
+function get_primary_manatee
+{
     HN_MANATEE_UUID=$(vmadm lookup -1 state=running alias=~manatee)
-    local MANATEE_STAT
 
     # BEGIN BASHSTYLED
     # manatee zones of certain vintages prevent bare 'manatee-stat' from
@@ -119,14 +107,26 @@ function update_ufds_sql_schema {
     fi
     # END BASHSTYLED
 
-    local PRIMARY_MANATEE_UUID
     PRIMARY_MANATEE_UUID=$(echo ${MANATEE_STAT} | json sdc.primary.zoneId)
+    PRIMARY_MANATEE_IP=$(echo $MANATEE_STAT | json sdc.primary.ip)
+}
+
+get_primary_manatee
+
+# Upgrade DB if needed
+# This function takes care of SQL schema upgrades which must run before the
+# ufds-master service boots. It's very likely that each one of the upgrades
+# into this function will run only once into the whole setup lifecycle.
+# TODO: Remove from here once all the existing SDC7 setups have been upgraded
+# past this point.
+function update_ufds_sql_schema {
+  set +o errexit
+
+  if [[ "$VERSION" -le "6" ]]; then
+    # primary manatee must be on the headnode for the following
     if [[ $PRIMARY_MANATEE_UUID != $HN_MANATEE_UUID ]]; then
         fatal "The primary manatee must be on the headnode for this ugprade"
     fi
-
-    local PRIMARY_MANATEE_IP
-    PRIMARY_MANATEE_IP=$(echo $MANATEE_STAT | json sdc.primary.ip)
 
     echo "Upgrading ufds_o_smartdc bucket."
     while read SQL
@@ -145,6 +145,32 @@ function update_ufds_sql_schema {
 
 update_ufds_sql_schema
 
+
+# Backup data.
+# zlogin $LOCAL_MANATEE_UUID "pg_dump -U moray -t 'ufds*' moray" >./moray_ufds_backup.sql
+
+# Backs up (pg_dump) to /var/tmp on the primary manatee's compute node.
+function backup_ufds_data
+{
+    # get the primary's CN
+    local PRIMARY_MANATEE_UUID
+    PRIMARY_MANATEE_UUID=$(echo ${MANATEE_STAT} | json sdc.primary.zoneId)
+    local PRIMARY_MANATEE_CN
+    PRIMARY_MANATEE_CN=$(sdc-vmapi /vms/$PRIMARY_MANATEE_UUID \
+        | json -Ha server_uuid)
+    local PRIMARY_MANATEE_ALIAS
+    PRIMARY_MANATEE_ALIAS=$(sdc-cnapi /servers/$PRIMARY_MANATEE_UUID \
+        | json -Ha alias)
+
+    local BACKUP_FILE=/var/tmp/moray_ufds_backup.$$.sql
+
+    # backup to the primary node.
+    # BASHSTYLED
+    sdc-oneachnode -n $PRIMARY_MANATEE_CN "zlogin $PRIMARY_MANATEE_UUID \"pg_dump -U moray -t 'ufds*' moray\" >$BACKUP_FILE"
+
+    echo "UFDS backed up to $BACKUP_FILE on host $PRIMARY_MANATEE_UUID"
+}
+backup_ufds_data
 
 # Update UFDS service in SAPI.
 # WARNING: hardcoded values here, should really derive from canonical ufds
