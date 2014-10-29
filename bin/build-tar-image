@@ -381,9 +381,9 @@ function copy_base
     [[ -z ${platbranch} ]] && platbranch="master"
 
     if [[ "${is_joyent}" == "true" ]]; then
-	local ftbranch
-	ftbranch=$(build_spec firmware-tools-release)
-	[[ -z ${ftbranch} ]] && ftbranch="master"
+        local ftbranch
+        ftbranch=$(build_spec firmware-tools-release)
+        [[ -z ${ftbranch} ]] && ftbranch="master"
     fi
 
     local sdcboot_path
@@ -394,10 +394,10 @@ function copy_base
         platform$plat_suf/${platbranch}/boot$plat_suf-${platbranch}-.*\.tgz)
 
     if [[ "${is_joyent}" == "true" ]]; then
-	local firmware_path
-	firmware_path=$(get_manta_bit \
-	    firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz \
-	    "joyent-manta-base-path")
+        local firmware_path
+        firmware_path=$(get_manta_bit \
+            firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz \
+            "joyent-manta-base-path")
     fi
 
     echo "==> Creating .joyliveusb file"
@@ -430,9 +430,9 @@ function copy_base
     [[ $? == 0 ]] || fatal "Failed to extract sdcboot bundle"
 
     if [[ "${is_joyent}" == "true" ]]; then
-	echo "==> Extracting firmware bundle"
-	(cd ${STAGE} && ${TAR} xzf ${firmware_path})
-	[[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
+        echo "==> Extracting firmware bundle"
+        (cd ${STAGE} && ${TAR} xzf ${firmware_path})
+        [[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
     fi
 }
 
@@ -523,6 +523,8 @@ function get_manta_bit
     pattern_dir=$(dirname $pattern)
     local file_name
     file_name=$(basename $pattern)
+    local joyent_bits_base_path
+    joyent_bits_base_path=$(build_spec joyent-manta-base-path)
 
     local base_path=
     if [[ -n ${alternate_base_path_var} ]]; then
@@ -595,6 +597,16 @@ function get_manta_bit
         local latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
         local latest_mdir
         latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
+
+        # Fallback to joyent_bits_base_path in case this is a private build
+        if [[ -z ${latest_mdir} && -n ${joyent_bits_base_path}
+            && ${joyent_bits_base_path} != ${base_path} ]]; then
+
+            base_path=${joyent_bits_base_path}
+            latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
+            latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
+        fi
+
         local latest_dir
         # BASHSTYLED
         latest_dir=$BUILDS_PROXY_URL/${base_path}/$pattern_dir/$(basename $latest_mdir)
@@ -646,8 +658,19 @@ function get_manta_bit
     latest_dir="${base_path}/${pattern_dir}/${branch}-latest"
     local manta_base_dir
     manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
+
+    # Fallback to joyent_bits_base_path in case this is a private build
+    if [[ -z ${manta_base_dir} && -n ${joyent_bits_base_path}
+        && ${joyent_bits_base_path} != ${base_path} ]]; then
+
+        base_path=${joyent_bits_base_path}
+        latest_dir="${base_path}/${pattern_dir}/${branch}-latest"
+        manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
+    fi
+
     [[ -n ${manta_base_dir} ]] \
         || fatal "get_manta_bit: unable to find manta_base_dir for ${file_name}"
+
     local manta_file_dir="${manta_base_dir}/${pattern_dir}"
     local latest_name
     latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
