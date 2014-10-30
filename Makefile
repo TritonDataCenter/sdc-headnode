@@ -77,6 +77,7 @@ SDC_ZONE_BIN_LINKS = \
 #
 TOOLS_BIN_FILES = \
 	joyent-imgadm \
+	json \
 	libdc.sh \
 	sdc \
 	sdc-amonrelay \
@@ -111,6 +112,7 @@ TOOLS_SHARE_FILES = \
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
 	man1/sdc-ldap.1.ronn \
+	man1/sdc-phonehome.1.ronn \
 	man1/sdc-sbcreate.1.ronn \
 	man1/sdc-sbupload.1.ronn \
 	man1/sdc-ufds-m2s.1.ronn \

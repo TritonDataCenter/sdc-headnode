@@ -225,6 +225,14 @@ is_dns_label() {
 	fi
 }
 
+function is_true_false() {
+	if [[ "$1" == "true" || "$1" == "false" ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 # You can call this like:
 #
 #  value=$(getanswer "foo")
@@ -451,6 +459,37 @@ promptdnslabel()
 		[ -n "$val" ] && break
 		echo "A valid DNS label must be provided" \
 		    "('a-zA-Z0-9-', max 63 characters)."
+	done
+}
+
+function prompttruefalse()
+{
+	val=""
+	def="$2"
+	key="$3"
+
+	if [[ -n ${key} ]]; then
+		val=$(getanswer "${key}")
+		if [[ ${val} == "<default>" && -n ${def} ]]; then
+			val=${def}
+			is_true_false "$val" || val=""
+		elif [[ -n ${val} ]]; then
+			is_true_false "$val" || val=""
+		fi
+	fi
+
+	while [ -z "$val" ]; do
+		if [ -n "$def" ]; then
+			prmpt_str="$1 [$def]: "
+		else
+			prmpt_str="$1 (true/false): "
+		fi
+		printf "$prmpt_str"
+		read val
+		[ -z "$val" ] && val="$def"
+		is_true_false "$val" || val=""
+		[ -n "$val" ] && break
+		echo "Value must be 'true' or 'false'."
 	done
 }
 
@@ -1117,6 +1156,7 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 		done
 	fi
 
+
 	printheader "Account Information"
 	message="
 There are two primary accounts for managing a Smart Data Center.  These are
@@ -1142,6 +1182,21 @@ emails to a specific address. Each of these values will be configured below.
 	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
 	promptemail "Support email should appear from" "$mail_from" "mail_from"
 	mail_from="$val"
+
+
+	printheader "Telemetry"
+	message="
+Share usage, health, and hardware data about your data center with
+Joyent to help us make SmartDataCenter better.
+\n"
+
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
+
+	prompttruefalse "Enable telemetry" "false" "phonehome_automatic"
+	phonehome_automatic="$val"
+
 
 	printheader "Verify Configuration"
 	message=""
@@ -1185,6 +1240,8 @@ emails to a specific address. Each of these values will be configured below.
 		printf "DNS Servers: (%s, %s), Search Domain: %s\n" \
 		    "$dns_resolver1" "$dns_resolver2" "$dns_domain"
 		printf "NTP servers: $ntp_hosts\n"
+		echo
+		printf "Enable telemetry: $phonehome_automatic\n"
 		echo
 	fi
 
@@ -1609,7 +1666,7 @@ echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
 echo "sapi_domain=sapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "phonehome_automatic=true" >>$tmp_config
+echo "phonehome_automatic=${phonehome_automatic}" >>$tmp_config
 
 # Always show the timers and make setup serial for now.
 echo "show_setup_timers=true" >> $tmp_config

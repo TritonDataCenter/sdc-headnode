@@ -1,0 +1,45 @@
+# sdc-phonehome(1) -- gather SDC usage/hw telemetry data and optionally upload
+
+
+## SYNOPSIS
+
+`sdc-phonehome`
+
+
+## DESCRIPTION
+
+This script gathers SmartDataCenter telemetry data (active vms, basic node
+info, servers, images, etc.) and writes that out to "/opt/smartdc/phonehome".
+If the (opt-in) "phonehome_automatic" config var (in "/usbkey/config") is
+`true` then it is uploaded to Joyent.
+
+By default this is run daily in roots global cron.
+
+
+## GATHERED DATA
+
+At the time of writing the following data is gathered:
+
+    VERSION                 # the sdc-phonehome version, currently 2
+    headnode.uuid
+    config.json             # extract of /usbkey/config with the DC name info
+    nodes.jsonstream        # dump some kernel misc info for each node
+    servers.jsonstream      # servers from CNAPI
+    networks.jsonstream     # networks from NAPI
+    images.jsonstream       # images from IMGAPI
+    packages.jsonstream     # packages from PAPI
+    vms.jsonstream          # vms from VMAPI `customer_metadata`
+                            #   and `internal_metadata` are elided
+
+These are tarred up in to the created
+"/opt/smartdc/phonehome/sdc-phonehome.$uuid.latest.tgz" tarball.
+
+
+## COPYRIGHT
+
+sdc-phonehome Copyright (c) 2014 Joyent Inc., All rights reserved.
+
+
+## SEE ALSO
+
+sdc-sbupload(1)

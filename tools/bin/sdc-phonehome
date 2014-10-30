@@ -9,40 +9,75 @@
 # Copyright (c) 2014, Joyent, Inc.
 #
 
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o errexit
 set -o pipefail
 
 PATH=/usr/bin:/usr/sbin:/opt/smartdc/bin:/smartdc/bin
 export PATH
 
-function config
+VERSION=2
+
+JSON=/opt/smartdc/bin/json  # a modern json, more so than /usr/bin/json
+
+
+function gather_vms
 {
-	local configvar=CONFIG_$1
-	echo \"$1\": \"${!configvar}\",
+	local num_vms limit
+
+	num_vms=$(sdc-vmapi /vms?state=active -X HEAD -i \
+	    | grep x-joyent-resource-count \
+	    | tr '\r\n' '\n' | awk '{print $2}')
+
+	limit=500
+	touch $1/vms.jsonstream
+	n=0
+	while [[ $n -lt $num_vms ]]; do
+		sdc-vmapi --no-headers \
+		    /vms?state=active\&offset=$n\&limit=$limit \
+		    | $JSON -a -o jsony-0 -e '
+			this.customer_metadata=undefined;
+			this.internal_metadata=undefined' >>$1/vms.jsonstream
+		n=$(( $n + $limit ))
+	done
 }
 
-function gather
+function gather_all
 {
-	/usr/bin/echo '{\n"config": {'
-	config datacenter_name
-	config datacenter_company_name
-	config datacenter_location
-	config datacenter_headnode_id
-	/usr/bin/echo '"UUID": "'${uuid}'"\n}',
+	local proto
+	proto=$1
 
-	/usr/bin/echo '"servers": '
-	sdc-cnapi --no-headers /servers
-	/usr/bin/echo ',\n"networks": '
-	sdc-napi --no-headers /networks
-	/usr/bin/echo ',\n"vms": '
-	sdc-vmapi --no-headers /vms
-	/usr/bin/echo ',\n"nodes": '
-	sdc-oneachnode -j -T 10 -t 10 'kstat -pn system_misc'
-	/usr/bin/echo '}'
+	echo $VERSION >$proto/VERSION
+
+	echo ${uuid} >$proto/headnode.uuid
+
+	sh /lib/sdc/config.sh -json | json -j \
+	    region_name \
+	    datacenter_name \
+	    datacenter_company_name \
+	    datacenter_location >$proto/config.json
+
+	sdc-oneachnode -a -J -T 10 -t 10 'kstat -pn system_misc' \
+	    >$proto/nodes.jsonstream
+
+	sdc-cnapi --no-headers /servers \
+	    | $JSON -a -o jsony-0 >$proto/servers.jsonstream
+	sdc-papi --no-headers /packages \
+	    | $JSON -a -o jsony-0 >$proto/packages.jsonstream
+	sdc-napi --no-headers /networks \
+	    | $JSON -a -o jsony-0 >$proto/networks.jsonstream
+	# Ideally would like '-J' option for JSON stream output.
+	sdc-imgadm list -j | $JSON -a -o jsony-0 >$proto/images.jsonstream
+
+	gather_vms $proto
 }
 
 source /lib/sdc/config.sh
 load_sdc_config
+
 
 #
 # Phonehome only runs on headnodes.
@@ -50,41 +85,44 @@ load_sdc_config
 [[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && exit 0
 
 dir=/opt/smartdc/phonehome
+proto=$dir/proto
 err=$dir/sdc-phonehome.err
-mkdir -p $dir
-
-if [[ "$CONFIG_coal" == "true" ]]; then
-	suffix=.coal
-else
-	suffix=
-fi
+rm -rf $proto
+mkdir -p $dir $proto
 
 exec 2> $err
+
 
 #
 # Now that we have stderr redirected, enable xtrace
 #
 set -o xtrace
 
+if [[ "$CONFIG_coal" == "true" ]]; then
+	coal=.coal
+else
+	coal=
+fi
 uuid=`sysinfo | json UUID`
-output=$dir/sdc-phonehome.${uuid}.latest
-upfile=$dir/sdc-phonehome${suffix}
-gather > $output
+output=$dir/sdc-phonehome.${uuid}.latest.tgz
+upfile=$dir/sdc-phonehome${coal}.tgz
+gather_all $proto
 
-cat $output | json 1> /dev/null
+(cd $proto && tar czf $output .)
+rm -rf $proto
 
 #
 # We keep a report for the last month, plus one for each of the past 12
 # months, plus one for each of the past years.
 #
-cp $output $dir/sdc-phonehome.${uuid}.year-`TZ=UTC date "+%Y"`
-cp $output $dir/sdc-phonehome.${uuid}.month-`TZ=UTC date "+%m"`
-cp $output $dir/sdc-phonehome.${uuid}.day-`TZ=UTC date "+%d"`
+cp $output $dir/sdc-phonehome.${uuid}.year-`TZ=UTC date "+%Y"`.tgz
+cp $output $dir/sdc-phonehome.${uuid}.month-`TZ=UTC date "+%m"`.tgz
+cp $output $dir/sdc-phonehome.${uuid}.day-`TZ=UTC date "+%d"`.tgz
 
 #
-# Phonehome shouldn't upload automatically if it has been explicitly turned off.
+# Must have opted in for phonehome to upload.
 #
-[[ $CONFIG_phonehome_automatic == "false" ]] && exit 0
+[[ $CONFIG_phonehome_automatic == "true" ]] || exit 0
 
 [[ -h $upfile ]] && rm $upfile
 ln -s $output $upfile
