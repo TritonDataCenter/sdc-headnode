@@ -90,3 +90,4 @@ gpg --encrypt --recipient 'support@joyent.com' --always-trust --armor \
 curl ${PROXY_ARGS} -k -L -T "${ENCRYPTED_FILE}" \
   -u "${SBAPI_CREDS}" "${SBAPI_URL}"
 
+rm "${ENCRYPTED_FILE}"

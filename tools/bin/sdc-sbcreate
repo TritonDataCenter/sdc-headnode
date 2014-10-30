@@ -537,7 +537,9 @@ else
 fi
 
 echo "==> packing data to ${OUTFILE}"
-( cd ${TEMPDIR}/.. && tar -jcvf ${OUTFILE} `basename ${TEMPDIR}` >&4 2>&1 )
+# Note: with `tar` the cmd would return while OUTFILE was still growing (!)
+# which breaks the subsequent gpg in sdc-sbupload. `gtar` doesn't hit that.
+( cd ${TEMPDIR}/.. && gtar -jcvf ${OUTFILE} `basename ${TEMPDIR}` >&4 2>&1 )
 mv ${LOGFILE} ${OUTFILE}.log
 
 echo "==> cleaning up"
@@ -545,7 +547,7 @@ rm -rf `dirname ${TEMPDIR}`
 
 if [[ -n $opt_u ]]; then
     echo "==> uploading to Joyent support"
-    /smartdc/bin/sdc-sbupload ${OUTFILE}
+    /opt/smartdc/bin/sdc-sbupload ${OUTFILE} || fatal "upload failed"
 fi
 
 echo "==> done"
