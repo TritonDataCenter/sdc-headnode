@@ -28,7 +28,7 @@ BASH_FILES = \
 
 JS_FILES = \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print) \
-	$(shell find tools/bin -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print)
+	$(shell find tools/bin -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print | grep -v '/json$$')
 
 JSL_FILES_NODE = $(JS_FILES)
 JSSTYLE_FILES = $(JS_FILES)

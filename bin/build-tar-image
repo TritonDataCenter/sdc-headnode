@@ -603,6 +603,7 @@ function get_manta_bit
             && ${joyent_bits_base_path} != ${base_path} ]]; then
 
             base_path=${joyent_bits_base_path}
+            # BASHSTYLED
             latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
             latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
         fi
