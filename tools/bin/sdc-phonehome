@@ -99,14 +99,9 @@ exec 2> $err
 #
 set -o xtrace
 
-if [[ "$CONFIG_coal" == "true" ]]; then
-	coal=.coal
-else
-	coal=
-fi
 uuid=`sysinfo | json UUID`
 output=$dir/sdc-phonehome.${uuid}.latest.tgz
-upfile=$dir/sdc-phonehome${coal}.tgz
+upfile=$dir/sdc-phonehome.tgz
 gather_all $proto
 
 (cd $proto && tar czf $output .)
@@ -127,7 +122,7 @@ cp $output $dir/sdc-phonehome.${uuid}.day-`TZ=UTC date "+%d"`.tgz
 
 [[ -h $upfile ]] && rm $upfile
 ln -s $output $upfile
-( cd $dir && sdc-sbupload `basename $upfile` ) || false
+( cd $dir && sdc-sbupload -t phonehome `basename $upfile` ) || false
 rm $upfile
 
 #

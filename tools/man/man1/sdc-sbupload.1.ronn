@@ -18,6 +18,13 @@ specified in the `sbapi_url` setting in the site's headnode configuration.
 A proxy URL suitable for use with the `curl` `--proxy` option, used when
 uploading the support bundle.
 
+`-t BUNDLE_TYPE`
+
+A short string identifying the type of bundle being uploaded. This is used
+in the uploaded filename to help distinguish on the server side. Typically
+this is 'phonehome' (when called by `sdc-phonehome`) or 'servicebundle`
+(when called by `sdc-sbcreate`).
+
 ## COPYRIGHT
 
 sdc-sbupload Copyright (c) 2014 Joyent Inc., All rights reserved.
@@ -25,4 +32,4 @@ sdc-sbupload Copyright (c) 2014 Joyent Inc., All rights reserved.
 
 ## SEE ALSO
 
-sdc-sbcreate(1), curl(1)
+sdc-sbcreate(1), sdc-phonehome(1), curl(1)
