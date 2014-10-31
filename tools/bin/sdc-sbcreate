@@ -547,7 +547,8 @@ rm -rf `dirname ${TEMPDIR}`
 
 if [[ -n $opt_u ]]; then
     echo "==> uploading to Joyent support"
-    /opt/smartdc/bin/sdc-sbupload -t servicebundle ${OUTFILE} || fatal "upload failed"
+    /opt/smartdc/bin/sdc-sbupload -t servicebundle ${OUTFILE} \
+        || fatal "upload failed"
 fi
 
 echo "==> done"
