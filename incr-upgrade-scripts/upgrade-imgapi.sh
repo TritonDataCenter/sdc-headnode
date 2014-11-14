@@ -84,11 +84,15 @@ if [[ -z "$SKIP_IMGAPI_MIGRATIONS" ]]; then
     echo '* * *'
     echo ''
     sdc-login imgapi svcadm disable imgapi
-    echo 'migration-006-cleanup-manta-storage.js'
-    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-006-cleanup-manta-storage.js'
-    echo ''
-    echo 'migration-007-ufds-to-moray.js'
-    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-007-ufds-to-moray.js'
+# Per discussion on mib@ for the CM-172 update, accidentally left
+# sdcimage entries in UFDS can make upgrading a pain: potentially
+# requires clean up of bogus image entries. We now presume
+# all SDC installs are past the IMGAPI change needing migration-007.
+#    echo 'migration-006-cleanup-manta-storage.js'
+#    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-006-cleanup-manta-storage.js'
+#    echo ''
+#    echo 'migration-007-ufds-to-moray.js'
+#    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-007-ufds-to-moray.js'
     echo ''
     echo 'migration-008-new-storage-layout.js'
     sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-008-new-storage-layout.js'
