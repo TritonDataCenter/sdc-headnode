@@ -45,6 +45,7 @@ function usage()
         '                                            this server',
         '    jobs <uuid>                           - list all jobs for this server',
         '    list                                  - list all servers in this DC',
+        '    ips <uuid>                            - output the IPs for this server',
         '    nics <uuid>                           - output the nics for this server',
         '    admin-ip <uuid>                       - output the admin IP address for this server',
         '    setup [-s] <uuid> [params]            - setup a new server in this DC',
@@ -127,6 +128,48 @@ function createClient(api, callback) {
             callback(new Error('Unknown API: ' + api));
             return;
     }
+}
+
+function getNics(server_uuid, params, callback)
+{
+    var nics;
+    var napi;
+
+    async.series([
+        function (cb) {
+            createClient('NAPI', function (err, handle) {
+                if (!err) {
+                    napi = handle;
+                } else {
+                    err.api = 'NAPI';
+                }
+                cb(err);
+            });
+        }, function (cb) {
+            var listParams = {
+                belongs_to_uuid: server_uuid
+            };
+
+            for (var p in params) {
+                listParams[p] = params[p];
+            }
+
+            napi.listNics(listParams, function (err, n) {
+                if (err) {
+                    err.api = 'NAPI';
+                } else {
+                    nics = n;
+                }
+                cb(err);
+            });
+        }
+    ], function (err) {
+        if (err) {
+            return callback(err);
+        }
+
+        return callback(null, nics);
+    });
 }
 
 function outputServerData(data, callback)
@@ -269,41 +312,9 @@ function outputServerList(callback)
     });
 }
 
-function outputAdminIP(server_uuid, callback)
-{
-    var nics;
-    var napi;
-
-    async.series([
-        function (cb) {
-            createClient('NAPI', function (err, handle) {
-                if (!err) {
-                    napi = handle;
-                } else {
-                    err.api = 'NAPI';
-                }
-                cb(err);
-            });
-        }, function (cb) {
-            var listParams = {
-                belongs_to_uuid: server_uuid,
-                nic_tags_provided: ['admin']
-            };
-            napi.listNics(listParams, function (err, n) {
-                if (err) {
-                    err.api = 'NAPI';
-                } else {
-                    nics = n;
-                }
-                cb(err);
-            });
-        }
-    ], function (err) {
-        if (err) {
-            callback(err);
-            return;
-        }
-
+function outputAdminIP(server_uuid, callback) {
+    getNics(server_uuid, { nic_tags_provided: ['admin'] },
+        function (err, nics) {
         if (!nics || nics.length === 0) {
             callback(new Error('No admin nic found'));
             return;
@@ -420,36 +431,37 @@ function outputJobs(server_uuid, callback)
     });
 }
 
-function outputNics(server_uuid, callback)
+function outputIps(server_uuid, callback)
 {
-    var napi;
-    var nics;
-
-    async.series([
-        function (cb) {
-            createClient('NAPI', function (err, handle) {
-                if (!err) {
-                    napi = handle;
-                } else {
-                    err.api = 'NAPI';
-                }
-                cb(err);
-            });
-        }, function (cb) {
-            napi.getNics(server_uuid, function (err, n) {
-                if (err) {
-                    err.api = 'NAPI';
-                } else {
-                    nics = n;
-                }
-                cb(err);
-            });
-        }
-    ], function (err) {
+    getNics(server_uuid, {}, function (err, nics) {
         if (err) {
             callback(err);
             return;
         }
+
+        if (!nics || nics.length === 0) {
+            return;
+        }
+
+        var ips = [];
+        nics.forEach(function (n) {
+            if (n.hasOwnProperty('ip') && ips.indexOf(n) === -1) {
+                ips.push(n.ip);
+            }
+        });
+
+        console.log(ips.join('\n'));
+    });
+}
+
+function outputNics(server_uuid, callback)
+{
+    getNics(server_uuid, {}, function (err, nics) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
         console.log(JSON.stringify(nics, null, 2));
     });
 }
@@ -690,6 +702,17 @@ function dispatchCommand(command, args, callback)
                 deleteServer(server_uuid, callback);
             }
             break;
+
+        case 'ips':
+            if (args.length !== 1 || !isUUID(args[0])) {
+                usage();
+                callback(new Error('ips requires <uuid> argument'));
+                return;
+            }
+            server_uuid = args[0];
+            outputIps(server_uuid, callback);
+            break;
+
 
         case 'jobs':
             if (args.length !== 1 || !isUUID(args[0])) {
