@@ -36,9 +36,9 @@ Get the latest 'incr-upgrade' package
 
 Where you have the node-manta client tools:
 
-    latest=$(mls /Joyent_Dev/stor/builds/incr-upgrade | grep 'master-2' | sort | tail -1)
-    pkg=$(mls /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade | grep tgz)
-    mget -O /Joyent_Dev/stor/builds/incr-upgrade/$latest/incr-upgrade/$pkg
+    latest=$(mls /Joyent_Dev/public/builds/incr-upgrade | grep 'master-2' | sort | tail -1)
+    pkg=$(mls /Joyent_Dev/public/builds/incr-upgrade/$latest/incr-upgrade | grep tgz)
+    mget -O /Joyent_Dev/public/builds/incr-upgrade/$latest/incr-upgrade/$pkg
     scp $pkg us-beta-4:/var/tmp
 
 Then crack it in the your working dir on the GZ:
@@ -99,9 +99,9 @@ then you cannot run this step until you've added it.
 
 Getting the latest agentsshar:
 
-    latest=$(mls /Joyent_Dev/stor/builds/agentsshar | grep 'master-2' | sort | tail -1)
-    pkg=$(mls /Joyent_Dev/stor/builds/agentsshar/$latest/agentsshar | grep '\.sh$')
-    mget -O /Joyent_Dev/stor/builds/agentsshar/$latest/agentsshar/$pkg
+    latest=$(mls /Joyent_Dev/public/builds/agentsshar | grep 'master-2' | sort | tail -1)
+    pkg=$(mls /Joyent_Dev/public/builds/agentsshar/$latest/agentsshar | grep '\.sh$')
+    mget -O /Joyent_Dev/public/builds/agentsshar/$latest/agentsshar/$pkg
     scp $pkg us-beta-4:/var/tmp
 
 Upgrade the SDC7 agents.
@@ -373,7 +373,7 @@ First you must make the platform available in the DC by (a) downloading it
 and (b) running the "install-platform.sh" script on the headnode.
 Internally, platforms builds are uploaded to Manta here:
 
-    [manta /Joyent_Dev/stor/builds/platform/master-20140211T152333Z/platform]$ ls
+    [manta /Joyent_Dev/public/builds/platform/master-20140211T152333Z/platform]$ ls
     platform-master-20140211T152333Z.tgz
     ...
 
