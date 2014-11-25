@@ -893,10 +893,16 @@ function copy_sapi_config
     local manifests=${ROOT}/config/sapi/manifests/
     local services=${ROOT}/config/sapi/services/
     local application=${ROOT}/config/sapi/application.json
+    NO_RABBIT=$(build_spec no-rabbit)
 
     cp -r ${manifests} ${STAGE}/manifests
     cp -r ${services} ${STAGE}/services
-    cp ${application} ${STAGE}/application.json
+    if [[ "$NO_RABBIT" == "true" ]]; then
+        cat "${application}" | ${ROOT}/bin/json -e \
+            "this.metadata.no_rabbit = true;" > ${STAGE}/application.json
+    else
+        cp ${application} ${STAGE}/application.json
+    fi
 }
 
 function copy_datasets
