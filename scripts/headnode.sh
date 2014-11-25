@@ -599,7 +599,7 @@ setup_config_agent()
 {
     if setup_state_not_seen "config_agent_setup"; then
         AGENTS_DIR=/opt/smartdc/agents
-        CONFIGURABLE_AGENTS="net-agent vm-agent"
+        CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent"
 
         local sapi_url=http://${CONFIG_sapi_admin_ips}
         local prefix=$AGENTS_DIR/lib/node_modules/config-agent
@@ -723,7 +723,7 @@ function adopt_agents()
 {
     if setup_state_not_seen "agents_adopted"; then
         AGENTS_DIR=/opt/smartdc/agents
-        CONFIGURABLE_AGENTS="net-agent vm-agent"
+        CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent"
 
         for agent in $CONFIGURABLE_AGENTS; do
             instance_uuid=$(uuid -v4)

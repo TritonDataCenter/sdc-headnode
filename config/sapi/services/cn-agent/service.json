@@ -1,0 +1,16 @@
+{
+    "name": "cn-agent",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "cn-agent",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "cn-agent",
+        "CN_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}

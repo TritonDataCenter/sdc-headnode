@@ -60,7 +60,7 @@ function service_exists()
 }
 
 # Add the SAPI service
-SERVICES="vm-agent net-agent"
+SERVICES="vm-agent net-agent cn-agent"
 for service in $SERVICES; do
     if ! service_exists "$service"; then
         json -f ./sapi/$service/service.json \
