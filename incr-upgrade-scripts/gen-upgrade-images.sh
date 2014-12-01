@@ -69,6 +69,7 @@ if [[ -z "$services" ]]; then
     services=$(echo "$services" \
         | grep -v amonredis \
         | grep -v binder \
+        | grep -v dapi \
         | grep -v dhcpd \
         | grep -v manta \
         | grep -v manatee \
