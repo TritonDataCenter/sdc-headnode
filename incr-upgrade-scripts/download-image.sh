@@ -77,8 +77,16 @@ function import_image() {
             || fatal "failed to get image $uuid file from updates.joyent.com"
     fi
 
+    # Manifest tweaks for compat:
+    # - Set owner to the admin UUID to workaround older versions that don't
+    #   support the all-zero's owner work.
+    # - Remove 'channels' for the case of an upgraded 'updates-imgadm'
+    #   (i.e. we ran upgrade-tools.sh), but an IMGAPI pre-channels work.
     ufds_admin_uuid=$(bash /lib/sdc/config.sh -json | json ufds_admin_uuid)
-    json -f $manifest -e "this.owner = '$ufds_admin_uuid'" > $manifest.tmp
+    json -f $manifest \
+        -e "this.owner = '$ufds_admin_uuid'" \
+        -e "this.channels = undefined" \
+        > $manifest.tmp
     mv $manifest.tmp $manifest
 
     ${SDC_IMGADM} import -m ${manifest} -f ${file} \
