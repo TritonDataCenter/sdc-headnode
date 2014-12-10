@@ -166,6 +166,13 @@ else
     export MANTA_USER="$(build_spec manta-user)"
 fi
 
+# A quick attempt to get `mget` usage to *not* require MANTA_KEY_ID
+# for retrieve bits from a public area of Manta.
+if [[ "$(build_spec joyent-build)" != "true"
+        && -n "$(build_spec manta-base-path | (grep '^/\w\+/public/' || true))" ]]; then
+    export MANTA_NO_AUTH=true
+fi
+
 if [[ "$(build_spec builds-proxy)" == "true" ]]; then
     BUILDS_PROXY_URL=$(build_spec builds-proxy-url)
     [[ -n "$BUILDS_PROXY_URL" ]] \
@@ -512,7 +519,7 @@ function cleanup_bit
     fi
 }
 
-# Get a bit from manta to the local cache/ dir.
+# Get a bit from Manta to the local cache/ dir.
 function get_manta_bit
 {
     pattern=$1
