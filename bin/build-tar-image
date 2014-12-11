@@ -169,7 +169,8 @@ fi
 # A quick attempt to get `mget` usage to *not* require MANTA_KEY_ID
 # for retrieve bits from a public area of Manta.
 if [[ "$(build_spec joyent-build)" != "true"
-        && -n "$(build_spec manta-base-path | (grep '^/\w\+/public/' || true))" ]]; then
+    && -n "$(build_spec manta-base-path | (grep '^/\w\+/public/' || true))"
+    ]]; then
     export MANTA_NO_AUTH=true
 fi
 
