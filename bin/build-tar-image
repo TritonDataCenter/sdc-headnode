@@ -323,20 +323,22 @@ function generate_grub_menu
     # override all console selection made here or in the GRUB
     # environment; this may be modified for each CN using CNAPI.
     #
-    # By default, serial-dev is "ttyb" and console is "serial".
+    # By default, serial-dev is "ttyb" and console is "serial".  We try
+    # other devices in turn if the preferred one does not exist.  Only
+    # one device will actually be used; see the GRUB help for details.
     #
     case "${serial_dev}" in
     ttya)
-        unit=0
+        unit=0,1,2,3
         ;;
     ttyb)
-        unit=1
+        unit=1,0,2,3
         ;;
     ttyc)
-        unit=2
+        unit=2,1,0,3
         ;;
     ttyd)
-        unit=3
+        unit=3,1,0,2
         ;;
     *)
         fatal "Unknown serial device: ${serial_dev}"
