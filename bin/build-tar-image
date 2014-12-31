@@ -247,10 +247,7 @@ function test_rootperms
 
 function load_buildspec
 {
-    PLATFORM_RELEASE=$(build_spec platform-release)
     BUILD_TGZ=$(build_spec build-tgz)
-
-    [[ -n ${PLATFORM_RELEASE} ]] && echo "platform-release: ${PLATFORM_RELEASE}"
 }
 
 function create_directories
@@ -743,31 +740,105 @@ function _check_vpn
 }
 
 
+# Get the platform to use. In order, attempt:
+#
+# - the local file path in the PLATFORM_FILE envvar
+#   (Legacy. I'd like to deprecate this.)
+# - the platform identified by the 'platform-image' build.spec value, one of:
+#       - an existing local file
+#       - the *uuid* of a platform image in updates.joyent.com
+#       - a platform build "yyyymmddThhmmssZ" timestamp
+#       - the get_manta_bit equivalent that the other "foo-image" build.spec
+#         values support (TODO: Implement this. Make "latest master platform"
+#         the default, then deprecate "platform-release" and
+#         "env.PLATFORM_FILE".)
+# - the latest build of the branch in the "platform-release" build.spec
+#   value (default is "master")
+#
 function copy_platform
 {
     [[ -z "${loops}" ]] && loops=0
     loops=$((${loops} + 1))
     [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
 
-    # platform_file is optional, if specified, that platform will be used
-    # instead of looking for the newest that matches platform-<release>
-    local platform_file=$1
-    local platform_release=$2
+    local platform_image
+    platform_image=$(build_spec platform-image)
+    local platform_release
+    platform_release=$(build_spec platform-release)
+
     local plat_suffix=""
+    if [[ "$(build_spec debug-platform)" == "true" \
+          || -n "$DEBUG_BUILD" ]]; then
+        plat_suffix="-debug"
+        echo "Using DEBUG platform"
+    fi
 
     local image
-    if [[ -z ${platform_file} ]]; then
-
-        # Check for using a debug platform
-        if [[ "$(build_spec debug-platform)" == "true" \
-              || -n "$DEBUG_BUILD" ]]; then
-            plat_suffix="-debug"
-            echo "Using DEBUG platform"
+    if [[ -n "${PLATFORM_FILE}" ]]; then
+        image=${platform_file}
+        echo "==> Using ${image} as platform image"
+        if ! valid_archive "${image}"; then
+            fatal "Refusing to use corrupt platform ${image}"
+        fi
+    elif [[ -f ${platform_image} ]]; then
+        image=$(cd $(dirname ${platform_image}) >/dev/null; pwd)/$(basename ${platform_image})
+        echo "==> Using ${image} as platform image"
+        if ! valid_archive "${image}"; then
+            fatal "Refusing to use corrupt platform ${image}"
+        fi
+    elif [[ -n ${platform_image} ]]; then
+        # TODO: support get_manta_bit (see comment above).
+        local platform_uuid
+        if [[ -n "$(echo ${platform_image} | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
+            platform_uuid=$platform_image
+        elif [[ -n "$(echo ${platform_image} | (egrep '^[0-9]{8}T[0-9]{6}Z$' || true))" ]]; then
+            local candidates
+            candidates=$(curl ${CURL_OPTS} -ksSf \
+                https://updates.joyent.com/images?name=platform\&version=~-$platform_image)
+            if [[ -z "$candidates" ]]; then
+                fatal "error getting candidate platform images matching" \
+                    "'$platform_image'"
+            elif [[ $(echo "$candidates" | json length) -eq 0 ]]; then
+                fatal "no platforms on updates.joyent.com matching" \
+                    "'platform-image=$platform_image'"
+            elif [[ $(echo "$candidates" | json length) -gt 1 ]]; then
+                fatal "'platform-image=$platform_image' is ambiguous," \
+                    "multiple matching images:" \
+                    "$(echo "$candidates" | json -a uuid | xargs)"
+            fi
+            platform_uuid=$(echo "$candidates" | json 0.uuid)
+        else
+            fatal "'platform-image' in build.spec* is not a UUID or" \
+                "timestamp: ${platform_image}"
         fi
 
-        [[ -z "${platform_release}" ]] \
-            && fatal "Must define 'platform_file' or 'platform_release' " \
-                     "for call to 'copy_platform()'."
+        local plat_version
+        plat_version=$(curl ${CURL_OPTS} -ksSf \
+                https://updates.joyent.com/images/$platform_image \
+                | json version | awk -F- '{print $NF}')
+        [[ -n $plat_version ]] \
+            || fatal "Unable to get platform $platform_image manifest"
+        image=${ROOT}/cache/platform-${plat_version}.tgz
+        if [[ ! -f $image ]]; then
+            echo "Getting platform $image ($platform_image) from " \
+                "updates.joyent.com"
+            (curl ${CURL_OPTS} -ksSf -o ${image}.partial \
+                https://updates.joyent.com/images/$platform_image/file) \
+                || fatal "Unable to download platform $platform_image file"
+            mv ${image}.partial ${image}
+        fi
+
+        if [[ -f ${image} ]] && ! valid_archive ${image}; then
+            echo "Removing corrupt ${image}"
+            rm -f ${image}
+            copy_platform    # try again
+        fi
+    else
+        [[ -n ${platform_release} ]] \
+            || fatal "no 'platform-image' or 'platform-release' in build.spec"
+        echo "platform-release: ${platform_release}"
+
+        [[ -n "$plat_suffix" ]] && echo "Using '$plat_suffix' platform"
 
         # BASHSTYLED
         image=$(get_manta_bit "platform${plat_suffix}/${platform_release}/platform${plat_suffix}-${platform_release}-.*")
@@ -775,15 +846,7 @@ function copy_platform
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"
             rm -f ${image}
-            image=
-            # unset image and try again
-            copy_platform "${platform_file}" "${platform_release}"
-        fi
-    else
-        image=${platform_file}
-        echo "==> Using ${image} as platform image"
-        if ! valid_archive "${image}"; then
-            fatal "Refusing to use corrupt platform ${image}"
+            copy_platform    # try again
         fi
     fi
 
@@ -1030,13 +1093,14 @@ function copy_dataset
 # Usage:
 #   get_core_zone_image ZONE TARGET DST-DIR
 #
-# where:
-# - "TARGET" is either a full path to an existing image manifest file
-#   or (more typically) a pattern used by the "get_bit" function for getting
-#   a manifest file from the MG builds area on bits.joyent.us.
+# Where "TARGET" is one of:
+# - (most commonly) a pattern used by the `get_bit` function for getting
+#   a manifest file from the MG builds area in Manta;
+# - a full path to an existing image manifest file; or
+# - a UUID to get a specific image from https://updates.joyent.com
 #
 # Examples:
-#   get_core_zone_image admin "adminui/adminui-zfs-.*manifest" \
+#   get_core_zone_image adminui "adminui/adminui-zfs-.*manifest" \
 #           /home/trent/usb-headnode/cache/stage/datasets
 #
 function get_core_zone_image
@@ -1072,6 +1136,36 @@ function get_core_zone_image
         clean_pattern=$(echo "$(basename $dst_file)" \
                         | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
         cleanup_bit ${clean_pattern}
+
+    # BASHSTYLED
+    elif [[ -n "$(echo $target | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
+        # This is an image UUID to retrieve from updates.joyent.com.
+        cache_manifest=${ROOT}/cache/${target}.imgmanifest
+        cache_file=${ROOT}/cache/${target}.file
+        if [[ ! -f $cache_manifest || ! -f $cache_file ]]; then
+            echo "Getting image $target from updates.joyent.com"
+            (curl ${CURL_OPTS} -ksSf -o ${cache_manifest} \
+                https://updates.joyent.com/images/$target) \
+                || fatal "Unable to download image $target manifest"
+            (curl ${CURL_OPTS} -ksSf -o ${cache_file}.partial \
+                https://updates.joyent.com/images/$target/file) \
+                || fatal "Unable to download image $target file"
+            mv ${cache_file}.partial ${cache_file}
+            gzip -t ${cache_file} \
+                || fatal "Corrupt ${cache_file}, please remove and re-run."
+        fi
+
+        if [[ $(json -f $cache_manifest files.0.compression) != "gzip" ]]; then
+            fatal "Unexpected compression for core image (expect 'gzip'): " \
+                "$cache_manifest"
+        fi
+        img_name=$(json -f $cache_manifest name)
+        img_version=$(json -f $cache_manifest version)
+        dst_manifest=${dst_dir}/${img_name}-zfs-${img_version}.imgmanifest
+        ln ${cache_manifest} ${dst_manifest}
+        dst_file=${dst_dir}/${img_name}-zfs-${img_version}.zfs.gz
+        ln ${cache_file} ${dst_file}
+
     else
         # Not a local file, this is a pattern for 'get_bit'.
         local bit_cache_path
@@ -1184,7 +1278,7 @@ create_directories
 load_buildspec
 copy_base
 generate_grub_menu
-copy_platform "${PLATFORM_FILE}" "${PLATFORM_RELEASE}"
+copy_platform
 copy_sdcadm
 copy_agentsshar
 copy_sapi_config

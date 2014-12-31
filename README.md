@@ -120,6 +120,39 @@ And similarly for all the images used on the headnode. The images used in the bu
    "napi-image": "/Users/mbs/headnode-cache/moray-zfs-master-20130401T104924Z-g1695958.zfs.dsmanifest"
 ```
 
+A description of supported keys in `build.spec` and `build.spec.local`:
+
+| Key | Description |
+| --- | ----------- |
+| platform-image | Indicates the platform to use for a CoaL or USB build. Optional. By default the latest "master" build of the platform is used. Can be one of (a) an existing local file path, (b) the *uuid* of a platform image in updates.joyent.com, or (c) a platform build "yyyymmddThhmmssZ" timestamp. See `copy_platform` in "bin/build-tar-image" for details. |
+| adminui-image | The adminui core zone image to use for a CoaL or USB build. Can be one of (a) an existing local file path, (b) the uuid of an image in updates.joyent.com, or most commonly (c) a `dir[/branch]/basename-regex` pattern indicating a build file under `/Joyent_Dev/public/builds` in Joyent's Manta where automated SDC and Manta builds are placed. See `get_manta_bit` in "bin/build-tar-image" for details.|
+| amon-image | Ibid (for the 'amon' core zone). |
+| amonredis-image | Ibid (for the 'amonredis' core zone). |
+| assets-image | Ibid (for the 'assets' core zone). |
+| binder-image | Ibid (for the 'binder' core zone). |
+| ca-image | Ibid (for the 'ca' Cloud Analytics core zone). |
+| cloudapi-image | Ibid (for the 'cloudapi' core zone). |
+| cnapi-image | Ibid (for the 'cnapi' core zone). |
+| dhcpd-image | Ibid (for the 'dhcpd' core zone). |
+| fwapi-image | Ibid (for the 'fwapi' core zone). |
+| imgapi-image | Ibid (for the 'imgapi' core zone). |
+| mahi-image | Ibid (for the 'mahi' core zone). |
+| manatee-image | Ibid (for the 'manatee' core zone). |
+| manta-image | Ibid (for the 'manta' core zone). |
+| moray-image | Ibid (for the 'moray' core zone). |
+| napi-image | Ibid (for the 'napi' core zone). |
+| papi-image | Ibid (for the 'papi' core zone). |
+| rabbitmq-image | Ibid (for the 'rabbitmq' core zone). |
+| redis-image | Ibid (for the 'redis' core zone). |
+| sapi-image | Ibid (for the 'sapi' core zone). |
+| sdc-image | Ibid (for the 'sdc' core zone). |
+| ufds-image | Ibid (for the 'ufds' core zone). |
+| vmapi-image | Ibid (for the 'vmapi' core zone). |
+| workflow-image | Ibid (for the 'workflow' core zone). |
+| ... | TODO: document all other keys |
+
+
+
 #### `answers.json`
 
 `answers.json` provides information required for headnode setup that is otherwise gathered by the interactive installer. Particularly for local development work, it can be convenient to specify these in advance. The `answers.json.tmpl` and `answers.json.tmpl.external` files provide usable examples for local developement; the former configures only the admin network on setup, the latter configures an external network as well.
