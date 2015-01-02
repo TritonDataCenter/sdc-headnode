@@ -781,6 +781,7 @@ function copy_platform
             fatal "Refusing to use corrupt platform ${image}"
         fi
     elif [[ -f ${platform_image} ]]; then
+        # BASHSTYLED
         image=$(cd $(dirname ${platform_image}) >/dev/null; pwd)/$(basename ${platform_image})
         echo "==> Using ${image} as platform image"
         if ! valid_archive "${image}"; then
@@ -789,12 +790,14 @@ function copy_platform
     elif [[ -n ${platform_image} ]]; then
         # TODO: support get_manta_bit (see comment above).
         local platform_uuid
+        # BASHSTYLED
         if [[ -n "$(echo ${platform_image} | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
             platform_uuid=$platform_image
+        # BASHSTYLED
         elif [[ -n "$(echo ${platform_image} | (egrep '^[0-9]{8}T[0-9]{6}Z$' || true))" ]]; then
             local candidates
-            candidates=$(curl ${CURL_OPTS} -ksSf \
-                https://updates.joyent.com/images?name=platform\&version=~-$platform_image)
+            # BASHSTYLED
+            candidates=$(curl ${CURL_OPTS} -ksSf https://updates.joyent.com/images?name=platform\&version=~-$platform_image)
             if [[ -z "$candidates" ]]; then
                 fatal "error getting candidate platform images matching" \
                     "'$platform_image'"
