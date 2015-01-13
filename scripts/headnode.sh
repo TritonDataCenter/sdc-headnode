@@ -325,7 +325,7 @@ if [[ ! -d /opt/smartdc/bin ]]; then
     printf_timer "%-58sdone (%ss)\n" "installing tools to /opt/smartdc/bin..."
 fi
 
-if [[ ! -d /opt/smartdc/sdcadm ]]; then
+if [[ ! -d /opt/smartdc/sdcadm && -f /usbkey/sdcadm-install.sh ]]; then
     printf_log "%-58s" "installing sdcadm... "
     /usbkey/sdcadm-install.sh || /bin/true
     printf_timer "%4s (%ss)\n" "done"
