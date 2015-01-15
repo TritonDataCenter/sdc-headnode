@@ -11,6 +11,7 @@
 
 set -o xtrace
 set -o errexit
+set -o pipefail
 
 TOP=$(cd $(dirname $0)/; pwd)
 if [[ ! -f "$TOP/upgrade-all.sh" ]]; then
