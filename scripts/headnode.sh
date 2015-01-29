@@ -367,9 +367,6 @@ fi
 # We want to be careful here since, sdc-restore -F will also run this
 # headnode.sh script (with the restore parameter).
 
-CREATEDZONES=
-CREATEDUUIDS=
-
 # Create link for latest platform
 create_latest_link
 
@@ -526,9 +523,6 @@ function create_zone {
         # BASHSTYLED
         fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
     fi
-
-    CREATEDZONES="${CREATEDZONES} ${zone}"
-    CREATEDUUIDS="${CREATEDUUIDS} ${new_uuid}"
 
     if [[ ${zone} == "sdc" ]]; then
         # (Re)create the /opt/smartdc/sdc symlink into the sdc zone:
@@ -893,13 +887,16 @@ fi
 fi
 
 
-
-if [[ -n ${CREATEDZONES} ]]; then
-    #
-    # Once SDC has finished setup, upgrade SAPI to full mode.  This call
-    # informs SAPI that its dependent SDC services are ready and that it should
-    # store the SDC deployment configuration persistently.
-    #
+#
+# Once SDC has finished setup, upgrade SAPI to full mode.  This call
+# informs SAPI that its dependent SDC services are ready and that it should
+# store the SDC deployment configuration persistently.
+#
+# Note: 'sapi_full_mode' setup state was added after some still-supported
+# headnodes were setup, therefore guard on 'setup_complete' as well.
+#
+if setup_state_not_seen "sapi_full_mode"; then
+if setup_state_not_seen "setup_complete"; then
     (( i = 0 )) || true
     while :; do
         if /opt/smartdc/bin/sdc-sapi /mode?mode=full -X POST -m 5 --fail; then
@@ -911,7 +908,12 @@ if [[ -n ${CREATEDZONES} ]]; then
         printf_log "%-58s" "SAPI isn't in full mode yet..."
         sleep 5
     done
+    setup_state_add "sapi_full_mode"
+fi
+fi
 
+
+if setup_state_not_seen "setup_complete"; then
     # Install all AMON probes, but don't fail setup if it doesn't work
     /opt/smartdc/bin/sdc-amonadm update || /bin/true
 
@@ -930,9 +932,7 @@ if [[ -n ${CREATEDZONES} ]]; then
 "==> Setup complete (in %s seconds). Press [enter] to get login prompt.\n"
         echo "" >&${CONSOLE_FD}
     fi
-fi
 
-if setup_state_not_seen "setup_complete"; then
     setup_state_mark_complete
     rm -f /tmp/.ur-startup
     svcadm restart ur
