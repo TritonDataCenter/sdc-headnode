@@ -183,6 +183,32 @@ To rollback moray:
 
 
 
+## upgrade zone: imgapi
+
+Note: We are doing imgapi before ufds to avoid the problem here:
+https://jabber.joyent.com/logs/sdc@conference.joyent.com/2014/12/02.html#21:45:02.679453
+
+
+    ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi-$(date +%s).log
+
+After the switch from UFDS to moray is complete (after an upgrade to an
+imgapi build after 20140301) then old image manifest data in UFDS should be
+removed:
+
+    # Get a backup.
+    sdc-ldap search objectclass=sdcimage >sdcimage.dump
+    # Delete them all.
+    sdc sdc-ufds search objectclass=sdcimage | json -ga dn \
+        | while read dn; do sdc-ldap rm "$dn"; done
+
+
+To rollback (however note that the imgapi migrations don't currently have
+rollback support):
+
+    ./rollback-imgapi.sh rollback-images 2>&1 | tee imgapi-rollback-$(date +%s).log
+
+
+
 ## upgrade zone: ufds
 
 Currently the UFDS upgrade requires that the moray zone on the HN have
@@ -206,36 +232,6 @@ To rollback UFDS:
 TODO: for upgrades of UFDS where the *old* UFDS is already passed all the
 index updates... we will be wasting time doing unnecessary backfills. We should
 discover that and only backfill as necessary.
-
-
-
-## upgrade zone: imgapi
-
-    ./upgrade-imgapi.sh upgrade-images 2>&1 | tee imgapi-$(date +%s).log
-
-
-Also the following migration should be run once per DC. It isn't *harmful* to
-run more than once, it just involves a number of unnecessary uploads to manta if
-run repeatedly for every upgrade:
-
-    sdc-login imgapi 'cd /opt/smartdc/imgapi && /opt/smartdc/imgapi/build/node/bin/node lib/migrations/migration-009-backfill-archive.js'
-
-
-After the switch from UFDS to moray is complete (after an upgrade to an
-imgapi build after 20140301) then old image manifest data in UFDS should be
-removed:
-
-    # Get a backup.
-    sdc-ldap search objectclass=sdcimage >sdcimage.dump
-    # Delete them all.
-    sdc sdc-ufds search objectclass=sdcimage | json -ga dn \
-        | while read dn; do sdc-ldap rm "$dn"; done
-
-
-To rollback (however note that the imgapi migrations don't currently have
-rollback support):
-
-    ./rollback-imgapi.sh rollback-images 2>&1 | tee imgapi-rollback-$(date +%s).log
 
 
 
@@ -497,4 +493,3 @@ Run the following script to clean up:
   I.e. for napi, imgapi, fwapi, papi, vmapi, cnapi.
 
 - We need an LB in front of cloudapi to maint-window it.
-

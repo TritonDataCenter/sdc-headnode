@@ -96,6 +96,7 @@ function get_primary_manatee
     # manatee zones of certain vintages prevent bare 'manatee-stat' from
     # working. Other vintages have the tool in a different location, but
     # work OK.
+    #XXX This is broken for old manatee's.
     if [[ -f /zones/${HN_MANATEE_UUID}/root/opt/smartdc/manatee/bin/manatee-stat ]]; then
         MANATEE_STAT=$(zlogin $HN_MANATEE_UUID '
             source .bashrc;
