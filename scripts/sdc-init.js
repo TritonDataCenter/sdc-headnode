@@ -154,7 +154,6 @@ function translateConfig(cb) {
     // *shadow
     // phonehome_*
     // show_setup_timers
-    // serialize_setup
     // config_inc_dir
 }
 

@@ -476,57 +476,55 @@ function create_zone {
 
     local loops=
     local zonepath=
-    if [[ ${CONFIG_serialize_setup} == "true" ]]; then
-        loops=0
-        zonepath=$(vmadm get ${new_uuid} | json zonepath)
-        if [[ -z ${zonepath} ]]; then
-            fatal "Unable to find zonepath for ${new_uuid}"
-        fi
+    loops=0
+    zonepath=$(vmadm get ${new_uuid} | json zonepath)
+    if [[ -z ${zonepath} ]]; then
+        fatal "Unable to find zonepath for ${new_uuid}"
+    fi
 
-        while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
-            && ! -f ${zonepath}/root/var/svc/setup_failed \
-            && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
+    while [[ ! -f ${zonepath}/root/var/svc/setup_complete \
+        && ! -f ${zonepath}/root/var/svc/setup_failed \
+        && $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
 
+        sleep 1
+        loops=$((${loops} + 1))
+    done
+
+    if [[ ${loops} -lt ${ZONE_SETUP_TIMEOUT} \
+        && -f ${zonepath}/root/var/svc/setup_complete ]]; then
+
+        # Got here and complete, now just wait for services.
+        while [[ -n $(svcs -xvz ${new_uuid}) && \
+            $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
             sleep 1
             loops=$((${loops} + 1))
         done
+    fi
 
-        if [[ ${loops} -lt ${ZONE_SETUP_TIMEOUT} \
-            && -f ${zonepath}/root/var/svc/setup_complete ]]; then
-
-            # Got here and complete, now just wait for services.
-            while [[ -n $(svcs -xvz ${new_uuid}) && \
-                $loops -lt ${ZONE_SETUP_TIMEOUT} ]]; do
-                sleep 1
-                loops=$((${loops} + 1))
-            done
-        fi
-
-        delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
-        if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
-            printf_log "timeout\n"
-            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
-            # BASHSTYLED
-            fatal "Failed to create ${zone}: setup timed out after ${delta_t} seconds."
-        elif [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
-            printf_timer "%4s (%ss)\n" "done"
-            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
-        elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
-            printf_log "failed\n"
-            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
-            # BASHSTYLED
-            fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
-        elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
-            printf_log "svcs-fail\n"
-            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
-            # BASHSTYLED
-            fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
-        else
-            printf_log "timeout\n"
-            [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
-            # BASHSTYLED
-            fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
-        fi
+    delta_t=$(($(date +%s) - ${prev_t}))  # For the fail cases
+    if [[ ${loops} -ge ${ZONE_SETUP_TIMEOUT} ]]; then
+        printf_log "timeout\n"
+        [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+        # BASHSTYLED
+        fatal "Failed to create ${zone}: setup timed out after ${delta_t} seconds."
+    elif [[ -f ${zonepath}/root/var/svc/setup_complete ]]; then
+        printf_timer "%4s (%ss)\n" "done"
+        [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+    elif [[ -f ${zonepath}/root/var/svc/setup_failed ]]; then
+        printf_log "failed\n"
+        [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+        # BASHSTYLED
+        fatal "Failed to create ${zone}: setup failed after ${delta_t} seconds."
+    elif [[ -n $(svcs -xvz ${new_uuid}) ]]; then
+        printf_log "svcs-fail\n"
+        [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+        # BASHSTYLED
+        fatal "Failed to create ${zone}: 'svcs -xv' not clear after ${delta_t} seconds."
+    else
+        printf_log "timeout\n"
+        [[ -n ${dtrace_pid} ]] && kill ${dtrace_pid}
+        # BASHSTYLED
+        fatal "Failed to create ${zone}: timed out after ${delta_t} seconds."
     fi
 
     CREATEDZONES="${CREATEDZONES} ${zone}"
@@ -897,78 +895,6 @@ fi
 
 
 if [[ -n ${CREATEDZONES} ]]; then
-    if [[ ${CONFIG_serialize_setup} != "true" ]]; then
-
-        # Check that all of the zone's svcs are up before we end.
-        # The svc installing the zones is still running since we haven't exited
-        # yet, so the svc count should be 1 for us to end successfully.
-        # If they're not up after 4 minutes, report a possible issue.
-        if [ $restore == 0 ]; then
-            msg="Waiting for services to finish starting..."
-            printf "%-58s\r" "${msg}"
-        else
-            # alternate formatting when restoring (sdc-restore)
-            msg="waiting for services to finish starting... "
-            printf "%s\r" "${msg}"
-        fi
-        i=0
-        while [ $i -lt 48 ]; do
-            nstarting=`svcs -Zx 2>&1 | grep -c "State:" || true`
-            if [ $nstarting -lt 2 ]; then
-                    break
-            fi
-            if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-                printf_log "%-58s%s\r" "${msg}" "${nstarting}"
-            fi
-            sleep 5
-            i=`expr $i + 1`
-        done
-        if [[ ${restore} == 0 ]]; then
-            printf_log "%-58s%s\n" "${msg}" "done"
-        else
-            # alternate formatting when restoring (sdc-restore)
-            printf "%s%-20s\n" "${msg}" "done" >&${CONSOLE_FD}
-        fi
-
-        if [ $nstarting -gt 1 ]; then
-            printf_log \
-            "Warning: services in the following zones are still not running:\n"
-            svcs -Zx | nawk '{if ($1 == "Zone:") print $2}' | sort -u | \
-                tee -a /tmp/upgrade_progress >&${CONSOLE_FD}
-        fi
-
-        # The SMF services should now be up, so we wait for the setup scripts
-        # in each of the created zones to be completed (these run in the
-        # background for all but assets so may not have finished with
-        # the services)
-        i=0
-        nsettingup=$(num_not_setup ${CREATEDUUIDS})
-        while [[ ${nsettingup} -gt 0 && ${i} -lt 48 ]]; do
-            if [[ ${restore} == 0 ]]; then
-                msg="Waiting for zones to finish setting up..."
-            else
-                msg="waiting for zones to finish setting up... "
-            fi
-            if [[ -z ${CONFIG_disable_spinning} || ${restore} == 1 ]]; then
-                printf_log "%-58s%s\r" "${msg}" "${nsettingup}"
-            fi
-            i=$((${i} + 1))
-            sleep 5
-            nsettingup=$(num_not_setup ${CREATEDUUIDS})
-        done
-
-        if [[ ${nsettingup} -gt 0 ]]; then
-            printf_log "%-58s%s\n" "${msg}" "failed"
-            fatal "Warning: some zones did not finish setup, installation " \
-                "has failed."
-        elif [[ ${restore} == 0 ]]; then
-            printf_log "%-58s%s\n" "${msg}" "done"
-        else
-            # alternate formatting when restoring (sdc-restore)
-            printf "%s%-20s\n" "${msg}" "done"  >&${CONSOLE_FD}
-        fi
-    fi
-
     #
     # Once SDC has finished setup, upgrade SAPI to full mode.  This call
     # informs SAPI that its dependent SDC services are ready and that it should
