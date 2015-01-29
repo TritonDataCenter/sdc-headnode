@@ -21,12 +21,12 @@ else
 GREP = /usr/xpg4/bin/grep
 endif
 
-BASH_FILES = \
+BASH_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
-	$(shell find tools -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
-	$(shell find bin -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
+	$(shell find tools/bin tools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find bin -depth 1 -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
 
-JS_FILES = \
+JS_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print) \
 	$(shell find tools/bin -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print | grep -v '/json$$')
 
