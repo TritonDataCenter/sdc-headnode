@@ -31,7 +31,7 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
             ./tools/coal-mac-vmware-setup
 
   - Optionally, to automate setup:
-    - create a `build.spec.local` file with the following contents: `{"answers-file": "answers.json"}`
+    - create a `build.spec.local` file with the following contents: `{"answer-file": "answers.json"}`
     - copy one of the answers.json templates: `cp answers.json.tmpl.external answers.json`
     - see the 'Optional Coniguration & Automated Setup' section below for more information.
 
