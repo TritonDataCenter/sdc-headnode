@@ -775,7 +775,7 @@ function copy_platform
 
     local image
     if [[ -n "${PLATFORM_FILE}" ]]; then
-        image=${platform_file}
+        image=${PLATFORM_FILE}
         echo "==> Using ${image} as platform image"
         if ! valid_archive "${image}"; then
             fatal "Refusing to use corrupt platform ${image}"
