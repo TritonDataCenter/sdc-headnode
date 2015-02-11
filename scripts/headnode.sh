@@ -531,10 +531,6 @@ function create_zone {
         ln -s /zones/${new_uuid}/root/opt/smartdc/sdc /opt/smartdc/sdc
     fi
 
-    # Success, set created_${zone}=1 in case there are other things we want
-    # to do only when we created this thing.
-    eval "created_${zone}=1"
-
     return 0
 }
 
@@ -569,12 +565,12 @@ function bootstrap_sapi
         echo "Bootstrapping SAPI into SAPI"
         local sapi_uuid
         sapi_uuid=$(vmadm lookup tags.smartdc_role=sapi)
+        sapi_adopt vm sapi $sapi_uuid
         zlogin ${sapi_uuid} /usr/bin/bash <<HERE
 export ZONE_ROLE=sapi
 export ASSETS_IP=${CONFIG_assets_admin_ip}
 export CONFIG_AGENT_LOCAL_MANIFESTS_DIRS=/opt/smartdc/\${ZONE_ROLE}
 source /opt/smartdc/boot/lib/util.sh
-sapi_adopt
 setup_config_agent
 upload_values
 download_metadata
@@ -662,12 +658,16 @@ enable_config_agent()
     fi
 }
 
-# "sapi_adopt" means adding an agent "instance" to SAPI
-# $1: service_name
-# $2: instance_uuid
+# "sapi_adopt" means adding an "instance" to SAPI
+# $1: type
+# $2: service_name
+# $3: instance_uuid
 function sapi_adopt()
 {
-    local service_name=$1
+    local type=$1   # vm or agent
+    local service_name=$2
+    local uuid=$3
+
     local sapi_url=http://${CONFIG_sapi_admin_ips}
 
     local service_uuid=""
@@ -676,7 +676,7 @@ function sapi_adopt()
     # BEGIN BASHSTYLED
     local i=0
     while [[ -z ${service_uuid} && ${i} -lt 48 ]]; do
-        service_uuid=$(curl "${sapi_url}/services?type=agent&name=${service_name}"\
+        service_uuid=$(curl "${sapi_url}/services?type=${type}&name=${service_name}"\
             -sS -H accept:application/json | json -Ha uuid || true)
         if [[ -z ${service_uuid} ]]; then
             echo "Unable to get server_uuid from sapi yet.  Sleeping..."
@@ -686,8 +686,6 @@ function sapi_adopt()
     done
     [[ -n ${service_uuid} ]] || \
     fatal "Unable to get service_uuid for role ${service_name} from SAPI"
-
-    uuid=$2
 
     i=0
     while [[ -z ${sapi_instance} && ${i} -lt 48 ]]; do
@@ -720,7 +718,7 @@ function adopt_agents()
         for agent in $CONFIGURABLE_AGENTS; do
             instance_uuid=$(uuid -v4)
             echo $instance_uuid > $AGENTS_DIR/etc/$agent
-            sapi_adopt $agent $instance_uuid
+            sapi_adopt agent $agent $instance_uuid
         done
 
         setup_state_add "agents_adopted"
@@ -749,7 +747,8 @@ if setup_state_not_seen "sdczones_created"; then
     export USE_SAPI="true"
 
     create_zone binder
-    # here we bootstrap SAPI to be aware of itself, including writing out
+
+    # Here we bootstrap SAPI to be aware of itself, including writing out
     # its standard DNS config.
     bootstrap_sapi
 
@@ -777,8 +776,8 @@ if setup_state_not_seen "sdczones_created"; then
     create_zone mahi
     create_zone adminui
 
-    # first we write the agents config in synchronous mode, then we update the
-    # config-agent config with SAPI's domain and import the config-agent smf
+    # First we write the agents config in synchronous mode, then we update the
+    # config-agent config with SAPI's domain and import the SMF manifest.
     enable_config_agent
 
     # copy sdc-manatee tools to GZ - see MANATEE-86
@@ -789,7 +788,7 @@ if setup_state_not_seen "sdczones_created"; then
 	mv ${file} /opt/smartdc/bin/${tool}
     done
 
-    # Copy sapiadm into the GZ from the SAPI zone
+    # Copy sapiadm into the GZ from the SAPI zone.
     zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
     if [[ -n ${zone_uuid} ]]; then
 	from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
