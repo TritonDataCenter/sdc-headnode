@@ -48,7 +48,8 @@ add_pkg()
 	egrep -s "^pkg_[0-9]*=${1}:" /mnt/usbkey/config.inc/generic
 	if [ $? -ne 0 ]; then
 		out=$(sdc-papi --no-headers /packages?name=$pnm | \
-		json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps zfs_io_priority uuid)
+		json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps \
+		zfs_io_priority uuid)
 		printf "pkg_%d=%s" $PKG_CNT $out >> /mnt/usbkey/config.inc/generic
 
 	    # Just added an entry, so increment the cnt
