@@ -48,9 +48,9 @@ add_pkg()
 	egrep -s "^pkg_[0-9]*=${1}:" /mnt/usbkey/config.inc/generic
 	if [ $? -ne 0 ]; then
 		out=$(sdc-papi --no-headers /packages?name=$pnm | \
-		json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps \
-		zfs_io_priority uuid)
-		printf "pkg_%d=%s" $PKG_CNT $out >> /mnt/usbkey/config.inc/generic
+  json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps \
+  zfs_io_priority uuid)
+  printf "pkg_%d=%s" $PKG_CNT $out >> /mnt/usbkey/config.inc/generic
 
 	    # Just added an entry, so increment the cnt
 	    PKG_CNT=$((PKG_CNT + 1))
@@ -73,7 +73,7 @@ update_sdc_zone_pkgs()
 	local vmurl="http://${CONFIG_vmapi_domain}"
 	# BASHSTYLED
 	curl -sS \
-	    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
+	--url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
 	    -e 'this.package_name=(this.package_name || "-")' \
