@@ -47,33 +47,9 @@ add_pkg()
 	# Make sure we haven't already added it once before
 	egrep -s "^pkg_[0-9]*=${1}:" /mnt/usbkey/config.inc/generic
 	if [ $? -ne 0 ]; then
-	    sdc-ldap search objectclass=sdcpackage | \
-	        nawk -v pnm=$1 -v cnt=$PKG_CNT '{
-                    if (length($0) == 0 && pnm == nm) {
-                        # Pkg entry format:
-                        # name:ram:swap:disk:cap:nlwp:iopri:uuid
-                        printf("pkg_%d=%s:%s:%s:%s:%s:%s:%s:%s\n", cnt,
-                            pnm, ram, swap, disk, cap, nlwp, iopri, uuid);
-                    }
-
-                    if ($1 == "name:") {
-                        nm = $2
-                    } else if ($1 == "max_physical_memory:") {
-                        ram = $2
-                    } else if ($1 == "quota:") {
-                        disk = $2
-                    } else if ($1 == "max_swap:") {
-                        swap = $2
-                    } else if ($1 == "cpu_cap:") {
-                        cap = $2
-                    } else if ($1 == "max_lwps:") {
-                        nlwp = $2
-                    } else if ($1 == "zfs_io_priority:") {
-                        iopri = $2
-                    } else if ($1 == "uuid:") {
-                        uuid = $2
-                    }
-                }' >> /mnt/usbkey/config.inc/generic
+		out=$(sdc-papi --no-headers /packages?name=$pnm | \
+		json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps zfs_io_priority uuid)
+		printf "pkg_%d=%s" $PKG_CNT $out >> /mnt/usbkey/config.inc/generic
 
 	    # Just added an entry, so increment the cnt
 	    PKG_CNT=$((PKG_CNT + 1))
@@ -94,9 +70,8 @@ update_sdc_zone_pkgs()
 	[[ -z ${CONFIG_vmapi_domain} ]] && return
 
 	local vmurl="http://${CONFIG_vmapi_domain}"
-
+	# BASHSTYLED
 	curl -sS \
-	    # BASHSTYLED
 	    --url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
 	    | json -H  \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
