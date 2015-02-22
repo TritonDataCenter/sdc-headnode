@@ -49,6 +49,7 @@ SDC_ZONE_COMMANDS = \
 	sdc-amonadm \
 	sdc-cnapi \
 	sdc-dapi \
+	sdc-events \
 	sdc-fwapi \
 	sdc-imgadm \
 	sdc-imgapi \
