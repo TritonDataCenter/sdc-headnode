@@ -801,7 +801,8 @@ function dispatchCommand(command, args, callback)
                     var match = param[0].match(/^(.+)_nic$/);
                     if (!match) {
                         usage();
-                        callback(new Error('Invalid nic tag parameter: ' + param[0]));
+                        callback(new Error('Invalid nic tag parameter: ' +
+                            param[0]));
                         return;
                     }
                     if (!nics.hasOwnProperty(param[1])) {
