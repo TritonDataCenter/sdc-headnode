@@ -798,10 +798,10 @@ function dispatchCommand(command, args, callback)
                 } else if (param[0] === 'postsetup_script') {
                     setupOpts.params.postsetup_script = param[1];
                 } else {
-                    var match = param[0].match(/^([^_]+)_nic$/);
+                    var match = param[0].match(/^(.+)_nic$/);
                     if (!match) {
                         usage();
-                        callback(new Error('Invalid parameter: ' + param[0]));
+                        callback(new Error('Invalid nic tag parameter: ' + param[0]));
                         return;
                     }
                     if (!nics.hasOwnProperty(param[1])) {
