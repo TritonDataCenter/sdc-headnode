@@ -671,8 +671,13 @@ function adopt_agents()
         CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent"
 
         for agent in $CONFIGURABLE_AGENTS; do
-            instance_uuid=$(uuid -v4)
-            echo $instance_uuid > $AGENTS_DIR/etc/$agent
+            local instance_uuid=$(cat $AGENTS_DIR/etc/$agent)
+
+            if [[ -z ${instance_uuid} ]]; then
+                instance_uuid=$(uuid -v4)
+                echo $instance_uuid > $AGENTS_DIR/etc/$agent
+            fi
+
             sapi_adopt agent $agent $instance_uuid
         done
 
