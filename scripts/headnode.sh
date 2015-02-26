@@ -587,50 +587,15 @@ setup_config_agent()
 {
     if setup_state_not_seen "config_agent_setup"; then
         AGENTS_DIR=/opt/smartdc/agents
-        CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent"
 
-        local sapi_url=http://${CONFIG_sapi_admin_ips}
         local prefix=$AGENTS_DIR/lib/node_modules/config-agent
         local tmpfile=/tmp/agent.$$.xml
+
+        mkdir -p $AGENTS_DIR/etc/config-agent.d
 
         sed -e "s#@@PREFIX@@#${prefix}#g" \
             ${prefix}/smf/manifests/config-agent.xml > ${tmpfile}
         mv ${tmpfile} $AGENTS_DIR/smf/config-agent.xml
-
-        mkdir -p ${prefix}/etc
-        local file=${prefix}/etc/config.json
-        cat >${file} <<EOF
-{
-    "logLevel": "info",
-    "pollInterval": 15000,
-    "sapi": {
-        "url": "${sapi_url}"
-    }
-}
-EOF
-
-        for agent in $CONFIGURABLE_AGENTS; do
-            local instance_uuid
-            instance_uuid=$(cat /opt/smartdc/agents/etc/$agent)
-            local tmpfile=/tmp/add_dir.$$.json
-
-            # BEGIN BASHSTYLED
-            if [[ -z ${instance_uuid} ]]; then
-                fatal "Unable to get instance_uuid from /opt/smartdc/agents/etc/$agent"
-            fi
-
-            cat ${file} | json -e "
-                this.instances = this.instances || [];
-                this.instances.push('$instance_uuid');
-                this.localManifestDirs = this.localManifestDirs || {};
-                this.localManifestDirs['$instance_uuid'] = ['$AGENTS_DIR/lib/node_modules/$agent'];
-            " >${tmpfile}
-            mv ${tmpfile} ${file}
-            # END BASHSTYLED
-        done
-
-        ${prefix}/build/node/bin/node ${prefix}/agent.js -s -f \
-            /opt/smartdc/agents/lib/node_modules/config-agent/etc/config.json
 
         setup_state_add "config_agent_setup"
     fi
@@ -640,16 +605,6 @@ enable_config_agent()
 {
     if setup_state_not_seen "config_agent_enabled"; then
         AGENTS_DIR=/opt/smartdc/agents
-
-        # new SAPI url to use
-        local sapi_url=http://${CONFIG_sapi_domain}
-
-        local prefix=$AGENTS_DIR/lib/node_modules/config-agent
-        local file=${prefix}/etc/config.json
-        local tmpfile=/tmp/add_url.$$.json
-
-        cat ${file} | json -e "this.sapi = { url: '${sapi_url}' };" >${tmpfile}
-        mv ${tmpfile} ${file}
 
         svccfg import $AGENTS_DIR/smf/config-agent.xml
         svcadm enable config-agent
@@ -679,7 +634,7 @@ function sapi_adopt()
         service_uuid=$(curl "${sapi_url}/services?type=${type}&name=${service_name}"\
             -sS -H accept:application/json | json -Ha uuid || true)
         if [[ -z ${service_uuid} ]]; then
-            echo "Unable to get server_uuid from sapi yet.  Sleeping..."
+            echo "Unable to get service_uuid from sapi yet.  Sleeping..."
             sleep 5
         fi
         i=$((${i} + 1))
