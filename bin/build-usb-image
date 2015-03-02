@@ -178,6 +178,11 @@ function copy_config {
     cp -r config/config.inc ${MNT_DIR}/config.inc
 
     ANSWER_FILE=$(build_spec answer-file)
+    if [[ -z ${ANSWER_FILE} ]]; then
+        # Support 'answers-file' key as well, because that's what we
+        # doc'd for a long time.
+        ANSWER_FILE=$(build_spec answers-file)
+    fi
     if [[ -n ${ANSWER_FILE} && -f ${ANSWER_FILE} ]]; then
         # BASHSTYLED
         echo "WARNING: Copying in ${ANSWER_FILE}, remove answer-file from build.spec* to disable."
