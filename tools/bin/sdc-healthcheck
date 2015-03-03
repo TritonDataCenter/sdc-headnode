@@ -231,7 +231,19 @@ function check_agents() {
     exit 1
   fi
 
-  for i in provisioner heartbeat ur; do
+  local active_rabbit_using_agents="ur"
+  local cn_agent_conf=/opt/smartdc/agents/etc/cn-agent.config.json
+  if [[ ! -f $cn_agent_conf ||
+      $(json -f $cn_agent_conf no_rabbit) != "true" ]]; then
+    active_rabbit_using_agents="$active_rabbit_using_agents provisioner"
+  fi
+  local vm_agent_conf=/opt/smartdc/agents/etc/vm-agent.config.json
+  if [[ ! -f $vm_agent_conf
+      || $(json -f $vm_agent_conf no_rabbit) != "true" ]]; then
+    active_rabbit_using_agents="$active_rabbit_using_agents heartbeater"
+  fi
+
+  for i in $active_rabbit_using_agents; do
     ping-agent $SYSINFO_UUID $i timeout=10000 2>&1 | egrep -s "req_id:"
     if [ $? == 0 ]; then
       status="online"
