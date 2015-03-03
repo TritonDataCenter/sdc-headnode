@@ -240,7 +240,7 @@ function check_agents() {
   local vm_agent_conf=/opt/smartdc/agents/etc/vm-agent.config.json
   if [[ ! -f $vm_agent_conf
       || $(json -f $vm_agent_conf no_rabbit) != "true" ]]; then
-    active_rabbit_using_agents="$active_rabbit_using_agents heartbeater"
+    active_rabbit_using_agents="$active_rabbit_using_agents heartbeat"
   fi
 
   for i in $active_rabbit_using_agents; do
