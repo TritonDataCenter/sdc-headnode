@@ -5,7 +5,7 @@
   "author": "Joyent (joyent.com)",
   "private": true,
   "dependencies": {
-    "manta": "git+ssh://git@github.com:joyent/node-manta.git#b40a4d5"
+    "manta": "git+ssh://git@github.com:joyent/node-manta.git#12f4c84"
   },
   "engines": {
     "node": ">=0.8"
