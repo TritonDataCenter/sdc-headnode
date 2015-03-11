@@ -6,55 +6,161 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2015, Joyent, Inc.
 #
 
 #
 # Allows you to zlogin to a core SDC zone by alias, role or partial role name.
-#
-# Limitations:
-# - only works to SDC core zones *on the headnode*
-#
-# Future Enhancements:
-#   - add support to talk to MAPI and add an 'ssh <CN>' prefix if the zone is
-#     running on a CN.
+# If the -s argument is passed, logs you into the GZ of the CN hosting the
+# specified zone.
 #
 
 . /lib/sdc/config.sh
 load_sdc_config
+load_sdc_sysinfo
+
+set -o errexit
+set -o pipefail
+
+PATH=${PATH}:/opt/smartdc/bin:/usr/bin
 
 admin_uuid=${CONFIG_ufds_admin_uuid}
-zone=$1
-shift
+my_server_uuid=${SYSINFO_UUID}
+choice=
+
+function fatal {
+    echo "$0: fatal error: $*" >&2
+    exit 1
+}
+
+function warn {
+    echo "$*" >&2
+}
+
+function usage {
+    echo ""
+    echo "Usage: $0 [-s] <alias>"
+    echo "       $0 [-s] <VM uuid>"
+    echo "       $0 [-s] <zone role> [choice]"
+    echo ""
+    echo "    -s SSH to the GZ of the *server hosting a VM* instead of a VM."
+    echo ""
+}
 
 if [[ -z ${admin_uuid} ]]; then
-    echo "sdc-login: error: Unable to find UUID for admin."
+    warn "sdc-login: error: Unable to find UUID for admin."
     exit 1
 fi
 
-if [[ -z ${zone} ]]; then
-    echo "Usage: $0 <zone role or alias>"
+to_server=0
+zone=$1
+shift || true
+
+if [[ -n ${zone} ]]; then
+    if [[ ${zone} == "-h" || ${zone} == "--help" ]]; then
+        usage
+        exit 0
+    elif [[ ${zone} == "-s" ]]; then
+        to_server=1
+        zone=$1
+        shift || true
+    fi
+else
+    usage
     exit 2
 fi
 
-# Try by alias first.
-# BASHSTYLED
-zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} alias=${zone} 2>/dev/null)
+choice=$1
+shift || true
 
-# Next by exact role name.
-if [[ -z "${zone_uuid}" ]]; then
-    # BASHSTYLED
-    zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null)
+#
+# sdcadm uses different naming from elsewhere:
+#
+#  * 'instance' is the VM uuid
+#  * 'service' is the smartdc_role
+#
+query="this.type == 'vm' && ( \
+    this.instance == '${zone}' \
+    || this.service.match(/^${zone}/) \
+    || this.alias.match(/^${zone}/) \
+)"
+
+IFS=$'\n'
+results=$(sdcadm insts -H -s alias -j | json -c "${query}")
+length=$(json length <<< "${results}")
+if [[ ${length} -eq 0 ]]; then
+    if [[ ${to_server} -eq 1 && \
+        ${zone} =~ ^[a-f0-9]*-[a-f0-9]*-[a-f0-9]*-[a-f0-9]*-[a-f0-9]*$ ]]; then
+
+        #
+        # This case is used to get to the GZ of an arbitrary VM in the DC
+        # `sdc-login -s <vm_uuid>` will send you to the GZ of the VM vm_uuid.
+        #
+        server_uuid=$(sdc-vmapi /vms/${zone} | json -H server_uuid)
+
+        if [[ -z ${server_uuid} ]]; then
+            fatal "VM not found"
+        fi
+
+        server_ip=$(sdc-server admin-ip ${server_uuid})
+        if ! [[ $? == 0 && -n ${server_ip} ]]; then
+            fatal "Cannot find admin_ip for ${server_uuid}"
+        fi
+    else
+        fatal "No VMs found matching criteria"
+    fi
+elif [[ ${length} -gt 1 ]]; then
+    # more than one result, if stdin is a tty prompt for which one. Otherwise
+    # fail.
+
+    if [[ ! -t 0 ]]; then
+        fatal "Found ${length} VMs but stdin is not a TTY"
+    fi
+
+    # if we were passed choice as a 3rd argument, use that only if it's valid
+    if ! [[ ${choice} =~ ^[0-9]+$ ]] || [[ ${choice} -ge ${length} ]] \
+        || [[ ${choice} -lt 0 ]]; then
+
+        choice=
+    fi
+    if [[ -z ${choice} ]]; then
+        echo "NUMBER   VM_UUID                              ALIAS"
+        json -e 'this.cn_hostname = "(" + this.hostname + ")"' \
+            -a id instance alias cn_hostname <<< "${results}" | nl -nln -v0
+    fi
+
+    while ! [[ ${choice} =~ ^[0-9]+$ ]] || [[ ${choice} -ge ${length} ]] \
+        || [[ ${choice} -lt 0 ]]; do
+
+        printf "Choose a number [0-$((${length} - 1))]: "
+        read choice
+    done
+
+    server_hostname=$(json ${choice}.hostname <<< "${results}")
+    server_ip=$(json ${choice}.server_ip <<< "${results}")
+    server_uuid=$(json ${choice}.server <<< "${results}")
+    zone_uuid=$(json ${choice}.instance <<< "${results}")
+else
+    # only one result, use that
+    server_hostname=$(json 0.hostname <<< "${results}")
+    server_ip=$(json 0.server_ip <<< "${results}")
+    server_uuid=$(json 0.server <<< "${results}")
+    zone_uuid=$(json 0.instance <<< "${results}")
 fi
 
-# Next by role prefix.
-if [[ -z "${zone_uuid}" ]]; then
-    # BASHSTYLED
-    zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone})
+if [[ ${server_uuid} == ${my_server_uuid} ]]; then
+    if [[ ${to_server} -eq 1 ]]; then
+        warn "You are already logged into ${server_hostname}"
+        exit 3
+    fi
+    exec zlogin ${zone_uuid} $*
+else
+    if [[ ${to_server} -eq 1 ]]; then
+        exec ssh -t ${server_ip}
+    else
+        exec ssh -t ${server_ip} zlogin ${zone_uuid} $*
+    fi
 fi
 
-if [[ -z ${zone_uuid} ]]; then
-    echo "sdc-login: error: did not find exactly 1 zone matching: ${zone}"
-    exit 1
-fi
-exec zlogin ${zone_uuid} $*
+# NOTREACHED
+exit 4
