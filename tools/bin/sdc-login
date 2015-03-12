@@ -19,14 +19,21 @@
 load_sdc_config
 load_sdc_sysinfo
 
+if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 set -o errexit
 set -o pipefail
 
 PATH=${PATH}:/opt/smartdc/bin:/usr/bin
 
 admin_uuid=${CONFIG_ufds_admin_uuid}
-my_server_uuid=${SYSINFO_UUID}
 choice=
+my_server_uuid=${SYSINFO_UUID}
+to_server=0
+
 
 function fatal {
     echo "$0: fatal error: $*" >&2
@@ -39,10 +46,11 @@ function warn {
 
 function usage {
     echo ""
-    echo "Usage: $0 [-s] <alias>"
+    echo "Usage: $0 [-c choice] [-s] <alias>"
     echo "       $0 [-s] <VM uuid>"
-    echo "       $0 [-s] <zone role> [choice]"
+    echo "       $0 [-c choice] [-s] <zone role>"
     echo ""
+    echo "    -c preselect a choice from the list if muliple matches."
     echo "    -s SSH to the GZ of the *server hosting a VM* instead of a VM."
     echo ""
 }
@@ -52,26 +60,35 @@ if [[ -z ${admin_uuid} ]]; then
     exit 1
 fi
 
-to_server=0
+while getopts "c:hs\?" opt; do
+    case $opt in
+        c)
+            choice=${OPTARG}
+            ;;
+        s)
+            to_server=1
+            ;;
+        \?|h)
+            usage
+            exit 2
+            ;;
+        :)
+            warn "Option -$OPTARG requires an argument."
+            usage
+            exit 2
+            ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
 zone=$1
 shift || true
 
-if [[ -n ${zone} ]]; then
-    if [[ ${zone} == "-h" || ${zone} == "--help" ]]; then
-        usage
-        exit 0
-    elif [[ ${zone} == "-s" ]]; then
-        to_server=1
-        zone=$1
-        shift || true
-    fi
-else
+if [[ -z ${zone} ]]; then
     usage
     exit 2
 fi
-
-choice=$1
-shift || true
 
 #
 # sdcadm uses different naming from elsewhere:
