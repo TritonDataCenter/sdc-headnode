@@ -96,14 +96,12 @@ fi
 #  * 'instance' is the VM uuid
 #  * 'service' is the smartdc_role
 #
-query="this.type == 'vm' && ( \
-    this.instance == '${zone}' \
+query="this.instance === '${zone}' \
     || this.service.match(/^${zone}/) \
-    || this.alias.match(/^${zone}/) \
-)"
+    || this.alias.match(/^${zone}/)"
 
 IFS=$'\n'
-results=$(sdcadm insts -H -s alias -j | json -c "${query}")
+results=$(sdcadm insts -H -s alias -j type=vm | json -c "${query}")
 length=$(json length <<< "${results}")
 if [[ ${length} -eq 0 ]]; then
     if [[ ${to_server} -eq 1 && \
