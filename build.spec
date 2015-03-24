@@ -1,4 +1,5 @@
 {
+  "vmware_version": 5,
   "build-tgz": "true",
   "coal-memsize": 4096,
   "coal-enable-serial": true,

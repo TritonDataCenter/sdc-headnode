@@ -260,10 +260,14 @@ function create_output
 {
     local vmxfile="${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx"
     local vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.tbz2"
-    local vmware_ver
-    vmware_ver=$(build_spec vmware_version)
+    local vmware_version
+    vmware_version=$(build_spec vmware_version)
 
-    if [[ -n ${vmware_ver} && ${vmware_ver} -ge 5 ]]; then
+    if [[ -z "${vmware_version}" ]]; then
+        fatal "No 'vmware_version' in build.spec[.local]"
+    elif [[ ${vmware_version} -le 4 ]]; then
+        vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.4.tbz2"
+    else
         vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.5.tbz2"
     fi
 
