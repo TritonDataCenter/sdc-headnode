@@ -101,7 +101,8 @@ query="this.instance === '${zone}' \
     || this.alias.match(/^${zone}/)"
 
 IFS=$'\n'
-results=$(sdcadm insts -H -s alias -j type=vm | json -c "${query}")
+results=$(sdcadm insts -H -s alias -j type=vm \
+    | json -c 'this.server_ip !== null' -c "${query}")
 length=$(json length <<< "${results}")
 if [[ ${length} -eq 0 ]]; then
     if [[ ${to_server} -eq 1 && \
