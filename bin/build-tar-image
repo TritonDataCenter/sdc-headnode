@@ -809,7 +809,7 @@ function copy_platform
                     "multiple matching images:" \
                     "$(echo "$candidates" | json -a uuid | xargs)"
             fi
-            platform_uuid=$(echo "$candidates" | json 0.uuid)
+            platform_image=$(echo "$candidates" | json 0.uuid)
         else
             fatal "'platform-image' in build.spec* is not a UUID or" \
                 "timestamp: ${platform_image}"
