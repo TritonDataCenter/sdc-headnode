@@ -204,6 +204,16 @@ if false; then
     vmadm update $dhcpd_zone_uuid max_physical_memory=256
     vmadm update $dhcpd_zone_uuid max_locked_memory=256
     vmadm update $dhcpd_zone_uuid max_swap=512
+    # binder 1024
+    sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+    binder_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=binder | json -H 0.uuid)
+    sapiadm update $binder_svc params.max_physical_memory=1024
+    sapiadm update $binder_svc params.max_locked_memory=1024
+    sapiadm update $binder_svc params.max_swap=2048
+    binder_zone_uuid=$(vmadm lookup -1 state=running alias=binder0)
+    vmadm update $binder_zone_uuid max_physical_memory=1024
+    vmadm update $binder_zone_uuid max_locked_memory=1024
+    vmadm update $binder_zone_uuid max_swap=2048
 fi
 
 # -- HEAD-1958/HEAD-1961 region_name
