@@ -86,14 +86,20 @@ function import_manta_image {
 
 
 function deploy_manta_zone {
-    local service_uuid
+    local service_uuid server_uuid
     service_uuid=$(sdc-sapi /services?name=manta | json -Ha uuid)
+    server_uuid=$(sysinfo | json UUID)
+
+    if [[ -z "$server_uuid" ]]; then
+        fatal "could not find appropriate server_uuid"
+    fi
 
     echo "
     {
         \"service_uuid\": \"${service_uuid}\",
         \"params\": {
-            \"alias\": \"${ZONE_ALIAS}\"
+            \"alias\": \"${ZONE_ALIAS}\",
+            \"server_uuid\": \"${server_uuid}\"
         }
     }" | sapiadm provision
 
