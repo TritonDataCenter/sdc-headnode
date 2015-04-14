@@ -13,15 +13,15 @@
 
 function fatal
 {
-	echo "`basename $0`: $*" > /dev/fd/2
+	echo "$(basename $0): $*" > /dev/fd/2
 	exit 1
 }
 
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 
-USBKEYS=`/usr/bin/disklist -a`
+USBKEYS=$(/usr/bin/disklist -a)
 for key in ${USBKEYS}; do
-    if [[ `/usr/sbin/fstyp /dev/dsk/${key}p1` == 'pcfs' ]]; then
+    if [[ $(/usr/sbin/fstyp /dev/dsk/${key}p1) == 'pcfs' ]]; then
         /usr/sbin/mount -F pcfs -o foldcase,noatime /dev/dsk/${key}p1 \
             ${usbmnt};
         if [[ $? == "0" ]]; then
