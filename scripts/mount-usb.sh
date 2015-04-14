@@ -10,6 +10,13 @@
 #
 
 # BASHSTYLED
+
+function fatal
+{
+	echo "`basename $0`: $*" > /dev/fd/2
+	exit 1
+}
+
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 
 USBKEYS=`/usr/bin/disklist -a`
