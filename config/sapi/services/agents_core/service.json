@@ -1,0 +1,16 @@
+{
+    "name": "agents_core",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "agents_core",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "agents_core",
+        "VM_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}
