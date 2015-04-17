@@ -1,0 +1,16 @@
+{
+    "name": "smartlogin",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "smartlogin",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "smartlogin",
+        "VM_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}

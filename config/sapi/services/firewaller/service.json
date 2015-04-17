@@ -1,0 +1,16 @@
+{
+    "name": "firewaller",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "firewaller",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "firewaller",
+        "VM_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}
