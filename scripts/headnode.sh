@@ -717,6 +717,7 @@ if setup_state_not_seen "sdczones_created"; then
     bootstrap_sapi
 
     # once SAPI is ready we configure the CN config agents before core zones
+    adopt_agents
     setup_config_agent
 
     create_zone manatee
@@ -739,7 +740,6 @@ if setup_state_not_seen "sdczones_created"; then
     create_zone mahi
     create_zone adminui
 
-    adopt_agents
     # First we write the agents config in synchronous mode, then we update the
     # config-agent config with SAPI's domain and import the SMF manifest.
     enable_config_agent
