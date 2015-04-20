@@ -93,10 +93,6 @@ function translateConfig(cb) {
         return cb(new Error(msg));
     }
 
-    if (resolvers.length > 0) {
-        sdcExtras.params.resolvers = resolvers;
-    }
-
     // binder is also zookeeper.
     // bootstrap constraint here: num aligns with ZK_ID of
     if (config.hasOwnProperty('binder_admin_ips')) {

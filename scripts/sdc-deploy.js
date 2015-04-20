@@ -105,6 +105,15 @@ function getPayload(instance, cb) {
     });
 }
 
+function addResolvers(payload, cb) {
+    if (payload.hasOwnProperty('resolvers')) {
+        return cb(null, payload);
+    }
+
+    payload.resolvers = config['binder_admin_ips'].split(',');
+    return cb(null, payload);
+}
+
 // nics per build-payload
 function addNic(payload, cb) {
     if (payload.hasOwnProperty('nics')) {
@@ -168,6 +177,7 @@ async.waterfall([
     getService,
     createInstance,
     getPayload,
+    addResolvers,
     addNic,
     outputPayload
 ], function (err) {
