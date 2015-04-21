@@ -75,8 +75,6 @@ function translateConfig(cb) {
         params: {}
     };
     var sdcExtras = self.sdcExtras;
-    var resolvers = [];
-
 
     if (config.hasOwnProperty('ufds_admin_uuid')) {
         sdcExtras.params.owner_uuid = config.ufds_admin_uuid;
@@ -85,9 +83,7 @@ function translateConfig(cb) {
                  'in SDC application config.');
     }
 
-    if (config.hasOwnProperty('binder_admin_ips')) {
-        resolvers = [config['binder_admin_ips']];
-    } else {
+    if (! config.hasOwnProperty('binder_admin_ips')) {
         var msg = 'No binder_admin_ips in config, impossible to set up';
         log.fatal(msg);
         return cb(new Error(msg));
