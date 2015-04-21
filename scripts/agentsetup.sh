@@ -11,6 +11,10 @@
 
 exec 4>/dev/console
 
+# keep a copy of the output in /tmp/joysetup.$$ for later viewing
+exec > >(tee /var/log/agent-setup.log)
+exec 2>&1
+
 set -o errexit
 set -o pipefail
 # BASHSTYLED
