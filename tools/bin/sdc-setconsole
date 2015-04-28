@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2015, Joyent, Inc.
 #
 
 #
@@ -23,43 +23,43 @@ menutmpl="${menu}.tmpl"
 
 function usage
 {
-	cat <<USAGE
+    cat <<USAGE
 Usage: $0 [ttya|ttyb|ttyc|ttyd|text]
 
 Example:
 
-	$0 ttyb
+    $0 ttyb
 
 USAGE
 
-	exit 1
+    exit 1
 }
 
 function fatal
 {
-	echo "`basename $0`: $*" > /dev/fd/2
-	exit 1
+    echo "`basename $0`: $*" >&2 
+    exit 1
 }
 
 if [[ -z "$1" ]]; then
-	usage
+    usage
 fi
 
 console=$1
 
 case "${console}" in
 ttya|ttyb|ttyc|ttyd|text)
-	;;
+    ;;
 graphics|vga)
-	console=text
-	;;
+    console=text
+    ;;
 *)
-	usage
-	;;
+    usage
+    ;;
 esac
 
 if [[ ! -d $usbmnt ]]; then
-	mkdir $usbmnt || fatal "could not make $usbmnt"
+    mkdir $usbmnt || fatal "could not make $usbmnt"
 fi
 
 mount | grep "^${usbmnt}" >/dev/null 2>&1 || bash $usbcp/scripts/mount-usb.sh

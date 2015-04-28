@@ -6,13 +6,13 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2015, Joyent, Inc.
 #
 
 function fatal
 {
-	echo "`basename $0`: $*" > /dev/fd/2
-	exit 1
+    echo "`basename $0`: $*" >&2 
+    exit 1
 }
 
 current_image=$(uname -v | cut -d '_' -f2)
@@ -26,7 +26,7 @@ image="${usb}${image_subdir}/boot_archive"
 writable_usr=0
 
 if ! mount | grep ^"${mnt} " > /dev/null ; then
-	fatal "cannot find image mounted at $mnt"
+    fatal "cannot find image mounted at $mnt"
 fi
 
 file=$(mount | grep ^"${mnt} " | nawk '{ print $3 }')
@@ -38,22 +38,22 @@ if mount | grep ^/image/usr | grep /var/tmp/usr.lgz > /dev/null; then
 fi
 
 if ! umount $mnt/usr ; then
-	fatal "could not unmount $mnt/usr"
+    fatal "could not unmount $mnt/usr"
 fi
 
 if [[ ${writable_usr} == 1 ]]; then
-	lofiadm -C /var/tmp/usr.lgz || fatal "could not recompress /usr"
-	rm -f $mnt/usr.lgz || fatal "could not remove old ${mnt}/usr.lgz"
-	sync
-	cp /var/tmp/usr.lgz $mnt/usr.lgz || \
-	    fatal "could not copy usr.lgz to $mnt"
-	rm -f /var/tmp/usr.lgz \
-	    || echo "Warning: could not remove /var/tmp/usr.lgz" >&2
-	sync
+    lofiadm -C /var/tmp/usr.lgz || fatal "could not recompress /usr"
+    rm -f $mnt/usr.lgz || fatal "could not remove old ${mnt}/usr.lgz"
+    sync
+    cp /var/tmp/usr.lgz $mnt/usr.lgz || \
+        fatal "could not copy usr.lgz to $mnt"
+    rm -f /var/tmp/usr.lgz \
+        || echo "Warning: could not remove /var/tmp/usr.lgz" >&2
+    sync
 fi
 
 if ! umount $mnt ; then
-	fatal "could not unmount $mnt"
+    fatal "could not unmount $mnt"
 fi
 
 cp ${image} "${usbcopy}${image_subdir}"
