@@ -44,7 +44,6 @@ function import_image() {
         file=/var/tmp/${uuid}.file.$$
     fi
 
-    UPDATES_IMGADM='/opt/smartdc/bin/updates-imgadm'
     SDC_IMGADM='/opt/smartdc/bin/sdc-imgadm'
 
     set +o errexit
@@ -53,7 +52,14 @@ function import_image() {
         return
     fi
 
-    ${UPDATES_IMGADM} get $uuid >${manifest} \
+    # Avoid using 'updates-imgadm' because really old ones don't know about
+    # updates.joyent.com channels and we want to get this image UUID out of
+    # whatever channel it is in.
+    #
+    # Use API version 2 to get 'channels' field that we need below.
+    curl -ksSf https://updates.joyent.com/images/$uuid?channel=* \
+        -H 'Accept-Version: ~2' \
+        >${manifest} \
         || fatal "failed to get image $uuid manifest"
     local origin=$(json -f $manifest origin)
     if [[ -n "$origin" ]]; then
@@ -73,7 +79,9 @@ function import_image() {
     else
         printf "Downloading image $uuid ($name $version) file (%d MiB).\n" \
             $(( ${bytes} / 1024 / 1024 ))
-        ${UPDATES_IMGADM} get-file $uuid > ${file} \
+        # Need to be specific on a channel for this endpoint.
+        local channel=$(json -f $manifest channels.0)
+        curl -ksSf https://updates.joyent.com/images/$uuid/file?channel=$channel >${file} \
             || fatal "failed to get image $uuid file from updates.joyent.com"
     fi
 
