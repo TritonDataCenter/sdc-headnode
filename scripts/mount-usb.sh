@@ -6,17 +6,16 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2015, Joyent, Inc.
 #
-
-# BASHSTYLED
 
 function fatal
 {
-	echo "`basename $0`: $*" > /dev/fd/2
-	exit 1
+    echo "`basename $0`: $*" >&2
+    exit 1
 }
 
+# BASHSTYLED
 usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 
 USBKEYS=`/usr/bin/disklist -a`
