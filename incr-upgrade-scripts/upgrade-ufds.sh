@@ -84,7 +84,7 @@ MORAY_UUIDS=$(vmadm lookup alias=~^moray owner_uuid=$UFDS_ADMIN_UUID state=runni
 MORAY_UUID=$(echo "$MORAY_UUIDS" | head -1)
 
 # We can get ufds version from the config file of the ufds running instance:
-VERSION=$(sdc-login $CUR_ALIAS 'cat /opt/smartdc/ufds/etc/config.json' | json moray.version)
+VERSION=$(zlogin $(vmadm lookup -1 alias=$CUR_ALIAS) 'cat /opt/smartdc/ufds/etc/config.json' | json moray.version)
 
 # Fetches the uuid/ip of the primary manatee, required for backup and
 # sql schema migrations.
