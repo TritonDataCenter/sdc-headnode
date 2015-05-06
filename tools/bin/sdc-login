@@ -97,8 +97,8 @@ fi
 #  * 'service' is the smartdc_role
 #
 query="this.instance === '${zone}' \
-    || this.service.match(/^${zone}/) \
-    || this.alias.match(/^${zone}/)"
+    || (this.service && this.service.match(/^${zone}/)) \
+    || (this.alias && this.alias.match(/^${zone}/))"
 
 IFS=$'\n'
 results=$(sdcadm insts -H -s alias -j type=vm \
