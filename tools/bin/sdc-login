@@ -14,6 +14,9 @@
 # If the -s argument is passed, logs you into the GZ of the CN hosting the
 # specified zone.
 #
+# With the -l option, only the local host is checked. This works even when the
+# rest of the SDC stack is down.
+#
 
 . /lib/sdc/config.sh
 load_sdc_config
@@ -31,6 +34,7 @@ PATH=${PATH}:/opt/smartdc/bin:/usr/bin
 
 admin_uuid=${CONFIG_ufds_admin_uuid}
 choice=
+local_only=0
 my_server_uuid=${SYSINFO_UUID}
 to_server=0
 
@@ -49,10 +53,41 @@ function usage {
     echo "Usage: $0 [-c choice] [-s] <alias>"
     echo "       $0 [-s] <VM uuid>"
     echo "       $0 [-c choice] [-s] <zone role>"
+    echo "       $0 -l <alias | role | partial role>"
     echo ""
     echo "    -c preselect a choice from the list if muliple matches."
+    # BASHSTYLED
+    echo "    -l lookup on locally (on this node only) -- incompatible with -s and -c"
     echo "    -s SSH to the GZ of the *server hosting a VM* instead of a VM."
     echo ""
+}
+
+function local_login {
+    zone=$1
+    shift
+
+    # Try by alias first.
+    # BASHSTYLED
+    zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} alias=${zone} 2>/dev/null || true)
+
+    # Next by exact role name.
+    if [[ -z "${zone_uuid}" ]]; then
+        # BASHSTYLED
+        zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=${zone} 2>/dev/null || true)
+    fi
+
+    # Next by role prefix.
+    if [[ -z "${zone_uuid}" ]]; then
+        # BASHSTYLED
+        zone_uuid=$(vmadm lookup -1 state=running owner_uuid=${admin_uuid} tags.smartdc_role=~^${zone} || true)
+    fi
+
+    if [[ -z ${zone_uuid} ]]; then
+        fatal "did not find exactly 1 zone matching: ${zone}"
+        exit 1
+    fi
+
+    exec zlogin ${zone_uuid} $*
 }
 
 if [[ -z ${admin_uuid} ]]; then
@@ -60,10 +95,13 @@ if [[ -z ${admin_uuid} ]]; then
     exit 1
 fi
 
-while getopts "c:hs\?" opt; do
+while getopts "c:lhs\?" opt; do
     case $opt in
         c)
             choice=${OPTARG}
+            ;;
+        l)
+            local_only=1
             ;;
         s)
             to_server=1
@@ -88,6 +126,20 @@ shift || true
 if [[ -z ${zone} ]]; then
     usage
     exit 2
+fi
+
+if [[ ${local_only} -eq 1 ]]; then
+
+    if [[ ${to_server} -eq 1 || -n ${choice} ]]; then
+        warn "Invalid Arguments: -l is incompatible with -s and -c"
+        usage
+        exit 2
+    fi
+
+    local_login ${zone} $@
+
+    # should not get here (local_login exits or exec's)
+    fatal "local_login returned"
 fi
 
 #
