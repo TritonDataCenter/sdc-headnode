@@ -32,7 +32,7 @@ if [[ -z "$THIS_TIMESTAMP" ]]; then
 fi
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.${THIS_TIMESTAMP}"
-RONNJS="${ROOT}/bin/ronnjs/bin/ronn.js"
+RONNJS="${ROOT}/buildtools/ronnjs/bin/ronn.js"
 
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
