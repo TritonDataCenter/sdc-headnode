@@ -3,14 +3,21 @@
   "build-tgz": "true",
   "coal-memsize": 4096,
   "coal-enable-serial": true,
+  "clean-cache": true,
   "// joyent-build": "set to true to enable ancillary repository use",
 
+  "features": {
+    "debug-platform": {
+      "enabled": false,
+      "env": "DEBUG_BUILD"
+    },
+    "joyent-build": {
+      "enabled": false,
+      "env": "JOYENT_BUILD"
+    }
+  },
+
   "bits-branch": "master",
-  "platform-release": "master",
-  "agents-shar": "master",
-  "sdcboot-release": "master",
-  "firmware-tools-release": "master",
-  "sdcadm-release": "master",
 
   "// manta-*": "You can override these in your build.spec.local.",
   "manta-base-path": "/Joyent_Dev/public/builds",
@@ -18,49 +25,106 @@
   "manta-user": "Joyent_Dev",
   "manta-url": "https://us-east.manta.joyent.com",
 
-  "// *-image": "If adding to this list, you must also update mountain-gorilla.git/build.spec.in accordingly",
-  "adminui-image": "adminui/adminui-zfs-.*manifest",
-  "amon-image": "amon/amon-zfs-.*manifest",
-  "amonredis-image": "amonredis/amonredis-zfs-.*manifest",
-  "assets-image": "assets/assets-zfs-.*manifest",
-  "binder-image": "binder/binder-zfs-.*manifest",
-  "ca-image": "ca/ca-zfs-.*manifest",
-  "cloudapi-image": "cloudapi/cloudapi-zfs-.*manifest",
-  "cnapi-image": "cnapi/cnapi-zfs-.*manifest",
-  "dhcpd-image": "dhcpd/dhcpd-zfs-.*manifest",
-  "fwapi-image": "fwapi/fwapi-zfs-.*manifest",
-  "imgapi-image": "imgapi/imgapi-zfs-.*manifest",
-  "mahi-image": "mahi/mahi-zfs-.*manifest",
-  "manatee-image": "sdc-manatee/sdc-manatee-zfs-.*manifest",
-  "manta-image": "manta-deployment/manta-deployment-zfs-.*manifest",
-  "moray-image": "moray/moray-zfs-.*manifest",
-  "napi-image": "napi/napi-zfs-.*manifest",
-  "papi-image": "papi/papi-zfs-.*manifest",
-  "rabbitmq-image": "rabbitmq/rabbitmq-zfs-.*manifest",
-  "redis-image": "redis/redis-zfs-.*manifest",
-  "sapi-image": "sapi/sapi-zfs-.*manifest",
-  "sdc-image": "sdc/sdc-zfs-.*manifest",
-  "ufds-image": "ufds/ufds-zfs-.*manifest",
-  "vmapi-image": "vmapi/vmapi-zfs-.*manifest",
-  "workflow-image": "workflow/workflow-zfs-.*manifest",
+  "zones": {
+    "adminui": {},
+    "amon": {},
+    "amonredis": {},
+    "assets": {},
+    "binder": {},
+    "ca": {},
+    "cloudapi": {},
+    "cnapi": {},
+    "dhcpd": {},
+    "fwapi": {},
+    "imgapi": {},
+    "mahi": {},
+    "manatee": {
+      "jobname": "sdc-manatee"
+    },
+    "manta": {
+      "jobname": "manta-deployment"
+    },
+    "moray": {},
+    "napi": {},
+    "papi": {},
+    "rabbitmq": {},
+    "redis": {},
+    "sapi": {},
+    "sdc": {},
+    "ufds": {},
+    "vmapi": {},
+    "workflow": {}
+  },
 
-  "datasets": [
-    {
+  "files": {
+    "sdcboot": {
+      "file": { "base": "sdcboot", "ext": "tgz" }
+    },
+
+    "platboot": {
+      "jobname": "platform",
+      "if_not_feature": "debug-platform",
+      "file": { "base": "boot", "ext": "tgz" }
+    },
+    "platform": {
+      "if_not_feature": "debug-platform",
+      "file": { "base": "platform", "ext": "tgz" }
+    },
+
+    "platboot-debug": {
+      "jobname": "platform-debug",
+      "if_feature": "debug-platform",
+      "file": { "base": "boot-debug", "ext": "tgz" }
+    },
+    "platform-debug": {
+      "if_feature": "debug-platform",
+      "file": { "base": "platform-debug", "ext": "tgz" }
+    },
+
+    "sdcadm": {
+      "file": { "base": "sdcadm", "ext": "sh" }
+    },
+
+    "agents": {
+      "jobname": "agentsshar",
+      "file": { "base": "agents", "ext": "sh" }
+    },
+    "agents_md5": {
+      "jobname": "agentsshar",
+      "file": { "base": "agents", "ext": "md5sum" }
+    },
+
+    "firmware-tools": {
+      "if_feature": "joyent-build",
+      "alt_manta_base": "joyent-manta-base-path",
+      "file": { "base": "firmware-tools", "ext": "tgz" }
+    }
+  },
+
+  "images": {
+    "smartos-1.6.3": {
       "imgapi": "https://updates.joyent.com",
-      "name": "sdc-smartos-1.6.3",
+      "name": "sdc-smartos",
+      "version": "1.6.3",
       "uuid": "fd2cc906-8938-11e3-beab-4359c665ac99"
-    }, {
+    },
+    "multiarch-13.3.1": {
       "imgapi": "https://updates.joyent.com",
-      "name": "sdc-multiarch-13.3.1",
+      "name": "sdc-multiarch",
+      "version": "13.3.1",
       "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
-    }, {
+    },
+    "base64-13.3.1": {
       "imgapi": "https://updates.joyent.com",
-      "name": "sdc-base64-1.3.1",
+      "name": "sdc-base64",
+      "version": "13.3.1",
       "uuid": "aeb4e3e0-8937-11e3-b0bd-637363a89e49"
-    }, {
+    },
+    "base-14.2.0": {
       "imgapi": "https://updates.joyent.com",
-      "name": "sdc-base-14.2.0",
+      "name": "sdc-base",
+      "version": "14.2.0",
       "uuid": "de411e86-548d-11e4-a4b7-3bb60478632a"
     }
-  ]
+  }
 }

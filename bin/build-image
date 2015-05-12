@@ -6,81 +6,80 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
-
-set -o errexit
-set -o pipefail
-
-if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
-    BASH_IS_NOT_ANCIENT='true'
-fi
-
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
-      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
-    # BASHSTYLED
-    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    export BASH_XTRACEFD=4
-    set -o xtrace
-fi
 
 ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
 
+. "${ROOT}/buildtools/lib/error_handler.sh"
+
+function usage {
+    if [[ -n "$1" ]]; then
+        echo "ERROR: $1" >&2
+    fi
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "    $0 [tar|usb|coal|dataset]" >&2
+    echo "" >&2
+    exit 1
+}
+
+while getopts 'c' name; do
+    case "${name}" in
+    c)
+        usage "the \"-${name}\" option is no longer supported"
+        ;;
+    \?)
+        usage 'unknown option'
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+. "${ROOT}/buildtools/lib/trace_logger.sh"
+
 export GZIP=-1
 
-CONFIG_OPTS=
-if [[ $1 == "-c" ]]; then
-    shift
-    # BASHSTYLED
-    echo "NOTICE: building without config is the only option now, -c is unnecessary."
-fi
-
 TYPE=$1
-shift || true
-
 if [[ -z "$TYPE" ]]; then
     TYPE=coal
 fi
 
-case $TYPE in
+case "${TYPE}" in
 tar|usb|coal|dataset)
     ;;
 *)
-    echo "ERROR: unknown image type '$TYPE' supplied"
-    echo ""
-    echo "Usage:    $0 <tar|usb|coal|dataset>"
-    echo ""
-    exit 1;
+    usage "unknown image type \"${TYPE}\" supplied"
     ;;
 esac
 export TYPE
 
 if [[ ${TYPE} != "dataset" || -z $(ls -1dt $ROOT/usb-* | head -1) ]]; then
-    $ROOT/bin/build-tar-image $CONFIG_OPTS
+    $ROOT/bin/build-tar-image
     [[ "$TYPE" == "tar" ]] && exit 0
 
     BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
 
-    $ROOT/bin/build-usb-image $CONFIG_OPTS $BOOT_TARBALL
+    ${ROOT}/bin/build-usb-image "${BOOT_TARBALL}"
     [[ "$TYPE" == "usb" ]] && exit 0
 fi
 
 USB_TARBALL=$(ls -1dt $ROOT/usb-* | head -1)
 
 if [[ ${TYPE} == "dataset" ]]; then
-     ${ROOT}/bin/build-dataset ${CONFIG_OPTS} -r ${USB_TARBALL}
+     ${ROOT}/bin/build-dataset -r "${USB_TARBALL}"
      exit 0
 fi
 
-$ROOT/bin/build-coal-image $CONFIG_OPTS -r $USB_TARBALL
+${ROOT}/bin/build-coal-image -r "${USB_TARBALL}"
 
 COAL_FOLDER=$(ls -1dt $ROOT/coal-* | head -1)
 
-[[ -d $BOOT_TARBALL ]] && rm -rf $BOOT_TARBALL
+[[ -d "${BOOT_TARBALL}" ]] && rm -rf "${BOOT_TARBALL}"
 
-if [[ -d $COAL_FOLDER ]]; then
-    mv $COAL_FOLDER/*.vmwarevm $ROOT/
-    VMWAREVM_FOLDER=$(ls -1dt $ROOT/*.vmwarevm | head -1)
-    mv $COAL_FOLDER/* $VMWAREVM_FOLDER/
-    rm -r $COAL_FOLDER
+if [[ -d ${COAL_FOLDER} ]]; then
+    mv ${COAL_FOLDER}/*.vmwarevm ${ROOT}/
+    VMWAREVM_FOLDER=$(ls -1dt ${ROOT}/*.vmwarevm | head -1)
+    mv ${COAL_FOLDER}/* ${VMWAREVM_FOLDER}/
+    rm -r ${COAL_FOLDER}
 fi

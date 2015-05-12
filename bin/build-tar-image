@@ -6,24 +6,35 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
-
-#
-# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
-# there are many important error conditions that this does not capture --
-# first among them failures within a pipeline (only the exit status of the
-# final stage is propagated).  To exit on these failures, we also set
-# "pipefail" (a very useful option introduced to bash as of version 3 that
-# propagates any non-zero exit values in a pipeline).
-#
-
-set -o errexit
-set -o pipefail
-
-shopt -s extglob
 
 ROOT=$(cd $(dirname $0)/../; pwd)
+
+. "${ROOT}/buildtools/lib/error_handler.sh"
+
+function usage {
+    if [[ -n "$1" ]]; then
+        echo "ERROR: $1" >&2
+    fi
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "    $0" >&2
+    echo "" >&2
+    exit 1
+}
+
+while getopts 'cr' name; do
+    case "${name}" in
+    c|r)
+        usage "the \"-${name}\" option is no longer supported"
+        ;;
+    \?)
+        usage 'unknown option'
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 # Write output to log file.
 THIS_TIMESTAMP=${TIMESTAMP}
@@ -37,31 +48,24 @@ RONNJS="${ROOT}/buildtools/ronnjs/bin/ronn.js"
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
-if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
-    BASH_IS_NOT_ANCIENT='true'
-fi
-#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
-      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
-    # BASHSTYLED
-    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    export BASH_XTRACEFD=4
-    set -o xtrace
-elif [[ -n ${TRACE} ]]; then
-    set -o xtrace
-fi
-
+. "${ROOT}/buildtools/lib/trace_logger.sh"
 
 # Tools.
-AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
+if which gawk 2>/dev/null; then
+    AWK=gawk
+else
+    AWK=awk
+fi
 TAR=tar
 GREP=grep
-if [[ `uname -s` == 'SunOS' ]]; then
-  SUM='/usr/bin/sum -x sha1'
+if [[ $(uname -s) == 'SunOS' ]]; then
+    SUM='/usr/bin/sum -x sha1'
 else
-  SUM='shasum'
+    SUM='shasum'
 fi
+JSON="${ROOT}/bin/json"
+JSONMERGE="${ROOT}/bin/json-merge"
+BUILDSPEC="${ROOT}/bin/buildspec"
 
 # Make sure we use the path to the manta tools we built with 'make deps'
 export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
@@ -76,36 +80,23 @@ THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 # for development builds this will read <ts>.<branch>.<sha> of the build
 # this value ends up in /usbkey/sdc_version
 if [[ -z $SDC_VERSION ]]; then
-  SDC_VERSION=${THIS_BUILDSTAMP}
+    SDC_VERSION=${THIS_BUILDSTAMP}
 fi
 
 echo ">> Starting build at $(date)"
 
-function fatal
-{
-    echo "$(basename $0): fatal error: $*" >&2
-    exit 1
-}
-
-function errexit
-{
-    [[ $1 -ne 0 ]] || exit 0
-    fatal "error exit status $1 at line $2"
-}
-
 function check_nodejs
 {
-    [[ ! `which node` ]] && fatal "build-image requires node to be in your path"
+    if ! which node 2>/dev/null; then
+        fatal "build-image requires \"node\" to be in your PATH"
+    fi
 
-    ver=`node --version`
+    ver="$(node --version)"
     micro=${ver##*.}
     front=${ver%.*}
     minor=${front##*.}
 
-    # [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
-    # [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
-
-    if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
+    if [[ $(echo '{"foo": "bar"}' | ${JSON} foo) == 'bar' ]]; then
         echo "Your version of node.js is ok!"
     else
         fatal "You need to have a working node.js installed for this to work!"
@@ -114,109 +105,23 @@ function check_nodejs
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge \
-                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${JSONMERGE} ${ROOT}/build.spec ${ROOT}/build.spec.local)
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
 fi
 
-function build_spec () {
+function build_spec
+{
     local thing=$1;
-    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
-};
+    echo $(echo $MERGED_SPEC | ${JSON} ${thing})
+}
 
-trap 'errexit $? $LINENO' EXIT
-
-STAGE="${ROOT}/cache/stage"
+CACHE="${ROOT}/cache"
+STAGE="${CACHE}/stage"
 ERROR=0
 CLEANED=0
-
-CURL_OPTS=$(build_spec curl-opts)
-SPEED_LIMIT=$(build_spec speed-limit)
-NO_INTERNET=$(build_spec no-internet)
-
-# Support for a regex pattern matched against bits to download from Manta for
-# the build. If the bit's pattern matches this regex, then "no-internet":true
-# is *ignored* for that bit. This is a way to do a usb-headnode build that
-# only gets the latest of a subset of the bits, e.g.:
-#       "no-internet": true
-#       "no-internet-exceptions": "(cnapi|imgapi)"
-NO_INTERNET_EXCEPTIONS=$(build_spec no-internet-exceptions)
-[[ -n "$NO_INTERNET_EXCEPTIONS" ]] || NO_INTERNET_EXCEPTIONS='^$'
-
-
-# --- Manta config
-if [[ -n "$(build_spec manta-key-id)" ]]; then
-    export MANTA_KEY_ID=$(build_spec manta-key-id)
-elif [[ -z "$MANTA_KEY_ID" ]]; then
-    export MANTA_KEY_ID=`ssh-keygen -l -f ~/.ssh/id_rsa.pub \
-                         | awk '{print $2}' | tr -d '\n'`
-fi
-if [[ -z "$(build_spec manta-url)" ]]; then
-    export MANTA_URL=https://us-east.manta.joyent.com
-else
-    export MANTA_URL="$(build_spec manta-url)"
-fi
-
-if [[ -z "$(build_spec manta-user)" ]]; then
-    export MANTA_USER="Joyent_Dev"
-else
-    export MANTA_USER="$(build_spec manta-user)"
-fi
-
-# A quick attempt to get `mget` usage to *not* require MANTA_KEY_ID
-# for retrieve bits from a public area of Manta.
-if [[ "$(build_spec joyent-build)" != "true"
-    && -n "$(build_spec manta-base-path | (grep '^/\w\+/public/' || true))"
-    ]]; then
-    export MANTA_NO_AUTH=true
-fi
-
-if [[ "$(build_spec builds-proxy)" == "true" ]]; then
-    BUILDS_PROXY_URL=$(build_spec builds-proxy-url)
-    [[ -n "$BUILDS_PROXY_URL" ]] \
-        || fatal "no 'builds-proxy-url' in build.spec.local"
-    BUILDS_PROXY_AUTH_FILE=$(build_spec builds-proxy-auth-file)
-    [[ -n "$BUILDS_PROXY_AUTH_FILE" ]] \
-        || fatal "no 'builds-proxy-auth-file' in build.spec.local"
-    BUILDS_PROXY_AUTH_FILE=$(echo $BUILDS_PROXY_AUTH_FILE \
-                             | sed -e "s|^~/|$HOME/|")
-    BUILDS_PROXY_USER=$(json -f $BUILDS_PROXY_AUTH_FILE username)
-    [[ -n "$BUILDS_PROXY_USER" ]] \
-        || fatal "no 'username' field in '$BUILDS_PROXY_AUTH_FILE'"
-    BUILDS_PROXY_PASSWD=$(json -f $BUILDS_PROXY_AUTH_FILE password)
-    [[ -n "$BUILDS_PROXY_PASSWD" ]] \
-        || fatal "no 'password' field in '$BUILDS_PROXY_AUTH_FILE'"
-fi
-
-if [[ -n ${SPEED_LIMIT} ]]; then
-    CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
-fi
-
-# Get BITS_BRANCH if necessary.
-if [[ -z "$BITS_BRANCH" ]]; then
-    BITS_BRANCH=$(build_spec bits-branch)
-fi
-
-[[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
-echo "BITS_BRANCH: $BITS_BRANCH"
-
-if [[ $1 == "-r" ]]; then
-    # XXX - Temporary warning about recipes
-    # BASHSTYLED
-    echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
-    sleep 30
-    shift
-    shift
-fi
-
-if [[ $1 == "-c" ]]; then
-    shift
-    # BASHSTYLED
-    echo "NOTICE: building without config is the only option now, -c is unnecessary."
-fi
 
 PLATFORM=$(uname -s)
 if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' ]]; then
@@ -224,15 +129,6 @@ if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' ]]; then
     version
 else
     echo "FATAL: Unsupported platform '${PLATFORM}'"
-fi
-
-echo -n "==> Checking for Internets... "
-if [[ ${NO_INTERNET} == "true" ]] || ! can_has_internets; then
-    echo "No Internets! Activating countermeasures!"
-    HAVE_INTERNET="false"
-else
-    echo "Yep!"
-    HAVE_INTERNET="true"
 fi
 
 function test_rootperms
@@ -369,23 +265,15 @@ function generate_grub_menu
 
 function copy_base
 {
-    local sbbranch
-    sbbranch=$(build_spec sdcboot-release)
-    local platbranch
-    platbranch=$(build_spec platform-release)
-
     local plat_suf
-    if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
+    if [[ "$(${BUILDSPEC} -f debug-platform)" == "true" ]]; then
         plat_suf="-debug"
     else
         plat_suf=""
     fi
 
     local is_joyent
-    is_joyent="$(build_spec joyent-build)"
-
-    [[ -z ${sbbranch} ]] && sbbranch="master"
-    [[ -z ${platbranch} ]] && platbranch="master"
+    is_joyent="$(${BUILDSPEC} -f joyent-build)"
 
     if [[ "${is_joyent}" == "true" ]]; then
         local ftbranch
@@ -394,17 +282,13 @@ function copy_base
     fi
 
     local sdcboot_path
-    sdcboot_path=$(get_manta_bit \
-        sdcboot/${sbbranch}/sdcboot-${sbbranch}-.*\.tgz)
+    sdcboot_path=$(get_bit "file.sdcboot.tgz")
     local platboot_path
-    platboot_path=$(get_manta_bit \
-        platform$plat_suf/${platbranch}/boot$plat_suf-${platbranch}-.*\.tgz)
+    platboot_path=$(get_bit "file.platboot${plat_suf}.tgz")
 
     if [[ "${is_joyent}" == "true" ]]; then
         local firmware_path
-        firmware_path=$(get_manta_bit \
-            firmware-tools/${ftbranch}/firmware-tools-${ftbranch}-.*\.tgz \
-            "joyent-manta-base-path")
+        firmware_path=$(get_bit "file.firmware-tools.tgz")
     fi
 
     echo "==> Creating .joyliveusb file"
@@ -419,9 +303,6 @@ function copy_base
         cp 65-files/* ${STAGE}/65-files/
     fi
 
-    echo "==> Copying in zones/"
-    cp -r zones ${STAGE}/zones
-
     echo "==> Copying in default/"
     cp -r default ${STAGE}/default
 
@@ -429,22 +310,25 @@ function copy_base
     cp -r LICENSE ${STAGE}/LICENSE
 
     echo "==> Extracting platform boot bundle"
-    (cd ${STAGE} && ${TAR} xzf ${platboot_path})
-    [[ $? == 0 ]] || fatal "Failed to extract boot bundle"
+    if ! (cd ${STAGE} && ${TAR} xzf ${platboot_path}); then
+        fatal "Failed to extract boot bundle"
+    fi
 
     echo "==> Extracting sdcboot bundle"
-    (cd ${STAGE} && ${TAR} xzf ${sdcboot_path})
-    [[ $? == 0 ]] || fatal "Failed to extract sdcboot bundle"
+    if ! (cd ${STAGE} && ${TAR} xzf ${sdcboot_path}); then
+        fatal "Failed to extract sdcboot bundle"
+    fi
 
     if [[ "${is_joyent}" == "true" ]]; then
         echo "==> Extracting firmware bundle"
-        (cd ${STAGE} && ${TAR} xzf ${firmware_path})
-        [[ $? == 0 ]] || fatal "Failed to extract firmware bundle"
+        if ! (cd ${STAGE} && ${TAR} xzf ${firmware_path}); then
+            fatal "Failed to extract firmware bundle"
+        fi
     fi
 }
 
-function copy_config {
-
+function copy_config
+{
     # Clear current configs from stage area
     rm -f ${STAGE}/config || true
     rm -rf ${STAGE}/config.inc || true
@@ -519,212 +403,23 @@ function cleanup_bit
     fi
 }
 
-# Get a bit from Manta to the local cache/ dir.
-function get_manta_bit
+function get_bit
 {
-    pattern=$1
-    alternate_base_path_var=$2
-    local get_bit_rv=
+    local name
+    local linkpath
+    name=$1
 
-    local pattern_dir
-    pattern_dir=$(dirname $pattern)
-    local file_name
-    file_name=$(basename $pattern)
-    local joyent_bits_base_path
-    joyent_bits_base_path=$(build_spec joyent-manta-base-path)
-
-    local base_path=
-    if [[ -n ${alternate_base_path_var} ]]; then
-        base_path=$(build_spec ${alternate_base_path_var})
-    else
-        base_path=$(build_spec manta-base-path)
+    if [[ ! -f "${CACHE}/${name}" ]]; then
+        fatal "build artefact \"${name}\" was not found in \"${CACHE}\""
     fi
 
-    local branch=${BITS_BRANCH}
-    local have_branch_override
-    have_branch_override=$(dirname $pattern_dir)
-    if [[ "$have_branch_override" != "." ]]; then
-        branch=$(basename $pattern_dir)
-        pattern_dir=$(dirname $pattern_dir)
+    if ! linkpath="$(readlink -n "${CACHE}/${name}")"; then
+        fatal "could not get target of artefact symlink \"${name}\""
     fi
 
-    if [[ -n "${BITS_DIR}" ]]; then
-        # Local BITS_DIR example:
-        #   /home/jill/joy/mountain-gorilla/bits
-        # where pattern='agentsshar/agents-master-*' is at:
-        #   /home/jill/joy/mountain-gorilla/bits/agentsshar/agents-master-*
-
-        local pattern_base
-        pattern_base="^$(basename $pattern)"
-        local latest_name
-        latest_name=$(ls -1 ${BITS_DIR}/${pattern_dir}/ \
-           | grep "${pattern_base}" \
-           | sort \
-           | tail -1)
-        [[ -n "${latest_name}" ]] \
-            || fatal "'${BITS_DIR}/${pattern}' did not match any files."
-
-        local latest_path=${BITS_DIR}/${pattern_dir}/${latest_name}
-        local latest_filename
-        latest_filename=$(basename $latest_path)
-        local cache_path=${ROOT}/cache/${latest_filename}
-        if [[ ! -f $cache_path ]]; then
-            echo "Copying '${latest_path}' bit to cache." >&2
-            cp ${latest_path} ${cache_path}
-        fi
-        get_bit_rv=${cache_path}
-        cleanup_bit "${file_name}"
-
-        echo "${get_bit_rv}"
-        return;
-    fi
-
-    if [[ ${HAVE_INTERNET} == "false" \
-            && -z "$(echo "$pattern" | \
-                     egrep "${NO_INTERNET_EXCEPTIONS}")"  ]]; then
-        local pattern_base
-        pattern_base="^$(basename $pattern)"
-        local latest_path
-        latest_path=$(ls -1 ${ROOT}/cache/ \
-           | grep "${pattern_base}" \
-           | sort \
-           | tail -1)
-        # BEGIN BASHSTYLED
-        [[ -n "${latest_path}" ]] \
-            || fatal "Don't have any '${pattern_base}' in '${ROOT}/cache' and no internet."
-        # END BASHSTYLED
-        echo "${ROOT}/cache/${latest_path}"
-        return
-    fi
-
-    if [[ -n "$BUILDS_PROXY_URL" ]]; then
-        # BASHSTYLED
-        BUILDS_CURL="curl ${CURL_OPTS} -kSf -u $BUILDS_PROXY_USER:$BUILDS_PROXY_PASSWD"
-        # BASHSTYLED
-        local latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
-        local latest_mdir
-        latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
-
-        # Fallback to joyent_bits_base_path in case this is a private build
-        if [[ -z ${latest_mdir} && -n ${joyent_bits_base_path}
-            && ${joyent_bits_base_path} != ${base_path} ]]; then
-
-            base_path=${joyent_bits_base_path}
-            # BASHSTYLED
-            latest_file="$BUILDS_PROXY_URL/${base_path}/${pattern_dir}/${branch}-latest"
-            latest_mdir=$($BUILDS_CURL -s --url ${latest_file})
-        fi
-
-        local latest_dir
-        # BASHSTYLED
-        latest_dir=$BUILDS_PROXY_URL/${base_path}/$pattern_dir/$(basename $latest_mdir)
-        # BASHSTYLED
-        local latest_filename
-        latest_filename=$($BUILDS_CURL -s --url $latest_dir/$pattern_dir/ \
-            | grep "$file_name" | head -1 \
-            | cut -d'"' -f2 | cut -d'"' -f1)
-        local latest_path=$latest_dir/$pattern_dir/$latest_filename
-        local cache_path=${ROOT}/cache/${latest_filename}
-
-        local md5
-        md5=$($BUILDS_CURL $latest_dir/md5sums.txt 2>/dev/null \
-                    | grep $latest_filename | cut -d ' ' -f1)
-
-        local ok=0
-        local retries=0
-        while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
-            if [[ ! -f $cache_path ]]; then
-                echo "Downloading '${latest_filename}' bit to cache." >&2
-                $BUILDS_CURL --url $latest_path --progress-bar -o $cache_path \
-                    || fatal "Unable to fetch '${latest_path}'."
-            fi
-
-            local my_md5
-            my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
-            if [[ ${my_md5} == ${md5} ]]; then
-                ok=1
-                continue
-            else
-                rm -f ${cache_path}
-                retries=$((${retries} + 1))
-                # BASHSTYLED
-                echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
-            fi
-        done
-        if [[ ${ok} -ne 1 ]]; then
-            # BASHSTYLED
-            fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
-        fi
-        get_bit_rv=${cache_path}
-        cleanup_bit "${file_name}"
-
-        echo "${get_bit_rv}"
-        return
-    fi
-
-    local latest_dir
-    latest_dir="${base_path}/${pattern_dir}/${branch}-latest"
-    local manta_base_dir
-    manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
-
-    # Fallback to joyent_bits_base_path in case this is a private build
-    if [[ -z ${manta_base_dir} && -n ${joyent_bits_base_path}
-        && ${joyent_bits_base_path} != ${base_path} ]]; then
-
-        base_path=${joyent_bits_base_path}
-        latest_dir="${base_path}/${pattern_dir}/${branch}-latest"
-        manta_base_dir=$(mget ${latest_dir} 2>/dev/null)
-    fi
-
-    [[ -n ${manta_base_dir} ]] \
-        || fatal "get_manta_bit: unable to find manta_base_dir for ${file_name}"
-
-    local manta_file_dir="${manta_base_dir}/${pattern_dir}"
-    local latest_name
-    latest_name=$(mfind ${manta_file_dir} | grep ${file_name})
-    [[ -n ${latest_name} ]] \
-        || fatal "get_manta_bit: unable to find latest_name for ${file_name}"
-    local latest_filename
-    latest_filename=$(basename $latest_name)
-    [[ -n ${latest_filename} ]] \
-        || fatal "get_manta_bit: unable to get latest_filename for ${file_name}"
-    local cache_path=${ROOT}/cache/${latest_filename}
-
-    local md5
-    md5=$(mget ${manta_base_dir}/md5sums.txt 2>/dev/null \
-                | grep $latest_filename | cut -d ' ' -f1)
-
-    local ok=0
-    local retries=0
-    while [[ ${ok} -eq 0 && ${retries} -lt 3 ]]; do
-        if [[ ! -f $cache_path ]]; then
-            echo "Downloading '${latest_name}' bit to cache." >&2
-            mget --progress -o ${ROOT}/cache/${latest_filename} ${latest_name} \
-                || fatal "Unable to fetch '${latest_filename}'."
-        fi
-
-        local my_md5
-        my_md5=$(openssl dgst -md5 < ${cache_path} | awk '{print $NF}')
-        if [[ ${my_md5} == ${md5} ]]; then
-            ok=1
-            continue
-        else
-            rm -f ${cache_path}
-            retries=$((${retries} + 1))
-            # BASHSTYLED
-            echo "CORRUPT OR TRUNCATED ${cache_path}, deleted and trying again (attempt ${retries}/3)" >&2
-        fi
-    done
-    if [[ ${ok} -ne 1 ]]; then
-        # BASHSTYLED
-        fatal "Unable to get non-corrupt version of ${cache_path} after ${retries} attempts."
-    fi
-    get_bit_rv=${cache_path}
-    cleanup_bit "${file_name}"
-
-    echo "${get_bit_rv}"
+    printf '%s/%s' "${CACHE}" "${linkpath}"
+    return 0
 }
-
 
 function _check_vpn
 {
@@ -740,35 +435,21 @@ function _check_vpn
 }
 
 
-# Get the platform to use. In order, attempt:
+# Get the platform to use. In order, attempt to use:
 #
 # - the local file path in the PLATFORM_FILE envvar
-#   (Legacy. I'd like to deprecate this.)
-# - the platform identified by the 'platform-image' build.spec value, one of:
-#       - an existing local file
-#       - the *uuid* of a platform image in updates.joyent.com
-#       - a platform build "yyyymmddThhmmssZ" timestamp
-#       - the get_manta_bit equivalent that the other "foo-image" build.spec
-#         values support (TODO: Implement this. Make "latest master platform"
-#         the default, then deprecate "platform-release" and
-#         "env.PLATFORM_FILE".)
-# - the latest build of the branch in the "platform-release" build.spec
-#   value (default is "master")
+# - the symlink "file.platform.tgz" (or "file.platform-debug.tgz") as
+#   prepared by the build artefact download system
 #
 function copy_platform
 {
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download platform, looping!"
-
     local platform_image
     platform_image=$(build_spec platform-image)
     local platform_release
     platform_release=$(build_spec platform-release)
 
     local plat_suffix=""
-    if [[ "$(build_spec debug-platform)" == "true" \
-          || -n "$DEBUG_BUILD" ]]; then
+    if [[ "$(${BUILDSPEC} -f debug-platform)" == "true" ]]; then
         plat_suffix="-debug"
         echo "Using DEBUG platform"
     fi
@@ -776,82 +457,13 @@ function copy_platform
     local image
     if [[ -n "${PLATFORM_FILE}" ]]; then
         image=${PLATFORM_FILE}
-        echo "==> Using ${image} as platform image"
         if ! valid_archive "${image}"; then
             fatal "Refusing to use corrupt platform ${image}"
-        fi
-    elif [[ -f ${platform_image} ]]; then
-        # BASHSTYLED
-        image=$(cd $(dirname ${platform_image}) >/dev/null; pwd)/$(basename ${platform_image})
-        echo "==> Using ${image} as platform image"
-        if ! valid_archive "${image}"; then
-            fatal "Refusing to use corrupt platform ${image}"
-        fi
-    elif [[ -n ${platform_image} ]]; then
-        # TODO: support get_manta_bit (see comment above).
-        local platform_uuid
-        # BASHSTYLED
-        if [[ -n "$(echo ${platform_image} | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
-            platform_uuid=$platform_image
-        # BASHSTYLED
-        elif [[ -n "$(echo ${platform_image} | (egrep '^[0-9]{8}T[0-9]{6}Z$' || true))" ]]; then
-            local candidates
-            # BASHSTYLED
-            candidates=$(curl ${CURL_OPTS} -ksSf https://updates.joyent.com/images?name=platform\&version=~-$platform_image)
-            if [[ -z "$candidates" ]]; then
-                fatal "error getting candidate platform images matching" \
-                    "'$platform_image'"
-            elif [[ $(echo "$candidates" | json length) -eq 0 ]]; then
-                fatal "no platforms on updates.joyent.com matching" \
-                    "'platform-image=$platform_image'"
-            elif [[ $(echo "$candidates" | json length) -gt 1 ]]; then
-                fatal "'platform-image=$platform_image' is ambiguous," \
-                    "multiple matching images:" \
-                    "$(echo "$candidates" | json -a uuid | xargs)"
-            fi
-            platform_image=$(echo "$candidates" | json 0.uuid)
-        else
-            fatal "'platform-image' in build.spec* is not a UUID or" \
-                "timestamp: ${platform_image}"
-        fi
-
-        local plat_version
-        plat_version=$(curl ${CURL_OPTS} -ksSf \
-                https://updates.joyent.com/images/$platform_image \
-                | json version | awk -F- '{print $NF}')
-        [[ -n $plat_version ]] \
-            || fatal "Unable to get platform $platform_image manifest"
-        image=${ROOT}/cache/platform-${plat_version}.tgz
-        if [[ ! -f $image ]]; then
-            echo "Getting platform $image ($platform_image) from " \
-                "updates.joyent.com"
-            (curl ${CURL_OPTS} -ksSf -o ${image}.partial \
-                https://updates.joyent.com/images/$platform_image/file) \
-                || fatal "Unable to download platform $platform_image file"
-            mv ${image}.partial ${image}
-        fi
-
-        if [[ -f ${image} ]] && ! valid_archive ${image}; then
-            echo "Removing corrupt ${image}"
-            rm -f ${image}
-            copy_platform    # try again
         fi
     else
-        [[ -n ${platform_release} ]] \
-            || fatal "no 'platform-image' or 'platform-release' in build.spec"
-        echo "platform-release: ${platform_release}"
-
-        [[ -n "$plat_suffix" ]] && echo "Using '$plat_suffix' platform"
-
-        # BASHSTYLED
-        image=$(get_manta_bit "platform${plat_suffix}/${platform_release}/platform${plat_suffix}-${platform_release}-.*")
-
-        if [[ -f ${image} ]] && ! valid_archive ${image}; then
-            echo "Removing corrupt ${image}"
-            rm -f ${image}
-            copy_platform    # try again
-        fi
+        image="$(get_bit "file.platform${plat_suffix}.tgz")"
     fi
+    echo "==> Using ${image} as platform image"
 
     export USING_PLATFORM=${image}
 
@@ -892,76 +504,21 @@ function copy_platform
 #
 function copy_sdcadm
 {
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download sdcadm, looping!"
-
     local path
-    path=$(build_spec sdcadm-release)
-    if [[ ! -f "${path}" ]]; then
-        # Try 'sdcadm-release' as a branch.
-        path=$(get_manta_bit "sdcadm/${path}/sdcadm-${path}-.*\.sh")
-    fi
+    path=$(get_bit "file.sdcadm.sh")
 
     echo "Copying $(basename $path) to \$stage/sdcadm-install.sh"
-    cp ${path} ${STAGE}/sdcadm-install.sh
-
-    loops=
-}
-
-
-function get_agentsshar
-{
-    [[ -z "${loops}" ]] && loops=0
-    loops=$((${loops} + 1))
-    [[ ${loops} -gt 2 ]] && fatal "Unable to download agents, looping!"
-
-    local branch=$1
-
-    if [[ -f ${branch} && -f ${branch/%sh/md5sum} ]]; then
-        local agentsshar_path=${branch}
-        local agentsmd5_path=${branch/%sh/md5sum}
-    else
-        local agentsshar_path
-        agentsshar_path=$(get_manta_bit \
-            "agentsshar/${branch}/agents-${branch}-.*\.sh")
-        local agentsmd5_path
-        agentsmd5_path=$(get_manta_bit \
-            "agentsshar/${branch}/agents-${branch}-.*\.md5sum")
-    fi
-
-    # Make sure it's not corrupt.
-    local MD5
-    MD5=$(cat ${agentsmd5_path})
-    local ACTUAL_MD5
-    ACTUAL_MD5=$(openssl dgst -md5 ${agentsshar_path} | awk '{print $NF}')
-    if [[ -z ${MD5} ]] \
-        || [[ -z ${ACTUAL_MD5} ]] \
-        || [[ ${MD5} != ${ACTUAL_MD5} ]]; then
-        echo "Removing corrupt ${agentsshar_path}"
-        rm -f ${agentsshar_path} ${agentsmd5_path}
-        get_agentsshar ${agentsshar_branch}
-    fi
-
-    echo "Copying $(basename $agentsshar_path) to stage."
-    mkdir -p ${STAGE}/ur-scripts
-    cp ${agentsshar_path} ${STAGE}/ur-scripts/
-
-    loops=
+    cp "${path}" "${STAGE}/sdcadm-install.sh"
 }
 
 function copy_agentsshar
 {
-    # See if there's a specific agents shar we're supposed to use
-    if [[ -z ${agentsshar_branch} ]]; then
-        agentsshar_branch=$(build_spec agents-shar)
-    fi
+    local path
+    path=$(get_bit "file.agents.sh")
 
-    if [[ -z ${agentsshar_branch} ]]; then
-        agentsshar_branch="master"
-    fi
-
-    get_agentsshar ${agentsshar_branch}
+    echo "Copying $(basename $path) to stage."
+    mkdir -p ${STAGE}/ur-scripts
+    cp "${path}" "${STAGE}/ur-scripts/"
 }
 
 function copy_sapi_config
@@ -974,263 +531,168 @@ function copy_sapi_config
     cp -r ${manifests} ${STAGE}/manifests
     cp -r ${services} ${STAGE}/services
     if [[ "$NO_RABBIT" == "true" ]]; then
-        cat "${application}" | ${ROOT}/bin/json -e \
+        cat "${application}" | ${JSON} -e \
             "this.metadata.no_rabbit = true;" > ${STAGE}/application.json
     else
         cp ${application} ${STAGE}/application.json
     fi
 }
 
+function test_gzip
+{
+    if [[ -z ${NO_COMPRESS_CHECK} ]]; then
+        printf '  ==> test gzip "%s"\n' "$(basename "${1}")"
+        gzip -t "${1}" || fatal "gzip file ${1} is corrupt; aborting"
+    fi
+}
+
+function test_bzip2
+{
+    if [[ -z ${NO_COMPRESS_CHECK} ]]; then
+        printf '  ==> test bzip2 "%s"\n' "$(basename "${1}")"
+        bzip2 -t "${1}" || fatal "bzip2 file ${1} is corrupt; aborting"
+    fi
+}
+
 function copy_datasets
 {
-    mkdir -p ${STAGE}/datasets
-    mkdir -p ${ROOT}/datasets
+    local dataset
+    local name
+    local version
+    local file_image
+    local comp_ext
+    local target_name
+    local target_vers
+    local target_base
 
-    datasets_json=$(build_spec datasets)
+    mkdir -p "${STAGE}/datasets"
+    mkdir -p "${ROOT}/datasets"
 
-    [[ -n ${datasets_json} ]] \
-        || fatal "Unable to find datasets information in build.spec"
+    DATASET_LIST=$(${BUILDSPEC} -a images)
 
-    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
-    index=0
-    while [[ ${index} -lt ${num_datasets} ]]; do
-        imgapi=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.imgapi)
-        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
-        uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
-        manifest_url=${imgapi}/images/${uuid}
-        file_url=${imgapi}/images/${uuid}/file
-        manifest="${ROOT}/cache/${name}.dsmanifest"
+    for name in ${DATASET_LIST}; do
+        printf '==> Copying dataset "%s" to "datasets/"\n' "${name}"
 
-        if [[ ! -f $manifest ]] ; then
-            if [[ -f ${ROOT}/datasets/${name}.dsmanifest ]]; then
-                cp ${ROOT}/datasets/${name}.dsmanifest ${manifest}
-            elif [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${name} manifest (${manifest_url})"
-                (curl ${CURL_OPTS} \
-                    -ksSf -o ${manifest} ${manifest_url}) \
-                    || fatal "Unable to download ${name} manifest"
-            else
-                fatal "Don't have required '${name}' manifest" \
-                    "and can't download (no Internet)"
-            fi
-        fi
+        #
+        # Locate image manifest file:
+        #
+        file_manifest="$(get_bit "image.${name}.imgmanifest")"
 
-        compression_type=$(cat ${manifest} \
-                           | ${ROOT}/bin/json files[0].compression)
-        if [[ ${compression_type} == "bzip2" ]]; then
-            compression=bz2
-        elif [[ ${compression_type} == "gzip" ]]; then
-            compression=gz
+        #
+        # Locate compressed image stream file:
+        #
+        comp_ext=
+        file_image="${CACHE}/image.${name}.zfs"
+        if [[ -f "${file_image}.gz" ]]; then
+            comp_ext='gz'
+            file_image="${CACHE}/$(readlink "${file_image}.${comp_ext}")"
+            file_image="$(get_bit "image.${name}.zfs.${comp_ext}")"
+            test_gzip "${file_image}"
+        elif [[ -f "${file_image}.bz2" ]]; then
+            comp_ext='bz2'
+            file_image="$(get_bit "image.${name}.zfs.${comp_ext}")"
+            test_bzip2 "${file_image}"
         else
-            if [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
-                  | grep ".gz$") ]]; then
-                compression=gz
-            elif [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
-                    | grep ".bz2$") ]]; then
-                compression=bz2
-            fi
+            fatal "Could not find dataset image file!"
         fi
 
-        if [[ -z ${compression} ]]; then
-            fatal "Unable to determine compression for ${name}"
-        fi
+        #
+        # Copy files:
+        #
+        target_name=$(${BUILDSPEC} "images|${name}|name")
+        target_version=$(${BUILDSPEC} "images|${name}|version")
+        target_base="${target_name}-${target_version}"
 
-        local sha1
-        sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
-        copy_dataset ${name} ${file_url} ${sha1} ${name}.zfs.${compression}
-        cp ${manifest} ${STAGE}/datasets/$(basename ${manifest})
+        printf '  ==> copy "%s"\n' "${target_base}.imgmanifest"
+        ln "${file_manifest}" "${STAGE}/datasets/${target_base}.imgmanifest"
 
-        echo "${name}" >> ${STAGE}/datasets/img_dependencies
+        printf '  ==> copy "%s"\n' "${target_base}.zfs.${comp_ext}"
+        ln "${file_image}" "${STAGE}/datasets/${target_base}.zfs.${comp_ext}"
 
-        index=$((${index} + 1))
+        #
+        # Write metadata:
+        #
+        echo "${target_base}" >> "${STAGE}/datasets/img_dependencies"
     done
 }
 
-# This is temporary, until we have all the SDC datasets at the same place.
-# It might be good anyway to add a little check to verify arguments are given.
-function copy_dataset
+function copy_core_zone_image
 {
-  local dataset=$1
-  local dataset_uri=$2
-  local dataset_sha1=$3
-  local dataset_file=$4
+    local name=$1
+    local file_manifest
+    local file_image
+    local x
+    local service
+    local image_uuid
 
-  if [ -e ${ROOT}/cache/${dataset_file} ]; then
-    if [[ ${dataset_file} =~ gz$ ]]; then
-        if ! gzip -t ${ROOT}/cache/${dataset_file}; then
-            echo "==> Corrupt ${dataset_file}, deleting..."
-            rm -f ${ROOT}/cache/${dataset_file}
-        fi
-    elif ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-        echo "==> Corrupt ${dataset_file}, deleting..."
-        rm -f ${ROOT}/cache/${dataset_file}
-    fi
-  fi
+    #
+    # Locate image manifest and compressed stream file:
+    #
+    file_manifest="$(get_bit "zone.${name}.imgmanifest")"
+    file_image="$(get_bit "zone.${name}.zfs.gz")"
+    test_gzip "${file_image}"
 
-  if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
-      if [[ ${HAVE_INTERNET} == "true" ]]; then
-          echo "==> Downloading ${dataset_file}"
-          (cd ${ROOT}/cache && curl ${CURL_OPTS} -kf \
-              -o ${dataset_file} ${dataset_uri}) \
-              || fatal "Unable to download ${dataset_file}"
-      else
-          fatal "Don't have Internet, and don't have valid " \
-              "${dataset_file}. Can't build."
-      fi
-  fi
+    #
+    # Copy files:
+    #
+    for x in ${file_manifest} ${file_image}; do
+        printf '  ==> copy "%s"\n' "$(basename "${x}")"
+        ln "${x}" "${STAGE}/datasets/$(basename "${x}")"
+    done
 
-  local cached_dataset_sha1
-  cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
-  if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
-    rm -f ${ROOT}/cache/${dataset_file}
-    # BASHSTYLED
-    fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
-  fi
-
-  echo "==> Copying image ${dataset_file} to 'datasets/'."
-  ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
-}
-
-# Get the image manifest and file for the given core SDC zone.
-#
-# Usage:
-#   get_core_zone_image ZONE TARGET DST-DIR
-#
-# Where "TARGET" is one of:
-# - (most commonly) a pattern used by the `get_bit` function for getting
-#   a manifest file from the MG builds area in Manta;
-# - a full path to an existing image manifest file; or
-# - a UUID to get a specific image from https://updates.joyent.com
-#
-# Examples:
-#   get_core_zone_image adminui "adminui/adminui-zfs-.*manifest" \
-#           /home/trent/usb-headnode/cache/stage/datasets
-#
-function get_core_zone_image
-{
-    local zone=$1
-    local target=$2
-    local dst_dir=$3
-
-    if [[ -z "${target}" ]]; then
-        # BASHSTYLED
-        fatal "get_core_zone_image(): empty target for zone '$zone' (Is '$zone-image' set in build.spec?)"
-    fi
-    if [[ -z "${dst_dir}" ]] || [[ ! -d ${dst_dir} ]]; then
-        # BASHSTYLED
-        fatal "get_core_zone_image(): No destination dir specified or not a directory."
-    fi
-
-    # First get it and cache it. Then we'll copy it to $dst_dir.
-    local manifest_base dst_manifest dst_file
-    if [[ -f ${target} ]]; then
-        # Existing local file. Use that.
-        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
-        #     usage but is '.dsmanifest' in the builds at this time.
-        manifest_base=$(basename $target)
-        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
-        if [[ "${target}" != "${dst_manifest}" ]]; then
-            ln ${target} ${dst_manifest}
-        fi
-        local src_file
-        src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
-        dst_file=${dst_dir}/$(basename $src_file)
-        ln ${src_file} ${dst_file}
-        clean_pattern=$(echo "$(basename $dst_file)" \
-                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
-        cleanup_bit ${clean_pattern}
-
-    # BASHSTYLED
-    elif [[ -n "$(echo $target | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
-        # This is an image UUID to retrieve from updates.joyent.com.
-        cache_manifest=${ROOT}/cache/${target}.imgmanifest
-        cache_file=${ROOT}/cache/${target}.file
-        if [[ ! -f $cache_manifest || ! -f $cache_file ]]; then
-            echo "Getting image $target from updates.joyent.com"
-            (curl ${CURL_OPTS} -ksSf -o ${cache_manifest} \
-                https://updates.joyent.com/images/$target) \
-                || fatal "Unable to download image $target manifest"
-            (curl ${CURL_OPTS} -ksSf -o ${cache_file}.partial \
-                https://updates.joyent.com/images/$target/file) \
-                || fatal "Unable to download image $target file"
-            mv ${cache_file}.partial ${cache_file}
-            gzip -t ${cache_file} \
-                || fatal "Corrupt ${cache_file}, please remove and re-run."
-        fi
-
-        if [[ $(json -f $cache_manifest files.0.compression) != "gzip" ]]; then
-            fatal "Unexpected compression for core image (expect 'gzip'): " \
-                "$cache_manifest"
-        fi
-        img_name=$(json -f $cache_manifest name)
-        img_version=$(json -f $cache_manifest version)
-        dst_manifest=${dst_dir}/${img_name}-zfs-${img_version}.imgmanifest
-        ln ${cache_manifest} ${dst_manifest}
-        dst_file=${dst_dir}/${img_name}-zfs-${img_version}.zfs.gz
-        ln ${cache_file} ${dst_file}
-
-    else
-        # Not a local file, this is a pattern for 'get_bit'.
-        local bit_cache_path
-        bit_cache_path=$(get_manta_bit ${target})
-        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
-        #     usage but is '.dsmanifest' in the builds at this time.
-        manifest_base=$(basename $bit_cache_path)
-        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
-        rm -f ${dst_manifest}
-        ln ${bit_cache_path} ${dst_manifest}
-        # BEGIN BASHSTYLED
-        # Example of getting get_bit pattern for the image *file*:
-        #   target 'adminui/adminui-zfs.*manifest'
-        #   bit_cache_path '/.../cache/adminui-zfs-master-20130401T104924Z-g1695958.zfs.imgmanifest'
-        #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
-        # Note: We are hardcoding that sdc images use gzip compression here.
-        # END BASHSTYLED
-        local file_pattern=${target%/*}/${manifest_base%.*manifest}.*.gz
-        bit_cache_path=$(get_manta_bit $file_pattern)
-        dst_file=${dst_dir}/$(basename $bit_cache_path)
-        rm -f ${dst_file}
-        ln ${bit_cache_path} ${dst_file}
-        gzip -t ${dst_file} \
-            || fatal "Corrupt ${dst_file}, please remove and re-run."
-        clean_pattern=$(echo "$(basename $bit_cache_path)" \
-                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
-        cleanup_bit ${clean_pattern}
-    fi
-
-    # HEAD-1371 - insert image uuid into config/services/${zone}/service.json
-    # as param. Expect an IMAGE_UUID placeholder.
-    local service=${STAGE}/services/${zone}/service.json
+    #
+    # Write metadata:
+    #
+    # The initial bootstrap of SAPI during headnode setup uses JSON objects
+    # stored in files of the form:
+    #
+    #   config/services/${service_name}/service.json"
+    #
+    # Write the image uuid we are shipping for this zone into that file as
+    # a parameter; the template files contain an IMAGE_UUID placeholder
+    # for this purpose.
+    #
+    service="${STAGE}/services/${name}/service.json"
     if [[ -f ${service} ]]; then
-        local image_uuid
-        image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
-        sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
-        rm ${service}.tmp
+        image_uuid="$(${JSON} -f "${file_manifest}" uuid)"
+        sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" "${service}"
+        rm -f "${service}.tmp"
     fi
-
-    # PCFS, sigh.
-    echo $(basename $dst_manifest) | tr '[:upper:]' '[:lower:]' \
-        > ${STAGE}/zones/${zone}/dataset
+    #
+    # The full dataset name is written to this file so that headnode
+    # setup may locate it.  The USB key filesystem is mounted for
+    # setup using pcfs(7FS) with the "foldcase" option, so the filename
+    # is written here in lowercase.  (See also: mount_pcfs(1M)).
+    #
+    echo $(basename "${file_manifest}") | tr '[:upper:]' '[:lower:]' \
+      > "${STAGE}/zones/${name}/dataset"
 }
 
 function copy_zones
 {
-    for zone in $(ls ${STAGE}/zones); do
+    local zone
+    local zone_list
+    local f
 
-        # Symlinks aren't supported on pcfs, so we copy the files
-        if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
-            rm ${STAGE}/zones/${zone}/backup
-            cp ${ROOT}/zones/${zone}/backup ${STAGE}/zones/${zone}/backup
-        fi
-        if [[ -L ${ROOT}/zones/${zone}/restore ]]; then
-            rm ${STAGE}/zones/${zone}/restore
-            cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
+    zone_list="$(${BUILDSPEC} -a zones)"
+
+    mkdir -p "${STAGE}/datasets"
+    mkdir -p "${STAGE}/zones"
+
+    for zone in ${zone_list}; do
+        printf '==> Copying zone "%s" to "zones/"\n' "${zone}"
+
+        #
+        # We use the "-L" flag to copy to ensure that the _target_
+        # of any symlinks is copied as a file, not a symlink.
+        #
+        if [[ -d "${ROOT}/zones/${zone}" ]]; then
+            cp -R -L "${ROOT}/zones/${zone}" "${STAGE}/zones/"
+        else
+            mkdir -p "${STAGE}/zones/${zone}"
         fi
 
-        local image_pattern
-        image_pattern=$(build_spec ${zone}-image)
-        mkdir -p ${STAGE}/datasets
-        get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
+        copy_core_zone_image "${zone}"
     done
 }
 

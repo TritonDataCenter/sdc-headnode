@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
 
 PERCENT := %
@@ -24,6 +24,7 @@ endif
 BASH_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
 	$(shell find tools/bin tools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find buildtools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
 	$(shell find bin -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
 
 JS_FILES := \
@@ -36,6 +37,11 @@ JSSTYLE_FILES = $(JS_FILES)
 JSL_CONF_NODE = buildtools/jsl.node.conf
 JSSTYLE_FLAGS = -o indent=4,doxygen,unparenthesized-return=0
 BASHSTYLE := buildtools/bashstyle
+
+DOWNLOADER := ./bin/downloader
+CHECKER := ./bin/checker
+
+EXTRA_CHECK_TARGETS := check-novus
 
 #
 # These commands are delivered as part of the "sdc" zone image.  We ship
@@ -159,25 +165,51 @@ include ./buildtools/mk/Makefile.defs
 # usb-headnode-specific targets
 #
 
-.PHONY: all coal deps usb boot tar sandwich
+.PHONY: all
 all: coal
 
-deps:
+0-npm-stamp: package.json
 	npm install
+	touch $@
 
-coal: deps $(TOOLS_DEPS)
+CLEAN_FILES += 0-npm-stamp
+
+.PHONY: deps
+deps: 0-npm-stamp
+
+.PHONY: coal
+coal: deps download $(TOOLS_DEPS)
 	bin/build-image coal
 
-usb: deps $(TOOLS_DEPS)
+.PHONY: usb
+usb: deps download $(TOOLS_DEPS)
 	bin/build-image usb
 
-boot: deps $(TOOLS_DEPS)
+.PHONY: boot
+boot: deps download $(TOOLS_DEPS)
 	bin/build-image tar
 
+.PHONY: tar
 tar: boot
 
+.PHONY: sandwich
 sandwich:
 	@open http://xkcd.com/149/
+
+.PHONY: download
+download: deps
+	mkdir -p cache
+	mkdir -p log
+	$(CHECKER)
+	if [ -z $${NO_DOWNLOAD} ]; then \
+		$(DOWNLOADER) -d -w "log/artefacts.json"; \
+	else \
+		true; \
+	fi
+
+.PHONY: check-novus
+check-novus: deps
+	cd buildtools/novus && $(MAKE) check
 
 .PHONY: coal-and-open
 coal-and-open: coal

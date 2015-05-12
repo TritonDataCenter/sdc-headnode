@@ -5,7 +5,7 @@
 -->
 
 <!--
-    Copyright (c) 2014, Joyent, Inc.
+    Copyright 2015 Joyent, Inc.
 -->
 
 # sdc-headnode
@@ -14,7 +14,7 @@ This repository is part of the Joyent SmartDataCenter project (SDC).  For
 contribution guidelines, issues, and general documentation, visit the main
 [SDC](http://github.com/joyent/sdc) project page.
 
-This is the repository for building headnode images for SDC, and the intial
+This is the repository for building headnode images for SDC, and the initial
 setup and configuration of the headnode itself.
 
 
@@ -22,8 +22,8 @@ setup and configuration of the headnode itself.
 
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-  - **One time only**: install VMWare Fusion, run it at least once to all it to
-    establish its initial config, quit it and run the "CoaL vmware setup" script
+  - **One time only**: install VMware Fusion, run it at least once to all it to
+    establish its initial config, quit it and run the "CoaL VMware setup" script
     from the sdc.git repo:
 
             git clone git@github.com:joyent/sdc.git
@@ -33,9 +33,11 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
   - Optionally, to automate setup:
     - create a `build.spec.local` file with the following contents: `{"answer-file": "answers.json"}`
     - copy one of the answers.json templates: `cp answers.json.tmpl.external answers.json`
-    - see the 'Optional Coniguration & Automated Setup' section below for more information.
 
-  - `make coal` - this requires an internet connection, and will download
+    - see the [Build Specification][buildspec] and
+      [Automating Headnode Setup][autosetup] sections below for more information.
+
+  - `make coal` - this requires an Internet connection, and will download
     images of all services. This can take quite some time. If this fails,
     please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
@@ -52,8 +54,8 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
 
 There are three main build products from this repo:
 
-  - `make usb` - outputs a usb image tarball
-  - `make coal` - outputs a coal image for use with VMWare
+  - `make usb` - outputs a USB image tarball
+  - `make coal` - outputs a coal image for use with VMware
   - `make incr-upgrade` - outputs a tarball with scripts and tools for incremental upgrades of services on existing headnodes.
 
 
@@ -68,25 +70,25 @@ On OS X:
 On SmartOS:
 
 First you must create a suitable build zone:
-  - vmapi or GZ vmadm access to set filesystem permissions on the build zone
+  - VMAPI or GZ vmadm access to set filesystem permissions on the build zone
   - provision a zone, params XXX
 
 Then to set up the zone:
   - A recent version of node (>= 0.10.26, preferably latest).
   - The [json](http://trentm.com/json/) CLI tool.
 
-### Optional configuration & automated setup
+### Build Specification: `build.spec` and `build.spec.local`
 
-The default build should produce a usable result, but there are a number of parameters you can configure for specific behaviour or performance reasons. The two main files involved are:
+Some aspects of the configuration of the build, including which build artefacts
+will be included in the resultant SDC installation media, are specified
+declaratively.  The JSON file `build.spec` contains the default specification
+of all build configuration, and is versioned in the repository.
 
-  - `build.spec.local` which controls aspects of the build
-  - `answers.json` which can automate the setup of the headnode
-
-Both files are JSON.
-
-#### `build.spec` and `build.spec.local`
-
-Keys in `build.spec` can be overridden in `build.spec.local` to customize the behaviour of the build. A useful example for local developement is:
+During development, or as part of release engineering, particular elements of
+the build specification may be overridden in another file: `build.spec.local`.
+By re-specifying a subset of build configuration in this file, the behaviour of
+a particular build run may be altered.  A useful example of `build.spec.local`
+for local development is:
 
 ```
 {
@@ -94,74 +96,354 @@ Keys in `build.spec` can be overridden in `build.spec.local` to customize the be
     "build-tgz": "false",
     "coal-memsize": 8192,
     "vmware_version": 5,
-    "keep-bits": 1,
-    "default-boot-option": 1
+    "default-boot-option": 1,
+    "clean-cache": true
 }
 ```
-Respectively, this file:
 
-  - specifies where to find the setup answers file
-  - does not tar/gzip the results of the build
-  - sets the vmware memory size to 8192MB (recommended if you plan to install a [Manta](https://github.com/joyent/manta) test environment.)
-  - specifies the vmware version to target
-  - keeps only the most-recently downloaded images (to save space)
-  - configures grub to boot as a headnode by default
+In the example above,
 
-Some other useful settings are:
+  - `"answer-file"` is used to specify a setup answers file for inclusion in
+    resultant installation media
+  - `"build-tgz"` is used to disable the creation of a compressed tarball with
+    the build results; instead, the resultant build artefacts will be left in
+    output directories.
+  - `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
+    (recommended if you plan to install a [Manta][manta] test environment.)
+  - `"vmware_version"` specifies the version of VMware Fusion to target
+  - `"default-boot-option"` selects the default grub boot option; a value of
+    `1` selects the second entry in the menu: regular headnode boot
+
+#### Build Artefacts
+
+Three classes of build artefact may be described in the build specification
+file: images, zones and files.
+
+##### Images
+
+Images, defined in the `"images"` key of the build specification file, refer to
+specific image dataset streams (and their associated manifests) as published in
+an IMGAPI service.  These artefacts are generally base images on which the
+incremental dataset streams for core SDC zone datasets (specified in `"zones"`)
+are based.
+
+For example, the `sdc-multiarch` image (version `13.3.1`) has UUID
+`"b4bdc598-8939-11e3-bea4-8341f6861379"`.  Its inclusion in the build is
+specified with the following in `build.spec`:
 
 ```
-    "moray-image": "moray/moray-zfs-.*manifest",
-    "napi-image": "napi/napi-zfs-.*manifest",
-    "papi-image": "papi/papi-zfs-.*manifest",
+{
+    ...
+    "images": {
+        "multiarch-13.3.1": {
+            "imgapi": "https://updates.joyent.com",
+            "name": "sdc-multiarch",
+            "version": "13.3.1",
+            "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
+        },
+        ...
+    },
+    ...
+}
 ```
-And similarly for all the images used on the headnode. The images used in the build default to the latest available builds of those services, but can be overridden to use branch builds, or images on the local filesystem:
+
+The `"uuid"` is the primary key used to locate the image in the IMGAPI service,
+at the URL `"imgapi"`.  The `"name"` and `"version"` keys are checked against
+the metadata retrieved in the manifest for this image.
+
+The key used to name the object describing the image, i.e. `"multiarch-13.3.1"`
+above, is used to name the symbolic link in the `cache/` directory that
+later build steps will use to find the downloaded file.  The image definition
+above will result in the creation of two symlinks:
+
+- `cache/image.multiarch-13.3.1.imgmanifest`
+- `cache/image.multiarch-13.3.1.zfs.gz`
+
+##### Zones
+
+The SDC headnode installation media includes images of various core zones.
+These zone images are generally built by [Mountain Gorilla (MG)][mg], and the
+resultant build artefacts are uploaded to a directory structure in
+[Manta][manta].  Zone images are nominated for inclusion in the build via
+the `"zones"` key in `build.spec`.
+
+The simplest possible example is a zone where the MG build artefact name is the
+same as the shipping filename, and the latest image is to be downloaded from
+Manta.  One such example is the `"adminui"` zone:
+
 ```
-   "moray-image": "moray/BRANCH-NAME/moray-zfs-.*manifest",
-   "napi-image": "/Users/mbs/headnode-cache/moray-zfs-master-20130401T104924Z-g1695958.zfs.dsmanifest"
+{
+    ...
+    "zones": {
+        "adminui": {},
+        ...
+    },
+    ...
+}
 ```
 
-A description of supported keys in `build.spec` and `build.spec.local`:
+Some zones are known to MG by one name, but shipped in the installation media
+by another (shorter) name.  The MG name can be provided with the `"jobname"`
+key on a per-zone basis.  For example, the `"manatee"` zone comes from the
+`"sdc-manatee"` MG target:
 
-| Key | Description |
-| --- | ----------- |
-| platform-image | Indicates the platform to use for a CoaL or USB build. Optional. By default the latest "master" build of the platform is used. Can be one of (a) an existing local file path, (b) the *uuid* of a platform image in updates.joyent.com, or (c) a platform build "yyyymmddThhmmssZ" timestamp. See `copy_platform` in "bin/build-tar-image" for details. |
-| adminui-image | The adminui core zone image to use for a CoaL or USB build. Can be one of (a) an existing local file path, (b) the uuid of an image in updates.joyent.com, or most commonly (c) a `dir[/branch]/basename-regex` pattern indicating a build file under `/Joyent_Dev/public/builds` in Joyent's Manta where automated SDC and Manta builds are placed. See `get_manta_bit` in "bin/build-tar-image" for details.|
-| amon-image | Ibid (for the 'amon' core zone). |
-| amonredis-image | Ibid (for the 'amonredis' core zone). |
-| assets-image | Ibid (for the 'assets' core zone). |
-| binder-image | Ibid (for the 'binder' core zone). |
-| ca-image | Ibid (for the 'ca' Cloud Analytics core zone). |
-| cloudapi-image | Ibid (for the 'cloudapi' core zone). |
-| cnapi-image | Ibid (for the 'cnapi' core zone). |
-| dhcpd-image | Ibid (for the 'dhcpd' core zone). |
-| fwapi-image | Ibid (for the 'fwapi' core zone). |
-| imgapi-image | Ibid (for the 'imgapi' core zone). |
-| mahi-image | Ibid (for the 'mahi' core zone). |
-| manatee-image | Ibid (for the 'manatee' core zone). |
-| manta-image | Ibid (for the 'manta' core zone). |
-| moray-image | Ibid (for the 'moray' core zone). |
-| napi-image | Ibid (for the 'napi' core zone). |
-| papi-image | Ibid (for the 'papi' core zone). |
-| rabbitmq-image | Ibid (for the 'rabbitmq' core zone). |
-| redis-image | Ibid (for the 'redis' core zone). |
-| sapi-image | Ibid (for the 'sapi' core zone). |
-| sdc-image | Ibid (for the 'sdc' core zone). |
-| ufds-image | Ibid (for the 'ufds' core zone). |
-| vmapi-image | Ibid (for the 'vmapi' core zone). |
-| workflow-image | Ibid (for the 'workflow' core zone). |
-| ... | TODO: document all other keys |
+```
+{
+    ...
+    "zones": {
+        "manatee": {
+            "jobname": "sdc-manatee"
+        },
+        ...
+    },
+    ...
+}
+```
 
+Though the default source of zone images is [Manta][manta], the source may be
+overridden on a per-build basis with the `"source"` key.  Zone images may be
+acquired from the IMGAPI service at _updates.joyent.com_ by providing an image
+UUID, e.g.
 
+```
+{
+    ...
+    "zones": {
+        "adminui": {
+            "source": "imgapi",
+            "uuid": "ef967904-fd86-11e4-9c90-2bbf99b9e6cf"
+        },
+        ...
+    },
+    ...
+}
+```
 
-#### `answers.json`
+Images may also be obtained from a local directory using the `"bits-dir"`
+source.  This is primarily used by MG when building headnode images under
+automation, where MG assembles the build artefacts in a local directory
+structure.  If `"bits-dir"` is used, either through `"source"` for a specific
+zone or via the `"override-all-sources"` top-level key, the `BITS_DIR`
+environment variable must contain the path of a MG-style bits directory.  See
+the source and documentation for [Mountain Gorilla][mg] for more details.
 
-`answers.json` provides information required for headnode setup that is otherwise gathered by the interactive installer. Particularly for local development work, it can be convenient to specify these in advance. The `answers.json.tmpl` and `answers.json.tmpl.external` files provide usable examples for local developement; the former configures only the admin network on setup, the latter configures an external network as well.
+All of the above definitions will cause the download phase of the build to
+store a local copy of the zone dataset stream and manifest in the `cache/`
+directory, using the original filename of the image, e.g. for `manatee`:
+
+- `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.imgmanifest`
+- `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.zfs.gz`
+
+Note that the filename includes the MG job name and branch.  A symbolic link
+will also be created to the downloaded files using the short name we specified,
+i.e.
+
+- `zone.manatee.imgmanifest`
+- `zone.manatee.zfs.gz`
+
+This symlink is used by subsequent build phases to locate the downloaded build
+artefact.
+
+##### Files
+
+In addition to zone images and the base images on which they depend, the build
+also includes various individual files.  These files are generally also the
+output of [Mountain Gorilla (MG)][mg] build targets and are obtained either
+from Manta (by default) or an MG-style `BITS_DIR`.
+
+Files are specified in the `"files"` key of `build.spec`.  For example, the
+SDC Agents are bundled together in a shell archive (shar) installer.  This
+installer is produced as part of the `agentsshar` MG target.  The shar itself
+is specified for inclusion with this entry:
+
+```
+{
+    ...
+    "files": {
+        "agents": {
+            "jobname": "agentsshar",
+            "file": { "base": "agents", "ext": "sh" }
+        },
+        ...
+    },
+    ...
+}
+```
+
+Note that the MG jobname is provided via `"jobname"` because it is different
+from the short name of the file `"agents"`.  The download phase of the build
+will download file into the `cache/` directory with its original file name,
+e.g.:
+
+- `agents-release-20150514-20150514T144745Z-gd067c0e.sh`
+
+As with zones and images, a symbolic link will also be created for use during
+subsequent phases of the build:
+
+- `file.agents.sh`
+
+By default, the `"manta-base-path"` top-level key is used to specify the
+base directory where the downloader will look for build artefacts in Manta.
+The default value for this key, as shipped in this repository, is
+`"/Joyent_Dev/public/builds"`.  If you wish to include an artefact that
+comes from a different Manta directory tree, you may specify the name of
+an alternative top-level `build.spec` key on a per-file basis.
+
+For example, Joyent ships firmware files for specific server hardware that are
+not available under an opensource license.  As a result, these files are only
+included in the commercially supported builds of SDC to Joyent customers.
+The firmware artefact is stored in a different (Joyent-private) area of Manta,
+and configured thus:
+
+```
+{
+    ...
+    "joyent-manta-base-path": "/Joyent_Dev/stor/builds",
+    ...
+    "files": {
+        "firmware-tools": {
+            "alt_manta_base": "joyent-manta-base-path",
+            "file": { "base": "firmware-tools", "ext": "tgz" }
+        },
+        ...
+    },
+    ...
+}
+```
+
+The `"alt_manta_base"` key specifies that the download phase of the build
+should look in the path specified in `"joyent-manta-base-path"` for this
+artefact, rather than the default key of `"manta-base-path"`.
+
+#### Alternative Branch Selection
+
+By default, the build artefacts sourced for inclusion in the headnode
+installation media are from the _master_ branch of their respective source
+repository.  [Mountain Gorilla][mg] includes the branch in names of
+the build artefact directories and files.
+
+The default branch may be overridden by specifying the `"bits-branch"` key.
+The build branch for an individual zone or file may be overriden by specifying
+`"branch"` in the artefact definition.  For example, to obtain artefacts from
+the `release-20150514` branch for everything except the platform (and platform
+boot tarball), the following could be used in `build.spec.local`:
+
+```
+{
+    "bits-branch": "release-20150514",
+    "files": {
+        "platform": { "branch": "master" },
+        "platboot": { "branch": "master" }
+    }
+}
+```
+
+#### Feature Definition
+
+The build specification allows for the build process to be different based on a
+set of named features.  These features can be enabled or disabled by default,
+and may optionally be triggered by setting a nominated environment variable
+when the build is run.
+
+For example, the build supports the use of either a release build or a DEBUG
+build of the operating system platform image.  This feature is defined, under
+the top-level `"features"` key in `build.spec`, as follows:
+
+```
+{
+    ...
+    "features": {
+        "debug-platform": {
+            "enabled": false,
+            "env": "DEBUG_BUILD"
+        },
+        ...
+    },
+    ...
+}
+```
+
+The feature is named `"debug-platform"`, and may be enabled via the
+`DEBUG_BUILD` environment variable.  It may also be overridden in
+`build.spec.local` by specifying just the `"enabled"` property.  For example, in `build.spec.local`:
+
+```
+{
+    "features": {
+        "debug-platform": { "enabled": true }
+    }
+}
+```
+
+Features are generally used to enable the conditional inclusion of particular
+sets of build artefacts, depending on the type of build.
+
+#### Conditional Artefact Inclusion
+
+Through the definition and activation of [Features](#feature-definition) via
+the `"features"` key in the build specification, particular subsets of build
+artefacts may be included or excluded.
+
+For example, the `"debug-platform"` feature is used to determine whether the
+release or DEBUG build of the operating system platform image is included in
+the build.  Only one of these two platform images should be downloaded and
+included in the build.
+
+```
+{
+    ...
+    "files": {
+        "platform": {
+            "if_not_feature": "debug-platform",
+            "file": { "base": "platform", "ext": "tgz" }
+        },
+        "platform-debug": {
+            "if_feature": "debug-platform",
+            "file": { "base": "platform-debug", "ext": "tgz" }
+        },
+        ...
+    },
+    ...
+}
+```
+
+The `"if_not_feature"` directive causes the `"platform"` build artefact to be
+downloaded if, and only if, the `"debug-platform"` feature is disabled for this
+build.  Conversely, the `"if_feature"` directive causes the `"platform-debug"`
+artefact to become active when a DEBUG build is requested.  In this way, a
+selection between two different build artefacts may be made based on features.
+Feature activation is subsequently queried during later phases of the build
+through the use of the `--feature` (`-f`) flag to `bin/buildspec`.
+
+### Automating Headnode Setup: `answers.json`
+
+The setup answers file, `answers.json`, provides information required for
+headnode setup that would otherwise need to be entered by the user into the
+interactive installer.  Particularly for local development work, it can be
+convenient to specify some, or all, of this information in advance.  The
+`answers.json.tmpl` and `answers.json.tmpl.external` files provide usable
+examples for local development; the former configures only the admin network on
+setup, the latter configures an external network as well.
+
+The inclusion of a setup answers file in the resultant installation media is
+controlled by the `"answer-file"` key in the build specification.
 
 ### Debugging build failures
 
-Build logs are located in `sdc-headnode/log/build.log.TIMESTAMP`, and the logs of the latest *successful* build are symlinked at `sdc-headnode/log/latest`.
+Build logs are located in `sdc-headnode/log/build.log.TIMESTAMP`, and the logs
+of the latest *successful* build are symlinked at `sdc-headnode/log/latest`.
 
-Setting `TRACE=true` in the environment will produce verbose output from bash.
+Setting `TRACE=true` in the environment will produce verbose output from
+`bash`.  If you are using `bash` version 4.1 or later, you can combine `TRACE`
+with these environment variables for finer-grained control over trace output:
+
+- `TRACE_LOG`: send trace output to this file instead of `stderr`.
+- `TRACE_FD`: send trace output to this file descriptor instead of `stderr`.
+  Note that the passed file descriptor must be opened in the process that
+  will fork to invoke the shell script.
+
+The build scripts also install an `ERR` trap handler that should emit a simple
+shell stack trace on failure, even when tracing is not enabled.
 
 ### Debugging setup failures
 
@@ -185,3 +467,10 @@ To test changes to setup procedures without a complete rebuild, you can:
   - mount the usbkey (if required) using `/usbkey/scripts/mount-usb.sh`
   - copy your modifications over the existing scripts
   - run `sdc-factory-reset` to re-run the setup process
+
+<!-- References -->
+
+[mg]: https://github.com/joyent/mountain-gorilla
+[manta]: https://github.com/joyent/manta
+[buildspec]: #build-specification-buildspec-and-buildspeclocal
+[autosetup]: #automating-headnode-setup-answersjson
