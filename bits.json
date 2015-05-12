@@ -1,0 +1,57 @@
+{
+  "zones": {
+    "adminui": {},
+    "amon": {},
+    "amonredis": {},
+    "assets": {},
+    "binder": {},
+    "ca": {},
+    "cloudapi": {},
+    "cnapi": {},
+    "dhcpd": {},
+    "fwapi": {},
+    "imgapi": {},
+    "mahi": {},
+    "manatee": {
+      "jobname": "sdc-manatee"
+    },
+    "manta": {
+      "jobname": "manta-deployment"
+    },
+    "moray": {},
+    "napi": {},
+    "papi": {},
+    "rabbitmq": {},
+    "redis": {},
+    "sapi": {},
+    "sdc": {},
+    "ufds": {},
+    "vmapi": {},
+    "workflow": {}
+  },
+
+  "bits": {
+    "sdcboot": {
+      "file": { "base": "sdcboot", "ext": "tgz" },
+      "symlink": "sdcboot.tar.gz"
+    },
+    "platboot": {
+      "jobname": "platform",
+      "file": { "base": "boot", "ext": "tgz" }
+    },
+    "platform": {
+      "file": { "base": "platform", "ext": "tgz" }
+    },
+    "sdcadm": {
+      "file": { "base": "sdcadm", "ext": "sh" }
+    },
+    "agents": {
+      "jobname": "agentsshar",
+      "file": { "base": "agents", "ext": "sh" }
+    },
+    "agents_md5": {
+      "jobname": "agentsshar",
+      "file": { "base": "agents", "ext": "md5sum" }
+    }
+  }
+}

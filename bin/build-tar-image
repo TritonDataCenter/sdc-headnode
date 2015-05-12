@@ -54,13 +54,17 @@ fi
 
 
 # Tools.
-AWK=$((which gawk 2>/dev/null | grep -v "^no ") || which awk)
+if which gawk 2>/dev/null; then
+    AWK=gawk
+else
+    AWK=awk
+fi
 TAR=tar
 GREP=grep
-if [[ `uname -s` == 'SunOS' ]]; then
-  SUM='/usr/bin/sum -x sha1'
+if [[ $(uname -s) == 'SunOS' ]]; then
+    SUM='/usr/bin/sum -x sha1'
 else
-  SUM='shasum'
+    SUM='shasum'
 fi
 
 # Make sure we use the path to the manta tools we built with 'make deps'
@@ -76,7 +80,7 @@ THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
 # for development builds this will read <ts>.<branch>.<sha> of the build
 # this value ends up in /usbkey/sdc_version
 if [[ -z $SDC_VERSION ]]; then
-  SDC_VERSION=${THIS_BUILDSTAMP}
+    SDC_VERSION=${THIS_BUILDSTAMP}
 fi
 
 echo ">> Starting build at $(date)"
@@ -519,8 +523,28 @@ function cleanup_bit
     fi
 }
 
-# Get a bit from Manta to the local cache/ dir.
 function get_manta_bit
+{
+    local pattern
+    pattern=$1
+
+    local latest_name
+    latest_name=$(ls -1 "${ROOT}/cache" \
+      | grep "^$(basename ${pattern})$" \
+      | sort \
+      | tail -1)
+
+    local cache_file
+    cache_file="${ROOT}/cache/${latest_name}"
+    if [[ ! -f "${cache_file}" ]]; then
+        fatal "'${pattern}' did not match any files in ${ROOT}/cache."
+    fi
+
+    echo "${cache_file}"
+}
+
+# Get a bit from Manta to the local cache/ dir.
+function get_manta_bit_OLD
 {
     pattern=$1
     alternate_base_path_var=$2
@@ -844,7 +868,7 @@ function copy_platform
         [[ -n "$plat_suffix" ]] && echo "Using '$plat_suffix' platform"
 
         # BASHSTYLED
-        image=$(get_manta_bit "platform${plat_suffix}/${platform_release}/platform${plat_suffix}-${platform_release}-.*")
+        image=$(get_manta_bit "platform${plat_suffix}/${platform_release}/platform${plat_suffix}-${platform_release}-.*\\.tgz")
 
         if [[ -f ${image} ]] && ! valid_archive ${image}; then
             echo "Removing corrupt ${image}"

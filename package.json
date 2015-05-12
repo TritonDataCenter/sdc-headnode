@@ -5,7 +5,14 @@
   "author": "Joyent (joyent.com)",
   "private": true,
   "dependencies": {
-    "manta": "git+ssh://git@github.com:joyent/node-manta.git#12f4c84"
+    "assert-plus": "^0.1.5",
+    "dashdash": "^1.10.0",
+    "extsprintf": "^1.3.0",
+    "jsprim": "^0.6.1",
+    "manta": "git+ssh://git@github.com:joyent/node-manta.git#12f4c84",
+    "progbar": "^1.1.0",
+    "vasync": "^1.6.3",
+    "verror": "^1.6.0"
   },
   "engines": {
     "node": ">=0.8"

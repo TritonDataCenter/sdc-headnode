@@ -179,6 +179,10 @@ tar: boot
 sandwich:
 	@open http://xkcd.com/149/
 
+.PHONY:
+download_bits: deps
+	./bin/download_bits -d ./cache
+
 .PHONY: coal-and-open
 coal-and-open: coal
 	open $(shell $(GREP) Creating $(shell ls -1t log/build.log.coal.* | head -1) | cut -d' ' -f3 | cut -d/ -f1)*.vmwarevm
