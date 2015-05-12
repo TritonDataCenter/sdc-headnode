@@ -254,8 +254,11 @@ dfop_check_file(dfop, next)
 	mod_fs.lstat(dfop.dfop_local_file, function (err, st) {
 		if (err) {
 			if (err.code === 'ENOENT') {
-				PROGBAR.log('"%s" does not exist',
-				    mod_path.basename(dfop.dfop_local_file));
+				if (DEBUG) {
+					PROGBAR.log('"%s" does not exist',
+					    mod_path.basename(
+					    dfop.dfop_local_file));
+				}
 				dfop.dfop_download = true;
 				next();
 				return;
