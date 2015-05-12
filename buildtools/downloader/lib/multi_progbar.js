@@ -24,14 +24,19 @@ total_size()
 	var self = this;
 
 	var keys = Object.keys(self.mpb_files);
+	var incomplete = 0;
 	var total = 1;
 	for (var i = 0; i < keys.length; i++) {
 		var f = self.mpb_files[keys[i]];
 
 		total += f.file_size;
+
+		if (f.file_done < f.file_size) {
+			incomplete++;
+		}
 	}
 
-	self.mpb_pb.pb_filename = 'downloading ' + keys.length + ' files...';
+	self.mpb_pb.pb_filename = 'downloading ' + incomplete + ' files';
 
 	return (total);
 };
@@ -52,6 +57,7 @@ add(name, size)
 	var self = this;
 
 	if (self.mpb_files[name]) {
+		self.mpb_files[name].file_size = size;
 		self.mpb_files[name].file_done = 0;
 	} else {
 		self.mpb_files[name] = {
@@ -78,6 +84,7 @@ advance(name, delta)
 	var self = this;
 
 	self.mpb_files[name].file_done += delta;
+	self.total_size();
 	self.mpb_pb.advance(delta);
 };
 
