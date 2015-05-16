@@ -327,6 +327,7 @@ function create_output
             echo "serial${i}.fileName = \"${coal_serial_path}\""
             echo
         done >> "${vmxfile}"
+        echo "done."
     fi
 
     echo -n "==> Copying in ${OUTPUT_IMG}... "

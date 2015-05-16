@@ -6,25 +6,23 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
 
-set -o errexit
-set -o pipefail
+ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
 
-if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
-    BASH_IS_NOT_ANCIENT='true'
-fi
+. "${ROOT}/buildtools/lib/error_handler.sh"
 
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
-      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
-    # BASHSTYLED
-    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    export BASH_XTRACEFD=4
+if [[ -n ${TRACE} ]]; then
+    if (( BASH_VERSINFO[0] >= 4 && BASH_VERSINFO[1] >= 1 )); then
+        PS4=
+        PS4="${PS4}"'[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: '
+        PS4="${PS4}"'${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+        export PS4
+        export BASH_XTRACEFD=4
+    fi
     set -o xtrace
 fi
-
-ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
 
 export GZIP=-1
 

@@ -5,6 +5,9 @@ var mod_crypto = require('crypto');
 var mod_fs = require('fs');
 var mod_path = require('path');
 var mod_util = require('util');
+var mod_http = require('http');
+var mod_https = require('https');
+var mod_url = require('url');
 
 var mod_assert = require('assert-plus');
 var mod_dashdash = require('dashdash');
@@ -13,14 +16,18 @@ var mod_jsprim = require('jsprim');
 var mod_manta = require('manta');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
+var mod_readtoend = require('readtoend');
 
 var lib_multi_progbar = require('../lib/multi_progbar');
+var lib_buildspec = require('../lib/buildspec');
 
 var VError = mod_verror.VError;
 
 /*
  * Globals:
  */
+var SPEC;
+var MANTA;
 var EPOCH = process.hrtime();
 
 var PROGBAR = new lib_multi_progbar.MultiProgressBar();
@@ -31,8 +38,6 @@ var GLOBAL = {
 	branch: 'master'
 };
 
-var BUILD_SPEC = load_json_file('../../../build.spec', true);
-var BUILD_SPEC_LOCAL = load_json_file('../../../build.spec.local', false);
 
 var DEBUG = process.env.DEBUG ? true : false;
 
@@ -106,49 +111,182 @@ printf()
 }
 
 function
-load_json_file(name, must_exist)
+cache_path(relpath)
 {
-	var path;
-	var fin;
+	return (mod_path.resolve(mod_path.join(CACHE_DIR, relpath)));
+}
 
-	try {
-		path = mod_path.resolve(mod_path.join(__dirname, name));
-		fin = mod_fs.readFileSync(path, 'utf8');
-		return (JSON.parse(fin));
-	} catch (ex) {
-		if (ex.code === 'ENOENT' && !must_exist) {
-			return ({});
+function
+get_via_http(url_str, callback)
+{
+	mod_assert.string(url_str, 'url_str');
+	mod_assert.func(callback, 'callback');
+
+	var opts = mod_url.parse(url_str);
+	var mod_proto = (opts.protocol === 'https:') ? mod_https : mod_http;
+
+	var req = mod_proto.request(opts, function (res) {
+		if (res.statusCode !== 200) {
+			callback(new VError('http status %d invalid for "%s"',
+			    res.statusCode, url_str));
+			return;	
 		}
-		throw (new VError(ex, 'could not read JSON file "%s"',
-		    path));
-	}
+
+		callback(null, res);
+	});
+
+	req.on('error', function (err) {
+		callback(new VError(err, 'http error for "%s"', url_str));
+	});
+
+	req.end();
 }
 
 function
-build_spec(name)
+get_json_via_http(url_str, callback)
 {
-	var ret1 = mod_jsprim.pluck(BUILD_SPEC_LOCAL, name);
-	if (ret1 !== undefined && ret1 !== null) {
-		return (ret1);
-	}
+	get_via_http(url_str, function (err, res) {
+		if (err) {
+			callback(err);
+			return;
+		}
 
-	var ret0 = mod_jsprim.pluck(BUILD_SPEC, name);
-	if (ret0 !== undefined && ret0 !== null) {
-		return (ret0);
-	}
+		var rs = mod_readtoend.readToEnd(res, function (_err,
+		    body) {
+			if (_err) {
+				callback(new VError(_err, 'error reading ' +
+				    'JSON response from "%s"', url_str));
+				return;
+			}
 
-	errprintf('build spec key "%s" not found', name);
-	process.exit(1);
+			var obj;
+			try {
+				obj = JSON.parse(body);
+			} catch (ex) {
+				callback(new VError(ex, 'error parsing ' +
+				    'JSON response from "%s"', url_str));
+				return;
+			}
+
+			callback(null, obj);
+		});
+	});
 }
 
 function
-all_bits(input)
+bit_enum_image(out, _, next)
+{
+	mod_assert.arrayOfObject(out, 'out');
+	mod_assert.object(_, '_');
+	mod_assert.func(next, 'next');
+	mod_assert.string(_.name, '_.name');
+	mod_assert.object(_.params, '_.params');
+	mod_assert.string(_.params.imgapi, '_.params.imgapi');
+	mod_assert.string(_.params.name, '_.params.name');
+	mod_assert.string(_.params.version, '_.params.version');
+	mod_assert.string(_.params.uuid, '_.params.uuid');
+
+	var name = _.params.name;
+	var version = _.params.version;
+	var uuid = _.params.uuid;
+	var url = [
+		_.params.imgapi,
+		'images',
+		_.params.uuid
+	].join('/');
+
+	get_json_via_http(url, function (err, img) {
+		if (err) {
+			next(new VError(err, 'could not get image "%s"',
+			    uuid));
+			return;
+		}
+
+		/*
+		 * This image must have exactly one file:
+		 */
+		if (!img.files || img.files.length !== 1) {
+			next(new VError('invalid image "%s"', uuid));
+			return;
+		}
+
+		var fil = img.files[0];
+		mod_assert.string(fil.sha1, 'file.sha1');
+		mod_assert.number(fil.size, 'file.size');
+		mod_assert.string(fil.compression, 'file.compression');
+
+		/*
+		 * Make sure our "name" and "version" match those of the image
+		 * we looked up by "uuid":
+		 */
+		if (img.name !== name || img.version !== version) {
+			next(new VError('upstream image identity ' +
+			    '"%s-%s" did not match expected ' +
+			    '"%s-%s"', img.name, img.version,
+			    name, version));
+			return;
+		}
+
+		/*
+		 * Create a synthetic "download" request that will write the
+		 * manifest object we just loaded to the appropriate cache
+		 * file.
+		 */
+		out.push({
+			bit_type: 'json',
+			bit_name: _.name + '_manifest',
+			bit_local_file: cache_path([
+				name,
+				'-',
+				version,
+				'.dsmanifest'
+			].join('')),
+			bit_json: img,
+			bit_make_symlink: [
+				'image.',
+				_.name,
+				'.dsmanifest'
+			].join('')
+		});
+
+		/*
+		 * Create a download request for the image file:
+		 */
+		out.push({
+			bit_type: 'http',
+			bit_name: _.name + '_image',
+			bit_local_file: cache_path([
+				name,
+				'-',
+				version,
+				'.zfs.',
+				fil.compression === 'bzip2' ?  'bz2' : 'gz'
+			].join('')),
+			bit_url: url + '/file',
+			bit_hash_type: 'sha1',
+			bit_hash: fil.sha1,
+			bit_size: fil.size,
+			bit_make_symlink: [
+				'image.',
+				_.name,
+				'.zfs.',
+				fil.compression === 'bzip2' ?  'bz2' : 'gz'
+			].join('')
+		});
+
+		next();
+	});
+}
+
+function
+all_bits(input, callback)
 {
 	var out = [];
 	var keys;
 
 	mod_assert.object(input.zones, 'zones');
 	mod_assert.object(input.bits, 'bits');
+	mod_assert.object(input.images, 'images');
 
 	/*
 	 * Load the list of zones from the configuration, generating a bit
@@ -160,6 +298,7 @@ all_bits(input)
 		var zone = input.zones[name];
 
 		out.push({
+			bit_type: 'manta',
 			bit_name: name + '_manifest',
 			bit_branch: zone.branch || GLOBAL.branch,
 			bit_jobname: zone.jobname || name,
@@ -167,9 +306,10 @@ all_bits(input)
 				base: (zone.jobname || name) + '-zfs',
 				ext: 'imgmanifest'
 			},
-			bit_make_symlink: undefined
+			bit_make_symlink: 'zone.' + name + '.imgmanifest'
 		});
 		out.push({
+			bit_type: 'manta',
 			bit_name: name + '_image',
 			bit_branch: zone.branch || GLOBAL.branch,
 			bit_jobname: zone.jobname || name,
@@ -177,7 +317,7 @@ all_bits(input)
 				base: (zone.jobname || name) + '-zfs',
 				ext: 'zfs.gz'
 			},
-			bit_make_symlink: undefined
+			bit_make_symlink: 'zone.' + name + '.zfs.gz'
 		});
 	}
 
@@ -190,6 +330,7 @@ all_bits(input)
 		var bit = input.bits[name];
 
 		out.push({
+			bit_type: 'manta',
 			bit_name: name,
 			bit_branch: bit.branch || GLOBAL.branch,
 			bit_jobname: bit.jobname || name,
@@ -197,18 +338,31 @@ all_bits(input)
 				base: bit.file.base,
 				ext: bit.file.ext
 			},
-			bit_make_symlink: bit.symlink || undefined
+			bit_make_symlink: 'bit.' + name + '.' + bit.file.ext
 		});
 	}
 
-	return (out);
+	/*
+	 * Lookup images, specified by uuid, in imgapi:
+	 */
+	mod_vasync.forEachParallel({
+		func: function (name, next) {
+			bit_enum_image(out, {
+				name: name,
+				params: input.images[name]
+			}, next);
+		},
+		inputs: Object.keys(input.images)
+	}, function (err) {
+		if (err) {
+			callback(new VError(err, 'imgapi lookup failed'));
+			return;
+		}
+
+		callback(null, out);
+	});
 }
 
-var MANTA = mod_manta.createClient({
-	user: build_spec('manta-user'),
-	url: build_spec('manta-url'),
-	connectTimeout: 15 * 1000
-});
 
 
 function
@@ -292,14 +446,20 @@ dfop_check_file(dfop, next)
 }
 
 function
-dfop_check_file_md5(dfop, next)
+dfop_check_file_checksum(dfop, next)
 {
+	mod_assert.object(dfop, 'dfop');
+	mod_assert.string(dfop.dfop_hash_type, 'hash_type');
+	mod_assert.string(dfop.dfop_hash, 'hash');
+	mod_assert.func(next, 'next');
+
 	if (dfop.dfop_retry || dfop.dfop_download) {
 		next();
 		return;
 	}
 
-	var summer = mod_crypto.createHash('md5');
+	var summer = mod_crypto.createHash(dfop.dfop_hash_type);
+
 	var fstr = mod_fs.createReadStream(dfop.dfop_local_file);
 	/*
 	 * XXX STREAM ERROR HANDLING
@@ -316,26 +476,69 @@ dfop_check_file_md5(dfop, next)
 		}
 	});
 	fstr.on('end', function () {
-		var local_md5 = summer.digest('hex');
+		var local_hash = summer.digest('hex');
 
-		if (local_md5 === dfop.dfop_expected_md5) {
+		if (local_hash === dfop.dfop_hash) {
 			dfop.dfop_retry = false;
 			dfop.dfop_download = false;
 			next();
 			return;
 		}
 
-		PROGBAR.log('"%s" md5 %s, expected %s; unlinking',
+		PROGBAR.log('"%s" hash = %s, expected %s; unlinking',
 		    mod_path.basename(dfop.dfop_local_file),
-		    local_md5,
-		    dfop.dfop_expected_md5);
+		    local_hash,
+		    dfop.dfop_hash);
+		mod_fs.unlinkSync(dfop.dfop_local_file);
 		dfop.dfop_download = true;
 		next();
 	});
 }
 
 function
-dfop_download_file(dfop, next)
+dfop_download_file_http(dfop, next)
+{
+	if (dfop.dfop_retry || !dfop.dfop_download) {
+		next();
+		return;
+	}
+
+	PROGBAR.log('download: %s', mod_path.basename(dfop.dfop_local_file));
+	PROGBAR.add(dfop.dfop_bit.bit_name, dfop.dfop_expected_size);
+
+	get_via_http(dfop.dfop_url, function (err, res) {
+		if (err) {
+			next(err);
+			return;
+		}
+
+		var fstr = mod_fs.createWriteStream(dfop.dfop_local_file, {
+			flags: 'wx',
+			mode: 0644
+		});
+		res.pipe(fstr);
+		/*
+		 * XXX STREAM ERROR HANDLING
+		 */
+		res.on('data', function (d) {
+			PROGBAR.advance(dfop.dfop_bit.bit_name, d.length);
+		});
+		fstr.on('finish', function () {
+			var end = Date.now();
+			if (DEBUG) {
+				PROGBAR.log('"%s" downloaded in %d seconds',
+				    dfop.dfop_bit.bit_name,
+				    (end - start) / 1000);
+			}
+			dfop.dfop_retry = true;
+			dfop.dfop_download = false;
+			next();
+		});
+	});
+}
+
+function
+dfop_download_file_manta(dfop, next)
 {
 	if (dfop.dfop_retry || !dfop.dfop_download) {
 		next();
@@ -382,25 +585,61 @@ dfop_download_file(dfop, next)
 function
 work_download_file(bit, next)
 {
+	mod_assert.string(bit.bit_hash_type, 'bit_hash_type');
+	mod_assert.string(bit.bit_hash, 'bit_hash');
+
 	var dfop = {
 		dfop_tries: 0,
 		dfop_bit: bit,
 		dfop_retry: false,
 		dfop_download: false,
-		dfop_manta_file: bit.bit_manta_file,
-		dfop_local_file: mod_path.join(CACHE_DIR,
-		    mod_path.basename(bit.bit_manta_file)),
-		dfop_expected_size: bit.bit_manta_size,
-		dfop_expected_md5: bit.bit_md5sum
+		dfop_expected_size: bit.bit_size,
+		dfop_local_file: bit.bit_local_file,
+		dfop_hash: bit.bit_hash,
+		dfop_hash_type: bit.bit_hash_type
 	};
+
+	var funcs;
+
+	switch (bit.bit_type) {
+	case 'manta':
+		mod_assert.number(dfop.dfop_expected_size,
+		    'dfop_expected_size');
+		mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
+
+		dfop.dfop_manta_file = bit.bit_manta_file;
+		dfop.dfop_local_file = cache_path(mod_path.basename(
+		    bit.bit_manta_file));
+
+		funcs = [
+			dfop_check_file,
+			dfop_check_file_checksum,
+			dfop_download_file_manta
+		];
+		break;
+
+	case 'http':
+		mod_assert.number(dfop.dfop_expected_size,
+		    'dfop_expected_size');
+		mod_assert.string(bit.bit_url, 'bit_url');
+
+		dfop.dfop_url = bit.bit_url;
+
+		funcs = [
+			dfop_check_file,
+			dfop_check_file_checksum,
+			dfop_download_file_http
+		];
+		break;
+
+	default:
+		next(new VError('invalid bit type "%s"', bit.bit_type));
+		return;
+	}
 
 	var do_try = function () {
 		mod_vasync.pipeline({
-			funcs: [
-				dfop_check_file,
-				dfop_check_file_md5,
-				dfop_download_file
-			],
+			funcs: funcs,
 			arg: dfop
 		}, function (err) {
 			if (err) {
@@ -422,8 +661,6 @@ work_download_file(bit, next)
 			}
 
 			bit.bit_local_file = dfop.dfop_local_file;
-			PROGBAR.log('ok:       %s',
-			    mod_path.basename(dfop.dfop_local_file));
 			next();
 		});
 	};
@@ -552,7 +789,8 @@ work_get_md5sum(bit, next)
 			var lookfor = mod_path.basename(bit.bit_manta_file);
 
 			if (bp === lookfor) {
-				bit.bit_md5sum = l[0].trim();
+				bit.bit_hash_type = 'md5';
+				bit.bit_hash = l[0].trim();
 				next();
 				return;
 			}
@@ -571,8 +809,9 @@ work_get_md5sum(bit, next)
 function
 work_check_manta_md5sum(bit, next)
 {
+	mod_assert.string(bit.bit_hash, 'bit_hash');
+	mod_assert.strictEqual(bit.bit_hash_type, 'md5');
 	mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
-	mod_assert.string(bit.bit_md5sum, 'bit_md5sum');
 
 	MANTA.info(bit.bit_manta_file, function (err, info) {
 		if (err) {
@@ -590,9 +829,9 @@ work_check_manta_md5sum(bit, next)
 		 */
 		bit.bit_manta_md5sum = new Buffer(
 		    info.md5, 'base64').toString('hex');
-		bit.bit_manta_size = info.size;
+		bit.bit_size = info.size;
 
-		if (bit.bit_md5sum === bit.bit_manta_md5sum) {
+		if (bit.bit_hash === bit.bit_manta_md5sum) {
 			next();
 			return;
 		}
@@ -622,6 +861,7 @@ work_lookup_latest_dir(base_path, bit, next)
 	mod_assert.string(base_path, 'base_path');
 	mod_assert.object(bit, 'bit');
 	mod_assert.func(next, 'next');
+
 	mod_assert.string(bit.bit_jobname, 'bit_jobname');
 	mod_assert.string(bit.bit_branch, 'bit_branch');
 
@@ -680,21 +920,85 @@ work_make_symlink(bit, next)
 	next();
 }
 
+function
+work_write_json_to_file(bit, next)
+{
+	mod_assert.strictEqual(bit.bit_type, 'json');
+	mod_assert.string(bit.bit_local_file, 'bit_local_file');
+	mod_assert.object(bit.bit_json, 'bit_json');
+
+	var out = JSON.stringify(bit.bit_json);
+	try {
+		mod_fs.unlinkSync(bit.bit_local_file);
+	} catch (ex) {
+		if (ex.code !== 'ENOENT') {
+			next(new VError(err, 'could not unlink "%s"',
+			    bit.bit_local_file));
+			return;
+		}
+	}
+
+	mod_fs.writeFile(bit.bit_local_file, out, {
+		encoding: 'utf8',
+		mode: 0644,
+		flag: 'wx'
+	}, function (err) {
+		if (err) {
+			next (new VError(err, 'could not write file "%s"',
+			    bit.bit_local_file));
+			return;
+		}
+
+		next();
+	});
+}
+
 var FAILURES = [];
 var FINAL = {};
 
 var WORK_QUEUE = mod_vasync.queuev({
 	worker: function (bit, next) {
-		mod_vasync.pipeline({
-			funcs: [
+		var funcs;
+
+		switch (bit.bit_type) {
+		case 'manta':
+			funcs = [
 				work_lookup_latest_dir.bind(null,
-				    build_spec('manta-base-path')),
+				    SPEC.get('manta-base-path')),
 				work_find_build_file,
 				work_get_md5sum,
 				work_check_manta_md5sum,
 				work_download_file,
 				work_make_symlink
-			],
+			];
+			break;
+
+		case 'json':
+			funcs = [
+				work_write_json_to_file,
+				work_make_symlink
+			];
+			break;
+
+		case 'http':
+			funcs = [
+				work_download_file,
+				work_make_symlink
+			];
+			break;
+
+		default:
+			FAILURES.push({
+				failure_bit: bit,
+				failure_err: new VError('invalid bit ' +
+				    'type "%s"', bit.bit_type)
+			});
+			next();
+			return;
+		}
+
+		mod_vasync.pipeline({
+			funcs: funcs,
 			arg: bit
 		}, function (err) {
 			if (err) {
@@ -707,6 +1011,8 @@ var WORK_QUEUE = mod_vasync.queuev({
 				next(err);
 				return;
 			}
+
+			PROGBAR.log('ok:       %s', bit.bit_name);
 
 			FINAL[bit.bit_name] = bit;
 			next();
@@ -729,19 +1035,52 @@ WORK_QUEUE.on('end', function () {
 	process.exit(0);
 });
 
+function
+root_path(path)
+{
+	return (mod_path.resolve(mod_path.join(__dirname, '..', '..', '..',
+	    path)));
+}
 
 function
 main()
 {
 	var opts = parse_opts(process.argv);
 
-	GLOBAL.branch = build_spec('bits-branch');
-	printf('%-25s %s\n', 'Bits Branch:', GLOBAL.branch);
-
 	CACHE_DIR = mod_path.resolve(mod_path.join(process.cwd(), opts.cache));
 
-	WORK_QUEUE.push(all_bits(BITS_JSON));
-	WORK_QUEUE.close();
+	lib_buildspec.load_build_specs(root_path('build.spec'),
+	    root_path('build.spec.local'), function (err, bs) {
+		if (err) {
+			console.error('ERROR loading build specs: %s',
+			    err.stack);
+			process.exit(3);
+		}
+
+		SPEC = bs;
+
+		GLOBAL.branch = SPEC.get('bits-branch');
+		printf('%-25s %s\n', 'Bits Branch:', GLOBAL.branch);
+
+		MANTA = mod_manta.createClient({
+			user: SPEC.get('manta-user'),
+			url: SPEC.get('manta-url'),
+			connectTimeout: 15 * 1000
+		});
+
+		all_bits(BITS_JSON, function (err, bits) {
+			if (err) {
+				console.error('ERROR enumerating bits: %s',
+				    err.stack);
+				process.exit(3);
+			}
+
+			printf('pushing bits to work queue...\n');
+			WORK_QUEUE.push(bits);
+			WORK_QUEUE.close();
+		});
+	});
+
 }
 
 main();

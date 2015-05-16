@@ -11,6 +11,7 @@
     "jsprim": "^0.6.1",
     "manta": "git+ssh://git@github.com:joyent/node-manta.git#12f4c84",
     "progbar": "^1.1.0",
+    "readtoend": "0.0.1",
     "vasync": "^1.6.3",
     "verror": "^1.6.0"
   },

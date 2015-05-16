@@ -9,21 +9,9 @@
 # Copyright (c) 2014, Joyent, Inc.
 #
 
-#
-# We set errexit (a.k.a. "set -e") to force an exit on error conditions, but
-# there are many important error conditions that this does not capture --
-# first among them failures within a pipeline (only the exit status of the
-# final stage is propagated).  To exit on these failures, we also set
-# "pipefail" (a very useful option introduced to bash as of version 3 that
-# propagates any non-zero exit values in a pipeline).
-#
-
-set -o errexit
-set -o pipefail
-
-shopt -s extglob
-
 ROOT=$(cd $(dirname $0)/../; pwd)
+
+. "${ROOT}/buildtools/lib/error_handler.sh"
 
 # Write output to log file.
 THIS_TIMESTAMP=${TIMESTAMP}
@@ -37,21 +25,16 @@ RONNJS="${ROOT}/bin/ronnjs/bin/ronn.js"
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
-if [[ $(echo $BASH_VERSION | cut -d '.' -f1-2) > 4.0 ]]; then
-    BASH_IS_NOT_ANCIENT='true'
-fi
-#export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-#set -x
-if [[ `hostname` == "bh1-autobuild" || `hostname` == "bldzone2.joyent.us" \
-      || ! -z $BASH_IS_NOT_ANCIENT ]]; then
-    # BASHSTYLED
-    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    export BASH_XTRACEFD=4
-    set -o xtrace
-elif [[ -n ${TRACE} ]]; then
+if [[ -n ${TRACE} ]]; then
+    if (( BASH_VERSINFO[0] >= 4 && BASH_VERSINFO[1] >= 1 )); then
+        PS4=
+        PS4="${PS4}"'[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: '
+        PS4="${PS4}"'${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+        export PS4
+        export BASH_XTRACEFD=4
+    fi
     set -o xtrace
 fi
-
 
 # Tools.
 if which gawk 2>/dev/null; then
@@ -66,6 +49,8 @@ if [[ $(uname -s) == 'SunOS' ]]; then
 else
     SUM='shasum'
 fi
+JSON="${ROOT}/bin/json"
+JSONMERGE="${ROOT}/bin/json-merge"
 
 # Make sure we use the path to the manta tools we built with 'make deps'
 export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
@@ -85,31 +70,18 @@ fi
 
 echo ">> Starting build at $(date)"
 
-function fatal
-{
-    echo "$(basename $0): fatal error: $*" >&2
-    exit 1
-}
-
-function errexit
-{
-    [[ $1 -ne 0 ]] || exit 0
-    fatal "error exit status $1 at line $2"
-}
-
 function check_nodejs
 {
-    [[ ! `which node` ]] && fatal "build-image requires node to be in your path"
+    if ! which node 2>/dev/null; then
+        fatal "build-image requires node to be in your path"
+    fi
 
-    ver=`node --version`
+    ver="$(node --version)"
     micro=${ver##*.}
     front=${ver%.*}
     minor=${front##*.}
 
-    # [[ $minor -ne 4 ]] && fatal "Node minor version must be 4"
-    # [[ $micro -lt 9 ]] && fatal "Node micro version must be at least 9"
-
-    if [[ $(echo '{"foo": "bar"}' | ${ROOT}/bin/json foo) == 'bar' ]]; then
+    if [[ $(echo '{"foo": "bar"}' | ${JSON} foo) == 'bar' ]]; then
         echo "Your version of node.js is ok!"
     else
         fatal "You need to have a working node.js installed for this to work!"
@@ -118,22 +90,21 @@ function check_nodejs
 
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge \
-                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(${JSONMERGE} ${ROOT}/build.spec ${ROOT}/build.spec.local)
 elif [[ -f "${ROOT}/build.spec" ]]; then
     MERGED_SPEC=$(cat ${ROOT}/build.spec);
 elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
+    MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
 fi
 
-function build_spec () {
+function build_spec
+{
     local thing=$1;
-    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
-};
+    echo $(echo $MERGED_SPEC | ${JSON} ${thing})
+}
 
-trap 'errexit $? $LINENO' EXIT
-
-STAGE="${ROOT}/cache/stage"
+CACHE="${ROOT}/cache"
+STAGE="${CACHE}/stage"
 ERROR=0
 CLEANED=0
 
@@ -199,28 +170,13 @@ if [[ -n ${SPEED_LIMIT} ]]; then
     CURL_OPTS="${CURL_OPTS} --limit-rate ${SPEED_LIMIT}"
 fi
 
-# Get BITS_BRANCH if necessary.
+# Get BITS_BRANCH if necessary. XXX CAN REMOVE PROBABLY
 if [[ -z "$BITS_BRANCH" ]]; then
     BITS_BRANCH=$(build_spec bits-branch)
 fi
 
 [[ -z "$BITS_BRANCH" ]] && fatal "Could not determine a BITS_BRANCH."
 echo "BITS_BRANCH: $BITS_BRANCH"
-
-if [[ $1 == "-r" ]]; then
-    # XXX - Temporary warning about recipes
-    # BASHSTYLED
-    echo "WARNING: Recipes are no longer supported... sleeping for while so you notice"
-    sleep 30
-    shift
-    shift
-fi
-
-if [[ $1 == "-c" ]]; then
-    shift
-    # BASHSTYLED
-    echo "NOTICE: building without config is the only option now, -c is unnecessary."
-fi
 
 PLATFORM=$(uname -s)
 if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' ]]; then
@@ -423,9 +379,6 @@ function copy_base
         cp 65-files/* ${STAGE}/65-files/
     fi
 
-    echo "==> Copying in zones/"
-    cp -r zones ${STAGE}/zones
-
     echo "==> Copying in default/"
     cp -r default ${STAGE}/default
 
@@ -447,8 +400,8 @@ function copy_base
     fi
 }
 
-function copy_config {
-
+function copy_config
+{
     # Clear current configs from stage area
     rm -f ${STAGE}/config || true
     rm -rf ${STAGE}/config.inc || true
@@ -998,263 +951,186 @@ function copy_sapi_config
     cp -r ${manifests} ${STAGE}/manifests
     cp -r ${services} ${STAGE}/services
     if [[ "$NO_RABBIT" == "true" ]]; then
-        cat "${application}" | ${ROOT}/bin/json -e \
+        cat "${application}" | ${JSON} -e \
             "this.metadata.no_rabbit = true;" > ${STAGE}/application.json
     else
         cp ${application} ${STAGE}/application.json
     fi
 }
 
+function test_gzip
+{
+    if [[ -z ${NO_COMPRESS_TEST} ]]; then
+        printf '  ==> test gzip "%s"\n' "$(basename "${1}")"
+        gzip -t "${1}" || fatal "gzip file ${1} is corrupt; aborting"
+    fi
+}
+
+function test_bzip2
+{
+    if [[ -z ${NO_COMPRESS_TEST} ]]; then
+        printf '  ==> test bzip2 "%s"\n' "$(basename "${1}")"
+        bzip2 -t "${1}" || fatal "bzip2 file ${1} is corrupt; aborting"
+    fi
+}
+
 function copy_datasets
 {
-    mkdir -p ${STAGE}/datasets
-    mkdir -p ${ROOT}/datasets
+    local dataset
+    local name
+    local version
+    local file_image
+    local comp_ext
+    local target_name
+    local target_vers
+    local target_base
 
-    datasets_json=$(build_spec datasets)
+    mkdir -p "${STAGE}/datasets"
+    mkdir -p "${ROOT}/datasets"
 
-    [[ -n ${datasets_json} ]] \
-        || fatal "Unable to find datasets information in build.spec"
+    DATASET_LIST=$(${JSON} -f "${ROOT}/bits.json" images | ${JSON} -ka)
 
-    num_datasets=$(echo "${datasets_json}" | ${ROOT}/bin/json length)
-    index=0
-    while [[ ${index} -lt ${num_datasets} ]]; do
-        imgapi=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.imgapi)
-        name=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.name)
-        uuid=$(echo "${datasets_json}" | ${ROOT}/bin/json ${index}.uuid)
-        manifest_url=${imgapi}/images/${uuid}
-        file_url=${imgapi}/images/${uuid}/file
-        manifest="${ROOT}/cache/${name}.dsmanifest"
+    for name in ${DATASET_LIST}; do
+        printf '==> Copying dataset "%s" to "datasets/"\n' "${name}"
 
-        if [[ ! -f $manifest ]] ; then
-            if [[ -f ${ROOT}/datasets/${name}.dsmanifest ]]; then
-                cp ${ROOT}/datasets/${name}.dsmanifest ${manifest}
-            elif [[ ${HAVE_INTERNET} == "true" ]]; then
-                echo "==> Downloading ${name} manifest (${manifest_url})"
-                (curl ${CURL_OPTS} \
-                    -ksSf -o ${manifest} ${manifest_url}) \
-                    || fatal "Unable to download ${name} manifest"
-            else
-                fatal "Don't have required '${name}' manifest" \
-                    "and can't download (no Internet)"
-            fi
-        fi
-
-        compression_type=$(cat ${manifest} \
-                           | ${ROOT}/bin/json files[0].compression)
-        if [[ ${compression_type} == "bzip2" ]]; then
-            compression=bz2
-        elif [[ ${compression_type} == "gzip" ]]; then
-            compression=gz
+        #
+        # Locate image manifest file:
+        #
+        file_manifest="${CACHE}/image.${name}.dsmanifest"
+        if [[ -f "${file_manifest}" ]]; then
+            file_manifest="${CACHE}/$(readlink "${file_manifest}")"
         else
-            if [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
-                  | grep ".gz$") ]]; then
-                compression=gz
-            elif [[ -n $(cat ${manifest} | ${ROOT}/bin/json files[0].path \
-                    | grep ".bz2$") ]]; then
-                compression=bz2
-            fi
+            fatal "Could not find dataset manifest file!"
         fi
 
-        if [[ -z ${compression} ]]; then
-            fatal "Unable to determine compression for ${name}"
+        #
+        # Locate compressed image stream file:
+        #
+        comp_ext=
+        file_image="${CACHE}/image.${name}.zfs"
+        if [[ -f "${file_image}.gz" ]]; then
+            comp_ext='gz'
+            file_image="${CACHE}/$(readlink "${file_image}.${comp_ext}")"
+            test_gzip "${file_image}"
+        elif [[ -f "${file_image}.bz2" ]]; then
+            comp_ext='bz2'
+            file_image="${CACHE}/$(readlink "${file_image}.${comp_ext}")"
+            test_bzip2 "${file_image}"
+        else
+            fatal "Could not find dataset image file!"
         fi
 
-        local sha1
-        sha1=$(cat ${manifest} | ${ROOT}/bin/json files[0].sha1)
-        copy_dataset ${name} ${file_url} ${sha1} ${name}.zfs.${compression}
-        cp ${manifest} ${STAGE}/datasets/$(basename ${manifest})
+        #
+        # Copy files:
+        #
+        target_name=$(${JSON} -f "${ROOT}/bits.json" \
+          "images['${name}'].name")
+        target_vers=$(${JSON} -f "${ROOT}/bits.json" \
+          "images['${name}'].version")
+        target_base="${target_name}-${target_vers}"
 
-        echo "${name}" >> ${STAGE}/datasets/img_dependencies
+        printf '  ==> copy "%s"\n' "${target_base}.dsmanifest"
+        ln "${file_manifest}" "${STAGE}/datasets/${target_base}.dsmanifest"
 
-        index=$((${index} + 1))
+        printf '  ==> copy "%s"\n' "${target_base}.zfs.${comp_ext}"
+        ln "${file_image}" "${STAGE}/datasets/${target_base}.zfs.${comp_ext}"
+
+        #
+        # Write metadata:
+        #
+        echo "${target_base}" >> "${STAGE}/datasets/img_dependencies"
     done
 }
 
-# This is temporary, until we have all the SDC datasets at the same place.
-# It might be good anyway to add a little check to verify arguments are given.
-function copy_dataset
+function copy_core_zone_image
 {
-  local dataset=$1
-  local dataset_uri=$2
-  local dataset_sha1=$3
-  local dataset_file=$4
+    local name=$1
+    local file_manifest
+    local file_image
+    local x
+    local service
+    local image_uuid
 
-  if [ -e ${ROOT}/cache/${dataset_file} ]; then
-    if [[ ${dataset_file} =~ gz$ ]]; then
-        if ! gzip -t ${ROOT}/cache/${dataset_file}; then
-            echo "==> Corrupt ${dataset_file}, deleting..."
-            rm -f ${ROOT}/cache/${dataset_file}
-        fi
-    elif ! bzip2 -t ${ROOT}/cache/${dataset_file}; then
-        echo "==> Corrupt ${dataset_file}, deleting..."
-        rm -f ${ROOT}/cache/${dataset_file}
-    fi
-  fi
-
-  if [[ ! -f ${ROOT}/cache/${dataset_file} ]]; then
-      if [[ ${HAVE_INTERNET} == "true" ]]; then
-          echo "==> Downloading ${dataset_file}"
-          (cd ${ROOT}/cache && curl ${CURL_OPTS} -kf \
-              -o ${dataset_file} ${dataset_uri}) \
-              || fatal "Unable to download ${dataset_file}"
-      else
-          fatal "Don't have Internet, and don't have valid " \
-              "${dataset_file}. Can't build."
-      fi
-  fi
-
-  local cached_dataset_sha1
-  cached_dataset_sha1=$(${SUM} ${ROOT}/cache/${dataset_file} | awk '{print $1}')
-  if [[ ${cached_dataset_sha1} != ${dataset_sha1} ]]; then
-    rm -f ${ROOT}/cache/${dataset_file}
-    # BASHSTYLED
-    fatal "Corrupt ${dataset_file} (doesn't match sha1 in manifest), deleted! Try build again."
-  fi
-
-  echo "==> Copying image ${dataset_file} to 'datasets/'."
-  ln ${ROOT}/cache/${dataset_file} ${STAGE}/datasets/${dataset_file}
-}
-
-# Get the image manifest and file for the given core SDC zone.
-#
-# Usage:
-#   get_core_zone_image ZONE TARGET DST-DIR
-#
-# Where "TARGET" is one of:
-# - (most commonly) a pattern used by the `get_bit` function for getting
-#   a manifest file from the MG builds area in Manta;
-# - a full path to an existing image manifest file; or
-# - a UUID to get a specific image from https://updates.joyent.com
-#
-# Examples:
-#   get_core_zone_image adminui "adminui/adminui-zfs-.*manifest" \
-#           /home/trent/usb-headnode/cache/stage/datasets
-#
-function get_core_zone_image
-{
-    local zone=$1
-    local target=$2
-    local dst_dir=$3
-
-    if [[ -z "${target}" ]]; then
-        # BASHSTYLED
-        fatal "get_core_zone_image(): empty target for zone '$zone' (Is '$zone-image' set in build.spec?)"
-    fi
-    if [[ -z "${dst_dir}" ]] || [[ ! -d ${dst_dir} ]]; then
-        # BASHSTYLED
-        fatal "get_core_zone_image(): No destination dir specified or not a directory."
-    fi
-
-    # First get it and cache it. Then we'll copy it to $dst_dir.
-    local manifest_base dst_manifest dst_file
-    if [[ -f ${target} ]]; then
-        # Existing local file. Use that.
-        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
-        #     usage but is '.dsmanifest' in the builds at this time.
-        manifest_base=$(basename $target)
-        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
-        if [[ "${target}" != "${dst_manifest}" ]]; then
-            ln ${target} ${dst_manifest}
-        fi
-        local src_file
-        src_file=$(ls -1 ${target%.*}* | grep -v 'manifest$')
-        dst_file=${dst_dir}/$(basename $src_file)
-        ln ${src_file} ${dst_file}
-        clean_pattern=$(echo "$(basename $dst_file)" \
-                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
-        cleanup_bit ${clean_pattern}
-
-    # BASHSTYLED
-    elif [[ -n "$(echo $target | (egrep '^[a-f0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' || true))" ]]; then
-        # This is an image UUID to retrieve from updates.joyent.com.
-        cache_manifest=${ROOT}/cache/${target}.imgmanifest
-        cache_file=${ROOT}/cache/${target}.file
-        if [[ ! -f $cache_manifest || ! -f $cache_file ]]; then
-            echo "Getting image $target from updates.joyent.com"
-            (curl ${CURL_OPTS} -ksSf -o ${cache_manifest} \
-                https://updates.joyent.com/images/$target) \
-                || fatal "Unable to download image $target manifest"
-            (curl ${CURL_OPTS} -ksSf -o ${cache_file}.partial \
-                https://updates.joyent.com/images/$target/file) \
-                || fatal "Unable to download image $target file"
-            mv ${cache_file}.partial ${cache_file}
-            gzip -t ${cache_file} \
-                || fatal "Corrupt ${cache_file}, please remove and re-run."
-        fi
-
-        if [[ $(json -f $cache_manifest files.0.compression) != "gzip" ]]; then
-            fatal "Unexpected compression for core image (expect 'gzip'): " \
-                "$cache_manifest"
-        fi
-        img_name=$(json -f $cache_manifest name)
-        img_version=$(json -f $cache_manifest version)
-        dst_manifest=${dst_dir}/${img_name}-zfs-${img_version}.imgmanifest
-        ln ${cache_manifest} ${dst_manifest}
-        dst_file=${dst_dir}/${img_name}-zfs-${img_version}.zfs.gz
-        ln ${cache_file} ${dst_file}
-
+    #
+    # Locate image manifest file:
+    #
+    file_manifest="${CACHE}/zone.${name}.imgmanifest"
+    if [[ -f "${file_manifest}" ]]; then
+        file_manifest="${CACHE}/$(readlink "${file_manifest}")"
     else
-        # Not a local file, this is a pattern for 'get_bit'.
-        local bit_cache_path
-        bit_cache_path=$(get_manta_bit ${target})
-        # XXX Normalize to '.imgmanifest' ext, which will be the eventual
-        #     usage but is '.dsmanifest' in the builds at this time.
-        manifest_base=$(basename $bit_cache_path)
-        dst_manifest=${dst_dir}/${manifest_base%.*}.imgmanifest
-        rm -f ${dst_manifest}
-        ln ${bit_cache_path} ${dst_manifest}
-        # BEGIN BASHSTYLED
-        # Example of getting get_bit pattern for the image *file*:
-        #   target 'adminui/adminui-zfs.*manifest'
-        #   bit_cache_path '/.../cache/adminui-zfs-master-20130401T104924Z-g1695958.zfs.imgmanifest'
-        #   -> file_pattern 'adminui/adminui-zfs-master-20130401T104924Z-g1695958.zfs.gz'
-        # Note: We are hardcoding that sdc images use gzip compression here.
-        # END BASHSTYLED
-        local file_pattern=${target%/*}/${manifest_base%.*manifest}.*.gz
-        bit_cache_path=$(get_manta_bit $file_pattern)
-        dst_file=${dst_dir}/$(basename $bit_cache_path)
-        rm -f ${dst_file}
-        ln ${bit_cache_path} ${dst_file}
-        gzip -t ${dst_file} \
-            || fatal "Corrupt ${dst_file}, please remove and re-run."
-        clean_pattern=$(echo "$(basename $bit_cache_path)" \
-                        | sed -e 's/^\(.*-zfs-[^\-]*-\).*\(\.zfs.*\)$/\1.*\2/')
-        cleanup_bit ${clean_pattern}
+        fatal "Could not find core zone manifest file!"
     fi
 
-    # HEAD-1371 - insert image uuid into config/services/${zone}/service.json
-    # as param. Expect an IMAGE_UUID placeholder.
-    local service=${STAGE}/services/${zone}/service.json
+    #
+    # Locate compressed image stream file:
+    #
+    file_image="${CACHE}/zone.${name}.zfs.gz"
+    if [[ -f "${file_image}" ]]; then
+        file_image="${CACHE}/$(readlink "${file_image}")"
+        test_gzip "${file_image}"
+    fi
+
+    #
+    # Copy files:
+    #
+    for x in ${file_manifest} ${file_image}; do
+        printf '  ==> copy "%s"\n' "$(basename "${x}")"
+        ln "${x}" "${STAGE}/datasets/$(basename "${x}")"
+    done
+
+    #
+    # Write metadata:
+    #
+    # The initial bootstrap of SAPI during headnode setup uses JSON objects
+    # stored in files of the form:
+    #
+    #   config/services/${service_name}/service.json"
+    #
+    # Write the image uuid we are shipping for this zone into that file as
+    # a parameter; the template files contain an IMAGE_UUID placeholder
+    # for this purpose.
+    #
+    service="${STAGE}/services/${name}/service.json"
     if [[ -f ${service} ]]; then
-        local image_uuid
-        image_uuid=$(cat ${dst_manifest} | ${ROOT}/bin/json uuid)
-        sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" ${service}
-        rm ${service}.tmp
+        image_uuid="$(${JSON} -f "${file_manifest}" uuid)"
+        sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" "${service}"
+        rm "${service}.tmp"
     fi
-
-    # PCFS, sigh.
-    echo $(basename $dst_manifest) | tr '[:upper:]' '[:lower:]' \
-        > ${STAGE}/zones/${zone}/dataset
+    #
+    # The full dataset name is written to this file so that headnode
+    # setup may locate it.  The USB key filesystem is mounted for
+    # setup using pcfs(7FS) with the "foldcase" option, so the filename
+    # is written here in lowercase.  (See also: mount_pcfs(1M)).
+    #
+    echo $(basename "${file_manifest}") | tr '[:upper:]' '[:lower:]' \
+      > "${STAGE}/zones/${name}/dataset"
 }
 
 function copy_zones
 {
-    for zone in $(ls ${STAGE}/zones); do
+    local zone
+    local zone_list
+    local f
 
-        # Symlinks aren't supported on pcfs, so we copy the files
-        if [[ -L ${ROOT}/zones/${zone}/backup ]]; then
-            rm ${STAGE}/zones/${zone}/backup
-            cp ${ROOT}/zones/${zone}/backup ${STAGE}/zones/${zone}/backup
-        fi
-        if [[ -L ${ROOT}/zones/${zone}/restore ]]; then
-            rm ${STAGE}/zones/${zone}/restore
-            cp ${ROOT}/zones/${zone}/restore ${STAGE}/zones/${zone}/restore
+    zone_list=$(json -f "${ROOT}/bits.json" zones | json -ka)
+
+    mkdir -p "${STAGE}/datasets"
+    mkdir -p "${STAGE}/zones"
+
+    for zone in ${zone_list}; do
+        printf '==> Copying zone "%s" to "zones/"\n' "${zone}"
+
+        mkdir -p "${STAGE}/zones/${zone}"
+
+        #
+        # We use the "-L" flag to copy to ensure that the _target_
+        # of any symlinks is copied as a file, not a symlink.
+        #
+        if [[ -d "${ROOT}/zones/${zone}" ]]; then
+            cp -R -L "${ROOT}/zones/${zone}" "${STAGE}/zones/${zone}"
         fi
 
-        local image_pattern
-        image_pattern=$(build_spec ${zone}-image)
-        mkdir -p ${STAGE}/datasets
-        get_core_zone_image "${zone}" "${image_pattern}" ${STAGE}/datasets
+        copy_core_zone_image "${zone}"
     done
 }
 

@@ -55,7 +55,7 @@
       "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
     }, {
       "imgapi": "https://updates.joyent.com",
-      "name": "sdc-base64-1.3.1",
+      "name": "sdc-base64-13.3.1",
       "uuid": "aeb4e3e0-8937-11e3-b0bd-637363a89e49"
     }, {
       "imgapi": "https://updates.joyent.com",

@@ -162,8 +162,12 @@ include ./buildtools/mk/Makefile.defs
 .PHONY: all coal deps usb boot tar sandwich
 all: coal
 
-deps:
+0-deps-stamp:
 	npm install
+	touch $@
+
+.PHONY: deps
+deps: 0-deps-stamp
 
 coal: deps $(TOOLS_DEPS)
 	bin/build-image coal
@@ -181,7 +185,8 @@ sandwich:
 
 .PHONY:
 download_bits: deps
-	./bin/download_bits -d ./cache
+	mkdir -p cache
+	./bin/download_bits -d cache
 
 .PHONY: coal-and-open
 coal-and-open: coal
