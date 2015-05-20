@@ -93,6 +93,47 @@ get(name, optional)
 	return (undefined);
 };
 
+/*
+ * The equivalent of `Object.keys(name)`, but applied to all specs in the
+ * stack.  Consumers are expected to get a list of keys with this function,
+ * and then look up the intended values via get().  For example:
+ *
+ *	var zones = SPEC.keys('zones');
+ *	zones.forEach(function (zone) {
+ *		var jobname = SPEC.get('zones.' + zone + '.jobname');
+ *	});
+ *
+ * This pattern allows a higher priority spec to override a specific
+ * value nested within the tree without copying the entire structure.
+ */
+BuildSpec.prototype.keys = function
+keys(name)
+{
+	mod_assert.string(name, 'name');
+
+	var self = this;
+	var out = [];
+
+	for (var i = 0; i < self.bs_specs.length; i++) {
+		var spec = self.bs_specs[i];
+		var val = mod_jsprim.pluck(spec.spec_object, name);
+
+		if (!val || typeof (val) !== 'object') {
+			continue;
+		}
+
+		var vk = Object.keys(val);
+		for (var j = 0; j < vk.length; j++) {
+			if (out.indexOf(vk[j]) === -1) {
+				out.push(vk[j]);
+			}
+		}
+	}
+
+	out.sort();
+	return (out);
+};
+
 module.exports = {
 	load_build_specs: function (base_file, optional_file, cb) {
 		mod_assert.string(base_file, 'base_file');

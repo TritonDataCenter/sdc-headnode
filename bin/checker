@@ -1,0 +1,5 @@
+#!/bin/ksh
+
+dir="$(dirname "$(whence "$0")")"
+
+exec node "${dir}/../buildtools/cmd/checker.js" "$@"

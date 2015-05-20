@@ -46,6 +46,15 @@ generate_options()
 {
 	var options = [
 		{
+			names: [ 'dryrun', 'n' ],
+			type: 'bool',
+			help: [
+				'Resolve and print an object describing',
+				'the set of bits to download, but do not',
+				'download any bits.'
+			].join(' ')
+		},
+		{
 			names: [ 'cache', 'd' ],
 			type: 'string',
 			help: 'Cache directory'
@@ -279,6 +288,95 @@ bit_enum_image(out, _, next)
 }
 
 function
+bit_enum_zone(out, _, next)
+{
+	mod_assert.arrayOfObject(out, 'out');
+	mod_assert.object(_, '_');
+	mod_assert.func(next, 'next');
+
+	var zone_spec = function (key, optional) {
+		return (SPEC.get('zones.' + _.name + '.' + key, optional));
+	};
+
+	switch (zone_spec('source')) {
+	case 'manta':
+	case undefined:
+		out.push({
+			bit_type: 'manta',
+			bit_name: name + '_manifest',
+			bit_branch: branch,
+			bit_jobname: jobname,
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'imgmanifest'
+			},
+			bit_make_symlink: 'zone.' + name + '.imgmanifest'
+		});
+		out.push({
+			bit_type: 'manta',
+			bit_name: name + '_image',
+			bit_branch: branch,
+			bit_jobname: jobname,
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'zfs.gz'
+			},
+			bit_make_symlink: 'zone.' + name + '.zfs.gz'
+		});
+		break;
+
+	case 'file':
+		out.push({
+			bit_type: 'file',
+			bit_name: name + '_manifest',
+			bit_source_file: 
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'imgmanifest'
+			},
+			bit_make_symlink: 'zone.' + name + '.imgmanifest'
+		});
+		out.push({
+			bit_type: 'file',
+			bit_name: name + '_image',
+			bit_branch: branch,
+			bit_jobname: jobname,
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'zfs.gz'
+			},
+			bit_make_symlink: 'zone.' + name + '.zfs.gz'
+		});
+		break;
+
+	case 'imgapi':
+		out.push({
+			bit_type: 'manta',
+			bit_name: name + '_manifest',
+			bit_branch: branch,
+			bit_jobname: jobname,
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'imgmanifest'
+			},
+			bit_make_symlink: 'zone.' + name + '.imgmanifest'
+		});
+		out.push({
+			bit_type: 'manta',
+			bit_name: name + '_image',
+			bit_branch: branch,
+			bit_jobname: jobname,
+			bit_file: {
+				base: jobname + '-zfs',
+				ext: 'zfs.gz'
+			},
+			bit_make_symlink: 'zone.' + name + '.zfs.gz'
+		});
+		break;
+	}
+}
+
+function
 all_bits(input, callback)
 {
 	var out = [];
@@ -292,18 +390,22 @@ all_bits(input, callback)
 	 * Load the list of zones from the configuration, generating a bit
 	 * record for each of the manifest and the image of each zone.
 	 */
-	keys = Object.keys(input.zones || {});
+	keys = SPEC.keys('zones');
 	for (var i = 0; i < keys.length; i++) {
 		var name = keys[i];
 		var zone = input.zones[name];
+		var branch = SPEC.get('zones.' + name + '.branch', true) ||
+		    GLOBAL.branch;
+		var jobname = SPEC.get('zones.' + name + '.jobname', true) ||
+		    name;
 
 		out.push({
 			bit_type: 'manta',
 			bit_name: name + '_manifest',
-			bit_branch: zone.branch || GLOBAL.branch,
-			bit_jobname: zone.jobname || name,
+			bit_branch: branch,
+			bit_jobname: jobname,
 			bit_file: {
-				base: (zone.jobname || name) + '-zfs',
+				base: jobname + '-zfs',
 				ext: 'imgmanifest'
 			},
 			bit_make_symlink: 'zone.' + name + '.imgmanifest'
@@ -311,10 +413,10 @@ all_bits(input, callback)
 		out.push({
 			bit_type: 'manta',
 			bit_name: name + '_image',
-			bit_branch: zone.branch || GLOBAL.branch,
-			bit_jobname: zone.jobname || name,
+			bit_branch: branch,
+			bit_jobname: jobname,
 			bit_file: {
-				base: (zone.jobname || name) + '-zfs',
+				base: jobname + '-zfs',
 				ext: 'zfs.gz'
 			},
 			bit_make_symlink: 'zone.' + name + '.zfs.gz'
@@ -1060,7 +1162,7 @@ main()
 		SPEC = bs;
 
 		GLOBAL.branch = SPEC.get('bits-branch');
-		printf('%-25s %s\n', 'Bits Branch:', GLOBAL.branch);
+		errprintf('%-25s %s\n', 'Bits Branch:', GLOBAL.branch);
 
 		MANTA = mod_manta.createClient({
 			user: SPEC.get('manta-user'),
@@ -1073,6 +1175,11 @@ main()
 				console.error('ERROR enumerating bits: %s',
 				    err.stack);
 				process.exit(3);
+			}
+
+			if (opts.dryrun) {
+				console.log(JSON.stringify(bits));
+				process.exit(0);
 			}
 
 			printf('pushing bits to work queue...\n');

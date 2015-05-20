@@ -186,7 +186,7 @@ sandwich:
 .PHONY:
 download_bits: deps
 	mkdir -p cache
-	./bin/download_bits -d cache
+	./bin/downloader -d cache
 
 .PHONY: coal-and-open
 coal-and-open: coal
