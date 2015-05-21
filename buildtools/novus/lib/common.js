@@ -109,7 +109,8 @@ cache_path(relpath)
 function
 root_path(path)
 {
-	return (mod_path.resolve(mod_path.join(__dirname, '..', '..', path)));
+	return (mod_path.resolve(mod_path.join(__dirname, '..', '..', '..',
+	    path)));
 }
 
 module.exports = {

@@ -2,4 +2,4 @@
 
 dir="$(dirname "$(whence "$0")")"
 
-exec node "${dir}/../buildtools/cmd/checker.js" "$@"
+exec node "${dir}/../buildtools/novus/cmd/checker.js" "$@"

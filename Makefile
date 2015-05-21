@@ -37,6 +37,8 @@ JSL_CONF_NODE = buildtools/jsl.node.conf
 JSSTYLE_FLAGS = -o indent=4,doxygen,unparenthesized-return=0
 BASHSTYLE := buildtools/bashstyle
 
+EXTRA_CHECK_TARGETS := check-novus
+
 #
 # These commands are delivered as part of the "sdc" zone image.  We ship
 # a small shell-script wrapper in the global zone (tools/lib/wrap.sh)
@@ -106,8 +108,13 @@ TOOLS_BIN_FILES = \
 TOOLS_LIB_FILES = \
 	wrap.sh
 
+TOOLS_BOOT_FILES = \
+	boot/default.ipxe \
+	boot/ipxe.lkrn
+
 TOOLS_SHARE_FILES = \
-	servicebundle/pubkey.key
+	servicebundle/pubkey.key \
+	$(TOOLS_BOOT_FILES:%=usbkey/%)
 
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
@@ -143,7 +150,8 @@ PROTO_MAN_FILES = \
 #
 CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
-	man/man1/sdc-sbcreate.1
+	man/man1/sdc-sbcreate.1 \
+	$(TOOLS_BOOT_FILES:%=share/usbkey/%)
 
 TOOLS_DEPS = \
 	tools.tar.gz \
@@ -169,13 +177,13 @@ all: coal
 .PHONY: deps
 deps: 0-deps-stamp
 
-coal: deps $(TOOLS_DEPS)
+coal: deps download_bits $(TOOLS_DEPS)
 	bin/build-image coal
 
-usb: deps $(TOOLS_DEPS)
+usb: deps download_bits $(TOOLS_DEPS)
 	bin/build-image usb
 
-boot: deps $(TOOLS_DEPS)
+boot: deps download_bits $(TOOLS_DEPS)
 	bin/build-image tar
 
 tar: boot
@@ -183,10 +191,14 @@ tar: boot
 sandwich:
 	@open http://xkcd.com/149/
 
-.PHONY:
+.PHONY: download_bits
 download_bits: deps
-	mkdir -p cache
-	./bin/downloader -d cache
+	@mkdir -p cache
+	if [ -z $${NO_DOWNLOAD} ]; then ./bin/downloader; else true; fi
+
+.PHONY: check-novus
+check-novus: deps
+	cd buildtools/novus && $(MAKE) check
 
 .PHONY: coal-and-open
 coal-and-open: coal
@@ -303,6 +315,21 @@ $(PROTO)/opt/smartdc/bin/%: tools/bin/%
 	cp $^ $@
 	chmod 755 $@
 	touch $@
+
+#
+# We deliver some specific boot files in the compute node tools tarball so that
+# partial updates to USB keys may be delivered by incremental updates to SDC.
+# These files come from the same copy of the sdcboot artifact used to build the
+# rest of sdc-headnode.
+#
+$(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
+	mkdir -p $(@D)
+	rm -f $@
+	(FILE="$(PWD)/$<"; cd $(PROTO)/opt/smartdc/share/usbkey && \
+	    tar xvfz $${FILE} ./$*)
+	test -f $@ && touch $@
+
+cache/file.sdcboot.tgz: download_bits
 
 $(SDC_ZONE_BIN_LINKS):
 	mkdir -p $(@D)
