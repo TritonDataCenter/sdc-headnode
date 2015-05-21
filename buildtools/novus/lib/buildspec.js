@@ -122,7 +122,7 @@ get(name, optional)
  *
  *	var zones = SPEC.keys('zones');
  *	zones.forEach(function (zone) {
- *		var jobname = SPEC.get('zones.' + zone + '.jobname');
+ *		var jobname = SPEC.get('zones|' + zone + '|jobname');
  *	});
  *
  * This pattern allows a higher priority spec to override a specific
@@ -154,6 +154,24 @@ keys(name)
 
 	out.sort();
 	return (out);
+};
+
+BuildSpec.prototype.feature = function
+feature(name)
+{
+	var self = this;
+
+	var enabled = self.get('features|' + name + '|enabled');
+	var envname = self.get('features|' + name + '|env', true);
+
+	mod_assert.bool(enabled, 'features|' + name + '|enabled');
+	mod_assert.optionalString(envname, 'features|' + name + '|env');
+
+	if (envname && process.env[envname]) {
+		return (true);
+	}
+
+	return (enabled);
 };
 
 module.exports = {

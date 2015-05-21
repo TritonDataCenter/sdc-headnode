@@ -6,22 +6,21 @@
   "// joyent-build": "set to true to enable ancillary repository use",
 
   "features": {
-    "debug-platform": false,
-    "platform-file": false,
-    "joyent-build": false
+    "debug-platform": {
+      "enabled": false,
+      "env": "DEBUG_BUILD"
+    },
+    "joyent-build": {
+      "enabled": false,
+      "env": "JOYENT_BUILD"
+    }
   },
-  "environment": {
-    "DEBUG_BUILD": "debug-platform",
-    "PLATFORM_FILE": "platform-file",
-    "JOYENT_BUILD": "joyent-build"
+
+  "set_from_env": {
+    "bits-branch": "BITS_BRANCH"
   },
 
   "bits-branch": "master",
-  "platform-release": "master",
-  "agents-shar": "master",
-  "sdcboot-release": "master",
-  "firmware-tools-release": "master",
-  "sdcadm-release": "master",
 
   "// manta-*": "You can override these in your build.spec.local.",
   "manta-base-path": "/Joyent_Dev/public/builds",

@@ -7,6 +7,7 @@ var mod_dashdash = require('dashdash');
 var mod_extsprintf = require('extsprintf');
 var mod_monowrap = require('monowrap');
 
+var lib_common = require('../lib/common');
 var lib_buildspec = require('../lib/buildspec');
 
 /*
@@ -15,6 +16,20 @@ var lib_buildspec = require('../lib/buildspec');
 var SPEC;
 
 var ERRORS = [];
+
+function
+width()
+{
+	var cols = Number(process.stdout.columns);
+
+	if (cols < 32) {
+		cols = 32;
+	} else if (cols > 76) {
+		cols = 76;
+	}
+
+	return (cols);
+}
 
 function
 generate_options()
@@ -76,10 +91,65 @@ printf()
 }
 
 function
-root_path(path)
+check_old_branch_keys()
 {
-	return (mod_path.resolve(mod_path.join(__dirname, '..', '..',
-	    path)));
+	var OLD_TO_NEW = {
+		'platform-image': '"files.platform.*"',
+		'platform-release': '"files.platform.*"',
+		'sdcboot-release': '"files.sdcboot.*"',
+		'firmware-tools-release': '"files.firmware-tools.*"',
+		'sdcadm-release': '"files.sdcadm.*"',
+		'agents-shar': '"files.agents.*" and "files.agents_md5.*"'
+	};
+
+	var lines = [];
+	var keys = Object.keys(OLD_TO_NEW).sort();
+	for (var i = 0; i < keys.length; i++) {
+		var key = keys[i];
+
+		if (!SPEC.get(key, true)) {
+			continue;
+		}
+
+		lines.push('  - "' + key + '" becomes ' + OLD_TO_NEW[key]);
+	}
+
+	if (lines.length > 0) {
+		ERRORS.push([
+			'The following keys are no longer supported, and must',
+			'be converted to the new style as described in the',
+			'documentation:'
+		].join(' ') + '\n\n' + lines.join('\n') + '\n');
+	}
+}
+
+function
+check_features()
+{
+	var OLD_TO_NEW = {
+		'debug-platform': '"features.debug-platform.*" or $DEBUG_BUILD',
+		'joyent-build': '"features.joyent-build.*" or $JOYENT_BUILD'
+	};
+
+	var lines = [];
+	var keys = Object.keys(OLD_TO_NEW).sort();
+	for (var i = 0; i < keys.length; i++) {
+		var key = keys[i];
+
+		if (!SPEC.get(key, true)) {
+			continue;
+		}
+
+		lines.push('  - "' + key + '" is either ' + OLD_TO_NEW[key]);
+	}
+
+	if (lines.length > 0) {
+		ERRORS.push([
+			'The following keys are no longer supported, and must',
+			'be converted to "features" as described in the',
+			'documentation:'
+		].join(' ') + '\n\n' + lines.join('\n') + '\n');
+	}
 }
 
 function
@@ -173,8 +243,6 @@ check_old_image_specs()
 		if (specval) {
 			var job = OTHER_NAMES[k] || k;
 			var full = job + '/' + job + '-zfs-.*manifest';
-			var mg = job + '/$(ls bits/' + job + '/' + job +
-			    '-*manifest | xargs basename)';
 
 			if (is_local_file(specval)) {
 				local_files.push(k);
@@ -182,11 +250,6 @@ check_old_image_specs()
 				uuids.push(k);
 			} else if (specval === full) {
 				set_to_default.push(k);
-			} else if (specval === mg) {
-				/*
-				 * XXX deal with "mg" style default values
-				 */
-				other.push(k);
 			} else {
 				other.push(k);
 			}
@@ -201,7 +264,7 @@ check_old_image_specs()
 		].join(' ') + '\n\n';
 
 		for (i = 0; i < set_to_default.length; i++) {
-			msg += '  * "' + set_to_default[i] + '-image"\n';
+			msg += '  - "' + set_to_default[i] + '-image"\n';
 		}
 
 		msg += '\n';
@@ -217,7 +280,7 @@ check_old_image_specs()
 		].join(' ') + '\n\n';
 
 		for (i = 0; i < local_files.length; i++) {
-			msg += '  * "' + local_files[i] + '-image"\n';
+			msg += '  - "' + local_files[i] + '-image"\n';
 		}
 
 		msg += '\n' + [
@@ -251,7 +314,7 @@ check_old_image_specs()
 		].join(' ') + '\n\n';
 
 		for (i = 0; i < uuids.length; i++) {
-			msg += '  * "' + uuids[i] + '-image"\n';
+			msg += '  - "' + uuids[i] + '-image"\n';
 		}
 
 		msg += '\n' + [
@@ -287,7 +350,7 @@ check_old_image_specs()
 		].join(' ') + '\n\n';
 
 		for (i = 0; i < other.length; i++) {
-			msg += '  * "' + other[i] + '-image" --> ' +
+			msg += '  - "' + other[i] + '-image" --> ' +
 			    '"zones.' + other[i] + '"\n';
 		}
 
@@ -301,8 +364,8 @@ main()
 {
 	parse_opts(process.argv);
 
-	lib_buildspec.load_build_specs(root_path('build.spec'),
-	    root_path('build.spec.local'), function (err, bs) {
+	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
+	    lib_common.root_path('build.spec.local'), function (err, bs) {
 		if (err) {
 			console.error('ERROR loading build specs: %s',
 			    err.stack);
@@ -311,12 +374,14 @@ main()
 
 		SPEC = bs;
 
+		check_old_branch_keys();
+		check_features();
 		check_datasets();
 		check_old_image_specs();
 
 		if (ERRORS.length > 0) {
 			console.error(mod_monowrap(ERRORS.join('\n\n'), {
-				width: 64
+				width: width()
 			}));
 			process.exit(1);
 		}

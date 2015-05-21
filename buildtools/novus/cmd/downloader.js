@@ -32,7 +32,6 @@ var PROGBAR = new lib_multi_progbar.MultiProgressBar();
 
 var G = {
 	branch: 'master',
-	features: {},
 	concurrency: 50
 };
 
@@ -267,15 +266,17 @@ process_artifacts(callback)
 		mod_vasync.forEachParallel({
 			inputs: SPEC.keys(_.type),
 			func: function (name, next) {
-				var if_feature = SPEC.get(_.type + '|' + name +
+				var if_feat = SPEC.get(_.type + '|' + name +
 				    '|if_feature', true);
-				var not_feature = SPEC.get(_.type + '|' + name +
+				var not_feat = SPEC.get(_.type + '|' + name +
 				    '|if_not_feature', true);
 
-				if ((if_feature &&
-				    !G.features[if_feature]) ||
-				    (not_feature &&
-				    G.features[not_feature])) {
+				/*
+				 * If a feature conditional was specified, but
+				 * the condition is not met, skip out
+				 */
+				if ((if_feat && !SPEC.feature(if_feat)) ||
+				    (not_feat && SPEC.feature(not_feat))) {
 					next();
 					return;
 				}
@@ -817,26 +818,8 @@ main()
 
 		MANTA = create_manta_client(opts);
 
-		var fts = SPEC.keys('features');
-		for (i = 0; i < fts.length; i++) {
-			G.features[fts[i]] = !!SPEC.get('features|' +
-			    fts[i]);
-		}
-
-		var evs = SPEC.keys('environment');
-		for (i = 0; i < evs.length; i++) {
-			if (process.env.hasOwnProperty(evs[i])) {
-				G.features[fts[i]] = true;
-			}
-		}
-
 		G.branch = SPEC.get('bits-branch');
 		errprintf('%-25s %s\n', 'Bits Branch:', G.branch);
-
-		errprintf('%-25s %s\n', 'Features:',
-		    Object.keys(G.features).filter(function (k) {
-			    return (!!G.features[k]);
-		    }).join(', '));
 
 		process_artifacts(function (err, bits) {
 			if (err) {

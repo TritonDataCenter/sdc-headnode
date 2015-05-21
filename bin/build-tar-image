@@ -51,6 +51,7 @@ else
 fi
 JSON="${ROOT}/bin/json"
 JSONMERGE="${ROOT}/bin/json-merge"
+BUILDSPEC="${ROOT}/bin/buildspec"
 
 # Make sure we use the path to the manta tools we built with 'make deps'
 export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
@@ -143,7 +144,7 @@ fi
 
 # A quick attempt to get `mget` usage to *not* require MANTA_KEY_ID
 # for retrieve bits from a public area of Manta.
-if [[ "$(build_spec joyent-build)" != "true"
+if [[ "$(${BUILDSPEC} -f joyent-build)" != "true"
     && -n "$(build_spec manta-base-path | (grep '^/\w\+/public/' || true))"
     ]]; then
     export MANTA_NO_AUTH=true
@@ -335,14 +336,14 @@ function copy_base
     platbranch=$(build_spec platform-release)
 
     local plat_suf
-    if [[ "$(build_spec debug-platform)" == "true" || -n "$DEBUG_BUILD" ]]; then
+    if [[ "$(${BUILDSPEC} -f debug-platform)" == "true" ]]; then
         plat_suf="-debug"
     else
         plat_suf=""
     fi
 
     local is_joyent
-    is_joyent="$(build_spec joyent-build)"
+    is_joyent="$(${BUILDSPEC} -f joyent-build)"
 
     [[ -z ${sbbranch} ]] && sbbranch="master"
     [[ -z ${platbranch} ]] && platbranch="master"
@@ -744,8 +745,7 @@ function copy_platform
     platform_release=$(build_spec platform-release)
 
     local plat_suffix=""
-    if [[ "$(build_spec debug-platform)" == "true" \
-          || -n "$DEBUG_BUILD" ]]; then
+    if [[ "$(${BUILDSPEC} -f debug-platform)" == "true" ]]; then
         plat_suffix="-debug"
         echo "Using DEBUG platform"
     fi
