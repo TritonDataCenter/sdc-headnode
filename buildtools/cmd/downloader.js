@@ -1,25 +1,23 @@
-#!/usr/bin/env node
 /* vim: set ts=8 sts=8 sw=8 noet: */
 
 var mod_crypto = require('crypto');
 var mod_fs = require('fs');
 var mod_path = require('path');
 var mod_util = require('util');
-var mod_http = require('http');
-var mod_https = require('https');
-var mod_url = require('url');
 
 var mod_assert = require('assert-plus');
 var mod_dashdash = require('dashdash');
 var mod_extsprintf = require('extsprintf');
-var mod_jsprim = require('jsprim');
 var mod_manta = require('manta');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
-var mod_readtoend = require('readtoend');
 
 var lib_multi_progbar = require('../lib/multi_progbar');
 var lib_buildspec = require('../lib/buildspec');
+
+var lib_common = require('../lib/common');
+var lib_bits_from_manta = require('../lib/bits_from/manta');
+var lib_bits_from_image = require('../lib/bits_from/image');
 
 var VError = mod_verror.VError;
 
@@ -32,12 +30,11 @@ var EPOCH = process.hrtime();
 
 var PROGBAR = new lib_multi_progbar.MultiProgressBar();
 
-var CACHE_DIR;
-var BITS_JSON = require('../../../bits.json');
-var GLOBAL = {
-	branch: 'master'
+var G = {
+	branch: 'master',
+	features: {},
+	concurrency: 50
 };
-
 
 var DEBUG = process.env.DEBUG ? true : false;
 
@@ -45,6 +42,9 @@ function
 generate_options()
 {
 	var options = [
+		{
+			group: 'General Options'
+		},
 		{
 			names: [ 'dryrun', 'n' ],
 			type: 'bool',
@@ -55,16 +55,21 @@ generate_options()
 			].join(' ')
 		},
 		{
-			names: [ 'cache', 'd' ],
-			type: 'string',
-			help: 'Cache directory'
-		},
-		{
 			names: [ 'help', 'h' ],
 			type: 'bool',
 			help: 'Print this help and exit'
+		},
+		{
+			group: 'Manta Options'
 		}
-	];
+	].concat(mod_manta.DEFAULT_CLI_OPTIONS.filter(function (a) {
+		if ((a.names.indexOf('help') !== -1) ||
+		    (a.names.indexOf('verbose') !== -1)) {
+			return (false);
+		}
+
+		return (true);
+	}));
 
 	return (options);
 }
@@ -89,7 +94,7 @@ parse_opts(argv)
 		if (rc !== undefined) {
 			process.exit(rc);
 		}
-	}
+	};
 
 	var opts;
 	try {
@@ -99,9 +104,8 @@ parse_opts(argv)
 		usage(1);
 	}
 
-	if (!opts.cache) {
-		errprintf('ERROR: -d (--cache) is required\n');
-		usage(1);
+	if (opts.help) {
+		usage(0);
 	}
 
 	return (opts);
@@ -120,382 +124,190 @@ printf()
 }
 
 function
-cache_path(relpath)
-{
-	return (mod_path.resolve(mod_path.join(CACHE_DIR, relpath)));
-}
-
-function
-get_via_http(url_str, callback)
-{
-	mod_assert.string(url_str, 'url_str');
-	mod_assert.func(callback, 'callback');
-
-	var opts = mod_url.parse(url_str);
-	var mod_proto = (opts.protocol === 'https:') ? mod_https : mod_http;
-
-	var req = mod_proto.request(opts, function (res) {
-		if (res.statusCode !== 200) {
-			callback(new VError('http status %d invalid for "%s"',
-			    res.statusCode, url_str));
-			return;	
-		}
-
-		callback(null, res);
-	});
-
-	req.on('error', function (err) {
-		callback(new VError(err, 'http error for "%s"', url_str));
-	});
-
-	req.end();
-}
-
-function
-get_json_via_http(url_str, callback)
-{
-	get_via_http(url_str, function (err, res) {
-		if (err) {
-			callback(err);
-			return;
-		}
-
-		var rs = mod_readtoend.readToEnd(res, function (_err,
-		    body) {
-			if (_err) {
-				callback(new VError(_err, 'error reading ' +
-				    'JSON response from "%s"', url_str));
-				return;
-			}
-
-			var obj;
-			try {
-				obj = JSON.parse(body);
-			} catch (ex) {
-				callback(new VError(ex, 'error parsing ' +
-				    'JSON response from "%s"', url_str));
-				return;
-			}
-
-			callback(null, obj);
-		});
-	});
-}
-
-function
-bit_enum_image(out, _, next)
+bit_enum_zone(out, name, next)
 {
 	mod_assert.arrayOfObject(out, 'out');
-	mod_assert.object(_, '_');
-	mod_assert.func(next, 'next');
-	mod_assert.string(_.name, '_.name');
-	mod_assert.object(_.params, '_.params');
-	mod_assert.string(_.params.imgapi, '_.params.imgapi');
-	mod_assert.string(_.params.name, '_.params.name');
-	mod_assert.string(_.params.version, '_.params.version');
-	mod_assert.string(_.params.uuid, '_.params.uuid');
-
-	var name = _.params.name;
-	var version = _.params.version;
-	var uuid = _.params.uuid;
-	var url = [
-		_.params.imgapi,
-		'images',
-		_.params.uuid
-	].join('/');
-
-	get_json_via_http(url, function (err, img) {
-		if (err) {
-			next(new VError(err, 'could not get image "%s"',
-			    uuid));
-			return;
-		}
-
-		/*
-		 * This image must have exactly one file:
-		 */
-		if (!img.files || img.files.length !== 1) {
-			next(new VError('invalid image "%s"', uuid));
-			return;
-		}
-
-		var fil = img.files[0];
-		mod_assert.string(fil.sha1, 'file.sha1');
-		mod_assert.number(fil.size, 'file.size');
-		mod_assert.string(fil.compression, 'file.compression');
-
-		/*
-		 * Make sure our "name" and "version" match those of the image
-		 * we looked up by "uuid":
-		 */
-		if (img.name !== name || img.version !== version) {
-			next(new VError('upstream image identity ' +
-			    '"%s-%s" did not match expected ' +
-			    '"%s-%s"', img.name, img.version,
-			    name, version));
-			return;
-		}
-
-		/*
-		 * Create a synthetic "download" request that will write the
-		 * manifest object we just loaded to the appropriate cache
-		 * file.
-		 */
-		out.push({
-			bit_type: 'json',
-			bit_name: _.name + '_manifest',
-			bit_local_file: cache_path([
-				name,
-				'-',
-				version,
-				'.dsmanifest'
-			].join('')),
-			bit_json: img,
-			bit_make_symlink: [
-				'image.',
-				_.name,
-				'.dsmanifest'
-			].join('')
-		});
-
-		/*
-		 * Create a download request for the image file:
-		 */
-		out.push({
-			bit_type: 'http',
-			bit_name: _.name + '_image',
-			bit_local_file: cache_path([
-				name,
-				'-',
-				version,
-				'.zfs.',
-				fil.compression === 'bzip2' ?  'bz2' : 'gz'
-			].join('')),
-			bit_url: url + '/file',
-			bit_hash_type: 'sha1',
-			bit_hash: fil.sha1,
-			bit_size: fil.size,
-			bit_make_symlink: [
-				'image.',
-				_.name,
-				'.zfs.',
-				fil.compression === 'bzip2' ?  'bz2' : 'gz'
-			].join('')
-		});
-
-		next();
-	});
-}
-
-function
-bit_enum_zone(out, _, next)
-{
-	mod_assert.arrayOfObject(out, 'out');
-	mod_assert.object(_, '_');
+	mod_assert.string(name, 'name');
 	mod_assert.func(next, 'next');
 
 	var zone_spec = function (key, optional) {
-		return (SPEC.get('zones.' + _.name + '.' + key, optional));
+		return (SPEC.get('zones|' + name + '|' + key, optional));
 	};
 
-	switch (zone_spec('source')) {
-	case 'manta':
-	case undefined:
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_manifest',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'imgmanifest'
-			},
-			bit_make_symlink: 'zone.' + name + '.imgmanifest'
-		});
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_image',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'zfs.gz'
-			},
-			bit_make_symlink: 'zone.' + name + '.zfs.gz'
-		});
-		break;
+	var source = zone_spec('source', true) || 'manta';
+	var jobname = zone_spec('jobname', true) || name;
+	var branch = zone_spec('branch', true) || G.branch;
 
-	case 'file':
-		out.push({
-			bit_type: 'file',
-			bit_name: name + '_manifest',
-			bit_source_file: 
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'imgmanifest'
-			},
-			bit_make_symlink: 'zone.' + name + '.imgmanifest'
-		});
-		out.push({
-			bit_type: 'file',
-			bit_name: name + '_image',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'zfs.gz'
-			},
-			bit_make_symlink: 'zone.' + name + '.zfs.gz'
-		});
-		break;
+	var base_path = SPEC.get('manta-base-path');
+	var alt_base_var = zone_spec('alt_manta_base', true);
+	if (alt_base_var) {
+		base_path = SPEC.get(alt_base_var);
+	}
+
+	switch (source) {
+	case 'manta':
+		var basen = jobname + '-zfs';
+		lib_bits_from_manta(out, {
+			bfm_manta: MANTA,
+			bfm_prefix: 'zone.' + name,
+			bfm_jobname: jobname,
+			bfm_branch: branch,
+			bfm_files: [
+				{ name: name + '_manifest',
+				    base: basen, ext: 'imgmanifest' },
+				{ name: name + '_image',
+				    base: basen, ext: 'zfs.gz' }
+			],
+			bfm_base_path: base_path
+		}, next);
+		return;
 
 	case 'imgapi':
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_manifest',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'imgmanifest'
-			},
-			bit_make_symlink: 'zone.' + name + '.imgmanifest'
-		});
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_image',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'zfs.gz'
-			},
-			bit_make_symlink: 'zone.' + name + '.zfs.gz'
-		});
-		break;
+		lib_bits_from_image(out, {
+			bfi_prefix: 'zone.' + name,
+			bfi_imgapi: 'https://updates.joyent.com',
+			bfi_uuid: zone_spec('uuid'),
+			bfi_name: jobname
+		}, next);
+		return;
+
+	default:
+		next(new VError('unsupported "zone" source "%s"', source));
+		return;
 	}
 }
 
 function
-all_bits(input, callback)
+bit_enum_image(out, name, next)
 {
+	mod_assert.arrayOfObject(out, 'out');
+	mod_assert.string(name, 'name');
+	mod_assert.func(next, 'next');
+
+	var image_spec = function (key, optional) {
+		return (SPEC.get('images|' + name + '|' + key, optional));
+	};
+
+	var source = image_spec('source', true) || 'imgapi';
+
+	switch (source) {
+	case 'imgapi':
+		lib_bits_from_image(out, {
+			bfi_prefix: 'image.' + name,
+			bfi_imgapi: image_spec('imgapi'),
+			bfi_uuid: image_spec('uuid'),
+			bfi_version: image_spec('version'),
+			bfi_name: image_spec('name')
+		}, next);
+		return;
+
+	default:
+		next(new VError('unsupported "image" source "%s"', source));
+		return;
+	}
+}
+
+function
+bit_enum_file(out, name, next)
+{
+	mod_assert.arrayOfObject(out, 'out');
+	mod_assert.string(name, 'name');
+	mod_assert.func(next, 'next');
+
+	var file_spec = function (key, optional) {
+		return (SPEC.get('files|' + name + '|' + key, optional));
+	};
+
+	var source = file_spec('source', true) || 'manta';
+	var jobname = file_spec('jobname', true) || name;
+	var branch = file_spec('branch', true) || G.branch;
+
+	var base_path = SPEC.get('manta-base-path');
+	var alt_base_var = file_spec('alt_manta_base', true);
+	if (alt_base_var) {
+		base_path = SPEC.get(alt_base_var);
+	}
+
+	switch (source) {
+	case 'manta':
+		lib_bits_from_manta(out, {
+			bfm_manta: MANTA,
+			bfm_prefix: 'file.' + name,
+			bfm_jobname: jobname,
+			bfm_branch: branch,
+			bfm_files: [
+				{
+					name: name,
+					base: file_spec('file|base'),
+					ext: file_spec('file|ext')
+				}
+			],
+			bfm_base_path: base_path
+		}, next);
+		return;
+
+	default:
+		next(new VError('unsupported "file" source "%s"', source));
+		return;
+	}
+}
+
+function
+process_artifacts(callback)
+{
+	mod_assert.func(callback, 'callback');
+
 	var out = [];
-	var keys;
 
-	mod_assert.object(input.zones, 'zones');
-	mod_assert.object(input.bits, 'bits');
-	mod_assert.object(input.images, 'images');
+	var process_artifact_type = function (_, done) {
+		mod_assert.object(_, '_');
+		mod_assert.string(_.type, '_.type');
+		mod_assert.func(_.func, '_.func');
 
-	/*
-	 * Load the list of zones from the configuration, generating a bit
-	 * record for each of the manifest and the image of each zone.
-	 */
-	keys = SPEC.keys('zones');
-	for (var i = 0; i < keys.length; i++) {
-		var name = keys[i];
-		var zone = input.zones[name];
-		var branch = SPEC.get('zones.' + name + '.branch', true) ||
-		    GLOBAL.branch;
-		var jobname = SPEC.get('zones.' + name + '.jobname', true) ||
-		    name;
+		mod_vasync.forEachParallel({
+			inputs: SPEC.keys(_.type),
+			func: function (name, next) {
+				var if_feature = SPEC.get(_.type + '|' + name +
+				    '|if_feature', true);
+				var not_feature = SPEC.get(_.type + '|' + name +
+				    '|if_not_feature', true);
 
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_manifest',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'imgmanifest'
-			},
-			bit_make_symlink: 'zone.' + name + '.imgmanifest'
-		});
-		out.push({
-			bit_type: 'manta',
-			bit_name: name + '_image',
-			bit_branch: branch,
-			bit_jobname: jobname,
-			bit_file: {
-				base: jobname + '-zfs',
-				ext: 'zfs.gz'
-			},
-			bit_make_symlink: 'zone.' + name + '.zfs.gz'
-		});
-	}
+				if ((if_feature &&
+				    !G.features[if_feature]) ||
+				    (not_feature &&
+				    G.features[not_feature])) {
+					next();
+					return;
+				}
 
-	/*
-	 * Load any additional bits that are not part of a zone image:
-	 */
-	keys = Object.keys(input.bits || {});
-	for (var i = 0; i < keys.length; i++) {
-		var name = keys[i];
-		var bit = input.bits[name];
+				_.func(out, name, function (err) {
+					if (!err) {
+						next();
+						return;
+					}
 
-		out.push({
-			bit_type: 'manta',
-			bit_name: name,
-			bit_branch: bit.branch || GLOBAL.branch,
-			bit_jobname: bit.jobname || name,
-			bit_file: {
-				base: bit.file.base,
-				ext: bit.file.ext
-			},
-			bit_make_symlink: 'bit.' + name + '.' + bit.file.ext
-		});
-	}
+					next(new VError(err, 'processing ' +
+					    '%s "%s"', _.type, name));
+				});
+			}
+		}, done);
+	};
 
-	/*
-	 * Lookup images, specified by uuid, in imgapi:
-	 */
 	mod_vasync.forEachParallel({
-		func: function (name, next) {
-			bit_enum_image(out, {
-				name: name,
-				params: input.images[name]
-			}, next);
-		},
-		inputs: Object.keys(input.images)
+		inputs: [
+			{ type: 'zones', func: bit_enum_zone },
+			{ type: 'files', func: bit_enum_file },
+			{ type: 'images', func: bit_enum_image }
+		],
+		func: process_artifact_type
 	}, function (err) {
 		if (err) {
-			callback(new VError(err, 'imgapi lookup failed'));
+			callback(new VError(err, 'enumeration of build ' +
+			    'artifacts failed'));
 			return;
 		}
 
 		callback(null, out);
-	});
-}
-
-
-
-function
-get_manta_file(manta, path, callback)
-{
-	mod_assert.object(manta, 'manta');
-	mod_assert.string(path, 'path');
-	mod_assert.func(callback, 'callback');
-
-	manta.get(path, function (err, res) {
-		if (err) {
-			if (err.name === 'ResourceNotFoundError') {
-				callback(null, false);
-			} else {
-				callback(err);
-			}
-			return;
-		}
-
-		var data = '';
-		res.on('readable', function () {
-			for (;;) {
-				var ch = res.read();
-				if (!ch)
-					return;
-				data += ch.toString('utf8');
-			}
-		});
-		res.on('end', function () {
-			callback(null, data);
-		});
 	});
 }
 
@@ -608,7 +420,8 @@ dfop_download_file_http(dfop, next)
 	PROGBAR.log('download: %s', mod_path.basename(dfop.dfop_local_file));
 	PROGBAR.add(dfop.dfop_bit.bit_name, dfop.dfop_expected_size);
 
-	get_via_http(dfop.dfop_url, function (err, res) {
+	var start = Date.now();
+	lib_common.get_via_http(dfop.dfop_url, function (err, res) {
 		if (err) {
 			next(err);
 			return;
@@ -710,7 +523,7 @@ work_download_file(bit, next)
 		mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
 
 		dfop.dfop_manta_file = bit.bit_manta_file;
-		dfop.dfop_local_file = cache_path(mod_path.basename(
+		dfop.dfop_local_file = lib_common.cache_path(mod_path.basename(
 		    bit.bit_manta_file));
 
 		funcs = [
@@ -770,139 +583,6 @@ work_download_file(bit, next)
 	setImmediate(do_try);
 }
 
-function
-work_find_build_file(bit, next)
-{
-	mod_assert.object(bit.bit_file, 'bit_file');
-	mod_assert.string(bit.bit_file.base, 'bit_file.base');
-	mod_assert.string(bit.bit_file.ext, 'bit_file.ext');
-	mod_assert.string(bit.bit_branch, 'bit_branch');
-	mod_assert.string(bit.bit_manta_dir, 'bit_manta_dir');
-
-	/*
-	 * Build artifacts from MG are uploaded into Manta in a directory
-	 * structure that reflects the branch and build stamp, e.g.
-	 *
-	 *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
-	 *
-	 * The build artifact we are interested in downloading generally
-	 * has a filename of the form:
-	 *
-	 *   <base>-<branch>-*.<extension>
-	 *
-	 * For example:
-	 *
-	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
-	 *
-	 * Build a regular expression that will, given our selection
-	 * constraints, match only the build artifact file we are looking for:
-	 */
-	var fnre = new RegExp([
-		'^',
-		bit.bit_file.base,
-		'-',
-		bit.bit_branch,
-		'-.*\\.',
-		bit.bit_file.ext,
-		'$'
-	].join(''));
-
-	/*
-	 * Walk the build artifact directory for this build run:
-	 */
-	MANTA.ftw(bit.bit_manta_dir, {
-		name: fnre,
-		type: 'o'
-	}, function (err, res) {
-		if (err) {
-			next(new VError(err, 'could not find build file'));
-			return;
-		}
-
-		var count = 0;
-		var ent = null;
-
-		res.on('entry', function (obj) {
-			count++;
-			if (ent !== null) {
-				return;
-			}
-
-			ent = mod_path.join('/', obj.parent, obj.name);
-		});
-
-		res.once('end', function () {
-			if (count !== 1) {
-				next(new VError('found %d entries, expected 1',
-				    count));
-				return;
-			}
-
-			/*
-			 * Store the full Manta path of the build object
-			 * for subsequent tasks:
-			 */
-			bit.bit_manta_file = ent;
-
-			next();
-			return;
-		});
-	});
-}
-
-/*
- * When bits are built from MG, a manifest file ("md5sums.txt") is uploaded
- * that includes the MD5 checksum and the filename of each produced bit.  The
- * lines look roughly like:
- *
- *   a28033c7b101328f3f9921a178088c45 bits//sdcboot/sdcboot-g41a555a.tgz
- *
- * It is probably not safe to infer anything about the path, other than
- * that the _basename_ (e.g. "sdcboot-g41a555a.tgz" in the above) will
- * match the uploaded object name in Manta.
- */
-function
-work_get_md5sum(bit, next)
-{
-	mod_assert.string(bit.bit_manta_dir, 'bit_manta_dir');
-	mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
-
-	/*
-	 * Load the manifest file, "md5sums.txt", from the Manta build
-	 * directory:
-	 */
-	var md5name = mod_path.join(bit.bit_manta_dir, 'md5sums.txt');
-	get_manta_file(MANTA, md5name, function (err, data) {
-		if (err) {
-			next(new VError(err, 'failed to fetch md5sums'));
-			return;
-		}
-
-		if (data === false) {
-			next(new VError('md5sum file "%s" not found',
-			    md5name));
-			return;
-		}
-
-		var lines = data.toString().trim().split(/\n/);
-		for (var i = 0; i < lines.length; i++) {
-			var l = lines[i].split(/ +/);
-			var bp = mod_path.basename(l[1]);
-			var lookfor = mod_path.basename(bit.bit_manta_file);
-
-			if (bp === lookfor) {
-				bit.bit_hash_type = 'md5';
-				bit.bit_hash = l[0].trim();
-				next();
-				return;
-			}
-		}
-
-		next(new VError('no digest in file "%s" for "%s"',
-		    md5name, bit.bit_manta_file.base));
-	});
-}
-
 /*
  * Manta maintains an MD5 checksum for each uploaded object that we can query
  * without downloading the file.  We check that this MD5 checksum matches the
@@ -939,57 +619,7 @@ work_check_manta_md5sum(bit, next)
 		}
 
 		next(new VError('Manta MD5 "%s" did not match manifest ' +
-		    'MD5 "%s"', bit.bit_manta_md5sum, bit.bit_md5sum));
-	});
-}
-
-/*
- * Each build artifact from MG is uploaded into a Manta directory, e.g.
- *
- *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
- *
- * MG also maintains an object (not a directory) that contains the full
- * path of the most recent build for a particular branch, e.g.
- *
- *   /Joyent_Dev/public/builds/sdcboot/master-latest
- *
- * This worker function accepts a base Manta path as the first parameter
- * so that it may be partially applied to multiple Manta paths in the
- * same pipeline via Function#bind().
- */
-function
-work_lookup_latest_dir(base_path, bit, next)
-{
-	mod_assert.string(base_path, 'base_path');
-	mod_assert.object(bit, 'bit');
-	mod_assert.func(next, 'next');
-
-	mod_assert.string(bit.bit_jobname, 'bit_jobname');
-	mod_assert.string(bit.bit_branch, 'bit_branch');
-
-	/*
-	 * Look up the "-latest" pointer file for this branch in Manta:
-	 */
-	var latest_dir = mod_path.join('/', base_path, bit.bit_jobname,
-	    bit.bit_branch + '-latest');
-	get_manta_file(MANTA, latest_dir, function (err, data) {
-		if (err) {
-			next(new VError(err, 'failed to look up latest dir'));
-			return;
-		}
-
-		if (data === false) {
-			next(new VError('latest link "%s" not found',
-			    latest_dir));
-			return;
-		}
-
-		/*
-		 * Store the selected Manta build directory that we consider
-		 * to be the latest build, for use in subsequent tasks.
-		 */
-		bit.bit_manta_dir = data.trim();
-		next();
+		    'MD5 "%s"', bit.bit_manta_md5sum, bit.bit_hash));
 	});
 }
 
@@ -1004,8 +634,7 @@ work_make_symlink(bit, next)
 		return;
 	}
 
-	var link_path = mod_path.resolve(mod_path.join(CACHE_DIR,
-	    bit.bit_make_symlink));
+	var link_path = lib_common.cache_path(bit.bit_make_symlink);
 
 	try {
 		mod_fs.unlinkSync(link_path);
@@ -1034,7 +663,7 @@ work_write_json_to_file(bit, next)
 		mod_fs.unlinkSync(bit.bit_local_file);
 	} catch (ex) {
 		if (ex.code !== 'ENOENT') {
-			next(new VError(err, 'could not unlink "%s"',
+			next(new VError(ex, 'could not unlink "%s"',
 			    bit.bit_local_file));
 			return;
 		}
@@ -1062,13 +691,13 @@ var WORK_QUEUE = mod_vasync.queuev({
 	worker: function (bit, next) {
 		var funcs;
 
+		mod_assert.object(bit, 'bit');
+		mod_assert.string(bit.bit_type, 'bit.bit_type');
+		mod_assert.string(bit.bit_local_file, 'bit.bit_local_file');
+
 		switch (bit.bit_type) {
 		case 'manta':
 			funcs = [
-				work_lookup_latest_dir.bind(null,
-				    SPEC.get('manta-base-path')),
-				work_find_build_file,
-				work_get_md5sum,
 				work_check_manta_md5sum,
 				work_download_file,
 				work_make_symlink
@@ -1120,17 +749,17 @@ var WORK_QUEUE = mod_vasync.queuev({
 			next();
 		});
 	},
-	concurrency: 50
+	concurrency: G.concurrency
 });
 WORK_QUEUE.on('end', function () {
 	var hrt = process.hrtime(EPOCH);
 	var delta = Math.floor((hrt[0] * 1000) + (hrt[1] / 1000000));
 
 	PROGBAR.end();
-	printf('queue end; runtime %d ms\n', delta);
+	errprintf('queue end; runtime %d ms\n', delta);
 
 	if (FAILURES.length > 0) {
-		printf('failures: %s\n', mod_util.inspect(FAILURES,
+		errprintf('failures: %s\n', mod_util.inspect(FAILURES,
 		    false, 10, true));
 		process.exit(1);
 	}
@@ -1138,10 +767,35 @@ WORK_QUEUE.on('end', function () {
 });
 
 function
-root_path(path)
+create_manta_client(opts)
 {
-	return (mod_path.resolve(mod_path.join(__dirname, '..', '..', '..',
-	    path)));
+	var override = function (key, opt) {
+		var v = SPEC.get(key, true);
+
+		if (v) {
+			opts[opt] = v;
+		}
+	};
+
+	override('manta-user', 'account');
+	override('manta-subuser', 'subuser');
+	override('manta-url', 'url');
+	override('manta-key-id', 'keyId');
+
+	if (process.env.MANTA_NO_AUTH) {
+		opts.noAuth = true;
+	} else {
+		opts.sign = mod_manta.cliSigner({
+			algorithm: opts.algorithm,
+			keyId: opts.keyId,
+			user: opts.account,
+			subuser: opts.subuser
+		});
+	}
+
+	opts.connectTimeout = 15 * 1000;
+
+	return (mod_manta.createClient(opts));
 }
 
 function
@@ -1149,10 +803,10 @@ main()
 {
 	var opts = parse_opts(process.argv);
 
-	CACHE_DIR = mod_path.resolve(mod_path.join(process.cwd(), opts.cache));
+	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
+	    lib_common.root_path('build.spec.local'), function (err, bs) {
+		var i;
 
-	lib_buildspec.load_build_specs(root_path('build.spec'),
-	    root_path('build.spec.local'), function (err, bs) {
 		if (err) {
 			console.error('ERROR loading build specs: %s',
 			    err.stack);
@@ -1161,18 +815,32 @@ main()
 
 		SPEC = bs;
 
-		GLOBAL.branch = SPEC.get('bits-branch');
-		errprintf('%-25s %s\n', 'Bits Branch:', GLOBAL.branch);
+		MANTA = create_manta_client(opts);
 
-		MANTA = mod_manta.createClient({
-			user: SPEC.get('manta-user'),
-			url: SPEC.get('manta-url'),
-			connectTimeout: 15 * 1000
-		});
+		var fts = SPEC.keys('features');
+		for (i = 0; i < fts.length; i++) {
+			G.features[fts[i]] = !!SPEC.get('features|' +
+			    fts[i]);
+		}
 
-		all_bits(BITS_JSON, function (err, bits) {
+		var evs = SPEC.keys('environment');
+		for (i = 0; i < evs.length; i++) {
+			if (process.env.hasOwnProperty(evs[i])) {
+				G.features[fts[i]] = true;
+			}
+		}
+
+		G.branch = SPEC.get('bits-branch');
+		errprintf('%-25s %s\n', 'Bits Branch:', G.branch);
+
+		errprintf('%-25s %s\n', 'Features:',
+		    Object.keys(G.features).filter(function (k) {
+			    return (!!G.features[k]);
+		    }).join(', '));
+
+		process_artifacts(function (err, bits) {
 			if (err) {
-				console.error('ERROR enumerating bits: %s',
+				console.error('ERROR: enumerating bits: %s',
 				    err.stack);
 				process.exit(3);
 			}
@@ -1182,12 +850,11 @@ main()
 				process.exit(0);
 			}
 
-			printf('pushing bits to work queue...\n');
+			errprintf('pushing bits to work queue...\n');
 			WORK_QUEUE.push(bits);
 			WORK_QUEUE.close();
 		});
 	});
-
 }
 
 main();

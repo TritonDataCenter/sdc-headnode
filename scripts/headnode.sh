@@ -695,7 +695,7 @@ if setup_state_not_seen "sdczones_created"; then
             imgadm install -f \
                 "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
                     | head -1)" \
-                -m /usbkey/datasets/${name}.dsmanifest
+                -m /usbkey/datasets/${name}.imgmanifest
         done
     fi
 
@@ -773,7 +773,7 @@ function import_smartdc_service_images {
             /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
                 -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
                     | head -1)" \
-                -m /usbkey/datasets/${name}.dsmanifest
+                -m /usbkey/datasets/${name}.imgmanifest
         done
     fi
 

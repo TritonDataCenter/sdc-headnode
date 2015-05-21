@@ -5,6 +5,17 @@
   "coal-enable-serial": true,
   "// joyent-build": "set to true to enable ancillary repository use",
 
+  "features": {
+    "debug-platform": false,
+    "platform-file": false,
+    "joyent-build": false
+  },
+  "environment": {
+    "DEBUG_BUILD": "debug-platform",
+    "PLATFORM_FILE": "platform-file",
+    "JOYENT_BUILD": "joyent-build"
+  },
+
   "bits-branch": "master",
   "platform-release": "master",
   "agents-shar": "master",
@@ -49,20 +60,36 @@
     "workflow": {}
   },
 
-  "bits": {
+  "files": {
     "sdcboot": {
       "file": { "base": "sdcboot", "ext": "tgz" }
     },
+
     "platboot": {
       "jobname": "platform",
+      "if_not_feature": "debug-platform",
       "file": { "base": "boot", "ext": "tgz" }
     },
     "platform": {
+      "jobname": "platform",
+      "if_not_feature": "debug-platform",
       "file": { "base": "platform", "ext": "tgz" }
     },
+
+    "platboot-debug": {
+      "jobname": "platform-debug",
+      "if_feature": "debug-platform",
+      "file": { "base": "boot-debug", "ext": "tgz" }
+    },
+    "platform-debug": {
+      "if_feature": "debug-platform",
+      "file": { "base": "platform-debug", "ext": "tgz" }
+    },
+
     "sdcadm": {
       "file": { "base": "sdcadm", "ext": "sh" }
     },
+
     "agents": {
       "jobname": "agentsshar",
       "file": { "base": "agents", "ext": "sh" }
@@ -70,6 +97,12 @@
     "agents_md5": {
       "jobname": "agentsshar",
       "file": { "base": "agents", "ext": "md5sum" }
+    },
+
+    "firmware-tools": {
+      "if_feature": "joyent-build",
+      "alt_manta_base": "joyent-manta-base-path",
+      "file": { "base": "firmware-tools", "ext": "tgz" }
     }
   },
 

@@ -1,39 +1,20 @@
-#!/usr/bin/env node
 /* vim: set ts=8 sts=8 sw=8 noet: */
 
-var mod_crypto = require('crypto');
 var mod_fs = require('fs');
 var mod_path = require('path');
-var mod_util = require('util');
-var mod_http = require('http');
-var mod_https = require('https');
-var mod_url = require('url');
 
-var mod_assert = require('assert-plus');
 var mod_dashdash = require('dashdash');
 var mod_extsprintf = require('extsprintf');
-var mod_jsprim = require('jsprim');
-var mod_manta = require('manta');
-var mod_vasync = require('vasync');
-var mod_verror = require('verror');
-var mod_readtoend = require('readtoend');
-var mod_wordwrap = require('word-wrap');
 var mod_monowrap = require('monowrap');
 
 var lib_buildspec = require('../lib/buildspec');
-
-var VError = mod_verror.VError;
 
 /*
  * Globals:
  */
 var SPEC;
 
-var CACHE_DIR;
-
 var ERRORS = [];
-
-var DEBUG = process.env.DEBUG ? true : false;
 
 function
 generate_options()
@@ -69,7 +50,7 @@ parse_opts(argv)
 		if (rc !== undefined) {
 			process.exit(rc);
 		}
-	}
+	};
 
 	var opts;
 	try {
@@ -97,7 +78,7 @@ printf()
 function
 root_path(path)
 {
-	return (mod_path.resolve(mod_path.join(__dirname, '..', '..', '..',
+	return (mod_path.resolve(mod_path.join(__dirname, '..', '..',
 	    path)));
 }
 
@@ -177,13 +158,15 @@ check_old_image_specs()
 		'manta': 'manta-deployment'
 	};
 
+	var i;
 	var msg;
+	var newobj;
 	var set_to_default = [];
 	var other = [];
 	var uuids = [];
 	var local_files = [];
 
-	for (var i = 0; i < OLD_KEYS.length; i++) {
+	for (i = 0; i < OLD_KEYS.length; i++) {
 		var k = OLD_KEYS[i];
 		var specval = SPEC.get(k + '-image', true);
 
@@ -217,7 +200,7 @@ check_old_image_specs()
 			'These keys should be removed:'
 		].join(' ') + '\n\n';
 
-		for (var i = 0; i < set_to_default.length; i++) {
+		for (i = 0; i < set_to_default.length; i++) {
 			msg += '  * "' + set_to_default[i] + '-image"\n';
 		}
 
@@ -233,7 +216,7 @@ check_old_image_specs()
 			'from Manta.  First, remove these keys:'
 		].join(' ') + '\n\n';
 
-		for (var i = 0; i < local_files.length; i++) {
+		for (i = 0; i < local_files.length; i++) {
 			msg += '  * "' + local_files[i] + '-image"\n';
 		}
 
@@ -241,10 +224,10 @@ check_old_image_specs()
 			'Next, specify the same data in the new format:'
 		].join(' ') + '\n\n';
 
-		var newobj = {
+		newobj = {
 			zones: {}
 		};
-		for (var i = 0; i < local_files.length; i++) {
+		for (i = 0; i < local_files.length; i++) {
 			newobj.zones[local_files[i]] = {
 				source: 'file',
 				file: SPEC.get(local_files[i] + '-image')
@@ -267,7 +250,7 @@ check_old_image_specs()
 			'server.  First, remove these keys:'
 		].join(' ') + '\n\n';
 
-		for (var i = 0; i < uuids.length; i++) {
+		for (i = 0; i < uuids.length; i++) {
 			msg += '  * "' + uuids[i] + '-image"\n';
 		}
 
@@ -275,10 +258,10 @@ check_old_image_specs()
 			'Next, specify the same data in the new format:'
 		].join(' ') + '\n\n';
 
-		var newobj = {
+		newobj = {
 			zones: {}
 		};
-		for (var i = 0; i < uuids.length; i++) {
+		for (i = 0; i < uuids.length; i++) {
 			newobj.zones[uuids[i]] = {
 				source: 'imgapi',
 				imgapi: 'https://updates.joyent.com',
@@ -303,7 +286,7 @@ check_old_image_specs()
 			'new counterparts are listed below:'
 		].join(' ') + '\n\n';
 
-		for (var i = 0; i < other.length; i++) {
+		for (i = 0; i < other.length; i++) {
 			msg += '  * "' + other[i] + '-image" --> ' +
 			    '"zones.' + other[i] + '"\n';
 		}
@@ -316,7 +299,7 @@ check_old_image_specs()
 function
 main()
 {
-	var opts = parse_opts(process.argv);
+	parse_opts(process.argv);
 
 	lib_buildspec.load_build_specs(root_path('build.spec'),
 	    root_path('build.spec.local'), function (err, bs) {

@@ -1,0 +1,291 @@
+/* vim: set ts=8 sts=8 sw=8 noet: */
+
+var mod_path = require('path');
+
+var mod_assert = require('assert-plus');
+var mod_vasync = require('vasync');
+var mod_verror = require('verror');
+
+var lib_common = require('../common');
+
+var VError = mod_verror.VError;
+
+function
+bits_from_manta(out, bfm, next)
+{
+	mod_assert.arrayOfObject(out, 'out');
+	mod_assert.object(bfm, 'bfm');
+	mod_assert.func(next, 'next');
+
+	mod_vasync.pipeline({
+		arg: bfm,
+		funcs: [
+			bfm_lookup_latest_dir,
+			bfm_get_md5sum,
+			bfm_find_build_files
+		]
+	}, function (err) {
+		if (err) {
+			next(new VError(err, 'could not get from manta'));
+			return;
+		}
+
+		mod_assert.object(bfm.bfm_manta_hashes, 'bfm_manta_hashes');
+		mod_assert.arrayOfObject(bfm.bfm_manta_files,
+		    'bfm_manta_files');
+
+		for (var i = 0; i < bfm.bfm_manta_files.length; i++) {
+			var mf = bfm.bfm_manta_files[i];
+
+			mod_assert.object(mf, 'mf');
+			mod_assert.string(mf.mf_path, 'path');
+			mod_assert.string(mf.mf_name, 'name');
+			mod_assert.string(mf.mf_ext, 'ext');
+
+			var bn = mod_path.basename(mf.mf_path);
+			var hash = bfm.bfm_manta_hashes[bn];
+
+			if (!hash) {
+				next(new VError('could not find hash in ' +
+				    '"md5sums.txt" for "%s"', bn));
+				return;
+			}
+
+			out.push({
+				bit_type: 'manta',
+				bit_name: mf.mf_name,
+				bit_local_file: lib_common.cache_path(bn),
+				bit_manta_file: mf.mf_path,
+				bit_hash_type: 'md5',
+				bit_hash: hash,
+				bit_make_symlink: [
+					bfm.bfm_prefix,
+					'.',
+					mf.mf_ext
+				].join('')
+			});
+		}
+
+		next();
+	});
+}
+
+function
+bfm_find_build_files(bfm, next)
+{
+	mod_assert.object(bfm, 'bfm');
+	mod_assert.object(bfm.bfm_manta, 'bfm.bfm_manta');
+	mod_assert.arrayOfObject(bfm.bfm_files, 'bfm_files');
+	mod_assert.string(bfm.bfm_branch, 'bfm_branch');
+	mod_assert.string(bfm.bfm_manta_dir, 'bfm_manta_dir');
+
+	/*
+	 * Build artifacts from MG are uploaded into Manta in a directory
+	 * structure that reflects the branch and build stamp, e.g.
+	 *
+	 *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
+	 *
+	 * The build artifact we are interested in downloading generally
+	 * has a filename of the form:
+	 *
+	 *   <base>-<branch>-*.<extension>
+	 *
+	 * For example:
+	 *
+	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
+	 *
+	 * Build a regular expression that will, given our selection
+	 * constraints, match only the build artifact file we are looking for:
+	 */
+	var patterns = [];
+	for (var i = 0; i < bfm.bfm_files.length; i++) {
+		var f = bfm.bfm_files[i];
+
+		mod_assert.string(f.base, 'f.base');
+		mod_assert.string(f.ext, 'f.ext');
+		mod_assert.string(f.name, 'f.name');
+
+		patterns.push({
+			p_re: new RegExp([
+				'^',
+				f.base,
+				'-',
+				bfm.bfm_branch,
+				'-.*\\.',
+				f.ext,
+				'$'
+			].join('')),
+			p_count: 0,
+			p_ent: null,
+			p_base: f.base,
+			p_ext: f.ext,
+			p_name: f.name
+		});
+	}
+
+	var check_patterns = function (parent, name) {
+		for (var i = 0; i < patterns.length; i++) {
+			var p = patterns[i];
+
+			if (p.p_re.test(name)) {
+				if (!p.p_ent) {
+					p.p_ent = mod_path.join('/', parent,
+					    name);
+				}
+				p.p_count++;
+			}
+		}
+	};
+
+	/*
+	 * Walk the build artifact directory for this build run:
+	 */
+	bfm.bfm_manta.ftw(bfm.bfm_manta_dir, {
+		type: 'o'
+	}, function (err, res) {
+		if (err) {
+			next(new VError(err, 'could not search for build ' +
+			    'files'));
+			return;
+		}
+
+		res.on('entry', function (obj) {
+			check_patterns(obj.parent, obj.name);
+		});
+
+		res.once('end', function () {
+			var files = [];
+
+			for (var i = 0; i < patterns.length; i++) {
+				var p = patterns[i];
+
+				if (p.p_count !== 1) {
+					next(new VError('pattern "%s" in dir ' +
+					    '"%s" matched %d entries, ' +
+					    'expected 1', bfm.bfm_manta_dir,
+					    p.p_re.toString(), p.p_count));
+					return;
+				}
+
+				files.push({
+					mf_name: p.p_name,
+					mf_path: p.p_ent,
+					mf_ext: p.p_ext
+				});
+			}
+
+			/*
+			 * Store the full Manta path(s) of the build object
+			 * for subsequent tasks:
+			 */
+			bfm.bfm_manta_files = files;
+
+			next();
+			return;
+		});
+	});
+}
+
+/*
+ * When bits are built from MG, a manifest file ("md5sums.txt") is uploaded
+ * that includes the MD5 checksum and the filename of each produced bit.  The
+ * lines look roughly like:
+ *
+ *   a28033c7b101328f3f9921a178088c45 bits//sdcboot/sdcboot-g41a555a.tgz
+ *
+ * It is probably not safe to infer anything about the path, other than
+ * that the _basename_ (e.g. "sdcboot-g41a555a.tgz" in the above) will
+ * match the uploaded object name in Manta.
+ */
+function
+bfm_get_md5sum(bfm, next)
+{
+	mod_assert.object(bfm, 'bfm');
+	mod_assert.object(bfm.bfm_manta, 'bfm_manta');
+	mod_assert.string(bfm.bfm_manta_dir, 'bfm_manta_dir');
+
+	/*
+	 * Load the manifest file, "md5sums.txt", from the Manta build
+	 * directory:
+	 */
+	var md5name = mod_path.join(bfm.bfm_manta_dir, 'md5sums.txt');
+	lib_common.get_manta_file(bfm.bfm_manta, md5name, function (err, data) {
+		if (err) {
+			next(new VError(err, 'failed to fetch md5sums'));
+			return;
+		}
+
+		if (data === false) {
+			next(new VError('md5sum file "%s" not found',
+			    md5name));
+			return;
+		}
+
+		var path_to_md5 = {};
+
+		var lines = data.toString().trim().split(/\n/);
+		for (var i = 0; i < lines.length; i++) {
+			var l = lines[i].split(/ +/);
+			if (l.length !== 2) {
+				continue;
+			}
+
+			var bp = mod_path.basename(l[1]);
+			if (path_to_md5[bp]) {
+				next(new VError('file "%s" contains two ' +
+				    'hashes for "%s"', md5name, bp));
+				return;
+			}
+
+			path_to_md5[bp] = l[0].trim().toLowerCase();
+		}
+
+		bfm.bfm_manta_hashes = path_to_md5;
+		next();
+	});
+}
+
+/*
+ * Each build artifact from MG is uploaded into a Manta directory, e.g.
+ *
+ *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
+ *
+ * MG also maintains an object (not a directory) that contains the full
+ * path of the most recent build for a particular branch, e.g.
+ *
+ *   /Joyent_Dev/public/builds/sdcboot/master-latest
+ */
+function
+bfm_lookup_latest_dir(bfm, next)
+{
+	mod_assert.object(bfm, 'bfm');
+	mod_assert.object(bfm.bfm_manta, 'bfm_manta');
+	mod_assert.string(bfm.bfm_base_path, 'bfm_base_path');
+	mod_assert.string(bfm.bfm_jobname, 'bfm_jobname');
+	mod_assert.string(bfm.bfm_branch, 'bfm_branch');
+	mod_assert.func(next, 'next');
+
+	/*
+	 * Look up the "-latest" pointer file for this branch in Manta:
+	 */
+	var latest_dir = mod_path.join('/', bfm.bfm_base_path,
+	    bfm.bfm_jobname, bfm.bfm_branch + '-latest');
+	lib_common.get_manta_file(bfm.bfm_manta, latest_dir,
+	    function (err, data) {
+		if (err) {
+			next(new VError(err, 'failed to look up latest dir'));
+			return;
+		}
+
+		if (data === false) {
+			next(new VError('latest link "%s" not found',
+			    latest_dir));
+			return;
+		}
+
+		bfm.bfm_manta_dir = data.trim();
+		next();
+	});
+}
+
+module.exports = bits_from_manta;

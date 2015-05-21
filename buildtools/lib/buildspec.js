@@ -1,14 +1,36 @@
 /* vim: set ts=8 sts=8 sw=8 noet: */
 
-var mod_path = require('path');
 var mod_fs = require('fs');
 
 var mod_assert = require('assert-plus');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
-var mod_jsprim = require('jsprim');
 
 var VError = mod_verror.VError;
+
+
+function
+pluck(o, name)
+{
+	var c = name.split(/\|/);
+
+	return (plucka(o, c));
+}
+
+function
+plucka(o, components)
+{
+	if (components.length === 0) {
+		return (o);
+	}
+
+	var top = components.shift();
+	if (!o.hasOwnProperty(top)) {
+		return (undefined);
+	}
+
+	return (plucka(o[top], components));
+}
 
 /*
  * Present a merged view of a "stack" of build.spec files.  Files will
@@ -78,7 +100,7 @@ get(name, optional)
 	 */
 	for (var i = 0; i < self.bs_specs.length; i++) {
 		var spec = self.bs_specs[i];
-		var val = mod_jsprim.pluck(spec.spec_object, name);
+		var val = pluck(spec.spec_object, name);
 
 		if (val !== undefined) {
 			return (val);
@@ -116,7 +138,7 @@ keys(name)
 
 	for (var i = 0; i < self.bs_specs.length; i++) {
 		var spec = self.bs_specs[i];
-		var val = mod_jsprim.pluck(spec.spec_object, name);
+		var val = pluck(spec.spec_object, name);
 
 		if (!val || typeof (val) !== 'object') {
 			continue;
