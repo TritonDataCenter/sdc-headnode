@@ -11,10 +11,11 @@ var mod_manta = require('manta');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
 
+var lib_common = require('../lib/common');
 var lib_multi_progbar = require('../lib/multi_progbar');
 var lib_buildspec = require('../lib/buildspec');
+var lib_workq = require('../lib/workq');
 
-var lib_common = require('../lib/common');
 var lib_bits_from_manta = require('../lib/bits_from/manta');
 var lib_bits_from_image = require('../lib/bits_from/image');
 
@@ -23,52 +24,14 @@ var VError = mod_verror.VError;
 /*
  * Globals:
  */
-var SPEC;
-var MANTA;
-var EPOCH = process.hrtime();
-var LIB_WORK = {};
-
-var PROGBAR = new lib_multi_progbar.MultiProgressBar();
-
-var G = {
-	branch: 'master',
-	concurrency: 50
-};
-
-function
-require_lib_work()
-{
-	var libdir = mod_path.join(__dirname, '..', 'lib', 'work');
-	var ents = mod_fs.readdirSync(libdir);
-
-	for (var i = 0; i < ents.length; i++) {
-		var ent = ents[i];
-		var m = ent.match(/^(.*)\.js$/);
-
-		if (m) {
-			mod_assert.ok(!LIB_WORK[m[1]]);
-
-			LIB_WORK[m[1]] = require(mod_path.join(libdir, ent));
-		}
-	}
-}
-
-function
-lib_work(name)
-{
-	var f = LIB_WORK[name];
-
-	mod_assert.func(f, 'work func "' + name + '"');
-
-	return (f);
-}
+var DEBUG = process.env.DEBUG ? true : false;
 
 function
 generate_options()
 {
 	var options = [
 		{
-			group: 'General Options'
+			group: 'Download Options'
 		},
 		{
 			names: [ 'write-manifest', 'w' ],
@@ -81,13 +44,29 @@ generate_options()
 			].join(' ')
 		},
 		{
-			names: [ 'dryrun', 'n' ],
+			names: [ 'clean-cache', 'c' ],
 			type: 'bool',
 			help: [
-				'Resolve the set of build artifacts to',
-				'download, but do not actually perform',
-				'any downloads or modify the filesystem.'
+				'Once all files are downloaded, remove any',
+				'old cache files that are no longer',
+				'in use.'
 			].join(' ')
+		},
+		{
+			names: [ 'download', 'd' ],
+			type: 'bool',
+			help: [
+				'Download the resolved build artifacts and',
+				'update the current artifact symlink for each.'
+			].join(' ')
+		},
+		{
+			group: 'General Options'
+		},
+		{
+			names: [ 'no-progbar', 'N' ],
+			type: 'bool',
+			help: 'Disable progress bar'
 		},
 		{
 			names: [ 'help', 'h' ],
@@ -159,31 +138,43 @@ printf()
 }
 
 function
-bit_enum_zone(out, name, next)
+bit_enum_assert(be, next)
 {
-	mod_assert.arrayOfObject(out, 'out');
-	mod_assert.string(name, 'name');
+	mod_assert.object(be, 'be');
+	mod_assert.arrayOfObject(be.be_out, 'be.be_out');
+	mod_assert.object(be.be_manta, 'be.be_manta');
+	mod_assert.object(be.be_spec, 'be.be_spec');
+	mod_assert.string(be.be_name, 'be.be_name');
+	mod_assert.string(be.be_default_branch, 'be.be_default_branch');
 	mod_assert.func(next, 'next');
+}
 
+function
+bit_enum_zone(be, next)
+{
+	bit_enum_assert(be, next);
+
+	var name = be.be_name;
 	var zone_spec = function (key, optional) {
-		return (SPEC.get('zones|' + name + '|' + key, optional));
+		return (be.be_spec.get('zones|' + name + '|' + key, optional));
 	};
 
 	var source = zone_spec('source', true) || 'manta';
 	var jobname = zone_spec('jobname', true) || name;
-	var branch = zone_spec('branch', true) || G.branch;
+	var branch = zone_spec('branch', true) ||
+	    be.be_default_branch;
 
-	var base_path = SPEC.get('manta-base-path');
+	var base_path = be.be_spec.get('manta-base-path');
 	var alt_base_var = zone_spec('alt_manta_base', true);
 	if (alt_base_var) {
-		base_path = SPEC.get(alt_base_var);
+		base_path = be.be_spec.get(alt_base_var);
 	}
 
 	switch (source) {
 	case 'manta':
 		var basen = jobname + '-zfs';
-		lib_bits_from_manta(out, {
-			bfm_manta: MANTA,
+		lib_bits_from_manta(be.be_out, {
+			bfm_manta: be.be_manta,
 			bfm_prefix: 'zone.' + name,
 			bfm_jobname: jobname,
 			bfm_branch: branch,
@@ -198,7 +189,7 @@ bit_enum_zone(out, name, next)
 		return;
 
 	case 'imgapi':
-		lib_bits_from_image(out, {
+		lib_bits_from_image(be.be_out, {
 			bfi_prefix: 'zone.' + name,
 			bfi_imgapi: 'https://updates.joyent.com',
 			bfi_uuid: zone_spec('uuid'),
@@ -213,21 +204,20 @@ bit_enum_zone(out, name, next)
 }
 
 function
-bit_enum_image(out, name, next)
+bit_enum_image(be, next)
 {
-	mod_assert.arrayOfObject(out, 'out');
-	mod_assert.string(name, 'name');
-	mod_assert.func(next, 'next');
+	bit_enum_assert(be, next);
 
+	var name = be.be_name;
 	var image_spec = function (key, optional) {
-		return (SPEC.get('images|' + name + '|' + key, optional));
+		return (be.be_spec.get('images|' + name + '|' + key, optional));
 	};
 
 	var source = image_spec('source', true) || 'imgapi';
 
 	switch (source) {
 	case 'imgapi':
-		lib_bits_from_image(out, {
+		lib_bits_from_image(be.be_out, {
 			bfi_prefix: 'image.' + name,
 			bfi_imgapi: image_spec('imgapi'),
 			bfi_uuid: image_spec('uuid'),
@@ -243,30 +233,30 @@ bit_enum_image(out, name, next)
 }
 
 function
-bit_enum_file(out, name, next)
+bit_enum_file(be, next)
 {
-	mod_assert.arrayOfObject(out, 'out');
-	mod_assert.string(name, 'name');
-	mod_assert.func(next, 'next');
+	bit_enum_assert(be, next);
 
+	var name = be.be_name;
 	var file_spec = function (key, optional) {
-		return (SPEC.get('files|' + name + '|' + key, optional));
+		return (be.be_spec.get('files|' + name + '|' + key, optional));
 	};
 
 	var source = file_spec('source', true) || 'manta';
 	var jobname = file_spec('jobname', true) || name;
-	var branch = file_spec('branch', true) || G.branch;
+	var branch = file_spec('branch', true) ||
+	    be.be_default_branch;
 
-	var base_path = SPEC.get('manta-base-path');
+	var base_path = be.be_spec.get('manta-base-path');
 	var alt_base_var = file_spec('alt_manta_base', true);
 	if (alt_base_var) {
-		base_path = SPEC.get(alt_base_var);
+		base_path = be.be_spec.get(alt_base_var);
 	}
 
 	switch (source) {
 	case 'manta':
-		lib_bits_from_manta(out, {
-			bfm_manta: MANTA,
+		lib_bits_from_manta(be.be_out, {
+			bfm_manta: be.be_manta,
 			bfm_prefix: 'file.' + name,
 			bfm_jobname: jobname,
 			bfm_branch: branch,
@@ -288,36 +278,49 @@ bit_enum_file(out, name, next)
 }
 
 function
-process_artifacts(callback)
+process_artifacts(pa, callback)
 {
+	mod_assert.object(pa, 'pa');
+	mod_assert.object(pa.pa_manta, 'pa.pa_manta');
+	mod_assert.object(pa.pa_spec, 'pa.pa_spec');
+	mod_assert.string(pa.pa_default_branch, 'pa.pa_default_branch');
 	mod_assert.func(callback, 'callback');
 
 	var out = [];
 
+	/*
+	 * Enumerate all build artifacts of a particular artifact type:
+	 */
 	var process_artifact_type = function (_, done) {
 		mod_assert.object(_, '_');
 		mod_assert.string(_.type, '_.type');
 		mod_assert.func(_.func, '_.func');
 
 		mod_vasync.forEachParallel({
-			inputs: SPEC.keys(_.type),
+			inputs: pa.pa_spec.keys(_.type),
 			func: function (name, next) {
-				var if_feat = SPEC.get(_.type + '|' + name +
-				    '|if_feature', true);
-				var not_feat = SPEC.get(_.type + '|' + name +
-				    '|if_not_feature', true);
+				var if_f = pa.pa_spec.get(_.type + '|' +
+				    name + '|if_feature', true);
+				var not_f = pa.pa_spec.get(_.type + '|' +
+				    name + '|if_not_feature', true);
 
 				/*
 				 * If a feature conditional was specified, but
 				 * the condition is not met, skip out
 				 */
-				if ((if_feat && !SPEC.feature(if_feat)) ||
-				    (not_feat && SPEC.feature(not_feat))) {
+				if ((if_f && !pa.pa_spec.feature(if_f)) ||
+				    (not_f && pa.pa_spec.feature(not_f))) {
 					next();
 					return;
 				}
 
-				_.func(out, name, function (err) {
+				_.func({
+					be_out: out,
+					be_manta: pa.pa_manta,
+					be_spec: pa.pa_spec,
+					be_name: name,
+					be_default_branch: pa.pa_default_branch
+				}, function (err) {
 					if (!err) {
 						next();
 						return;
@@ -330,6 +333,9 @@ process_artifacts(callback)
 		}, done);
 	};
 
+	/*
+	 * Process each of the different build artifact types:
+	 */
 	mod_vasync.forEachParallel({
 		inputs: [
 			{ type: 'zones', func: bit_enum_zone },
@@ -348,97 +354,35 @@ process_artifacts(callback)
 	});
 }
 
-var FAILURES = [];
-var FINAL = {};
+function
+clean_cache(dryrun, active_files)
+{
+	mod_assert.bool(dryrun, 'dryrun');
+	mod_assert.arrayOfString(active_files, 'active_files');
 
-var WORK_QUEUE = mod_vasync.queuev({
-	worker: function (bit, next) {
-		var funcs;
+	var ents = mod_fs.readdirSync(lib_common.cache_path(''));
+	for (var i = 0; i < ents.length; i++) {
+		var bn = ents[i];
+		var fp = lib_common.cache_path(bn);
+		var st = mod_fs.lstatSync(fp);
 
-		mod_assert.object(bit, 'bit');
-		mod_assert.string(bit.bit_type, 'bit.bit_type');
-		mod_assert.string(bit.bit_local_file, 'bit.bit_local_file');
+		if (st.isFile() && active_files.indexOf(bn) === -1) {
+			if (DEBUG) {
+				errprintf('orphan file: %s\n', bn);
+			}
 
-		switch (bit.bit_type) {
-		case 'manta':
-			funcs = [
-				'check_manta_md5sum',
-				'download_file',
-				'make_symlink'
-			];
-			break;
-
-		case 'json':
-			funcs = [
-				'write_json_to_file',
-				'make_symlink'
-			];
-			break;
-
-		case 'http':
-			funcs = [
-				'download_file',
-				'make_symlink'
-			];
-			break;
-
-		default:
-			FAILURES.push({
-				failure_bit: bit,
-				failure_err: new VError('invalid bit ' +
-				    'type "%s"', bit.bit_type)
-			});
-			next();
-			return;
+			if (!dryrun) {
+				mod_fs.unlinkSync(fp);
+			}
 		}
-
-		mod_vasync.pipeline({
-			funcs: funcs.map(lib_work),
-			arg: {
-				wa_bit: bit,
-				wa_manta: MANTA,
-				wa_bar: PROGBAR
-			}
-		}, function (err) {
-			if (err) {
-				PROGBAR.log('ERROR: bit "%s" failed: %s',
-				    bit.bit_name, err.message);
-				FAILURES.push({
-					failure_bit: bit,
-					failure_err: err
-				});
-				next(err);
-				return;
-			}
-
-			PROGBAR.log('ok:       %s', bit.bit_name);
-
-			FINAL[bit.bit_name] = bit;
-			next();
-		});
-	},
-	concurrency: G.concurrency
-});
-WORK_QUEUE.on('end', function () {
-	var hrt = process.hrtime(EPOCH);
-	var delta = Math.floor((hrt[0] * 1000) + (hrt[1] / 1000000));
-
-	PROGBAR.end();
-	errprintf('queue end; runtime %d ms\n', delta);
-
-	if (FAILURES.length > 0) {
-		errprintf('failures: %s\n', mod_util.inspect(FAILURES,
-		    false, 10, true));
-		process.exit(1);
 	}
-	process.exit(0);
-});
+}
 
 function
-create_manta_client(opts)
+create_manta_client(spec, opts)
 {
 	var override = function (key, opt) {
-		var v = SPEC.get(key, true);
+		var v = spec.get(key, true);
 
 		if (v) {
 			opts[opt] = v;
@@ -471,41 +415,44 @@ main()
 {
 	var opts = parse_opts(process.argv);
 
-	require_lib_work();
+	var bar = new lib_multi_progbar.MultiProgressBar({
+		progbar: !opts.no_progbar
+	});
 
 	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
 	    lib_common.root_path('build.spec.local'), function (err, bs) {
 		if (err) {
-			console.error('ERROR loading build specs: %s',
+			console.error('ERROR: loading build specs: %s',
 			    err.stack);
 			process.exit(3);
 		}
 
-		SPEC = bs;
+		var spec = bs;
+		var manta = create_manta_client(spec, opts);
+		var workq = new lib_workq.WorkQueue({
+			concurrency: 50,
+			progbar: bar,
+			manta: manta
+		});
 
-		MANTA = create_manta_client(opts);
+		var default_branch = spec.get('bits-branch');
+		bar.log('%-25s %s', 'Default Branch:', default_branch);
 
-		G.branch = SPEC.get('bits-branch');
-		errprintf('%-25s %s\n', 'Bits Branch:', G.branch);
-
-		var dc = Number(SPEC.get('download-concurrency', true) ||
-		    G.concurrency);
-		if (isNaN(dc) || dc < 1) {
-			errprintf('invalid value "%s" for "build.spec" ' +
-			    'key "%s"\n', SPEC.get('download-concurrency'),
-			    'download-concurrency');
-			process.exit(1);
-		}
-
-		PROGBAR.log('enumerating build artifacts...');
-		process_artifacts(function (err, bits) {
+		var start = process.hrtime();
+		bar.log('enumerating build artifacts...');
+		process_artifacts({
+			pa_default_branch: default_branch,
+			pa_manta: manta,
+			pa_spec: spec
+		}, function (err, bits) {
 			if (err) {
 				console.error('ERROR: enumerating bits: %s',
 				    err.stack);
 				process.exit(3);
 			}
 
-			PROGBAR.log('enumeration complete');
+			bar.log('enumeration complete (%d ms; %d artifacts)',
+			    lib_common.delta_ms(start), bits.length);
 
 			var wmf = opts.write_manifest;
 			if (wmf) {
@@ -518,13 +465,32 @@ main()
 				}
 			}
 
-			if (opts.dryrun) {
-				PROGBAR.log('dryrun complete');
+			if (!opts.download) {
+				bar.log('skipping download; run complete.');
 				process.exit(0);
 			}
 
-			WORK_QUEUE.push(bits);
-			WORK_QUEUE.close();
+			bar.log('downloading missing artifacts...');
+			workq.push(bits);
+			workq.close();
+
+			workq.on('end', function () {
+				if (workq.wq_failures.length > 0) {
+					errprintf('ERROR: failures: %s\n',
+					    mod_util.inspect(workq.wq_failures,
+					    false, 10, true));
+					process.exit(1);
+				}
+
+				if (opts.clean_cache) {
+					errprintf('cleaning cache...\n');
+					clean_cache(false,
+					    workq.wq_active_files);
+				}
+
+				errprintf('done!\n');
+				process.exit(0);
+			});
 		});
 	});
 }

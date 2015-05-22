@@ -13,6 +13,14 @@ var mod_readtoend = require('readtoend');
 var VError = mod_verror.VError;
 
 function
+delta_ms(hrt_epoch)
+{
+	var delta = process.hrtime(hrt_epoch);
+
+	return (Math.floor(delta[0] * 1000 + delta[1] / 1000000));
+}
+
+function
 get_via_http(url_str, callback)
 {
 	mod_assert.string(url_str, 'url_str');
@@ -118,5 +126,6 @@ module.exports = {
 	cache_path: cache_path,
 	get_via_http: get_via_http,
 	get_json_via_http: get_json_via_http,
-	get_manta_file: get_manta_file
+	get_manta_file: get_manta_file,
+	delta_ms: delta_ms
 };
