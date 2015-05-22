@@ -95,9 +95,11 @@ dfop_check_file_checksum(arg, next)
 	var summer = mod_crypto.createHash(dfop.dfop_hash_type);
 
 	var fstr = mod_fs.createReadStream(dfop.dfop_local_file);
-	/*
-	 * XXX STREAM ERROR HANDLING
-	 */
+	fstr.on('error', function (err) {
+		fstr.removeAllListeners();
+		next(new VError(err, 'could not read checksum for "%s"',
+		    dfop.dfop_local_file));
+	});
 	fstr.on('readable', function () {
 		for (;;) {
 			var data = fstr.read(8192);
@@ -154,9 +156,16 @@ dfop_download_file_http(arg, next)
 			mode: 0644
 		});
 		res.pipe(fstr);
-		/*
-		 * XXX STREAM ERROR HANDLING
-		 */
+		res.on('error', function (err) {
+			res.removeAllListeners();
+			arg.bar.log('download error for "%s": %s',
+			    mod_path.basename(dfop.dfop_local_file),
+			    err.message);
+
+			dfop.dfop_retry = true;
+			dfop.dfop_download = true;
+			next();
+		});
 		res.on('data', function (d) {
 			arg.bar.advance(dfop.dfop_bit.bit_name, d.length);
 		});
@@ -193,9 +202,25 @@ dfop_download_file_manta(arg, next)
 		mode: 0644
 	});
 
-	/*
-	 * XXX STREAM ERROR HANDLING
-	 */
+	mstr.on('error', function (err) {
+		mstr.removeAllListeners();
+		fstr.removeAllListeners();
+		fstr.end();
+
+		arg.bar.log('download error for "%s": %s',
+		    mod_path.basename(dfop.dfop_local_file),
+		    err.message);
+
+		dfop.dfop_retry = true;
+		dfop.dfop_download = true;
+		next();
+	});
+	fstr.on('error', function (err) {
+		fstr.removeAllListeners();
+		mstr.removeAllListeners();
+		next(new VError(err, 'could not write file "%s"',
+		    dfop.dfop_local_file));
+	});
 
 	var start = Date.now();
 	mstr.pipe(fstr);
