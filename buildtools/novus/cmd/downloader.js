@@ -1,6 +1,5 @@
 /* vim: set ts=8 sts=8 sw=8 noet: */
 
-var mod_crypto = require('crypto');
 var mod_fs = require('fs');
 var mod_path = require('path');
 var mod_util = require('util');
@@ -27,6 +26,7 @@ var VError = mod_verror.VError;
 var SPEC;
 var MANTA;
 var EPOCH = process.hrtime();
+var LIB_WORK = {};
 
 var PROGBAR = new lib_multi_progbar.MultiProgressBar();
 
@@ -35,7 +35,33 @@ var G = {
 	concurrency: 50
 };
 
-var DEBUG = process.env.DEBUG ? true : false;
+function
+require_lib_work()
+{
+	var libdir = mod_path.join(__dirname, '..', 'lib', 'work');
+	var ents = mod_fs.readdirSync(libdir);
+
+	for (var i = 0; i < ents.length; i++) {
+		var ent = ents[i];
+		var m = ent.match(/^(.*)\.js$/);
+
+		if (m) {
+			mod_assert.ok(!LIB_WORK[m[1]]);
+
+			LIB_WORK[m[1]] = require(mod_path.join(libdir, ent));
+		}
+	}
+}
+
+function
+lib_work(name)
+{
+	var f = LIB_WORK[name];
+
+	mod_assert.func(f, 'work func "' + name + '"');
+
+	return (f);
+}
 
 function
 generate_options()
@@ -45,12 +71,22 @@ generate_options()
 			group: 'General Options'
 		},
 		{
+			names: [ 'write-manifest', 'w' ],
+			type: 'string',
+			help: [
+				'Write a JSON object describing each',
+				'discovered build artifact to the named',
+				'file.  If the value "-" is passed, the',
+				'output will be directed to stdout.'
+			].join(' ')
+		},
+		{
 			names: [ 'dryrun', 'n' ],
 			type: 'bool',
 			help: [
-				'Resolve and print an object describing',
-				'the set of bits to download, but do not',
-				'download any bits.'
+				'Resolve the set of build artifacts to',
+				'download, but do not actually perform',
+				'any downloads or modify the filesystem.'
 			].join(' ')
 		},
 		{
@@ -312,379 +348,6 @@ process_artifacts(callback)
 	});
 }
 
-function
-dfop_check_file(dfop, next)
-{
-	if (dfop.dfop_retry) {
-		next();
-		return;
-	}
-
-	mod_fs.lstat(dfop.dfop_local_file, function (err, st) {
-		if (err) {
-			if (err.code === 'ENOENT') {
-				if (DEBUG) {
-					PROGBAR.log('"%s" does not exist',
-					    mod_path.basename(
-					    dfop.dfop_local_file));
-				}
-				dfop.dfop_download = true;
-				next();
-				return;
-			}
-
-			next(err);
-			return;
-		}
-
-		if (!st.isFile()) {
-			next(new VError('"%s" is not a regular file',
-			    dfop.dfop_local_file));
-			return;
-		}
-
-		if (st.size !== dfop.dfop_expected_size) {
-			if (DEBUG) {
-				PROGBAR.log(
-				    '"%s" size %d, expected %d; unlinking',
-				    mod_path.basename(dfop.dfop_local_file),
-				    st.size, dfop.dfop_expected_size);
-			}
-			mod_fs.unlinkSync(dfop.dfop_local_file);
-			dfop.dfop_download = true;
-			next();
-			return;
-		}
-
-		next();
-	});
-}
-
-function
-dfop_check_file_checksum(dfop, next)
-{
-	mod_assert.object(dfop, 'dfop');
-	mod_assert.string(dfop.dfop_hash_type, 'hash_type');
-	mod_assert.string(dfop.dfop_hash, 'hash');
-	mod_assert.func(next, 'next');
-
-	if (dfop.dfop_retry || dfop.dfop_download) {
-		next();
-		return;
-	}
-
-	var summer = mod_crypto.createHash(dfop.dfop_hash_type);
-
-	var fstr = mod_fs.createReadStream(dfop.dfop_local_file);
-	/*
-	 * XXX STREAM ERROR HANDLING
-	 */
-	fstr.on('readable', function () {
-		for (;;) {
-			var data = fstr.read(8192);
-
-			if (!data) {
-				return;
-			}
-
-			summer.update(data);
-		}
-	});
-	fstr.on('end', function () {
-		var local_hash = summer.digest('hex');
-
-		if (local_hash === dfop.dfop_hash) {
-			dfop.dfop_retry = false;
-			dfop.dfop_download = false;
-			next();
-			return;
-		}
-
-		PROGBAR.log('"%s" hash = %s, expected %s; unlinking',
-		    mod_path.basename(dfop.dfop_local_file),
-		    local_hash,
-		    dfop.dfop_hash);
-		mod_fs.unlinkSync(dfop.dfop_local_file);
-		dfop.dfop_download = true;
-		next();
-	});
-}
-
-function
-dfop_download_file_http(dfop, next)
-{
-	if (dfop.dfop_retry || !dfop.dfop_download) {
-		next();
-		return;
-	}
-
-	PROGBAR.log('download: %s', mod_path.basename(dfop.dfop_local_file));
-	PROGBAR.add(dfop.dfop_bit.bit_name, dfop.dfop_expected_size);
-
-	var start = Date.now();
-	lib_common.get_via_http(dfop.dfop_url, function (err, res) {
-		if (err) {
-			next(err);
-			return;
-		}
-
-		var fstr = mod_fs.createWriteStream(dfop.dfop_local_file, {
-			flags: 'wx',
-			mode: 0644
-		});
-		res.pipe(fstr);
-		/*
-		 * XXX STREAM ERROR HANDLING
-		 */
-		res.on('data', function (d) {
-			PROGBAR.advance(dfop.dfop_bit.bit_name, d.length);
-		});
-		fstr.on('finish', function () {
-			var end = Date.now();
-			if (DEBUG) {
-				PROGBAR.log('"%s" downloaded in %d seconds',
-				    dfop.dfop_bit.bit_name,
-				    (end - start) / 1000);
-			}
-			dfop.dfop_retry = true;
-			dfop.dfop_download = false;
-			next();
-		});
-	});
-}
-
-function
-dfop_download_file_manta(dfop, next)
-{
-	if (dfop.dfop_retry || !dfop.dfop_download) {
-		next();
-		return;
-	}
-
-	PROGBAR.log('download: %s', mod_path.basename(dfop.dfop_local_file));
-	PROGBAR.add(dfop.dfop_bit.bit_name, dfop.dfop_expected_size);
-
-	var mstr = MANTA.createReadStream(dfop.dfop_manta_file);
-	var fstr = mod_fs.createWriteStream(dfop.dfop_local_file, {
-		flags: 'wx',
-		mode: 0644
-	});
-
-	/*
-	 * XXX STREAM ERROR HANDLING
-	 */
-
-	var start = Date.now();
-	mstr.pipe(fstr);
-	mstr.on('data', function (d) {
-		PROGBAR.advance(dfop.dfop_bit.bit_name, d.length);
-	});
-	fstr.on('finish', function () {
-		var end = Date.now();
-		if (DEBUG) {
-			PROGBAR.log('"%s" downloaded in %d seconds',
-			    dfop.dfop_bit.bit_name, (end - start) / 1000);
-		}
-		dfop.dfop_retry = true;
-		dfop.dfop_download = false;
-		next();
-	});
-}
-
-/*
- * This function works to ensure that a copy of the selected build artifact
- * exists in the cache directory.  If the artifact exists already, its
- * MD5 sum will be verified.  If the MD5 checksum does not match, the file
- * will be deleted and re-downloaded.  Interrupted downloads will be retried
- * several times.
- */
-function
-work_download_file(bit, next)
-{
-	mod_assert.string(bit.bit_hash_type, 'bit_hash_type');
-	mod_assert.string(bit.bit_hash, 'bit_hash');
-
-	var dfop = {
-		dfop_tries: 0,
-		dfop_bit: bit,
-		dfop_retry: false,
-		dfop_download: false,
-		dfop_expected_size: bit.bit_size,
-		dfop_local_file: bit.bit_local_file,
-		dfop_hash: bit.bit_hash,
-		dfop_hash_type: bit.bit_hash_type
-	};
-
-	var funcs;
-
-	switch (bit.bit_type) {
-	case 'manta':
-		mod_assert.number(dfop.dfop_expected_size,
-		    'dfop_expected_size');
-		mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
-
-		dfop.dfop_manta_file = bit.bit_manta_file;
-		dfop.dfop_local_file = lib_common.cache_path(mod_path.basename(
-		    bit.bit_manta_file));
-
-		funcs = [
-			dfop_check_file,
-			dfop_check_file_checksum,
-			dfop_download_file_manta
-		];
-		break;
-
-	case 'http':
-		mod_assert.number(dfop.dfop_expected_size,
-		    'dfop_expected_size');
-		mod_assert.string(bit.bit_url, 'bit_url');
-
-		dfop.dfop_url = bit.bit_url;
-
-		funcs = [
-			dfop_check_file,
-			dfop_check_file_checksum,
-			dfop_download_file_http
-		];
-		break;
-
-	default:
-		next(new VError('invalid bit type "%s"', bit.bit_type));
-		return;
-	}
-
-	var do_try = function () {
-		mod_vasync.pipeline({
-			funcs: funcs,
-			arg: dfop
-		}, function (err) {
-			if (err) {
-				next(err);
-				return;
-			}
-
-			if (dfop.dfop_retry) {
-				dfop.dfop_tries++;
-				if (DEBUG) {
-					PROGBAR.log('retrying "%s" time %d',
-					    mod_path.basename(
-					    dfop.dfop_local_file),
-					    dfop.dfop_tries);
-				}
-				dfop.dfop_retry = false;
-				setTimeout(do_try, 1000);
-				return;
-			}
-
-			bit.bit_local_file = dfop.dfop_local_file;
-			next();
-		});
-	};
-
-	setImmediate(do_try);
-}
-
-/*
- * Manta maintains an MD5 checksum for each uploaded object that we can query
- * without downloading the file.  We check that this MD5 checksum matches the
- * expected value from the manifest before downloading.
- */
-function
-work_check_manta_md5sum(bit, next)
-{
-	mod_assert.string(bit.bit_hash, 'bit_hash');
-	mod_assert.strictEqual(bit.bit_hash_type, 'md5');
-	mod_assert.string(bit.bit_manta_file, 'bit_manta_file');
-
-	MANTA.info(bit.bit_manta_file, function (err, info) {
-		if (err) {
-			next(new VError(err, 'could not get info about "%s"',
-			    bit.bit_manta_file));
-			return;
-		}
-
-		mod_assert.string(info.md5, 'info.md5');
-		mod_assert.number(info.size, 'info.size');
-
-		/*
-		 * Manta MD5 sums are BASE64-encoded.  We must convert it
-		 * to a hex string for comparison with the manifest value.
-		 */
-		bit.bit_manta_md5sum = new Buffer(
-		    info.md5, 'base64').toString('hex');
-		bit.bit_size = info.size;
-
-		if (bit.bit_hash === bit.bit_manta_md5sum) {
-			next();
-			return;
-		}
-
-		next(new VError('Manta MD5 "%s" did not match manifest ' +
-		    'MD5 "%s"', bit.bit_manta_md5sum, bit.bit_hash));
-	});
-}
-
-function
-work_make_symlink(bit, next)
-{
-	mod_assert.string(bit.bit_local_file, 'bit_local_file');
-	mod_assert.optionalString(bit.bit_make_symlink, 'bit_make_symlink');
-
-	if (!bit.bit_make_symlink) {
-		next();
-		return;
-	}
-
-	var link_path = lib_common.cache_path(bit.bit_make_symlink);
-
-	try {
-		mod_fs.unlinkSync(link_path);
-	} catch (err) {
-		if (err.code !== 'ENOENT') {
-			next(new VError(err, 'unlink "%s" failed', link_path));
-			return;
-		}
-	}
-
-	mod_fs.symlinkSync(mod_path.basename(bit.bit_local_file),
-	    link_path);
-
-	next();
-}
-
-function
-work_write_json_to_file(bit, next)
-{
-	mod_assert.strictEqual(bit.bit_type, 'json');
-	mod_assert.string(bit.bit_local_file, 'bit_local_file');
-	mod_assert.object(bit.bit_json, 'bit_json');
-
-	var out = JSON.stringify(bit.bit_json);
-	try {
-		mod_fs.unlinkSync(bit.bit_local_file);
-	} catch (ex) {
-		if (ex.code !== 'ENOENT') {
-			next(new VError(ex, 'could not unlink "%s"',
-			    bit.bit_local_file));
-			return;
-		}
-	}
-
-	mod_fs.writeFile(bit.bit_local_file, out, {
-		encoding: 'utf8',
-		mode: 0644,
-		flag: 'wx'
-	}, function (err) {
-		if (err) {
-			next (new VError(err, 'could not write file "%s"',
-			    bit.bit_local_file));
-			return;
-		}
-
-		next();
-	});
-}
-
 var FAILURES = [];
 var FINAL = {};
 
@@ -699,23 +362,23 @@ var WORK_QUEUE = mod_vasync.queuev({
 		switch (bit.bit_type) {
 		case 'manta':
 			funcs = [
-				work_check_manta_md5sum,
-				work_download_file,
-				work_make_symlink
+				'check_manta_md5sum',
+				'download_file',
+				'make_symlink'
 			];
 			break;
 
 		case 'json':
 			funcs = [
-				work_write_json_to_file,
-				work_make_symlink
+				'write_json_to_file',
+				'make_symlink'
 			];
 			break;
 
 		case 'http':
 			funcs = [
-				work_download_file,
-				work_make_symlink
+				'download_file',
+				'make_symlink'
 			];
 			break;
 
@@ -730,8 +393,12 @@ var WORK_QUEUE = mod_vasync.queuev({
 		}
 
 		mod_vasync.pipeline({
-			funcs: funcs,
-			arg: bit
+			funcs: funcs.map(lib_work),
+			arg: {
+				wa_bit: bit,
+				wa_manta: MANTA,
+				wa_bar: PROGBAR
+			}
 		}, function (err) {
 			if (err) {
 				PROGBAR.log('ERROR: bit "%s" failed: %s',
@@ -804,10 +471,10 @@ main()
 {
 	var opts = parse_opts(process.argv);
 
+	require_lib_work();
+
 	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
 	    lib_common.root_path('build.spec.local'), function (err, bs) {
-		var i;
-
 		if (err) {
 			console.error('ERROR loading build specs: %s',
 			    err.stack);
@@ -821,6 +488,16 @@ main()
 		G.branch = SPEC.get('bits-branch');
 		errprintf('%-25s %s\n', 'Bits Branch:', G.branch);
 
+		var dc = Number(SPEC.get('download-concurrency', true) ||
+		    G.concurrency);
+		if (isNaN(dc) || dc < 1) {
+			errprintf('invalid value "%s" for "build.spec" ' +
+			    'key "%s"\n', SPEC.get('download-concurrency'),
+			    'download-concurrency');
+			process.exit(1);
+		}
+
+		PROGBAR.log('enumerating build artifacts...');
 		process_artifacts(function (err, bits) {
 			if (err) {
 				console.error('ERROR: enumerating bits: %s',
@@ -828,12 +505,24 @@ main()
 				process.exit(3);
 			}
 
+			PROGBAR.log('enumeration complete');
+
+			var wmf = opts.write_manifest;
+			if (wmf) {
+				var out = JSON.stringify(bits);
+
+				if (wmf === '-') {
+					console.log(out);
+				} else {
+					mod_fs.writeFileSync(wmf, out);
+				}
+			}
+
 			if (opts.dryrun) {
-				console.log(JSON.stringify(bits));
+				PROGBAR.log('dryrun complete');
 				process.exit(0);
 			}
 
-			errprintf('pushing bits to work queue...\n');
 			WORK_QUEUE.push(bits);
 			WORK_QUEUE.close();
 		});

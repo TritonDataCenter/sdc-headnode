@@ -1,11 +1,9 @@
 /* vim: set ts=8 sts=8 sw=8 noet: */
 
-var mod_fs = require('fs');
 var mod_path = require('path');
 
 var mod_dashdash = require('dashdash');
 var mod_extsprintf = require('extsprintf');
-var mod_monowrap = require('monowrap');
 
 var lib_common = require('../lib/common');
 var lib_buildspec = require('../lib/buildspec');
@@ -15,7 +13,11 @@ var lib_buildspec = require('../lib/buildspec');
  */
 var SPEC;
 
-var ERRORS = [];
+var VALID_TYPES = [
+	'zones',
+	'images',
+	'files'
+];
 
 function
 generate_options()
@@ -25,6 +27,15 @@ generate_options()
 			names: [ 'feature', 'f' ],
 			type: 'bool',
 			help: 'Check if this feature is enabled'
+		},
+		{
+			names: [ 'list-artifacts', 'a' ],
+			type: 'bool',
+			help: [
+				'List artifacts for artifact type.',
+				'Valid types:',
+				VALID_TYPES.join(', ') + '.'
+			].join(' ')
 		},
 		{
 			names: [ 'help', 'h' ],
@@ -104,6 +115,8 @@ main()
 
 		if (opts.feature) {
 			console.log(SPEC.feature(opts.name));
+		} else if (opts.list_artifacts) {
+			console.log(SPEC.keys(opts.name).join('\n'));
 		} else {
 			console.log(SPEC.get(opts.name));
 		}

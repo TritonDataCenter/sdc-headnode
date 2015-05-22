@@ -78,6 +78,7 @@ bfm_find_build_files(bfm, next)
 	mod_assert.arrayOfObject(bfm.bfm_files, 'bfm_files');
 	mod_assert.string(bfm.bfm_branch, 'bfm_branch');
 	mod_assert.string(bfm.bfm_manta_dir, 'bfm_manta_dir');
+	mod_assert.func(next, 'next');
 
 	/*
 	 * Build artifacts from MG are uploaded into Manta in a directory
