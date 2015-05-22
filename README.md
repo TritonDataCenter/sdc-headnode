@@ -376,9 +376,7 @@ The feature is named `"debug-platform"`, and may be enabled via the
 ```
 
 Features are generally used to enable the conditional inclusion of particular
-sets of build artifacts, depending on the type of build: e.g.,
-`"headnode-debug"` includes a DEBUG build of the operating system, and
-`"headnode-joyent"` includes
+sets of build artifacts, depending on the type of build.
 
 #### Conditional Artifact Inclusion
 
