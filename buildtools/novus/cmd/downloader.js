@@ -337,7 +337,7 @@ process_artifacts(pa, callback)
 	var out = [];
 
 	var override_source = pa.pa_spec.get('override-all-sources',
-	    false) || false;
+	    true) || false;
 
 	/*
 	 * Enumerate all build artifacts of a particular artifact type:
