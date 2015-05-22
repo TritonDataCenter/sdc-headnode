@@ -24,7 +24,7 @@ endif
 BASH_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
 	$(shell find tools/bin tools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
-	$(shell find bin -depth 1 -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
+	$(shell find bin -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
 
 JS_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print) \
@@ -352,7 +352,7 @@ man: $(PROTO_MAN_FILES)
 $(PROTO)/opt/smartdc/man/%: tools/man/%.ronn
 	mkdir -p $(@D)
 	rm -f $@
-	$(TOP)/bin/ronnjs/bin/ronn.js \
+	$(TOP)/buildtools/ronnjs/bin/ronn.js \
 	    --roff $^ \
 	    --date `git log -1 --date=short --pretty=format:$(PERCENT)cd $^` \
 	    `date +$(PERCENT)Y` \
