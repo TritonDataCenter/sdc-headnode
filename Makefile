@@ -194,8 +194,9 @@ sandwich:
 .PHONY: download_bits
 download_bits: deps
 	@mkdir -p cache
+	./bin/checker
 	if [ -z $${NO_DOWNLOAD} ]; then \
-		./bin/downloader -w "log/artifacts.json"; \
+		./bin/downloader -c -d -w "log/artifacts.json"; \
 	else \
 		true; \
 	fi
