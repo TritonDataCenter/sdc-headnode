@@ -29,10 +29,10 @@ generate_options()
 			help: 'Check if this feature is enabled'
 		},
 		{
-			names: [ 'list-artifacts', 'a' ],
+			names: [ 'list-artefacts', 'a' ],
 			type: 'bool',
 			help: [
-				'List artifacts for artifact type.',
+				'List artefacts for artefact type.',
 				'Valid types:',
 				VALID_TYPES.join(', ') + '.'
 			].join(' ')
@@ -115,7 +115,7 @@ main()
 
 		if (opts.feature) {
 			console.log(SPEC.feature(opts.name));
-		} else if (opts.list_artifacts) {
+		} else if (opts.list_artefacts) {
 			console.log(SPEC.keys(opts.name).join('\n'));
 		} else {
 			console.log(SPEC.get(opts.name));

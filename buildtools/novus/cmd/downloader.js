@@ -39,7 +39,7 @@ generate_options()
 			type: 'string',
 			help: [
 				'Write a JSON object describing each',
-				'discovered build artifact to the named',
+				'discovered build artefact to the named',
 				'file.  If the value "-" is passed, the',
 				'output will be directed to stdout.'
 			].join(' '),
@@ -49,8 +49,8 @@ generate_options()
 			names: [ 'download', 'd' ],
 			type: 'bool',
 			help: [
-				'Download the resolved build artifacts and',
-				'update the current artifact symlink for each.'
+				'Download the resolved build artefacts and',
+				'update the current artefact symlink for each.'
 			].join(' ')
 		},
 		{
@@ -326,7 +326,7 @@ bit_enum_file(be, next)
 }
 
 function
-process_artifacts(pa, callback)
+process_artefacts(pa, callback)
 {
 	mod_assert.object(pa, 'pa');
 	mod_assert.object(pa.pa_manta, 'pa.pa_manta');
@@ -340,9 +340,9 @@ process_artifacts(pa, callback)
 	    true) || false;
 
 	/*
-	 * Enumerate all build artifacts of a particular artifact type:
+	 * Enumerate all build artefacts of a particular artefact type:
 	 */
-	var process_artifact_type = function (_, done) {
+	var process_artefact_type = function (_, done) {
 		mod_assert.object(_, '_');
 		mod_assert.string(_.type, '_.type');
 		mod_assert.func(_.func, '_.func');
@@ -386,7 +386,7 @@ process_artifacts(pa, callback)
 	};
 
 	/*
-	 * Process each of the different build artifact types:
+	 * Process each of the different build artefact types:
 	 */
 	mod_vasync.forEachParallel({
 		inputs: [
@@ -394,11 +394,11 @@ process_artifacts(pa, callback)
 			{ type: 'files', func: bit_enum_file },
 			{ type: 'images', func: bit_enum_image }
 		],
-		func: process_artifact_type
+		func: process_artefact_type
 	}, function (err) {
 		if (err) {
 			callback(new VError(err, 'enumeration of build ' +
-			    'artifacts failed'));
+			    'artefacts failed'));
 			return;
 		}
 
@@ -491,8 +491,8 @@ main()
 		bar.log('%-25s %s', 'Default Branch:', default_branch);
 
 		var start = process.hrtime();
-		bar.log('enumerating build artifacts...');
-		process_artifacts({
+		bar.log('enumerating build artefacts...');
+		process_artefacts({
 			pa_default_branch: default_branch,
 			pa_manta: manta,
 			pa_spec: spec
@@ -503,7 +503,7 @@ main()
 				process.exit(3);
 			}
 
-			bar.log('enumeration complete (%d ms; %d artifacts)',
+			bar.log('enumeration complete (%d ms; %d artefacts)',
 			    lib_common.delta_ms(start), bits.length);
 
 			var wmf = opts.write_manifest;
@@ -522,7 +522,7 @@ main()
 				process.exit(0);
 			}
 
-			bar.log('downloading missing artifacts...');
+			bar.log('downloading missing artefacts...');
 			workq.push(bits);
 			workq.close();
 

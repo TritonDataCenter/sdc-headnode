@@ -81,12 +81,12 @@ bfm_find_build_files(bfm, next)
 	mod_assert.func(next, 'next');
 
 	/*
-	 * Build artifacts from MG are uploaded into Manta in a directory
+	 * Build artefacts from MG are uploaded into Manta in a directory
 	 * structure that reflects the branch and build stamp, e.g.
 	 *
 	 *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
 	 *
-	 * The build artifact we are interested in downloading generally
+	 * The build artefact we are interested in downloading generally
 	 * has a filename of the form:
 	 *
 	 *   <base>-<branch>-*.<extension>
@@ -96,7 +96,7 @@ bfm_find_build_files(bfm, next)
 	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
 	 *
 	 * Build a regular expression that will, given our selection
-	 * constraints, match only the build artifact file we are looking for:
+	 * constraints, match only the build artefact file we are looking for:
 	 */
 	var patterns = [];
 	for (var i = 0; i < bfm.bfm_files.length; i++) {
@@ -139,7 +139,7 @@ bfm_find_build_files(bfm, next)
 	};
 
 	/*
-	 * Walk the build artifact directory for this build run:
+	 * Walk the build artefact directory for this build run:
 	 */
 	bfm.bfm_manta.ftw(bfm.bfm_manta_dir, {
 		type: 'o'
@@ -247,7 +247,7 @@ bfm_get_md5sum(bfm, next)
 }
 
 /*
- * Each build artifact from MG is uploaded into a Manta directory, e.g.
+ * Each build artefact from MG is uploaded into a Manta directory, e.g.
  *
  *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
  *

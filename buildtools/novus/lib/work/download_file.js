@@ -240,8 +240,8 @@ dfop_download_file_manta(arg, next)
 }
 
 /*
- * This function works to ensure that a copy of the selected build artifact
- * exists in the cache directory.  If the artifact exists already, its
+ * This function works to ensure that a copy of the selected build artefact
+ * exists in the cache directory.  If the artefact exists already, its
  * MD5 sum will be verified.  If the MD5 checksum does not match, the file
  * will be deleted and re-downloaded.  Interrupted downloads will be retried
  * several times.

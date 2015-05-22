@@ -396,11 +396,11 @@ function get_bit
     name=$1
 
     if [[ ! -f "${CACHE}/${name}" ]]; then
-        fatal "build artifact \"${name}\" was not found in \"${CACHE}\""
+        fatal "build artefact \"${name}\" was not found in \"${CACHE}\""
     fi
 
     if ! linkpath="$(readlink -n "${CACHE}/${name}")"; then
-        fatal "could not get target of artifact symlink \"${name}\""
+        fatal "could not get target of artefact symlink \"${name}\""
     fi
 
     printf '%s/%s' "${CACHE}" "${linkpath}"
@@ -425,7 +425,7 @@ function _check_vpn
 #
 # - the local file path in the PLATFORM_FILE envvar
 # - the symlink "file.platform.tgz" (or "file.platform-debug.tgz") as
-#   prepared by the build artifact download system
+#   prepared by the build artefact download system
 #
 function copy_platform
 {

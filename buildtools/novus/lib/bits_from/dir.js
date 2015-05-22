@@ -69,12 +69,12 @@ bfd_find_build_files(bfd, next)
 	mod_assert.func(next, 'next');
 
 	/*
-	 * Build artifacts are arranged in a simple directory structure by MG
+	 * Build artefacts are arranged in a simple directory structure by MG
 	 * during the configure step, e.g.
 	 *
 	 *   ${BITS_DIR}/sapi/sapi-zfs-master-20150421T182802Z-g983d6be.zfs.gz
 	 *
-	 * The build artifact we are interested in copying generally
+	 * The build artefact we are interested in copying generally
 	 * has a filename of the form:
 	 *
 	 *   <base>-<branch>-*.<extension>
@@ -84,7 +84,7 @@ bfd_find_build_files(bfd, next)
 	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
 	 *
 	 * Build a regular expression that will, given our selection
-	 * constraints, match only the build artifact file we are looking for:
+	 * constraints, match only the build artefact file we are looking for:
 	 */
 	var patterns = [];
 	for (var i = 0; i < bfd.bfd_files.length; i++) {
@@ -126,7 +126,7 @@ bfd_find_build_files(bfd, next)
 	};
 
 	/*
-	 * Walk the build artifact directory for this build run:
+	 * Walk the build artefact directory for this build run:
 	 */
 	mod_fs.readdir(bfd.bfd_dir, function (err, ents) {
 		var i;
@@ -147,7 +147,7 @@ bfd_find_build_files(bfd, next)
 			var p = patterns[i];
 
 			/*
-			 * Select the "latest" build artifact by sorting the
+			 * Select the "latest" build artefact by sorting the
 			 * array of filenames.  This is emphatically _not_ our
 			 * best foot forward.
 			 */

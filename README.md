@@ -79,7 +79,7 @@ Then to set up the zone:
 
 ### Build Specification: `build.spec` and `build.spec.local`
 
-Some aspects of the configuration of the build, including which build artifacts
+Some aspects of the configuration of the build, including which build artefacts
 will be included in the resultant SDC installation media, are specified
 declaritively.  The JSON file `build.spec` contains the default specification
 of all build configuration, and is versioned in the repository.
@@ -106,7 +106,7 @@ In the example above,
   - `"answer-file"` is used to specify a setup answers file for inclusion in
     resultant installation media
   - `"build-tgz"` is used to disable the creation of a compressed tarball with
-    the build results; instead, the resultant build artifacts will be left in
+    the build results; instead, the resultant build artefacts will be left in
     output directories.
   - `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
     (recommended if you plan to install a [Manta][manta] test environment.)
@@ -114,16 +114,16 @@ In the example above,
   - `"default-boot-option"` selects the default grub boot option; a value of
     `1` selects the second entry in the menu: regular headnode boot
 
-#### Build Artifacts
+#### Build Artefacts
 
-Three classes of build artifact may be described in the build specification
+Three classes of build artefact may be described in the build specification
 file: images, zones and files.
 
 ##### Images
 
 Images, defined in the `"images"` key of the build specification file, refer to
 specific image dataset streams (and their associated manifests) as published in
-an IMGAPI service.  These artifacts are generally base images on which the
+an IMGAPI service.  These artefacts are generally base images on which the
 incremental dataset streams for core SDC zone datasets (specified in `"zones"`)
 are based.
 
@@ -163,11 +163,11 @@ above will result in the creation of two symlinks:
 
 The SDC headnode installation media includes images of various core zones.
 These zone images are generally built by [Mountain Gorilla (MG)][mg], and the
-resultant build artifacts are uploaded to a directory structure in
+resultant build artefacts are uploaded to a directory structure in
 [Manta][manta].  Zone images are nominated for inclusion in the build via
 the `"zones"` key in `build.spec`.
 
-The simplest possible example is a zone where the MG build artifact name is the
+The simplest possible example is a zone where the MG build artefact name is the
 same as the shipping filename, and the latest image is to be downloaded from
 Manta.  One such example is the `"adminui"` zone:
 
@@ -221,7 +221,7 @@ UUID, e.g.
 
 Images may also be obtained from a local directory using the `"bits-dir"`
 source.  This is primarily used by MG when building headnode images under
-automation, where MG assembles the build artifacts in a local directory
+automation, where MG assembles the build artefacts in a local directory
 structure.  If `"bits-dir"` is used, either through `"source"` for a specific
 zone or via the `"override-all-sources"` top-level key, the `BITS_DIR`
 environment variable must contain the path of a MG-style bits directory.  See
@@ -242,7 +242,7 @@ i.e.
 - `zone.manatee.zfs.gz`
 
 This symlink is used by subsequent build phases to locate the downloaded build
-artifact.
+artefact.
 
 ##### Files
 
@@ -283,16 +283,16 @@ subsequent phases of the build:
 - `file.agents.sh`
 
 By default, the `"manta-base-path"` top-level key is used to specify the
-base directory where the downloader will look for build artifacts in Manta.
+base directory where the downloader will look for build artefacts in Manta.
 The default value for this key, as shipped in this repository, is
-`"/Joyent_Dev/public/builds"`.  If you wish to include an artifact that
+`"/Joyent_Dev/public/builds"`.  If you wish to include an artefact that
 comes from a different Manta directory tree, you may specify the name of
 an alternative top-level `build.spec` key on a per-file basis.
 
 For example, Joyent ships firmware files for specific server hardware that is
 not available under an opensource license.  As a result, these files are only
 included in the commercially supported builds of SDC to Joyent customers.
-The firmware artifact is stored in a different (Joyent-private) area of Manta,
+The firmware artefact is stored in a different (Joyent-private) area of Manta,
 and configured thus:
 
 ```
@@ -313,18 +313,18 @@ and configured thus:
 
 The `"alt_manta_base"` key specifies that the download phase of the build
 should look in the path specified in `"joyent-manta-base-path"` for this
-artifact, rather than the default key of `"manta-base-path"`.
+artefact, rather than the default key of `"manta-base-path"`.
 
 #### Alternative Branch Selection
 
-By default, the build artifacts sourced for inclusion in the headnode
+By default, the build artefacts sourced for inclusion in the headnode
 installation media are from the _master_ branch of their respective source
 repository.  [Mountain Gorilla][mg] includes the branch in names of
-the build artifact directories and files.
+the build artefact directories and files.
 
 The default branch may be overridden by specifying the `"bits-branch"` key.
 The build branch for an individual zone or file may be overriden by specifying
-`"branch"` in the artifact definition.  For example, to obtain artifacts from
+`"branch"` in the artefact definition.  For example, to obtain artefacts from
 the `release-20150514` branch for everything except the platform (and platform
 boot tarball), the following could be used in `build.spec.local`:
 
@@ -376,13 +376,13 @@ The feature is named `"debug-platform"`, and may be enabled via the
 ```
 
 Features are generally used to enable the conditional inclusion of particular
-sets of build artifacts, depending on the type of build.
+sets of build artefacts, depending on the type of build.
 
-#### Conditional Artifact Inclusion
+#### Conditional Artefact Inclusion
 
 Through the definition and activation of [Features](#feature-definition) via
 the `"features"` key in the build specification, particular subsets of build
-artifacts may be included or excluded.
+artefacts may be included or excluded.
 
 For example, the `"debug-platform"` feature is used to determine whether the
 release or DEBUG build of the operating system platform image is included in
@@ -407,11 +407,11 @@ included in the build.
 }
 ```
 
-The `"if_not_feature"` directive causes the `"platform"` build artifact to be
+The `"if_not_feature"` directive causes the `"platform"` build artefact to be
 downloaded if, and only if, the `"debug-platform"` feature is disabled for this
 build.  Conversely, the `"if_feature"` directive causes the `"platform-debug"`
-artifact to become active when a DEBUG build is requested.  In this way, a
-selection between two different build artifacts may be made based on features.
+artefact to become active when a DEBUG build is requested.  In this way, a
+selection between two different build artefacts may be made based on features.
 Feature activation is subsequently queried during later phases of the build
 through the use of the `--feature` (`-f`) flag to `bin/buildspec`.
 

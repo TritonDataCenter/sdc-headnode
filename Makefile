@@ -196,7 +196,7 @@ download_bits: deps
 	@mkdir -p cache
 	./bin/checker
 	if [ -z $${NO_DOWNLOAD} ]; then \
-		./bin/downloader -c -d -w "log/artifacts.json"; \
+		./bin/downloader -c -d -w "log/artefacts.json"; \
 	else \
 		true; \
 	fi
@@ -324,7 +324,7 @@ $(PROTO)/opt/smartdc/bin/%: tools/bin/%
 #
 # We deliver some specific boot files in the compute node tools tarball so that
 # partial updates to USB keys may be delivered by incremental updates to SDC.
-# These files come from the same copy of the sdcboot artifact used to build the
+# These files come from the same copy of the sdcboot artefact used to build the
 # rest of sdc-headnode.
 #
 $(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
