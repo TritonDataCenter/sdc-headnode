@@ -16,10 +16,6 @@
     }
   },
 
-  "set_from_env": {
-    "bits-branch": "BITS_BRANCH"
-  },
-
   "bits-branch": "master",
 
   "// manta-*": "You can override these in your build.spec.local.",
@@ -70,7 +66,6 @@
       "file": { "base": "boot", "ext": "tgz" }
     },
     "platform": {
-      "jobname": "platform",
       "if_not_feature": "debug-platform",
       "file": { "base": "platform", "ext": "tgz" }
     },
