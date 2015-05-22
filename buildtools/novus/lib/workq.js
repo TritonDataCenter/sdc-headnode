@@ -137,6 +137,13 @@ _workfunc(bit, next)
 		];
 		break;
 
+	case 'file':
+		funcs = [
+			'copy_local_file',
+			'make_symlink'
+		];
+		break;
+
 	default:
 		self.wq_failures.push({
 			failure_bit: bit,
@@ -157,8 +164,18 @@ _workfunc(bit, next)
 		}
 	}, function (err) {
 		if (err) {
+			/*
+			 * Ensure the error message does not contain
+			 * any newlines:
+			 */
+			var msg = err.message || '';
+			var idx = msg.indexOf('\n');
+			if (idx !== -1) {
+				msg = msg.substr(0, idx);
+			}
+
 			self.wq_bar.log('ERROR: bit "%s" failed: %s',
-			    bit.bit_name, err.message);
+			    bit.bit_name, msg);
 			self.wq_failures.push({
 				failure_bit: bit,
 				failure_err: err

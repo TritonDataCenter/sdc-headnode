@@ -18,6 +18,7 @@ var lib_workq = require('../lib/workq');
 
 var lib_bits_from_manta = require('../lib/bits_from/manta');
 var lib_bits_from_image = require('../lib/bits_from/image');
+var lib_bits_from_dir = require('../lib/bits_from/dir');
 
 var VError = mod_verror.VError;
 
@@ -41,6 +42,15 @@ generate_options()
 				'discovered build artifact to the named',
 				'file.  If the value "-" is passed, the',
 				'output will be directed to stdout.'
+			].join(' '),
+			helpArg: 'FILE'
+		},
+		{
+			names: [ 'download', 'd' ],
+			type: 'bool',
+			help: [
+				'Download the resolved build artifacts and',
+				'update the current artifact symlink for each.'
 			].join(' ')
 		},
 		{
@@ -53,20 +63,16 @@ generate_options()
 			].join(' ')
 		},
 		{
-			names: [ 'download', 'd' ],
-			type: 'bool',
-			help: [
-				'Download the resolved build artifacts and',
-				'update the current artifact symlink for each.'
-			].join(' ')
-		},
-		{
 			group: 'General Options'
 		},
 		{
 			names: [ 'no-progbar', 'N' ],
 			type: 'bool',
-			help: 'Disable progress bar'
+			help: [
+				'Disable progress bar.  Note that the progress',
+				'bar will be disabled automatically if there',
+				'is no controlling terminal.'
+			].join(' ')
 		},
 		{
 			names: [ 'help', 'h' ],
@@ -159,7 +165,8 @@ bit_enum_zone(be, next)
 		return (be.be_spec.get('zones|' + name + '|' + key, optional));
 	};
 
-	var source = zone_spec('source', true) || 'manta';
+	var source = be.be_override_source || zone_spec('source', true) ||
+	    'manta';
 	var jobname = zone_spec('jobname', true) || name;
 	var branch = zone_spec('branch', true) ||
 	    be.be_default_branch;
@@ -170,9 +177,11 @@ bit_enum_zone(be, next)
 		base_path = be.be_spec.get(alt_base_var);
 	}
 
+	var basen;
+
 	switch (source) {
 	case 'manta':
-		var basen = jobname + '-zfs';
+		basen = jobname + '-zfs';
 		lib_bits_from_manta(be.be_out, {
 			bfm_manta: be.be_manta,
 			bfm_prefix: 'zone.' + name,
@@ -194,6 +203,25 @@ bit_enum_zone(be, next)
 			bfi_imgapi: 'https://updates.joyent.com',
 			bfi_uuid: zone_spec('uuid'),
 			bfi_name: jobname
+		}, next);
+		return;
+
+	case 'bits-dir':
+		mod_assert.string(process.env.BITS_DIR, '$BITS_DIR');
+
+		basen = jobname + '-zfs';
+		lib_bits_from_dir(be.be_out, {
+			bfd_dir: mod_path.join(process.env.BITS_DIR,
+			    jobname),
+			bfd_prefix: 'zone.' + name,
+			bfd_jobname: jobname,
+			bfd_branch: branch,
+			bfd_files: [
+				{ name: name + '_manifest',
+				    base: basen, ext: 'imgmanifest' },
+				{ name: name + '_image',
+				    base: basen, ext: 'zfs.gz' }
+			]
 		}, next);
 		return;
 
@@ -242,19 +270,20 @@ bit_enum_file(be, next)
 		return (be.be_spec.get('files|' + name + '|' + key, optional));
 	};
 
-	var source = file_spec('source', true) || 'manta';
+	var source = be.be_override_source || file_spec('source', true) ||
+	    'manta';
 	var jobname = file_spec('jobname', true) || name;
 	var branch = file_spec('branch', true) ||
 	    be.be_default_branch;
 
-	var base_path = be.be_spec.get('manta-base-path');
-	var alt_base_var = file_spec('alt_manta_base', true);
-	if (alt_base_var) {
-		base_path = be.be_spec.get(alt_base_var);
-	}
-
 	switch (source) {
 	case 'manta':
+		var base_path = be.be_spec.get('manta-base-path');
+		var alt_base_var = file_spec('alt_manta_base', true);
+		if (alt_base_var) {
+			base_path = be.be_spec.get(alt_base_var);
+		}
+
 		lib_bits_from_manta(be.be_out, {
 			bfm_manta: be.be_manta,
 			bfm_prefix: 'file.' + name,
@@ -268,6 +297,25 @@ bit_enum_file(be, next)
 				}
 			],
 			bfm_base_path: base_path
+		}, next);
+		return;
+
+	case 'bits-dir':
+		mod_assert.string(process.env.BITS_DIR, '$BITS_DIR');
+
+		lib_bits_from_dir(be.be_out, {
+			bfd_dir: mod_path.join(process.env.BITS_DIR,
+			    jobname),
+			bfd_prefix: 'file.' + name,
+			bfd_jobname: jobname,
+			bfd_branch: branch,
+			bfd_files: [
+				{
+					name: name,
+					base: file_spec('file|base'),
+					ext: file_spec('file|ext')
+				}
+			]
 		}, next);
 		return;
 
@@ -287,6 +335,9 @@ process_artifacts(pa, callback)
 	mod_assert.func(callback, 'callback');
 
 	var out = [];
+
+	var override_source = pa.pa_spec.get('override-all-sources',
+	    false) || false;
 
 	/*
 	 * Enumerate all build artifacts of a particular artifact type:
@@ -319,7 +370,8 @@ process_artifacts(pa, callback)
 					be_manta: pa.pa_manta,
 					be_spec: pa.pa_spec,
 					be_name: name,
-					be_default_branch: pa.pa_default_branch
+					be_default_branch: pa.pa_default_branch,
+					be_override_source: override_source
 				}, function (err) {
 					if (!err) {
 						next();
