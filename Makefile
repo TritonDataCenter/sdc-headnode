@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
 
 PERCENT := %
@@ -36,6 +36,9 @@ JSSTYLE_FILES = $(JS_FILES)
 JSL_CONF_NODE = buildtools/jsl.node.conf
 JSSTYLE_FLAGS = -o indent=4,doxygen,unparenthesized-return=0
 BASHSTYLE := buildtools/bashstyle
+
+DOWNLOADER := ./bin/downloader
+CHECKER := ./bin/checker
 
 EXTRA_CHECK_TARGETS := check-novus
 
@@ -194,9 +197,9 @@ sandwich:
 .PHONY: download_bits
 download_bits: deps
 	@mkdir -p cache
-	./bin/checker
+	$(CHECKER)
 	if [ -z $${NO_DOWNLOAD} ]; then \
-		./bin/downloader -c -d -w "log/artefacts.json"; \
+		$(DOWNLOADER) -d -w "log/artefacts.json"; \
 	else \
 		true; \
 	fi

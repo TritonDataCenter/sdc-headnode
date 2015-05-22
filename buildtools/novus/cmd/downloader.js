@@ -534,7 +534,8 @@ main()
 					process.exit(1);
 				}
 
-				if (opts.clean_cache) {
+				if (spec.get('clean-cache', true) ||
+				    opts.clean_cache) {
 					errprintf('cleaning cache...\n');
 					clean_cache(false,
 					    workq.wq_active_files);
