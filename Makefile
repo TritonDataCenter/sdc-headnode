@@ -111,13 +111,8 @@ TOOLS_BIN_FILES = \
 TOOLS_LIB_FILES = \
 	wrap.sh
 
-TOOLS_BOOT_FILES = \
-	boot/default.ipxe \
-	boot/ipxe.lkrn
-
 TOOLS_SHARE_FILES = \
-	servicebundle/pubkey.key \
-	$(TOOLS_BOOT_FILES:%=usbkey/%)
+	servicebundle/pubkey.key
 
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
@@ -153,8 +148,7 @@ PROTO_MAN_FILES = \
 #
 CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
-	man/man1/sdc-sbcreate.1 \
-	$(TOOLS_BOOT_FILES:%=share/usbkey/%)
+	man/man1/sdc-sbcreate.1
 
 TOOLS_DEPS = \
 	tools.tar.gz \
@@ -330,21 +324,6 @@ $(PROTO)/opt/smartdc/bin/%: tools/bin/%
 	cp $^ $@
 	chmod 755 $@
 	touch $@
-
-#
-# We deliver some specific boot files in the compute node tools tarball so that
-# partial updates to USB keys may be delivered by incremental updates to SDC.
-# These files come from the same copy of the sdcboot artefact used to build the
-# rest of sdc-headnode.
-#
-$(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
-	mkdir -p $(@D)
-	rm -f $@
-	(FILE="$(PWD)/$<"; cd $(PROTO)/opt/smartdc/share/usbkey && \
-	    tar xvfz $${FILE} ./$*)
-	test -f $@ && touch $@
-
-cache/file.sdcboot.tgz: download_bits
 
 $(SDC_ZONE_BIN_LINKS):
 	mkdir -p $(@D)
