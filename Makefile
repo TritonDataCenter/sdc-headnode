@@ -170,29 +170,34 @@ include ./buildtools/mk/Makefile.defs
 # usb-headnode-specific targets
 #
 
-.PHONY: all coal deps usb boot tar sandwich
+.PHONY: all
 all: coal
 
-0-deps-stamp: package.json Makefile
+0-npm-stamp: package.json
 	npm install
 	touch $@
 
-CLEAN_FILES += 0-deps-stamp
+CLEAN_FILES += 0-npm-stamp
 
 .PHONY: deps
-deps: 0-deps-stamp
+deps: 0-npm-stamp
 
+.PHONY: coal
 coal: deps download_bits $(TOOLS_DEPS)
 	bin/build-image coal
 
+.PHONY: usb
 usb: deps download_bits $(TOOLS_DEPS)
 	bin/build-image usb
 
+.PHONY: boot
 boot: deps download_bits $(TOOLS_DEPS)
 	bin/build-image tar
 
+.PHONY: tar
 tar: boot
 
+.PHONY: sandwich
 sandwich:
 	@open http://xkcd.com/149/
 
