@@ -173,9 +173,11 @@ include ./buildtools/mk/Makefile.defs
 .PHONY: all coal deps usb boot tar sandwich
 all: coal
 
-0-deps-stamp:
+0-deps-stamp: package.json Makefile
 	npm install
 	touch $@
+
+CLEAN_FILES += 0-deps-stamp
 
 .PHONY: deps
 deps: 0-deps-stamp
