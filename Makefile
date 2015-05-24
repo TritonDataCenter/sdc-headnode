@@ -24,6 +24,7 @@ endif
 BASH_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
 	$(shell find tools/bin tools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
+	$(shell find buildtools/lib -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print) \
 	$(shell find bin -exec sh -c "file {} | $(GREP) -q -E '(bash)|(Bourne)'" \; -print)
 
 JS_FILES := \

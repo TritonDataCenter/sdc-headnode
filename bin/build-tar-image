@@ -6,12 +6,35 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 . "${ROOT}/buildtools/lib/error_handler.sh"
+
+function usage {
+    if [[ -n "$1" ]]; then
+        echo "ERROR: $1" >&2
+    fi
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "    $0" >&2
+    echo "" >&2
+    exit 1
+}
+
+while getopts 'cr' name; do
+    case "${name}" in
+    c|r)
+        usage "the \"-${name}\" option is no longer supported"
+        ;;
+    \?)
+        usage 'unknown option'
+        ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 # Write output to log file.
 THIS_TIMESTAMP=${TIMESTAMP}
@@ -25,16 +48,7 @@ RONNJS="${ROOT}/buildtools/ronnjs/bin/ronn.js"
 mkdir -p log
 exec > >(tee ${LOGFILE}) 2>&1
 
-if [[ -n ${TRACE} ]]; then
-    if (( BASH_VERSINFO[0] >= 4 && BASH_VERSINFO[1] >= 1 )); then
-        PS4=
-        PS4="${PS4}"'[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: '
-        PS4="${PS4}"'${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-        export PS4
-        export BASH_XTRACEFD=4
-    fi
-    set -o xtrace
-fi
+. "${ROOT}/buildtools/lib/trace_logger.sh"
 
 # Tools.
 if which gawk 2>/dev/null; then

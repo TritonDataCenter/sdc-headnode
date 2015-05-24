@@ -11,6 +11,8 @@
 
 function stack_trace
 {
+    set +o xtrace
+
     (( cnt = ${#FUNCNAME[@]} ))
     (( i = 0 ))
     while (( i < cnt )); do
@@ -28,6 +30,7 @@ function stack_trace
 function fatal
 {
     # Disable error traps from here on:
+    set +o xtrace
     set +o errexit
     set +o errtrace
     trap '' ERR

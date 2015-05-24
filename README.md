@@ -5,7 +5,7 @@
 -->
 
 <!--
-    Copyright (c) 2014, Joyent, Inc.
+    Copyright 2015 Joyent, Inc.
 -->
 
 # sdc-headnode
@@ -14,7 +14,7 @@ This repository is part of the Joyent SmartDataCenter project (SDC).  For
 contribution guidelines, issues, and general documentation, visit the main
 [SDC](http://github.com/joyent/sdc) project page.
 
-This is the repository for building headnode images for SDC, and the intial
+This is the repository for building headnode images for SDC, and the initial
 setup and configuration of the headnode itself.
 
 
@@ -22,8 +22,8 @@ setup and configuration of the headnode itself.
 
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-  - **One time only**: install VMWare Fusion, run it at least once to all it to
-    establish its initial config, quit it and run the "CoaL vmware setup" script
+  - **One time only**: install VMware Fusion, run it at least once to all it to
+    establish its initial config, quit it and run the "CoaL VMware setup" script
     from the sdc.git repo:
 
             git clone git@github.com:joyent/sdc.git
@@ -37,7 +37,7 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
     - see the [Build Specification][buildspec] and
       [Automating Headnode Setup][autosetup] sections below for more information.
 
-  - `make coal` - this requires an internet connection, and will download
+  - `make coal` - this requires an Internet connection, and will download
     images of all services. This can take quite some time. If this fails,
     please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
@@ -54,8 +54,8 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
 
 There are three main build products from this repo:
 
-  - `make usb` - outputs a usb image tarball
-  - `make coal` - outputs a coal image for use with VMWare
+  - `make usb` - outputs a USB image tarball
+  - `make coal` - outputs a coal image for use with VMware
   - `make incr-upgrade` - outputs a tarball with scripts and tools for incremental upgrades of services on existing headnodes.
 
 
@@ -70,7 +70,7 @@ On OS X:
 On SmartOS:
 
 First you must create a suitable build zone:
-  - vmapi or GZ vmadm access to set filesystem permissions on the build zone
+  - VMAPI or GZ vmadm access to set filesystem permissions on the build zone
   - provision a zone, params XXX
 
 Then to set up the zone:
@@ -81,7 +81,7 @@ Then to set up the zone:
 
 Some aspects of the configuration of the build, including which build artefacts
 will be included in the resultant SDC installation media, are specified
-declaritively.  The JSON file `build.spec` contains the default specification
+declaratively.  The JSON file `build.spec` contains the default specification
 of all build configuration, and is versioned in the repository.
 
 During development, or as part of release engineering, particular elements of
@@ -422,7 +422,7 @@ headnode setup that would otherwise need to be entered by the user into the
 interactive installer.  Particularly for local development work, it can be
 convenient to specify these in advance.  The `answers.json.tmpl` and
 `answers.json.tmpl.external` files provide usable examples for local
-developement; the former configures only the admin network on setup, the latter
+development; the former configures only the admin network on setup, the latter
 configures an external network as well.
 
 The inclusion of a setup answers file in the resultant installation media is
@@ -430,9 +430,20 @@ controlled by the `"answer-file"` key in the build specification.
 
 ### Debugging build failures
 
-Build logs are located in `sdc-headnode/log/build.log.TIMESTAMP`, and the logs of the latest *successful* build are symlinked at `sdc-headnode/log/latest`.
+Build logs are located in `sdc-headnode/log/build.log.TIMESTAMP`, and the logs
+of the latest *successful* build are symlinked at `sdc-headnode/log/latest`.
 
-Setting `TRACE=true` in the environment will produce verbose output from bash.
+Setting `TRACE=true` in the environment will produce verbose output from
+`bash`.  If you are using `bash` version 4.1 or later, you can combine `TRACE`
+with these environment variables for finer-grained control over trace output:
+
+- `TRACE_LOG`: send trace output to this file instead of `stderr`.
+- `TRACE_FD`: send trace output to this file descriptor instead of `stderr`.
+  Note that the passed file descriptor must be opened in the process that
+  will fork to invoke the shell script.
+
+The build scripts also install an `ERR` trap handler that should emit a simple
+shell stack trace on failure.
 
 ### Debugging setup failures
 
