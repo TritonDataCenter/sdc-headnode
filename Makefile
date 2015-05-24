@@ -177,15 +177,15 @@ CLEAN_FILES += 0-npm-stamp
 deps: 0-npm-stamp
 
 .PHONY: coal
-coal: deps download_bits $(TOOLS_DEPS)
+coal: deps download $(TOOLS_DEPS)
 	bin/build-image coal
 
 .PHONY: usb
-usb: deps download_bits $(TOOLS_DEPS)
+usb: deps download $(TOOLS_DEPS)
 	bin/build-image usb
 
 .PHONY: boot
-boot: deps download_bits $(TOOLS_DEPS)
+boot: deps download $(TOOLS_DEPS)
 	bin/build-image tar
 
 .PHONY: tar
@@ -195,8 +195,8 @@ tar: boot
 sandwich:
 	@open http://xkcd.com/149/
 
-.PHONY: download_bits
-download_bits: deps
+.PHONY: download
+download: deps
 	@mkdir -p cache
 	$(CHECKER)
 	if [ -z $${NO_DOWNLOAD} ]; then \
