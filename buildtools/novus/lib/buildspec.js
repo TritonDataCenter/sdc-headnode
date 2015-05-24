@@ -8,6 +8,51 @@ var mod_verror = require('verror');
 
 var VError = mod_verror.VError;
 
+var NAMES_TRUE = [
+	'yes',
+	'y',
+	'1',
+	'true'
+];
+var NAMES_FALSE = [
+	'no',
+	'n',
+	'0',
+	'false'
+];
+
+function
+env_to_boolean(varname, value_if_missing)
+{
+	mod_assert.string(varname, 'varname');
+	mod_assert.optionalBool(value_if_missing, 'value_if_missing');
+
+	if (!process.env.hasOwnProperty(varname) ||
+	    process.env[varname] === '') {
+		/*
+		 * The variable was not set in the environment, or was set
+		 * to the empty string.
+		 */
+		if (value_if_missing === true ||
+		    value_if_missing === false) {
+			return (value_if_missing);
+		}
+
+		throw (new VError('environment variable %s was not set',
+		    varname));
+	}
+
+	var v = process.env[varname].trim().toLowerCase();
+
+	if (NAMES_TRUE.indexOf(v) !== -1) {
+		return (true);
+	} else if (NAMES_FALSE.indexOf(v) !== -1) {
+		return (false);
+	} else {
+		throw (new VError('value "%s" is not valid for environment ' +
+		    'variable %s', v, varname));
+	}
+}
 
 function
 pluck(o, name)
@@ -156,10 +201,21 @@ keys(name)
 	return (out);
 };
 
+/*
+ * Determine whether or not the named feature is active for this build.  The
+ * default value is loaded from the build specification file(s).  If the
+ * feature definition nominates an environment variable, and that variable is
+ * set, we allow that value to override the build specification.
+ */
 BuildSpec.prototype.feature = function
 feature(name)
 {
 	var self = this;
+
+	if (self.keys('features').indexOf(name) === -1) {
+		throw (new VError('feature "%s" not found in build ' +
+		    'specification', name));
+	}
 
 	var enabled = self.get('features|' + name + '|enabled');
 	var envname = self.get('features|' + name + '|env', true);
@@ -167,11 +223,15 @@ feature(name)
 	mod_assert.bool(enabled, 'features|' + name + '|enabled');
 	mod_assert.optionalString(envname, 'features|' + name + '|env');
 
-	if (envname && process.env[envname]) {
-		return (true);
+	if (typeof (envname) !== 'string') {
+		/*
+		 * This feature does not have an associated environment
+		 * variable.
+		 */
+		return (enabled);
 	}
 
-	return (enabled);
+	return (env_to_boolean(envname, enabled));
 };
 
 module.exports = {
