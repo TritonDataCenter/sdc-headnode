@@ -227,15 +227,15 @@ zone or via the `"override-all-sources"` top-level key, the `BITS_DIR`
 environment variable must contain the path of a MG-style bits directory.  See
 the source and documentation for [Mountain Gorilla][mg] for more details.
 
-All of the above definitions will cause the download phase of build to store a
-local copy of the zone dataset stream and manifest in the `cache/` directory,
-using the original filename of the image, e.g. for `manatee`:
+All of the above definitions will cause the download phase of the build to
+store a local copy of the zone dataset stream and manifest in the `cache/`
+directory, using the original filename of the image, e.g. for `manatee`:
 
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.imgmanifest`
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.zfs.gz`
 
 Note that the filename includes the MG job name and branch.  A symbolic link
-will also be created to the downloaded file using the short name we specified,
+will also be created to the downloaded files using the short name we specified,
 i.e.
 
 - `zone.manatee.imgmanifest`
@@ -289,7 +289,7 @@ The default value for this key, as shipped in this repository, is
 comes from a different Manta directory tree, you may specify the name of
 an alternative top-level `build.spec` key on a per-file basis.
 
-For example, Joyent ships firmware files for specific server hardware that is
+For example, Joyent ships firmware files for specific server hardware that are
 not available under an opensource license.  As a result, these files are only
 included in the commercially supported builds of SDC to Joyent customers.
 The firmware artefact is stored in a different (Joyent-private) area of Manta,
@@ -417,13 +417,13 @@ through the use of the `--feature` (`-f`) flag to `bin/buildspec`.
 
 ### Automating Headnode Setup: `answers.json`
 
-The setup answers file (`answers.json`) provides information required for
+The setup answers file, `answers.json`, provides information required for
 headnode setup that would otherwise need to be entered by the user into the
 interactive installer.  Particularly for local development work, it can be
-convenient to specify these in advance.  The `answers.json.tmpl` and
-`answers.json.tmpl.external` files provide usable examples for local
-development; the former configures only the admin network on setup, the latter
-configures an external network as well.
+convenient to specify some, or all, of this information in advance.  The
+`answers.json.tmpl` and `answers.json.tmpl.external` files provide usable
+examples for local development; the former configures only the admin network on
+setup, the latter configures an external network as well.
 
 The inclusion of a setup answers file in the resultant installation media is
 controlled by the `"answer-file"` key in the build specification.
@@ -443,7 +443,7 @@ with these environment variables for finer-grained control over trace output:
   will fork to invoke the shell script.
 
 The build scripts also install an `ERR` trap handler that should emit a simple
-shell stack trace on failure.
+shell stack trace on failure, even when tracing is not enabled.
 
 ### Debugging setup failures
 

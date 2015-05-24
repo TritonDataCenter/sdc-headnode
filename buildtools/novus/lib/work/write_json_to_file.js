@@ -21,7 +21,7 @@ work_write_json_to_file(wa, next)
 	mod_assert.string(bit.bit_local_file, 'bit_local_file');
 	mod_assert.object(bit.bit_json, 'bit_json');
 
-	var out = JSON.stringify(bit.bit_json);
+	var out = JSON.stringify(bit.bit_json, false, 2);
 	try {
 		mod_fs.unlinkSync(bit.bit_local_file);
 	} catch (ex) {
