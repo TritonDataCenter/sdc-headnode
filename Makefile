@@ -197,7 +197,8 @@ sandwich:
 
 .PHONY: download
 download: deps
-	@mkdir -p cache
+	mkdir -p cache
+	mkdir -p log
 	$(CHECKER)
 	if [ -z $${NO_DOWNLOAD} ]; then \
 		$(DOWNLOADER) -d -w "log/artefacts.json"; \
