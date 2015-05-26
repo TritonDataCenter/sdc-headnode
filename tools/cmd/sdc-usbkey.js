@@ -10,12 +10,27 @@ var mod_cmdln = require('cmdln');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
 
+/*
+ * In order to cope with running this software on an unknown version of Node
+ * (at least the 0.8 and 0.10 branches have been included in various platform
+ * images), we import the external streams module:
+ */
+var mod_stream = require('readable-stream');
+
 var lib_oscmds = require('../lib/oscmds');
 var lib_usbkey = require('../lib/usbkey');
 
 var VError = mod_verror.VError;
 
 var UPDATE_FILE_SOURCE = '/opt/smartdc/share/usbkey';
+
+function
+wrap_stream(oldstream)
+{
+    var newstream = new mod_stream.Readable();
+
+    return (newstream.wrap(oldstream));
+}
 
 function
 Usbkey()
@@ -236,7 +251,11 @@ shasum_file(path, callback)
 
     var sum = mod_crypto.createHash('sha1');
 
-    var fstr = mod_fs.createReadStream(path);
+    /*
+     * So that we may use the 'readable' event, and the read() method, we wrap
+     * the file stream in the external streams module:
+     */
+    var fstr = wrap_stream(mod_fs.createReadStream(path));
     fstr.on('error', function (err) {
         callback(new VError(err, 'could not shasum file "%s"', path));
         return;
@@ -302,14 +321,19 @@ safe_copy(src, dst, callback)
     var tmpn = '.tmp.' + process.pid + '.' + mod_path.basename(dst);
     var tmpf = mod_path.join(mod_path.dirname(dst), tmpn);
 
+    /*
+     * So that we may get modern pipe() behaviour, we wrap the source stream in
+     * the external streams module:
+     */
+    var fin = wrap_stream(mod_fs.createReadStream(src, {
+        flags: 'r',
+        encoding: null
+    }));
     var fout = mod_fs.createWriteStream(tmpf, {
         flags: 'wx',
         encoding: null
     });
-    var fin = mod_fs.createReadStream(src, {
-        flags: 'r',
-        encoding: null
-    });
+
     var cb_fired = false;
     var cb = function (err) {
         fout.removeAllListeners();
@@ -320,14 +344,19 @@ safe_copy(src, dst, callback)
         callback(err);
     };
 
-    fout.on('error', function (err) {
-        cb(new VError(err, 'safe_copy dst file "%s" error', tmpf));
-    });
     fin.on('error', function (err) {
         cb(new VError(err, 'safe_copy src file "%s" error', src));
     });
+    fout.on('error', function (err) {
+        cb(new VError(err, 'safe_copy dst file "%s" error', tmpf));
+    });
 
-    fout.on('finish', function () {
+    /*
+     * We should be using the 'finish' event here, but apparently that did
+     * not exist in node version prior to 0.10 -- instead, we will use
+     * the 'close' event.
+     */
+    fout.on('close', function () {
         mod_fs.rename(tmpf, dst, function (err) {
             if (err) {
                 cb(new VError(err, 'could not rename tmp file "%s" to ' +
@@ -497,7 +526,7 @@ run_update(opts, callback)
                 });
 
                 if (opts.progress) {
-                    console.log('log "%s"', dir);
+                    console.log('mkdir "%s"', dir);
                 }
 
                 if (!opts.dryrun) {

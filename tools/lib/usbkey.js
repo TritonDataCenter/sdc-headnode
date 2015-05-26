@@ -175,6 +175,15 @@ get_mount_info(mount, callback)
             return;
         }
 
+        /*
+         * This is necessary to deal with node 0.8.20.  For whatever reason,
+         * specifying an encoding does not appear to result in a string
+         * argument.
+         */
+        if (Buffer.isBuffer(contents)) {
+            contents = contents.toString('utf8');
+        }
+
         var mount_info = null;
         var lines = contents.split(/\n/);
         for (var i = 0; i < lines.length; i++) {
