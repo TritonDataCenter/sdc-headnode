@@ -74,9 +74,13 @@ ensure_mountpoint_exists(mtpt, callback)
             if (err.code === 'ENOENT') {
                 dprintf('directory "%s" does not exist; creating...', mtpt);
                 mod_fs.mkdir(mtpt, function (_err) {
+                    if (!_err) {
+                        callback();
+                        return;
+                    }
+
                     callback(new VError(_err, 'could not create mountpoint ' +
                       'directory "%s"', mtpt));
-                    return;
                 });
                 return;
             }

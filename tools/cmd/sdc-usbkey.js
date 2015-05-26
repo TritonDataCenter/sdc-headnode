@@ -102,7 +102,6 @@ do_mount(subcmd, opts, args, callback)
             return;
         }
 
-        console.error('mounted');
         console.log('%s', mtpt);
         callback();
     });
@@ -148,7 +147,6 @@ do_unmount(subcmd, opts, args, callback)
             return;
         }
 
-        console.error('unmounted');
         callback();
     });
 };
@@ -405,8 +403,8 @@ run_update(opts, callback)
                 });
 
                 if (opts.progress) {
-                    console.error('create file "%s"', relp);
-                    console.error('\tnew shasum: %s', sum);
+                    console.log('create file "%s"', relp);
+                    console.log('\tnew shasum: %s', sum);
                 }
 
                 if (opts.dryrun) {
@@ -453,9 +451,9 @@ run_update(opts, callback)
                 });
 
                 if (opts.progress) {
-                    console.error('update file "%s"', relp);
-                    console.error('\told shasum: %s', dstsum);
-                    console.error('\tnew shasum: %s', sum);
+                    console.log('update file "%s"', relp);
+                    console.log('\told shasum: %s', dstsum);
+                    console.log('\tnew shasum: %s', sum);
                 }
 
                 if (opts.dryrun) {
@@ -499,7 +497,7 @@ run_update(opts, callback)
                 });
 
                 if (opts.progress) {
-                    console.error('mkdir "%s"', dir);
+                    console.log('log "%s"', dir);
                 }
 
                 if (!opts.dryrun) {
