@@ -164,6 +164,15 @@ setup_tools()
         fatal "failed to extract tools tarball"
     fi
 
+    #
+    # The "cn_tools.tar.gz" tarball contains an up-to-date copy of some set
+    # of USB key files, e.g. the iPXE bootloader.  Run the update tool now
+    # to ensure the USB key is up-to-date for the next reboot.
+    #
+    if ! /opt/smartdc/bin/sdc-usbkey -v update; then
+        fatal "failed to update USB key from tools tarball"
+    fi
+
     rm -f "${TOOLS_FILE}"
 }
 
