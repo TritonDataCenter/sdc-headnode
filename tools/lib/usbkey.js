@@ -67,6 +67,34 @@ get_mountpoint(callback)
 }
 
 function
+ensure_mountpoint_exists(mtpt, callback)
+{
+    mod_fs.lstat(mtpt, function (err, st) {
+        if (err) {
+            if (err.code === 'ENOENT') {
+                dprintf('directory "%s" does not exist; creating...', mtpt);
+                mod_fs.mkdir(mtpt, function (_err) {
+                    callback(new VError(_err, 'could not create mountpoint ' +
+                      'directory "%s"', mtpt));
+                    return;
+                });
+                return;
+            }
+
+            callback(new VError(err, 'could not stat mountpoint "%s"', mtpt));
+            return;
+        }
+
+        if (st.isDirectory()) {
+            callback();
+            return;
+        }
+
+        callback(new VError('mountpoint "%s" is not a directory', mtpt));
+    });
+}
+
+function
 valid_usbkey_mount_options(options)
 {
     mod_assert.object(options, 'options');
@@ -561,20 +589,27 @@ ensure_usbkey_mounted(options, callback)
         mtpt = _mtpt;
         dprintf('configured usbkey mountpoint: "%s"\n', mtpt);
 
-        locate_pcfs_devices(function (_err, pcfs_devices) {
+        ensure_mountpoint_exists(mtpt, function (_err) {
             if (_err) {
-                callback(new VError(_err, 'could not locate pcfs devices'));
+                callback(_err);
                 return;
             }
 
-            if (pcfs_devices.length === 0) {
-                callback(new VError('no pcfs devices found'));
-                return;
-            }
+            locate_pcfs_devices(function (__err, pcfs_devices) {
+                if (__err) {
+                    callback(new VError(__err, 'could not scan for pcfs'));
+                    return;
+                }
 
-            specials = pcfs_devices;
-            dprintf('candidate devices: %s\n', specials.join(', '));
-            setImmediate(keep_trying);
+                if (pcfs_devices.length === 0) {
+                    callback(new VError('no pcfs devices found'));
+                    return;
+                }
+
+                specials = pcfs_devices;
+                dprintf('candidate devices: %s\n', specials.join(', '));
+                setImmediate(keep_trying);
+            });
         });
     });
 }
