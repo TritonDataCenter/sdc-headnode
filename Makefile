@@ -29,6 +29,7 @@ BASH_FILES := \
 
 JS_FILES := \
 	$(shell find scripts -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print) \
+	$(shell find tools/cmd tools/lib -name '*.js') \
 	$(shell find tools/bin -exec sh -c "file {} | $(GREP) -q 'node script'" \; -print | grep -v '/json$$')
 
 JSL_FILES_NODE = $(JS_FILES)
@@ -104,16 +105,27 @@ TOOLS_BIN_FILES = \
 	sdc-server \
 	sdc-setconsole \
 	sdc-ufds-m2s \
+	sdc-usbkey \
 	sdc-vm \
 	sdc-vmmanifest \
 	sdc-vmname \
 	zoneboot.d
 
+TOOLS_CMD_FILES = \
+	sdc-usbkey.js
+
 TOOLS_LIB_FILES = \
+	oscmds.js \
+	usbkey.js \
 	wrap.sh
 
+TOOLS_BOOT_FILES = \
+	boot/default.ipxe \
+	boot/ipxe.lkrn
+
 TOOLS_SHARE_FILES = \
-	servicebundle/pubkey.key
+	servicebundle/pubkey.key \
+	$(TOOLS_BOOT_FILES:%=usbkey/%)
 
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
@@ -133,6 +145,9 @@ PROTO_BIN_FILES = \
 	$(TOOLS_BIN_FILES:%=$(PROTO)/opt/smartdc/bin/%) \
 	$(SDC_ZONE_BIN_LINKS)
 
+PROTO_CMD_FILES = \
+	$(TOOLS_CMD_FILES:%=$(PROTO)/opt/smartdc/cmd/%)
+
 PROTO_LIB_FILES = \
 	$(TOOLS_LIB_FILES:%=$(PROTO)/opt/smartdc/lib/%)
 
@@ -143,13 +158,26 @@ PROTO_MAN_FILES = \
 	$(TOOLS_RONN_FILES:%.ronn=$(PROTO)/opt/smartdc/man/%) \
 	$(SDC_ZONE_MAN_LINKS)
 
+ALL_PROTO_FILES = \
+	$(PROTO_BIN_FILES) \
+	$(PROTO_CMD_FILES) \
+	$(PROTO_LIB_FILES) \
+	$(PROTO_SHARE_FILES) \
+	$(PROTO_MAN_FILES)
+
 #
 # This subset of files from the proto/ area is included in the
 # cn_tools.tar.gz package for deployment onto Compute Nodes
 #
 CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
-	man/man1/sdc-sbcreate.1
+	bin/sdc-usbkey \
+	cmd/sdc-usbkey.js \
+	lib/oscmds.js \
+	lib/usbkey.js \
+	man/man1/sdc-sbcreate.1 \
+	$(TOOLS_BOOT_FILES:%=share/usbkey/%) \
+	node_modules
 
 TOOLS_DEPS = \
 	tools.tar.gz \
@@ -286,7 +314,7 @@ gz-tools-publish: gz-tools
 tools.tar.gz: tools
 	rm -f $(TOP)/tools.tar.gz
 	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
-	    bin share lib man node_modules
+	    bin cmd share lib man node_modules
 
 #
 # Compute Node Tools subset tarball
@@ -302,7 +330,7 @@ cn_tools.tar.gz: tools
 #
 
 .PHONY: tools
-tools: man $(PROTO_LIB_FILES) $(PROTO_BIN_FILES) $(PROTO_SHARE_FILES)
+tools: man $(ALL_PROTO_FILES)
 	rm -rf $(PROTO)/opt/smartdc/node_modules
 	cp -RP tools/node_modules $(PROTO)/opt/smartdc/node_modules
 
@@ -326,6 +354,28 @@ $(PROTO)/opt/smartdc/bin/%: tools/bin/%
 	cp $^ $@
 	chmod 755 $@
 	touch $@
+
+$(PROTO)/opt/smartdc/cmd/%: tools/cmd/%
+	mkdir -p $(@D)
+	rm -f $@
+	cp $^ $@
+	chmod 755 $@
+	touch $@
+
+#
+# We deliver some specific boot files in the compute node tools tarball so that
+# partial updates to USB keys may be delivered by incremental updates to SDC.
+# These files come from the same copy of the sdcboot artefact used to build the
+# rest of sdc-headnode.
+#
+$(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
+	mkdir -p $(@D)
+	rm -f $@
+	(FILE="$(PWD)/$<"; cd $(PROTO)/opt/smartdc/share/usbkey && \
+	    tar xvfz $${FILE} ./$*)
+	test -f $@ && touch $@
+
+cache/file.sdcboot.tgz: download_bits
 
 $(SDC_ZONE_BIN_LINKS):
 	mkdir -p $(@D)
