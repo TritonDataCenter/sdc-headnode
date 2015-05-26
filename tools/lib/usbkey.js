@@ -382,6 +382,8 @@ usbkey_mount_status_common(mountpoint, callback)
 
     var status = {
         mountpoint: mountpoint,
+        device: null,
+        options: null,
         steps: {
             mounted: false,
             options_ok: false,
@@ -429,6 +431,8 @@ usbkey_mount_status_common(mountpoint, callback)
          * The filesystem mount options are correct.
          */
         status.steps.options_ok = true;
+        status.device = mi.mi_special;
+        status.options = mi.mi_options;
 
         dprintf('checking marker file...\n');
         check_for_marker_file(mi.mi_mountpoint, function (_err, exists) {
