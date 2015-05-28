@@ -375,7 +375,7 @@ $(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
 	    tar xvfz $${FILE} ./$*)
 	test -f $@ && touch $@
 
-cache/file.sdcboot.tgz: download_bits
+cache/file.sdcboot.tgz: download
 
 $(SDC_ZONE_BIN_LINKS):
 	mkdir -p $(@D)
