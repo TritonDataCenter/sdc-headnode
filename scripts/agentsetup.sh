@@ -167,9 +167,11 @@ setup_tools()
     #
     # The "cn_tools.tar.gz" tarball contains an up-to-date copy of some set
     # of USB key files, e.g. the iPXE bootloader.  Run the update tool now
-    # to ensure the USB key is up-to-date for the next reboot.
+    # to ensure the USB key is up-to-date for the next reboot.  We use the
+    # --ignore-missing flag in case this is a compute node that does not
+    # have a USB key.
     #
-    if ! /opt/smartdc/bin/sdc-usbkey -v update; then
+    if ! /opt/smartdc/bin/sdc-usbkey -v update --ignore-missing; then
         fatal "failed to update USB key from tools tarball"
     fi
 

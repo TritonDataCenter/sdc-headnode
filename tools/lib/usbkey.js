@@ -497,6 +497,7 @@ ensure_usbkey_mounted(options, callback)
 {
     mod_assert.object(options, 'options');
     mod_assert.optionalNumber(options.timeout, 'options.timeout');
+    mod_assert.optionalBool(options.ignore_missing, 'options.ignore_missing');
     mod_assert.func(callback, 'callback');
 
     mod_assert.ok(valid_usbkey_mount_options(MOUNT_OPTIONS));
@@ -619,6 +620,17 @@ ensure_usbkey_mounted(options, callback)
                 }
 
                 if (pcfs_devices.length === 0) {
+                    if (options.ignore_missing) {
+                        /*
+                         * The caller has requested that the lack of a USB key
+                         * not be treated as an error condition.
+                         */
+                        dprintf('no pcfs devices found, but ignore_missing' +
+                          ' is set');
+                        callback(null, false);
+                        return;
+                    }
+
                     callback(new VError('no pcfs devices found'));
                     return;
                 }

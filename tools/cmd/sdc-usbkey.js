@@ -607,10 +607,15 @@ do_update(subcmd, opts, args, callback)
     if (!opts.hasOwnProperty('json')) {
         opts.json = false;
     }
+    if (!opts.hasOwnProperty('ignore_missing')) {
+        opts.ignore_missing = false;
+    }
 
     mod_assert.bool(opts.dryrun, 'opts.dryrun');
     mod_assert.bool(opts.json, 'opts.json');
+    mod_assert.bool(opts.ignore_missing, 'opts.ignore_missing');
 
+    var cancel = false;
     var already_mounted = false;
     var actions;
     var mountpoint;
@@ -618,6 +623,11 @@ do_update(subcmd, opts, args, callback)
     mod_vasync.pipeline({
         funcs: [
             function (_, next) {
+                if (cancel) {
+                    next();
+                    return;
+                }
+
                 /*
                  * Check if the USB key is already mounted.
                  */
@@ -634,6 +644,11 @@ do_update(subcmd, opts, args, callback)
                 });
             },
             function (_, next) {
+                if (cancel) {
+                    next();
+                    return;
+                }
+
                 /*
                  * If the USB key is already mounted, we do not need to mount
                  * it now.
@@ -644,10 +659,17 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 lib_usbkey.ensure_usbkey_mounted({
-                    timeout: 45 * 1000
+                    timeout: 45 * 1000,
+                    ignore_missing: opts.ignore_missing
                 }, function (err, mtpt) {
                     if (err) {
                         next(err);
+                        return;
+                    }
+
+                    if (opts.ignore_missing && mtpt === false) {
+                        cancel = true;
+                        next();
                         return;
                     }
 
@@ -657,6 +679,11 @@ do_update(subcmd, opts, args, callback)
                 });
             },
             function (_, next) {
+                if (cancel) {
+                    next();
+                    return;
+                }
+
                 mod_assert.string(mountpoint, 'mountpoint');
 
                 /*
@@ -695,6 +722,11 @@ do_update(subcmd, opts, args, callback)
                 });
             },
             function (_, next) {
+                if (cancel) {
+                    next();
+                    return;
+                }
+
                 /*
                  * If the USB key was not already mounted, then unmount it now.
                  */
@@ -714,6 +746,11 @@ do_update(subcmd, opts, args, callback)
     }, function (err) {
         if (err) {
             callback(err);
+            return;
+        }
+
+        if (cancel) {
+            callback();
             return;
         }
 
@@ -740,6 +777,12 @@ Usbkey.prototype.do_update.options = [
         type: 'bool',
         help: 'Do not copy files, just determine what action is required' +
           ' to update the USB key.'
+    },
+    {
+        names: [ 'ignore-missing', 'i' ],
+        type: 'bool',
+        help: 'In the event that the system does not have a USB key, report ' +
+          ' success instead of an error.  All other errors are still fatal.'
     }
 ];
 Usbkey.prototype.do_update.help = [
