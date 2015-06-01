@@ -72,7 +72,7 @@ ensure_mountpoint_exists(mtpt, callback)
     mod_fs.lstat(mtpt, function (err, st) {
         if (err) {
             if (err.code === 'ENOENT') {
-                dprintf('directory "%s" does not exist; creating...', mtpt);
+                dprintf('directory "%s" does not exist; creating.\n', mtpt);
                 mod_fs.mkdir(mtpt, function (_err) {
                     if (!_err) {
                         callback();
@@ -508,12 +508,37 @@ ensure_usbkey_mounted(options, callback)
     var mtpt;
     var specials = null;
 
+    /*
+     * Callback wrapper for all cases where we have run out of devices to
+     * inspect without locating a USB key, but have not experienced any
+     * other fatal errors:
+     */
+    var missing = function (msg) {
+        mod_assert.string(msg, 'msg');
+
+        if (options.ignore_missing) {
+            /*
+             * The caller has requested that the lack of a USB key
+             * not be treated as an error condition.
+             */
+            dprintf('%s, but ignore_missing is set\n', msg);
+            callback(null, false);
+            return;
+        }
+
+        callback(new VError(msg));
+    };
+
+    /*
+     * This worker function is called repeatedly until a valid USB key
+     * is mounted, or there are no candidate devices left mount:
+     */
     var keep_trying = function () {
         if (specials.length === 0) {
             /*
              * There are no devices left to try mounting.  Give up.
              */
-            callback(new VError('no suitable devices found for usbkey mount'));
+            missing('no suitable devices found for usbkey mount');
             return;
         }
 
@@ -529,6 +554,12 @@ ensure_usbkey_mounted(options, callback)
                   'filesystems'));
                 return;
             }
+
+            mod_assert.object(status, 'status');
+            mod_assert.object(status.steps, 'status.steps');
+            mod_assert.bool(status.steps.mounted, 'steps.mounted');
+            mod_assert.bool(status.steps.options_ok, 'steps.options_ok');
+            mod_assert.bool(status.steps.marker_file, 'steps.marker_file');
 
             if (!status.steps.mounted) {
                 /*
@@ -548,7 +579,7 @@ ensure_usbkey_mounted(options, callback)
                         return;
                     }
 
-                    setTimeout(keep_trying, 1000);
+                    setImmediate(keep_trying);
                 });
                 return;
             }
@@ -566,15 +597,16 @@ ensure_usbkey_mounted(options, callback)
                     if (_err) {
                         if (_err.code === 'EBUSY') {
                             dprintf('filesystem busy, retrying...\n');
-                        } else {
-                            callback(new VError(_err, 'could not umount ' +
-                              'filesystem'));
+                            setTimeout(keep_trying, 1000);
                             return;
                         }
+
+                        callback(new VError(_err, 'could not unmount ' +
+                          'filesystem'));
+                        return;
                     }
 
-                    dprintf('retrying in 1s...\n');
-                    setTimeout(keep_trying, 1000);
+                    setImmediate(keep_trying);
                 });
                 return;
             }
@@ -582,12 +614,41 @@ ensure_usbkey_mounted(options, callback)
             if (!status.steps.marker_file) {
                 /*
                  * The mount was successful, but the marker file was not found.
-                 * Remove this filesystem from the candidate list and move on
-                 * to the next one.
+                 * Remove this filesystem from the candidate list, unmount it,
+                 * and move on to the next one.
                  */
-                dprintf('marking file not found; ignoring "%s"\n', specials[0]);
-                specials.shift();
-                setImmediate(keep_trying);
+                mod_assert.string(status.device, 'status.device');
+                dprintf('marking file not found; ignoring "%s"\n',
+                  status.device);
+
+                dprintf('unmounting "%s"\n', status.mountpoint);
+                lib_oscmds.umount({
+                    mt_mountpoint: status.mountpoint
+                }, function (_err) {
+                    if (_err) {
+                        if (_err.code === 'EBUSY') {
+                            dprintf('filesystem busy, retrying...\n');
+                            setTimeout(keep_trying, 1000);
+                            return;
+                        }
+
+                        callback(new VError(_err, 'could not unmount ' +
+                          'filesystem'));
+                        return;
+                    }
+
+                    var idx = specials.indexOf(status.device);
+                    if (idx !== -1) {
+                        /*
+                         * Remove the device we unmounted from the candidate
+                         * list:
+                         */
+                        specials.splice(idx, 1);
+                    }
+
+                    setImmediate(keep_trying);
+                });
+                return;
             }
 
             /*
@@ -620,18 +681,7 @@ ensure_usbkey_mounted(options, callback)
                 }
 
                 if (pcfs_devices.length === 0) {
-                    if (options.ignore_missing) {
-                        /*
-                         * The caller has requested that the lack of a USB key
-                         * not be treated as an error condition.
-                         */
-                        dprintf('no pcfs devices found, but ignore_missing' +
-                          ' is set');
-                        callback(null, false);
-                        return;
-                    }
-
-                    callback(new VError('no pcfs devices found'));
+                    missing('no pcfs devices found');
                     return;
                 }
 
