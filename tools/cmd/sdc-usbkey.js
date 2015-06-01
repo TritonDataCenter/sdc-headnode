@@ -208,7 +208,11 @@ do_status(subcmd, opts, args, callback)
             console.log(JSON.stringify(status));
         } else {
             if (opts.more) {
-                console.log(status.message);
+                if (status.steps.mounted) {
+                    console.log('%s (%s)', status.message, status.mountpoint);
+                } else {
+                    console.log('%s', status.message);
+                }
             } else {
                 console.log(status.ok ? 'mounted' : 'unmounted');
             }
