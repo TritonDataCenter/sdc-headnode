@@ -55,7 +55,7 @@ function usage {
     echo "       $0 [-c choice] [-s] <zone role>"
     echo "       $0 -l <alias | role | partial role>"
     echo ""
-    echo "    -c preselect a choice from the list if muliple matches."
+    echo "    -c preselect a choice from the list if multiple matches."
     # BASHSTYLED
     echo "    -l lookup on locally (on this node only) -- incompatible with -s and -c"
     echo "    -s SSH to the GZ of the *server hosting a VM* instead of a VM."
