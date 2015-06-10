@@ -22,9 +22,9 @@ setup and configuration of the headnode itself.
 
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-  - **One time only**: install VMware Fusion, run it at least once to all it to
-    establish its initial config, quit it and run the "CoaL VMware setup" script
-    from the sdc.git repo:
+  - **One time only**: install VMware Fusion, run it at least once to allow it
+    to establish its initial config, quit it and run the "CoaL VMware setup"
+    script from the sdc.git repo:
 
             git clone git@github.com:joyent/sdc.git
             cd sdc
