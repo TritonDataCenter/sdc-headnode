@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2015, Joyent, Inc.
  */
 
 //
@@ -172,25 +172,8 @@ function getNics(server_uuid, params, callback)
     });
 }
 
-function outputServerData(data, callback)
+function outputServerData(servers, callback)
 {
-    var admin_nics = {};
-    var n;
-    var nics;
-    var servers;
-
-    servers = data.servers;
-    nics = data.nics;
-
-    // nic info comes from napi
-    for (n in nics) {
-        n = nics[n];
-
-        if (n.nic_tag === 'admin') {
-            admin_nics[n.belongs_to_uuid] = n.ip;
-        }
-    }
-
     console.log(sprintf('%-20s %-36s %7s %8s  %8s  %7s  %-15s',
         'HOSTNAME', 'UUID', 'VERSION', 'SETUP', 'STATUS', 'RAM', 'ADMIN_IP'));
 
@@ -198,6 +181,7 @@ function outputServerData(data, callback)
         var admin_ip = '-';
         var sdc_version;
         var setup_state = s.setup;
+        var n;
 
         // Eventually this will be a first-class property of a CN
         sdc_version = s.sysinfo['SDC Version'];
@@ -205,8 +189,27 @@ function outputServerData(data, callback)
             sdc_version = '6.x';
         }
 
-        if (admin_nics.hasOwnProperty(s.uuid)) {
-            admin_ip = admin_nics[s.uuid];
+        for (n in s['sysinfo']['Network Interfaces']) {
+            var i;
+            var found = false;
+            var nic = s['sysinfo']['Network Interfaces'][n];
+            var nicnames = nic['NIC Names'];
+
+            if (!nicnames) {
+                continue;
+            }
+
+            for (i = 0; i < nicnames.length; i++) {
+                if (nicnames[i] === 'admin') {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found === true) {
+                admin_ip = nic['ip4addr'];
+                break;
+            }
         }
 
         function outputLine() {
@@ -258,8 +261,6 @@ function outputServerList(callback)
 {
     var cnapi;
     var servers;
-    var napi;
-    var nics;
 
     async.series([
         function (cb) {
@@ -268,15 +269,6 @@ function outputServerList(callback)
                     cnapi = handle;
                 } else {
                     err.api = 'CNAPI';
-                }
-                cb(err);
-            });
-        }, function (cb) {
-            createClient('NAPI', function (err, handle) {
-                if (!err) {
-                    napi = handle;
-                } else {
-                    err.api = 'NAPI';
                 }
                 cb(err);
             });
@@ -290,25 +282,13 @@ function outputServerList(callback)
                 }
                 cb(err);
             });
-        }, function (cb) {
-            // Grab all the server nics so we can just pull them out as we list
-            napi.listNics({belongs_to_type: 'server', limit: 10000,
-                nic_tags_provided: 'admin'}, function (err, n) {
-
-                if (err) {
-                    err.api = 'NAPI';
-                } else {
-                    nics = n;
-                }
-                cb(err);
-            });
         }
     ], function (err) {
         if (err) {
             callback(err);
             return;
         }
-        outputServerData({servers: servers, nics: nics}, callback);
+        outputServerData(servers, callback);
     });
 }
 
