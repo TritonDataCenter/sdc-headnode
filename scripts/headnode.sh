@@ -233,12 +233,12 @@ if [[ ${POOLS} == "no pools available" ]]; then
 
     if ! ${USB_PATH}/scripts/joysetup.sh; then
         # copy the log out just in case we made it as far as setting up /var
-        cp /tmp/joysetup.* /zones
+        cp /tmp/joysetup.* /zones/
         exit 1
     fi
 
     # copy the log out to /var so we don't lose on reboot
-    cp /tmp/joysetup.* /zones
+    cp /tmp/joysetup.* /zones/
 
     printf "%4s\n" "done" >&${CONSOLE_FD}
 
