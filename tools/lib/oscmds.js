@@ -26,11 +26,43 @@ dprintf()
 }
 
 function
+make_env()
+{
+    var env = {};
+    var names = Object.keys(process.env);
+
+    for (var i = 0; i < names.length; i++) {
+        var name = names[i];
+
+        if (name === 'LANG' || name.match(/^LC_/)) {
+            /*
+             * Do not copy any locale variables into the child environment.
+             * See environ(5) for more information about what these variables
+             * mean.
+             */
+            continue;
+        }
+
+        env[name] = process.env[name];
+    }
+
+    /*
+     * Force the POSIX locale so that error messages are presented
+     * consistently.
+     */
+    env.LANG = env.LC_ALL = 'C';
+
+    return (env);
+}
+
+function
 sync(callback)
 {
     mod_assert.func(callback, 'callback');
 
-    mod_child.execFile(SYNC, function (err, stdout, stderr) {
+    mod_child.execFile(SYNC, [], {
+        env: make_env()
+    }, function (err, stdout, stderr) {
         if (err) {
             callback(new VError(err, 'could not sync: %s', stderr.trim()));
             return;
@@ -45,7 +77,9 @@ zonename(callback)
 {
     mod_assert.func(callback, 'callback');
 
-    mod_child.execFile(ZONENAME, function (err, stdout, stderr) {
+    mod_child.execFile(ZONENAME, [], {
+        env: make_env()
+    }, function (err, stdout, stderr) {
         if (err) {
             callback(new VError(err, 'could not get zonename: %s',
               stderr.trim()));
@@ -103,10 +137,34 @@ mount(options, callback)
      * Invoke mount(1M):
      */
     mod_child.execFile(MOUNT, args, {
-        timeout: options.mt_timeout || 0
+        timeout: options.mt_timeout || 0,
+        env: make_env()
     }, function (err, stdout, stderr) {
         if (err) {
-            callback(new VError(err, 'mount failed: %s', stderr.trim()));
+            var semsg = stderr.trim();
+            var ve = new VError(err, 'mount of "%s" (fstyp %s) at "%s" ' +
+              'failed: %s', options.mt_special, options.mt_fstype,
+              options.mt_mountpoint, stderr.trim());
+
+            /*
+             * Put some properties on the error so that programmatic
+             * consumers can reason about the error:
+             */
+            ve.mount_fstype = options.mt_fstype;
+            ve.mount_mountpoint = options.mt_mountpoint;
+            ve.mount_special = options.mt_special;
+            ve.mount_stderr = semsg;
+
+            switch (semsg) {
+            case 'mount: Read-only file system':
+                ve.mount_code = 'EROFS';
+                break;
+            default:
+                ve.mount_code = 'UNKNOWN';
+                break;
+            }
+
+            callback(ve);
             return;
         }
 
@@ -128,7 +186,8 @@ umount(options, callback)
     mod_child.execFile(UMOUNT, [
         options.mt_mountpoint
     ], {
-        timeout: options.mt_timeout || 0
+        timeout: options.mt_timeout || 0,
+        env: make_env()
     }, function (err, stdout, stderr) {
         if (err) {
             var busymsg = 'umount: ' + options.mt_mountpoint + ' busy';
@@ -154,7 +213,9 @@ fstyp(device, callback)
     mod_assert.string(device, 'device');
     mod_assert.func(callback, 'callback');
 
-    mod_child.execFile(FSTYP, [ device ], function (err, stdout, stderr) {
+    mod_child.execFile(FSTYP, [ device ], {
+        env: make_env()
+    }, function (err, stdout, stderr) {
         if (err) {
             if (err.code === 7 && stderr.trim() ===
               'unknown_fstyp (cannot open device)') {
@@ -175,7 +236,9 @@ diskinfo(callback)
 {
     mod_assert.func(callback, 'callback');
 
-    mod_child.execFile(DISKINFO, [ '-Hp' ], function (err, stdout, stderr) {
+    mod_child.execFile(DISKINFO, ['-Hp' ], {
+        env: make_env()
+    }, function (err, stdout, stderr) {
         if (err) {
             callback(new VError(err, 'could not enumerate disk devices'));
             return;

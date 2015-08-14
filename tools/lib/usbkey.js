@@ -573,13 +573,39 @@ ensure_usbkey_mounted(options, callback)
                     mt_special: specials[0],
                     mt_options: MOUNT_OPTIONS
                 }, function (_err) {
-                    if (_err) {
-                        callback(new VError(_err, 'could not mount ' +
-                          'filesystem'));
+                    if (!_err) {
+                        /*
+                         * The mount was successful.
+                         */
+                        setImmediate(keep_trying);
                         return;
                     }
 
-                    setImmediate(keep_trying);
+                    if (_err.mount_code === 'EROFS') {
+                        /*
+                         * Some Dell machines have read-only virtual USB
+                         * devices that are exposed through their iDRAC
+                         * management facility.  These are never what we
+                         * want, but their existence should not deter us
+                         * from our search for the real USB key.
+                         */
+                        dprintf('skipping read-only device "%s"\n',
+                          _err.mount_special);
+
+                        var idx = specials.indexOf(_err.mount_special);
+                        if (idx !== -1) {
+                            /*
+                             * Remove the read-only device from the candidate
+                             * list:
+                             */
+                            specials.splice(idx, 1);
+                        }
+
+                        setImmediate(keep_trying);
+                        return;
+                    }
+
+                    callback(new VError(_err, 'could not mount filesystem'));
                 });
                 return;
             }
