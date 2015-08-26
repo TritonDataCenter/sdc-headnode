@@ -189,13 +189,13 @@ if setup_state_not_seen "tools_installed"; then
     update_setup_state "tools_installed"
 fi
 
-if [[ ! -d /opt/smartdc/agents/bin ]]; then
+if [[ -n ${MOCKCN} ]]; then
     setup_agents
     if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
         update_setup_state "agents_installed"
         mark_as_setup
     fi
-elif [[ -n ${MOCKCN} ]]; then
+elif [[ ! -d /opt/smartdc/agents/bin ]]; then
     # When we're mocking a CN we might already have agents installed,
     # in the future, we'll want to have heartbeater and provisioner notice
     # there's a new server too. For now we just pretend everything worked.
