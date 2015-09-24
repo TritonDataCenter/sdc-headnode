@@ -136,6 +136,11 @@ TOOLS_RONN_FILES = \
 	man1/sdc-ufds-m2s.1.ronn \
 	man1/sdc.1.ronn
 
+TOOLS_ETC_FILES= \
+	gz-tools.image
+
+TOOLS_UUID = $(shell uuid -v4)
+
 #
 # We lay out the contents of /opt/smartdc in the proto/ directory.
 #
@@ -158,12 +163,16 @@ PROTO_MAN_FILES = \
 	$(TOOLS_RONN_FILES:%.ronn=$(PROTO)/opt/smartdc/man/%) \
 	$(SDC_ZONE_MAN_LINKS)
 
+PROTO_ETC_FILES = \
+	$(TOOLS_ETC_FILES:%=$(PROTO)/opt/smartdc/etc/%)
+
 ALL_PROTO_FILES = \
 	$(PROTO_BIN_FILES) \
 	$(PROTO_CMD_FILES) \
 	$(PROTO_LIB_FILES) \
 	$(PROTO_SHARE_FILES) \
-	$(PROTO_MAN_FILES)
+	$(PROTO_MAN_FILES) \
+	$(PROTO_ETC_FILES)
 
 #
 # This subset of files from the proto/ area is included in the
@@ -177,7 +186,8 @@ CN_TOOLS_FILES = \
 	lib/usbkey.js \
 	man/man1/sdc-sbcreate.1 \
 	$(TOOLS_BOOT_FILES:%=share/usbkey/%) \
-	node_modules
+	node_modules \
+	etc
 
 TOOLS_DEPS = \
 	tools.tar.gz \
@@ -282,7 +292,7 @@ gz-tools: $(TOOLS_DEPS)
 		$(TOP)/scripts \
 		build/$(GZ_TOOLS_STAMP)/gz-tools
 	(cd build/$(GZ_TOOLS_STAMP) && tar czf ../../$(GZ_TOOLS_TARBALL) gz-tools)
-	uuid -v4 > build/$(GZ_TOOLS_STAMP)/image_uuid
+	echo $(TOOLS_UUID) > build/$(GZ_TOOLS_STAMP)/image_uuid
 	cat $(TOP)/manifests/gz-tools.manifest.tmpl | sed \
 		-e "s/UUID/$$(cat build/$(GZ_TOOLS_STAMP)/image_uuid)/" \
 		-e "s/NAME/gz-tools/" \
@@ -314,7 +324,7 @@ gz-tools-publish: gz-tools
 tools.tar.gz: tools
 	rm -f $(TOP)/tools.tar.gz
 	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
-	    bin cmd share lib man node_modules
+	    bin cmd share lib man node_modules etc
 
 #
 # Compute Node Tools subset tarball
@@ -361,6 +371,12 @@ $(PROTO)/opt/smartdc/cmd/%: tools/cmd/%
 	cp $^ $@
 	chmod 755 $@
 	touch $@
+
+$(PROTO)/opt/smartdc/etc/gz-tools.image:
+	mkdir -p $(@D)
+	rm -f $@
+	echo $(TOOLS_UUID) > $@
+	chmod 644 $@
 
 #
 # We deliver some specific boot files in the compute node tools tarball so that
