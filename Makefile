@@ -292,7 +292,7 @@ gz-tools: $(TOOLS_DEPS)
 		$(TOP)/scripts \
 		build/$(GZ_TOOLS_STAMP)/gz-tools
 	(cd build/$(GZ_TOOLS_STAMP) && tar czf ../../$(GZ_TOOLS_TARBALL) gz-tools)
-	echo $(TOOLS_UUID) > build/$(GZ_TOOLS_STAMP)/image_uuid
+	cat $(PROTO)/opt/smartdc/etc/gz-tools.image > build/$(GZ_TOOLS_STAMP)/image_uuid
 	cat $(TOP)/manifests/gz-tools.manifest.tmpl | sed \
 		-e "s/UUID/$$(cat build/$(GZ_TOOLS_STAMP)/image_uuid)/" \
 		-e "s/NAME/gz-tools/" \
