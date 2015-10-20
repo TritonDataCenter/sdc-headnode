@@ -16,12 +16,15 @@
 //  This tool is used to manage servers (HN or CN) in SDC.
 //
 
-var assert = require('assert');
+var assert = require('assert-plus');
+// TODO: Should convert over to vasync (to avoid platform node_modules, and
+//       vasync is preferred)
 var async = require('/usr/node/node_modules/async');
-var cp = require('child_process');
-var exec = cp.exec;
+var dashdash = require('dashdash');
+var exec = require('child_process').exec;
 var readline = require('readline');
 var util = require('util');
+var vasync = require('vasync');
 
 var SDC_MODULES = '/opt/smartdc/node_modules';
 var restify = require(SDC_MODULES + '/sdc-clients/node_modules/restify');
@@ -45,6 +48,7 @@ function usage()
         '                                            this server',
         '    jobs <uuid>                           - list all jobs for this server',
         '    list                                  - list all servers in this DC',
+        '    lookup [-h1jHc] [field=val ...]       - lookup servers matching given fields',
         '    ips <uuid>                            - output the IPs for this server',
         '    nics <uuid>                           - output the nics for this server',
         '    admin-ip <uuid>                       - output the admin IP address for this server',
@@ -290,6 +294,268 @@ function outputServerList(callback)
         }
         outputServerData(servers, callback);
     });
+}
+
+/**
+ * Take CLI input args of the form FIELD=VALUE (or similar) and transform
+ * to an array of filter objects (type, key, value).
+ */
+function filtersFromArgs(args) {
+    assert.arrayOfString(args, 'args');
+
+    var filters = [];
+    for (var i = 0; i < args.length; i++) {
+        var arg = args[i];
+        var idx = arg.indexOf('=');
+        if (idx === -1) {
+            throw new Error(util.format(
+                'invalid filter: "%s" (must be of the form "field=value")',
+                arg));
+        }
+        var filter = {
+            key: arg.slice(0, idx)
+        };
+        var argVal = arg.slice(idx + 1);
+        if (argVal === 'true') {
+            filter.type = 'bool';
+            filter.value = true;
+        } else if (argVal === 'false') {
+            filter.type = 'bool';
+            filter.value = false;
+        } else if (argVal.length && argVal[0] === '~') {
+            filter.type = 'regexp';
+            filter.value = new RegExp(argVal.slice(1));
+        } else {
+            filter.type = 'string';
+            filter.value = argVal;
+        }
+        filters.push(filter);
+    }
+    return filters;
+}
+
+/*
+ * lookup the property "str" (given in dot-notation) in the object "obj".
+ * "delim" is optional and may be set to any delimiter (defaults to dot: ".")
+ *
+ * Borrowed from <https://github.com/trentm/node-tabula>.
+ */
+function dottedLookup(obj, str, delim) {
+    if (delim === undefined)
+        delim = '.';
+    var o = obj;
+    var segments = str.split(delim);
+    var s = [];
+    for (var i = 0; i < segments.length; i++) {
+        var segment = segments[i];
+        s.push(segment);
+        if (o === null || o === undefined || !o.hasOwnProperty(segment)) {
+            throw new Error('no property ' + s.join(delim) + ' found');
+        }
+        o = o[segment];
+    }
+    return o;
+}
+
+/*
+ * sdc-server lookup ...
+ *
+ * TODO:
+ * - "One other thing that'd be handy but not sure if it belongs here would be
+ *   to find servers given a list of VM uuids."   This could be done via
+ *   CNAPI server.vms (using extras=vms to get that info).
+ * - Support getting some of the server object "extras" if filtering on those
+ *   (e.g. 'sdc-server lookup sysinfo.foo=bar').
+ */
+function lookupServers(args, callback)
+{
+    var options = [
+        {
+            names: ['help', 'h'],
+            type: 'bool',
+            help: 'Print this help and exit.'
+        },
+        {
+            names: ['1'],
+            type: 'bool',
+            help: 'Error out if there are 0 or >1 matches to the given filters.'
+        },
+        {
+            names: ['json', 'j'],
+            type: 'bool',
+            help: 'Print out a newline-separated JSON object for each ' +
+                'matching server, instead of just the server UUIDs.'
+        },
+        {
+            names: ['hostname', 'H'],
+            type: 'bool',
+            help: 'Typically server UUIDs are printed. Use this option to ' +
+                'print hostnames instead.'
+        },
+        {
+            names: ['comma', 'c'],
+            type: 'bool',
+            help: 'Join matching results in a single comma-separated list. ' +
+                'This can be helpful for usage with other commands like ' +
+                '"sdc-oneachnode -n $(sdc-server lookup ...) ...".'
+        }
+    ];
+
+    var parser = dashdash.createParser({options: options});
+    try {
+        var opts = parser.parse({argv: args, slice: 0});
+    } catch (optErr) {
+        callback(optErr);
+        return;
+    }
+
+    if (opts.help) {
+        console.log(
+            'Lookup servers matching given filters.\n' +
+            '\n' +
+            'Usage:\n' +
+            '    sdc-server lookup [<options>] [<filters> ...]\n' +
+            '\n' +
+            'Options:\n' +
+            parser.help() +
+            '\n' +
+            'Filters:\n' +
+            '    FIELD=VALUE               exact string match\n' +
+            '    FIELD=true|false          boolean match\n' +
+            '    FIELD=~REGEX              regular expression match\n' +
+            '\n' +
+            'Examples:\n' +
+            '    sdc-server lookup setup=true\n' +
+            '    sdc-server lookup traits.foo=bar\n' +
+            '    sdc-server lookup -H hostname=~^RA\n' +
+            // JSSTYLED
+            '    sdc-server lookup -j reservoir=true | json -ga uuid hostname boot_platform');
+        callback();
+        return;
+    } else if (opts.json && opts.hostname) {
+        callback(new Error('--json and --hostname are mutually exclusive'));
+        return;
+    } else if (opts.json && opts.comma) {
+        callback(new Error('--json and --comma are mutually exclusive'));
+        return;
+    }
+
+    try {
+        var filters = filtersFromArgs(opts._args);
+    } catch (filtersErr) {
+        callback(filtersErr);
+        return;
+    }
+
+    vasync.pipeline({arg: {}, funcs: [
+        function getCnapiClient(ctx, cb) {
+            createClient('CNAPI', function (err, cnapi) {
+                if (err) {
+                    err.api = 'CNAPI';
+                } else {
+                    ctx.cnapi = cnapi;
+                }
+                cb(err);
+            });
+        },
+        function listServers(ctx, cb) {
+            ctx.cnapi.listServers({}, function (err, servers) {
+                if (err) {
+                    err.api = 'CNAPI';
+                } else {
+                    ctx.servers = servers;
+                }
+                cb(err);
+            });
+        },
+        function filterServers(ctx, cb) {
+            var DEBUG = false;
+            var currServers = ctx.servers;
+            for (var i = 0; i < filters.length; i++) {
+                var filteredServers = [];
+                for (var s = 0; s < currServers.length; s++) {
+                    var server = currServers[s];
+                    var filter = filters[i];
+                    var sVal;
+                    try {
+                        sVal = dottedLookup(server, filter.key);
+                    } catch (e) {
+                        sVal = undefined;
+                    }
+                    switch (filter.type) {
+                    case 'string':
+                    case 'bool':
+                        if (sVal === filter.value) {
+                            if (DEBUG) console.log(
+                                'debug: server "%s" match: `%j === %j`',
+                                server.hostname, sVal, filter.value, filter);
+                            filteredServers.push(server);
+                        } else {
+                            if (DEBUG) console.log(
+                                'debug: server "%s" fail:  `%j !== %j`',
+                                server.hostname, sVal, filter.value, filter);
+                        }
+                        break;
+                    case 'regexp':
+                        if (filter.value.test(sVal)) {
+                            if (DEBUG) console.log(
+                                'debug: server "%s" match: `%j =~ %s`',
+                                server.hostname, sVal, filter.value, filter);
+                            filteredServers.push(server);
+                         } else {
+                            if (DEBUG) console.log(
+                                'debug: server "%s" fail:  `%j !~ %s`',
+                                server.hostname, sVal, filter.value, filter);
+                        }
+                        break;
+                    default:
+                        cb(new Error('unknown filter type: ' + filter.type));
+                        return;
+                    }
+                }
+                currServers = filteredServers;
+            }
+            ctx.filteredServers = currServers;
+            cb();
+        },
+        function ensureOne(ctx, cb) {
+            if (opts['1'] && ctx.filteredServers.length !== 1) {
+                cb(new Error(util.format('requested unique lookup (-1) ' +
+                    'but found %d matching servers',
+                    ctx.filteredServers.length)));
+            } else {
+                cb();
+            }
+        },
+        function outputServers(ctx, cb) {
+            if (opts.json) {
+                for (var i = 0; i < ctx.filteredServers.length; i++) {
+                    console.log(JSON.stringify(ctx.filteredServers[i]));
+                }
+                cb();
+                return;
+            }
+
+            var results;
+            if (opts.hostname) {
+                results = ctx.filteredServers.map(function (s) {
+                    return s.hostname;
+                });
+            } else {
+                results = ctx.filteredServers.map(function (s) {
+                    return s.uuid;
+                });
+            }
+            if (results.length) {
+                if (opts.comma) {
+                    process.stdout.write(results.join(','));
+                } else {
+                    console.log(results.join('\n'));
+                }
+            }
+            cb();
+        }
+    ]}, callback);
 }
 
 function outputAdminIP(server_uuid, callback) {
@@ -693,7 +959,6 @@ function dispatchCommand(command, args, callback)
             outputIps(server_uuid, callback);
             break;
 
-
         case 'jobs':
             if (args.length !== 1 || !isUUID(args[0])) {
                 usage();
@@ -705,6 +970,7 @@ function dispatchCommand(command, args, callback)
             break;
 
         case 'list':
+
             if (args.length > 0) {
                 usage();
                 callback(new Error('no arguments expected for list: '
@@ -712,6 +978,10 @@ function dispatchCommand(command, args, callback)
                 return;
             }
             outputServerList(callback);
+            break;
+
+        case 'lookup':
+            lookupServers(args, callback);
             break;
 
         case 'nics':
