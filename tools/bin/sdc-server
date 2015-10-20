@@ -297,37 +297,75 @@ function outputServerList(callback)
 }
 
 /**
- * Take CLI input args of the form FIELD=VALUE (or similar) and transform
- * to an array of filter objects (type, key, value).
+ * Take CLI input args of the following forms and transform
+ * to an array of filter objects (type, key, value, negated).
+ *
+ *      FIELD=VALUE               exact string match
+ *      FIELD=true|false          boolean match
+ *      FIELD!=...                negated string or boolean match
+ *      FIELD=~REGEX              regular expression match
+ *      FIELD!~REGEX              negated regular expression match
  */
 function filtersFromArgs(args) {
     assert.arrayOfString(args, 'args');
 
+    var filterRe = /^([\w_\.-]+)(!=|=~|!~|=)(.+)$/;
+
     var filters = [];
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
-        var idx = arg.indexOf('=');
-        if (idx === -1) {
+        var parsed = filterRe.exec(arg);
+        if (!parsed) {
             throw new Error(util.format(
                 'invalid filter: "%s" (must be of the form "field=value")',
                 arg));
         }
+
         var filter = {
-            key: arg.slice(0, idx)
+            key: parsed[1]
         };
-        var argVal = arg.slice(idx + 1);
-        if (argVal === 'true') {
-            filter.type = 'bool';
-            filter.value = true;
-        } else if (argVal === 'false') {
-            filter.type = 'bool';
-            filter.value = false;
-        } else if (argVal.length && argVal[0] === '~') {
+        var op = parsed[2];
+        var val = parsed[3];
+        switch (op) {
+        case '=':
+            filter.negated = false;
+            if (val === 'true') {
+                filter.type = 'bool';
+                filter.value = true;
+            } else if (val === 'false') {
+                filter.type = 'bool';
+                filter.value = false;
+            } else {
+                filter.type = 'string';
+                filter.value = val;
+            }
+            break;
+        case '!=':
+            filter.negated = true;
+            if (val === 'true') {
+                filter.type = 'bool';
+                filter.value = true;
+            } else if (val === 'false') {
+                filter.type = 'bool';
+                filter.value = false;
+            } else {
+                filter.type = 'string';
+                filter.value = val;
+            }
+            break;
+        case '=~':
+            filter.negated = false;
             filter.type = 'regexp';
-            filter.value = new RegExp(argVal.slice(1));
-        } else {
-            filter.type = 'string';
-            filter.value = argVal;
+            filter.value = new RegExp(val);
+            break;
+        case '!~':
+            filter.negated = true;
+            filter.type = 'regexp';
+            filter.value = new RegExp(val);
+            break;
+        default:
+            throw new Error('unknown filter op: ' + op);
+            break;
         }
         filters.push(filter);
     }
@@ -422,11 +460,14 @@ function lookupServers(args, callback)
             'Filters:\n' +
             '    FIELD=VALUE               exact string match\n' +
             '    FIELD=true|false          boolean match\n' +
+            '    FIELD!=...                negated string or boolean match\n' +
             '    FIELD=~REGEX              regular expression match\n' +
+            '    FIELD!~REGEX              negated regular expression match\n' +
             '\n' +
             'Examples:\n' +
             '    sdc-server lookup setup=true\n' +
-            '    sdc-server lookup traits.foo=bar\n' +
+            '    sdc-server lookup traits.foo!=bar\n' +
+            '    sdc-server lookup traits.pkg!=agean\n' +
             '    sdc-server lookup -H hostname=~^RA\n' +
             // JSSTYLED
             '    sdc-server lookup -j reservoir=true | json -ga uuid hostname boot_platform');
@@ -482,35 +523,33 @@ function lookupServers(args, callback)
                     } catch (e) {
                         sVal = undefined;
                     }
+
+                    var match;
                     switch (filter.type) {
                     case 'string':
                     case 'bool':
-                        if (sVal === filter.value) {
-                            if (DEBUG) console.log(
-                                'debug: server "%s" match: `%j === %j`',
-                                server.hostname, sVal, filter.value, filter);
-                            filteredServers.push(server);
-                        } else {
-                            if (DEBUG) console.log(
-                                'debug: server "%s" fail:  `%j !== %j`',
-                                server.hostname, sVal, filter.value, filter);
-                        }
+                        match = (sVal === filter.value);
                         break;
                     case 'regexp':
-                        if (filter.value.test(sVal)) {
-                            if (DEBUG) console.log(
-                                'debug: server "%s" match: `%j =~ %s`',
-                                server.hostname, sVal, filter.value, filter);
-                            filteredServers.push(server);
-                         } else {
-                            if (DEBUG) console.log(
-                                'debug: server "%s" fail:  `%j !~ %s`',
-                                server.hostname, sVal, filter.value, filter);
-                        }
+                        match = (filter.value.test(sVal));
                         break;
                     default:
                         cb(new Error('unknown filter type: ' + filter.type));
                         return;
+                    }
+                    if (filter.negated) {
+                        match = !match;
+                    }
+
+                    if (match) {
+                        if (DEBUG) console.log(
+                            'debug: <server %s>.%s is %j (matches %j)',
+                            server.hostname, filter.key, sVal, filter);
+                        filteredServers.push(server);
+                    } else {
+                        if (DEBUG) console.log(
+                            'debug: <server %s>.%s is %j (does NOT match %j)',
+                            server.hostname, filter.key, sVal, filter);
                     }
                 }
                 currServers = filteredServers;
