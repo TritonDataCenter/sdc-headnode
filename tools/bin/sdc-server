@@ -309,6 +309,7 @@ function outputServerList(callback)
 function filtersFromArgs(args) {
     assert.arrayOfString(args, 'args');
 
+    // JSSTYLED
     var filterRe = /^([\w_\.-]+)(!=|=~|!~|=)(.+)$/;
 
     var filters = [];
@@ -365,7 +366,6 @@ function filtersFromArgs(args) {
             break;
         default:
             throw new Error('unknown filter op: ' + op);
-            break;
         }
         filters.push(filter);
     }
