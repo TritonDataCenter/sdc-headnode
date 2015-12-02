@@ -59,6 +59,7 @@ SDC_ZONE_COMMANDS = \
 	sdc-fwapi \
 	sdc-imgadm \
 	sdc-imgapi \
+	sdc-mahi \
 	sdc-napi \
 	sdc-oneachnode \
 	sdc-papi \
