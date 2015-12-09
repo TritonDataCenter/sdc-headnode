@@ -770,10 +770,52 @@ function import_smartdc_service_images {
     # and uuid to build.spec's datasets.
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
-            /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-                -f "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
-                    | head -1)" \
-                -m /usbkey/datasets/${name}.imgmanifest
+	    local ok=false
+	    local retries=0
+            while [[ ${ok} == "false" && ${retries} -lt 6 ]]; do
+		# We use either a bzipped or gzipped version of the zfs dataset
+		# that backs the zone image. Previously we listed the directory
+		# contents using an `ls` invocation like the following:
+		#
+		#	ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2}
+		#
+		# We would then pick the first one listed, using the `head`
+		# command.
+		#
+		# The issue with this approach is that the shell expands the
+		# above commadn into something like the following:
+		#
+		#	ls -1 /.../.../foo.zfs.gz /.../.../foo.zfs.bz2
+		#
+		# This is fine, as long as _both_ files exists. If one of the
+		# compressed datasets does not exist, `ls` exist with an error.
+		# Because we set the errexit option at the top of this file,
+		# bash stops executing, causing headnode to freeze.
+		#
+		# Hence the need for the if-else-block below.
+	        if [[ -f /usbkey/datasets/${name}.zfs.gz ]]; then
+			file="/usbkey/datasets/${name}.zfs.gz"
+		elif [[ -f /usbkey/datasets/${name}.zfs.bz2 ]]; then
+			file="/usbkey/datasets/${name}.zfs.bz2"
+		fi
+		manifest="/usbkey/datasets/${name}.imgmanifest"
+		imgadm_args="--skip-owner-check -f $file  -m $manifest"
+		# Our call to scd-imgadm can, from the shell's perspective
+		# either succeed (exit == 0), or fail (exit != 0). Unlike
+		# sdc-imgapi, sdc-imgadm will return non-zero on any kind of
+		# failure. Whereas sdc-imgapi, could return an HTTP failure on
+		# standard output and still have exit status zero. We don't
+		# have to insepct the output at all, for sdc-imgadm, ony the
+		# exit status code.
+		imgadmargs="import $imgadm_args 2> /dev/null"
+		imgadmcmd="/opt/smartdc/bin/sdc-imgadm $imgadmargs"
+		if ! retval=$($imgadmcmd); then
+			ok=false
+		else
+			ok=true
+		fi
+		retries=`expr $retries + 1`;
+	    done
         done
     fi
 
