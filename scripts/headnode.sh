@@ -770,52 +770,36 @@ function import_smartdc_service_images {
     # and uuid to build.spec's datasets.
     if [[ -f /usbkey/datasets/img_dependencies ]]; then
         for name in $(cat /usbkey/datasets/img_dependencies); do
-	    local ok=false
-	    local retries=0
-            while [[ ${ok} == "false" && ${retries} -lt 6 ]]; do
-		# We use either a bzipped or gzipped version of the zfs dataset
-		# that backs the zone image. Previously we listed the directory
-		# contents using an `ls` invocation like the following:
-		#
-		#	ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2}
-		#
-		# We would then pick the first one listed, using the `head`
-		# command.
-		#
-		# The issue with this approach is that the shell expands the
-		# above commadn into something like the following:
-		#
-		#	ls -1 /.../.../foo.zfs.gz /.../.../foo.zfs.bz2
-		#
-		# This is fine, as long as _both_ files exists. If one of the
-		# compressed datasets does not exist, `ls` exist with an error.
-		# Because we set the errexit option at the top of this file,
-		# bash stops executing, causing headnode to freeze.
-		#
-		# Hence the need for the if-else-block below.
+            local retries=0
+            local max_retries=6
+            local bail=true
+            while [[ ${retries} -lt ${max_retries} ]]; do
 	        if [[ -f /usbkey/datasets/${name}.zfs.gz ]]; then
 			file="/usbkey/datasets/${name}.zfs.gz"
 		elif [[ -f /usbkey/datasets/${name}.zfs.bz2 ]]; then
 			file="/usbkey/datasets/${name}.zfs.bz2"
 		fi
 		manifest="/usbkey/datasets/${name}.imgmanifest"
-		imgadm_args="--skip-owner-check -f $file  -m $manifest"
-		# Our call to scd-imgadm can, from the shell's perspective
-		# either succeed (exit == 0), or fail (exit != 0). Unlike
-		# sdc-imgapi, sdc-imgadm will return non-zero on any kind of
-		# failure. Whereas sdc-imgapi, could return an HTTP failure on
-		# standard output and still have exit status zero. We don't
-		# have to insepct the output at all, for sdc-imgadm, ony the
-		# exit status code.
-		imgadmargs="import $imgadm_args 2> /dev/null"
-		imgadmcmd="/opt/smartdc/bin/sdc-imgadm $imgadmargs"
-		if ! retval=$($imgadmcmd); then
-			ok=false
+		# Unlike with sdc-imgapi, we know that any failure will exit
+		# non-zero. There is one failure that we do not care about and
+		# it is the (ImageUuidAlreadyExists) failure.
+		if ! err=$(/opt/smartdc/bin/sdc-imgadm \
+			import  --skip-owner-check -f $file  -m $manifest \
+			2>&1 | awk '{print $3;}'); then
+
+			if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
+				bail=false
+				break;
+			fi
 		else
-			ok=true
+			bail=false
+			break;
 		fi
 		retries=`expr $retries + 1`;
 	    done
+	    if [[ ${bail} == "true" ]]; then
+		    fatal "Unable to import image file ${file} after ${retries} tries."
+	    fi
         done
     fi
 
@@ -859,9 +843,21 @@ function import_smartdc_service_images {
                 # Skip the check that "owner" exists in UFDS during setup
                 # b/c if this is not the DC with the UFDS master, then the
                 # admin user will not have been replicated yet.
-                /opt/smartdc/bin/sdc-imgadm import --skip-owner-check \
-                    -m ${manifest} -f ${file}
-                ok=true
+                local imgadm_retries=0
+		# We have to retry the sdc-imgadm command here as well.
+		while [[ ${imgadm_retries} -lt 6 ]]; do
+			if ! err=$(/opt/smartdc/bin/sdc-imgadm \
+				 import --skip-owner-check -m ${manifest} -f ${file} \
+				 2>&1 | awk '{print $3;}'); then
+				if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
+					break;
+				fi
+				imgadm_retries=$((${retries} + 1))
+			else
+				break;
+			fi
+		done
+		ok=true
             elif [[ "${status}" == "200" ]]; then
                 # exists
             # BASHSTYLED
