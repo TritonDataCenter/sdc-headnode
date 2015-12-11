@@ -1175,6 +1175,8 @@ emails to a specific address. Each of these values will be configured below.
 
 	promptpw "Enter admin password" "chk" "$zone_admin_pw" "admin_password"
 	zone_admin_pw="$val"
+        # BASHSTYLED
+        escaped_zone_admin_pw="$(echo "$zone_admin_pw" | sed -e "s/'/'\\\\''/g")"
 
 	promptemail "Administrator email goes to" "$mail_to" "mail_to"
 	mail_to="$val"
@@ -1405,70 +1407,70 @@ echo "swap=0.25x" >>$tmp_config
 echo "compute_node_swap=0.25x" >>$tmp_config
 echo >>$tmp_config
 
-echo "binder_root_pw=$zone_admin_pw" >>$tmp_config
+echo "binder_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "binder_admin_ips=$binder_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
-echo "manatee_root_pw=$zone_admin_pw" >>$tmp_config
+echo "manatee_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "manatee_admin_ips=$manatee_admin_ip" >>$tmp_config
 echo >>$tmp_config
 
-echo "moray_root_pw=$zone_admin_pw" >>$tmp_config
+echo "moray_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "moray_admin_ips=$moray_admin_ip" >>$tmp_config
 echo "moray_domain=moray.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "ufds_root_pw=$zone_admin_pw" >>$tmp_config
+echo "ufds_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "ufds_admin_ips=$ufds_admin_ip" >>$tmp_config
 echo "ufds_domain=ufds.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "workflow_root_pw=$zone_admin_pw" >>$tmp_config
+echo "workflow_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "workflow_admin_ips=$workflow_admin_ip" >>$tmp_config
 echo "workflow_domain=workflow.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "imgapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "imgapi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "imgapi_admin_ips=$imgapi_admin_ip" >>$tmp_config
 echo "imgapi_domain=imgapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "cnapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "cnapi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "cnapi_admin_ips=$cnapi_admin_ip" >>$tmp_config
 echo "cnapi_domain=cnapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "fwapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "fwapi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "fwapi_admin_ips=$fwapi_admin_ip" >>$tmp_config
 echo "fwapi_domain=fwapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "vmapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "vmapi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "vmapi_admin_ips=$vmapi_admin_ip" >>$tmp_config
 echo "vmapi_domain=vmapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "sdc_root_pw=$zone_admin_pw" >>$tmp_config
+echo "sdc_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "sdc_admin_ips=$sdc_admin_ip" >>$tmp_config
 echo "sdc_domain=sdc.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "papi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "papi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "papi_admin_ips=$papi_admin_ip" >>$tmp_config
 echo "papi_domain=papi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "ca_root_pw=$zone_admin_pw" >>$tmp_config
+echo "ca_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
 echo "ca_domain=ca.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "adminui_root_pw=$zone_admin_pw" >>$tmp_config
+echo "adminui_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config
 echo "adminui_domain=adminui.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
-echo "mahi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "mahi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "mahi_admin_ips=$mahi_admin_ip" >>$tmp_config
 echo "mahi_domain=mahi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
@@ -1583,17 +1585,17 @@ echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataC
 echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
-echo "amon_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amon_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "amon_domain=amon.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "amonredis_admin_ips=$amonredis_admin_ip" >>$tmp_config
-echo "amonredis_root_pw=$zone_admin_pw" >>$tmp_config
+echo "amonredis_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "amonredis_domain=amonredis.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
-echo "redis_root_pw=$zone_admin_pw" >>$tmp_config
+echo "redis_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "redis_domain=redis.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
@@ -1601,14 +1603,14 @@ echo >>$tmp_config
 #       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "assets_admin_ip=$assets_admin_ip" >>$tmp_config
 echo "assets_admin_ips=$assets_admin_ip" >>$tmp_config
-echo "assets_root_pw=$zone_admin_pw" >>$tmp_config
+echo "assets_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
 #       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "dhcpd_admin_ip=$dhcpd_admin_ip" >>$tmp_config
 echo "dhcpd_admin_ips=$dhcpd_admin_ip" >>$tmp_config
-echo "dhcpd_root_pw=$zone_admin_pw" >>$tmp_config
+echo "dhcpd_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "dhcpd_domain=dhcpd.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
@@ -1624,14 +1626,14 @@ if [[ -n ${external_nic} ]]; then
 		echo "cloudapi_external_vlan=$external_vlan_id" >>$tmp_config
 	fi
 fi
-echo "cloudapi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "cloudapi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to
 #       use admin_ip.  When this is cleaned up we can just keep ips.
 echo "rabbitmq_admin_ip=$rabbitmq_admin_ip" >>$tmp_config
 echo "rabbitmq_admin_ips=$rabbitmq_admin_ip" >>$tmp_config
-echo "rabbitmq_root_pw=$zone_admin_pw" >>$tmp_config
+echo "rabbitmq_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo "rabbitmq_domain=rabbitmq.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
@@ -1640,7 +1642,7 @@ echo "ufds_is_master=true" >>$tmp_config
 echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
 echo "ufds_ldap_root_pw=secret" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
-echo "ufds_admin_pw=$zone_admin_pw" >>$tmp_config
+echo "ufds_admin_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "ufds_admin_email=$mail_to" >>$tmp_config
 echo "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
 echo "# Legacy CAPI parameters" >>$tmp_config
@@ -1655,7 +1657,7 @@ echo >>$tmp_config
 echo "fwapi_client_url=$fwapi_client_url" >>$tmp_config
 echo >>$tmp_config
 
-echo "napi_root_pw=$zone_admin_pw" >>$tmp_config
+echo "napi_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "napi_admin_ips=$napi_admin_ip" >>$tmp_config
 echo "napi_client_url=$napi_client_url" >>$tmp_config
 echo "napi_mac_prefix=90b8d0" >>$tmp_config
