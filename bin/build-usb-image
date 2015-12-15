@@ -96,6 +96,13 @@ MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
 TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
+#
+# It may appear that storing images in /tmp is a bug, and that /var/tmp should
+# be used instead. However, despite the fact that tmpfs is an unusual and
+# quirky filesystem, this is exactly what we want. Tmpfs is stores its data in
+# memory rather than disk, which results in a significant build time speedup.
+# As of 2015, the delta is 65 minutes.
+#
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
