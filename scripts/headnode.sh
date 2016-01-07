@@ -745,17 +745,17 @@ if setup_state_not_seen "sdczones_created"; then
     echo "==> Copying manatee tools to GZ."
     manatee=$(vmadm lookup tags.smartdc_role=manatee | tail -1)
     for file in $(ls /zones/${manatee}/root/opt/smartdc/manatee/bin/sdc*); do
-	tool=$(basename ${file} .js)
-	mv ${file} /opt/smartdc/bin/${tool}
+        tool=$(basename ${file} .js)
+        mv ${file} /opt/smartdc/bin/${tool}
     done
 
     # Copy sapiadm into the GZ from the SAPI zone.
     zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
     if [[ -n ${zone_uuid} ]]; then
-	from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
-	to_dir=/opt/smartdc/bin
-	rm -f ${to_dir}/sapiadm
-	ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
+        from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
+        to_dir=/opt/smartdc/bin
+        rm -f ${to_dir}/sapiadm
+        ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
     fi
 
     setup_state_add "sdczones_created"
@@ -774,32 +774,32 @@ function import_smartdc_service_images {
             local max_retries=6
             local bail=true
             while [[ ${retries} -lt ${max_retries} ]]; do
-	        if [[ -f /usbkey/datasets/${name}.zfs.gz ]]; then
-			file="/usbkey/datasets/${name}.zfs.gz"
-		elif [[ -f /usbkey/datasets/${name}.zfs.bz2 ]]; then
-			file="/usbkey/datasets/${name}.zfs.bz2"
-		fi
-		manifest="/usbkey/datasets/${name}.imgmanifest"
-		# Unlike with sdc-imgapi, we know that any failure will exit
-		# non-zero. There is one failure that we do not care about and
-		# it is the (ImageUuidAlreadyExists) failure.
-		if ! err=$(/opt/smartdc/bin/sdc-imgadm \
-			import  --skip-owner-check -f $file  -m $manifest \
-			2>&1 | awk '{print $3;}'); then
+                if [[ -f /usbkey/datasets/${name}.zfs.gz ]]; then
+                    file="/usbkey/datasets/${name}.zfs.gz"
+                elif [[ -f /usbkey/datasets/${name}.zfs.bz2 ]]; then
+                    file="/usbkey/datasets/${name}.zfs.bz2"
+                fi
+                manifest="/usbkey/datasets/${name}.imgmanifest"
+                # Unlike with sdc-imgapi, we know that any failure will exit
+                # non-zero. There is one failure that we do not care about and
+                # it is the (ImageUuidAlreadyExists) failure.
+                if ! err=$(/opt/smartdc/bin/sdc-imgadm \
+                    import  --skip-owner-check -f $file  -m $manifest \
+                    2>&1 | awk '{print $3;}'); then
 
-			if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
-				bail=false
-				break;
-			fi
-		else
-			bail=false
-			break;
-		fi
-		retries=`expr $retries + 1`;
-	    done
-	    if [[ ${bail} == "true" ]]; then
-		    fatal "Unable to import image file ${file} after ${retries} tries."
-	    fi
+                        if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
+                            bail=false
+                            break;
+                        fi
+                else
+                        bail=false
+                        break;
+                fi
+                retries=`expr $retries + 1`;
+            done
+            if [[ ${bail} == "true" ]]; then
+                    fatal "Unable to import image file ${file} after ${retries} tries."
+            fi
         done
     fi
 
@@ -844,20 +844,26 @@ function import_smartdc_service_images {
                 # b/c if this is not the DC with the UFDS master, then the
                 # admin user will not have been replicated yet.
                 local imgadm_retries=0
-		# We have to retry the sdc-imgadm command here as well.
-		while [[ ${imgadm_retries} -lt 6 ]]; do
-			if ! err=$(/opt/smartdc/bin/sdc-imgadm \
-				 import --skip-owner-check -m ${manifest} -f ${file} \
-				 2>&1 | awk '{print $3;}'); then
-				if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
-					break;
-				fi
-				imgadm_retries=$((${retries} + 1))
-			else
-				break;
-			fi
-		done
-		ok=true
+                local bail=true
+                # We have to retry the sdc-imgadm command here as well.
+                while [[ ${imgadm_retries} -lt 6 ]]; do
+                    if ! err=$(/opt/smartdc/bin/sdc-imgadm \
+                        import --skip-owner-check -m ${manifest} -f ${file} \
+                        2>&1 | awk '{print $3;}'); then
+                            if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
+                                bail=false
+                                break;
+                            fi
+                            imgadm_retries=$((${retries} + 1))
+                    else
+                            bail=false
+                            break;
+                    fi
+                done
+                if [[ ${bail} == "true" ]]; then
+                    fatal "Unable to import image file ${file} after ${retries} tries."
+                fi
+                ok=true
             elif [[ "${status}" == "200" ]]; then
                 # exists
             # BASHSTYLED
