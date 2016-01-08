@@ -798,7 +798,8 @@ function import_smartdc_service_images {
                 retries=`expr $retries + 1`;
             done
             if [[ ${bail} == "true" ]]; then
-                    fatal "Unable to import image file ${file} after ${retries} tries."
+                fatal "Unable to import image file ${file}" \
+                    " after ${retries} tries."
             fi
         done
     fi
@@ -861,7 +862,8 @@ function import_smartdc_service_images {
                     fi
                 done
                 if [[ ${bail} == "true" ]]; then
-                    fatal "Unable to import image file ${file} after ${retries} tries."
+                    fatal "Unable to import image file ${file}" \
+                        " after ${retries} tries."
                 fi
                 ok=true
             elif [[ "${status}" == "200" ]]; then
