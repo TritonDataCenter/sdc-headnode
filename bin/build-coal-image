@@ -12,7 +12,6 @@
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 . "${ROOT}/buildtools/lib/error_handler.sh"
-. "${ROOT}/buildtools/lib/common.sh"
 
 function usage {
     if [[ -n "$1" ]]; then
@@ -94,6 +93,7 @@ function build_spec () {
 BUILD_TGZ=$(build_spec build-tgz)
 
 # Tools.
+TAR=tar
 
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
@@ -149,7 +149,7 @@ function unpack_image
             && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
             || fatal "Unable to unpack USB image"
     else
-        (cd $IMG_TMP_DIR/coal.$$ && ftar -xzf $TAR_BUILD_FILENAME \
+        (cd $IMG_TMP_DIR/coal.$$ && ${TAR} -xzf $TAR_BUILD_FILENAME \
             && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
             || fatal "Unable to unpack USB image"
     fi
@@ -263,7 +263,7 @@ function create_output
 
     echo "==> Unpacking VMWare image... "
     rm -rf $STAGE/USB-headnode.vmwarevm || true
-    (cd $STAGE && ftar -jxvf ${vmwarevm_tarball}) \
+    (cd $STAGE && ${TAR} -jxvf ${vmwarevm_tarball}) \
         || fatal "Unable to unpack image"
     (cd $STAGE/USB-headnode.vmwarevm \
         && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
@@ -350,7 +350,7 @@ function create_output
         (cd $STAGE \
             && mv USB-headnode.vmwarevm \
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
-            && ftar -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
+            && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
             root.password.${LIVEIMG_VERSION} \
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
