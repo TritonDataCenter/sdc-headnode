@@ -12,6 +12,7 @@
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 . "${ROOT}/buildtools/lib/error_handler.sh"
+. "${ROOT}/buildtools/lib/common.sh"
 
 function usage {
     if [[ -n "$1" ]]; then
@@ -93,7 +94,6 @@ function build_spec () {
 BUILD_TGZ=$(build_spec build-tgz)
 
 # Tools.
-TAR=tar
 
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"

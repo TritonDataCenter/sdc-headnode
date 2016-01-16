@@ -12,6 +12,7 @@
 ROOT=$(cd $(dirname $0)/../; pwd)
 
 . "${ROOT}/buildtools/lib/error_handler.sh"
+. "${ROOT}/buildtools/lib/common.sh"
 
 function usage {
     if [[ -n "$1" ]]; then
@@ -56,7 +57,6 @@ if which gawk 2>/dev/null; then
 else
     AWK=awk
 fi
-TAR=tar
 GREP=grep
 if [[ $(uname -s) == 'SunOS' ]]; then
     SUM='/usr/bin/sum -x sha1'
@@ -310,18 +310,18 @@ function copy_base
     cp -r LICENSE ${STAGE}/LICENSE
 
     echo "==> Extracting platform boot bundle"
-    if ! (cd ${STAGE} && ${TAR} xzf ${platboot_path}); then
+    if ! (cd ${STAGE} && ${TAR} -xzf ${platboot_path}); then
         fatal "Failed to extract boot bundle"
     fi
 
     echo "==> Extracting sdcboot bundle"
-    if ! (cd ${STAGE} && ${TAR} xzf ${sdcboot_path}); then
+    if ! (cd ${STAGE} && ${TAR} -xzf ${sdcboot_path}); then
         fatal "Failed to extract sdcboot bundle"
     fi
 
     if [[ "${is_joyent}" == "true" ]]; then
         echo "==> Extracting firmware bundle"
-        if ! (cd ${STAGE} && ${TAR} xzf ${firmware_path}); then
+        if ! (cd ${STAGE} && ${TAR} -xzf ${firmware_path}); then
             fatal "Failed to extract firmware bundle"
         fi
     fi
