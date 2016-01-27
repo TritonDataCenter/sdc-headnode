@@ -305,21 +305,24 @@ function outputServerList(callback)
  *      FIELD!=...                negated string or boolean match
  *      FIELD=~REGEX              regular expression match
  *      FIELD!~REGEX              negated regular expression match
+ *      FIELD>NUMBER              numeric comparisons
+ *      FIELD<NUMBER
+ *      FIELD>=NUMBER
+ *      FIELD<=NUMBER
  */
 function filtersFromArgs(args) {
     assert.arrayOfString(args, 'args');
 
     // JSSTYLED
-    var filterRe = /^([\w_\.-]+)(!=|=~|!~|=)(.+)$/;
+    var filterRe = /^([ \w_\.-]+)(<=|>=|<|>|!=|=~|!~|=)(.+)$/;
 
     var filters = [];
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
         var parsed = filterRe.exec(arg);
         if (!parsed) {
-            throw new Error(util.format(
-                'invalid filter: "%s" (must be of the form "field=value")',
-                arg));
+            throw new Error(util.format('invalid filter: "%s" ' +
+                '(see "Filters" in "sdc-server lookup -h")', arg));
         }
 
         var filter = {
@@ -328,6 +331,21 @@ function filtersFromArgs(args) {
         var op = parsed[2];
         var val = parsed[3];
         switch (op) {
+        case '>':
+        case '>=':
+        case '<':
+        case '<=':
+            filter.negated = false;
+            if (isNaN(Number(val))) {
+                throw new Error(util.format(
+                    'invalid filter: "%s" (value must be a number for "%s")',
+                    arg, val, op));
+            } else {
+                filter.type = 'number';
+                filter.op = op;
+                filter.value = Number(val);
+            }
+            break;
         case '=':
             filter.negated = false;
             if (val === 'true') {
@@ -337,8 +355,14 @@ function filtersFromArgs(args) {
                 filter.type = 'bool';
                 filter.value = false;
             } else {
-                filter.type = 'string';
-                filter.value = val;
+                if (isNaN(Number(val))) {
+                    filter.type = 'string';
+                    filter.value = val;
+                } else {
+                    filter.type = 'number';
+                    filter.op = '==';
+                    filter.value = Number(val);
+                }
             }
             break;
         case '!=':
@@ -350,8 +374,14 @@ function filtersFromArgs(args) {
                 filter.type = 'bool';
                 filter.value = false;
             } else {
-                filter.type = 'string';
-                filter.value = val;
+                if (isNaN(Number(val))) {
+                    filter.type = 'string';
+                    filter.value = val;
+                } else {
+                    filter.type = 'number';
+                    filter.op = '==';
+                    filter.value = Number(val);
+                }
             }
             break;
         case '=~':
@@ -463,9 +493,14 @@ function lookupServers(args, callback)
             '    FIELD!=...                negated string or boolean match\n' +
             '    FIELD=~REGEX              regular expression match\n' +
             '    FIELD!~REGEX              negated regular expression match\n' +
+            '    FIELD>NUMBER              numeric comparisons\n' +
+            '    FIELD>=NUMBER             numeric comparisons\n' +
+            '    FIELD<NUMBER              numeric comparisons\n' +
+            '    FIELD<=NUMBER             numeric comparisons\n' +
             '\n' +
             'Examples:\n' +
             '    sdc-server lookup setup=true\n' +
+            '    sdc-server lookup "ram>=100000"\n' +
             '    sdc-server lookup traits.foo!=bar\n' +
             '    sdc-server lookup traits.pkg!=agean\n' +
             '    sdc-server lookup -H hostname=~^RA\n' +
@@ -500,7 +535,33 @@ function lookupServers(args, callback)
             });
         },
         function listServers(ctx, cb) {
-            ctx.cnapi.listServers({}, function (err, servers) {
+            // Figure out what 'extras' to include to ServerList.
+            var EXTRA_AND_FIELD_PATTERN = [
+                // jsl:ignore
+                ['agents', /^agents\./],
+                ['sysinfo', /^sysinfo\./],
+                ['vms', /^vms\./],
+                ['disk', /^disk_/],
+                ['memory', /^memory_/]
+                // jsl:end
+            ];
+            var extras = [];
+            EXTRA_AND_FIELD_PATTERN.forEach(function (extraAndPat) {
+                var extra = extraAndPat[0];
+                var pat = extraAndPat[1];
+                for (var i = 0; i < filters.length; i++) {
+                    if (pat.test(filters[i].key)) {
+                        extras.push(extra);
+                        break;
+                    }
+                }
+            });
+
+            var listOpts = {};
+            if (extras.length > 0) {
+                listOpts.extras = extras.join(',');
+            }
+            ctx.cnapi.listServers(listOpts, function (err, servers) {
                 if (err) {
                     err.api = 'CNAPI';
                 } else {
@@ -529,6 +590,28 @@ function lookupServers(args, callback)
                     case 'string':
                     case 'bool':
                         match = (sVal === filter.value);
+                        break;
+                    case 'number':
+                        switch (filter.op) {
+                        case '==':
+                            match = (sVal === filter.value);
+                            break;
+                        case '>':
+                            match = (sVal > filter.value);
+                            break;
+                        case '>=':
+                            match = (sVal >= filter.value);
+                            break;
+                        case '<':
+                            match = (sVal < filter.value);
+                            break;
+                        case '<=':
+                            match = (sVal <= filter.value);
+                            break;
+                        default:
+                            cb(new Error('unknown filter op: ' + filter.op));
+                            return;
+                        }
                         break;
                     case 'regexp':
                         match = (filter.value.test(sVal));
