@@ -164,20 +164,28 @@ function copy_manta_tools {
         # remove any tools from a previous setup
         rm -f ${to_dir}/manta-login
         rm -f ${to_dir}/manta-adm
+        rm -f ${to_dir}/manta-oneach
 
         mkdir -p /opt/smartdc/manta-deployment/log
         # manta-login is a bash script, so we can link it directly.
         ln -s ${from_dir}/bin/manta-login ${to_dir}/manta-login
 
         #
-        # manta-adm is a node program, so we must write a little wrapper that
-        # calls the real version using the node delivered in the manta zone.
+        # manta-adm and manta-oneach are node programs, so we must write little
+        # wrappers that call the real version using the node delivered in the
+        # manta zone.
         #
         cat <<-EOF > ${to_dir}/manta-adm
 	#!/bin/bash
 	exec ${from_dir}/build/node/bin/node ${from_dir}/bin/manta-adm "\$@"
 	EOF
         chmod +x ${to_dir}/manta-adm
+
+        cat <<-EOF > ${to_dir}/manta-oneach
+	#!/bin/bash
+	exec ${from_dir}/build/node/bin/node ${from_dir}/bin/manta-oneach "\$@"
+	EOF
+        chmod +x ${to_dir}/manta-oneach
     fi
 }
 
@@ -187,7 +195,8 @@ function copy_manta_tools {
 manta_uuid=$(vmadm lookup -1 alias=${ZONE_ALIAS})
 if [[ -n ${manta_uuid} ]]; then
     echo "Manta zone already present."
-    exit 0
+    copy_manta_tools ${manta_uuid}
+    exit
 fi
 
 imgapi_uuid=$(vmadm lookup alias=imgapi0)
