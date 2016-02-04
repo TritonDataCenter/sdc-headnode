@@ -157,6 +157,8 @@ function wait_for_manta_zone {
 # Copy manta tools into the GZ from the manta zone
 function copy_manta_tools {
     local zone_uuid=$1
+    local target
+
     if [[ -n ${zone_uuid} ]]; then
         from_dir=/zones/${zone_uuid}/root/opt/smartdc/manta-deployment
         to_dir=/opt/smartdc/bin
@@ -186,6 +188,29 @@ function copy_manta_tools {
 	exec ${from_dir}/build/node/bin/node ${from_dir}/bin/manta-oneach "\$@"
 	EOF
         chmod +x ${to_dir}/manta-oneach
+
+        #
+        # Install a symlink in the parallel "man" tree for each program that
+        # doesn't already have one.
+        #
+        for manpage in ${from_dir}/man/man1/*; do
+            #
+            # If we're looking at a zone version that does not have manual
+            # pages here, we'll get a bogus entry for "*"
+            #
+            if [[ ! -e $manpage ]]; then
+                continue;
+            fi
+
+            target="${to_dir}/../man/man1/$(basename "$manpage")"
+            if [[ -e $target ]]; then
+                echo "skipping $manpage ($target already exists)"
+                continue;
+            fi
+
+            echo "creating symlink \"$target\" for \"$manpage\""
+            ln -s "$manpage" "$target"
+        done
     fi
 }
 
