@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2016 Joyent, Inc.
 #
 
 #
@@ -160,16 +160,28 @@ function printf_log
 }
 
 set_default_fw_rules() {
-    [[ -f /var/fw/.default_rules_setup ]] && return
+    local fw_default_v
+    if [[ -f /var/fw/.default_rules_setup ]]; then
+        read fw_default_v < /var/fw/.default_rules_setup
+    else
+        fw_default_v=0
+    fi
+
+    # Handle empty files from before we started versioning default rules
+    if [[ -z $fw_default_v ]]; then
+        fw_default_v=1
+    fi
 
     local admin_cidr
     admin_cidr=$(ip_netmask_to_cidr $CONFIG_admin_network $CONFIG_admin_netmask)
-    /usr/sbin/fwadm add -f - <<RULES
+
+    if [[ $fw_default_v -lt 1 ]]; then
+        /usr/sbin/fwadm add -f - <<RULES
 {
   "rules": [
   {
-    "description": "allow pings to all VMs",
-    "rule": "FROM any TO all vms ALLOW icmp type 8 code 0",
+    "description": "allow all ICMPv4 types",
+    "rule": "FROM any TO all vms ALLOW icmp type all",
     "enabled": true,
     "global": true
   },
@@ -189,7 +201,29 @@ set_default_fw_rules() {
 }
 RULES
 
-    [[ $? -eq 0 ]] && touch /var/fw/.default_rules_setup
+        [[ $? -ne 0 ]] && return 1
+        echo 1 > /var/fw/.default_rules_setup
+    fi
+
+    if [[ $fw_default_v -lt 2 ]]; then
+        # When initially upgrading, firewaller will fail to sync this rule
+        # and skip it on each sync until FWAPI is upgraded to support IPv6.
+        /usr/sbin/fwadm add -f - <<RULES
+{
+  "rules": [
+  {
+    "description": "allow all ICMPv6 types",
+    "rule": "FROM any TO all vms ALLOW icmp6 type all",
+    "enabled": true,
+    "global": true
+  }
+  ]
+}
+RULES
+
+        [[ $? -ne 0 ]] && return 1
+        echo 2 > /var/fw/.default_rules_setup
+    fi
 }
 
 

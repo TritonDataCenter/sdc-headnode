@@ -13,7 +13,7 @@
         }
     },
     "metadata": {
-        "FWRULE_VERSION": 2,
+        "FWRULE_VERSION": 3,
         "SERVICE_NAME": "fwapi",
         "FWAPI_LOG_LEVEL": "info"
     },
