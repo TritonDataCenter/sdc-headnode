@@ -139,40 +139,61 @@ if false; then
     rabbitmq_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=rabbitmq | json -H 0.uuid)
     sapiadm update $rabbitmq_svc params.max_physical_memory=16384
     sapiadm update $rabbitmq_svc params.max_locked_memory=16384
+    sapiadm update $rabbitmq_svc params.max_shm_memory=16384
     sapiadm update $rabbitmq_svc params.max_swap=32768
     rabbitmq_zone_uuid=$(vmadm lookup -1 state=running alias=rabbitmq0)
     vmadm update $rabbitmq_zone_uuid max_physical_memory=16384
     vmadm update $rabbitmq_zone_uuid max_locked_memory=16384
+    vmadm update $rabbitmq_zone_uuid max_shm_memory=16384
     vmadm update $rabbitmq_zone_uuid max_swap=32768
-    # manatee 16384
+    # manatee 16384 (see OS-3809 about needed max_shm_memory changes to
+    # track max_physical_memory for postgres config)
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
     manatee_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=manatee | json -H 0.uuid)
     sapiadm update $manatee_svc params.max_physical_memory=16384
     sapiadm update $manatee_svc params.max_locked_memory=16384
+    sapiadm update $manatee_svc params.max_shm_memory=16384
     sapiadm update $manatee_svc params.max_swap=32768
     manatee_zone_uuid=$(vmadm lookup -1 state=running alias=manatee0)
     vmadm update $manatee_zone_uuid max_physical_memory=16384
     vmadm update $manatee_zone_uuid max_locked_memory=16384
+    vmadm update $manatee_zone_uuid max_shm_memory=16384
     vmadm update $manatee_zone_uuid max_swap=32768
     # moray 8192
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
     moray_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=moray | json -H 0.uuid)
     sapiadm update $moray_svc params.max_physical_memory=8192
     sapiadm update $moray_svc params.max_locked_memory=8192
+    sapiadm update $moray_svc params.max_shm_memory=8192
     sapiadm update $moray_svc params.max_swap=16384
     moray_zone_uuid=$(vmadm lookup -1 state=running alias=~moray)
     vmadm update $moray_zone_uuid max_physical_memory=8192
     vmadm update $moray_zone_uuid max_locked_memory=8192
+    vmadm update $moray_zone_uuid max_shm_memory=8192
     vmadm update $moray_zone_uuid max_swap=16384
+    # cloudapi 8192
+    sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+    cloudapi_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=cloudapi | json -H 0.uuid)
+    sapiadm update $cloudapi_svc params.max_physical_memory=8192
+    sapiadm update $cloudapi_svc params.max_locked_memory=8192
+    sapiadm update $cloudapi_svc params.max_shm_memory=8192
+    sapiadm update $cloudapi_svc params.max_swap=16384
+    cloudapi_zone_uuid=$(vmadm lookup -1 state=running alias=~cloudapi)
+    vmadm update $cloudapi_zone_uuid max_physical_memory=8192
+    vmadm update $cloudapi_zone_uuid max_locked_memory=8192
+    vmadm update $cloudapi_zone_uuid max_shm_memory=8192
+    vmadm update $cloudapi_zone_uuid max_swap=16384
     # napi 1024
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
     napi_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=napi | json -H 0.uuid)
     sapiadm update $napi_svc params.max_physical_memory=1024
     sapiadm update $napi_svc params.max_locked_memory=1024
+    sapiadm update $napi_svc params.max_shm_memory=1024
     sapiadm update $napi_svc params.max_swap=2048
     napi_zone_uuid=$(vmadm lookup -1 state=running alias=napi0)
     vmadm update $napi_zone_uuid max_physical_memory=1024
     vmadm update $napi_zone_uuid max_locked_memory=1024
+    vmadm update $napi_zone_uuid max_shm_memory=1024
     vmadm update $napi_zone_uuid max_swap=2048
     # amon 1024
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
@@ -194,6 +215,18 @@ if false; then
     vmadm update $sdc_zone_uuid max_physical_memory=1024
     vmadm update $sdc_zone_uuid max_locked_memory=1024
     vmadm update $sdc_zone_uuid max_swap=2048
+    # sapi 768
+    sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
+    sapi_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=sapi | json -H 0.uuid)
+    sapiadm update $sapi_svc params.max_physical_memory=768
+    sapiadm update $sapi_svc params.max_locked_memory=768
+    sapiadm update $sapi_svc params.max_shm_memory=768
+    sapiadm update $sapi_svc params.max_swap=1536
+    sapi_zone_uuid=$(vmadm lookup -1 state=running alias=sapi0)
+    vmadm update $sapi_zone_uuid max_physical_memory=768
+    vmadm update $sapi_zone_uuid max_locked_memory=768
+    vmadm update $sapi_zone_uuid max_shm_memory=768
+    vmadm update $sapi_zone_uuid max_swap=1536
     # dhcpd 256
     sdc_app=$(sdc-sapi /applications?name=sdc | json -H 0.uuid)
     dhcpd_svc=$(sdc-sapi /services?application_uuid=$sdc_app\&name=dhcpd | json -H 0.uuid)
