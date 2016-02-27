@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2015, Joyent, Inc.
+ * Copyright (c) 2016, Joyent, Inc.
  */
 
 //
@@ -231,7 +231,7 @@ function outputServerData(servers, callback)
             // setup job is currently running
             setup_state = 'running';
 
-            getJobs(s.uuid, function (err, jobs) {
+            getJobs(s.uuid, { name: 'server-setup*' }, function (err, jobs) {
                 var newest = 0;
 
                 if (err) {
@@ -242,12 +242,15 @@ function outputServerData(servers, callback)
                 jobs.forEach(function (job) {
                     var start;
 
-                    if (job.name.match(/^server-setup/)) {
-                        start = new Date(job.created_at).getTime();
-                        if (start > newest) {
-                            setup_state = job.execution;
-                            newest = start;
-                        }
+                    // our query had name=server-setup* so we shouldn't see any
+                    // other name.
+                    assert.ok(job.name.match(/^server-setup/),
+                        'got incorrect results from workflow: ' + job.name);
+
+                    start = new Date(job.created_at).getTime();
+                    if (start > newest) {
+                        setup_state = job.execution;
+                        newest = start;
                     }
                 });
 
@@ -723,7 +726,7 @@ function deleteServer(server_uuid, callback)
     ], callback);
 }
 
-function getJobs(server_uuid, callback)
+function getJobs(server_uuid, opts, callback)
 {
     var result_jobs = [];
     var wfapi;
@@ -739,14 +742,11 @@ function getJobs(server_uuid, callback)
                 cb(err);
             });
         }, function (cb) {
-            var endpoint = '/jobs?server_uuid=' + server_uuid;
+            var endpoint = '/jobs?target=' + server_uuid;
 
-            /*
-             * Note: WFAPI doesn't support querying on 'target' (WORKFLOW-91)
-             * but it does support querying on params, so we look for all jobs
-             * with server_uuid matching our server and then filter only those
-             * results for the target also matching.
-             */
+            if (opts && opts.name) {
+                endpoint = endpoint + '&name=' + opts.name;
+            }
 
             wfapi.get(endpoint, function (err, req, res, jobs) {
                 if (err) {
@@ -755,11 +755,7 @@ function getJobs(server_uuid, callback)
                     return;
                 }
 
-                jobs.forEach(function (job) {
-                    if (job.target === server_uuid) {
-                        result_jobs.push(job);
-                    }
-                });
+                result_jobs = jobs;
                 cb();
             });
         }
@@ -774,7 +770,7 @@ function getJobs(server_uuid, callback)
 
 function outputJobs(server_uuid, callback)
 {
-    getJobs(server_uuid, function (err, jobs) {
+    getJobs(server_uuid, {}, function (err, jobs) {
         if (err) {
             callback(err);
             return;
