@@ -178,6 +178,16 @@ function getNics(server_uuid, params, callback)
 
 function outputServerData(servers, callback)
 {
+    /*
+     * Since workflow orders jobs in descending order based on created_at and
+     * we're passing in the name 'server-setup*' we'll get the newest one first.
+     * That's the only one we care about here, so we limit=1.
+     */
+    var getJobOpts = {
+        limit: 1,
+        name: 'server-setup*'
+    };
+
     console.log(sprintf('%-20s %-36s %7s %8s  %8s  %7s  %-15s',
         'HOSTNAME', 'UUID', 'VERSION', 'SETUP', 'STATUS', 'RAM', 'ADMIN_IP'));
 
@@ -231,28 +241,27 @@ function outputServerData(servers, callback)
             // setup job is currently running
             setup_state = 'running';
 
-            getJobs(s.uuid, { name: 'server-setup*' }, function (err, jobs) {
-                var newest = 0;
+            getJobs(s.uuid, getJobOpts, function (err, jobs) {
+                var job;
 
                 if (err) {
                     callback(err);
                     return;
                 }
 
-                jobs.forEach(function (job) {
-                    var start;
+                if (jobs.length === 1) {
+                    job = jobs[0];
 
                     // our query had name=server-setup* so we shouldn't see any
                     // other name.
                     assert.ok(job.name.match(/^server-setup/),
                         'got incorrect results from workflow: ' + job.name);
 
-                    start = new Date(job.created_at).getTime();
-                    if (start > newest) {
-                        setup_state = job.execution;
-                        newest = start;
-                    }
-                });
+                    setup_state = job.execution;
+                } else {
+                    console.error('WARNING: unable to find setup job for '
+                        + s.uuid);
+                }
 
                 outputLine();
             });
@@ -728,6 +737,12 @@ function deleteServer(server_uuid, callback)
 
 function getJobs(server_uuid, opts, callback)
 {
+    assert.string(server_uuid, 'server_uuid');
+    assert.object(opts, 'opts');
+    assert.optionalNumber(opts.limit, 'opts.limit');
+    assert.optionalString(opts.name, 'opts.name');
+    assert.func(callback, 'callback');
+
     var result_jobs = [];
     var wfapi;
 
@@ -746,6 +761,10 @@ function getJobs(server_uuid, opts, callback)
 
             if (opts && opts.name) {
                 endpoint = endpoint + '&name=' + opts.name;
+            }
+
+            if (opts && opts.limit) {
+                endpoint = endpoint + '&limit=' + opts.limit;
             }
 
             wfapi.get(endpoint, function (err, req, res, jobs) {
