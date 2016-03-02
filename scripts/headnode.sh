@@ -162,7 +162,7 @@ function printf_log
 set_default_fw_rules() {
     local fw_default_v
     if [[ -f /var/fw/.default_rules_setup ]]; then
-        read fw_default_v < /var/fw/.default_rules_setup
+        read fw_default_v < /var/fw/.default_rules_setup || true
     else
         fw_default_v=0
     fi
@@ -208,7 +208,9 @@ RULES
     if [[ $fw_default_v -lt 2 ]]; then
         # When initially upgrading, firewaller will fail to sync this rule
         # and skip it on each sync until FWAPI is upgraded to support IPv6.
-        /usr/sbin/fwadm add -f - <<RULES
+        # We return 0 if fwadm fails, in case the platform hasn't been
+        # upgraded yet. We'll succeed after a platform upgrade.
+        /usr/sbin/fwadm add -f - <<RULES || return 0
 {
   "rules": [
   {
