@@ -59,6 +59,7 @@ done
 MOCKCN=
 if [[ $(zonename) != "global" && -n ${MOCKCN_SERVER_UUID} ]]; then
     export SDC_CONFIG_FILENAME="/mockcn/${MOCKCN_SERVER_UUID}/node.config"
+    TEMP_CONFIGS=/var/tmp/config-${MOCKCN_SERVER_UUID}
     MOCKCN="true"
 fi
 
