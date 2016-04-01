@@ -466,7 +466,7 @@ Development in this repo is typically to alter setup and bootstrap of the system
 To test changes to setup procedures without a complete rebuild, you can:
   - mount the usbkey (if required) using `/usbkey/scripts/mount-usb.sh`
   - copy your modifications over the existing scripts
-  - run `sdc-factory-reset` to re-run the setup process
+  - run `sdc-factoryreset` to re-run the setup process
 
 <!-- References -->
 
