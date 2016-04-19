@@ -514,7 +514,7 @@ function lookupServers(args, callback)
             '    sdc-server lookup setup=true\n' +
             '    sdc-server lookup "ram>=100000"\n' +
             '    sdc-server lookup traits.foo!=bar\n' +
-            '    sdc-server lookup traits.pkg!=agean\n' +
+            '    sdc-server lookup traits.pkg!=aegean\n' +
             '    sdc-server lookup -H hostname=~^RA\n' +
             // JSSTYLED
             '    sdc-server lookup -j reservoir=true | json -ga uuid hostname boot_platform');
