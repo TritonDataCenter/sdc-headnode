@@ -71,7 +71,8 @@ SDC_ZONE_COMMANDS = \
 	sdc-vmapi \
 	sdc-waitforjob \
 	sdc-workflow \
-	updates-imgadm
+	updates-imgadm \
+	sdc-volapi
 
 SDC_ZONE_MAN_LINKS = \
 	$(SDC_ZONE_COMMANDS:%=$(PROTO)/opt/smartdc/man/man1/%.1)
