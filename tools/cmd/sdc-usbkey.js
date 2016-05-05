@@ -22,6 +22,9 @@ var lib_usbkey = require('../lib/usbkey');
 
 var VError = mod_verror.VError;
 
+var TIMEOUT_MOUNT = 90;
+var TIMEOUT_UNMOUNT = 45;
+
 var UPDATE_FILE_SOURCE = '/opt/smartdc/share/usbkey';
 
 function
@@ -65,7 +68,8 @@ init(opts, args, callback)
 
     if (opts.verbose) {
         /*
-         * XXX
+         * We set DEBUG in our "environment" so that dprintf() can find it.
+         * This could almost certainly be better.
          */
         process.env.DEBUG = 'yes';
     }
@@ -110,7 +114,7 @@ do_mount(subcmd, opts, args, callback)
     }
 
     lib_usbkey.ensure_usbkey_mounted({
-        timeout: 45 * 1000
+        timeout: TIMEOUT_MOUNT * 1000
     }, function (err, mtpt) {
         if (err) {
             callback(err);
@@ -155,7 +159,7 @@ do_unmount(subcmd, opts, args, callback)
     }
 
     lib_usbkey.ensure_usbkey_unmounted({
-        timeout: 45 * 1000
+        timeout: TIMEOUT_UNMOUNT * 1000
     }, function (err) {
         if (err) {
             callback(err);
@@ -663,7 +667,7 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 lib_usbkey.ensure_usbkey_mounted({
-                    timeout: 45 * 1000,
+                    timeout: TIMEOUT_MOUNT * 1000,
                     ignore_missing: opts.ignore_missing
                 }, function (err, mtpt) {
                     if (err) {
@@ -740,7 +744,7 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 lib_usbkey.ensure_usbkey_unmounted({
-                    timeout: 45 * 1000
+                    timeout: TIMEOUT_UNMOUNT * 1000
                 }, function (err) {
                     next(err);
                 });

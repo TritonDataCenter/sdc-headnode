@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2016 Joyent, Inc.
 #
 
 PERCENT := %
@@ -116,6 +116,7 @@ TOOLS_CMD_FILES = \
 	sdc-usbkey.js
 
 TOOLS_LIB_FILES = \
+	common.js \
 	oscmds.js \
 	usbkey.js \
 	wrap.sh
@@ -183,6 +184,7 @@ CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
 	bin/sdc-usbkey \
 	cmd/sdc-usbkey.js \
+	lib/common.js \
 	lib/oscmds.js \
 	lib/usbkey.js \
 	man/man1/sdc-sbcreate.1 \

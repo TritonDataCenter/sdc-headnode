@@ -10,8 +10,10 @@ var mod_verror = require('verror');
 var mod_vasync = require('vasync');
 
 var lib_oscmds = require('../lib/oscmds');
+var lib_common = require('../lib/common');
 
 var VError = mod_verror.VError;
+var dprintf = lib_common.dprintf;
 
 var DEFAULT_MOUNTPOINT = '/mnt/usbkey';
 var SVCPROP = '/bin/svcprop';
@@ -24,16 +26,6 @@ var MOUNT_OPTIONS = {
     rw: true
 };
 mod_assert.ok(valid_usbkey_mount_options(MOUNT_OPTIONS));
-
-function
-dprintf()
-{
-    if (!process.env.DEBUG) {
-        return;
-    }
-
-    process.stderr.write(mod_extsprintf.sprintf.apply(null, arguments));
-}
 
 /*
  * The expected mountpoint for the USB key FAT filesystem is configured as a
