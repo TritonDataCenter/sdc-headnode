@@ -1,4 +1,13 @@
-/* vim: set ts=4 sts=4 sw=4 et: */
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2016 Joyent, Inc.
+ */
+
 
 var mod_path = require('path');
 var mod_fs = require('fs');
@@ -22,8 +31,10 @@ var lib_usbkey = require('../lib/usbkey');
 
 var VError = mod_verror.VError;
 
-var TIMEOUT_MOUNT = 90;
-var TIMEOUT_UNMOUNT = 45;
+var SECONDS = 1000;
+
+var TIMEOUT_MOUNT = 90 * SECONDS;
+var TIMEOUT_UNMOUNT = 45 * SECONDS;
 
 var UPDATE_FILE_SOURCE = '/opt/smartdc/share/usbkey';
 
@@ -114,7 +125,7 @@ do_mount(subcmd, opts, args, callback)
     }
 
     lib_usbkey.ensure_usbkey_mounted({
-        timeout: TIMEOUT_MOUNT * 1000
+        timeout: TIMEOUT_MOUNT
     }, function (err, mtpt) {
         if (err) {
             callback(err);
@@ -159,7 +170,7 @@ do_unmount(subcmd, opts, args, callback)
     }
 
     lib_usbkey.ensure_usbkey_unmounted({
-        timeout: TIMEOUT_UNMOUNT * 1000
+        timeout: TIMEOUT_UNMOUNT
     }, function (err) {
         if (err) {
             callback(err);
@@ -667,7 +678,7 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 lib_usbkey.ensure_usbkey_mounted({
-                    timeout: TIMEOUT_MOUNT * 1000,
+                    timeout: TIMEOUT_MOUNT,
                     ignore_missing: opts.ignore_missing
                 }, function (err, mtpt) {
                     if (err) {
@@ -744,7 +755,7 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 lib_usbkey.ensure_usbkey_unmounted({
-                    timeout: TIMEOUT_UNMOUNT * 1000
+                    timeout: TIMEOUT_UNMOUNT
                 }, function (err) {
                     next(err);
                 });
@@ -805,3 +816,5 @@ Usbkey.prototype.do_update.help = [
 if (require.main === module) {
     mod_cmdln.main(Usbkey);
 }
+
+/* vim: set ts=4 sts=4 sw=4 et: */
