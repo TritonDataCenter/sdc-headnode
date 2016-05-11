@@ -1,12 +1,23 @@
-/* vim: set ts=4 sts=4 sw=4 et: */
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+/*
+ * Copyright 2016 Joyent, Inc.
+ */
+
 
 var mod_child = require('child_process');
 
 var mod_assert = require('assert-plus');
-var mod_extsprintf = require('extsprintf');
 var mod_verror = require('verror');
 
+var lib_common = require('../lib/common');
+
 var VError = mod_verror.VError;
+var dprintf = lib_common.dprintf;
 
 var ZONENAME = '/usr/bin/zonename';
 var UMOUNT = '/sbin/umount';
@@ -15,15 +26,10 @@ var DISKINFO = '/usr/bin/diskinfo';
 var FSTYP = '/usr/sbin/fstyp';
 var SYNC = '/usr/bin/sync';
 
-function
-dprintf()
-{
-    if (!process.env.DEBUG) {
-        return;
-    }
-
-    process.stderr.write(mod_extsprintf.sprintf.apply(null, arguments));
-}
+var FSTYP_IGNORE_MESSAGES = [
+    'unknown_fstyp (cannot open device)',
+    'unknown_fstyp (no matches)'
+];
 
 function
 make_env()
@@ -208,6 +214,15 @@ umount(options, callback)
 }
 
 function
+contains(list, str)
+{
+    mod_assert.arrayOfString(list, 'list');
+    mod_assert.string(str, 'str');
+
+    return (list.indexOf(str) !== -1);
+}
+
+function
 fstyp(device, callback)
 {
     mod_assert.string(device, 'device');
@@ -217,8 +232,17 @@ fstyp(device, callback)
         env: make_env()
     }, function (err, stdout, stderr) {
         if (err) {
-            if (err.code === 7 && stderr.trim() ===
-              'unknown_fstyp (cannot open device)') {
+            /*
+             * Did this process exit normally?
+             */
+            var exited = (typeof (err.code) === 'number');
+
+            /*
+             * The fstyp(1M) program emits a number of diagnostic messages.
+             * Check to see if the output matches a message that effectively
+             * translates to the absence of a detectable filesystem.
+             */
+            if (exited && contains(FSTYP_IGNORE_MESSAGES, stderr.trim())) {
                 callback(null, false);
                 return;
             }
@@ -288,3 +312,5 @@ module.exports = {
     fstyp: fstyp,
     diskinfo: diskinfo
 };
+
+/* vim: set ts=4 sts=4 sw=4 et: */
