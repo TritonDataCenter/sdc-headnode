@@ -1,0 +1,16 @@
+{
+    "name": "config-agent",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "config-agent",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "config-agent",
+        "VM_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}
