@@ -367,14 +367,8 @@ function filtersFromArgs(args) {
                 filter.type = 'bool';
                 filter.value = false;
             } else {
-                if (isNaN(Number(val))) {
-                    filter.type = 'string';
-                    filter.value = val;
-                } else {
-                    filter.type = 'number';
-                    filter.op = '==';
-                    filter.value = Number(val);
-                }
+                filter.type = 'string';
+                filter.value = val;
             }
             break;
         case '!=':
@@ -386,14 +380,8 @@ function filtersFromArgs(args) {
                 filter.type = 'bool';
                 filter.value = false;
             } else {
-                if (isNaN(Number(val))) {
-                    filter.type = 'string';
-                    filter.value = val;
-                } else {
-                    filter.type = 'number';
-                    filter.op = '==';
-                    filter.value = Number(val);
-                }
+                filter.type = 'string';
+                filter.value = val;
             }
             break;
         case '=~':
