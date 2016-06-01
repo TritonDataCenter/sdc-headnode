@@ -1,15 +1,15 @@
 {
-    "name": "smartlogin",
+    "name": "cainstsvc",
     "type": "agent",
     "params": {
         "tags": {
-            "smartdc_role": "smartlogin",
+            "smartdc_role": "cainstsvc",
             "smartdc_type": "core"
         }
     },
     "metadata": {
-        "SERVICE_NAME": "smartlogin",
-        "SMARTLOGIN_LOG_LEVEL": "info"
+        "SERVICE_NAME": "cainstsvc",
+        "CAINSTSVC_LOG_LEVEL": "info"
     },
     "manifests": {
     }

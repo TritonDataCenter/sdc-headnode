@@ -9,7 +9,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "agents_core",
-        "VM_AGENT_LOG_LEVEL": "info"
+        "AGENTS_CORE_LOG_LEVEL": "info"
     },
     "manifests": {
     }

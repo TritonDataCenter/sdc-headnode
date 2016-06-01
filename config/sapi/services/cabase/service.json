@@ -1,15 +1,15 @@
 {
-    "name": "smartlogin",
+    "name": "cabase",
     "type": "agent",
     "params": {
         "tags": {
-            "smartdc_role": "smartlogin",
+            "smartdc_role": "cabase",
             "smartdc_type": "core"
         }
     },
     "metadata": {
-        "SERVICE_NAME": "smartlogin",
-        "SMARTLOGIN_LOG_LEVEL": "info"
+        "SERVICE_NAME": "cabase",
+        "CABASE_LOG_LEVEL": "info"
     },
     "manifests": {
     }

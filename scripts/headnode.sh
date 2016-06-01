@@ -706,8 +706,8 @@ function adopt_agents()
         AGENTS_DIR=/opt/smartdc/agents
         CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent \
           agents_core amon-agent amon-relay \
-          config-agent firewaller smartlogin"
-        # TODO: cabase cainstsvc hagfish-watcher 
+          config-agent firewaller smartlogin \
+          cabase cainstsvc hagfish-watcher"
 
         for agent in $CONFIGURABLE_AGENTS; do
             local instance_uuid

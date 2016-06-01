@@ -9,7 +9,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "firewaller",
-        "VM_AGENT_LOG_LEVEL": "info"
+        "FIREWALLER_LOG_LEVEL": "info"
     },
     "manifests": {
     }

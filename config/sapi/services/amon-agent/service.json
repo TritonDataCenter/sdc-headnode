@@ -9,7 +9,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "amon-agent",
-        "VM_AGENT_LOG_LEVEL": "info"
+        "AMON_AGENT_LOG_LEVEL": "info"
     },
     "manifests": {
     }

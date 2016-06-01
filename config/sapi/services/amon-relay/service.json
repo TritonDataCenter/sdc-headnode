@@ -9,7 +9,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "amon-relay",
-        "VM_AGENT_LOG_LEVEL": "info"
+        "AMON_RELAY_LOG_LEVEL": "info"
     },
     "manifests": {
     }

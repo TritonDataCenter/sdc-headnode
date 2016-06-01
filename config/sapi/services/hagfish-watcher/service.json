@@ -1,0 +1,16 @@
+{
+    "name": "hagfish-watcher",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "hagfish-watcher",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "hagfish-watcher",
+        "HAGFISH_WATCHER_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}

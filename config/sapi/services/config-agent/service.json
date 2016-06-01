@@ -9,7 +9,7 @@
     },
     "metadata": {
         "SERVICE_NAME": "config-agent",
-        "VM_AGENT_LOG_LEVEL": "info"
+        "CONFIG_AGENT_LOG_LEVEL": "info"
     },
     "manifests": {
     }
