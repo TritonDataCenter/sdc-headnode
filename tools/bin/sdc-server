@@ -583,7 +583,7 @@ function lookupServers(args, callback)
             });
         },
         function filterServers(ctx, cb) {
-            var DEBUG = false;
+            var DEBUG = (process.env.SDC_SERVER_LOOKUP_DEBUG === '1');
             var currServers = ctx.servers;
             for (var i = 0; i < filters.length; i++) {
                 var filteredServers = [];
@@ -626,7 +626,11 @@ function lookupServers(args, callback)
                         }
                         break;
                     case 'regexp':
-                        match = (filter.value.test(sVal));
+                        if (sVal === undefined || sVal === null) {
+                            match = false;
+                        } else {
+                            match = (filter.value.test(sVal));
+                        }
                         break;
                     default:
                         cb(new Error('unknown filter type: ' + filter.type));
@@ -637,14 +641,18 @@ function lookupServers(args, callback)
                     }
 
                     if (match) {
-                        if (DEBUG) console.log(
-                            'debug: <server %s>.%s is %j (matches %j)',
-                            server.hostname, filter.key, sVal, filter);
+                        if (DEBUG) console.error('debug: <server %s>.%s is %j '
+                            + '(matches filter <key=%s negated=%s type=%s '
+                            + 'value=%s>)', server.hostname, filter.key, sVal,
+                            filter.key, filter.negated, filter.type,
+                            filter.value);
                         filteredServers.push(server);
                     } else {
-                        if (DEBUG) console.log(
-                            'debug: <server %s>.%s is %j (does NOT match %j)',
-                            server.hostname, filter.key, sVal, filter);
+                        if (DEBUG) console.error('debug: <server %s>.%s is %j '
+                            + '(does NOT match filter <key=%s negated=%s '
+                            + 'type=%s value=%s>)', server.hostname,
+                            filter.key, sVal, filter.key, filter.negated,
+                            filter.type, filter.value);
                     }
                 }
                 currServers = filteredServers;
