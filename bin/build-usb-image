@@ -90,7 +90,7 @@ BUILD_TGZ=$(build_spec build-tgz)
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
-TEMPLATE_IMG="${OUTPUT_IMG}.tgz"
+TEMPLATE_IMG="$ROOT/cache/file.platimages.tgz"
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
@@ -124,11 +124,10 @@ trap 'errexit $? $LINENO' EXIT
 function unpack_image
 {
     echo -n "==> Unpacking USB image... "
-    [[ -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$ ]] \
-        && rm -f $IMG_TMP_DIR/${OUTPUT_IMG}.$$
-    (cd $IMG_TMP_DIR && ${TAR} -xzf ${ROOT}/usb/${TEMPLATE_IMG} \
-        && mv ${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
-        || fatal "Unable to unpack USB image"
+    rm -f "$IMG_TMP_DIR/$OUTPUT_IMG.$$"
+    (cd "$IMG_TMP_DIR" && $TAR -xzf "$TEMPLATE_IMG" "$OUTPUT_IMG" &&
+        mv "$OUTPUT_IMG" "$$.$OUTPUT_IMG") ||
+        fatal "Unable to unpack USB image"
     echo "done."
 }
 

@@ -67,6 +67,11 @@
       "if_not_feature": "debug-platform",
       "file": { "base": "boot", "ext": "tgz" }
     },
+    "platimages": {
+      "jobname": "platform",
+      "if_not_feature": "debug-platform",
+      "file": { "base": "images", "ext": "tgz" }
+    },
     "platform": {
       "if_not_feature": "debug-platform",
       "file": { "base": "platform", "ext": "tgz" }
@@ -76,6 +81,11 @@
       "jobname": "platform-debug",
       "if_feature": "debug-platform",
       "file": { "base": "boot-debug", "ext": "tgz" }
+    },
+    "platimages-debug": {
+      "jobname": "platform-debug",
+      "if_feature": "debug-platform",
+      "file": { "base": "images-debug", "ext": "tgz" }
     },
     "platform-debug": {
       "if_feature": "debug-platform",
