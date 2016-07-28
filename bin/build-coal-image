@@ -100,7 +100,6 @@ USB_SIZE="4gb"
 USB_SKIP=7812500
 USB_PADDING=508
 OUTPUT_IMG="${USB_SIZE}.img"
-COAL_VMDK="${USB_SIZE}.coal.vmdk"
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
@@ -249,6 +248,8 @@ function create_output
 {
     local vmxfile="${STAGE}/USB-headnode.vmwarevm/USB-headnode.vmx"
     local vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.tbz2"
+    local vmdk_img=$STAGE/USB-headnode.vmwarevm/$OUTPUT_IMG
+    local vmdk_file=$STAGE/USB-headnode.vmwarevm/USB-headnode.vmdk
     local vmware_version
     vmware_version=$(build_spec vmware_version)
 
@@ -261,12 +262,9 @@ function create_output
     fi
 
     echo "==> Unpacking VMWare image... "
-    rm -rf $STAGE/USB-headnode.vmwarevm || true
+    rm -rf $STAGE/USB-headnode.vmwarevm
     (cd $STAGE && ${TAR} -jxvf ${vmwarevm_tarball}) \
         || fatal "Unable to unpack image"
-    (cd $STAGE/USB-headnode.vmwarevm \
-        && sed -e "s|<USB_IMAGE_FILE>|${OUTPUT_IMG}|" ${ROOT}/usb/${COAL_VMDK} \
-        > USB-headnode.vmdk)
     echo "done."
 
     coal_numvcpus=$(build_spec coal-numvcpus)
@@ -320,8 +318,14 @@ function create_output
     fi
 
     echo -n "==> Copying in ${OUTPUT_IMG}... "
-    mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
-        $STAGE/USB-headnode.vmwarevm/${OUTPUT_IMG}
+    mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} "$vmdk_img"
+    echo "done."
+
+    echo -n "==> Generating VMDK file for ${OUTPUT_IMG}... "
+    /bin/rm -f "$vmdk_file"
+    if ! "$ROOT/vmware/make_vmdk" -i "$vmdk_img" -o "$vmdk_file"; then
+        fatal 'could not create VMDK file'
+    fi
     echo "done."
 
     coal_zpool_disk_size=$(build_spec coal-zpool-disk-size)
