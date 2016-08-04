@@ -69,6 +69,8 @@ exec > >(tee ${LOGFILE}) 2>&1
 
 . "${ROOT}/buildtools/lib/trace_logger.sh"
 
+BUILDSPEC=$ROOT/bin/buildspec
+
 MERGED_SPEC=
 if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
     MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
@@ -90,11 +92,21 @@ BUILD_TGZ=$(build_spec build-tgz)
 MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 OUTPUT_IMG="${USB_SIZE}.img"
-TEMPLATE_IMG="$ROOT/cache/file.platimages.tgz"
 if [[ -z $IMG_TMP_DIR ]]; then
   IMG_TMP_DIR=/tmp
 fi
 PLATFORM=$(uname -s)
+
+#
+# Determine the name of the template images archive.  This depends on
+# whether or not the archive is part of a release or debug build of the
+# platform.
+#
+PLATFORM_SUFFIX=
+if [[ $($BUILDSPEC -f debug-platform) == 'true' ]]; then
+    PLATFORM_SUFFIX='-debug'
+fi
+TEMPLATE_IMG="$ROOT/cache/file.platimages$PLATFORM_SUFFIX.tgz"
 
 if [[ "$PLATFORM" != "Darwin" ]]; then
     SUCMD='pfexec'
