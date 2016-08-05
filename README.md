@@ -5,16 +5,17 @@
 -->
 
 <!--
-    Copyright 2015 Joyent, Inc.
+    Copyright 2016 Joyent, Inc.
 -->
 
 # sdc-headnode
 
-This repository is part of the Joyent SmartDataCenter project (SDC).  For
-contribution guidelines, issues, and general documentation, visit the main
-[SDC](http://github.com/joyent/sdc) project page.
+This repository is part of the Joyent Triton project. See the [contribution
+guidelines](https://github.com/joyent/triton/blob/master/CONTRIBUTING.md) --
+*Triton does not use GitHub PRs* -- and general documentation at the main
+[Triton project](https://github.com/joyent/triton) page.
 
-This is the repository for building headnode images for SDC, and the initial
+This is the repository for building headnode images for Triton, and the initial
 setup and configuration of the headnode itself.
 
 
