@@ -136,6 +136,12 @@
       "name": "sdc-base",
       "version": "14.2.0",
       "uuid": "de411e86-548d-11e4-a4b7-3bb60478632a"
-    }
+    },
+    "sdc-minimal-multiarch-lts-15.4.1": {
+      "imgapi": "https://updates.joyent.com",
+      "name": "sdc-minimal-multiarch-lts",
+      "version": "15.4.1",
+      "uuid": "18b094b0-eb01-11e5-80c1-175dac7ddf02"
+    } 
   }
 }
