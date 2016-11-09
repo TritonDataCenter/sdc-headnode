@@ -63,6 +63,28 @@ function usage()
     /* END JSSTYLED */
 }
 
+
+function setup_usage()
+{
+    /* BEGIN JSSTYLED */
+    console.log([
+        '',
+        'Usage:',
+        '        /opt/smartdc/bin/sdc-server setup [-s] <uuid> [param=value ... ]',
+        '',
+        'Possible params (all of them optional):',
+        '',
+        '    hostname=<string>                                 - Server hostname',
+        '    spares=<0-N>                                      - disk spares',
+        '    cache=<true|false>                                - disk cache',
+        '    layout=<single|mirror|raidz1|raidz2|raidz3>       - disk layout',
+        '    postsetup_script=<string>                         - script to be run right after server setup',
+        '    (external|admin)_nic=<JSON object>                - nic tags for the server',
+        ''
+    ].join('\n'));
+    /* END JSSTYLED */
+}
+
 function isUUID(str) {
     var re = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
     if (!str) {
@@ -1141,6 +1163,13 @@ function dispatchCommand(command, args, callback)
         case 'update-nictags':
         case 'replace-nictags':
         case 'delete-nictags':
+            if (command === 'setup' && args.length === 1 &&
+                ['help', '-h'].indexOf(args[0]) !== -1) {
+                setup_usage();
+                callback();
+                return;
+            }
+
             if (args.length === 0 || (!isUUID(args[0]) && !isUUID(args[1]))) {
                 usage();
                 callback(new Error(command + ' requires <uuid> argument'));
@@ -1180,6 +1209,12 @@ function dispatchCommand(command, args, callback)
                     setupOpts.params.hostname = param[1];
                 } else if (param[0] === 'postsetup_script') {
                     setupOpts.params.postsetup_script = param[1];
+                } else if (param[0] === 'spares') {
+                    setupOpts.params.disk_spares = param[1];
+                } else if (param[0] === 'cache') {
+                    setupOpts.params.disk_cache = param[1];
+                } else if (param[0] === 'layout') {
+                    setupOpts.params.disk_layout = param[1];
                 } else {
                     var match = param[0].match(/^(.+)_nic$/);
                     if (!match) {
