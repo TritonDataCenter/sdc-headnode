@@ -788,14 +788,20 @@ if setup_state_not_seen "sdczones_created"; then
         mv ${file} /opt/smartdc/bin/${tool}
     done
 
-    # Copy sapiadm into the GZ from the SAPI zone.
-    zone_uuid=$(vmadm lookup tags.smartdc_role=sapi | head -n 1)
-    if [[ -n ${zone_uuid} ]]; then
-        from_dir=/zones/${zone_uuid}/root/opt/smartdc/config-agent/cmd
-        to_dir=/opt/smartdc/bin
-        rm -f ${to_dir}/sapiadm
-        ln -s ${from_dir}/sapiadm.js ${to_dir}/sapiadm
-    fi
+    # Create wrapper for sapiadm into the GZ and execute it from
+    # the config agent.
+
+    from_dir=/opt/smartdc/agents/lib/node_modules/config-agent
+    to_dir=/opt/smartdc/bin
+    rm -f ${to_dir}/sapiadm
+
+    # BEGIN BASHSTYLED
+    cat <<EOF > ${to_dir}/sapiadm
+#!/bin/bash
+exec ${from_dir}/build/node/bin/node ${from_dir}/cmd/sapiadm.js "\$@"
+EOF
+    # END BASHSTYLED
+    chmod +x ${to_dir}/sapiadm
 
     setup_state_add "sdczones_created"
 fi

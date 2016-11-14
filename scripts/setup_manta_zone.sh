@@ -169,9 +169,14 @@ function copy_manta_tools {
         rm -f ${to_dir}/manta-oneach
 
         mkdir -p /opt/smartdc/manta-deployment/log
-        # manta-login is a bash script, so we can link it directly.
-        ln -s ${from_dir}/bin/manta-login ${to_dir}/manta-login
 
+        # While manta-login is a bash script and we could link it directly,
+        # we are using a little wrapper to avoid permission issues on the GZ.
+        cat <<EOF > ${to_dir}/manta-login
+#!/bin/bash
+exec ${from_dir}/bin/manta-login "\$@"
+EOF
+        chmod +x ${to_dir}/manta-login
         #
         # manta-adm and manta-oneach are node programs, so we must write little
         # wrappers that call the real version using the node delivered in the
