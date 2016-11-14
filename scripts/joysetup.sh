@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2016, Joyent, Inc.
 #
 
 #
@@ -622,7 +622,20 @@ if [[ "$(zpool list)" == "no pools available" ]] \
         POOL_FILE=/mockcn/${MOCKCN_SERVER_UUID}/pool.json
     fi
 
-    if ! /usr/bin/disklayout "${arg_disklayout}" > ${POOL_FILE}; then
+    # We expect sdc-server to validate the input for the following parameters
+    # passed by CNAPI, but to be safe, we use some defensive quoting as well.
+    if [[ -n "${CONFIG_spares}" ]]; then
+        dl0="-s"
+        dl1="${CONFIG_spares}"
+    fi
+    if [[ -n "${CONFIG_cache}" && "${CONFIG_cache}" == "false" ]]; then
+        dl2="-c"
+    fi
+    if [[ -n "${CONFIG_layout}" ]]; then
+        dl3="${CONFIG_layout}"
+    fi
+
+    if ! /usr/bin/disklayout ${dl0} "${dl1}" ${dl2} "${dl3}"> ${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
