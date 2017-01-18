@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2016, Joyent, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 #
@@ -349,7 +349,6 @@ function create_zpool
     export COREDS=${SYS_ZPOOL}/cores
     export OPTDS=${SYS_ZPOOL}/opt
     export VARDS=${SYS_ZPOOL}/var
-    export USBKEYDS=${SYS_ZPOOL}/usbkey
     export SWAPVOL=${SYS_ZPOOL}/swap
 
     #
@@ -400,15 +399,6 @@ setup_datasets()
         cp -p /etc/zones/* /${CONFDS}
         zfs set mountpoint=legacy ${CONFDS}
         printf "%4s\n" "done" >&4
-    fi
-
-    if ! echo $datasets | grep ${USBKEYDS} > /dev/null; then
-        if is_headnode; then
-            printf "%-56s" "adding volume: usbkey" >&4
-            zfs create -o mountpoint=legacy ${USBKEYDS} || \
-                fatal "failed to create the usbkey dataset"
-            printf "%4s\n" "done" >&4
-        fi
     fi
 
     if ! echo $datasets | grep ${COREDS} > /dev/null; then

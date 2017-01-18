@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2016 Joyent, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 #
@@ -159,6 +159,32 @@ function printf_log
     printf "$@" >&${CONSOLE_FD}
 }
 
+
+function usbkey_dataset_exists
+{
+    if zfs list -H -o name | grep '^zones/usbkey$' > /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function usbkey_dataset_create
+{
+    printf_log "%-56s" "adding volume: usbkey"
+
+    local zpoolHealth
+    zpoolHealth=$(zpool list -H -o health zones)
+    [[ "$zpoolHealth" == "ONLINE" ]] || \
+        fatal "'zones' zpool state is not ONLINE: $zpoolHealth"
+
+    zfs create -o mountpoint=legacy zones/usbkey || \
+        fatal "failed to create the usbkey dataset"
+
+    printf_log "%4s\n" "done"
+}
+
+
 set_default_fw_rules() {
     local fw_default_v
     if [[ -f /var/fw/.default_rules_setup ]]; then
@@ -276,7 +302,21 @@ if [[ ${POOLS} == "no pools available" ]]; then
     # copy the log out to /var so we don't lose on reboot
     cp /tmp/joysetup.* /zones/
 
+    usbkey_dataset_create
+
     printf "%4s\n" "done" >&${CONSOLE_FD}
+
+    reboot
+    exit 2
+
+elif ! usbkey_dataset_exists; then
+    # If we are converting from a CN to an HN, the zones/usbkey dataset
+    # will not have been created when the zpool was created. We'll have needed
+    # it earlier (e.g. for the filesystem/smartdc and identity:node svcs):
+    # so create it, then reboot.
+    usbkey_dataset_create
+
+    printf_log "%4s\n" "done"
 
     reboot
     exit 2
@@ -354,10 +394,12 @@ if setup_state_not_seen "setup_complete"; then
     printf_timer "%-58sdone (%ss)\n" "preparing for setup..."
 fi
 
-# Install GZ tools from tarball
-if [[ ! -d /opt/smartdc/bin ]]; then
+# Install GZ tools from tarball.
+# We use "/opt/smartdc/bin/sdc" to catch the case of a CN being converted to
+# an HN: it will have a /opt/smartdc/bin subset already from "cn_tools".
+if [[ ! -f /opt/smartdc/bin/sdc ]]; then
     mkdir -p /opt/smartdc &&
-    /usr/bin/tar xzof /usbkey/tools.tar.gz -C /opt/smartdc
+        /usr/bin/tar xzof /usbkey/tools.tar.gz -C /opt/smartdc
     printf_timer "%-58sdone (%ss)\n" "installing tools to /opt/smartdc/bin..."
 fi
 
@@ -725,7 +767,11 @@ function adopt_agents()
     fi
 }
 
-if setup_state_not_seen "sdczones_created"; then
+# We guard on 'sdczones_created' to allow restarting a partially complete
+# headnode setup. We also guard on 'setup_complete' to allow conversion of CNs
+# to secondary headnodes without re-bootstrapping core services.
+if setup_state_not_seen "setup_complete" \
+        && setup_state_not_seen "sdczones_created"; then
     # If the zone image is incremental, you'll need to manually setup the import
     # here for the origin dataset for now. The way to do this is add the name
     # and uuid to build.spec's datasets.
@@ -942,9 +988,6 @@ fi
 # Once SDC has finished setup, upgrade SAPI to full mode.  This call
 # informs SAPI that its dependent SDC services are ready and that it should
 # store the SDC deployment configuration persistently.
-#
-# Note: 'sapi_full_mode' setup state was added after some still-supported
-# headnodes were setup, therefore guard on 'setup_complete' as well.
 #
 if setup_state_not_seen "sapi_full_mode"; then
 if setup_state_not_seen "setup_complete"; then
