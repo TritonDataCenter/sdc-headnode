@@ -81,9 +81,9 @@ function check_end_to_end()
       [[ $CLOUDAPI_STATUS -eq 0 ]] && return
       ;;
     cnapi)
-      local got_name=`sdc-cnapi /servers?headnode=true 2>/dev/null | \
-          json -H -a hostname`
-      [[ "$got_name" == "$(hostname)" ]] && return
+      # Allow for multiple headnodes: one of them should be this hostname.
+      sdc-cnapi /servers?headnode=true 2>/dev/null | json -H -a hostname \
+        | grep "^$(hostname)$" >/dev/null && return
       ;;
     fwapi)
       local got_status=`sdc-fwapi /rules 2>/dev/null | \
