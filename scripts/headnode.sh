@@ -749,7 +749,7 @@ function adopt_agents()
         CONFIGURABLE_AGENTS="net-agent vm-agent cn-agent \
           agents_core amon-agent amon-relay \
           config-agent firewaller smartlogin \
-          cabase cainstsvc hagfish-watcher"
+          cabase cainstsvc hagfish-watcher cmon-agent"
 
         for agent in $CONFIGURABLE_AGENTS; do
             local instance_uuid

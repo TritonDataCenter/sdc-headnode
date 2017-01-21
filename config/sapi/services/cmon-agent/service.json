@@ -1,0 +1,16 @@
+{
+    "name": "cmon-agent",
+    "type": "agent",
+    "params": {
+        "tags": {
+            "smartdc_role": "cmon-agent",
+            "smartdc_type": "core"
+        }
+    },
+    "metadata": {
+        "SERVICE_NAME": "cmon-agent",
+        "CMON_AGENT_LOG_LEVEL": "info"
+    },
+    "manifests": {
+    }
+}
