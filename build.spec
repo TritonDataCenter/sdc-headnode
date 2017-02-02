@@ -49,7 +49,6 @@
     "napi": {},
     "papi": {},
     "rabbitmq": {},
-    "redis": {},
     "sapi": {},
     "sdc": {},
     "ufds": {},

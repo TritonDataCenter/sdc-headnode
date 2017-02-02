@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 # XXX - TODO
@@ -1328,10 +1328,6 @@ amonredis_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
 num_to_ip $next_addr
-redis_admin_ip="$ip_addr"
-
-next_addr=$(($next_addr + 1))
-num_to_ip $next_addr
 amon_admin_ip="$ip_addr"
 
 next_addr=$(($next_addr + 1))
@@ -1592,11 +1588,6 @@ echo >>$tmp_config
 echo "amonredis_admin_ips=$amonredis_admin_ip" >>$tmp_config
 echo "amonredis_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "amonredis_domain=amonredis.${datacenter_name}.${dns_domain}" >>$tmp_config
-echo >>$tmp_config
-
-echo "redis_admin_ips=$redis_admin_ip" >>$tmp_config
-echo "redis_root_pw='$escaped_zone_admin_pw'" >>$tmp_config
-echo "redis_domain=redis.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 # NOTE: we add admin_ip and admin_ips here because some stuff is hardcoded to

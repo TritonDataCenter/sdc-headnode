@@ -805,7 +805,6 @@ if setup_state_not_seen "setup_complete" \
     create_zone manatee
     create_zone moray
     create_zone amonredis
-    create_zone redis
     create_zone ufds
     create_zone workflow
     create_zone amon
