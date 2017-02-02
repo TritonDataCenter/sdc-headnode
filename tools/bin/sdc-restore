@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 #
@@ -42,7 +42,7 @@ echo "(debug log is /tmp/restorelog.$$)"
 
 HEADNODE_UUID=$(sysinfo | json UUID)
 
-core_zones="assets binder manatee moray redis ufds workflow amon napi"
+core_zones="assets binder manatee moray ufds workflow amon napi"
 core_zones="$core_zones rabbitmq imgapi cnapi dhcpd fwapi vmapi ca"
 core_zones="$core_zones adminui sapi"
 

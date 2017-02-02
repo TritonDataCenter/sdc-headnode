@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2017 Joyent, Inc.
  */
 
 var mod_fs = require('fs');
@@ -225,7 +225,6 @@ check_old_image_specs()
 		'napi',
 		'papi',
 		'rabbitmq',
-		'redis',
 		'sapi',
 		'sdc',
 		'ufds',
