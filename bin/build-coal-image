@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -278,10 +278,10 @@ function create_output
 
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
-        if [[ ${coal_memsize} < 4096 ]]; then
+        if [[ ${coal_memsize} < 6144 ]]; then
             # BEGIN BASHSTYLED
             echo "* * *"
-            echo "* Warning: Your COAL memory size (coal-memsize) is set to <4096 MiB."
+            echo "* Warning: Your COAL memory size (coal-memsize) is set to <6144 MiB."
             echo "* That is likely to cause problems in your COAL. Consider a larger"
             echo "* value for 'coal-memsize' in 'build.spec.local'."
             echo "* * *"

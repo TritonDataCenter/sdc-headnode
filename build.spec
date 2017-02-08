@@ -1,7 +1,7 @@
 {
   "vmware_version": 5,
   "build-tgz": "true",
-  "coal-memsize": 4096,
+  "coal-memsize": 8192,
   "coal-enable-serial": true,
   "no-rabbit": true,
   "clean-cache": true,
