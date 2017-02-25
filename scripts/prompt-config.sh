@@ -1660,6 +1660,9 @@ echo >>$tmp_config
 
 echo "phonehome_automatic=${phonehome_automatic}" >>$tmp_config
 
+echo "hostname=headnode0" >>$tmp_config
+echo "headnode_is_primary=true" >>$tmp_config
+
 # Always show the timers and make setup serial for now.
 echo "show_setup_timers=true" >> $tmp_config
 if [[ $(getanswer "dtrace_zone_setup") == "true" ]]; then
