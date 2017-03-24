@@ -6,8 +6,12 @@
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
-        "networks": [
-            "admin"
+        "networks": [{
+                "name": "admin"
+            }, {
+                "name": "external",
+                "primary": true
+            }
         ],
         "tags": {
             "smartdc_role": "cloudapi"
