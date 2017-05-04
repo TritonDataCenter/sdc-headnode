@@ -211,6 +211,7 @@ bit_enum_zone(be, next)
 			bfi_prefix: 'zone.' + name,
 			bfi_imgapi: 'https://updates.joyent.com',
 			bfi_uuid: zone_spec('uuid'),
+			bfi_channel: zone_spec('channel'),
 			bfi_name: jobname
 		}, next);
 		return;

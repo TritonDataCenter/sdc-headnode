@@ -31,6 +31,7 @@ bits_from_image(out, bfi, next)
 	mod_assert.string(bfi.bfi_uuid, 'bfi.bfi_uuid');
 	mod_assert.string(bfi.bfi_name, 'bfi.bfi_name');
 	mod_assert.optionalString(bfi.bfi_version, 'bfi.bfi_version');
+	mod_assert.optionalString(bfi.bfi_channel, 'bfi.bfi_channel');
 	mod_assert.func(next, 'next');
 
 	var uuid = bfi.bfi_uuid;
@@ -41,8 +42,9 @@ bits_from_image(out, bfi, next)
 		'images',
 		bfi.bfi_uuid
 	].join('/');
+	var query = (bfi.bfi_channel ? '?channel=' + bfi.bfi_channel : '');
 
-	lib_common.get_json_via_http(url, function (err, img) {
+	lib_common.get_json_via_http(url + query, function (err, img) {
 		if (err) {
 			next(new VError(err, 'could not get image "%s"',
 			    uuid));
@@ -112,7 +114,7 @@ bits_from_image(out, bfi, next)
 				'.zfs.',
 				fil.compression === 'bzip2' ? 'bz2' : 'gz'
 			].join('')),
-			bit_url: url + '/file',
+			bit_url: url + '/file' + query,
 			bit_hash_type: 'sha1',
 			bit_hash: fil.sha1,
 			bit_size: fil.size,

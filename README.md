@@ -212,7 +212,8 @@ UUID, e.g.
     "zones": {
         "adminui": {
             "source": "imgapi",
-            "uuid": "ef967904-fd86-11e4-9c90-2bbf99b9e6cf"
+            "uuid": "ef967904-fd86-11e4-9c90-2bbf99b9e6cf",
+            "channel": "experimental"   // optional IMGAPI channel
         },
         ...
     },
