@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 PLATFORM=$(uname -s)
@@ -24,6 +24,13 @@ case "$PLATFORM" in
     fi
     TAR_ROOT=""
     PING="/sbin/ping -c 1"
+    ;;
+  Linux)
+    # sudo is not required for tar extraction on Linux
+    SUCMD=''
+    TAR=tar
+    TAR_ROOT=""
+    PING="/bin/ping -c 1"
     ;;
   SunOS)
     SUCMD='pfexec'

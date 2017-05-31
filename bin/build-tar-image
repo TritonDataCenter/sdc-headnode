@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -124,7 +124,8 @@ ERROR=0
 CLEANED=0
 
 PLATFORM=$(uname -s)
-if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' ]]; then
+if [[ ${PLATFORM} == 'Darwin' || ${PLATFORM} == 'SunOS' || \
+      ${PLATFORM} == 'Linux' ]]; then
     source ${ROOT}/bin/include-tar-generic
     version
 else
@@ -133,8 +134,8 @@ fi
 
 function test_rootperms
 {
-    # root access is no longer required on OSX
-    [[ ${PLATFORM} == 'Darwin' ]] && return
+    # root access is only required on SunOS
+    [[ ${PLATFORM} != 'SunOS' ]] && return
     su_uid=$(${SUCMD} id -u)
     if [[ ${su_uid} -ne 0 ]]; then
         fatal "Can't get root priviledges."

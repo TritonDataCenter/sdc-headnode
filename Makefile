@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2016 Joyent, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 PERCENT := %
@@ -15,10 +15,10 @@ PERCENT := %
 # Files
 #
 
-ifeq ($(shell uname -s),Darwin)
-GREP = grep
-else
+ifeq ($(shell uname -s),SunOS)
 GREP = /usr/xpg4/bin/grep
+else
+GREP = grep
 endif
 
 BASH_FILES := \

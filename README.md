@@ -68,6 +68,11 @@ On OS X:
   - The [json](http://trentm.com/json/) CLI tool.
   - the [XCode Command Line Tools](https://developer.apple.com/downloads/index.action) [Apple sign-in required]. Alternately, any setup of the GNU toolchain sufficient to build a moderately-complex project should also work.
 
+On Linux:
+  - A recent version of node (>= 0.12, preferably latest).
+  - The [json](http://trentm.com/json/) CLI tool.
+  - The gcc/clang build toolchain (for building the native node modules)
+
 On SmartOS:
 
 First you must create a suitable build zone:

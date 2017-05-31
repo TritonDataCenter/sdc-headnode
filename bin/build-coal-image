@@ -105,8 +105,12 @@ if [[ -z $IMG_TMP_DIR ]]; then
 fi
 PLATFORM=$(uname -s)
 
-if [[ "$PLATFORM" != "Darwin" ]]; then
+if [[ "$PLATFORM" == "SunOS" ]]; then
     SUCMD='pfexec'
+elif [[ "$PLATFORM" == "Linux" ]]; then
+    SUCMD='sudo'
+    # Parted is required to find the partition offset in the image.
+    [[ $(which parted) ]] || fatal "Please install 'parted'"
 fi
 
 STAGE=${ROOT}/cache/stage_coal
@@ -183,13 +187,20 @@ function mount_image
             | awk '{ print $1 }'`
         MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
             | awk '{ print $3 }'`
-
+    elif [[ "$PLATFORM" == "Linux" ]]; then
+        MNT_DIR="/tmp/sdc_image.$$"
+        mkdir -p "$MNT_DIR"
+        LOOPBACK="$IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG}"
+        OFFSET=$(parted -m "${LOOPBACK}" unit B print | grep fat32 \
+            | cut -f2 -d: | sed 's/.$//')
+        ${SUCMD} mount -o "loop,offset=${OFFSET},uid=${EUID},gid=${GROUPS[0]}" \
+            "${LOOPBACK}" "${MNT_DIR}"
     else
         ${SUCMD} mkdir -p ${MNT_DIR}
         LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG})
         ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
     fi
-    echo "(${IMG_DEV} mounted on ${MNT_DIR}) done."
+    echo "($IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} mounted on ${MNT_DIR}) done."
 }
 
 function copy_config {
@@ -231,6 +242,9 @@ function cleanup
         if [[ -n ${LOOPBACK} ]]; then
             if [[ "$PLATFORM" == "Darwin" ]]; then
                 hdiutil detach ${MNT_DIR} || true
+            elif [[ "$PLATFORM" == "Linux" ]]; then
+                ${SUCMD} umount "${MNT_DIR}" || /usr/bin/true
+                rm -rf "${MNT_DIR}"
             else
                 ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
                 ${SUCMD} lofiadm -d ${LOOPBACK}
