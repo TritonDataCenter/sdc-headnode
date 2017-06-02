@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2015 Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -38,8 +38,7 @@ bits_from_dir(out, bfd, next)
 			return;
 		}
 
-		mod_assert.arrayOfObject(bfd.bfd_files,
-		    'bfd_files');
+		mod_assert.arrayOfObject(bfd.bfd_files, 'bfd_files');
 
 		for (var i = 0; i < bfd.bfd_files.length; i++) {
 			var mf = bfd.bfd_files[i];
@@ -48,10 +47,11 @@ bits_from_dir(out, bfd, next)
 			mod_assert.string(mf.mf_path, 'path');
 			mod_assert.string(mf.mf_name, 'name');
 			mod_assert.string(mf.mf_ext, 'ext');
+			mod_assert.optionalObject(mf.mf_bit_json, 'bit_json');
 
 			var bn = mod_path.basename(mf.mf_path);
 
-			out.push({
+			var bit = {
 				bit_type: 'file',
 				bit_name: mf.mf_name,
 				bit_local_file: lib_common.cache_path(bn),
@@ -61,7 +61,11 @@ bits_from_dir(out, bfd, next)
 					'.',
 					mf.mf_ext
 				].join('')
-			});
+			};
+			if (mf.mf_bit_json) {
+				bit.bit_json = mf.mf_bit_json;
+			}
+			out.push(bit);
 		}
 
 		next();
@@ -102,6 +106,8 @@ bfd_find_build_files(bfd, next)
 		mod_assert.string(f.base, 'f.base');
 		mod_assert.string(f.ext, 'f.ext');
 		mod_assert.string(f.name, 'f.name');
+		mod_assert.optionalString(f.symlink_ext, 'f.symlink_ext');
+		mod_assert.optionalBool(f.get_bit_json, 'f.get_bit_json');
 
 		patterns.push({
 			p_re: new RegExp([
@@ -116,7 +122,9 @@ bfd_find_build_files(bfd, next)
 			p_ents: [],
 			p_base: f.base,
 			p_ext: f.ext,
-			p_name: f.name
+			p_symlink_ext: f.symlink_ext,
+			p_name: f.name,
+			p_get_bit_json: f.get_bit_json
 		});
 	}
 
@@ -164,9 +172,10 @@ bfd_find_build_files(bfd, next)
 
 			if (p.p_ents.length < 1) {
 				next(new VError('pattern "%s" in dir ' +
-				    '"%s" matched %d entries, ' +
-				    'expected >= 1', bfd.bfd_dir,
-				    p.p_re.toString(), p.p_ents.length));
+				    '"%s" matched %d entries, expected >= 1',
+				    p.p_re.toString(),
+				    bfd.bfd_dir,
+				    p.p_ents.length));
 				return;
 			}
 
@@ -190,11 +199,25 @@ bfd_find_build_files(bfd, next)
 				return;
 			}
 
-			files.push({
+			var mf = {
 				mf_name: p.p_name,
 				mf_path: p.p_ents[p.p_ents.length - 1],
-				mf_ext: p.p_ext
-			});
+				mf_ext: p.p_symlink_ext || p.p_ext
+			};
+
+			if (p.p_get_bit_json) {
+				var data = mod_fs.readFileSync(mf.mf_path,
+				    {encoding: 'utf8'});
+				try {
+					mf.mf_bit_json = JSON.parse(data);
+				} catch (parse_err) {
+					next(new VError(parse_err,
+					    '"%s" is not JSON', mf.mf_path));
+					return;
+				}
+			}
+
+			files.push(mf);
 		}
 
 		bfd.bfd_files = files;

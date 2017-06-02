@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 #
@@ -16,6 +16,9 @@
 # BASHSTYLED
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
+set -o errexit
+set -o pipefail
+
 
 PATH=/opt/smartdc/bin:$PATH
 
@@ -36,7 +39,7 @@ function add_external_nic {
     local tmpfile=/tmp/update_nics.$$.json
 
     local num_nics
-    num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length);
+    num_nics=$(sdc-vmapi /vms/${zone_uuid} | json -H nics.length)
     if [[ ${num_nics} == 2 ]]; then
         return  # External NIC already present
     fi
@@ -54,34 +57,55 @@ function add_external_nic {
     }" > ${tmpfile}
 
     sdc-vmapi /vms/${zone_uuid}?action=add_nics -X POST \
-        -d @${tmpfile}
-    [[ $? -eq 0 ]] || fatal "failed to add external NIC"
-
-    # The add_nics job takes about 20 seconds.
-    sleep 30
+        -d @${tmpfile} | sdc-waitforjob
 
     rm -f ${tmpffile}
 }
 
 
 function import_manta_image {
-    local manifest
-    manifest=$(ls -r1 /usbkey/datasets/manta-d*imgmanifest | head -n 1)
-    local file
-    file=$(ls -r1 /usbkey/datasets/manta-d*gz | head -n 1)
-    local uuid
-    uuid=$(json -f ${manifest} uuid)
+    local image_uuid
+    local service_uuid
+    local status
+    local image_manifest
+    local image_file
 
-    echo $(basename ${manifest}) > /usbkey/zones/manta/dataset
-
-    # If image already exists, don't import again.
-    sdc-imgadm get ${uuid} >/dev/null
-    if [[ $? -eq 0 ]]; then
-        return
+    image_uuid=$(sdc-sapi /services?name=manta | json -H 0.params.image_uuid)
+    if [[ -z "$image_uuid" ]]; then
+        fatal "the 'manta' SAPI service does not have a params.image_uuid set"
     fi
 
-    sdc-imgadm import -m ${manifest} -f ${file}
-    [[ $? -eq 0 ]] || fatal "failed to import image"
+    service_uuid=$(sdc-sapi /services?name=manta | json -Ha uuid)
+
+    status=$(sdc-imgapi /images/${image_uuid} | head -1 | awk '{print $2}')
+    if [[ "${status}" == "404" ]]; then
+        # IMGAPI doesn't have the image imported. Let's try to get it from
+        # the USB key.
+        # - In the new world, this is at "/usbkey/images/UUID.imgmanifest".
+        image_manifest="/usbkey/images/$image_uuid.imgmanifest"
+        image_file="/usbkey/images/$image_uuid.imgfile"
+
+        # - In the old world, it is at
+        #   "/usbkey/datasets/manta-deployment-*.imgmanifest".
+        if [[ ! -f $image_manifest ]]; then
+            image_manifest=$(ls -r1 \
+                /usbkey/datasets/manta-deployment-*.imgmanifest 2>/dev/null \
+                || true | head -n 1)
+            image_file=$(ls -r1 \
+                /usbkey/datasets/manta-deployment-*.gz 2>/dev/null \
+                || true | head -n 1)
+            if [[ ! -f "$image_manifest" ]]; then
+                fatal "could not find manta-deployment image $image_uuid in" \
+                    "/usbkey/images or /usbkey/datasets"
+            elif [[ "$($JSON -f $image_manifest uuid)" != "$image_uuid" ]]; then
+                fatal "latest /usbkey/datasets/manta-deployment-*" \
+                    "($image_manifest) image is not the same UUID as the SAPI" \
+                    "'manta' service params.image_uuid ($image_uuid)"
+            fi
+        fi
+
+        sdc-imgadm import -m ${image_manifest} -f ${image_file}
+    fi
 }
 
 
@@ -102,15 +126,12 @@ function deploy_manta_zone {
             \"server_uuid\": \"${server_uuid}\"
         }
     }" | sapiadm provision
-
-    [[ $? -eq 0 ]] || fatal "failed to provision manta zone"
 }
 
 
 function enable_firewall {
     local zone_uuid=$1
     vmadm update ${zone_uuid} firewall_enabled=true
-    [[ $? -eq 0 ]] || fatal "failed to enable firewall for the manta zone"
 }
 
 
@@ -214,7 +235,7 @@ EOF
             fi
 
             echo "creating symlink \"$target\" for \"$manpage\""
-            ln -s "$manpage" "$target"
+            ln -fs "$manpage" "$target"
         done
     fi
 }
@@ -222,9 +243,9 @@ EOF
 
 # Mainline
 
-manta_uuid=$(vmadm lookup -1 alias=${ZONE_ALIAS})
+manta_uuid=$(vmadm lookup -1 alias=${ZONE_ALIAS} || true)
 if [[ -n ${manta_uuid} ]]; then
-    echo "Manta zone already present."
+    echo "Manta zone already present: $manta_uuid ($ZONE_ALIAS)"
     copy_manta_tools ${manta_uuid}
     exit
 fi

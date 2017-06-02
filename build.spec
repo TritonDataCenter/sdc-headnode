@@ -109,38 +109,5 @@
       "alt_manta_base": "joyent-manta-base-path",
       "file": { "base": "firmware-tools", "ext": "tgz" }
     }
-  },
-
-  "images": {
-    "smartos-1.6.3": {
-      "imgapi": "https://updates.joyent.com",
-      "name": "sdc-smartos",
-      "version": "1.6.3",
-      "uuid": "fd2cc906-8938-11e3-beab-4359c665ac99"
-    },
-    "multiarch-13.3.1": {
-      "imgapi": "https://updates.joyent.com",
-      "name": "sdc-multiarch",
-      "version": "13.3.1",
-      "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
-    },
-    "base64-13.3.1": {
-      "imgapi": "https://updates.joyent.com",
-      "name": "sdc-base64",
-      "version": "13.3.1",
-      "uuid": "aeb4e3e0-8937-11e3-b0bd-637363a89e49"
-    },
-    "base-14.2.0": {
-      "imgapi": "https://updates.joyent.com",
-      "name": "sdc-base",
-      "version": "14.2.0",
-      "uuid": "de411e86-548d-11e4-a4b7-3bb60478632a"
-    },
-    "sdc-minimal-multiarch-lts-15.4.1": {
-      "imgapi": "https://updates.joyent.com",
-      "name": "sdc-minimal-multiarch-lts",
-      "version": "15.4.1",
-      "uuid": "18b094b0-eb01-11e5-80c1-175dac7ddf02"
-    }
   }
 }

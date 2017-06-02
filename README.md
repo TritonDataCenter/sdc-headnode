@@ -122,48 +122,8 @@ In the example above,
 
 #### Build Artefacts
 
-Three classes of build artefact may be described in the build specification
-file: images, zones and files.
-
-##### Images
-
-Images, defined in the `"images"` key of the build specification file, refer to
-specific image dataset streams (and their associated manifests) as published in
-an IMGAPI service.  These artefacts are generally base images on which the
-incremental dataset streams for core SDC zone datasets (specified in `"zones"`)
-are based.
-
-For example, the `sdc-multiarch` image (version `13.3.1`) has UUID
-`"b4bdc598-8939-11e3-bea4-8341f6861379"`.  Its inclusion in the build is
-specified with the following in `build.spec`:
-
-```
-{
-    ...
-    "images": {
-        "multiarch-13.3.1": {
-            "imgapi": "https://updates.joyent.com",
-            "name": "sdc-multiarch",
-            "version": "13.3.1",
-            "uuid": "b4bdc598-8939-11e3-bea4-8341f6861379"
-        },
-        ...
-    },
-    ...
-}
-```
-
-The `"uuid"` is the primary key used to locate the image in the IMGAPI service,
-at the URL `"imgapi"`.  The `"name"` and `"version"` keys are checked against
-the metadata retrieved in the manifest for this image.
-
-The key used to name the object describing the image, i.e. `"multiarch-13.3.1"`
-above, is used to name the symbolic link in the `cache/` directory that
-later build steps will use to find the downloaded file.  The image definition
-above will result in the creation of two symlinks:
-
-- `cache/image.multiarch-13.3.1.imgmanifest`
-- `cache/image.multiarch-13.3.1.zfs.gz`
+Two classes of build artefact may be described in the build specification
+file: zones and files.
 
 ##### Zones
 
@@ -241,15 +201,28 @@ directory, using the original filename of the image, e.g. for `manatee`:
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.imgmanifest`
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.zfs.gz`
 
-Note that the filename includes the MG job name and branch.  A symbolic link
+Note that the filename includes the MG job name and branch. A symbolic link
 will also be created to the downloaded files using the short name we specified,
 i.e.
 
 - `zone.manatee.imgmanifest`
-- `zone.manatee.zfs.gz`
+- `zone.manatee.imgfile`
 
-This symlink is used by subsequent build phases to locate the downloaded build
-artefact.
+
+In addition, any origin images of the zone image will also be downloaded and
+placed in the `cache/` directory, e.g.:
+
+- 04a48d7d-6bb5-4e83-8c3b-e60a99e0f48f.imgmanifest
+- 04a48d7d-6bb5-4e83-8c3b-e60a99e0f48f.imgfile
+
+Likewise, a symbolic link will be created to the download origin image files:
+
+- image.04a48d7d-6bb5-4e83-8c3b-e60a99e0f48f.imgmanifest
+- image.04a48d7d-6bb5-4e83-8c3b-e60a99e0f48f.imgfile
+
+These symlinks are used by subsequent build phases to locate the downloaded
+build artefact.
+
 
 ##### Files
 

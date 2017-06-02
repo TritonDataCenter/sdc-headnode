@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
 
 /**
@@ -21,10 +21,15 @@ var execFile = cp.execFile;
 var fs = require('fs');
 
 // Globals
+
+/* JSSTYLED */
+var UUID_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+
 var zone = process.argv[2];
 var passed_uuid = process.argv[3];
 var config;
 var obj = {};
+
 
 async.series([
     function ensureArgs(cb) {
@@ -78,35 +83,29 @@ async.series([
     },
     function setImageUuid(cb) {
         if (!obj.hasOwnProperty('image_uuid')) {
-            // find out which dataset we should use for these zones
-            return fs.readFile('/usbkey/zones/' + zone + '/dataset',
-                               function readDataset(err, data) {
+            var image_path = '/usbkey/zones/' + zone + '/image';
+            fs.readFile(image_path, {
+                encoding: 'utf8'
+            }, function readImage(err, data) {
                 if (err) {
-                    return cb(new Error('Unable to find dataset name: ' +
-                              err.message));
+                    cb(new Error('Unable to read "' + image_path + '": ' +
+                        err.message));
+                    return;
                 }
-                var image_file_name = data.toString().split('\n')[0];
-                return fs.readFile('/usbkey/datasets/' + image_file_name,
-                                   function readImgmanifest(_err, _data) {
-                    if (_err) {
-                        return cb(new Error('unable to load imgmanifest: ' +
-                                  _err.message));
-                    }
 
-                    try {
-                        var imgmanifest = JSON.parse(_data.toString());
-                    } catch (e) {
-                        return cb(new Error('exception loading imgmanifest for '
-                            + zone + ': ' + e.message));
-                    }
+                var image_uuid = data.split('\n')[0].trim();
+                if (!UUID_RE.test(image_uuid)) {
+                    cb(new Error('first line of "' + image_path +
+                        '" is not a UUID: "' + image_uuid + '"'));
+                    return;
+                }
 
-                    obj.image_uuid = imgmanifest.uuid;
-                    return cb();
-                });
+                obj.image_uuid = image_uuid;
+                cb();
             });
         } else {
             // obj already has image_uuid so we'll use that.
-            return cb();
+            cb();
         }
     },
     function setPackageValues(cb) {

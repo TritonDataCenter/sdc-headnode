@@ -44,7 +44,8 @@ bits_from_image(out, bfi, next)
 	].join('/');
 	var query = (bfi.bfi_channel ? '?channel=' + bfi.bfi_channel : '');
 
-	lib_common.get_json_via_http(url + query, function (err, img) {
+	lib_common.get_json_via_http(url + query, {},
+	    function on_img(err, img) {
 		if (err) {
 			next(new VError(err, 'could not get image "%s"',
 			    uuid));
@@ -95,10 +96,7 @@ bits_from_image(out, bfi, next)
 				'.imgmanifest'
 			].join('')),
 			bit_json: img,
-			bit_make_symlink: [
-				bfi.bfi_prefix,
-				'.imgmanifest'
-			].join('')
+			bit_make_symlink: bfi.bfi_prefix + '.imgmanifest'
 		});
 
 		/*
@@ -118,16 +116,22 @@ bits_from_image(out, bfi, next)
 			bit_hash_type: 'sha1',
 			bit_hash: fil.sha1,
 			bit_size: fil.size,
-			bit_make_symlink: [
-				bfi.bfi_prefix,
-				'.zfs.',
-				fil.compression === 'bzip2' ? 'bz2' : 'gz'
-			].join('')
+			bit_make_symlink: bfi.bfi_prefix + '.imgfile'
 		});
 
-		next();
+		/*
+		 * Walk the ancestry (origin chain) for this image and create
+		 * download requests from updates.joyent.com (if not already
+		 * in `out`).
+		 */
+		if (img.origin) {
+			lib_common.origin_bits_from_updates(out, {
+				obfu_origin_uuid: img.origin
+			}, next);
+		} else {
+			next();
+		}
 	});
-
 }
 
 module.exports = bits_from_image;

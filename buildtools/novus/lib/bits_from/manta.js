@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2017 Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -50,6 +50,7 @@ bits_from_manta(out, bfm, next)
 			mod_assert.string(mf.mf_path, 'path');
 			mod_assert.string(mf.mf_name, 'name');
 			mod_assert.string(mf.mf_ext, 'ext');
+			mod_assert.optionalObject(mf.mf_bit_json, 'bit_json');
 
 			var bn = mod_path.basename(mf.mf_path);
 			var hash = bfm.bfm_manta_hashes[bn];
@@ -60,7 +61,7 @@ bits_from_manta(out, bfm, next)
 				return;
 			}
 
-			out.push({
+			var bit = {
 				bit_type: 'manta',
 				bit_name: mf.mf_name,
 				bit_local_file: lib_common.cache_path(bn),
@@ -72,7 +73,11 @@ bits_from_manta(out, bfm, next)
 					'.',
 					mf.mf_ext
 				].join('')
-			});
+			};
+			if (mf.mf_bit_json) {
+				bit.bit_json = mf.mf_bit_json;
+			}
+			out.push(bit);
 		}
 
 		next();
@@ -114,6 +119,8 @@ bfm_find_build_files(bfm, next)
 		mod_assert.string(f.base, 'f.base');
 		mod_assert.string(f.ext, 'f.ext');
 		mod_assert.string(f.name, 'f.name');
+		mod_assert.optionalString(f.symlink_ext, 'f.symlink_ext');
+		mod_assert.optionalBool(f.get_bit_json, 'f.get_bit_json');
 
 		patterns.push({
 			p_re: new RegExp([
@@ -129,7 +136,9 @@ bfm_find_build_files(bfm, next)
 			p_ent: null,
 			p_base: f.base,
 			p_ext: f.ext,
-			p_name: f.name
+			p_symlink_ext: f.symlink_ext,
+			p_name: f.name,
+			p_get_bit_json: Boolean(f.get_bit_json)
 		});
 	}
 
@@ -144,6 +153,51 @@ bfm_find_build_files(bfm, next)
 				}
 				p.p_count++;
 			}
+		}
+	};
+
+	var mf_from_pattern = function (p, next_p)
+	{
+		mod_assert.object(p, 'pattern');
+		mod_assert.func(next_p, 'next_p');
+
+		if (p.p_count !== 1) {
+			next_p(new VError('pattern "%s" matched %d entries, ' +
+			    'expected 1', p.p_re.toString(), p.p_count));
+			return;
+		}
+
+		var mf = {
+			mf_name: p.p_name,
+			mf_path: p.p_ent,
+			mf_ext: p.p_symlink_ext || p.p_ext,
+		};
+
+		/*
+		 * If requested, download and parse the Manta file as JSON.
+		 */
+		if (!p.p_get_bit_json) {
+			next_p(null, mf);
+		} else {
+			lib_common.get_manta_file(bfm.bfm_manta, p.p_ent,
+			    function got_manta_file(err, data) {
+				if (err) {
+					next_p(err);
+					return;
+				} else if (data === false) {
+					next_p(new VError('"%s" not found',
+					    p.p_ent));
+					return;
+				}
+				try {
+					mf.mf_bit_json = JSON.parse(data);
+				} catch (parse_err) {
+					next_p(new VError(parse_err,
+					    '"%s" is not JSON', p.p_ent));
+					return;
+				}
+				next_p(null, mf);
+			});
 		}
 	};
 
@@ -164,34 +218,26 @@ bfm_find_build_files(bfm, next)
 		});
 
 		res.once('end', function () {
-			var files = [];
-
-			for (var i = 0; i < patterns.length; i++) {
-				var p = patterns[i];
-
-				if (p.p_count !== 1) {
-					next(new VError('pattern "%s" in dir ' +
-					    '"%s" matched %d entries, ' +
-					    'expected 1', bfm.bfm_manta_dir,
-					    p.p_re.toString(), p.p_count));
+			mod_vasync.forEachParallel({
+				inputs: patterns,
+				func: mf_from_pattern
+			}, function checked_patterns(err, results) {
+				if (err) {
+					next(new VError(err, 'could not ' +
+					    'find matching Manta files in ' +
+					    'dir "%s"', bfm.bfm_manta_dir));
 					return;
 				}
 
-				files.push({
-					mf_name: p.p_name,
-					mf_path: p.p_ent,
-					mf_ext: p.p_ext
-				});
-			}
+				/*
+				 * Store the full Manta path(s) of the build
+				 * object for subsequent tasks:
+				 */
+				bfm.bfm_manta_files = results.successes;
 
-			/*
-			 * Store the full Manta path(s) of the build object
-			 * for subsequent tasks:
-			 */
-			bfm.bfm_manta_files = files;
+				next();
+			});
 
-			next();
-			return;
 		});
 	});
 }

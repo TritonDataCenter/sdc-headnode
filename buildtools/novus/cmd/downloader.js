@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2017 Joyent, Inc.
  */
 
 var mod_fs = require('fs');
@@ -164,11 +164,16 @@ bit_enum_assert(be, next)
 	mod_assert.func(next, 'next');
 }
 
+/*
+ * Gather the bits for this zone image. However, do *not* append them to
+ * `be.be_out`. Instead they are returned via the `next` callback:
+ * `next(null, out)`.
+ */
 function
-bit_enum_zone(be, next)
-{
+bit_enum_zone(be, next) {
 	bit_enum_assert(be, next);
 
+	var bits;
 	var name = be.be_name;
 	var zone_spec = function (key, optional) {
 		return (be.be_spec.get('zones|' + name + '|' + key, optional));
@@ -186,24 +191,56 @@ bit_enum_zone(be, next)
 		base_path = be.be_spec.get(alt_base_var);
 	}
 
-	var basen;
-
 	switch (source) {
 	case 'manta':
-		basen = jobname + '-zfs';
-		lib_bits_from_manta(be.be_out, {
+		bits = [];
+		lib_bits_from_manta(bits, {
 			bfm_manta: be.be_manta,
 			bfm_prefix: 'zone.' + name,
 			bfm_jobname: jobname,
 			bfm_branch: branch,
 			bfm_files: [
-				{ name: name + '_manifest',
-				    base: basen, ext: 'imgmanifest' },
-				{ name: name + '_image',
-				    base: basen, ext: 'zfs.gz' }
+				{
+					name: name + '_imgmanifest',
+					base: jobname + '-zfs',
+					ext: 'imgmanifest',
+					get_bit_json: true
+				},
+				{
+					name: name + '_imgfile',
+					base: jobname + '-zfs',
+					ext: 'zfs.gz',
+					symlink_ext: 'imgfile'
+				}
 			],
 			bfm_base_path: base_path
-		}, next);
+		}, function on_manta_bits(err) {
+			if (err) {
+				next(err);
+				return;
+			}
+
+			/*
+			 * Append `bits` to `be.be_out` and gather any
+			 * origin images.
+			 */
+			var img;
+			bits.forEach(function push_bit(bit) {
+				be.be_out.push(bit);
+				if (bit.bit_name === name + '_imgmanifest') {
+					img = bit.bit_json;
+				}
+			});
+			mod_assert.object(img, 'img manifest');
+
+			if (img.origin) {
+				lib_common.origin_bits_from_updates(be.be_out, {
+					obfu_origin_uuid: img.origin
+				}, next);
+			} else {
+				next();
+			}
+		});
 		return;
 
 	case 'imgapi':
@@ -211,7 +248,7 @@ bit_enum_zone(be, next)
 			bfi_prefix: 'zone.' + name,
 			bfi_imgapi: 'https://updates.joyent.com',
 			bfi_uuid: zone_spec('uuid'),
-			bfi_channel: zone_spec('channel'),
+			bfi_channel: zone_spec('channel', true),
 			bfi_name: jobname
 		}, next);
 		return;
@@ -219,53 +256,58 @@ bit_enum_zone(be, next)
 	case 'bits-dir':
 		mod_assert.string(process.env.BITS_DIR, '$BITS_DIR');
 
-		basen = jobname + '-zfs';
-		lib_bits_from_dir(be.be_out, {
+		bits = [];
+		lib_bits_from_dir(bits, {
 			bfd_dir: mod_path.join(process.env.BITS_DIR,
 			    jobname),
 			bfd_prefix: 'zone.' + name,
 			bfd_jobname: jobname,
 			bfd_branch: branch,
 			bfd_files: [
-				{ name: name + '_manifest',
-				    base: basen, ext: 'imgmanifest' },
-				{ name: name + '_image',
-				    base: basen, ext: 'zfs.gz' }
+				{
+					name: name + '_imgmanifest',
+					base: jobname + '-zfs',
+					ext: 'imgmanifest',
+					get_bit_json: true
+				},
+				{
+					name: name + '_imgfile',
+					base: jobname + '-zfs',
+					ext: 'zfs.gz',
+					symlink_ext: 'imgfile'
+				}
 			]
-		}, next);
+		}, function on_dir_bits(err) {
+			if (err) {
+				next(err);
+				return;
+			}
+
+			/*
+			 * Append `bits` to `be.be_out` and gather any
+			 * origin images.
+			 */
+			var img;
+			bits.forEach(function push_bit(bit) {
+				be.be_out.push(bit);
+				if (bit.bit_name === name + '_imgmanifest') {
+					img = bit.bit_json;
+				}
+			});
+			mod_assert.object(img, 'img manifest');
+
+			if (img.origin) {
+				lib_common.origin_bits_from_updates(be.be_out, {
+					obfu_origin_uuid: img.origin
+				}, next);
+			} else {
+				next();
+			}
+		});
 		return;
 
 	default:
 		next(new VError('unsupported "zone" source "%s"', source));
-		return;
-	}
-}
-
-function
-bit_enum_image(be, next)
-{
-	bit_enum_assert(be, next);
-
-	var name = be.be_name;
-	var image_spec = function (key, optional) {
-		return (be.be_spec.get('images|' + name + '|' + key, optional));
-	};
-
-	var source = image_spec('source', true) || 'imgapi';
-
-	switch (source) {
-	case 'imgapi':
-		lib_bits_from_image(be.be_out, {
-			bfi_prefix: 'image.' + name,
-			bfi_imgapi: image_spec('imgapi'),
-			bfi_uuid: image_spec('uuid'),
-			bfi_version: image_spec('version'),
-			bfi_name: image_spec('name')
-		}, next);
-		return;
-
-	default:
-		next(new VError('unsupported "image" source "%s"', source));
 		return;
 	}
 }
@@ -401,8 +443,7 @@ process_artefacts(pa, callback)
 	mod_vasync.forEachParallel({
 		inputs: [
 			{ type: 'zones', func: bit_enum_zone },
-			{ type: 'files', func: bit_enum_file },
-			{ type: 'images', func: bit_enum_image }
+			{ type: 'files', func: bit_enum_file }
 		],
 		func: process_artefact_type
 	}, function (err) {

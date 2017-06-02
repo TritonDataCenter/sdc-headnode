@@ -479,31 +479,6 @@ function create_zone {
     # This just moves us to the beginning of the line (once)
     cr_once
 
-    # If zone has specified dataset_uuid, we need to ensure that's imported.
-    if [[ -f ${USB_COPY}/zones/${zone}/dataset ]]; then
-        # PCFS casing. sigh.
-        ds_name=$(cat ${USB_COPY}/zones/${zone}/dataset)
-        [[ -z ${ds_name} ]] && \
-            fatal "No dataset specified in ${USB_COPY}/zones/${zone}/dataset"
-        ds_manifest=$(ls ${USB_COPY}/datasets/${ds_name})
-        [[ -z ${ds_manifest} ]] && fatal "No manifest found at ${ds_manifest}"
-        ds_basename=$(echo "${ds_name}" | sed -e "s/\.zfs\.imgmanifest$//" \
-            -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
-        ds_filename=$(ls ${USB_COPY}/datasets/${ds_basename}.zfs+(.bz2|.gz) \
-                      | head -1)
-        [[ -z ${ds_filename} ]] && fatal "No filename found for ${ds_name}"
-        ds_uuid=$(json uuid < ${ds_manifest})
-        [[ -z ${ds_uuid} ]] && fatal "No uuid found for ${ds_name}"
-
-        # imgadm exits non-zero when the dataset is already imported, we need to
-        # work around that.
-        if [[ ! -d /zones/${ds_uuid} ]]; then
-            printf_log "%-58s" "importing: $(echo ${ds_name} | cut -d'.' -f1) "
-            imgadm install -m ${ds_manifest} -f ${ds_filename}
-            printf_timer "done (%ss)\n" >&${CONSOLE_FD}
-        fi
-    fi
-
     if [[ ${restore} == 0 ]]; then
         printf_log "%-58s" "creating zone ${existing_uuid}${zone}... "
     else
@@ -772,17 +747,25 @@ function adopt_agents()
 # to secondary headnodes without re-bootstrapping core services.
 if setup_state_not_seen "setup_complete" \
         && setup_state_not_seen "sdczones_created"; then
-    # If the zone image is incremental, you'll need to manually setup the import
-    # here for the origin dataset for now. The way to do this is add the name
-    # and uuid to build.spec's datasets.
-    if [[ -f /usbkey/datasets/img_dependencies ]]; then
-        for name in $(cat /usbkey/datasets/img_dependencies); do
-            imgadm install -f \
-                "$(ls -1 /usbkey/datasets/${name}.zfs.{gz,bz2} 2>/dev/null \
-                    | head -1)" \
-                -m /usbkey/datasets/${name}.imgmanifest
-        done
-    fi
+
+    # Import all the USB key images into the zpool -- in ancestry order.
+    cat /usbkey/images/*.imgmanifest \
+        | json -e 'this.origin = this.origin || this.uuid' -ga origin uuid \
+        | tsort \
+        | while read img_uuid; do
+
+        # Checking /zones/$img_uuid is a little faster than using exit
+        # status 3 from `imgadm get $img_uuid` to see if the image is already
+        # installed in the zpool.
+        if [[ ! -d /zones/${img_uuid} ]]; then
+            img_namever=$(json -f /usbkey/images/$img_uuid.imgmanifest \
+                -a -d@ name version)
+            printf_log "%-58s" "importing image ${img_namever:0:37}... "
+            imgadm install -m /usbkey/images/$img_uuid.imgmanifest \
+                -f /usbkey/images/$img_uuid.imgfile
+            printf_timer "done (%ss)\n"
+        fi
+    done
 
     # These are here in the order they'll be brought up.
     create_zone assets
@@ -852,85 +835,34 @@ EOF
 fi
 
 
-# Import the images used for SDC services into IMGAPI.
+# Import all the USB key images into IMGAPI.
 function import_smartdc_service_images {
+    local img_uuid
+    local img_manifest
+    local img_file
 
-    # If the zone image is incremental, you'll need to manually setup the import
-    # here for the origin dataset for now. The way to do this is add the name
-    # and uuid to build.spec's datasets.
-    if [[ -f /usbkey/datasets/img_dependencies ]]; then
-        for name in $(cat /usbkey/datasets/img_dependencies); do
-            local retries=0
-            local max_retries=6
-            local bail=true
-            while [[ ${retries} -lt ${max_retries} ]]; do
-                if [[ -f /usbkey/datasets/${name}.zfs.gz ]]; then
-                    file="/usbkey/datasets/${name}.zfs.gz"
-                elif [[ -f /usbkey/datasets/${name}.zfs.bz2 ]]; then
-                    file="/usbkey/datasets/${name}.zfs.bz2"
-                fi
-                manifest="/usbkey/datasets/${name}.imgmanifest"
-                # Unlike with sdc-imgapi, we know that any failure will exit
-                # non-zero. There is one failure that we do not care about and
-                # it is the (ImageUuidAlreadyExists) failure.
-                if ! err=$(/opt/smartdc/bin/sdc-imgadm \
-                    import  --skip-owner-check -f $file  -m $manifest \
-                    2>&1 | awk '{print $3;}'); then
+    # The `tsort` is a "total order" sort to ensure origin images are imported
+    # first.
+    cat /usbkey/images/*.imgmanifest \
+        | json -e 'this.origin = this.origin || this.uuid' -ga origin uuid \
+        | tsort \
+        | while read img_uuid; do
 
-                        if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
-                            bail=false
-                            break;
-                        fi
-                else
-                        bail=false
-                        break;
-                fi
-                retries=`expr $retries + 1`;
-            done
-            if [[ ${bail} == "true" ]]; then
-                fatal "Unable to import image file ${file}" \
-                    " after ${retries} tries."
-            fi
-        done
-    fi
-
-    for manifest in $(ls -1 ${USB_COPY}/datasets/*.imgmanifest); do
-        local is_smartdc_service
-        is_smartdc_service=$(cat $manifest | json tags.smartdc_service)
-        if [[ "$is_smartdc_service" != "true" ]]; then
-            # /usbkey/datasets often has non-core images. Don't import those
-            # here. This includes any additional datasets included in
-            # build.spec#datasets.
-            continue
-        fi
-        local uuid
-        uuid=$(cat ${manifest} | json uuid)
+        img_manifest=/usbkey/images/$img_uuid.imgmanifest
+        img_file=/usbkey/images/$img_uuid.imgfile
 
         # We'll retry up to 3 times on errors reaching IMGAPI.
         local ok=false
         local retries=0
         while [[ ${ok} == "false" && ${retries} -lt 3 ]]; do
             local status
-            status=$(/opt/smartdc/bin/sdc-imgapi /images/${uuid} \
+            status=$(/opt/smartdc/bin/sdc-imgapi /images/${img_uuid} \
                 | head -1 | awk '{print $2}')
             if [[ "${status}" == "404" ]]; then
-                # The core images all have .zfs.imgmanifest extensions.
+                echo "Importing Triton image ${img_uuid} into IMGAPI:"
+                echo "    manifest: ${img_manifest}"
+                echo "    file:     ${img_file}"
 
-                local file_basename
-                file_basename=$(echo "${manifest}" \
-                    | sed -e "s/\.zfs\.imgmanifest$//" \
-                        -e "s/\.dsmanifest$//" -e "s/\.imgmanifest$//")
-                local file
-                file=$(ls -1 ${file_basename}.zfs+(.bz2|.gz) | head -1)
-
-                if [[ -z ${file} ]]; then
-                    # BASHSTYLED
-                    fatal "Unable to find file for ${manifest} in: $(ls -l /usbkey/datasets)"
-                fi
-
-                # BASHSTYLED
-                echo "Importing SDC service image ${uuid} (${manifest}, ${file}) into IMGAPI."
-                [[ -f ${file} ]] || fatal "Image file ${file} not found."
                 # Skip the check that "owner" exists in UFDS during setup
                 # b/c if this is not the DC with the UFDS master, then the
                 # admin user will not have been replicated yet.
@@ -939,8 +871,8 @@ function import_smartdc_service_images {
                 # We have to retry the sdc-imgadm command here as well.
                 while [[ ${imgadm_retries} -lt 6 ]]; do
                     if ! err=$(/opt/smartdc/bin/sdc-imgadm \
-                        import --skip-owner-check -m ${manifest} -f ${file} \
-                        2>&1 | awk '{print $3;}'); then
+                        import --skip-owner-check -m ${img_manifest} \
+                        -f ${img_file} 2>&1 | awk '{print $3;}'); then
                             if [[ ${err} == "(ImageUuidAlreadyExists):" ]]; then
                                 bail=false
                                 break;
@@ -952,21 +884,21 @@ function import_smartdc_service_images {
                     fi
                 done
                 if [[ ${bail} == "true" ]]; then
-                    fatal "Unable to import image file ${file}" \
+                    fatal "Unable to import image file ${img_file}" \
                         " after ${retries} tries."
                 fi
                 ok=true
             elif [[ "${status}" == "200" ]]; then
                 # exists
-            # BASHSTYLED
-                echo "Skipping import of SDC service image ${uuid}: already in IMGAPI."
+                echo "Skipping import of Triton image ${img_uuid}: " \
+                    "already in IMGAPI."
                 ok=true
             else
                 retries=$((${retries} + 1))
             fi
         done
         if [[ ${ok} != "true" ]]; then
-            fatal "Unable to import image ${uuid} after ${retries} tries."
+            fatal "Unable to import image ${img_uuid} after ${retries} tries."
         fi
     done
 }

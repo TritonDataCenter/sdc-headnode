@@ -6,8 +6,14 @@
 #
 
 #
-# Copyright 2017 Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
+
+if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
 
 ROOT=$(cd $(dirname $0)/../; pwd)
 
@@ -374,36 +380,6 @@ function cleanup_logs
     fi
 }
 
-function cleanup_bit
-{
-    local bits_pattern="^$1"
-
-    local bits_dir="${ROOT}/cache"
-    local kept=0
-    local keep_bits=
-    keep_bits=$(build_spec keep-bits)
-
-    if [[ -n ${keep_bits} && ${keep_bits} -gt 0 ]]; then
-        [[ -n ${TRACE} ]] \
-            && echo "CLEANUP_BIT CALLED FOR: '${bits_pattern}'" >&2
-
-        local bit=
-        for bit in $(ls -1t ${bits_dir} | grep "${bits_pattern}"); do
-            if [[ ! -f ${bits_dir}/${bit} ]]; then
-                # skip non-file
-                continue;
-            fi
-            if [[ ${kept} -lt ${keep_bits} ]]; then
-                [[ -n ${TRACE} ]] && echo "KEEPING: ${bit}" >&2
-                kept=$((${kept} + 1))
-            else
-                echo "DELETING: ${bit}" >&2
-                rm ${bits_dir}/${bit} >&2
-            fi
-        done
-    fi
-}
-
 function get_bit
 {
     local name
@@ -555,66 +531,32 @@ function test_bzip2
     fi
 }
 
-function copy_datasets
+#
+# Test the given compressed file.
+# Usage:
+#   test_compression FILE-PATH COMPRESSION-TYPE
+# where COMPRESSION-TYPE is one of 'bzip2', 'gzip', or none per
+# <https://images.joyent.com/docs/#manifest-files>.
+#
+function test_compression
 {
-    local dataset
-    local name
-    local version
-    local file_image
-    local comp_ext
-    local target_name
-    local target_vers
-    local target_base
-
-    mkdir -p "${STAGE}/datasets"
-    mkdir -p "${ROOT}/datasets"
-
-    DATASET_LIST=$(${BUILDSPEC} -a images)
-
-    for name in ${DATASET_LIST}; do
-        printf '==> Copying dataset "%s" to "datasets/"\n' "${name}"
-
-        #
-        # Locate image manifest file:
-        #
-        file_manifest="$(get_bit "image.${name}.imgmanifest")"
-
-        #
-        # Locate compressed image stream file:
-        #
-        comp_ext=
-        file_image="${CACHE}/image.${name}.zfs"
-        if [[ -f "${file_image}.gz" ]]; then
-            comp_ext='gz'
-            file_image="${CACHE}/$(readlink "${file_image}.${comp_ext}")"
-            file_image="$(get_bit "image.${name}.zfs.${comp_ext}")"
-            test_gzip "${file_image}"
-        elif [[ -f "${file_image}.bz2" ]]; then
-            comp_ext='bz2'
-            file_image="$(get_bit "image.${name}.zfs.${comp_ext}")"
-            test_bzip2 "${file_image}"
-        else
-            fatal "Could not find dataset image file!"
-        fi
-
-        #
-        # Copy files:
-        #
-        target_name=$(${BUILDSPEC} "images|${name}|name")
-        target_version=$(${BUILDSPEC} "images|${name}|version")
-        target_base="${target_name}-${target_version}"
-
-        printf '  ==> copy "%s"\n' "${target_base}.imgmanifest"
-        ln "${file_manifest}" "${STAGE}/datasets/${target_base}.imgmanifest"
-
-        printf '  ==> copy "%s"\n' "${target_base}.zfs.${comp_ext}"
-        ln "${file_image}" "${STAGE}/datasets/${target_base}.zfs.${comp_ext}"
-
-        #
-        # Write metadata:
-        #
-        echo "${target_base}" >> "${STAGE}/datasets/img_dependencies"
-    done
+    if [[ -z ${NO_COMPRESS_CHECK} ]]; then
+        case "${2}" in
+        gzip)
+            printf '  ==> test gzip compression "%s"\n' "$(basename "${1}")"
+            gzip -t "${1}" || fatal "gzip file ${1} is corrupt; aborting"
+            ;;
+        bzip2)
+            printf '  ==> test bzip2 compression "%s"\n' "$(basename "${1}")"
+            bzip2 -t "${1}" || fatal "bzip2 file ${1} is corrupt; aborting"
+            ;;
+        none)
+            ;;
+        *)
+            fatal "invalid compression type: '$2'"
+            ;;
+        esac
+    fi
 }
 
 function copy_core_zone_image
@@ -622,23 +564,54 @@ function copy_core_zone_image
     local name=$1
     local file_manifest
     local file_image
-    local x
     local service
     local image_uuid
+    local origin_uuid
+    local origin_manifest
+    local origin_file
+
+    mkdir -p "${STAGE}/images"
 
     #
     # Locate image manifest and compressed stream file:
     #
     file_manifest="$(get_bit "zone.${name}.imgmanifest")"
-    file_image="$(get_bit "zone.${name}.zfs.gz")"
+    file_image="$(get_bit "zone.${name}.imgfile")"
     test_gzip "${file_image}"
+    image_uuid="$(${JSON} -f "${file_manifest}" uuid)"
 
     #
     # Copy files:
     #
-    for x in ${file_manifest} ${file_image}; do
-        printf '  ==> copy "%s"\n' "$(basename "${x}")"
-        ln "${x}" "${STAGE}/datasets/$(basename "${x}")"
+    echo "  ==> copy 'images/${image_uuid}.imgmanifest'"
+    ln "${file_manifest}" "${STAGE}/images/${image_uuid}.imgmanifest"
+    echo "  ==> copy 'images/${image_uuid}.imgfile'"
+    ln "${file_image}" "${STAGE}/images/${image_uuid}.imgfile"
+
+    #
+    # Copy image ancestry (origin images):
+    #
+    origin_uuid="$(${JSON} -f "${file_manifest}" origin)"
+    while true; do
+        if [[ -z "${origin_uuid}" ]]; then
+            break
+        fi
+        if [[ -f "${STAGE}/images/${origin_uuid}.imgmanifest" ]]; then
+            # Already have it in "images/".
+            break
+        fi
+
+        origin_manifest="$(get_bit "image.${origin_uuid}.imgmanifest")"
+        origin_file="$(get_bit "image.${origin_uuid}.imgfile")"
+        test_compression "${origin_file}" \
+            "$(${JSON} -f "${origin_manifest}" files.0.compression)"
+
+        echo "  ==> copy origin 'images/${origin_uuid}.imgmanifest'"
+        ln "${origin_manifest}" "${STAGE}/images/${origin_uuid}.imgmanifest"
+        echo "  ==> copy origin 'images/${origin_uuid}.imgfile'"
+        ln "${origin_file}" "${STAGE}/images/${origin_uuid}.imgfile"
+
+        origin_uuid="$(${JSON} -f "${origin_manifest}" origin)"
     done
 
     #
@@ -655,18 +628,17 @@ function copy_core_zone_image
     #
     service="${STAGE}/services/${name}/service.json"
     if [[ -f ${service} ]]; then
-        image_uuid="$(${JSON} -f "${file_manifest}" uuid)"
         sed -i'.tmp' -e "s|IMAGE_UUID|${image_uuid}|" "${service}"
         rm -f "${service}.tmp"
     fi
+
     #
-    # The full dataset name is written to this file so that headnode
+    # The image uuid is written to this file so that headnode
     # setup may locate it.  The USB key filesystem is mounted for
-    # setup using pcfs(7FS) with the "foldcase" option, so the filename
-    # is written here in lowercase.  (See also: mount_pcfs(1M)).
+    # setup using pcfs(7FS) with the "foldcase" option, so beware that the
+    # filename must be lowercase. (See also: mount_pcfs(1M)).
     #
-    echo $(basename "${file_manifest}") | tr '[:upper:]' '[:lower:]' \
-      > "${STAGE}/zones/${name}/dataset"
+    echo "${image_uuid}" > "${STAGE}/zones/${name}/image"
 }
 
 function copy_zones
@@ -677,11 +649,10 @@ function copy_zones
 
     zone_list="$(${BUILDSPEC} -a zones)"
 
-    mkdir -p "${STAGE}/datasets"
     mkdir -p "${STAGE}/zones"
 
     for zone in ${zone_list}; do
-        printf '==> Copying zone "%s" to "zones/"\n' "${zone}"
+        echo "==> Copying zone '${zone}'"
 
         #
         # We use the "-L" flag to copy to ensure that the _target_
@@ -748,7 +719,6 @@ copy_platform
 copy_sdcadm
 copy_agentsshar
 copy_sapi_config
-copy_datasets
 copy_zones
 copy_tools
 copy_config
