@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 #
@@ -34,4 +34,12 @@ if [[ -z "${sdc_zone}" ]]; then
     echo "error: $(basename $0): unable to find a 'sdc' core zone on this node" >&2
     exit 1
 fi
-exec /zones/$sdc_zone/root/opt/smartdc/sdc/bin/$(basename $0) "$@"
+
+EXECUTABLE="/zones/${sdc_zone}/root/opt/smartdc/sdc/bin/$(basename $0)"
+
+if [[ ! -x ${EXECUTABLE} ]]; then
+    echo "error: $(basename $0) executable not found in sdc zone" >&2
+    exit 2
+fi
+
+exec ${EXECUTABLE} "$@"
