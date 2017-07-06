@@ -35,9 +35,11 @@ if [[ -z "${sdc_zone}" ]]; then
     exit 1
 fi
 
-if [[ ! -x /zones/${sdc_zone}/root/opt/smartdc/sdc/bin/$(basename $0) ]]; then
+EXECUTABLE="/zones/${sdc_zone}/root/opt/smartdc/sdc/bin/$(basename $0)"
+
+if [[ ! -x ${EXECUTABLE} ]]; then
     echo "error: $(basename $0) executable not found in sdc zone" >&2
     exit 2
 fi
 
-exec /zones/$sdc_zone/root/opt/smartdc/sdc/bin/$(basename $0) "$@"
+exec ${EXECUTABLE} "$@"
