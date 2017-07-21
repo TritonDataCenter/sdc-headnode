@@ -345,8 +345,9 @@ function create_output
     coal_zpool_disk_size=$(build_spec coal-zpool-disk-size)
     # BEGIN BASHSTYLED
     if [[ -n ${coal_zpool_disk_size} ]]; then
-        if [[ -x "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskmanager" ]]; then
-            /Applications/VMware\ Fusion.app/Contents/Library/vmware-vdiskmanager \
+        vdiskmanager=$(which vmware-vdiskmanager || echo "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskmanager")
+        if [[ -x "${vdiskmanager}" ]]; then
+            "${vdiskmanager}" \
                 -x ${coal_zpool_disk_size}GB ${STAGE}/USB-headnode.vmwarevm/zpool.vmdk
         else
             echo " !!! WARNING !!! Cannot resize zpool disk with missing vmware-vdiskmanager!" >&2
