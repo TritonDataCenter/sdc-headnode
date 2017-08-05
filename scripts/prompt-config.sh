@@ -819,7 +819,6 @@ done
 updatenicstates
 
 export TERM=xterm-color
-stty erase ^H
 
 trap sig_doshell SIGINT
 
