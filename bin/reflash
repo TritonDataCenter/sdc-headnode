@@ -6,33 +6,90 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
-#
-
+# Copyright (c) 2017, Joyent, Inc.
 #
 #
-# This tool is for reflashing an existing headnode with a new tar image.
+# This tool is for reflashing an existing headnode with a new tar image. There
+# are 2 basic modes:
 #
+# 1) reflash from Manta (either latest master, or specific release)
+#
+# 2) reflash from a local tar image created with `make tar` at the top-level of
+#    sdc-headnode.
+#
+#
+# ****************************************************************************
 # WARNING: This is a very dangerous tool! Do not point it at a host containing
 # any data you want to keep!
+# ****************************************************************************
 #
 #
 # You can use:
 #
 # ./bin/reflash latest <host> [<identityfile>]
 #
-#    To install the latest master version from your build.spec.* bits-url
+#    To install the latest master version (from Manta)
 #
 # ./bin/reflash release-XXXXX <host> [<identityfile>]
 #
-#    To install the latest release-XXXXX version from your build.spec.*
-#    reflash-proxy-url, will fall back to builds-proxy-url if not set
+#    To install the latest release-XXXXX version (from Manta)
+#
+# ./bin/reflash /path/to/local.tgz <host> [<identityfile>]
+#
+#    To install from a tarball that exists locally.
+#
+# In any case where a local tarball is not specified, the manta credentials from
+# build.spec.* are used.
+#
+#
+# The overall process looks like:
+#
+#  1) Ensure remote host has enough space, and we can login w/ SSH
+#
+#  2) Determine whether version or path specified
+#
+#  3) Get the MD5 of the tarball (from Manta or local)
+#
+#  4) Get the tarball onto the remote host
+#     a) if path:
+#         * scp file to remote host
+#     b) if version:
+#         * find latest image in Manta matching version
+#         * msign the image from manta
+#         * ssh to remote host and use curl to download file
+#
+#  5) Check MD5 of tarball on remote host, if doesn't match or download failed
+#     retry by going back to previous step up to 3 times.
+#
+#  6) Mount the USB Key, backup some files (answers.json, root_authorized_keys,
+#     devtools directory) then umount the USB Key.
+#
+#  7) Write over the existing USB Key (using dd)
+#
+#  8) Mount the new USB Key
+#
+#  9) Copy back backed up files
+#
+#  10) Do basic sanity checks (ensure we have grub and a platform)
+#
+#  11) Start a "factory reset", and reboot
+#
+#  12) Proclaim Success
+#
+# If there are any unexpected errors, the script will exit without continuing.
+# It tries to be idempotent so that you should be able to re-run after any
+# failure to try again after determining what went wrong.
 #
 
-DEBUG=0
 
-# need at least this much space to download the image and do a reflash
-MIN_TMP_FREE=3200
+DOWNLOAD_RETRIES=3
+MIN_TMP_FREE=3200 # need at least this much space to download image and reflash
+ROOT=$(cd $(dirname $0)/../; pwd)
+SIGN_MINUTES=30 # minutes to msign Manta URLs for downloading
+SSH_COMMON_OPTS="-o StrictHostKeyChecking=no"
+SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o UserKnownHostsFile=/dev/null"
+SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o LogLevel=error"
+SSH_OPTS="-A"
 
 if [[ -n "$TRACE" ]]; then
     # BASHSTYLED
@@ -40,294 +97,100 @@ if [[ -n "$TRACE" ]]; then
     set -o xtrace
 fi
 set -o errexit
-#set -o pipefail
 
 
-ROOT=$(cd $(dirname $0)/../; pwd)
-
-usage()
+add_identity()
 {
-    cat <<EOF
-Usage: $0 [-p <proxy_url>] [-F] <filename|URL> <hostname>
-EOF
-    exit 1
+    local identity_file
+
+    identity_file=$1
+
+    if [[ -n ${identity_file} && -f ${identity_file} ]]; then
+        SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -i $identityfile"
+    fi
 }
 
-if [[ $1 == "-?" ]]; then
-    usage
-fi
-
-args=$(getopt Fh $*)
-if [[ $? != 0 ]]; then
-    usage
-fi
-
-for i in $*; do
-    case $i in
-        -F) LIVE_DANGEROUSLY=1; shift;;
-    esac
-done
-
-filename=$1
-hostname=$2
-identityfile=$3
-bits_url=
-
-if [[ ${DEBUG} == 1 ]]; then
-cat <<EOF
-LIVE_DANGEROUSLY=${LIVE_DANGEROUSLY}
-filename=${filename}
-hostname=${hostname}
-identityfile=${identityfile}
-EOF
-fi
-
-SSH_OPTS="-A -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-if [[ -f "$identityfile" ]]; then
-  SSH_OPTS="${SSH_OPTS} -i $identityfile"
-fi
-
-MD5_SUM=
-if [[ $(uname -s) == "SunOS" ]]; then
-    MD5_CMD="/usr/bin/sum -x md5"
-elif [[ $(uname -s) == "Darwin" ]]; then
-    MD5_CMD="md5 -q"
-else
-    echo "Unsupported platform $(uname -s)" >&2
-    exit 2
-fi
-
-add_bits_creds()
+backup_usb_key()
 {
-    bits_url=$1
+    echo "# backing up usbkey files"
 
-    if [[ -n $(echo "${bits_url}" | grep "@") ]]; then
-        # already have an @, assume password included
-        echo ${bits_url}
-        return;
-    fi
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+        set -o pipefail
 
-    echo "Warning: adding credentials to ${bits_url} from ~/.sdcbuild.json" >&2
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
 
-    username=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json username)
-    password=$(cat ~/.sdcbuild.json | ${ROOT}/bin/json password)
+        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
+            MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
+            if [[ ! -f \${MOUNT_SCRIPT} ]]; then
+                MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
+            fi
 
-    if [[ -n ${username} && -n ${password} ]]; then
-        bits_url=$(echo ${bits_url} \
-                   | sed -e "s/\/\//\/\/${username}:${password}@/g")
-    fi
+            # mount the usb key
+            echo "# mounting USB key..."
+            \${MOUNT_SCRIPT}
+        else
+            echo "# USB key already mounted"
+        fi
 
-    echo ${bits_url}
+        # Keep the answers.json if it exists
+        if [[ -f /mnt/usbkey/private/answers.json ]]; then
+            echo "# saving answers.json..."
+            cp /mnt/usbkey/private/answers.json ${WHICH_TMP}/answers.flashing
+        fi
+
+        # Also keep root.authorized_keys if it exists
+        if [[ -f /mnt/usbkey/config.inc/root.authorized_keys ]]; then
+            echo "# saving root.authorized_keys..."
+            cp /mnt/usbkey/config.inc/root.authorized_keys \
+                ${WHICH_TMP}/root.authorized_keys.flashing
+        fi
+
+        # backup devtools
+        if [[ -d /mnt/usbkey/devtools ]]; then
+            if [[ ! -e ${WHICH_TMP}/devtools.flashing ]]; then
+                echo "# saving devtools..."
+                cp -RP /mnt/usbkey/devtools ${WHICH_TMP}/devtools.flashing
+            else
+                echo "# WARN: skipping backup of devtools," \
+                    "${WHICH_TMP}/devtools.flashing already exists."
+            fi
+        fi
+
+        exit 0
+EOF
 }
 
-get_bits_url()
+check_prerequisites()
 {
-    if [[ -n ${bits_url} ]]; then
-        echo ${bits_url}
-        return 0
-    fi
+    local uname
 
-    spec_bits_url=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "reflash-proxy-url")
-    if [[ -n ${spec_bits_url} ]]; then
-        bits_url=${spec_bits_url}
+    uname=$(uname -s)
+
+    if [[ ${uname} == "SunOS" || ${uname} == "Darwin" ]]; then
+        echo "# detected ${uname}"
     else
-        spec_bits_url=$(echo ${MERGED_SPEC} \
-                        | ${ROOT}/bin/json "builds-proxy-url")
-        if [[ -n ${spec_bits_url} ]]; then
-            bits_url=${spec_bits_url}
-        fi
+        fatal "Unsupported platform ${uname}"
     fi
-
-    if [[ -z ${bits_url} ]]; then
-        echo "Unable to determine bits_url, check that reflash-proxy-url or" \
-            " builds-proxy-url in build.spec.local" >&2
-        exit 2
-    fi
-
-    bits_url=$(add_bits_creds ${bits_url})
-
-    echo ${bits_url}
 }
 
-get_manta_base_path()
+check_user_sanity()
 {
-    if [[ -n ${manta_base_path} ]]; then
-        echo ${manta_base_path}
-        return 0
-    fi
-    # BASHSTYLED
-    manta_base_path=$(echo ${MERGED_SPEC} | ${ROOT}/bin/json "joyent-manta-base-path")
+    local force
+    local i
 
-    if [[ -z ${manta_base_path} ]]; then
-        echo "Unable to find manta_base_path, check that " \
-            "joyent-manta-base-path is set in your build.spec or " \
-            "build.spec.local" >&2
-        exit 2
-    fi
+    force=$1
 
-    echo ${manta_base_path}
-}
-
-get_latest()
-{
-    release=$1
-    bits_url=$(get_bits_url)
-    mbase=$(get_manta_base_path)
-
-    suffix=
-
-    [[ -z ${release} ]] && release="master"
-    if [[ ${release} == "-debug" ]]; then
-        release="master"
-        suffix="-debug"
-    fi
-
-    if [[ $(echo ${release} | tr -d [0-9]) == "release-" ]]; then
-        dir=$(curl -f -s -k \
-            ${bits_url}/${mbase}/headnode-joyent/${release}-latest \
-            | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -s -k \
-            ${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/ \
-            | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
-
-        if [[ -n ${file} ]]; then
-            echo "${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/${file}"
-        fi
-    else
-        dir=$(curl -f -sS -k \
-            ${bits_url}/${mbase}/headnode-joyent${suffix}/${release}-latest \
-            | sed -e "s|^.*/stor/builds/||")
-        file=$(curl -f -sS -k \
-            ${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/ \
-            | grep "href" | cut -d '"' -f2 | grep "^usb-" | grep ".tgz$")
-        if [[ -n ${file} ]]; then
-            echo "${bits_url}/${mbase}/${dir}/headnode-joyent${suffix}/${file}"
-        fi
-    fi
-}
-
-get_md5()
-{
-    release=$1
-    file=$2
-    url=$(dirname $3)
-    bits_url=$(get_bits_url)
-
-    md5=$(curl -f -s -k ${url}/../md5sums.txt | grep "${file}" | cut -d ' ' -f1)
-
-    if [[ -z ${md5} ]]; then
-        echo "Unable to find MD5 in ${url}/md5sums.txt" >&2
-        exit 2
-    fi
-
-    echo "${md5}"
-}
-
-if [[ -z ${filename} || -z ${hostname} || -n $4 ]]; then
-    usage
-fi
-
-if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
-    ${ROOT}/build.spec.local)
-elif [[ -f "${ROOT}/build.spec" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec)
-elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
-fi
-
-# BASHSTYLED
-echo "NOTE: If you're prompted for Password:, you need the current root password of ${hostname}"
-
-echo "Attempting to set SSH keys"
-ssh $SSH_OPTS -T root@${hostname} <<EOF
-if [[ ! -f /root/.ssh/authorized_keys ]]; then
-    mkdir -p /root/.ssh
-    ssh-add -L > /root/.ssh/authorized_keys
-    chmod 700 /root/.ssh
-    chmod 600 /root/.ssh/authorized_keys
-fi
-EOF
-
-MISSING_POOL=
-# BASHSTYLED
-if [[ $(ssh $SSH_OPTS root@${hostname} "zpool list") == "no pools available" ]]; then
-    echo "No pool on remote host, applying countermeasures."
-    MISSING_POOL="true"
-fi
-
-# If we have no pool, use /tmp instead of /var/tmp because /var/tmp will
-# be in the ramdisk and /tmp should be bigger.
-WHICH_TMP="/var/tmp"
-if [[ -n ${MISSING_POOL} ]]; then
-    WHICH_TMP="/tmp"
-fi
-
-TMP_FREE=$(ssh ${SSH_OPTS} root@${hostname} \
-    "echo \$((\$(df -b ${WHICH_TMP} | tail -1 | awk '{ print \$2 }') / 1000))")
-if [[ -z ${TMP_FREE} ]]; then
-    echo "Unable to find free space in ${WHICH_TMP} on ${hostname}" >&2
-    exit 1
-fi
-if [[ ${TMP_FREE} -lt ${MIN_TMP_FREE} ]]; then
-    # BASHSTYLED
-    echo "Not enough space in ${WHICH_TMP} to start reflash, you must fix before continuing." >&2
-    echo "Have: ${TMP_FREE} Need: ${MIN_TMP_FREE}"
-    exit 1
-fi
-
-URL=
-FILENAME=
-if [[ ${filename} == "latest" ]]; then
-    echo "Finding latest headnode-joyent build..."
-    URL=$(get_latest)
-    if [[ -z ${URL} ]]; then
-        echo "Failed to find latest from ${URL}!" >&2
-        exit 1
-    fi
-    FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "latest" "${FILENAME}" "${URL}")
-    echo "Latest is ${URL}..."
-elif [[ ${filename} == "latest-debug" ]]; then
-    echo "Finding latest headnode-joyent-debug build..."
-    URL=$(get_latest -debug)
-    if [[ -z ${URL} ]]; then
-        echo "Failed to find latest from ${URL}!" >&2
-        exit 1
-    fi
-    FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "latest-debug" "${FILENAME}" "${URL}")
-    echo "Latest (debug) is ${URL}..."
-elif [[ $(echo ${filename} | tr -d [0-9]) == "release-" ]]; then
-    echo "Finding latest ${filename} headnode-joyent build..."
-    URL=$(get_latest ${filename})
-    if [[ -z ${URL} ]]; then
-        echo "Failed to find latest ${filename} from ${URL}!" >&2
-        exit 1
-    fi
-    FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 "${filename}" "${FILENAME}" "${URL}")
-    echo "Latest ${filename} is ${URL}..."
-elif [[ "${filename:0:4}" == "http" ]]; then
-    URL=$(add_bits_creds ${filename})
-    echo "Using URL ${URL}..."
-    FILENAME=$(basename ${URL})
-    MD5_SUM=$(get_md5 $(basename ${URL}) $(basename ${URL}) ${URL})
-elif [[ ! -f ${filename} ]]; then
-    usage
-else
-    echo "Attempting upload..."
-    scp ${filename} root@${hostname}:${WHICH_TMP}
-    FILENAME=$(basename ${filename})
-    MD5_SUM=$(${MD5_CMD} ${filename} | cut -d ' ' -f1)
-fi
-
-if [[ -z ${LIVE_DANGEROUSLY} ]]; then
-cat <<EOF
+    if [[ ${force} != "1" ]]; then
+        cat <<EOF
 
  *** WARNING ***
 
-This is about to attempt flash the machine '${hostname}' without any further
+This is about to attempt flash the machine '${REMOTE_HOST}' without any further
 confirmation if this is not what you want to do:
 
  PRESS CTRL-C NOW!
@@ -339,211 +202,623 @@ customer data!
 
 EOF
 
-for i in {9..1}; do
-    printf "Starting flash in %d seconds...   \r" ${i}
-    sleep 1
-done
+        for i in {9..1}; do
+            printf "Starting flash in %d seconds...   \r" ${i}
+            sleep 1
+        done
 
-echo "Continuing!                                "
-fi
+        echo "Continuing!                                "
+    else
+        echo "# WARN: skipping sanity pause as -F was provided"
+    fi
+}
 
-set +o errexit
-# BEGIN BASHSTYLED
-ssh $SSH_OPTS -T root@${hostname} <<EOF
-set -o errexit
-if [[ -n "${TRACE}" ]]; then
-    set -o xtrace
-fi
+download_attempt_to_remote()
+{
+    local download_target
+    local remote_md5
 
-# Turn on DNS since we might need it
-echo "Enabling DNS..."
-sed -i "" "s/^hosts:.*/hosts:      files mdns dns/" /etc/nsswitch.conf
+    download_target="${WHICH_TMP}/usb-headnode-$$.tgz"
 
-# XXX this is a hack to figure out if we're in the bh1 lab (assume we are if
-# the IP is 10.2.X.X) so that we can switch the stuff/bits url to an IP
-# because the URL doesn't work in the lab.
-URL="${URL}"
+    echo "# attempting to download to ${download_target}"
 
-done=0
-retries=3
-while [[ \${done} == 0 && \${retries} -gt 0 ]]; do
+    if [[ -n ${SOURCE_UPLOAD_FILE} ]]; then
+        # we've got a local file, try to just scp it
+        send_local_file "${SOURCE_UPLOAD_FILE}" "${download_target}"
+    else
+        # we've got a manta file, msign it then curl
+        remote_download_manta "${SOURCE_MANTA_FILE}" "${download_target}"
+    fi
 
-    # Make sure we've got our file
-    if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
-        echo "Downloading \${URL}"
-        curl -k -o ${WHICH_TMP}/${FILENAME} \${URL}
-        if [[ ! -f "${WHICH_TMP}/${FILENAME}" ]]; then
-            echo "FAILED to download image." >&2
+    # now check whether MD5 matches ${SOURCE_MD5}
+    remote_md5=$(get_remote_md5 "${download_target}")
+
+    if [[ "${remote_md5}" != "${SOURCE_MD5}" ]]; then
+        echo "# WARN: MD5 mismatch '${remote_md5}' != '${SOURCE_MD5}'"
+        return 1
+    fi
+
+    return 0
+}
+
+download_to_remote()
+{
+    local download_complete
+    local retries_remaining
+
+    download_complete=0
+    retries_remaining=$((${DOWNLOAD_RETRIES} + 1))
+
+    while [[ ${retries_remaining} -gt 0 && ${download_complete} -eq 0 ]]; do
+        retries_remaining=$((${retries_remaining} - 1))
+        if download_attempt_to_remote; then
+            download_complete=1
+        else
+            echo "# WARN: failed download, retries remaining:" \
+                "${retries_remaining}"
+        fi
+    done
+
+    [[ retries_remaining -gt 0 ]] \
+        || fatal "Unable to download after ${DOWNLOAD_RETRIES} attempts"
+}
+
+ensure_manta_tools()
+{
+    local my_tool
+
+    for my_tool in mget mls mmd5 msign; do
+        [[ -n $(which ${my_tool}) ]] \
+            || fatal "Missing ${my_tool} in PATH. (hint: npm install manta -g)"
+    done
+
+    # Set the MANTA_* vars from the build.spec.*
+    MANTA_USER=$(get_build_spec_var "manta-user")
+    MANTA_URL=$(get_build_spec_var "manta-url")
+    MANTA_KEY_ID=$(get_build_spec_var "manta-key-id")
+
+    [[ -n ${MANTA_USER} ]] || fatal "build.spec.* missing 'manta-user'"
+    [[ -n ${MANTA_URL} ]] || fatal "build.spec.* missing 'manta-url'"
+    [[ -n ${MANTA_KEY_ID} ]] || fatal "build.spec.* missing 'manta-key-id'"
+
+    export MANTA_USER MANTA_URL MANTA_KEY_ID
+}
+
+fatal()
+{
+    echo "FATAL: $*" >&2
+    exit 2
+}
+
+get_build_spec_var()
+{
+    local key
+
+    key=$1
+
+    result=$(${ROOT}/bin/json "${key}" <<<${MERGED_SPEC})
+
+    echo "${result}"
+}
+
+get_local_md5()
+{
+    local filename
+    local md5
+
+    filename=$1
+
+    md5=$(openssl dgst -md5 ${filename} | cut -d' ' -f2)
+
+    [[ -n ${md5} ]] || fatal "Unable to determine MD5 of ${filename}"
+
+    echo "${md5}"
+}
+
+get_manta_base_path()
+{
+    local manta_base_path
+
+    manta_base_path=$(get_build_spec_var "joyent-manta-base-path")
+
+    if [[ -z ${manta_base_path} ]]; then
+        fatal "Unable to find manta_base_path, check that " \
+            "joyent-manta-base-path is set in your build.spec or " \
+            "build.spec.local"
+    fi
+
+    echo "${manta_base_path}"
+}
+
+get_manta_latest_release()
+{
+    local latest_dir
+    local release
+    local manta_base
+    local manta_latest_path
+    local manta_subdir
+
+    latest_dir=
+    release=$1
+    manta_base=$(get_manta_base_path)
+    manta_latest_path=
+    manta_subdir="headnode-joyent"
+
+    [[ -n ${release} ]] || release="master"
+    [[ ${release} == "latest" ]] && release="master"
+
+    manta_latest_path="${manta_base}/${manta_subdir}/${release}-latest"
+    latest_dir=$(mget_stdout ${manta_latest_path})
+
+    [[ -n ${latest_dir} ]] \
+        || fatal "Unable to find directory in ${manta_latest_path}"
+
+    latest_filename=$(mls ${latest_dir}/${manta_subdir} | grep "^usb-.*.tgz")
+
+    [[ -n ${latest_filename} ]] \
+        || fatal "Unable to find usb-*.tgz in ${latest_dir}/${manta_subdir}"
+
+    echo "${latest_dir}/${manta_subdir}/${latest_filename}"
+}
+
+get_manta_md5()
+{
+    local manta_file
+    local manta_md5
+
+    local manta_file=$1
+
+    manta_md5=$(mmd5 ${manta_file} | cut -d' ' -f1)
+
+    [[ -n ${manta_md5} ]] \
+        || fatal "Unable to find MD5 for ${manta_file} in Manta"
+
+    echo "${manta_md5}"
+}
+
+get_remote_md5()
+{
+    local remote_filename
+    local remote_md5
+
+    remote_filename=$1
+
+    remote_md5=$(ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} \
+        "openssl dgst -md5 ${remote_filename}" | cut -d' ' -f2)
+
+    [[ -n ${remote_md5} ]] \
+        || fatal "Unable to determine MD5 of ${remote_filename}"
+
+    echo "${remote_md5}"
+}
+
+identify_source()
+{
+    local source_spec
+
+    source_spec=$1
+
+    if [[ -f ${source_spec} ]]; then
+        # source is a local file, record the md5
+        SOURCE_UPLOAD_FILE=${source_spec}
+        SOURCE_MD5=$(get_local_md5 ${source_spec})
+
+        echo "# source ${SOURCE_UPLOAD_FILE} (MD5 ${SOURCE_MD5})"
+    else
+        # from here out we'll need the manta tools, so ensure we've got them
+        ensure_manta_tools
+
+        # source is expected to be a manta target, e.g.:
+        #
+        #  latest
+        #  release-20171231
+        #
+        SOURCE_MANTA_FILE=$(get_manta_latest_release ${source_spec})
+        SOURCE_MD5=$(get_manta_md5 ${SOURCE_MANTA_FILE})
+
+        echo "# source ${SOURCE_MANTA_FILE} (MD5 ${SOURCE_MD5})"
+    fi
+
+}
+
+load_build_spec()
+{
+    MERGED_SPEC=
+
+    if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
+        MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
+        ${ROOT}/build.spec.local)
+    elif [[ -f "${ROOT}/build.spec" ]]; then
+        MERGED_SPEC=$(cat ${ROOT}/build.spec)
+    elif [[ -f "${ROOT}/build.spec.local" ]]; then
+        MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
+    fi
+
+    [[ -n ${MERGED_SPEC} ]] || fatal "Unable to load build.spec.*"
+}
+
+mget_stdout()
+{
+    local manta_path
+
+    manta_path=$1
+
+    mget -q ${manta_path}
+}
+
+msign_manta_file()
+{
+    local manta_file
+    local sign_until
+    local signed_url
+
+    manta_file=$1
+    sign_until=$(($(date +%s) + (60 * ${SIGN_MINUTES})))
+
+    signed_url=$(msign -e ${sign_until} ${manta_file})
+
+    [[ -n ${signed_url} ]] || fatal "Unable to sign Manta URL"
+
+    echo "${signed_url}"
+}
+
+overwrite_usb_key()
+{
+    local download_target
+
+    download_target="${WHICH_TMP}/usb-headnode-$$.tgz"
+
+    echo "# overwriting usbkey"
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+        set -o pipefail
+
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
+
+        # We mounted above, check device now
+        USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 \
+            | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
+
+        if [[ -z \${USB_DEV} ]]; then
+            echo "FATAL: Unable to determine USB device." >&2
+            exit 2
+        else
+            echo "# USB Device is: \${USB_DEV}"
+        fi
+
+        # unmount the key while we dd over it
+        umount -f /mnt/usbkey
+
+        # dd over it, using dirty hack to tell if we can have progress or not
+        # but first, we need to decide if platform is new enough.
+        if strings /usr/bin/dd | grep "bytes transferred"; then
+            # BEGIN BASHSTYLED
+            gtar --wildcards -zOxvf ${download_target} usb-*.img \\
+                | dtrace -q -w -n 'BEGIN {need_info=0;} tick-10s {need_info=1;} syscall:::entry /pid == \$target && need_info == 1/ {raise(SIGINFO); need_info=0;}' \\
+                -c "/usr/bin/dd of=\${USB_DEV} bs=1024k"
+            # END BASHSTYLED
+        else
+            # no progress for you!
+            gtar --wildcards -zOxvf ${download_target} usb-*.img \\
+                | /usr/bin/dd of=\${USB_DEV} bs=1024k
+        fi
+
+        exit 0
+EOF
+}
+
+remote_download_manta()
+{
+    local manta_file
+    local remote_target
+    local signed_url
+
+    manta_file=$1
+    remote_target=$2
+
+    signed_url=$(msign_manta_file "${manta_file}")
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} \
+        "curl -ko ${remote_target} '${signed_url}'"
+}
+
+remote_factory_reset()
+{
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
+
+        # This is what sdc-factoryreset does
+        echo "# performing factory reset..."
+        SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)
+        [[ -n \${SYS_ZPOOL} ]] || SYS_ZPOOL=zones
+        if zfs list zones/var > /dev/null; then
+            zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
+        fi
+
+        # Good to go!
+        echo "Rebooting..."
+        reboot -q &
+
+        exit 0
+EOF
+}
+
+restore_usb_key()
+{
+    echo "# restoring usbkey"
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+        set -o pipefail
+
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
+
+        # mount it again
+        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
+            MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
+            if [[ ! -f \${MOUNT_SCRIPT} ]]; then
+                MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
+            fi
+
+            # mount the usb key
+            echo "# mounting USB key..."
+            \${MOUNT_SCRIPT}
+        else
+            echo "# USB key already mounted"
+        fi
+
+        # move new devtools out of way so we can drop in old first
+        if [[ -d /mnt/usbkey/devtools ]]; then
+            mv /mnt/usbkey/devtools /mnt/usbkey/devtools.new
+        fi
+
+        # copy devtools back (we'll unpack new ones over old ones but keep
+        # custom ones)
+        if [[ -d ${WHICH_TMP}/devtools.flashing ]]; then
+            cp -RP ${WHICH_TMP}/devtools.flashing /mnt/usbkey/devtools
+        fi
+
+        # write over devtools with old ones
+        if [[ ! -d /mnt/usbkey/devtools ]]; then
+            mkdir /mnt/usbkey/devtools
+        fi
+
+        if [[ -d /mnt/usbkey/devtools.new ]]; then
+            (cd /mnt/usbkey/devtools.new && tar -cpf - ./) \
+                | (cd /mnt/usbkey/devtools && tar -xf -)
+            rm -rf /mnt/usbkey/devtools.new
+        fi
+
+        # Restore the answers.json if we had one.
+        if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
+            echo "# restoring answers.json..."
+            mkdir -p /mnt/usbkey/private
+            cp ${WHICH_TMP}/answers.flashing /mnt/usbkey/private/answers.json
+        fi
+
+        # Restore root.authorized_keys if we had one
+        if [[ -f ${WHICH_TMP}/root.authorized_keys.flashing ]]; then
+            echo "# restoring root.authorized_keys..."
+            cp ${WHICH_TMP}/root.authorized_keys.flashing \
+                /mnt/usbkey/config.inc/root.authorized_keys
+        fi
+
+        exit 0
+EOF
+
+}
+
+sanity_check_usb()
+{
+    echo "# sanity checking USB key"
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
+
+        # Ensure we've got a platform + grub
+        if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+            echo "Missing grub menu.lst, bailing" >&2
             exit 1
         fi
-    fi
-
-    # Check MD5 of image
-    if [[ -n "${MD5_SUM}" ]]; then
-        MD5=\$(/usr/bin/sum -x md5 ${WHICH_TMP}/${FILENAME} | cut -d ' ' -f1)
-        if [[ \${MD5} != "${MD5_SUM}" ]]; then
-            echo "MD5 does not match, deleting..." >&2
-            rm ${WHICH_TMP}/${FILENAME}
-        else
-            done=1
+        if [[ -z \$(find /mnt/usbkey/os/ -name "boot_archive") ]]; then
+            echo "Missing boot_archive, bailing" >&2
+            exit 1
         fi
+
+        # Set default menu item to boot to 1 so we can boot unattended (we know
+        # this is a HN since we're reflashing, so don't boot the Compute Node
+        # image)
+        sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
+            > /mnt/usbkey/boot/grub/menu.lst.new \
+            && mv /mnt/usbkey/boot/grub/menu.lst.new \
+                /mnt/usbkey/boot/grub/menu.lst
+
+        exit 0
+EOF
+
+    # ensure grub + platform
+    echo "restore_usb_key"
+}
+
+send_local_file()
+{
+    local local_file
+    local remote_file
+
+    local_file=$1
+    remote_file=$2
+
+    scp ${SSH_COMMON_OPTS} ${local_file} root@${REMOTE_HOST}:${remote_file}
+}
+
+setup_remote()
+{
+    local tmp_free
+
+    echo "NOTE: If you're prompted for 'Password:', you need the current root" \
+        "password of ${REMOTE_HOST}"
+
+    echo "# attempting to set SSH keys"
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} <<EOF
+        set -o errexit
+
+        if [[ -n "$TRACE" ]]; then
+            # BASHSTYLED
+            export PS4='[\D{%FT%TZ}] \${BASH_SOURCE}:\${LINENO}: \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+            set -o xtrace
+        fi
+
+        if [[ ! -f /root/.ssh/authorized_keys ]]; then
+            mkdir -p /root/.ssh
+        fi
+
+        ssh-add -L > /root/.ssh/authorized_keys
+        chmod 700 /root/.ssh
+        chmod 600 /root/.ssh/authorized_keys
+
+        exit 0
+EOF
+
+    WHICH_TMP="/var/tmp"
+    if [[ $(ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} \
+        root@${REMOTE_HOST} "zpool list") == "no pools available" ]]; then
+
+        echo "# WARN: no pool on remote host, using /tmp instead of /var/tmp"
+        WHICH_TMP="/tmp"
     fi
 
-    if [[ \${done} == 0 ]]; then
-        echo "Trying again in 2 seconds." >&2
-        sleep 2
-        retries=\$((\${retries} - 1))
+    tmp_free=$(ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} root@${REMOTE_HOST} \
+        "echo \$((\$(df -b ${WHICH_TMP} | tail -1 \
+            | awk '{ print \$2 }') / 1000))")
+
+    if [[ -z ${tmp_free} ]]; then
+        fatal "Unable to determine free space in ${WHICH_TMP} on ${REMOTE_HOST}"
     fi
+
+    if [[ ${tmp_free} -lt ${MIN_TMP_FREE} ]]; then
+        echo "Not enough space in ${WHICH_TMP} to start reflash, you must fix" \
+            " before continuing." >&2
+        fatal "have ${tmp_free} MB, need ${MIN_TMP_FREE} MB"
+    fi
+}
+
+usage()
+{
+    local msg
+
+    msg=$1
+
+    if [[ -n $1 ]]; then
+        echo "FATAL: $*" >&2
+    fi
+
+    cat >&2 <<EOF
+Usage: $0 [options] <path|version> <hostname> [<identityfile>]
+
+Options:
+
+    -F
+
+        Force reflash without prompt. Use at your own risk!
+
+EOF
+    exit 1
+}
+
+warn_remote_users() {
+    # let everyone who might be logged in know
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} root@${REMOTE_HOST} \
+        "echo \$(hostname)/\$(sysinfo | json UUID) 'is being reimaged!" \
+        "ALL YOUR DATA ARE BELONG TO /dev/null.' | wall"
+}
+
+
+# Coordinator
+
+do_reflash()
+{
+    local source_spec
+    local hostname
+    local identity_file
+    local force
+
+    source_spec=$1
+    hostname=$2
+    identity_file=$3
+    force=$4
+
+    REMOTE_HOST=${hostname}
+
+    check_user_sanity "${force}"
+    check_prerequisites
+    load_build_spec
+    add_identity "${identity_file}"
+    setup_remote
+    identify_source "${source_spec}"
+    download_to_remote
+    warn_remote_users
+    backup_usb_key
+    overwrite_usb_key
+    restore_usb_key
+    sanity_check_usb
+    remote_factory_reset
+
+    echo "Success at $(date '+%Y-%m-%dT%H:%M:%SZ')! '${hostname}'" \
+        "should be running through setup shortly!"
+}
+
+
+# Main
+
+if [[ $1 == "-?" ]]; then
+    usage
+fi
+
+args=$(getopt FhM $*)
+if [[ $? != 0 ]]; then
+    usage
+fi
+
+LIVE_DANGEROUSLY=0
+for i in $*; do
+    case $i in
+        -F) LIVE_DANGEROUSLY=1; shift;;
+    esac
 done
 
-if [[ \${done} != 1 ]]; then
-    echo "Unable to get ${FILENAME}." >&2
-    exit 1
+if [[ ${DEBUG} == 1 ]]; then
+cat <<EOF
+force=${LIVE_DANGEROUSLY}
+hostname=$2
+identity_file=$3
+source_spec=$1
+EOF
 fi
 
-# let everyone who might be logged in know
-echo \$(hostname)/\$(sysinfo | json UUID) 'is being reimaged! ALL YOUR DATA ARE BELONG TO /dev/null.' \
-    | wall
+[[ -n $1 ]] || usage "<path|version> argument is required"
+[[ -n $2 ]] || usage "<hostname> argument is required"
 
-MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
-if [[ ! -f \${MOUNT_SCRIPT} ]]; then
-    MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
-fi
-
-# mount the usb key
-echo "Mounting USB key..."
-\${MOUNT_SCRIPT}
-
-# Move these first so we only restore if they existed to start with
-# keep them though in case there is a reflash failure.
-timestamp=\$(TZ=UTC date "+%Y%m%dT%H%M%SZ")
-mv ${WHICH_TMP}/root.authorized_keys.flashing ${WHICH_TMP}/root.authorized_keys.\${timestamp} \
-    || /bin/true
-mv ${WHICH_TMP}/answers.flashing ${WHICH_TMP}/answers.\${timestamp} || /bin/true
-mv ${WHICH_TMP}/devtools.flashing ${WHICH_TMP}/devtools.\${timestamp} || /bin/true
-
-# Keep the answers.json if it exists
-if [[ -f /mnt/usbkey/private/answers.json ]]; then
-    echo "Saving answers.json..."
-    cp /mnt/usbkey/private/answers.json ${WHICH_TMP}/answers.flashing
-fi
-
-# Also keep root.authorized_keys if it exists
-if [[ -f /mnt/usbkey/config.inc/root.authorized_keys ]]; then
-    echo "Saving root.authorized_keys..."
-    cp /mnt/usbkey/config.inc/root.authorized_keys \
-        ${WHICH_TMP}/root.authorized_keys.flashing
-fi
-
-# backup devtools
-if [[ -d /mnt/usbkey/devtools ]]; then
-     cp -RP /mnt/usbkey/devtools ${WHICH_TMP}/devtools.flashing
-fi
-
-set -o xtrace
-# We mounted above, check device now
-USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
-if [[ -z \${USB_DEV} ]]; then
-    echo "Unable to determine USB device."
-    exit 2
-else
-    echo "USB Device is: \${USB_DEV}"
-fi
-
-# unmount the key while we dd over it
-umount -f /mnt/usbkey
-
-#set +o errexit
-# dd over it, using dirty hack to tell if we can have progress or not
-if strings /usr/bin/dd | grep "bytes transferred"; then
-    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
-        | dtrace -q -w -n 'BEGIN {need_info=0;} tick-10s {need_info=1;} syscall:::entry /pid == \$target && need_info == 1/ {raise(SIGINFO); need_info=0;}' \\
-        -c "/usr/bin/dd of=\${USB_DEV} bs=1024k"
-else
-    # no progress for you!
-    gtar --wildcards -zOxvf ${WHICH_TMP}/${FILENAME} usb-*.img \\
-        | /usr/bin/dd of=\${USB_DEV} bs=1024k
-fi
-#| dd of=\${USB_DEV} bs=1024k
-#set -o errexit
-
-# mount it again
-\${MOUNT_SCRIPT}
-
-# move new devtools out of way so we can drop in old first
-if [[ -d /mnt/usbkey/devtools ]]; then
-    mv /mnt/usbkey/devtools /mnt/usbkey/devtools.new
-fi
-
-# copy devtools back (we'll unpack new ones over old ones but keep custom ones)
-if [[ -d ${WHICH_TMP}/devtools.flashing ]]; then
-    cp -RP ${WHICH_TMP}/devtools.flashing /mnt/usbkey/devtools
-fi
-
-# write over devtools with old ones
-if [[ ! -d /mnt/usbkey/devtools ]]; then
-    mkdir /mnt/usbkey/devtools
-fi
-(cd /mnt/usbkey/devtools.new && tar -cpf - ./) \
-    | (cd /mnt/usbkey/devtools && tar -xf -)
-rm -rf /mnt/usbkey/devtools.new
-
-# Restore the answers.json if we had one.
-if [[ -f ${WHICH_TMP}/answers.flashing ]]; then
-    echo "Restoring answers.json..."
-    mkdir -p /mnt/usbkey/private
-    cp ${WHICH_TMP}/answers.flashing /mnt/usbkey/private/answers.json
-    rm -f ${WHICH_TMP}/answers.flashing
-fi
-
-# Restore root.authorized_keys if we had one
-if [[ -f ${WHICH_TMP}/root.authorized_keys.flashing ]]; then
-    echo "Restoring root.authorized_keys..."
-    cp ${WHICH_TMP}/root.authorized_keys.flashing \
-        /mnt/usbkey/config.inc/root.authorized_keys
-    rm -f ${WHICH_TMP}/root.authorized_keys.flashing
-fi
-
-# Ensure we've got a platform + grub
-if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
-    echo "Missing grub menu.lst, bailing" >&2
-    exit 1
-fi
-if [[ -z \$(find /mnt/usbkey/os/ -name "boot_archive") ]]; then
-    echo "Missing boot_archive, bailing" >&2
-    exit 1
-fi
-
-if [[ ! -d /mnt/usbkey/zones/mapi ]]; then
-    # Set default to 1 so we can boot unattended (we know this is a HN and flashing to 7)
-    sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
-        > /mnt/usbkey/boot/grub/menu.lst.new \
-        && mv /mnt/usbkey/boot/grub/menu.lst.new /mnt/usbkey/boot/grub/menu.lst
-fi
-
-# This is what sdc-factoryreset does
-echo "Performing factoryreset..."
-SYS_ZPOOL=\$(svcprop -p config/zpool smartdc/init)
-[[ -n \${SYS_ZPOOL} ]] || SYS_ZPOOL=zones
-if zfs list zones/var > /dev/null; then
-    zfs set smartdc:factoryreset=yes \${SYS_ZPOOL}/var
-fi
-
-# Good to go!
-echo "Rebooting..."
-(sleep 10; reboot -q)&
+do_reflash "$1" "$2" "$3" ${LIVE_DANGEROUSLY}
 
 exit 0
-EOF
-# END BASHSTYLED
-retval=$?
-set -o errexit
-
-if [[ $retval == 0 ]]; then
-    # BASHSTYLED
-    echo "Success at $(date '+%Y-%m-%dT%H:%M:%SZ')! '${hostname}' should be running through setup shortly!"
-    exit 0
-else
-    echo "Uh-oh! Something failed (retval=$retval), good luck fixing it!" >&2
-    exit 2
-fi
