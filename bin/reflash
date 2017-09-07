@@ -93,7 +93,7 @@ SSH_OPTS="-A"
 
 if [[ -n "$TRACE" ]]; then
     # BASHSTYLED
-    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    export PS4='[\D{%FT%TZ}] $(basename ${BASH_SOURCE}):${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}():} '
     set -o xtrace
 fi
 set -o errexit
@@ -106,7 +106,7 @@ add_identity()
     identity_file=$1
 
     if [[ -n ${identity_file} && -f ${identity_file} ]]; then
-        SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -i $identityfile"
+        SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -i ${identity_file}"
     fi
 }
 
@@ -275,11 +275,19 @@ ensure_manta_tools()
     # Set the MANTA_* vars from the build.spec.*
     MANTA_USER=$(get_build_spec_var "manta-user")
     MANTA_URL=$(get_build_spec_var "manta-url")
-    MANTA_KEY_ID=$(get_build_spec_var "manta-key-id")
+    NEW_MANTA_KEY_ID=$(get_build_spec_var "manta-key-id")
 
     [[ -n ${MANTA_USER} ]] || fatal "build.spec.* missing 'manta-user'"
     [[ -n ${MANTA_URL} ]] || fatal "build.spec.* missing 'manta-url'"
-    [[ -n ${MANTA_KEY_ID} ]] || fatal "build.spec.* missing 'manta-key-id'"
+
+    # If MANTA_KEY_ID is in environment, use that when none is specified since
+    # we're not guaranteed to have one in build.spec.*.
+    if [[ -n ${NEW_MANTA_KEY_ID} ]]; then
+        MANTA_KEY_ID=${NEW_MANTA_KEY_ID}
+    fi
+
+    [[ -n ${MANTA_KEY_ID} ]] || fatal "build.spec.* missing 'manta-key-id'" \
+        "and also not set in environment."
 
     export MANTA_USER MANTA_URL MANTA_KEY_ID
 }
@@ -693,7 +701,7 @@ setup_remote()
             mkdir -p /root/.ssh
         fi
 
-        ssh-add -L > /root/.ssh/authorized_keys
+        ssh-add -L >> /root/.ssh/authorized_keys || /bin/true
         chmod 700 /root/.ssh
         chmod 600 /root/.ssh/authorized_keys
 
