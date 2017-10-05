@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2015, Joyent, Inc.
+# Copyright (c) 2017, Joyent, Inc.
 #
 
 #
@@ -148,13 +148,16 @@ fi
 #  * 'instance' is the VM uuid
 #  * 'service' is the smartdc_role
 #
-query="this.instance === '${zone}' \
-    || (this.service && this.service.match(/^${zone}/)) \
-    || (this.alias && this.alias.match(/^${zone}/))"
+query="this.server_id !== null \
+    && (this.instance === '${zone}' \
+        || (this.service && this.service.match(/^${zone}/)) \
+        || (this.alias && this.alias.match(/^${zone}/)))"
+if [[ $to_server == 0 ]]; then
+    query+=' && this.state === "running"'
+fi
 
 IFS=$'\n'
-results=$(sdcadm insts -H -s alias -j type=vm \
-    | json -c 'this.server_ip !== null' -c "${query}")
+results=$(sdcadm insts -H -s alias -j type=vm | json -c "${query}")
 length=$(json length <<< "${results}")
 if [[ ${length} -eq 0 ]]; then
     if [[ ${to_server} -eq 1 && \
