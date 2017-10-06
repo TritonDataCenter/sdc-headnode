@@ -181,31 +181,32 @@ if [[ ${length} -eq 0 ]]; then
         fatal "No VMs found matching criteria"
     fi
 elif [[ ${length} -gt 1 ]]; then
-    # more than one result, if stdin is a tty prompt for which one. Otherwise
-    # fail.
+    # More than one result: use the given $choice if provided, or prompt
+    # if stdin is a tty, else error out.
 
-    if [[ ! -t 0 ]]; then
-        fatal "Found ${length} VMs but stdin is not a TTY"
-    fi
-
-    # if we were passed choice as a 3rd argument, use that only if it's valid
+    # If we were passed choice, use that only if it's valid.
     if ! [[ ${choice} =~ ^[0-9]+$ ]] || [[ ${choice} -ge ${length} ]] \
         || [[ ${choice} -lt 0 ]]; then
 
         choice=
     fi
+
     if [[ -z ${choice} ]]; then
+        if [[ ! -t 0 ]]; then
+            fatal "Found ${length} VMs but stdin is not a TTY"
+        fi
+
         echo "NUMBER   VM_UUID                              ALIAS"
         json -e 'this.cn_hostname = "(" + this.hostname + ")"' \
             -a id instance alias cn_hostname <<< "${results}" | nl -nln -v0
+
+        while ! [[ ${choice} =~ ^[0-9]+$ ]] || [[ ${choice} -ge ${length} ]] \
+            || [[ ${choice} -lt 0 ]]; do
+
+            printf "Choose a number [0-$((${length} - 1))]: "
+            read choice
+        done
     fi
-
-    while ! [[ ${choice} =~ ^[0-9]+$ ]] || [[ ${choice} -ge ${length} ]] \
-        || [[ ${choice} -lt 0 ]]; do
-
-        printf "Choose a number [0-$((${length} - 1))]: "
-        read choice
-    done
 
     server_hostname=$(json ${choice}.hostname <<< "${results}")
     server_ip=$(json ${choice}.server_ip <<< "${results}")
@@ -219,17 +220,36 @@ else
     zone_uuid=$(json 0.instance <<< "${results}")
 fi
 
-if [[ ${server_uuid} == ${my_server_uuid} ]]; then
-    if [[ ${to_server} -eq 1 ]]; then
-        warn "You are already logged into ${server_hostname}"
-        exit 3
-    fi
-    exec zlogin ${zone_uuid} $*
-else
-    if [[ ${to_server} -eq 1 ]]; then
+if [[ ${to_server} -eq 1 ]]; then
+    if [[ -z "$@" ]]; then
+        # We still SSH if we are already on the target server, so that
+        # `exit` consistently returns to the starting terminal session.
         exec ssh -t ${server_ip}
     else
-        exec ssh -t ${server_ip} zlogin ${zone_uuid} $*
+        # We still SSH if we are already on the target server, because I
+        # don't know a way to `exec $*` or equivalent that handles both quoted:
+        #    [root@headnode0 (coal hn) ~]# sdc-login -s cns0 "ls -a /tmp/foo"
+        #    /tmp/foo
+        # and unquoted args:
+        #    [root@headnode0 (coal hn) ~]# sdc-login -s cns0 ls -a /tmp/foo
+        #    /tmp/foo
+        # equivalently (as it does via SSH).
+        # Also, it is a nice property that it doesn't behave differently just
+        # because the target server happens to be the current one. The caller
+        # can use `-l` if they know the server is local.
+        exec ssh -t ${server_ip} "$@"
+    fi
+elif [[ ${server_uuid} == ${my_server_uuid} ]]; then
+    if [[ -z "$@" ]]; then
+        exec zlogin ${zone_uuid}
+    else
+        exec zlogin ${zone_uuid} "$@"
+    fi
+else
+    if [[ -z "$@" ]]; then
+        exec ssh -t ${server_ip} "zlogin ${zone_uuid}"
+    else
+        exec ssh -t ${server_ip} "zlogin ${zone_uuid} '$@'"
     fi
 fi
 
