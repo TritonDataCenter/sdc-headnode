@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2017, Joyent, Inc.
+#
+
+#
+# Rsync local changes to the given Triton DC headnode, including:
+#
+#       LOCAL           HEADNODE GZ
+#       ./tools         /opt/smartdc
+#       ./scripts       /mnt/usbkey/scripts, /usbkey/scripts
+#
+# This script is intended for a quicker development/test cycle. It should not
+# be used to replace thorough testing before committing changes.
+#
+
+set -o xtrace
+set -o errexit
+
+TOP=$(cd $(dirname $0)/../; pwd)
+HEADNODE=$1
+
+RSYNC_FLAGS=
+#RSYNC_FLAGS="$RSYNC_FLAGS --dry-run"
+
+rsync $RSYNC_FLAGS -av ${TOP}/tools/ $HEADNODE:/opt/smartdc/
+
+ssh $HEADNODE /opt/smartdc/bin/sdc-usbkey mount
+rsync $RSYNC_FLAGS -av --no-o --no-p --no-g ${TOP}/scripts/ \
+    $HEADNODE:/mnt/usbkey/scripts/
+rsync $RSYNC_FLAGS -av ${TOP}/scripts/ $HEADNODE:/usbkey/scripts/
