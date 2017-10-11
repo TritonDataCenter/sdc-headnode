@@ -625,7 +625,8 @@ if [[ "$(zpool list)" == "no pools available" ]] \
         dl3="${CONFIG_layout}"
     fi
 
-    if ! /usr/bin/disklayout ${dl0} "${dl1}" ${dl2} "${dl3}"> ${POOL_FILE}; then
+    if ! /usr/bin/disklayout ${dl0} ${dl1:+"$dl1"} ${dl2} "${dl3}" \
+         > ${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
