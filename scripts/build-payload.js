@@ -283,8 +283,16 @@ async.series([
         if (process.env.ASSETS_IP) {
             obj.customer_metadata['assets-ip'] = process.env.ASSETS_IP;
         }
-        obj.customer_metadata['sapi-url'] =
-            'http://' + config['sapi_admin_ips'];
+        // We'll use IP at first pass, since sapi service is either not
+        // running when we create these zones or not yet registered into
+        // binder. Then, we'll update at the end of the setup process.
+        if (zone === 'sapi' || zone === 'assets' || zone === 'binder') {
+            obj.customer_metadata['sapi-url'] =
+                'http://' + config['sapi_admin_ips'];
+        } else {
+            obj.customer_metadata['sapi-url'] =
+                'http://' + config['sapi_domain'];
+        }
         obj.customer_metadata['ufds_ldap_root_dn'] =
             config['ufds_ldap_root_dn'];
         obj.customer_metadata['ufds_ldap_root_pw'] =

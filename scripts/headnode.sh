@@ -500,7 +500,16 @@ function create_zone {
     local payload_file=/var/tmp/${zone}_payload.json
     if [[ ${USE_SAPI} && -f ${USB_COPY}/services/${zone}/service.json ]]; then
         echo "Deploy zone ${zone} (payload via SAPI)"
-        local sapi_url=http://${CONFIG_sapi_admin_ips}
+        # We'll use IP at first pass, since sapi service is either not
+        # running when we create these zones or not yet registered into
+        # binder. Then, we'll update at the end of the setup process.
+        if [[ "${zone}" == "sapi" || \
+              "${zone}" == "binder" || \
+              "${zone}" == "assets" ]]; then
+          local sapi_url=http://${CONFIG_sapi_admin_ips}
+        else
+          local sapi_url=http://${CONFIG_sapi_domain}
+        fi
 
         # HEAD-1327 for the first manatee, we want ONE_NODE_WRITE_MODE turned on
         if [[ ${zone} == "manatee" ]]; then
@@ -629,6 +638,7 @@ upload_values
 download_metadata
 write_initial_config
 registrar_setup
+mdata-put sapi-url http://${CONFIG_sapi_domain}
 HERE
         setup_state_add "sapi_bootstrapped"
     fi
@@ -676,7 +686,11 @@ function sapi_adopt()
     local service_name=$2
     local uuid=$3
 
-    local sapi_url=http://${CONFIG_sapi_admin_ips}
+    if [[ "${service_name}" == "sapi" ]]; then
+      local sapi_url=http://${CONFIG_sapi_admin_ips}
+    else
+      local sapi_url=http://${CONFIG_sapi_domain}
+    fi
 
     local service_uuid=""
     local sapi_instance=""
@@ -830,6 +844,21 @@ exec ${from_dir}/build/node/bin/node ${from_dir}/cmd/sapiadm.js "\$@"
 EOF
     # END BASHSTYLED
     chmod +x ${to_dir}/sapiadm
+
+    # Update assets0 zone sapi-url
+    vmadm update $(vmadm lookup -1 tags.smartdc_role=assets) <<EOF
+{"set_customer_metadata": {"sapi-url": "http://${CONFIG_sapi_domain}"}}
+EOF
+
+    # Update binder0 zone sapi-url
+    vmadm update $(vmadm lookup -1 tags.smartdc_role=binder) <<EOF
+{"set_customer_metadata": {"sapi-url": "http://${CONFIG_sapi_domain}"}}
+EOF
+    # Update binder service metadata.sapi-url
+    binder_svc_uuid=$(/opt/smartdc/bin/sdc-sapi \
+                      /services?name=binder|json -H 0.uuid)
+    /opt/smartdc/bin/sapiadm update ${binder_svc_uuid} \
+      metadata.sapi-url=http://${CONFIG_sapi_domain}
 
     setup_state_add "sdczones_created"
 fi

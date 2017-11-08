@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
 
 /*
@@ -110,7 +110,7 @@ function translateConfig(cb) {
 
     // sapi-url and assets-ip required in customer_metadata, are pushed
     // there from standard metadata by SAPI's payload creation.
-    sdcExtras.metadata['sapi-url'] = 'http://' + self.config.sapi_admin_ips;
+    sdcExtras.metadata['sapi-url'] = 'http://' + self.config.sapi_domain;
     sdcExtras.metadata['assets-ip'] = self.config.assets_admin_ip;
 
     return cb(null);
@@ -459,8 +459,18 @@ function filterServices(serviceList, cb) {
                 extras.params['customer_metadata'] = {};
             }
 
-            extras.metadata['sapi-url'] =
-                'http://' + self.config.sapi_admin_ips;
+            // We'll use IP at first pass, since sapi service is either not
+            // running when we create these zones or not yet registered into
+            // binder. Then, we'll update at the end of the setup process.
+            if (service === 'binder' ||
+                service === 'assets' ||
+                service === 'binder') {
+                extras.metadata['sapi-url'] =
+                    'http://' + self.config.sapi_admin_ips;
+            } else {
+                extras.metadata['sapi-url'] =
+                    'http://' + self.config.sapi_domain;
+            }
             extras.metadata['assets-ip'] = self.config.assets_admin_ip;
             extras.metadata['user-script'] = data.toString();
 
