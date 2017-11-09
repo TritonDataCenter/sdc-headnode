@@ -850,16 +850,6 @@ EOF
 {"set_customer_metadata": {"sapi-url": "http://${CONFIG_sapi_domain}"}}
 EOF
 
-    # Update binder0 zone sapi-url
-    vmadm update $(vmadm lookup -1 tags.smartdc_role=binder) <<EOF
-{"set_customer_metadata": {"sapi-url": "http://${CONFIG_sapi_domain}"}}
-EOF
-    # Update binder service metadata.sapi-url
-    binder_svc_uuid=$(/opt/smartdc/bin/sdc-sapi \
-                      /services?name=binder|json -H 0.uuid)
-    /opt/smartdc/bin/sapiadm update ${binder_svc_uuid} \
-      metadata.sapi-url=http://${CONFIG_sapi_domain}
-
     setup_state_add "sdczones_created"
 fi
 
