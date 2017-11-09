@@ -462,7 +462,7 @@ function filterServices(serviceList, cb) {
             // We'll use IP at first pass, since sapi service is either not
             // running when we create these zones or not yet registered into
             // binder. Then, we'll update at the end of the setup process.
-            if (service === 'binder' ||
+            if (service === 'sapi' ||
                 service === 'assets' ||
                 service === 'binder') {
                 extras.metadata['sapi-url'] =
