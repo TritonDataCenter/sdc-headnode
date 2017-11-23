@@ -638,7 +638,6 @@ upload_values
 download_metadata
 write_initial_config
 registrar_setup
-mdata-put sapi-url http://${CONFIG_sapi_domain}
 HERE
         setup_state_add "sapi_bootstrapped"
     fi
