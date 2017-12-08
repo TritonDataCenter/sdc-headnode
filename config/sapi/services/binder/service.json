@@ -5,7 +5,6 @@
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
-        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "binder",
             "smartdc_type": "core"
@@ -14,11 +13,15 @@
         "resolvers": [],
         "internal_metadata": {
             "set_resolvers": false
-        }
+        },
+        "networks": [
+            {
+                "name": "admin"
+            }
+        ]
     },
     "metadata": {
         "SERVICE_NAME": "binder"
     },
-    "manifests": {
-    }
+    "manifests": {}
 }
