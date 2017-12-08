@@ -5,17 +5,20 @@
         "package_name": "sdc_8192",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
-        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "workflow",
             "smartdc_type": "core"
-        }
+        },
+        "networks": [
+            {
+                "name": "admin"
+            }
+        ]
     },
     "metadata": {
         "SERVICE_NAME": "workflow",
         "WORKFLOW_NUM_FORKS": 16,
         "WORKFLOW_RUN_INTERVAL": 1000
     },
-    "manifests": {
-    }
+    "manifests": {}
 }
