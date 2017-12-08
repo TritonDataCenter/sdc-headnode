@@ -5,17 +5,20 @@
         "package_name": "sdc_8192",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
-        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "moray",
             "smartdc_type": "core"
         },
-        "delegate_dataset": true
+        "delegate_dataset": true,
+        "networks": [
+            {
+                "name": "admin"
+            }
+        ]
     },
     "metadata": {
-        "SERVICE_NAME" : "moray",
+        "SERVICE_NAME": "moray",
         "MORAY_MAX_PG_CONNS": 15
     },
-    "manifests": {
-    }
+    "manifests": {}
 }

@@ -5,16 +5,19 @@
         "package_name": "sdc_1024",
         "image_uuid": "IMAGE_UUID",
         "maintain_resolvers": true,
-        "networks": [ "admin" ],
         "tags": {
             "smartdc_role": "papi",
             "smartdc_type": "core"
-        }
+        },
+        "networks": [
+            {
+                "name": "admin"
+            }
+        ]
     },
     "metadata": {
         "SERVICE_NAME": "papi",
         "SERVICE_IS_FIRST_BOOT": true
     },
-    "manifests": {
-    }
+    "manifests": {}
 }
