@@ -44,7 +44,7 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
 
   - open `coal-master-TIMESTAMP-gSHA.vmwarevm`, select 'Live 64-bit' at the
     grub menu, and work through the interactive installer referring to [this
-    documentation](). **Important**: while many answers are arbitrary, the
+    documentation][coal-setup.md]. **Important**: while many answers are arbitrary, the
     networking questions require specific values for local development.
 
   - when setup completes, you can access the headnode via ssh: `ssh
@@ -454,3 +454,4 @@ To test changes to setup procedures without a complete rebuild, you can:
 [manta]: https://github.com/joyent/manta
 [buildspec]: #build-specification-buildspec-and-buildspeclocal
 [autosetup]: #automating-headnode-setup-answersjson
+[coal-setup.md]: https://github.com/joyent/triton/blob/master/docs/developer-guide/coal-setup.md
