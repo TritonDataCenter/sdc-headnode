@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright 2016 Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
 
 
@@ -120,6 +120,8 @@ mount(options, callback)
         for (var k in options.mt_options) {
             if (options.mt_options[k] === true) {
                 o_args.push(k);
+            } else if (options.mt_options[k] === false) {
+                o_args.push('no' + k);
             } else {
                 mod_assert.string(options.mt_options[k], 'mt_options[' + k +
                   ']');

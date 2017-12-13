@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright 2016 Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
 
 
@@ -124,8 +124,14 @@ do_mount(subcmd, opts, args, callback)
         return;
     }
 
+    var alt_mount_options = {};
+    if (opts.nofoldcase) {
+        alt_mount_options.foldcase = false;
+    }
+
     lib_usbkey.ensure_usbkey_mounted({
-        timeout: TIMEOUT_MOUNT
+        timeout: TIMEOUT_MOUNT,
+        alt_mount_options: alt_mount_options
     }, function (err, mtpt) {
         if (err) {
             callback(err);
@@ -141,10 +147,22 @@ Usbkey.prototype.do_mount.options = [
         names: [ 'help', 'h', '?' ],
         type: 'bool',
         help: 'Print this help message.'
+    },
+    {
+        name: 'nofoldcase',
+        type: 'bool',
+        help: 'Mount the USB key without folding case.'
     }
 ];
 Usbkey.prototype.do_mount.help = [
     'Mount the USB key if it is not mounted.',
+    '',
+    'The USB key will be mounted at the configured mount point (by default',
+    '"' + lib_usbkey.DEFAULT_MOUNTPOINT +
+        '") when mounted with default options.',
+    'If non-default options are requested, then an alternative mount point',
+    'will be used. Note that `sdc-usbkey status` will report "unmounted" if',
+    'the USB key is mounted with non-default options.',
     '',
     'Usage:',
     '     sdc-usbkey mount [OPTIONS]',
@@ -213,7 +231,7 @@ do_status(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.get_usbkey_mount_status(function (err, status) {
+    lib_usbkey.get_usbkey_mount_status(null, function (err, status) {
         if (err) {
             callback(err);
             return;
@@ -254,7 +272,10 @@ Usbkey.prototype.do_status.options = [
     }
 ];
 Usbkey.prototype.do_status.help = [
-    'Get the current mount status of the USB key.',
+    'Check if the USB key mounted with the default settings.',
+    '',
+    'Note that this will report "unmounted" if the USB key is mounted with',
+    'non-default options. Use `sdc-usbkey status -m` for more details.',
     '',
     'Usage:',
     '     sdc-usbkey status [OPTIONS]',
@@ -648,9 +669,10 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 /*
-                 * Check if the USB key is already mounted.
+                 * Check if the USB key is already mounted with default opts.
                  */
-                lib_usbkey.get_usbkey_mount_status(function (err, status) {
+                lib_usbkey.get_usbkey_mount_status(null,
+                  function (err, status) {
                     if (err) {
                         next(err);
                         return;
@@ -658,7 +680,9 @@ do_update(subcmd, opts, args, callback)
 
                     mod_assert.bool(status.ok, 'status.ok');
                     already_mounted = status.ok;
-                    mountpoint = status.mountpoint;
+                    if (already_mounted) {
+                        mountpoint = status.mountpoint;
+                    }
                     next();
                 });
             },

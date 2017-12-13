@@ -5,9 +5,8 @@
  */
 
 /*
- * Copyright 2016 Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  */
-
 
 var mod_fs = require('fs');
 var mod_path = require('path');
@@ -24,24 +23,54 @@ var VError = mod_verror.VError;
 var dprintf = lib_common.dprintf;
 
 var DEFAULT_MOUNTPOINT = '/mnt/usbkey';
+var ALT_OPTS_SUFFIX = 'altmountopts';
 var SVCPROP = '/bin/svcprop';
 
-var MOUNT_OPTIONS = {
+var DEFAULT_MOUNT_OPTIONS = {
+    /*
+     * To ensure a consistent view of files on the key, we must
+     * mount with "foldcase" enabled.
+     */
     foldcase: true,
-    noatime: true,
+    atime: false,
+    /*
+     * Allow access to files with the "system" or "hidden" bits
+     * set.
+     */
     hidden: true,
+    /*
+     * Constrain filesystem timestamps such that they will fit within a
+     * 32-bit time_t.
+     */
     clamptime: true,
     rw: true
 };
-mod_assert.ok(valid_usbkey_mount_options(MOUNT_OPTIONS));
+
+
+function
+obj_copy(obj, target) {
+    if (!target) {
+        target = {};
+    }
+
+    Object.keys(obj).forEach(function (k) {
+        target[k] = obj[k];
+    });
+
+    return (target);
+}
 
 /*
  * The expected mountpoint for the USB key FAT filesystem is configured as a
  * property on the "filesystem/smartdc" SMF service.  Look that property
  * up now.
+ *
+ * This returns *two* mountpoints. The first is the default mountpoint used
+ * for mounting with the default options. The second is a separate path
+ * for mounting with alternative mount options.
  */
 function
-get_mountpoint(callback)
+get_mountpoints(callback)
 {
     mod_assert.func(callback, 'callback');
 
@@ -57,12 +86,15 @@ get_mountpoint(callback)
             return;
         }
 
+        var base;
         var val = stdout.trim();
-        if (!val) {
-            callback(null, DEFAULT_MOUNTPOINT);
+        if (val) {
+            base = mod_path.join('/mnt', val);
         } else {
-            callback(null, mod_path.join('/mnt', val));
+            base = DEFAULT_MOUNTPOINT;
         }
+
+        callback(null, [base, base + '-' + ALT_OPTS_SUFFIX]);
     });
 }
 
@@ -99,31 +131,46 @@ ensure_mountpoint_exists(mtpt, callback)
 }
 
 function
-valid_usbkey_mount_options(options)
+equiv_usbkey_mount_options(a, b)
 {
-    mod_assert.object(options, 'options');
+    mod_assert.object(a, 'a');
+    mod_assert.object(b, 'b');
 
-    if (!options.hidden || options.nohidden) {
-        /*
-         * Allow access to files with the "system" or "hidden" bits
-         * set.
-         */
+    var get_mount_option = function (obj, name) {
+        var val = null;
+        if (obj.hasOwnProperty(name)) {
+            mod_assert.bool(obj[name], name);
+            val = obj[name];
+        } else if (obj.hasOwnProperty('no' + name)) {
+            mod_assert.bool(obj['no' + name], 'no' + name);
+            val = !obj['no' + name];
+        }
+        return (val);
+    };
+
+    /*
+     * To test for equivalency, we require both `a` and `b` to define either
+     * of the <name> or no<name> options. Otherwise, we'd have to know the
+     * default value from mount_pcfs(1M), and that isn't straightforward
+     * (varies by previous Solaris releases, not always documented, depends
+     * on the media type).
+     */
+    var equiv_mount_option = function (name) {
+        var a_val = get_mount_option(a, name);
+        var b_val = get_mount_option(b, name);
+        return (a_val === b_val);
+    };
+
+    if (! equiv_mount_option('hidden')) {
+        dprintf('mount options differ: hidden');
         return (false);
     }
-
-    if (!options.foldcase || options.nofoldcase) {
-        /*
-         * To ensure a consistent view of files on the key, we must _always_
-         * mount with "foldcase" enabled.
-         */
+    if (! equiv_mount_option('foldcase')) {
+        dprintf('mount options differ: foldcase');
         return (false);
     }
-
-    if (!options.clamptime || options.noclamptime) {
-        /*
-         * Constrain filesystem timestamps such that they will fit within a
-         * 32-bit time_t.
-         */
+    if (! equiv_mount_option('clamptime')) {
+        dprintf('mount options differ: clamptime');
         return (false);
     }
 
@@ -370,50 +417,48 @@ ensure_usbkey_unmounted(options, callback)
         });
     };
 
-    get_mountpoint(function (err, _mtpt) {
+    get_usbkey_mount_status(null, function (err, status) {
         if (err) {
-            callback(new VError(err, 'could not read mount configuration'));
+            callback(err);
             return;
         }
 
-        mtpt = _mtpt;
-        dprintf('configured usbkey mountpoint: "%s"\n', mtpt);
+        if (!status.steps.mounted) {
+            dprintf('ok, usb key is not mounted.\n');
+            callback();
+        }
 
+        mtpt = status.mountpoint;
+        dprintf('usbkey mountpoint: "%s"\n', mtpt);
         setImmediate(keep_trying);
     });
 }
 
+/*
+ * Update the given mount status object in-place for the given mountpoint
+ * and, if `exp_mount_options` ("exp" == expected) is given, expected mount
+ * options.
+ *
+ * This is used by `get_usbkey_mount_status()`.
+ */
 function
-usbkey_mount_status_common(mountpoint, callback)
-{
+_get_mountpoint_status(status, mountpoint, exp_mount_options, callback) {
+    mod_assert.object(status, 'status');
     mod_assert.string(mountpoint, 'mountpoint');
+    mod_assert.optionalObject(exp_mount_options, 'exp_mount_options');
     mod_assert.func(callback, 'callback');
 
-    var status = {
-        mountpoint: mountpoint,
-        device: null,
-        options: null,
-        steps: {
-            mounted: false,
-            options_ok: false,
-            marker_file: false
-        },
-        ok: false,
-        message: ''
-    };
-
     dprintf('fetching mount information for "%s"\n', mountpoint);
-    get_mount_info(mountpoint, function (err, mi) {
-        if (err) {
-            callback(new VError(err, 'could not inspect mounted ' +
-              'filesystems'));
+    get_mount_info(mountpoint, function on_mount_info(miErr, mi) {
+        if (miErr) {
+            callback(new VError(miErr,
+                'could not inspect mounted filesystems'));
             return;
         }
 
         if (mi === false) {
             dprintf('"%s" is not mounted.\n', mountpoint);
-            status.message = 'not mounted';
-            callback(null, status);
+            callback();
             return;
         }
 
@@ -421,74 +466,183 @@ usbkey_mount_status_common(mountpoint, callback)
          * The filesystem is mounted.
          */
         status.steps.mounted = true;
+        status.mountpoint = mi.mi_mountpoint;
+        status.device = mi.mi_special;
+        status.options = mi.mi_options;
+
+        /*
+         * If `exp_mount_options` is not given, then we skip checking
+         * mount options and the marker file.
+         */
+        if (!exp_mount_options) {
+            callback();
+            return;
+        }
 
         mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
         if (mi.mi_fstype !== 'pcfs' ||
-          !valid_usbkey_mount_options(mi.mi_options)) {
+                !equiv_usbkey_mount_options(
+                    mi.mi_options, exp_mount_options)) {
             /*
              * The mount does not match both the expected filesystem
              * type and the expected mount options.
              */
-            dprintf('"%s" is mounted, but with incorrect options: %j\n',
+            dprintf('"%s" is mounted, but with different options: %j\n',
                 mi.mi_mountpoint, mi.mi_options);
-            status.message = 'mounted, but with incorrect options';
-            callback(null, status);
+            callback();
             return;
         }
 
         /*
-         * The filesystem mount options are correct.
+         * The filesystem mount options are as expected.
          */
         status.steps.options_ok = true;
-        status.device = mi.mi_special;
-        status.options = mi.mi_options;
 
         dprintf('checking marker file...\n');
-        check_for_marker_file(mi.mi_mountpoint, function (_err, exists) {
-            if (_err) {
-                callback(new VError(_err, 'failed to locate marker file'));
+        check_for_marker_file(mi.mi_mountpoint,
+          function (markerErr, exists) {
+            if (markerErr) {
+                callback(new VError(markerErr,
+                    'failed to locate marker file'));
                 return;
             }
 
             if (exists) {
-                /*
-                 * The marker file exists on the mounted filesystem.
-                 */
                 status.steps.marker_file = true;
-                status.message = 'mounted';
-                status.ok = true;
-            } else {
-                status.message = 'mounted, but marker file not found';
             }
 
-            callback(null, status);
+            callback();
         });
     });
+
 }
 
+/**
+ * Return a status object detailing the USB key mount status, compared to the
+ * expected. "Expected" means as we'd expect for the given mount options.
+ * The status object:
+ *
+ *  {
+ *      "mountpoint": <The current mountpoint, if mounted, else `null`.>
+ *      "device": <the USB device /dev/... path, if mounted>
+ *      "options": <the mount options object, if mounted>
+ *      "steps": {
+ *          "mounted": <A boolean indicating if the USB key is mounted at all.>
+ *          "options_ok": <A boolean indicating if the current mount options
+ *              match the expected.>
+ *          "marker_file": <A boolean indicating if the mount includes the
+ *              marker file (typically ".joyliveusb") that marks this as a
+ *              Triton USB key. This is only checked if `options_ok = true`.>
+ *      }
+ *
+ *      "ok": <A boolean indicating the USB key is mounted at the expected
+ *          path and with the expected options.>
+ *      "message": <A short string description of the mount status. This is
+ *          used by `sdc-usbkey status -m`.>
+ *  }
+ *
+ * If you just want to see if the USB key is mounted at all, you can call
+ *      get_usbkey_mount_status(null, function (err, status) { ... });
+ * and check `status.steps.mounted`.
+ *
+ * @param {Object} alt_mount_options - Optional. Alternative (i.e. non-default)
+ *      mount options to expect, if any. Pass null/undefined to expect the
+ *      the default mount options. This impacts the expected mountpoint,
+ *      because non-default mount options always use the alternative mountpoint.
+ * @param {Function} callback - `function (err, status)`
+ */
 function
-get_usbkey_mount_status(callback)
+get_usbkey_mount_status(alt_mount_options, callback)
 {
+    mod_assert.optionalObject(alt_mount_options, 'alt_mount_options');
     mod_assert.func(callback, 'callback');
 
     dprintf('determining usb key mount status...\n');
 
-    get_mountpoint(function (err, mtpt) {
-        if (err) {
-            callback(new VError(err, 'could not read mount configuration'));
-            return;
+    var context = {
+        status: {
+            mountpoint: null,
+            device: null,
+            options: null,
+            steps: {
+                mounted: false,
+                options_ok: false,
+                marker_file: false
+            },
+            ok: false,
+            message: ''
         }
+    };
 
-        dprintf('configured usbkey mountpoint: "%s"\n', mtpt);
+    mod_vasync.pipeline({arg: context, funcs: [
+        function get_expected_mount_details(ctx, next) {
+            get_mountpoints(function (err, mtpts) {
+                if (err) {
+                    next(new VError(err, 'could not read mount configuration'));
+                    return;
+                }
 
-        usbkey_mount_status_common(mtpt, function (err, status) {
-            if (err) {
-                callback(new VError(err, 'could not get mount status'));
+                dprintf('configured usbkey mountpoints: "%s"\n',
+                    mtpts.join('", "'));
+
+                if (alt_mount_options &&
+                    Object.keys(alt_mount_options).length > 0) {
+                    /*
+                     * Custom, i.e. non-default, options were given: use the
+                     * alternative options mountpoint.
+                     */
+                    ctx.other_mountpoint = mtpts[0];
+                    ctx.exp_mountpoint = mtpts[1];
+                    ctx.exp_mount_options = obj_copy(DEFAULT_MOUNT_OPTIONS);
+                    obj_copy(alt_mount_options, ctx.exp_mount_options);
+                } else {
+                    ctx.exp_mountpoint = mtpts[0];
+                    ctx.other_mountpoint = mtpts[1];
+                    ctx.exp_mount_options = obj_copy(DEFAULT_MOUNT_OPTIONS);
+                }
+
+                next();
+            });
+        },
+
+        function handle_exp_mountpoint(ctx, next) {
+            _get_mountpoint_status(ctx.status, ctx.exp_mountpoint,
+                ctx.exp_mount_options, next);
+        },
+
+        function handle_other_mountpoint(ctx, next) {
+            /*
+             * If the USB is mounted at the expected mountpoint, then we
+             * don't need to gather info for the other mountpoint.
+             */
+            if (ctx.status.steps.mounted) {
+                next();
                 return;
             }
 
-            callback(null, status);
-        });
+            _get_mountpoint_status(ctx.status, ctx.other_mountpoint,
+                null, next);
+        },
+
+        function set_ok_and_message(ctx, next) {
+            if (!ctx.status.steps.mounted) {
+                ctx.status.ok = false;
+                ctx.status.message = 'not mounted';
+            } else if (!ctx.status.steps.options_ok) {
+                ctx.status.ok = false;
+                ctx.status.message = 'mounted, but with different options';
+            } else if (!ctx.status.steps.marker_file) {
+                ctx.status.ok = false;
+                ctx.status.message = 'mounted, but marker file not found';
+            } else {
+                ctx.status.ok = true;
+                ctx.status.message = 'mounted';
+            }
+            next();
+        }
+
+    ]}, function (err) {
+        callback(err, context.status);
     });
 }
 
@@ -498,14 +652,16 @@ ensure_usbkey_mounted(options, callback)
     mod_assert.object(options, 'options');
     mod_assert.optionalNumber(options.timeout, 'options.timeout');
     mod_assert.optionalBool(options.ignore_missing, 'options.ignore_missing');
+    mod_assert.optionalObject(options.alt_mount_options,
+        'options.alt_mount_options');
     mod_assert.func(callback, 'callback');
 
-    mod_assert.ok(valid_usbkey_mount_options(MOUNT_OPTIONS));
-
-    dprintf('ensuring usb key is mounted...\n');
+    dprintf('ensuring usb key is mounted (altmountopts: %s)...\n',
+        JSON.stringify(options.alt_mount_options));
 
     var epoch = process.hrtime();
     var mtpt;
+    var mount_options;
     var specials = null;
 
     /*
@@ -547,11 +703,10 @@ ensure_usbkey_mounted(options, callback)
             return;
         }
 
-        dprintf('fetching mount status for "%s"\n', mtpt);
-        usbkey_mount_status_common(mtpt, function (err, status) {
-            if (err) {
-                callback(new VError(err, 'could not inspect mounted ' +
-                  'filesystems'));
+        get_usbkey_mount_status(options.alt_mount_options,
+          function (statusErr, status) {
+            if (statusErr) {
+                callback(statusErr);
                 return;
             }
 
@@ -571,7 +726,7 @@ ensure_usbkey_mounted(options, callback)
                     mt_fstype: 'pcfs',
                     mt_mountpoint: mtpt,
                     mt_special: specials[0],
-                    mt_options: MOUNT_OPTIONS
+                    mt_options: mount_options
                 }, function (_err) {
                     if (!_err) {
                         /*
@@ -610,7 +765,7 @@ ensure_usbkey_mounted(options, callback)
                 return;
             }
 
-            if (!status.steps.options_ok) {
+            if (status.mountpoint !== mtpt || !status.steps.options_ok) {
                 /*
                  * The mount does not match both the expected filesystem
                  * type and the expected mount options.  Unmount it, and
@@ -685,14 +840,28 @@ ensure_usbkey_mounted(options, callback)
         });
     };
 
-    get_mountpoint(function (err, _mtpt) {
+    get_mountpoints(function (err, mtpts) {
         if (err) {
             callback(new VError(err, 'could not read mount configuration'));
             return;
         }
 
-        mtpt = _mtpt;
-        dprintf('configured usbkey mountpoint: "%s"\n', mtpt);
+        if (options.alt_mount_options &&
+            Object.keys(options.alt_mount_options).length > 0) {
+            /*
+             * Custom, i.e. non-default, options were given: use the
+             * alternative options mountpoint.
+             */
+            mtpt = mtpts[1];
+            mount_options = obj_copy(DEFAULT_MOUNT_OPTIONS);
+            obj_copy(options.alt_mount_options, mount_options);
+        } else {
+            mtpt = mtpts[0];
+            mount_options = obj_copy(DEFAULT_MOUNT_OPTIONS);
+        }
+
+        dprintf('target usbkey mountpoint: "%s"\n', mtpt);
+        dprintf('target mount options: %s\n', JSON.stringify(mount_options));
 
         ensure_mountpoint_exists(mtpt, function (_err) {
             if (_err) {
@@ -720,6 +889,7 @@ ensure_usbkey_mounted(options, callback)
 }
 
 module.exports = {
+    DEFAULT_MOUNTPOINT: DEFAULT_MOUNTPOINT,
     ensure_usbkey_unmounted: ensure_usbkey_unmounted,
     ensure_usbkey_mounted: ensure_usbkey_mounted,
     get_usbkey_mount_status: get_usbkey_mount_status
