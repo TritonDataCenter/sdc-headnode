@@ -639,6 +639,12 @@ download_metadata
 write_initial_config
 registrar_setup
 HERE
+
+        if [[ -n "${CONFIG_dns_domain}" ]]; then
+            vmadm update $sapi_uuid <<EOF
+  {"set_customer_metadata": {"dns_domain": "${CONFIG_dns_domain}"}}
+EOF
+        fi
         setup_state_add "sapi_bootstrapped"
     fi
 }
