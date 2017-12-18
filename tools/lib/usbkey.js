@@ -656,8 +656,8 @@ ensure_usbkey_mounted(options, callback)
         'options.alt_mount_options');
     mod_assert.func(callback, 'callback');
 
-    dprintf('ensuring usb key is mounted (altmountopts: %s)...\n',
-        JSON.stringify(options.alt_mount_options));
+    dprintf('ensuring usb key is mounted (altmountopts: %j)...\n',
+        options.alt_mount_options);
 
     var epoch = process.hrtime();
     var mtpt;
