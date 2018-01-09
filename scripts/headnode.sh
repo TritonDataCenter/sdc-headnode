@@ -645,6 +645,7 @@ HERE
   {"set_customer_metadata": {"dns_domain": "${CONFIG_dns_domain}"}}
 EOF
         fi
+
         setup_state_add "sapi_bootstrapped"
     fi
 }
@@ -690,9 +691,11 @@ function sapi_adopt()
     local type=$1   # vm or agent
     local service_name=$2
     local uuid=$3
+    local sapi_alias=""
 
     if [[ "${service_name}" == "sapi" ]]; then
       local sapi_url=http://${CONFIG_sapi_admin_ips}
+      sapi_alias=$(vmadm get ${uuid} | json alias)
     else
       local sapi_url=http://${CONFIG_sapi_domain}
     fi
@@ -716,10 +719,17 @@ function sapi_adopt()
 
     i=0
     while [[ -z ${sapi_instance} && ${i} -lt 48 ]]; do
-        sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
-            -H content-type:application/json \
-            -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
-        | json -H uuid || true)
+        if [[ -n ${sapi_alias} ]]; then
+            sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
+                -H content-type:application/json \
+                -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\", \"params\": { \"alias\": \"${sapi_alias}\"} }" \
+            | json -H uuid || true)
+        else
+            sapi_instance=$(curl ${sapi_url}/instances -sS -X POST \
+                -H content-type:application/json \
+                -d "{ \"service_uuid\" : \"${service_uuid}\", \"uuid\" : \"${uuid}\" }" \
+            | json -H uuid || true)
+        fi
         if [[ -z ${sapi_instance} ]]; then
             echo "Unable to adopt ${service_name} ${uuid} into sapi yet.  Sleeping..."
             sleep 5
