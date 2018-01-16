@@ -1199,6 +1199,34 @@ Joyent to help us make SmartDataCenter better.
 	phonehome_automatic="$val"
 
 
+	printheader "Update Channel"
+	message="
+Channel to be used for software update. Options:
+- support: supported versions, intended for customers with Joyent support
+  contracts
+- release: biweekly release versions
+- dev: development builds
+\n"
+
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
+
+	while [ true ]; do
+		key="update_channel"
+		promptval "Enter the update channel" \
+			"$update_channel" "${key}"
+		if [[ "$val" == "dev" || "$val" == "release" || \
+					"$val" == "support" ]]; then
+			update_channel="$val"
+			break
+		fi
+		echo "Must select one of 'support', 'release' or 'dev'"
+		# disable key, since this means bad value in answer file
+		key=
+	done
+
+
 	printheader "Verify Configuration"
 	message=""
 
@@ -1243,6 +1271,8 @@ Joyent to help us make SmartDataCenter better.
 		printf "NTP servers: $ntp_hosts\n"
 		echo
 		printf "Enable telemetry: $phonehome_automatic\n"
+		echo
+		printf "Update channel: $update_channel\n"
 		echo
 	fi
 
@@ -1659,6 +1689,8 @@ echo "sapi_domain=sapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "phonehome_automatic=${phonehome_automatic}" >>$tmp_config
+
+echo "update_channel=${update_channel}" >>$tmp_config
 
 # Always show the timers and make setup serial for now.
 echo "show_setup_timers=true" >> $tmp_config

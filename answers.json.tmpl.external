@@ -33,5 +33,6 @@
     "api_password": "joypass123",
     "mail_to": "<default>",
     "mail_from": "<default>",
-    "phonehome_automatic": "<default>"
+    "phonehome_automatic": "<default>",
+    "update_channel": "release"
 }
