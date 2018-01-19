@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright (c) 2018, Joyent, Inc.
  */
 
 /**
@@ -314,6 +314,7 @@ async.series([
         if (zone !== 'sapi') {
             return cb();
         }
+        obj.customer_metadata['dns_domain'] = config['dns_domain'];
 
         // Explicitly put this first sapi in proto mode.
         obj.customer_metadata['SAPI_PROTO_MODE'] = true;

@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright (c) 2018, Joyent, Inc.
  */
 
 /*
@@ -473,6 +473,9 @@ function filterServices(serviceList, cb) {
             }
             extras.metadata['assets-ip'] = self.config.assets_admin_ip;
             extras.metadata['user-script'] = data.toString();
+            if (service === 'sapi' && self.config.dns_domain) {
+                extras.metadata['dns_domain'] = self.config.dns_domain;
+            }
 
             // There's no need to pass the service defintion to
             // getOrCreateService() below, so remove it.
