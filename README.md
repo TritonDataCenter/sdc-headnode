@@ -1,13 +1,3 @@
-<!--
-    This Source Code Form is subject to the terms of the Mozilla Public
-    License, v. 2.0. If a copy of the MPL was not distributed with this
-    file, You can obtain one at http://mozilla.org/MPL/2.0/.
--->
-
-<!--
-    Copyright 2016 Joyent, Inc.
--->
-
 # sdc-headnode
 
 This repository is part of the Joyent Triton project. See the [contribution
@@ -25,10 +15,10 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
 
   - **One time only**: install VMware Fusion, run it at least once to allow it
     to establish its initial config, quit it and run the "CoaL VMware setup"
-    script from the sdc.git repo:
+    script from the triton.git repo:
 
-            git clone git@github.com:joyent/sdc.git
-            cd sdc
+            git clone git@github.com:joyent/triton.git
+            cd triton
             ./tools/coal-mac-vmware-setup
 
   - Optionally, to automate setup:
@@ -101,7 +91,7 @@ for local development is:
     "answer-file": "answers.json",
     "build-tgz": "false",
     "coal-memsize": 8192,
-    "vmware_version": 5,
+    "vmware_version": 7,
     "default-boot-option": 1,
     "clean-cache": true
 }
@@ -116,7 +106,10 @@ In the example above,
     output directories.
   - `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
     (recommended if you plan to install a [Manta][manta] test environment.)
-  - `"vmware_version"` specifies the version of VMware Fusion to target
+  - `"vmware_version"` specifies the version of VMware Fusion to target.
+    See <https://kb.vmware.com/s/article/1003746> for mapping of Virtual
+    Hardware Version to VMware releases. Note that `vmware_version=7`,
+    corresponding to hardware version 11, is required for Bhyve VMs to work.
   - `"default-boot-option"` selects the default grub boot option; a value of
     `1` selects the second entry in the menu: regular headnode boot
 

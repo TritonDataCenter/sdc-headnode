@@ -271,8 +271,14 @@ function create_output
         fatal "No 'vmware_version' in build.spec[.local]"
     elif [[ ${vmware_version} -le 4 ]]; then
         vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.4.tbz2"
-    else
+    elif [[ ${vmware_version} -le 5 ]]; then
         vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.5.tbz2"
+    elif [[ ${vmware_version} -le 7 ]]; then
+        vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.7.tbz2"
+    elif [[ ${vmware_version} -le 8 ]]; then
+        vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.8.tbz2"
+    else
+        vmwarevm_tarball="${ROOT}/vmware/USB-headnode.vmwarevm.10.tbz2"
     fi
 
     echo "==> Unpacking VMWare image... "
