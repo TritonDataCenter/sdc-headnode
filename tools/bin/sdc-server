@@ -156,6 +156,36 @@ function createClient(api, callback) {
     }
 }
 
+function _getServer(server_uuid, callback)
+{
+    var cnapi;
+    var server;
+
+    async.series([
+        function (cb) {
+            createClient('CNAPI', function (err, handle) {
+                if (!err) {
+                    cnapi = handle;
+                } else {
+                    err.api = 'CNAPI';
+                }
+                cb(err);
+            });
+        }, function (cb) {
+            cnapi.getServer(server_uuid, function (err, s) {
+                if (err) {
+                    err.api = 'CNAPI';
+                } else {
+                    server = s;
+                }
+                cb(err);
+            });
+        }
+    ], function (err) {
+        callback(err, server);
+    });
+}
+
 function getNics(server_uuid, params, callback)
 {
     var nics;
@@ -215,6 +245,7 @@ function outputServerData(servers, callback)
 
     servers.forEach(function (s) {
         var admin_ip = '-';
+        var admin_tag = 'admin';
         var sdc_version;
         var setup_state = s.setup;
         var n;
@@ -223,6 +254,10 @@ function outputServerData(servers, callback)
         sdc_version = s.sysinfo['SDC Version'];
         if (!sdc_version) {
             sdc_version = '6.x';
+        }
+
+        if (s['sysinfo']['Admin NIC Tag']) {
+            admin_tag = s['sysinfo']['Admin NIC Tag'];
         }
 
         for (n in s['sysinfo']['Network Interfaces']) {
@@ -236,7 +271,7 @@ function outputServerData(servers, callback)
             }
 
             for (i = 0; i < nicnames.length; i++) {
-                if (nicnames[i] === 'admin') {
+                if (nicnames[i] === admin_tag) {
                     found = true;
                     break;
                 }
@@ -711,19 +746,33 @@ function lookupServers(args, callback)
 }
 
 function outputAdminIP(server_uuid, callback) {
-    getNics(server_uuid, { nic_tags_provided: ['admin'] },
-        function (err, nics) {
-        if (!nics || nics.length === 0) {
-            callback(new Error('No admin nic found'));
+    var admin_tag = 'admin';
+
+    _getServer(server_uuid, function (err, s) {
+        if (err) {
+            callback(err);
             return;
         }
 
-        if (!nics[0].ip) {
-            callback(new Error('No admin IP found'));
-            return;
+        if (s['sysinfo']['Admin NIC Tag']) {
+            admin_tag = s['sysinfo']['Admin NIC Tag'];
         }
 
-        console.log(nics[0].ip);
+        getNics(server_uuid, { nic_tags_provided: [admin_tag] },
+            function (err, nics) {
+
+            if (!nics || nics.length === 0) {
+                callback(new Error('No admin nic found'));
+                return;
+            }
+
+            if (!nics[0].ip) {
+                callback(new Error('No admin IP found'));
+                return;
+            }
+
+            console.log(nics[0].ip);
+        });
     });
 }
 
@@ -869,30 +918,7 @@ function outputNics(server_uuid, callback)
 
 function outputSysinfo(server_uuid, callback)
 {
-    var cnapi;
-    var server;
-
-    async.series([
-        function (cb) {
-            createClient('CNAPI', function (err, handle) {
-                if (!err) {
-                    cnapi = handle;
-                } else {
-                    err.api = 'CNAPI';
-                }
-                cb(err);
-            });
-        }, function (cb) {
-            cnapi.getServer(server_uuid, function (err, s) {
-                if (err) {
-                    err.api = 'CNAPI';
-                } else {
-                    server = s;
-                }
-                cb(err);
-            });
-        }
-    ], function (err) {
+    _getServer(server_uuid, function (err, server) {
         if (err) {
             callback(err);
             return;
