@@ -41,8 +41,7 @@ async.series([
     },
     function loadConfig(cb) {
         execFile('/bin/bash', ['/lib/sdc/config.sh', '-json'],
-            function (error, stdout, stderr)
-            {
+            function loadConfigCb(error, stdout, stderr) {
                 if (error) {
                     return cb(new Error('FATAL: failed to get config: ' +
                               stderr));
@@ -60,8 +59,7 @@ async.series([
     },
     function loadCreateJson(cb) {
         fs.readFile('/usbkey/zones/' + zone + '/create.json',
-            function (error, data)
-            {
+            function loadCreateJsonCb(error, data) {
                 if (error) {
                     return cb(error);
                 }
@@ -259,8 +257,8 @@ async.series([
             zkServers = config.binder_resolver_ips.split(',')
                 .map(function zkConfig(e) {
                     return {
-                        host : e,
-                        port : 2181
+                        host: e,
+                        port: 2181
                     };
                 });
             regConfig.zookeeper = {};
@@ -314,7 +312,6 @@ async.series([
         if (zone !== 'sapi') {
             return cb();
         }
-        obj.customer_metadata['dns_domain'] = config['dns_domain'];
 
         // Explicitly put this first sapi in proto mode.
         obj.customer_metadata['SAPI_PROTO_MODE'] = true;

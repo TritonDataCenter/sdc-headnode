@@ -26,12 +26,8 @@ var Logger = require('/usr/node/node_modules/bunyan');
 var sprintf = require('util').format;
 
 // Globals
-var config;
-var sdcExtras;
 var packages;
-
-var app;
-var services;
+var self;
 
 // XXX TODO:
 // parameterize /usbkey prefix (per headnode.sh)
@@ -83,7 +79,14 @@ function translateConfig(cb) {
                  'in SDC application config.');
     }
 
-    if (! config.hasOwnProperty('binder_admin_ips')) {
+    if (config.hasOwnProperty('dns_domain')) {
+        sdcExtras.params.dns_domain = config.dns_domain;
+    } else {
+        log.warn('No dns_domain in config, not setting dns_domain ' +
+                 'in SDC application config.');
+    }
+
+    if (!config.hasOwnProperty('binder_admin_ips')) {
         var msg = 'No binder_admin_ips in config, impossible to set up';
         log.fatal(msg);
         return cb(new Error(msg));
@@ -100,7 +103,7 @@ function translateConfig(cb) {
                 num: 1,
                 last: true
             };
-            if (i == c.length - 1) server.last = true;
+            if (i === c.length - 1) server.last = true;
             return server;
         });
         sdcExtras.metadata['ZK_SERVERS'] = zkServers;
@@ -161,7 +164,7 @@ function addServiceDomains(cb) {
         self.services = services;
 
         services.forEach(function (service) {
-            if (service == 'manatee')
+            if (service === 'manatee')
                 return;
             var serviceKey = sprintf('%s_SERVICE', service.toUpperCase());
             extras.metadata[serviceKey] = serviceDomain(service);
@@ -277,7 +280,7 @@ function getOrCreateSdc(cb) {
                     err.message);
                 return cb(err);
             }
-            log.debug({ sdcApp : app }, 'Created SDC application');
+            log.debug({ sdcApp: app }, 'Created SDC application');
             self.app = app;
             return cb(null);
     });
@@ -319,14 +322,15 @@ function addSdcManifests(manifests, cb) {
     });
 
     if (Object.getOwnPropertyNames(manifests).length > 0) {
-        self.sapi.updateApplication(app.uuid,
-            { manifests : manifests }, function (err) {
-                if (err) {
-                    log.fatal(err, 'Failed to update app: %s', err.message);
-                    return cb(err);
-                }
-                log.debug('Updated application to add manifests');
-                return cb(null);
+        self.sapi.updateApplication(app.uuid, {
+            manifests: manifests
+        }, function updateAppCb(err) {
+            if (err) {
+                log.fatal(err, 'Failed to update app: %s', err.message);
+                return cb(err);
+            }
+            log.debug('Updated application to add manifests');
+            return cb(null);
         });
     } else {
         log.debug('No manifests to update');
@@ -344,12 +348,12 @@ function prepareServices(cb) {
     var services = self.services;
     var dirname = '/usbkey/services';
 
-    log.debug({ services : services }, 'Creating services.');
+    log.debug({ services: services }, 'Creating services.');
     vasync.forEachParallel({
         func: function (service, _cb) {
             // can't believe we need to read a file just for this.
             var file = dirname + '/' + service + '/service.json';
-            var extras = { metadata : {}, params : {} };
+            var extras = { metadata: {}, params: {} };
             var svcDomain = serviceDomain(service);
             extras.metadata['SERVICE_DOMAIN'] = svcDomain;
             var svcDef;
@@ -391,7 +395,7 @@ function prepareServices(cb) {
         }
 
         var serviceList = results.successes;
-        log.debug({ services : serviceList }, 'Created services');
+        log.debug({ services: serviceList }, 'Created services');
         return cb(null, serviceList);
     });
 }
@@ -418,7 +422,7 @@ function filterServices(serviceList, cb) {
             assert.object(svcDef, 'svcDef');
 
             // papi needs package defn's.
-            if (service == 'papi') {
+            if (service === 'papi') {
                 packages = Object.keys(self.config).reduce(function (acc, key) {
                     if (key.match('^pkg_')) acc.push(self.config[key]);
                     return acc;
@@ -428,7 +432,7 @@ function filterServices(serviceList, cb) {
             }
 
             // napi needs resolvers in metadata
-            if (service == 'napi') {
+            if (service === 'napi') {
                 extras.metadata['admin_resolvers'] =
                 JSON.stringify(self.config.binder_admin_ips.split(','));
                 extras.metadata['ext_resolvers'] =
@@ -473,9 +477,6 @@ function filterServices(serviceList, cb) {
             }
             extras.metadata['assets-ip'] = self.config.assets_admin_ip;
             extras.metadata['user-script'] = data.toString();
-            if (service === 'sapi' && self.config.dns_domain) {
-                extras.metadata['dns_domain'] = self.config.dns_domain;
-            }
 
             // There's no need to pass the service defintion to
             // getOrCreateService() below, so remove it.
@@ -484,7 +485,7 @@ function filterServices(serviceList, cb) {
             return serviceArgs;
         });
 
-        log.debug({serviceList : list}, 'Adjusted service definitions');
+        log.debug({serviceList: list}, 'Adjusted service definitions');
 
         return cb(null, list);
     });
@@ -504,14 +505,14 @@ function getOrCreateServices(serviceList, cb) {
             return cb(err);
         }
         self.services = results.successes;
-        log.debug({ services : self.services }, 'Created SDC servces');
+        log.debug({ services: self.services }, 'Created SDC servces');
         return cb(null, self.services);
     });
 }
 
 /* -- Mainline -- */
 
-var self = this;
+self = this;
 self.log = new Logger({
     name: 'sdc-init',
     level: 'trace',
