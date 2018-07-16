@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2017 Joyent, Inc.
+# Copyright (c) 2018 Joyent, Inc.
 #
 
 PERCENT := %
@@ -91,7 +91,6 @@ TOOLS_BIN_FILES = \
 	sdc \
 	sdc-amonrelay \
 	sdc-backup \
-	sdc-create-2nd-manatee \
 	sdc-healthcheck \
 	sdc-heartbeatsnoop \
 	sdc-image-sync \
