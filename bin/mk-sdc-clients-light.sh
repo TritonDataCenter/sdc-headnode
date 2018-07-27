@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 
 #
@@ -113,38 +113,128 @@ if [[ -n "$LIBS" ]]; then
     done
 fi
 
-# restify (stripped down just for client usage)
-DEP=$(json -f package.json dependencies.restify)
-if [[ ${DEP:0:6} == "git://" ]]; then
-    (cd _repos && git clone git://github.com/mcavage/node-restify.git)
-    SHA=$(json -f package.json dependencies.restify | cut -d'#' -f2)
-    [[ -n "$SHA" ]] || fatal "error finding restify dep git sha"
-    (cd _repos/node-restify && git checkout $SHA)
-    mkdir -p node_modules/restify
-    mv _repos/node-restify/{LICENSE,package.json,lib} node_modules/restify
-else
-    npm install restify@$DEP
-    (cd node_modules/restify \
-        && rm -rf node_modules bin README.md CHANGES.md .npmignore)
-fi
-(cd node_modules/restify/lib \
-    && rm -rf formatters plugins request.js response.js \
-        router.js server.js)
-
 # assert-plus
-npm install assert-plus
+VER=$(json -f package.json dependencies.assert-plus)
+npm install assert-plus@$VER
 
-# backoff (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.backoff)
+# async
+VER=$(json -f package.json dependencies.async)
+npm install async@$VER
+(cd node_modules/async \
+    && rm -rf .[a-z]* README.md Makefile*)
+
+# backoff
+VER=$(json -f package.json dependencies.backoff)
 npm install backoff@$VER
 (cd node_modules/backoff \
     && rm -rf .[a-z]* examples README.md tests)
 
-# clone (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.clone)
+# clone
+VER=$(json -f package.json dependencies.clone)
 npm install clone@$VER
 (cd node_modules/clone \
     && rm -rf .[a-z]* README.md test.js)
+
+# jsprim
+VER=$(json -f package.json dependencies.jsprim)
+npm install jsprim@$VER
+(cd node_modules/jsprim \
+    && rm -rf .[a-z]* node_modules README.md Makefile* test jsl.node.conf)
+
+# extsprintf (used by jsprim)
+VER=$(json -f node_modules/jsprim/package.json dependencies.extsprintf)
+npm install extsprintf@$VER
+(cd node_modules/extsprintf \
+    && rm -rf .[a-z]* README.md examples Makefile* jsl.node.conf)
+
+# json-schema (used by jsprim)
+VER=$(json -f node_modules/jsprim/package.json dependencies.json-schema)
+npm install json-schema@$VER
+(cd node_modules/json-schema \
+    && rm -rf .[a-z]* README.md examples Makefile* test)
+
+# lomstream
+VER=$(json -f package.json dependencies.lomstream)
+npm install lomstream@$VER
+(cd node_modules/lomstream \
+    && rm -rf .[a-z]* node_modules README.md test)
+
+# vstream (used by lomstream)
+VER=$(json -f node_modules/lomstream/package.json dependencies.vstream)
+npm install vstream@$VER
+(cd node_modules/vstream \
+     && rm -rf .[a-z]* node_modules README.md examples Makefile* \
+           jsl.node.conf tests)
+
+# lru-cache
+VER=$(json -f package.json dependencies.lru-cache)
+npm install lru-cache@$VER
+(cd node_modules/lru-cache \
+    && rm -rf .[a-z]* AUTHORS README.md test)
+
+# once
+VER=$(json -f package.json dependencies.once)
+npm install once@$VER
+(cd node_modules/once \
+    && rm -rf .[a-z]* README.md test)
+
+
+# restify-clients
+VER=$(json -f package.json dependencies.restify-clients)
+npm install restify-clients@$DEP
+(cd node_modules/restify-clients \
+     && rm -rf node_modules/{bunyan,dtrace-provider,lodash} \
+           node_modules/restify-errors/node_modules \
+           bin README.md CHANGES.md .npmignore)
+
+# restify-errors
+VER=$(json -f package.json dependencies.restify-errors)
+npm install restify-errors@$VER
+(cd node_modules/restify-errors \
+    && rm -rf .[a-z]* node_modules README.md test)
+
+# lodash (used by restify)
+VER=$(json -f node_modules/restify-clients/package.json dependencies.lodash)
+npm install lodash@$VER
+(cd node_modules/lodash \
+    && rm -rf .[a-z]* README.md test)
+
+
+# smartdc-auth
+VER=$(json -f package.json dependencies.smartdc-auth)
+npm install smartdc-auth@$VER
+(cd node_modules/smartdc-auth \
+     && rm -rf .[a-z]* \
+           node_modules/{bunyan,clone,dashdash,once} \
+           node_modules/{sshpk,sshpk-agent,vasync,verror} \
+           README.md bin)
+
+# dashdash (used by smartdc-auth)
+VER=$(json -f node_modules/smartdc-auth/package.json dependencies.dashdash)
+npm install dashdash@$VER
+(cd node_modules/dashdash \
+    && rm -rf .[a-z]* node_modules README.md examples Makefile*)
+
+# sshpk-agent (used by smartdc-auth)
+VER=$(json -f node_modules/smartdc-auth/package.json dependencies.sshpk-agent)
+npm install sshpk-agent@$VER
+(cd node_modules/sshpk-agent \
+     && rm -rf .[a-z]* node_modules/{sshpk,verror} \
+           node_modules/mooremachine/node_modules \
+           README.md examples Makefile*)
+
+# sshpk
+VER=$(json -f package.json dependencies.sshpk)
+npm install sshpk@$VER
+(cd node_modules/sshpk \
+    && rm -rf .[a-z]* node_modules/dashdash README.md bin)
+
+# vasync
+VER=$(json -f package.json dependencies.vasync)
+npm install vasync@$VER
+(cd node_modules/vasync \
+     && rm -rf .[a-z]* node_modules README.md examples Makefile* \
+           jsl.node.conf tests)
 
 # verror
 VER=$(json -f package.json dependencies.verror)
@@ -153,122 +243,38 @@ npm install verror@$VER
     && rm -rf .[a-z]* node_modules README.md examples \
     Makefile* jsl.node.conf tests)
 
-# extsprintf (used by verror)
-VER=$(json -f node_modules/verror/package.json dependencies.extsprintf)
-npm install extsprintf@$VER
-(cd node_modules/extsprintf \
-    && rm -rf .[a-z]* node_modules README.md examples Makefile* jsl.node.conf)
+# core-util-is (used by verror)
+VER=$(json -f package.json dependencies.core-util-is)
+npm install core-util-is@$VER
+(cd node_modules/core-util-is \
+    && rm -rf .[a-z]* README.md test)
 
-# async
-VER=$(json -f package.json dependencies.async)
-npm install async@$VER
-(cd node_modules/async \
-    && rm -rf .[a-z]* node_modules README.md Makefile*)
-
-# vasync
-VER=$(json -f package.json dependencies.vasync)
-npm install vasync@$VER
-(cd node_modules/vasync \
-    && rm -rf .[a-z]* node_modules README.md examples Makefile* jsl.node.conf)
-
-# jsprim (used by vasync)
-VER=$(json -f node_modules/vasync/package.json dependencies.jsprim)
-npm install jsprim@$VER
-(cd node_modules/jsprim \
-    && rm -rf .[a-z]* node_modules README.md Makefile* test jsl.node.conf)
-
-# json-schema (used by jsprim, but not by our code path, so we no-op it)
-touch node_modules/json-schema.js
-
-# keep-alive-agent (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.keep-alive-agent)
-npm install keep-alive-agent@$VER
-(cd node_modules/keep-alive-agent \
-    && rm -rf .[a-z]* node_modules README.md test)
-
-# tunnel-agent (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.tunnel-agent)
-npm install tunnel-agent@$VER
-(cd node_modules/tunnel-agent \
-    && rm -rf .[a-z]* node_modules README.md)
-
-# semver (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.semver)
-npm install semver@$VER
-(cd node_modules/semver \
-    && rm -rf .[a-z]* node_modules README.md test)
-
-# lru-cache
-VER=$(json -f package.json dependencies.lru-cache)
-npm install lru-cache@$VER
-(cd node_modules/lru-cache \
-    && rm -rf .[a-z]* node_modules AUTHORS README.md test)
-
-# mime (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.mime)
-npm install mime@$VER
-(cd node_modules/mime \
-    && rm -rf .[a-z]* node_modules README.md test.js)
-
-# once (used by restify)
-VER=$(json -f node_modules/restify/package.json dependencies.once)
-npm install once@$VER
-(cd node_modules/once \
-    && rm -rf .[a-z]* node_modules README.md test)
-
-# node-uuid
-VER=$(json -f package.json dependencies.node-uuid)
-npm install node-uuid@$VER
-(cd node_modules/node-uuid \
-    && rm -rf .[a-z]* node_modules README.md test benchmark)
-
-# ssh-agent
-VER=$(json -f package.json dependencies.ssh-agent)
-npm install ssh-agent@$VER
-(cd node_modules/ssh-agent \
-    && rm -rf .[a-z]* node_modules README.md bin tst)
-
-# ctype (used by ssh-agent)
-VER=$(json -f node_modules/ssh-agent/package.json dependencies.ctype)
-npm install ctype@$VER
-(cd node_modules/ctype \
-    && rm -rf .[a-z]* node_modules README* tools man tst CHANGELOG)
 
 # bunyan
 # Patch bunyan usages to use the platform one, because it has dtrace-provider
 # hooked up.
 # BEGIN BASHSTYLED
 patch -p0 <<PATCH
---- node_modules/restify/lib/bunyan_helper.js.orig  2013-02-05 15:39:13.000000000 -0800
-+++ node_modules/restify/lib/bunyan_helper.js   2013-02-05 15:40:49.000000000 -0800
-@@ -4,7 +4,11 @@
+--- node_modules/restify-clients/lib/helpers/bunyan.js.orig	2018-07-27 13:51:32.831768801 -0400
++++ node_modules/restify-clients/lib/helpers/bunyan.js	2018-07-27 13:52:22.056602085 -0400
+@@ -6,7 +6,12 @@
  var util = require('util');
-
+ 
  var assert = require('assert-plus');
 -var bunyan = require('bunyan');
++var bunyan;
 +if (process.platform === 'sunos') {
 +    bunyan = require('/usr/node/node_modules/bunyan');
 +} else {
 +    bunyan = require('bunyan');
 +}
- var LRU = require('lru-cache');
- var uuid = require('node-uuid');
+ var lru = require('lru-cache');
+ var uuid = require('uuid');
 
---- node_modules/restify/lib/index.js.orig  2013-02-05 16:08:51.000000000 -0800
-+++ node_modules/restify/lib/index.js   2013-02-05 16:09:04.000000000 -0800
-@@ -7,6 +7,8 @@
- // and enables much faster load times
- //
-
-+process.env.RESTIFY_CLIENT_ONLY = 1;
-+
- function createClient(options) {
-         var assert = require('assert-plus');
-         var bunyan = require('./bunyan_helper');
---- node_modules/restify/lib/dtrace.js
-+++ node_modules/restify/lib/dtrace.js
-@@ -36,7 +36,7 @@
- module.exports = function exportStaticProvider() {
+--- node_modules/restify-clients/lib/helpers/dtrace.js.orig	2018-07-27 13:54:18.319208324 -0400
++++ node_modules/restify-clients/lib/helpers/dtrace.js	2018-07-27 13:54:42.770125513 -0400
+@@ -27,7 +27,7 @@
+ module.exports = (function exportStaticProvider() {
      if (!PROVIDER) {
          try {
 -            var dtrace = require('dtrace-provider');
@@ -276,6 +282,18 @@ patch -p0 <<PATCH
              PROVIDER = dtrace.createDTraceProvider('restify');
          } catch (e) {
              PROVIDER = {
+
+--- node_modules/sshpk-agent/node_modules/mooremachine/lib/fsm.js.orig	2018-07-27 13:55:30.474963945 -0400
++++ node_modules/sshpk-agent/node_modules/mooremachine/lib/fsm.js	2018-07-27 13:55:52.307893039 -0400
+@@ -18,7 +18,7 @@
+ var mod_dtrace;
+ 
+ try {
+-	mod_dtrace = require('dtrace-provider');
++	mod_dtrace = require('/usr/node/node_modules/dtrace-provider');
+ } catch (e) {
+ 	mod_dtrace = undefined;
+ }
 PATCH
 # END BASHSTYLED
 

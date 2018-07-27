@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2016, Joyent, Inc.
+ * Copyright (c) 2018, Joyent, Inc.
  */
 
 //
@@ -27,7 +27,8 @@ var util = require('util');
 var vasync = require('vasync');
 
 var SDC_MODULES = '/opt/smartdc/node_modules';
-var restify = require(SDC_MODULES + '/sdc-clients/node_modules/restify');
+var restifyClients = require(SDC_MODULES +
+                             '/sdc-clients/node_modules/restify-clients');
 var sprintf = require('/usr/node/node_modules/sprintf').sprintf;
 var sdcClients = require(SDC_MODULES + '/sdc-clients');
 
@@ -144,7 +145,7 @@ function createClient(api, callback) {
             callback(null, handle);
             return;
         case 'WFAPI':
-            handle = restify.createJsonClient({
+            handle = restifyClients.createJsonClient({
                 url: 'http://' + sdc_config.workflow_domain,
                 agent: false
             });

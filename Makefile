@@ -258,7 +258,7 @@ coal-and-open: coal
 
 .PHONY: update-tools-modules
 update-tools-modules:
-	./bin/mk-sdc-clients-light.sh 8ff6bc5 tools/node_modules/sdc-clients
+	./bin/mk-sdc-clients-light.sh v11.3.1 tools/node_modules/sdc-clients
 
 .PHONY: incr-upgrade
 incr-upgrade: $(TOOLS_DEPS)
