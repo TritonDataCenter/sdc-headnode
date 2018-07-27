@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2015, Joyent, Inc.
  */
 
 /*
@@ -63,11 +63,27 @@ FWAPI.prototype.ping = function (params, callback) {
 /**
  * Lists all rules.
  *
- * @param {Function} params : filter parameters (optional)
+ * @param {Function} params : Parameters (optional).
+ * @param {Object} options : Request options (optional).
  * @param {Function} callback : of the form f(err, res).
  */
-FWAPI.prototype.listRules = function (params, callback) {
-    return this.get('/rules', params, callback);
+FWAPI.prototype.listRules = function (params, options, callback) {
+    // If only one argument then this is 'find all'
+    if (typeof (params) === 'function') {
+        callback = params;
+        params = {};
+    // If 2 arguments -> (params, callback)
+    } else if (typeof (options) === 'function') {
+        callback = options;
+        options = undefined;
+    }
+
+    var opts = { path: '/rules' };
+    if (options && options.headers) {
+        opts.headers = options.headers;
+    }
+
+    return this.get(opts, params, callback);
 };
 
 
@@ -101,11 +117,23 @@ FWAPI.prototype.updateRule = function (uuid, params, callback) {
  * Creates a rule.
  *
  * @param {Object} params : the rule parameters.
+ * @param {Object} options : Request options.
  * @param {Function} callback : of the form f(err, res).
  */
-FWAPI.prototype.createRule = function (params, callback) {
+FWAPI.prototype.createRule = function (params, options, callback) {
     assert.object(params, 'params');
-    return this.post('/rules', params, callback);
+
+    if (typeof (options) === 'function') {
+        callback = options;
+        options = undefined;
+    }
+
+    var opts = { path: '/rules' };
+    if (options && options.headers) {
+        opts.headers = options.headers;
+    }
+
+    return this.post(opts, params, callback);
 };
 
 
