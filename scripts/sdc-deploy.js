@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2018, Joyent, Inc.
  */
 
 var async = require('/usr/node/node_modules/async');
@@ -52,6 +52,7 @@ function initSapiClient(cb) {
     sapi = new sdc.SAPI({ // intentionally global
         log: log,
         url: sapiUrl,
+        version: '~2',
         agent: false
     });
     return cb(null);

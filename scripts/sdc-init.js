@@ -253,6 +253,7 @@ function initSapiClient(cb) {
     self.sapi = new sdc.SAPI({
         log: self.log,
         url: 'http://' + self.config.sapi_admin_ips,
+        version: '~2',
         agent: false
     });
     return cb(null);
