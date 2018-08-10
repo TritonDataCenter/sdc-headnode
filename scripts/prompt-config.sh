@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2017, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 
 # XXX - TODO
@@ -38,6 +38,30 @@ declare -a states
 declare -a nics
 declare -a assigned
 declare prmpt_str
+
+#
+# Generate a horizontal ruler of appropriate length.  Doing this each time we
+# emit a ruler appears to induce a surprisingly noticeable latency, so we just
+# do it once.
+#
+ruler=
+while (( ${#ruler} < 80 )); do
+	ruler+='-'
+done
+
+#
+# Determine whether we need a trailing newline after the horizontal ruler.  It
+# would seem that most modern terminal emulators behave like the VT100: if the
+# cursor has naturally progressed to the rightmost column _and_ the next
+# character is a newline, the terminal will discard what is effectively a
+# redundant newline.  Unfortunately, the framebuffer terminal emulator in
+# illumos does not currently do this.  Attempt to guess if we are attached to a
+# serial line or not, so as to decide whether we should send the extra newline.
+#
+console=$(bootparams | awk -F= '$1 == "console" { print $2 }')
+if [[ $(/bin/tty) != '/dev/console' ]] || [[ $console =~ ^tty ]]; then
+	ruler+='\n'
+fi
 
 nicsup_done=0
 
@@ -701,6 +725,16 @@ updatenicstates()
 	done < <(dladm show-phys -po link,state 2>/dev/null)
 }
 
+printruler()
+{
+	#
+	# Print the horizontal ruler we have generated for this terminal.  Note
+	# that the ruler string is a printf(1) format string which may include
+	# a newline escape sequence.
+	#
+	printf -- "$ruler"
+}
+
 printheader()
 {
 	local newline=
@@ -712,21 +746,19 @@ printheader()
 		return
 	fi
 
-	if [ $cols -gt 80 ] ;then
-		newline='\n'
-	fi
-
 	clear
-	printf " %-40s\n" "Smart Data Center (SDC) Setup"
-	printf " %-40s%38s\n" "$subheader" "http://docs.joyent.com/sdc7"
-	for i in {1..80} ; do printf "-" ; done && printf "$newline"
+	printf " %-40s\n" "Triton Setup"
+	printf " %-40s%38s\n" "$subheader" \
+	    "https://docs.joyent.com/private-cloud"
+
+	printruler
 }
 
 print_warning()
 {
 	clear
 	printf "WARNING\n"
-	for i in {1..80} ; do printf "-" ; done && printf "\n"
+	printruler
 	printf "\n$1\n"
 
 	prmpt_str="\nPress [enter] to continue "
@@ -822,20 +854,20 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2014, Joyent, Inc."
+printheader "Copyright (c) 2018, Joyent, Inc."
 
 message="
-Before proceeding with the installation of SDC please familiarise yourself with
-the architecture and components of SDC by reviewing the SDC 7 Overview:
+Before proceeding with the installation of Triton please familiarise yourself
+with the architecture and components of Triton by reviewing the Triton Overview:
 
-http://docs.joyent.com/sdc7/overview-of-smartdatacenter-7.
+    https://docs.joyent.com/private-cloud
 
 Please also read through the installation instructions:
 
-http://docs.joyent.com/sdc7/installing-sdc7
+    https://docs.joyent.com/private-cloud/install
 
-paying particular attention to the "Preparation" section and the networking
-requirements.
+Of particular note are the sections describing networking requirements and
+deployment planning.
 
 You must answer the following questions to configure the head node. You will
 have a chance to review and correct your answers, as well as a chance to edit
@@ -920,7 +952,7 @@ datacenter_name=us-west-1, but this isn't required.
 	message="
 Several applications will be made available on these networks using IP
 addresses which are automatically incremented based on the headnode IP.
-In order to determine what IP addresses have been assigned to SDC, you can
+In order to determine what IP addresses have been assigned to Triton, you can
 either review the configuration prior to its application, or you can run
 'sdc-netinfo' after the install.
 
@@ -935,10 +967,10 @@ Press [enter] to continue"
 	printheader "Networking - Admin"
 	message="
 The admin network is used for management traffic and other information that
-flows between the Compute Nodes and the Headnode in an SDC cluster. This
+flows between the Compute Nodes and the Headnode in a Triton cluster. This
 network will be used to automatically provision new compute nodes and there are
 several application zones which are assigned sequential IP addresses on this
-network. It is important that this network be used exclusively for SDC
+network. It is important that this network be used exclusively for Triton
 management. Note that DHCP traffic will be present on this network following
 the installation and that this network is connected in VLAN ACCESS mode only.
 \n\n"
@@ -1110,7 +1142,7 @@ other networks. This will almost certainly be the router connected to your
 
 	message="
 The DNS servers set here will be used to provide name resolution abilities to
-the SDC cluster itself. These will also be default DNS servers for zones
+the Triton cluster itself. These will also be default DNS servers for zones
 provisioned on the 'external' network.\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
@@ -1160,8 +1192,8 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 	message="
 There are two primary accounts for managing a Smart Data Center.  These are
 'admin', and 'root'. Each account can have a unique password. Most of the
-interaction you will have with SDC will be using the 'admin' user, unless
-otherwise specified.  In addition, SDC has the ability to send notification
+interaction you will have with Triton will be using the 'admin' user, unless
+otherwise specified.  In addition, Triton has the ability to send notification
 emails to a specific address. Each of these values will be configured below.
 \n"
 

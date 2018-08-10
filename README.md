@@ -76,7 +76,7 @@ Then to set up the zone:
 ### Build Specification: `build.spec` and `build.spec.local`
 
 Some aspects of the configuration of the build, including which build artefacts
-will be included in the resultant SDC installation media, are specified
+will be included in the resultant Triton installation media, are specified
 declaratively.  The JSON file `build.spec` contains the default specification
 of all build configuration, and is versioned in the repository.
 
@@ -120,7 +120,7 @@ file: zones and files.
 
 ##### Zones
 
-The SDC headnode installation media includes images of various core zones.
+The Triton headnode installation media includes images of various core zones.
 These zone images are generally built by [Mountain Gorilla (MG)][mg], and the
 resultant build artefacts are uploaded to a directory structure in
 [Manta][manta].  Zone images are nominated for inclusion in the build via
@@ -225,7 +225,7 @@ output of [Mountain Gorilla (MG)][mg] build targets and are obtained either
 from Manta (by default) or an MG-style `BITS_DIR`.
 
 Files are specified in the `"files"` key of `build.spec`.  For example, the
-SDC Agents are bundled together in a shell archive (shar) installer.  This
+Triton Agents are bundled together in a shell archive (shar) installer.  This
 installer is produced as part of the `agentsshar` MG target.  The shar itself
 is specified for inclusion with this entry:
 
@@ -264,7 +264,7 @@ an alternative top-level `build.spec` key on a per-file basis.
 
 For example, Joyent ships firmware files for specific server hardware that are
 not available under an opensource license.  As a result, these files are only
-included in the commercially supported builds of SDC to Joyent customers.
+included in the commercially supported builds of Triton to Joyent customers.
 The firmware artefact is stored in a different (Joyent-private) area of Manta,
 and configured thus:
 
