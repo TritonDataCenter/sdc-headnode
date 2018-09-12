@@ -1,6 +1,0 @@
-{
-  "name": "redis",
-  "path": "/opt/redis/etc/redis.conf",
-  "template": "daemonize yes\npidfile /var/run/redis.pid\n# \"port 6379\" is the default\nloglevel notice\nlogfile /var/log/redis/redis.log\n# Snapshotting:\n#   after 60 sec if at least 1 key changed\n# Default of only every 15 *minutes* for 1 key change is too long for us here.\nsave 60 1\ndir /data/redis\n",
-  "post_cmd": "/usr/sbin/svcadm restart redis"
-}

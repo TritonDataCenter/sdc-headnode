@@ -260,24 +260,6 @@ coal-and-open: coal
 update-tools-modules:
 	./bin/mk-sdc-clients-light.sh v11.3.1 tools/node_modules/sdc-clients
 
-.PHONY: incr-upgrade
-incr-upgrade: $(TOOLS_DEPS)
-	@echo building incr-upgrade-$(STAMP).tgz
-	rm -rf build/incr-upgrade
-	mkdir -p build
-	cp -r $(TOP)/incr-upgrade-scripts build/incr-upgrade-$(STAMP)
-	cp -r \
-		$(TOP)/zones \
-		$(TOP)/tools.tar.gz \
-		$(TOP)/cn_tools.tar.gz \
-		$(TOP)/default \
-		$(TOP)/scripts \
-		build/incr-upgrade-$(STAMP)
-	(cd build && tar czf ../incr-upgrade-$(STAMP).tgz incr-upgrade-$(STAMP))
-
-CLEAN_FILES += build/incr-upgrade
-
-
 GZ_TOOLS_STAMP := gz-tools-$(STAMP)
 GZ_TOOLS_MANIFEST := $(GZ_TOOLS_STAMP).manifest
 GZ_TOOLS_TARBALL := $(GZ_TOOLS_STAMP).tgz

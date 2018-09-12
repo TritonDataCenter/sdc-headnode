@@ -47,8 +47,6 @@ There are three main build products from this repo:
 
   - `make usb` - outputs a USB image tarball
   - `make coal` - outputs a coal image for use with VMware
-  - `make incr-upgrade` - outputs a tarball with scripts and tools for incremental upgrades of services on existing headnodes.
-
 
 ### Build prerequisites
 
