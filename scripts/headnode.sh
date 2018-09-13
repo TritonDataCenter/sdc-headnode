@@ -359,7 +359,6 @@ if [[ ! -d /usbkey/extra/joysetup ]]; then
         capi_client_url
         capi_http_admin_user
         capi_http_admin_pw
-        zonetracker_database_path
         binder_admin_ips
         imgapi_admin_ips
         imgapi_domain

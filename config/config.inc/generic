@@ -5,7 +5,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 
 #
@@ -47,7 +47,6 @@ utc_offset=0
 
 # Agents will be installed here
 agents_root=/opt/smartdc/agents
-zonetracker_database_path=/opt/smartdc/agents/db/zonetracker.sqlite3
 
 # Set this to the name of a file in config.inc and it will be copied in as
 # root's .ssh/authorized_keys in GZs:

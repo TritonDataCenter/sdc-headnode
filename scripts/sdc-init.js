@@ -129,7 +129,6 @@ function translateConfig(cb) {
     // initial_script
     // utc_offset
     // agents_root
-    // zonetracker_database_path
     //
     // generated config:
     // does everything need _root_pw?
