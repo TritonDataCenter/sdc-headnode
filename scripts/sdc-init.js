@@ -116,6 +116,9 @@ function translateConfig(cb) {
     sdcExtras.metadata['sapi-url'] = 'http://' + self.config.sapi_domain;
     sdcExtras.metadata['assets-ip'] = self.config.assets_admin_ip;
 
+    // default-on feature flags
+    sdcExtras.metadata['UFDS_ATTESTATION'] = true;
+
     return cb(null);
 
     // XXX - other things that aren't metadata?
