@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2017 Joyent, Inc.
+# Copyright 2018 Joyent, Inc.
 #
 
 #
@@ -530,7 +530,7 @@ function create_zone {
         > ${payload_file}
     fi
 
-    cat ${payload_file} | vmadm create
+    VMADM_DEBUG_LEVEL='debug' vmadm create -f "$payload_file"
 
     local loops=
     local zonepath=
