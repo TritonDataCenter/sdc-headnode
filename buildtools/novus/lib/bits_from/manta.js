@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2017 Joyent, Inc.
+ * Copyright 2018 Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -25,7 +25,6 @@ bits_from_manta(out, bfm, next)
 	mod_assert.arrayOfObject(out, 'out');
 	mod_assert.object(bfm, 'bfm');
 	mod_assert.func(next, 'next');
-
 	mod_vasync.pipeline({
 		arg: bfm,
 		funcs: [
@@ -38,7 +37,6 @@ bits_from_manta(out, bfm, next)
 			next(new VError(err, 'could not get from manta'));
 			return;
 		}
-
 		mod_assert.object(bfm.bfm_manta_hashes, 'bfm_manta_hashes');
 		mod_assert.arrayOfObject(bfm.bfm_manta_files,
 		    'bfm_manta_files');
@@ -319,13 +317,23 @@ bfm_lookup_latest_dir(bfm, next)
 	mod_assert.string(bfm.bfm_base_path, 'bfm_base_path');
 	mod_assert.string(bfm.bfm_jobname, 'bfm_jobname');
 	mod_assert.string(bfm.bfm_branch, 'bfm_branch');
+	mod_assert.optionalString(bfm.bfm_timestamp, 'bfm_timestamp');
 	mod_assert.func(next, 'next');
+
 
 	/*
 	 * Look up the "-latest" pointer file for this branch in Manta:
 	 */
+	if (!bfm.bfm_timestamp) {
+		bfm.bfm_timestamp = 'latest';
+	}
 	var latest_dir = mod_path.join('/', bfm.bfm_base_path,
-	    bfm.bfm_jobname, bfm.bfm_branch + '-latest');
+	    bfm.bfm_jobname, bfm.bfm_branch + '-' + bfm.bfm_timestamp);
+	if (bfm.bfm_timestamp !== 'latest') {
+		bfm.bfm_manta_dir = latest_dir;
+		next();
+		return;
+	}
 	lib_common.get_manta_file(bfm.bfm_manta, latest_dir,
 	    function (err, data) {
 		if (err) {

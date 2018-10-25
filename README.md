@@ -309,6 +309,30 @@ boot tarball), the following could be used in `build.spec.local`:
 }
 ```
 
+#### Alternative build timestamp selection
+
+By default, the build artifacts used for inclusion in the headnode
+installation from a given branch are obtained from a file named following
+the pattern `buildjob-latest`, which points to a manta directory named using
+`buildjob-build_timestamp`. Sometimes it is desirable to pick a different
+image than the most recently created one. On these cases, it's possible
+to specify the `build_timestamp` in `build.spec.local`:
+
+```
+{
+    "files": {
+        "platform": {
+            "branch": "master",
+            "build_timestamp": "20181024T220414Z"
+        },
+        "sdcadm": {
+            "branch": "rfd67",
+            "build_timestamp": "20171030T214543Z"
+        }
+    }
+}
+```
+
 #### Feature Definition
 
 The build specification allows for the build process to be different based on a

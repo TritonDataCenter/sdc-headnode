@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2017 Joyent, Inc.
+ * Copyright 2018 Joyent, Inc.
  */
 
 var mod_fs = require('fs');
@@ -335,7 +335,11 @@ bit_enum_file(be, next)
 		if (alt_base_var) {
 			base_path = be.be_spec.get(alt_base_var);
 		}
-
+		var timestamp = 'latest';
+		var build_timestamp = file_spec('build_timestamp', true);
+		if (build_timestamp) {
+			timestamp = build_timestamp;
+		}
 		lib_bits_from_manta(be.be_out, {
 			bfm_manta: be.be_manta,
 			bfm_prefix: 'file.' + name,
@@ -348,7 +352,8 @@ bit_enum_file(be, next)
 					ext: file_spec('file|ext')
 				}
 			],
-			bfm_base_path: base_path
+			bfm_base_path: base_path,
+			bfm_timestamp: timestamp
 		}, next);
 		return;
 
