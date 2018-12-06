@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2017, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image. There
@@ -37,6 +37,11 @@
 # ./bin/reflash /path/to/local.tgz <host> [<identityfile>]
 #
 #    To install from a tarball that exists locally.
+#
+# ./bin/reflash https://example.com/path/to/some.tgz <host> [<identityfile>]
+#
+#    To install from a URL to a tarball. A HEAD request to this URL must
+#    include a Content-MD5 header.
 #
 # In any case where a local tarball is not specified, the manta credentials from
 # build.spec.* are used.
@@ -225,18 +230,38 @@ download_attempt_to_remote()
     if [[ -n ${SOURCE_UPLOAD_FILE} ]]; then
         # we've got a local file, try to just scp it
         send_local_file "${SOURCE_UPLOAD_FILE}" "${download_target}"
-    else
+    elif [[ -n ${SOURCE_URL} ]]; then
+        # The file is an HTTPS URL, we'll curl it from the remote end.
+        remote_download_url "${SOURCE_URL}" "${download_target}"
+    elif [[ -n ${SOURCE_MANTA_FILE} ]]; then
         # we've got a manta file, msign it then curl
         remote_download_manta "${SOURCE_MANTA_FILE}" "${download_target}"
+    else
+        fatal "download_attempt_to_remote error: none of" \
+            "SOURCE_UPLOAD_FILE, SOURCE_URL, or SOURCE_MANTA_FILE is set"
     fi
 
-    # now check whether MD5 matches ${SOURCE_MD5}
-    remote_md5=$(get_remote_md5 "${download_target}")
+    # Now check whether MD5 matches ${SOURCE_MD5} or ${SOURCE_CONTENT_MD5}.
+    if [[ -n "${SOURCE_MD5}" ]]; then
+        remote_md5=$(get_remote_md5 "${download_target}")
 
-    if [[ "${remote_md5}" != "${SOURCE_MD5}" ]]; then
-        echo "# WARN: MD5 mismatch '${remote_md5}' != '${SOURCE_MD5}'"
-        return 1
+        if [[ "${remote_md5}" != "${SOURCE_MD5}" ]]; then
+            echo "# WARN: MD5 mismatch '${remote_md5}' != '${SOURCE_MD5}'"
+            return 1
+        fi
+    elif [[ -n "${SOURCE_CONTENT_MD5}" ]]; then
+        remote_md5=$(get_remote_content_md5 "${download_target}")
+
+        if [[ "${remote_md5}" != "${SOURCE_CONTENT_MD5}" ]]; then
+            echo "# WARN: MD5 mismatch '${remote_md5}'" \
+                "!= '${SOURCE_CONTENT_MD5}'"
+            return 1
+        fi
+    else
+        fatal "download_attempt_to_remote error: neither of SOURCE_MD5" \
+            "or SOURCE_CONTENT_MD5 is set"
     fi
+
 
     return 0
 }
@@ -323,6 +348,24 @@ get_local_md5()
     echo "${md5}"
 }
 
+get_url_content_md5()
+{
+    local url
+    local content_md5
+
+    url=$1
+
+    content_md5=$(curl -sS --fail --head "${url}" \
+        | grep -i '^Content-MD5:' \
+        | tr -d '\r' \
+        | awk '{print $2}')
+
+    [[ -n ${content_md5} ]] \
+        || fatal "HEAD request for '$url' did not include a Content-MD5 header"
+
+    echo "${content_md5}"
+}
+
 get_manta_base_path()
 {
     local manta_base_path
@@ -400,6 +443,25 @@ get_remote_md5()
     echo "${remote_md5}"
 }
 
+get_remote_content_md5()
+{
+    local remote_filename
+    local remote_md5
+
+    remote_filename=$1
+
+    remote_md5=$(ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} \
+        "openssl dgst -md5 -binary ${remote_filename}" | base64)
+
+    [[ -n ${remote_md5} ]] \
+        || fatal "Unable to determine MD5 of ${remote_filename}"
+
+    echo "${remote_md5}"
+}
+
+# Sets one of SOURCE_UPLOAD_FILE, SOURCE_URL, or SOURCE_MANTA_FILE
+# depending on the source type. It also sets either SOURCE_MD5 (a hex digest)
+# or SOURCE_CONTENT_MD5 (a base64-encoded binary digest) for the source file.
 identify_source()
 {
     local source_spec
@@ -412,6 +474,12 @@ identify_source()
         SOURCE_MD5=$(get_local_md5 ${source_spec})
 
         echo "# source ${SOURCE_UPLOAD_FILE} (MD5 ${SOURCE_MD5})"
+    elif [[ "${source_spec:0:8}" == "https://" ]]; then
+        # source is an HTTPS URL
+        SOURCE_URL=${source_spec}
+        SOURCE_CONTENT_MD5=$(get_url_content_md5 "${source_spec}")
+
+        echo "# source ${SOURCE_URL} (Content-MD5 ${SOURCE_CONTENT_MD5})"
     else
         # from here out we'll need the manta tools, so ensure we've got them
         ensure_manta_tools
@@ -426,7 +494,6 @@ identify_source()
 
         echo "# source ${SOURCE_MANTA_FILE} (MD5 ${SOURCE_MD5})"
     fi
-
 }
 
 load_build_spec()
@@ -518,6 +585,18 @@ overwrite_usb_key()
 
         exit 0
 EOF
+}
+
+remote_download_url()
+{
+    local url
+    local remote_target
+
+    url=$1
+    remote_target=$2
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} \
+        "curl --fail -ko ${remote_target} '${url}'"
 }
 
 remote_download_manta()
