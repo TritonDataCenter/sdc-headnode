@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 
 # This script is intended to copy any changes that a sysadmin might legitimately
@@ -77,7 +77,7 @@ update_sdc_zone_pkgs()
 	    | json -H  \
 	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
 	    -e 'this.package_name=(this.package_name || "-")' \
-	    -c 'this.tags.smartdc_role' \
+	    -c 'this.tags.smartdc_role && this.tags.smartdc_role!=="nat"' \
 	    -a smartdc_role package_name | \
 	    while read role pkg
 	    do
