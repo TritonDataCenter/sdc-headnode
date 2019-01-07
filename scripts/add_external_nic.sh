@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 #
@@ -28,15 +28,13 @@ function fatal {
 
 function add_external_nic {
     local zone_uuid=$1
-    local external_net_uuid
-    external_net_uuid=$(sdc-napi /networks?name=external | json -Ha uuid)
     local tmpfile=/tmp/update_nics.$$.json
 
     echo "Adding external NIC to ${zone_uuid}"
     sdc-vmapi /vms/${zone_uuid}?action=add_nics -X POST --data-binary @- <<EOF
 {
   "networks": [
-    { "uuid": "${external_net_uuid}", "primary": true }
+    { "name": "external", "primary": true }
   ]
 }
 EOF

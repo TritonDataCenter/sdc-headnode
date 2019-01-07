@@ -1,7 +1,7 @@
 {
   "name": "usb-headnode",
   "description": "Build SDC headnode images",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "Joyent (joyent.com)",
   "private": true,
   "dependencies": {
@@ -14,6 +14,7 @@
     "monowrap": "^1.0.4",
     "progbar": "^1.1.0",
     "readtoend": "0.0.1",
+    "triton-netconfig": "1.0.0",
     "vasync": "^1.6.3",
     "verror": "^1.6.0"
   },

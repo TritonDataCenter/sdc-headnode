@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2018, Joyent, Inc.
+ * Copyright (c) 2019, Joyent, Inc.
  */
 
 //
@@ -23,6 +23,7 @@ var async = require('/usr/node/node_modules/async');
 var dashdash = require('dashdash');
 var exec = require('child_process').exec;
 var readline = require('readline');
+var netconfig = require('triton-netconfig');
 var util = require('util');
 var vasync = require('vasync');
 
@@ -245,11 +246,9 @@ function outputServerData(servers, callback)
         'HOSTNAME', 'UUID', 'VERSION', 'SETUP', 'STATUS', 'RAM', 'ADMIN_IP'));
 
     servers.forEach(function (s) {
-        var admin_ip = '-';
-        var admin_tag = 'admin';
+        var admin_ip;
         var sdc_version;
         var setup_state = s.setup;
-        var n;
 
         // Eventually this will be a first-class property of a CN
         sdc_version = s.sysinfo['SDC Version'];
@@ -257,31 +256,9 @@ function outputServerData(servers, callback)
             sdc_version = '6.x';
         }
 
-        if (s['sysinfo']['Admin NIC Tag']) {
-            admin_tag = s['sysinfo']['Admin NIC Tag'];
-        }
-
-        for (n in s['sysinfo']['Network Interfaces']) {
-            var i;
-            var found = false;
-            var nic = s['sysinfo']['Network Interfaces'][n];
-            var nicnames = nic['NIC Names'];
-
-            if (!nicnames) {
-                continue;
-            }
-
-            for (i = 0; i < nicnames.length; i++) {
-                if (nicnames[i] === admin_tag) {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (found === true) {
-                admin_ip = nic['ip4addr'];
-                break;
-            }
+        admin_ip = netconfig.adminIpFromSysinfo(s['sysinfo']);
+        if (!admin_ip) {
+            admin_ip = '-';
         }
 
         function outputLine() {
@@ -747,7 +724,7 @@ function lookupServers(args, callback)
 }
 
 function outputAdminIP(server_uuid, callback) {
-    var admin_tag = 'admin';
+    var admin_ip;
 
     _getServer(server_uuid, function (err, s) {
         if (err) {
@@ -755,25 +732,14 @@ function outputAdminIP(server_uuid, callback) {
             return;
         }
 
-        if (s['sysinfo']['Admin NIC Tag']) {
-            admin_tag = s['sysinfo']['Admin NIC Tag'];
+        admin_ip = netconfig.adminIpFromSysinfo(s['sysinfo']);
+        if (!admin_ip) {
+            callback(new Error('No admin IP found'));
+            return;
         }
 
-        getNics(server_uuid, { nic_tags_provided: [admin_tag] },
-            function (err, nics) {
-
-            if (!nics || nics.length === 0) {
-                callback(new Error('No admin nic found'));
-                return;
-            }
-
-            if (!nics[0].ip) {
-                callback(new Error('No admin IP found'));
-                return;
-            }
-
-            console.log(nics[0].ip);
-        });
+        console.log(admin_ip);
+        callback();
     });
 }
 
