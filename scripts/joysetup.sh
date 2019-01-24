@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2017 Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 #
@@ -621,12 +621,16 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     if [[ -n "${CONFIG_cache}" && "${CONFIG_cache}" == "false" ]]; then
         dl2="-c"
     fi
+    if [[ -n "${CONFIG_width}" ]]; then
+        dl3="-w"
+        dl4="${CONFIG_width}"
+    fi
     if [[ -n "${CONFIG_layout}" ]]; then
-        dl3="${CONFIG_layout}"
+        dl5="${CONFIG_layout}"
     fi
 
-    if ! /usr/bin/disklayout ${dl0} ${dl1:+"$dl1"} ${dl2} "${dl3}" \
-         > ${POOL_FILE}; then
+    if ! /usr/bin/disklayout ${dl0} ${dl1:+"$dl1"} ${dl2} \
+	${dl3} ${dl4:+"$dl4"} "${dl5}" > ${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
