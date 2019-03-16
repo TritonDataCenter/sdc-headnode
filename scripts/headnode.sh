@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2018 Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 #
@@ -822,7 +822,6 @@ if setup_state_not_seen "setup_complete" \
     create_zone dhcpd
     create_zone fwapi
     create_zone vmapi
-    create_zone ca
     create_zone mahi
     create_zone adminui
 

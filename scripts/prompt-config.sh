@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2018, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 # XXX - TODO
@@ -1506,10 +1506,6 @@ echo >>$tmp_config
 
 echo "papi_admin_ips=$papi_admin_ip" >>$tmp_config
 echo "papi_domain=papi.${datacenter_name}.${dns_domain}" >>$tmp_config
-echo >>$tmp_config
-
-echo "ca_admin_ips=$ca_admin_ip" >>$tmp_config
-echo "ca_domain=ca.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
 echo "adminui_admin_ips=$adminui_admin_ip" >>$tmp_config

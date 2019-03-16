@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2018, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 #
@@ -106,7 +106,7 @@ mv _repos/node-sdc-clients/{package.json,lib} .
 (cd lib && rm -f config.js package.js ufds.js assertions.js)
 
 if [[ -n "$LIBS" ]]; then
-    for LIB in $(cd lib && ls -1 *api.js) amon.js ca.js; do
+    for LIB in $(cd lib && ls -1 *api.js) amon.js; do
         if [[ -z $(echo "$LIBS" | grep "\<$LIB\>") ]]; then
             rm -f lib/$LIB
         fi

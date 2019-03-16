@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 #
@@ -102,7 +102,6 @@ function grab_default
     grab_dumps
     grab_fmdump
     grab_logs
-    grab_castatus
     grab_phonehome
     grab_platform_md5
     grab_app_config
@@ -354,14 +353,6 @@ function grab_logs
     echo "  > logs"
     tar -zcvf ${TEMPDIR}/gz-logs.tar.gz var/svc/log \
         etc/svc/volatile var/adm var/log/*.log $upgrade_dir >&4 2>&1
-}
-
-function grab_castatus
-{
-    if [[ -n ${CONFIG_ca_client_url} ]]; then
-        curl ${CONFIG_ca_client_url}/ca/admin/status?recurse=true >&4 2>&1 \
-        | json > ${TEMPDIR}/ca.status
-    fi
 }
 
 function grab_phonehome

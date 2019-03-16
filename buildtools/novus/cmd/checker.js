@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2017 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 var mod_fs = require('fs');
@@ -213,7 +213,6 @@ check_old_image_specs()
 		'amonredis',
 		'assets',
 		'binder',
-		'ca',
 		'cloudapi',
 		'cnapi',
 		'dhcpd',

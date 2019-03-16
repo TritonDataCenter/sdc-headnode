@@ -32,7 +32,6 @@
     "amonredis": {},
     "assets": {},
     "binder": {},
-    "ca": {},
     "cloudapi": {},
     "cnapi": {},
     "dhcpd": {},
