@@ -370,9 +370,10 @@ function grab_platform_md5
 
     echo "  > kernel & platform integrity hash"
     sum -R -x md5 /usbkey/os > ${TEMPDIR}/platforms_cache.md5
-    /usbkey/scripts/mount-usb.sh
-    sum -R -x md5 /mnt/usbkey/os > ${TEMPDIR}/platforms_bootable.md5
-    umount /mnt/usbkey
+    usbmnt=$(sdc-usbkey mount)
+    [ $? != 0 ] && return
+    sum -R -x md5 $usbmnt/os > ${TEMPDIR}/platforms_bootable.md5
+    sdc-usbkey unmount
 }
 
 function grab_rabbitmq_info

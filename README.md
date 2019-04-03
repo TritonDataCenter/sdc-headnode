@@ -22,8 +22,8 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
             ./tools/coal-mac-vmware-setup
 
   - Optionally, to automate setup:
-    - create a `build.spec.local` file with the following contents: `{"answer-file": "answers.json"}`
-    - copy one of the answers.json templates: `cp answers.json.tmpl.external answers.json`
+
+    - `echo '{"answer-file": "answers.json.tmpl.external"}' >build.spec.local`
 
     - see the [Build Specification][buildspec] and
       [Automating Headnode Setup][autosetup] sections below for more information.
@@ -32,10 +32,15 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
     images of all services. This can take quite some time. If this fails,
     please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
-  - open `coal-master-TIMESTAMP-gSHA.vmwarevm`, select 'Live 64-bit' at the
-    grub menu, and work through the interactive installer referring to [this
-    documentation][coal-setup.md]. **Important**: while many answers are arbitrary, the
-    networking questions require specific values for local development.
+  - `open coal-master-TIMESTAMP-gSHA.vmwarevm`, let the boot time out, then work
+    through the interactive installer if you didn't provide an answer file,
+    referring to [this documentation][coal-setup.md]. **Important**: while many
+    answers are arbitrary, the networking questions require specific values
+    for local development.
+
+  - note that the console defaults to `ttyb` a.k.a. `socket.serial1`. You can
+    use something like [sercons][https://github.com/jclulow/vmware-sercons] to
+    connect to this.
 
   - when setup completes, you can access the headnode via ssh: `ssh
     root@10.99.99.7` using the root password specified during setup.
@@ -81,35 +86,36 @@ of all build configuration, and is versioned in the repository.
 During development, or as part of release engineering, particular elements of
 the build specification may be overridden in another file: `build.spec.local`.
 By re-specifying a subset of build configuration in this file, the behaviour of
-a particular build run may be altered.  A useful example of `build.spec.local`
-for local development is:
+a particular build run may be altered.  For example:
 
 ```
 {
-    "answer-file": "answers.json",
+    "answer-file": "answers.json.tmpl.external",
     "build-tgz": "false",
     "coal-memsize": 8192,
     "vmware_version": 7,
-    "default-boot-option": 1,
-    "clean-cache": true
+    "clean-cache": true,
+    "ipxe": false,
+    "console": "ttya"
 }
 ```
 
 In the example above,
 
   - `"answer-file"` is used to specify a setup answers file for inclusion in
-    resultant installation media
+    resultant installation media; `answers.json.tmpl.external` is suitable for
+    a standard COAL setup
   - `"build-tgz"` is used to disable the creation of a compressed tarball with
     the build results; instead, the resultant build artefacts will be left in
-    output directories.
+    output directories. This can be very useful when rsync'ing a COAL build
   - `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
     (recommended if you plan to install a [Manta][manta] test environment.)
   - `"vmware_version"` specifies the version of VMware Fusion to target.
     See <https://kb.vmware.com/s/article/1003746> for mapping of Virtual
     Hardware Version to VMware releases. Note that `vmware_version=7`,
     corresponding to hardware version 11, is required for Bhyve VMs to work.
-  - `"default-boot-option"` selects the default grub boot option; a value of
-    `1` selects the second entry in the menu: regular headnode boot
+  - COAL defaults to USB boot; `"ipxe"` modifies this default
+  - COAL defaults to serial console, using `ttyb`. Use `text` for VGA console
 
 #### Build Artefacts
 
@@ -459,7 +465,7 @@ The failure may have occurred in one of the zones being installed, rather than i
 Development in this repo is typically to alter setup and bootstrap of the system. Setup scripts reside on a USB key typically mounted at `/mnt/usbkey`, and are copied onto the headnode at `/usbkey`.
 
 To test changes to setup procedures without a complete rebuild, you can:
-  - mount the usbkey (if required) using `/usbkey/scripts/mount-usb.sh`
+  - mount the usbkey (if required) using `sdc-usbkey mount`
   - copy your modifications over the existing scripts
   - run `sdc-factoryreset` to re-run the setup process
 

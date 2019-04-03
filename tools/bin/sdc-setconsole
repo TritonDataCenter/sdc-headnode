@@ -6,76 +6,7 @@
 #
 
 #
-# Copyright (c) 2015, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
-#
-# Usage:
-#
-#  sdc-setconsole <console>
-#
-
-mntsvc="svc:/system/filesystem/smartdc:default"
-usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' ${mntsvc})"
-usbcp="$(svcprop -p 'joyentfs/usb_copy_path' ${mntsvc})"
-menu="${usbmnt}/boot/grub/menu.lst"
-menutmpl="${menu}.tmpl"
-
-function usage
-{
-    cat <<USAGE
-Usage: $0 [ttya|ttyb|ttyc|ttyd|text]
-
-Example:
-
-    $0 ttyb
-
-USAGE
-
-    exit 1
-}
-
-function fatal
-{
-    echo "`basename $0`: $*" >&2 
-    exit 1
-}
-
-if [[ -z "$1" ]]; then
-    usage
-fi
-
-console=$1
-
-case "${console}" in
-ttya|ttyb|ttyc|ttyd|text)
-    ;;
-graphics|vga)
-    console=text
-    ;;
-*)
-    usage
-    ;;
-esac
-
-if [[ ! -d $usbmnt ]]; then
-    mkdir $usbmnt || fatal "could not make $usbmnt"
-fi
-
-mount | grep "^${usbmnt}" >/dev/null 2>&1 || bash $usbcp/scripts/mount-usb.sh
-mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
-
-echo -n "Setting default OS console to ${console} ... "
-sed -e "s/^variable os_console.*/variable os_console ${console}/" \
-    < ${menu} > /tmp/menu.lst.$$
-mv -f /tmp/menu.lst.$$ ${menu}
-sed -e "s/^variable os_console.*/variable os_console ${console}/" \
-    < ${menutmpl} > /tmp/menu.lst.tmpl.$$
-mv -f /tmp/menu.lst.tmpl.$$ ${menutmpl}
-echo "done."
-
-echo -n "Unmounting USB key ... "
-umount "${usbmnt}"
-echo "done."
-
-exit 0
+exec /opt/smartdc/bin/sdc-usbkey set-variable os_console "$@"

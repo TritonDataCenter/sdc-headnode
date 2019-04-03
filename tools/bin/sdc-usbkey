@@ -1,6 +1,8 @@
 #!/bin/ksh
+#
+# Copyright (c) 2019, Joyent, Inc.
 
 dir=$(dirname $(whence $0))
 cmd=$(basename $0)
 
-/usr/node/bin/node "${dir}/../cmd/${cmd}.js" "$@"
+/usr/node/bin/node --abort-on-uncaught-exception "${dir}/../cmd/${cmd}.js" "$@"

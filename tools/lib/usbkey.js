@@ -5,10 +5,11 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright (c) 2019, Joyent, Inc.
  */
 
 var mod_fs = require('fs');
+var mod_os = require('os');
 var mod_path = require('path');
 var mod_child = require('child_process');
 
@@ -204,7 +205,7 @@ parse_mount_optstr(optstr)
 
 /*
  * The kernel makes the list of mounted filesystems available in /etc/mnttab,
- * as documnted in the manual page mnttab(4).  Attempt to locate an entry in
+ * as documented in the manual page mnttab(4).  Attempt to locate an entry in
  * this file for a given mount point.  If an entry is found, it will be
  * returned as an object; if not, Boolean(false) will be returned instead.
  */
@@ -269,12 +270,126 @@ get_mount_info(mount, callback)
     });
 }
 
+/*
+ * A recognized key will have an MBR in one of two forms: either a legacy BIOS
+ * image, with a grub-legacy version of 3.2 at 0x3e; or a loader(5)-produced MBR
+ * with a major version of 2 at offset 0xfa.
+ *
+ * The former has the root pcfs at partition 1, the latter at (GPT) partition 2.
+ * Both should have the standard MBR magic of 0xaa55.
+ */
+function
+get_usb_key_version(device, callback)
+{
+    mod_assert.string(device, 'device');
+    mod_assert.func(callback, 'callback');
+
+    var COMPAT_VERSION_MAJOR = 3;
+    var COMPAT_VERSION_MINOR = 2;
+    var IMAGE_MAJOR = 2;
+
+    var p0dev = device.replace(/[sp][0-9]+$/, 'p0');
+
+    mod_fs.open(p0dev, 'r', function read_mbr(err, fd) {
+        if (err) {
+            callback(null, err);
+            return;
+        }
+
+        var buffer = new Buffer(512);
+
+        mod_fs.read(fd, buffer, 0, buffer.length, 0,
+          function inspect_mbr(err, nr_read, buffer) {
+            if (err) {
+                mod_fs.close(fd, function () {
+                    callback();
+                });
+                return;
+            }
+
+            if ((buffer[0x1fe] | buffer[0x1ff] << 8) !== 0xaa55) {
+                mod_fs.close(fd, function () {
+                    callback();
+                });
+                return;
+            }
+
+            var version = null;
+
+            if (buffer[0x3e] === COMPAT_VERSION_MAJOR &&
+                buffer[0x3f] === COMPAT_VERSION_MINOR) {
+                version = 1;
+            } else if (buffer[0xfa] === IMAGE_MAJOR) {
+                version = 2;
+            }
+
+            mod_fs.close(fd, function () {
+                if (version === null) {
+                    callback(null,
+                        new VError('unrecognised key version for ' + device));
+                    return;
+                }
+
+                callback(version);
+            });
+        });
+    });
+}
+
+/*
+ * Figure out if the given disk is potentially the USB key we're looking for.
+ * It should have a recognised version.
+ *
+ * As this is all we have to go on, we'll later make sure it really is a USB key
+ * via check_for_marker_file().
+ */
+function
+inspect_device(pcfs_devices, disk, callback)
+{
+    mod_assert.string(disk, 'disk');
+    mod_assert.func(callback, 'callback');
+
+    get_usb_key_version('/dev/dsk/' + disk + 'p0',
+        function check_fstyp(version, err) {
+        if (err) {
+            callback();
+            return;
+        }
+
+        var part = '/dev/dsk/' + disk;
+
+        switch (version) {
+        case 1:
+            part += 'p1';
+            break;
+        case 2:
+            part += 's2';
+            break;
+        default:
+            callback();
+            return;
+        }
+
+        lib_oscmds.fstyp(part, function (err, type) {
+            if (err) {
+                callback();
+                return;
+            }
+
+            if (type === 'pcfs')
+                pcfs_devices.push(part);
+
+            callback();
+        });
+    });
+}
+
 function
 locate_pcfs_devices(callback)
 {
     mod_assert.func(callback, 'callback');
 
-    lib_oscmds.diskinfo(function (err, disks) {
+    lib_oscmds.diskinfo(function inspect_devices(err, disks) {
         if (err) {
             callback(err);
             return;
@@ -282,27 +397,10 @@ locate_pcfs_devices(callback)
 
         var pcfs_devices = [];
 
-        /*
-         * Run 'fstyp' against the first partition (p1) of each device, looking
-         * for the USB key FAT filesystem:
-         */
         mod_vasync.forEachParallel({
             inputs: disks,
-            func: function (dsk, next) {
-                var path = '/dev/dsk/' + dsk.dsk_device + 'p1';
-
-                lib_oscmds.fstyp(path, function (_err, type) {
-                    if (_err) {
-                        next(_err);
-                        return;
-                    }
-
-                    if (type === 'pcfs' && pcfs_devices.indexOf(path) === -1) {
-                        pcfs_devices.push(path);
-                    }
-
-                    next();
-                });
+            func: function (disk, next) {
+                inspect_device(pcfs_devices, disk.dsk_device, next);
             }
         }, function (_err) {
             if (_err) {
@@ -470,48 +568,57 @@ _get_mountpoint_status(status, mountpoint, exp_mount_options, callback) {
         status.device = mi.mi_special;
         status.options = mi.mi_options;
 
-        /*
-         * If `exp_mount_options` is not given, then we skip checking
-         * mount options and the marker file.
-         */
-        if (!exp_mount_options) {
-            callback();
-            return;
-        }
-
-        mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
-        if (mi.mi_fstype !== 'pcfs' ||
-                !equiv_usbkey_mount_options(
-                    mi.mi_options, exp_mount_options)) {
-            /*
-             * The mount does not match both the expected filesystem
-             * type and the expected mount options.
-             */
-            dprintf('"%s" is mounted, but with different options: %j\n',
-                mi.mi_mountpoint, mi.mi_options);
-            callback();
-            return;
-        }
-
-        /*
-         * The filesystem mount options are as expected.
-         */
-        status.steps.options_ok = true;
-
-        dprintf('checking marker file...\n');
-        check_for_marker_file(mi.mi_mountpoint,
-          function (markerErr, exists) {
-            if (markerErr) {
-                callback(new VError(markerErr,
-                    'failed to locate marker file'));
+        get_usb_key_version(status.device, function (version, err) {
+            if (err) {
+                callback(err);
                 return;
             }
 
-            if (exists) {
-                status.steps.marker_file = true;
+            status.version = version;
+
+            /*
+             * If `exp_mount_options` is not given, then we skip checking
+             * mount options and the marker file.
+             */
+            if (!exp_mount_options) {
+                callback();
+                return;
             }
 
-            callback();
+            mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
+            if (mi.mi_fstype !== 'pcfs' ||
+                    !equiv_usbkey_mount_options(
+                        mi.mi_options, exp_mount_options)) {
+                /*
+                 * The mount does not match both the expected filesystem
+                 * type and the expected mount options.
+                 */
+                dprintf('"%s" is mounted, but with different options: %j\n',
+                    mi.mi_mountpoint, mi.mi_options);
+                callback();
+                return;
+            }
+
+            /*
+             * The filesystem mount options are as expected.
+             */
+            status.steps.options_ok = true;
+
+            dprintf('checking marker file...\n');
+            check_for_marker_file(mi.mi_mountpoint,
+              function (markerErr, exists) {
+                if (markerErr) {
+                    callback(new VError(markerErr,
+                        'failed to locate marker file'));
+                    return;
+                }
+
+                if (exists) {
+                    status.steps.marker_file = true;
+                }
+
+                callback();
+            });
         });
     });
 
@@ -525,6 +632,7 @@ _get_mountpoint_status(status, mountpoint, exp_mount_options, callback) {
  *  {
  *      "mountpoint": <The current mountpoint, if mounted, else `null`.>
  *      "device": <the USB device /dev/... path, if mounted>
+ *      "version": <the integer version of the key format>
  *      "options": <the mount options object, if mounted>
  *      "steps": {
  *          "mounted": <A boolean indicating if the USB key is mounted at all.>
@@ -563,6 +671,7 @@ get_usbkey_mount_status(alt_mount_options, callback)
         status: {
             mountpoint: null,
             device: null,
+            version: null,
             options: null,
             steps: {
                 mounted: false,
@@ -888,11 +997,165 @@ ensure_usbkey_mounted(options, callback)
     });
 }
 
+function
+sedfile(file, search, replace, callback)
+{
+    mod_assert.string(file, 'file');
+    mod_assert.string(search, 'search');
+    mod_assert.string(replace, 'replace');
+    mod_assert.func(callback, 'callback');
+
+    mod_fs.readFile(file, 'utf8', function (err, data) {
+        var outfile = file + '.tmp';
+        var replaced = false;
+        var out = '';
+        var i;
+
+        if (err) {
+            callback(new VError(err, 'failed to read ' + file));
+            return;
+        }
+
+        var lines = data.replace(/\n$/, '').split(mod_os.EOL);
+
+        for (i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            out += line.replace(new RegExp(search, 'g'), function () {
+                replaced = true;
+                return replace;
+            });
+            out += mod_os.EOL;
+        }
+
+        if (!replaced) {
+            out += replace + '\n';
+        }
+
+        mod_fs.writeFile(outfile, out, 'utf8', function (err) {
+            if (err) {
+                callback(new VError(err, 'failed to write ' + outfile));
+                return;
+            }
+
+            mod_fs.rename(outfile, file, function (err) {
+                if (err) {
+                    callback(new VError(err, 'failed to rename ' + outfile));
+                    return;
+                }
+
+                callback();
+            });
+        });
+    });
+}
+
+function
+set_variable_grub(mountpoint, name, value, callback)
+{
+    mod_assert.string(mountpoint, 'mountpoint');
+    mod_assert.string(name, 'name');
+    mod_assert.string(value, 'value');
+    mod_assert.func(callback, 'callback');
+
+    /* Special handling: ipxe for grub means changing default */
+    if (name === 'ipxe') {
+        var search = '^\\s*default\\s+.*$';
+        var replace;
+
+        if (value === 'true') {
+            replace = 'default 0';
+        } else {
+            replace = 'default 1';
+        }
+    } else if (name === 'os_console') {
+        search = '^\\s*variable\\s+os_console\\s+.*$';
+        replace = 'variable ' + name + ' ' + value;
+    } else {
+        search = '^\\s*' + name + '\\s+.*$';
+        replace = name + ' ' + value;
+    }
+
+    sedfile(mountpoint + '/boot/grub/menu.lst',
+      search, replace, function (err) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        sedfile(mountpoint + '/boot/grub/menu.lst.tmpl',
+          search, replace, function (err) {
+            if (err) {
+                callback(err);
+                return;
+            }
+
+           callback();
+        });
+    });
+}
+
+function
+set_variable_loader(mountpoint, name, value, callback)
+{
+    mod_assert.string(mountpoint, 'mountpoint');
+    mod_assert.string(name, 'name');
+    mod_assert.string(value, 'value');
+    mod_assert.func(callback, 'callback');
+
+    var search = '^\\s*' + name + '\\s*=\\s*.*$';
+    var replace = name + '=' + value;
+
+    sedfile(mountpoint + '/boot/loader.conf', search, replace, function (err) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        callback();
+    });
+}
+
+function
+set_variable(name, value, callback)
+{
+    mod_assert.string(name, 'name');
+    mod_assert.string(value, 'value');
+    mod_assert.func(callback, 'callback');
+
+    ensure_usbkey_mounted({}, function (err) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        get_usbkey_mount_status({}, function (err, status) {
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            switch (status.version) {
+            case 1:
+                set_variable_grub(status.mountpoint, name, value, callback);
+                return;
+            case 2:
+                set_variable_loader(status.mountpoint, name, value, callback);
+                return;
+            default:
+                callback(new VError('unknown USB key version ' +
+                    status.version));
+                return;
+            }
+        });
+    });
+}
+
 module.exports = {
     DEFAULT_MOUNTPOINT: DEFAULT_MOUNTPOINT,
     ensure_usbkey_unmounted: ensure_usbkey_unmounted,
     ensure_usbkey_mounted: ensure_usbkey_mounted,
-    get_usbkey_mount_status: get_usbkey_mount_status
+    get_usbkey_mount_status: get_usbkey_mount_status,
+    set_variable: set_variable
 };
 
 /* vim: set ts=4 sts=4 sw=4 et: */

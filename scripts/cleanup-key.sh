@@ -6,10 +6,14 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
+function fatal()
+{
+        printf "%s\n" "$1" 1>&2
+        exit 1
+}
 
-usbmnt=/mnt/usbkey
 cache=/usbkey
 
 cleanup_cache=0
@@ -21,7 +25,8 @@ do
 done
 shift $(($OPTIND - 1))
 
-/usbkey/scripts/mount-usb.sh
+usbmnt=$(/opt/smartdc/bin/sdc-usbkey mount)
+[ $? != 0 ] && fatal "failed to mount USB key"
 
 # cleanup old images from the USB key
 cnt=$(ls -d ${usbmnt}/os/* | wc -l)

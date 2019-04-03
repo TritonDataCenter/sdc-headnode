@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 function usage()
@@ -75,9 +75,12 @@ fatal_cleanup=0
 . /lib/sdc/config.sh
 load_sdc_config
 
-if [[ -z $(mount | grep ^${usbmnt}) ]]; then
+mnt_status=$(/opt/smartdc/bin/sdc-usbkey status)
+[ $? != 0 ] && fatal "failed to get USB key status"
+if [[ $mnt_status = "unmounted" ]]; then
     echo "==> Mounting USB key"
-    /usbkey/scripts/mount-usb.sh
+    /opt/smartdc/bin/sdc-usbkey mount
+    [ $? != 0 ] && fatal "failed to mount USB key"
     mounted="true"
 fi
 
@@ -142,7 +145,7 @@ fatal_cleanup=0
 
 if [[ ${mounted} == "true" ]]; then
     echo "==> Unmounting USB Key"
-    umount /mnt/usbkey
+    /opt/smartdc/bin/sdc-usbkey unmount
 fi
 
 echo "==> Adding to list of available platforms"

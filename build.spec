@@ -56,8 +56,8 @@
   },
 
   "files": {
-    "sdcboot": {
-      "file": { "base": "sdcboot", "ext": "tgz" }
+    "ipxe": {
+      "file": { "base": "ipxe", "ext": "tar.gz" }
     },
 
     "platboot": {

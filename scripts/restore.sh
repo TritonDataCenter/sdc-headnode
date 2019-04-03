@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 #
@@ -51,7 +51,6 @@ function on_error
 }
 
 # BEGIN BASHSTYLED
-usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 # END BASHSTYLED
 mounted_usb="false"
@@ -78,7 +77,7 @@ function cleanup
     rm -rf ${TEMPDIR}
 
     if [[ ${mounted_usb} == "true" ]]; then
-        umount ${usbmnt}
+        /opt/smartdc/bin/sdc-usbkey unmount
         mounted_usb="false"
     fi
 
@@ -87,9 +86,10 @@ function cleanup
 
 function mount_usbkey
 {
-    if [[ -z $(mount | grep ^${usbmnt}) ]]; then
+    mnt_status=$(/opt/smartdc/bin/sdc-usbkey status)
+    if [[ $mnt_status = "unmounted" ]]; then
         echo "==> Mounting USB key"
-        ${usbcpy}/scripts/mount-usb.sh
+        /opt/smartdc/bin/sdc-usbkey mount
         mounted_usb="true"
     fi
 }

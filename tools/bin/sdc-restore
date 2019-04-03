@@ -435,7 +435,7 @@ mount_usbkey()
     # check if usb key already mounted, Note: ${mounted} is a global we check
     # at unmount as well.
     mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
-    [[ -z "$mounted" ]] && (/usbkey/scripts/mount-usb.sh || \
+    [[ -z "$mounted" ]] && (/opt/smartdc/bin/sdc-usbkey mount >/dev/null || \
         fatal "unable to mount USB key, all zones will remain shutdown")
 }
 
@@ -766,7 +766,7 @@ restore_usb()
     printf "%-80s\n" "waited 10 seconds, now proceeding."
 
     mounted=`mount -p | nawk '{if ($3 == "/mnt/usbkey") print $3}'`
-    [[ -z "$mounted" ]] && (/usbkey/scripts/mount-usb.sh || \
+    [[ -z "$mounted" ]] && (/opt/smartdc/bin/sdc-usbkey mount || \
         fatal "unable to mount USB key")
 
     BDISK=`mount -p | nawk '{

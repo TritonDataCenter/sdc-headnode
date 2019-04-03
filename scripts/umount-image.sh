@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2015, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 function fatal
@@ -18,7 +18,6 @@ function fatal
 current_image=$(uname -v | cut -d '_' -f2)
 mnt=/image
 # BEGIN BASHSTYLED
-usb="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcopy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 # END BASHSTYLED
 image_subdir="/os/${current_image}/platform/i86pc/amd64"
@@ -60,7 +59,7 @@ cp ${image} "${usbcopy}${image_subdir}"
 digest -a sha1 ${image} > "${image}.hash"
 cp "${image}.hash" "${usbcopy}${image_subdir}"
 
-if ! umount $usb ; then
-    fatal "could not unmount $usb"
-fi
+/opt/smartdc/bin/sdc-usbkey unmount
+[[ $? != 0 ]] && fatal "could not unmount USB key"
+
 echo "done."

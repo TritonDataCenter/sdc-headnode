@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 # This script converts a UFDS master HN into a slave.
@@ -332,7 +332,7 @@ zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-reconcile-data"
 echo "Updating config files"
 
 # fix usbkey config
-/usbkey/scripts/mount-usb.sh >/dev/null 2>&1
+/opt/smartdc/bin/sdc-usbkey mount >/dev/null
 if [ $? != 0 ]; then
     echo "Error: unable to mount the USB stick"
     exit 1

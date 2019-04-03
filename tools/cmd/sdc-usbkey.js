@@ -5,26 +5,19 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright (c) 2019, Joyent, Inc.
  */
 
 
-var mod_path = require('path');
 var mod_fs = require('fs');
 var mod_util = require('util');
-var mod_crypto = require('crypto');
 
 var mod_assert = require('assert-plus');
 var mod_cmdln = require('cmdln');
+var mod_forkexec = require('forkexec');
+var mod_glob = require('glob');
 var mod_vasync = require('vasync');
 var mod_verror = require('verror');
-
-/*
- * In order to cope with running this software on an unknown version of Node
- * (at least the 0.8 and 0.10 branches have been included in various platform
- * images), we import the external streams module:
- */
-var mod_stream = require('readable-stream');
 
 var lib_oscmds = require('../lib/oscmds');
 var lib_usbkey = require('../lib/usbkey');
@@ -36,15 +29,8 @@ var SECONDS = 1000;
 var TIMEOUT_MOUNT = 90 * SECONDS;
 var TIMEOUT_UNMOUNT = 45 * SECONDS;
 
-var UPDATE_FILE_SOURCE = '/opt/smartdc/share/usbkey';
-
-function
-wrap_stream(oldstream)
-{
-    var newstream = new mod_stream.Readable();
-
-    return (newstream.wrap(oldstream));
-}
+var USBKEY_DIR = '/opt/smartdc/share/usbkey/';
+var CONTENTS_DIR = USBKEY_DIR + 'contents/';
 
 function
 Usbkey()
@@ -77,6 +63,8 @@ init(opts, args, callback)
 {
     var self = this;
 
+    self.verbose = opts.verbose;
+
     if (opts.verbose) {
         /*
          * We set DEBUG in our "environment" so that dprintf() can find it.
@@ -85,7 +73,7 @@ init(opts, args, callback)
         process.env.DEBUG = 'yes';
     }
 
-    lib_oscmds.zonename(function (err, zonename) {
+    lib_oscmds.zonename(function set_uk_ngz(err, zonename) {
         if (!err && zonename !== 'global') {
             self.uk_ngz = true;
         }
@@ -231,7 +219,7 @@ do_status(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.get_usbkey_mount_status(null, function (err, status) {
+    lib_usbkey.get_usbkey_mount_status(null, function log_status(err, status) {
         if (err) {
             callback(err);
             return;
@@ -284,36 +272,6 @@ Usbkey.prototype.do_status.help = [
 ].join('\n');
 
 function
-shasum_file(path, callback)
-{
-    mod_assert.string(path, 'path');
-    mod_assert.func(callback, 'callback');
-
-    var sum = mod_crypto.createHash('sha1');
-
-    /*
-     * So that we may use the 'readable' event, and the read() method, we wrap
-     * the file stream in the external streams module:
-     */
-    var fstr = wrap_stream(mod_fs.createReadStream(path));
-    fstr.on('error', function (err) {
-        callback(new VError(err, 'could not shasum file "%s"', path));
-        return;
-    });
-    fstr.on('readable', function () {
-        for (;;) {
-            var d = fstr.read();
-            if (!d)
-                return;
-            sum.update(d);
-        }
-    });
-    fstr.on('end', function () {
-        callback(null, sum.digest('hex'));
-    });
-}
-
-function
 lstat(path)
 {
     var st;
@@ -352,77 +310,13 @@ lstat(path)
 }
 
 function
-safe_copy(src, dst, callback)
-{
-    mod_assert.string(src, 'src');
-    mod_assert.string(dst, 'dst');
-    mod_assert.func(callback, 'callback');
-
-    var tmpn = '.tmp.' + process.pid + '.' + mod_path.basename(dst);
-    var tmpf = mod_path.join(mod_path.dirname(dst), tmpn);
-
-    /*
-     * So that we may get modern pipe() behaviour, we wrap the source stream in
-     * the external streams module:
-     */
-    var fin = wrap_stream(mod_fs.createReadStream(src, {
-        flags: 'r',
-        encoding: null
-    }));
-    var fout = mod_fs.createWriteStream(tmpf, {
-        flags: 'wx',
-        encoding: null
-    });
-
-    var cb_fired = false;
-    var cb = function (err) {
-        fout.removeAllListeners();
-        fin.removeAllListeners();
-
-        mod_assert.ok(!cb_fired, 'cb fired twice');
-        cb_fired = true;
-        callback(err);
-    };
-
-    fin.on('error', function (err) {
-        cb(new VError(err, 'safe_copy src file "%s" error', src));
-    });
-    fout.on('error', function (err) {
-        cb(new VError(err, 'safe_copy dst file "%s" error', tmpf));
-    });
-
-    /*
-     * We should be using the 'finish' event here, but apparently that did
-     * not exist in node version prior to 0.10 -- instead, we will use
-     * the 'close' event.
-     */
-    fout.on('close', function () {
-        mod_fs.rename(tmpf, dst, function (err) {
-            if (err) {
-                cb(new VError(err, 'could not rename tmp file "%s" to ' +
-                  'dst "%s"', tmpf, dst));
-                return;
-            }
-
-            cb();
-        });
-    });
-
-    fin.pipe(fout);
-}
-
-function
 run_update(opts, callback)
 {
     mod_assert.object(opts, 'opts');
-    mod_assert.string(opts.src, 'src');
-    mod_assert.string(opts.dst, 'dst');
+    mod_assert.string(opts.mountpoint, 'mountpoint');
     mod_assert.bool(opts.dryrun, 'dryrun');
-    mod_assert.bool(opts.progress, 'progress');
+    mod_assert.bool(opts.verbose, 'verbose');
     mod_assert.func(callback, 'callback');
-
-    var top = mod_path.resolve(opts.src);
-    var topd = mod_path.resolve(opts.dst);
 
     var dir_check = function (path) {
         var st = lstat(path);
@@ -437,191 +331,52 @@ run_update(opts, callback)
         return (true);
     };
 
-    if (!dir_check(top) || !dir_check(topd)) {
+    if (!dir_check(opts.mountpoint)) {
         return;
     }
 
-    var actions = [];
-    var dirs = [ '' ];
+    var args = [];
+    if (opts.dryrun) {
+        args.push('-n');
+    }
 
-    var process_file = function (relp, next) {
-        var srcf = mod_path.join(top, relp);
-        var dstf = mod_path.join(topd, relp);
+    if (opts.verbose) {
+        args.push('-v');
+    }
 
-        shasum_file(srcf, function (err, sum) {
-            if (err) {
-                next(err);
-                return;
+    args.push(CONTENTS_DIR);
+    args.push(opts.mountpoint);
+
+    mod_vasync.forEachPipeline({
+        func: function run_update_script(script, callback) {
+            var argv = [ script ].concat(args);
+
+            if (opts.verbose) {
+                console.log('Executing ' + argv.join(' '));
             }
 
-            var std = lstat(dstf);
-            if (!std) {
-                /*
-                 * The file does not exist.  Copy the source file.
-                 */
-                actions.push({
-                    a_type: 'CREATE_FILE',
-                    a_relpath: relp,
-                    a_src: {
-                        path: srcf,
-                        shasum: sum
-                    },
-                    a_dst: {
-                        path: dstf
-                    }
-                });
-
-                if (opts.progress) {
-                    console.log('create file "%s"', relp);
-                    console.log('\tnew shasum: %s', sum);
+            mod_forkexec.forkExecWait({
+                'argv': argv,
+                'includeStderr': true
+            }, function (err, info) {
+                if (err) {
+                   callback(err);
+                   return;
                 }
 
-                if (opts.dryrun) {
-                    next();
-                    return;
-                }
-
-                safe_copy(srcf, dstf, next);
-                return;
-            }
-
-            if (std.type !== 'file') {
-                next(new VError('path "%s" exists, but is of type "%s", not' +
-                  ' file', dstf, std.type));
-                return;
-            }
-
-            shasum_file(dstf, function (_err, dstsum) {
-                if (_err) {
-                    next(_err);
-                    return;
-                }
-
-                if (sum === dstsum) {
-                    /*
-                     * The destination and source file match.  No action is
-                     * required.
-                     */
-                    next();
-                    return;
-                }
-
-                actions.push({
-                    a_type: 'UPDATE_FILE',
-                    a_relpath: relp,
-                    a_src: {
-                        path: srcf,
-                        shasum: sum
-                    },
-                    a_dst: {
-                        path: dstf,
-                        shasum: dstsum
-                    }
-                });
-
-                if (opts.progress) {
-                    console.log('update file "%s"', relp);
-                    console.log('\told shasum: %s', dstsum);
-                    console.log('\tnew shasum: %s', sum);
-                }
-
-                if (opts.dryrun) {
-                    next();
-                    return;
-                }
-
-                safe_copy(srcf, dstf, next);
+                console.log(info.stdout);
+                callback();
             });
-
-        });
-    };
-
-    var walk_dirs = function () {
-        if (dirs.length === 0) {
-            callback(null, actions);
+        },
+        inputs: mod_glob.sync(USBKEY_DIR + '/update-usbkey.*')
+    }, function (err) {
+        if (err) {
+            callback(err);
             return;
         }
 
-        var dir = dirs.shift();
-
-        /*
-         * If dir is the empty string, we are enumerating the top-level
-         * directory; i.e. the USB key mountpoint itself.  Otherwise, this is a
-         * subdirectory that may need to be created.
-         */
-        if (dir) {
-            var dstdir = mod_path.resolve(mod_path.join(topd, dir));
-            var ddst = lstat(dstdir);
-
-            if (!ddst) {
-                /*
-                 * The target directory does not exist.  We must create it.
-                 */
-                actions.push({
-                    a_type: 'CREATE_DIRECTORY',
-                    a_relpath: dir,
-                    a_dst: {
-                        path: dstdir
-                    }
-                });
-
-                if (opts.progress) {
-                    console.log('mkdir "%s"', dir);
-                }
-
-                if (!opts.dryrun) {
-                    try {
-                        mod_fs.mkdirSync(dstdir, parseInt('0755', 8));
-                    } catch (ex) {
-                        callback(new VError(ex, 'failed to mkdir "%s"',
-                          dstdir));
-                        return;
-                    }
-                }
-            }
-        }
-
-        /*
-         * Walk each entry in the current source directory:
-         */
-        var ents = mod_fs.readdirSync(mod_path.join(top, dir));
-        var files = [];
-        for (var i = 0; i < ents.length; i++) {
-            var ent = ents[i];
-            var relp = mod_path.join(dir, ent);
-            var srcp = mod_path.join(top, relp);
-            var st = lstat(srcp);
-
-            switch (st.type) {
-            case 'dir':
-                dirs.push(relp);
-                break;
-
-            case 'file':
-                files.push(relp);
-                break;
-
-            default:
-                callback(new VError('source file "%s" is of unsupported type' +
-                  ' "%s"', srcp, st.type));
-                return;
-            }
-        }
-
-        mod_vasync.forEachPipeline({
-            inputs: files,
-            func: process_file
-        }, function (err) {
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            setImmediate(walk_dirs);
-        });
-    };
-
-    walk_dirs();
+        callback();
+    });
 }
 
 /*
@@ -641,28 +396,26 @@ do_update(subcmd, opts, args, callback)
         return;
     }
 
+    opts.verbose = Boolean(self.verbose);
+
     if (!opts.hasOwnProperty('dryrun')) {
         opts.dryrun = false;
-    }
-    if (!opts.hasOwnProperty('json')) {
-        opts.json = false;
     }
     if (!opts.hasOwnProperty('ignore_missing')) {
         opts.ignore_missing = false;
     }
 
     mod_assert.bool(opts.dryrun, 'opts.dryrun');
-    mod_assert.bool(opts.json, 'opts.json');
+    mod_assert.bool(opts.verbose, 'opts.verbose');
     mod_assert.bool(opts.ignore_missing, 'opts.ignore_missing');
 
     var cancel = false;
     var already_mounted = false;
-    var actions;
     var mountpoint;
 
     mod_vasync.pipeline({
         funcs: [
-            function (_, next) {
+            function get_usbkey_status(_, next) {
                 if (cancel) {
                     next();
                     return;
@@ -686,7 +439,7 @@ do_update(subcmd, opts, args, callback)
                     next();
                 });
             },
-            function (_, next) {
+            function mount_usbkey(_, next) {
                 if (cancel) {
                     next();
                     return;
@@ -721,7 +474,7 @@ do_update(subcmd, opts, args, callback)
                     next();
                 });
             },
-            function (_, next) {
+            function do_run_update(_, next) {
                 if (cancel) {
                     next();
                     return;
@@ -729,42 +482,20 @@ do_update(subcmd, opts, args, callback)
 
                 mod_assert.string(mountpoint, 'mountpoint');
 
-                /*
-                 * The Compute Node Tools tarball (cn_tools.tar.gz) deploys a
-                 * set of incremental updates to the USB key image.  Update
-                 * the USB key from this directory.
-                 */
                 run_update({
-                    src: UPDATE_FILE_SOURCE,
-                    dst: mountpoint,
-                    progress: !opts.json,
+                    mountpoint: mountpoint,
+                    verbose: opts.verbose,
                     dryrun: opts.dryrun
-                }, function (err, _acts) {
+                }, function (err) {
                     if (err) {
                         next(err);
                         return;
                     }
 
-                    actions = _acts;
-
-                    if (opts.dryrun || actions.length < 1) {
-                        next();
-                        return;
-                    }
-
-                    /*
-                     * Invoke sync(1M) for good measure.
-                     */
-                    lib_oscmds.sync(function () {
-                        /*
-                         * Give pcfs(7FS) and the USB key a few seconds to
-                         * settle while we knock on wood.
-                         */
-                        setTimeout(next, 5000);
-                    });
+                    next();
                 });
             },
-            function (_, next) {
+            function unmount_usbkey(_, next) {
                 if (cancel) {
                     next();
                     return;
@@ -797,10 +528,6 @@ do_update(subcmd, opts, args, callback)
             return;
         }
 
-        if (opts.json) {
-            console.log(JSON.stringify(actions));
-        }
-
         callback();
     });
 };
@@ -811,15 +538,9 @@ Usbkey.prototype.do_update.options = [
         help: 'Print this help message.'
     },
     {
-        names: [ 'json', 'j' ],
-        type: 'bool',
-        help: 'Emit status to stdout as a JSON object.'
-    },
-    {
         names: [ 'dryrun', 'n' ],
         type: 'bool',
-        help: 'Do not copy files, just determine what action is required' +
-          ' to update the USB key.'
+        help: 'Do not modify the key, just report changes.'
     },
     {
         names: [ 'ignore-missing', 'i' ],
@@ -829,10 +550,57 @@ Usbkey.prototype.do_update.options = [
     }
 ];
 Usbkey.prototype.do_update.help = [
-    'Update the files stored on the USB key.',
+    'Update the USB key contents.',
     '',
     'Usage:',
     '     sdc-usbkey update [OPTIONS]',
+    '',
+    '{{options}}'
+].join('\n');
+
+/*
+ * sdc-usbkey set-variable
+ */
+Usbkey.prototype.do_set_variable = function
+do_set_variable(subcmd, opts, args, callback)
+{
+    var self = this;
+
+    if (opts.help) {
+        self.do_help('help', {}, [ subcmd ], callback);
+        return;
+    }
+
+    if (args.length != 2) {
+        self.do_help('help', {}, [ subcmd ], callback);
+        return;
+    }
+
+    if (!self._global_zone_only(callback)) {
+        return;
+    }
+
+    lib_usbkey.set_variable(args[0], args[1], function (err) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        callback();
+    });
+};
+Usbkey.prototype.do_set_variable.options = [
+    {
+        names: [ 'help', 'h', '?' ],
+        type: 'bool',
+        help: 'Print this help message.'
+    }
+];
+Usbkey.prototype.do_set_variable.help = [
+    'Set a grub/loader variable',
+    '',
+    'Usage:',
+    '     sdc-usbkey set-variable <name> <value>',
     '',
     '{{options}}'
 ].join('\n');

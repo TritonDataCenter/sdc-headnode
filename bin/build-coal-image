@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2017 Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -43,14 +43,6 @@ while getopts 'cr' name; do
     esac
 done
 shift $((OPTIND - 1))
-
-function rel2abs () {
-    local abs_path end
-    abs_path=$(unset CDPATH; cd `dirname $1` 2>/dev/null && pwd -P)
-    [[ -z "$abs_path" ]] && return 1
-    end=$(basename $1)
-    echo "${abs_path%*/}/$end"
-}
 
 if [[ -z "$1" ]]; then
     usage 'must provide <usb_tarball> filename'
@@ -92,69 +84,42 @@ function build_spec () {
 };
 
 BUILD_TGZ=$(build_spec build-tgz)
-
-# Tools.
-
-MNT_DIR=/mnt/tmp
 USB_SIZE="4gb"
 USB_SKIP=7812500
 USB_PADDING=508
+PARTMAP="${USB_SIZE}.partition.map"
 OUTPUT_IMG="${USB_SIZE}.img"
-if [[ -z $IMG_TMP_DIR ]]; then
-  IMG_TMP_DIR=/tmp
-fi
-PLATFORM=$(uname -s)
-
-if [[ "$PLATFORM" == "SunOS" ]]; then
-    SUCMD='pfexec'
-elif [[ "$PLATFORM" == "Linux" ]]; then
-    SUCMD='sudo'
-    # Parted is required to find the partition offset in the image.
-    [[ $(which parted) ]] || fatal "Please install 'parted'"
-fi
+IMG_TMP_DIR=/tmp/tmp.$$
+MNT_DIR=$IMG_TMP_DIR/mnt
 
 STAGE=${ROOT}/cache/stage_coal
+
 mkdir -p $STAGE
 rm -rf $STAGE/*
 
 echo ">> Starting build at $(date)"
 
-function fatal
-{
-    echo "$(basename $0): fatal error: $*"
-    exit 1
-}
-
-function errexit
-{
-    [[ $1 -ne 0 ]] || exit 0
-    fatal "error exit status $1 at line $2"
-}
-
-trap 'errexit $? $LINENO' EXIT
-
-
 function unpack_image
 {
     echo -n "==> Unpacking USB image... "
-    mkdir -p $IMG_TMP_DIR/coal.$$
+    mkdir -p $IMG_TMP_DIR
     if [[ $TAR_BUILD_IS_DIRECTORY == 1 ]]; then
         if [[ $REUSE_USB_BUILD == 1 ]]; then
-            rm -rf $IMG_TMP_DIR/coal.$$
-            mv $TAR_BUILD_FILENAME $IMG_TMP_DIR/coal.$$
+            rm -rf $IMG_TMP_DIR
+            mv $TAR_BUILD_FILENAME $IMG_TMP_DIR/
         else
             (cd $TAR_BUILD_FILENAME \
-                && tar -c . | tar -C $IMG_TMP_DIR/coal.$$ -xovf - )
+                && tar -c . | tar -C $IMG_TMP_DIR/ -xovf - )
         fi
-
-        (cd $IMG_TMP_DIR/coal.$$ \
-            && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
-            || fatal "Unable to unpack USB image"
     else
-        (cd $IMG_TMP_DIR/coal.$$ && ${TAR} -xzf $TAR_BUILD_FILENAME \
-            && mv usb-*${OUTPUT_IMG} $$.${OUTPUT_IMG}) \
-            || fatal "Unable to unpack USB image"
+        (cd $IMG_TMP_DIR/ && ${TAR} -xzf $TAR_BUILD_FILENAME) || \
+            fatal "Unable to unpack USB image"
     fi
+
+    (cd $IMG_TMP_DIR && mv usb-*${OUTPUT_IMG} ${OUTPUT_IMG} && \
+        mv usb-*${PARTMAP} ${PARTMAP}) || \
+        fatal "Unable to unpack USB image"
+
     echo "done."
 }
 
@@ -164,43 +129,15 @@ function expand_image
 {
     echo -n "==> Expanding USB image for VMWare... "
 
-    if [[ -f $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} && \
+    if [[ -f $IMG_TMP_DIR/${OUTPUT_IMG} && \
           -n ${USB_SKIP} && -n ${USB_PADDING} ]]; then
         echo ""
-        local file=$IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG}
+        local file=$IMG_TMP_DIR/${OUTPUT_IMG}
         dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} \
            bs=512 count=${USB_PADDING}
     else
         echo "skipped."
     fi
-}
-
-function mount_image
-{
-    echo -n "==> Mounting new USB image... "
-    if [[ "$PLATFORM" == "Darwin" ]]; then
-        [ ! -d ${ROOT}/cache/tmp_volumes ] && mkdir -p ${ROOT}/cache/tmp_volumes
-        hdiutil attach $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} \
-            >/tmp/output.hdiattach.$$ \
-            -mountrandom ${ROOT}/cache/tmp_volumes 2>&1
-        LOOPBACK=`grep "FDisk_partition_scheme" /tmp/output.hdiattach.$$ \
-            | awk '{ print $1 }'`
-        MNT_DIR=`grep "Windows_FAT_32" /tmp/output.hdiattach.$$ \
-            | awk '{ print $3 }'`
-    elif [[ "$PLATFORM" == "Linux" ]]; then
-        MNT_DIR="/tmp/sdc_image.$$"
-        mkdir -p "$MNT_DIR"
-        LOOPBACK="$IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG}"
-        OFFSET=$(parted -m "${LOOPBACK}" unit B print | grep fat32 \
-            | cut -f2 -d: | sed 's/.$//')
-        ${SUCMD} mount -o "loop,offset=${OFFSET},uid=${EUID},gid=${GROUPS[0]}" \
-            "${LOOPBACK}" "${MNT_DIR}"
-    else
-        ${SUCMD} mkdir -p ${MNT_DIR}
-        LOOPBACK=$(${SUCMD} lofiadm -a $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG})
-        ${SUCMD} mount -F pcfs -o foldcase ${LOOPBACK}:c ${MNT_DIR}
-    fi
-    echo "($IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} mounted on ${MNT_DIR}) done."
 }
 
 function copy_config {
@@ -210,6 +147,22 @@ function copy_config {
     rm -rf ${MNT_DIR}/config.inc || true
 
     cp -r config/config.inc ${MNT_DIR}/config.inc
+}
+
+#
+# COAL should default to booting from the USB key, not iPXE.
+#
+function modify_loader {
+    local ipxe=
+
+    ipxe=$(build_spec ipxe)
+
+    if [ -z "$ipxe" ]; then
+        ipxe="false"
+    fi
+
+    sed -i'.tmp' "s+^ipxe=.*+ipxe=\"$ipxe\"+" $MNT_DIR/boot/loader.conf
+    rm $MNT_DIR/boot/loader.conf.tmp
 }
 
 # Copy to mount is basically just extracting everything to the image mount
@@ -231,31 +184,6 @@ function copy_to_mount
     # Also copy in devtools
     echo "==> Copying in devtools"
     cp -r $ROOT/devtools $MNT_DIR/devtools
-}
-
-CLEANED=0
-function cleanup
-{
-    if [ ${CLEANED} -eq 0 ]; then
-        echo '==> Cleaning up'
-        CLEANED=1
-        if [[ -n ${LOOPBACK} ]]; then
-            if [[ "$PLATFORM" == "Darwin" ]]; then
-                hdiutil detach ${MNT_DIR} || true
-            elif [[ "$PLATFORM" == "Linux" ]]; then
-                ${SUCMD} umount "${MNT_DIR}" || /usr/bin/true
-                rm -rf "${MNT_DIR}"
-            else
-                ${SUCMD} umount ${MNT_DIR} || /usr/bin/true
-                ${SUCMD} lofiadm -d ${LOOPBACK}
-            fi
-            sync; sync
-            LOOPBACK=
-        fi
-
-    fi
-    rm -rf $IMG_TMP_DIR/fs.*.$$
-    rm -rf $IMG_TMP_DIR/output.*.$$
 }
 
 function create_output
@@ -338,7 +266,7 @@ function create_output
     fi
 
     echo -n "==> Copying in ${OUTPUT_IMG}... "
-    mv $IMG_TMP_DIR/coal.$$/$$.${OUTPUT_IMG} "$vmdk_img"
+    mv $IMG_TMP_DIR/${OUTPUT_IMG} "$vmdk_img"
     echo "done."
 
     echo -n "==> Generating VMDK file for ${OUTPUT_IMG}... "
@@ -370,7 +298,7 @@ function create_output
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm)
         mv $STAGE $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
     else
-        echo "==> Creating coal-${THIS_BUILDSTAMP}.tgz"
+        echo "==> Creating coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz"
         (cd $STAGE \
             && mv USB-headnode.vmwarevm \
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
@@ -380,16 +308,33 @@ function create_output
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
     fi
 
-    rm -rf $IMG_TMP_DIR/coal.$$
     #XXX
     #rm -rf $STAGE || true
 }
 
+function cleanup
+{
+    echo '==> Cleaning up'
+
+    unmount_loopback
+
+    rm -f $IMG_TMP_DIR/${OUTPUT_IMG}
+    rm -f $IMG_TMP_DIR/$PARTMAP
+    rm -f ${IMG_TMP_DIR}/rootfs.img
+    rm -f ${IMG_TMP_DIR}/root.password.${LIVEIMG_VERSION}
+    rm -rf $IMG_TMP_DIR/*.manifest
+    rm -rf $IMG_TMP_DIR/fs.*
+    rm -rf $IMG_TMP_DIR/output.*
+    rmdir $MNT_DIR
+    rmdir $IMG_TMP_DIR
+}
+
 unpack_image
 expand_image
-mount_image
 trap 'cleanup' EXIT
+mount_root_image
 copy_to_mount
 copy_config
-cleanup
+modify_loader
+unmount_root_image
 create_output

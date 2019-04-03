@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2015, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 #
@@ -42,9 +42,12 @@ fi
 # BASHSTYLED
 usbcp="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 
-mount | grep "^${usbmnt}" >/dev/null 2>&1 || bash $usbcp/scripts/mount-usb.sh
-
-mount | grep "^${usbmnt}" >/dev/null 2>&1 || fatal "${usbmnt} is not mounted"
+mnt_status=$(/opt/smartdc/bin/sdc-usbkey status)
+[ $? != 0 ] && fatal "failed to get USB key status"
+if [[ $mnt_status = "unmounted" ]]; then
+    /opt/smartdc/bin/sdc-usbkey mount
+    [ $? != 0 ] && fatal "failed to mount USB key"
+fi
 
 if [[ ! -f $image ]]; then
     fatal "could not find image file $image"

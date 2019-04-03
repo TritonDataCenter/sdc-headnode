@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2018, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image. There
@@ -129,18 +129,10 @@ backup_usb_key()
             set -o xtrace
         fi
 
-        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
-            MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
-            if [[ ! -f \${MOUNT_SCRIPT} ]]; then
-                MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
-            fi
-
-            # mount the usb key
-            echo "# mounting USB key..."
-            \${MOUNT_SCRIPT}
-        else
-            echo "# USB key already mounted"
-        fi
+        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+            echo "unable to mount USB key" >&2
+            exit 1
+        }
 
         # Keep the answers.json if it exists
         if [[ -f /mnt/usbkey/private/answers.json ]]; then
@@ -555,9 +547,10 @@ overwrite_usb_key()
             set -o xtrace
         fi
 
-        # We mounted above, check device now
-        USB_DEV=\$(mount -p | grep " /mnt/usbkey " | cut -d ' ' -f1 \
-            | sed -e "s|/dsk/|/rdsk/|" -e 's/:1\$//' -e 's/p1\$/p0/')
+	# We mounted above, derive the p0 device
+        DISKPATTERN="^/dev/dsk/\\(.*\\)[ps][0-9]\\(:1\\)*"
+        USB_DEV=\$(mount -p | grep "\$DISKPATTERN - /mnt/usbkey " | \\
+            sed -e "s+\$DISKPATTERN .*+/dev/rdsk/\\1p0+")
 
         if [[ -z \${USB_DEV} ]]; then
             echo "FATAL: Unable to determine USB device." >&2
@@ -661,19 +654,10 @@ restore_usb_key()
             set -o xtrace
         fi
 
-        # mount it again
-        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
-            MOUNT_SCRIPT="/usbkey/scripts/mount-usb.sh"
-            if [[ ! -f \${MOUNT_SCRIPT} ]]; then
-                MOUNT_SCRIPT="/mnt/usbkey/scripts/mount-usb.sh"
-            fi
-
-            # mount the usb key
-            echo "# mounting USB key..."
-            \${MOUNT_SCRIPT}
-        else
-            echo "# USB key already mounted"
-        fi
+        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+            echo "unable to mount USB key" >&2
+            exit 1
+        }
 
         # move new devtools out of way so we can drop in old first
         if [[ -d /mnt/usbkey/devtools ]]; then
@@ -728,23 +712,32 @@ sanity_check_usb()
             set -o xtrace
         fi
 
-        # Ensure we've got a platform + grub
-        if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
-            echo "Missing grub menu.lst, bailing" >&2
-            exit 1
-        fi
         if [[ -z \$(find /mnt/usbkey/os/ -name "boot_archive") ]]; then
             echo "Missing boot_archive, bailing" >&2
             exit 1
         fi
 
-        # Set default menu item to boot to 1 so we can boot unattended (we know
-        # this is a HN since we're reflashing, so don't boot the Compute Node
-        # image)
-        sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
-            > /mnt/usbkey/boot/grub/menu.lst.new \
-            && mv /mnt/usbkey/boot/grub/menu.lst.new \
-                /mnt/usbkey/boot/grub/menu.lst
+        #
+        # Make sure to boot from USB, so we can boot unattended (we know this is
+        # an HN since we're reflashing, so don't boot the CN image).
+        #
+        # sdc-usbkey might not be new enough for this; in that case, we know
+        # we're using grub.
+        #
+        if ! /opt/smartdc/bin/sdc-usbkey set-variable \
+	    ipxe false 2>/dev/null; then
+
+            # Ensure we've got a platform + grub
+            if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+                echo "Missing grub menu.lst, bailing" >&2
+                exit 1
+            fi
+
+            sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
+                > /mnt/usbkey/boot/grub/menu.lst.new \
+                && mv /mnt/usbkey/boot/grub/menu.lst.new \
+                    /mnt/usbkey/boot/grub/menu.lst
+        fi
 
         exit 0
 EOF

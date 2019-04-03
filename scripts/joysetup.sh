@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 #
@@ -62,6 +62,58 @@ if [[ $(zonename) != "global" && -n ${MOCKCN_SERVER_UUID} ]]; then
     TEMP_CONFIGS=/var/tmp/config-${MOCKCN_SERVER_UUID}
     MOCKCN="true"
 fi
+
+#
+# If we're on an older PI, this include file won't exist. For a CN, it doesn't
+# matter, as these routines are only used by headnode_boot_setup.
+#
+# An HN that has done `update-gz-tools` could be running this script on an older
+# PI. But such an older PI can presume grub: if we had a loader key, it should
+# have a PI new enough to have this file.
+#
+. /lib/sdc/usb-key.sh 2>/dev/null || {
+
+   function usb_key_set_console
+   {
+       local readonly console=$1
+
+       if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
+           fatal "No GRUB menu found."
+       else
+           sed -e "s/^variable os_console.*/variable os_console ${console}/" \
+               < /mnt/usbkey/boot/grub/menu.lst.tmpl \
+               > /tmp/menu.lst.tmpl
+           mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
+       fi
+
+       if [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+           sed -e "s/^variable os_console.*/variable os_console ${console}/" \
+               < /mnt/usbkey/boot/grub/menu.lst \
+               > /tmp/menu.lst
+           mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
+       fi
+   }
+
+   function usb_key_disable_ipxe
+   {
+       if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
+           fatal "No GRUB menu found."
+       else
+           sed -e "s/^default.*/default 1/" \
+               < /mnt/usbkey/boot/grub/menu.lst.tmpl \
+               > /tmp/menu.lst.tmpl
+           mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
+       fi
+
+       if [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+           sed -e "s/^default.*/default 1/" \
+               < /mnt/usbkey/boot/grub/menu.lst \
+               > /tmp/menu.lst
+           mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
+       fi
+   }
+
+}
 
 # Load SYSINFO_* and CONFIG_* values
 . /lib/sdc/config.sh
@@ -174,7 +226,11 @@ function check_ntp
     set -o pipefail
 }
 
-function boot_setup
+#
+# If we're a headnode we should default to booting from the USB key from this
+# point on.  In addition we should update any console setting.
+#
+function headnode_boot_setup
 {
     local console=
 
@@ -182,24 +238,14 @@ function boot_setup
     console=$(bootparams | grep ^console= | cut -d= -f2)
     set -o pipefail
 
-    [[ -z "${console}" ]] && console=text
+    [[ -z "$console" ]] && console=text
 
-    if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
-        fatal "No GRUB menu found."
-    else
-        sed -e "s/^default.*/default 1/" \
-            -e "s/^variable os_console.*/variable os_console ${console}/" \
-            < /mnt/usbkey/boot/grub/menu.lst.tmpl \
-            > /tmp/menu.lst.tmpl
-        mv -f /tmp/menu.lst.tmpl /mnt/usbkey/boot/grub/menu.lst.tmpl
+    if ! usb_key_set_console "$console"; then
+        fatal "Couldn't set bootloader console to \"$console\""
     fi
 
-    if [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
-        sed -e "s/^default.*/default 1/" \
-            -e "s/^variable os_console.*/variable os_console ${console}/" \
-            < /mnt/usbkey/boot/grub/menu.lst \
-            > /tmp/menu.lst
-        mv -f /tmp/menu.lst /mnt/usbkey/boot/grub/menu.lst
+    if ! usb_key_disable_ipxe; then
+        fatal "Couldn't modify bootloader to disable ipxe"
     fi
 }
 
@@ -638,7 +684,7 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     create_zpool zones ${POOL_FILE}
 
     if is_headnode; then
-        boot_setup
+        headnode_boot_setup
     fi
 
     if is_headnode; then

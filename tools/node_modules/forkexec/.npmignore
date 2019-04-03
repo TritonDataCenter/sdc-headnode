@@ -1,0 +1,4 @@
+examples/
+tools/
+test/
+Makefile*

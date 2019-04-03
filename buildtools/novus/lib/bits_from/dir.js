@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright (c) 2019, Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -94,7 +94,7 @@ bfd_find_build_files(bfd, next)
 	 *
 	 * For example:
 	 *
-	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
+	 *   boot-master-20181203T230136Z.tgz
 	 *
 	 * Build a regular expression that will, given our selection
 	 * constraints, match only the build artefact file we are looking for:

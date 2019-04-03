@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2018 Joyent, Inc.
+# Copyright (c) 2019 Joyent, Inc.
 #
 
 PERCENT := %
@@ -17,8 +17,10 @@ PERCENT := %
 
 ifeq ($(shell uname -s),SunOS)
 GREP = /usr/xpg4/bin/grep
+TAR = gtar
 else
 GREP = grep
+TAR = tar
 endif
 
 BASH_FILES := \
@@ -121,13 +123,9 @@ TOOLS_LIB_FILES = \
 	usbkey.js \
 	wrap.sh
 
-TOOLS_BOOT_FILES = \
-	boot/default.ipxe \
-	boot/ipxe.lkrn
-
 TOOLS_SHARE_FILES = \
 	servicebundle/pubkey.key \
-	$(TOOLS_BOOT_FILES:%=usbkey/%)
+	usbkey
 
 TOOLS_RONN_FILES = \
 	man1/sdc-amonrelay.1.ronn \
@@ -188,7 +186,7 @@ CN_TOOLS_FILES = \
 	lib/oscmds.js \
 	lib/usbkey.js \
 	man/man1/sdc-sbcreate.1 \
-	$(TOOLS_BOOT_FILES:%=share/usbkey/%) \
+	share/usbkey \
 	node_modules \
 	etc
 
@@ -363,20 +361,29 @@ $(PROTO)/opt/smartdc/etc/gz-tools.image:
 	echo $(TOOLS_UUID) > $@
 	chmod 644 $@
 
-#
-# We deliver some specific boot files in the compute node tools tarball so that
-# partial updates to USB keys may be delivered by incremental updates to SDC.
-# These files come from the same copy of the sdcboot artefact used to build the
-# rest of sdc-headnode.
-#
-$(PROTO)/opt/smartdc/share/usbkey/%: cache/file.sdcboot.tgz
-	mkdir -p $(@D)
-	rm -f $@
-	(FILE="$(PWD)/$<"; cd $(PROTO)/opt/smartdc/share/usbkey && \
-	    tar xvfz $${FILE} ./$*)
-	test -f $@ && touch $@
+USBKEY_SCRIPTS = \
+	scripts/update-usbkey.0.esp.sh \
+	scripts/update-usbkey.5.copy-contents.js
 
-cache/file.sdcboot.tgz: download
+USBKEY_TARBALLS = \
+	cache/file.ipxe.tar.gz \
+	cache/file.platboot.tgz
+
+$(USBKEY_TARBALLS): download
+
+#
+# The usbkey sub-directory, included in the tarballs, represents new contents
+# that should be updated on USB keys, in particular any updates of loader or
+# iPXE.
+#
+$(PROTO)/opt/smartdc/share/usbkey: $(USBKEY_SCRIPTS) $(USBKEY_TARBALLS)
+	mkdir -p $@/contents
+	cp -f $(USBKEY_SCRIPTS) $@/
+	for tar in $(USBKEY_TARBALLS); do \
+		$(TAR) -C $@/contents -xvf $$tar || exit 1; \
+	done
+	cp -fr boot $@/contents
+	touch $@
 
 $(SDC_ZONE_BIN_LINKS):
 	mkdir -p $(@D)

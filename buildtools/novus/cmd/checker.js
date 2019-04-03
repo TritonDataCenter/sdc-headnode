@@ -105,7 +105,7 @@ check_old_branch_keys()
 	var OLD_TO_NEW = {
 		'platform-image': '"files.platform.*"',
 		'platform-release': '"files.platform.*"',
-		'sdcboot-release': '"files.sdcboot.*"',
+		'ipxe-release': '"files.ipxe.*"',
 		'firmware-tools-release': '"files.firmware-tools.*"',
 		'sdcadm-release': '"files.sdcadm.*"',
 		'agents-shar': '"files.agents.*" and "files.agents_md5.*"'

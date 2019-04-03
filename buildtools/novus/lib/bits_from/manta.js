@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -96,7 +96,7 @@ bfm_find_build_files(bfm, next)
 	 * Build artefacts from MG are uploaded into Manta in a directory
 	 * structure that reflects the branch and build stamp, e.g.
 	 *
-	 *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
+	 *   /Joyent_Dev/public/builds/platform/master-20150421T175549Z
 	 *
 	 * The build artefact we are interested in downloading generally
 	 * has a filename of the form:
@@ -105,7 +105,7 @@ bfm_find_build_files(bfm, next)
 	 *
 	 * For example:
 	 *
-	 *   sdcboot-master-20150421T175549Z-g41a555a.tgz
+	 *   platform-master-20150421T175549Z.tgz
 	 *
 	 * Build a regular expression that will, given our selection
 	 * constraints, match only the build artefact file we are looking for:
@@ -245,11 +245,10 @@ bfm_find_build_files(bfm, next)
  * that includes the MD5 checksum and the filename of each produced bit.  The
  * lines look roughly like:
  *
- *   a28033c7b101328f3f9921a178088c45 bits//sdcboot/sdcboot-g41a555a.tgz
+ *   e3b3ee... bits//platform/platform-master-20150721T202313Z.tgz
  *
  * It is probably not safe to infer anything about the path, other than
- * that the _basename_ (e.g. "sdcboot-g41a555a.tgz" in the above) will
- * match the uploaded object name in Manta.
+ * that the _basename_ will match the uploaded object name in Manta.
  */
 function
 bfm_get_md5sum(bfm, next)
@@ -302,12 +301,12 @@ bfm_get_md5sum(bfm, next)
 /*
  * Each build artefact from MG is uploaded into a Manta directory, e.g.
  *
- *   /Joyent_Dev/public/builds/sdcboot/master-20150421T175549Z
+ *   /Joyent_Dev/public/builds/platform/master-20150421T175549Z
  *
  * MG also maintains an object (not a directory) that contains the full
  * path of the most recent build for a particular branch, e.g.
  *
- *   /Joyent_Dev/public/builds/sdcboot/master-latest
+ *   /Joyent_Dev/public/builds/platform/master-latest
  */
 function
 bfm_lookup_latest_dir(bfm, next)
