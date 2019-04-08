@@ -62,6 +62,7 @@ SDC_ZONE_COMMANDS = \
 	sdc-imgadm \
 	sdc-imgapi \
 	sdc-mahi \
+	sdc-migrate \
 	sdc-napi \
 	sdc-oneachnode \
 	sdc-papi \
