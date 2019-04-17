@@ -66,7 +66,7 @@ function add_pkg()
 	    else
 		print $0
         }' $usbmnt/config.inc/generic > $usbmnt/config.inc/generic.new
-	mv $usbmnt/config.inc/generic.new $usbmnt /config.inc/generic
+	mv $usbmnt/config.inc/generic.new $usbmnt/config.inc/generic
 }
 
 function update_sdc_zone_pkgs()
@@ -98,7 +98,7 @@ function save_root_password() {
     echo "Updating root password in the config file"
 
     sed -e "s|^root_shadow=.*$|root_shadow='${enc_password}'|" \
-      $usbmt/config > $usbmnt/config.new \
+      $usbmnt/config > $usbmnt/config.new \
       && mv $usbmnt/config.new $usbmnt/config
 }
 
