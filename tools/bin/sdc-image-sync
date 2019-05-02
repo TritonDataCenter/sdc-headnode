@@ -9,85 +9,28 @@
 # Copyright (c) 2019, Joyent, Inc.
 #
 
-# This script is intended to copy any changes that a sysadmin might legitimately
-# make on the headnode image back to the USB stick so that those changes
-# are persistent.
+# This script is will copy changes to the root password from /etc/shadow back
+# to the usb and node config files.
 #
-# This cmd can be invoked by the user and also by sdc-backup.  Since its
-# invoked by sdc-backup, we don't want to modify anything on the USB stick
-# unless there are actual changes.
+# To update the root password on all compute nodes, run the following commands.
 #
-# There are two kinds of changes to copy, actual files which need to go into
-# the image, and updates that need to be made to the config files.
+#     passwd root
+#     sdc-image-sync
+#     sdc-oneachnode -c 'svcadm restart smartdc/init'
+#
+
+if [[ -n "$TRACE" ]]; then
+    # BASHSTYLED
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+set -o errexit
+set -o pipefail
 
 export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
 
-declare -A SDC_PKGS=()
-# The cnt is the next number to use when adding a new pkg_ entry
-PKG_CNT=0
-
 readonly smartdc_fmri="svc:/system/filesystem/smartdc:default"
 usbcpy=$(svcprop -p 'joyentfs/usb_copy_path' $smartdc_fmri)
-
-function load_config_pkgs()
-{
-	pkgs=`set | nawk -F= '/^CONFIG_pkg/ {print $2}'`
-	for p in $pkgs
-	do
-		# Pkg entry format:
-		# name:ram:swap:disk:cap:nlwp:iopri:uuid
-		nm=${p%%:*}
-
-		SDC_PKGS[$nm]=1
-		PKG_CNT=$(($PKG_CNT + 1))
-	done
-}
-
-function add_pkg()
-{
-	echo "add '$1' package for '$2' to the generic config file"
-
-	# Make sure we haven't already added it once before
-	egrep -s "^pkg_[0-9]*=${1}:" $usbmnt/config.inc/generic
-	if [ $? -ne 0 ]; then
-		out=$(sdc-papi --no-headers /packages?name=$pnm | \
-  json -a -d: name max_physical_memory max_swap quota cpu_cap max_lwps \
-  zfs_io_priority uuid)
-  printf "pkg_%d=%s" $PKG_CNT $out >> $usbmnt/config.inc/generic
-
-	    # Just added an entry, so increment the cnt
-	    PKG_CNT=$((PKG_CNT + 1))
-	fi
-
-	# Change "role" pkg entry to use new pkg
-	nawk -F= -v entry="${2}_pkg" -v val=$1 '{
-	    if ($1 == entry)
-		printf("%s=%s\n", $1, val)
-	    else
-		print $0
-        }' $usbmnt/config.inc/generic > $usbmnt/config.inc/generic.new
-	mv $usbmnt/config.inc/generic.new $usbmnt/config.inc/generic
-}
-
-function update_sdc_zone_pkgs()
-{
-	[[ -z ${CONFIG_vmapi_domain} ]] && return
-
-	local vmurl="http://${CONFIG_vmapi_domain}"
-	# BASHSTYLED
-	curl -sS \
-	--url "${vmurl}/vms?owner_uuid=${CONFIG_ufds_admin_uuid}&state=active" \
-	    | json -H  \
-	    -e 'this.smartdc_role=(this.tags.smartdc_role || "-")' \
-	    -e 'this.package_name=(this.package_name || "-")' \
-	    -c 'this.tags.smartdc_role && this.tags.smartdc_role!=="nat"' \
-	    -a smartdc_role package_name | \
-	    while read role pkg
-	    do
-		# If this pkg is not in the config file, add it.
-		[[ ${SDC_PKGS[$pkg]} != 1 ]] && add_pkg "$pkg" "$role"
-	    done
-}
 
 function save_root_password() {
     enc_password=`nawk -F: '{if ($1 == "root") print $2}' /etc/shadow`
@@ -100,6 +43,12 @@ function save_root_password() {
     sed -e "s|^root_shadow=.*$|root_shadow='${enc_password}'|" \
       $usbmnt/config > $usbmnt/config.new \
       && mv $usbmnt/config.new $usbmnt/config
+
+    sed -e "s|^root_shadow=.*$|root_shadow='${enc_password}'|" \
+      $usbcpy/extra/joysetup/node.config > \
+      $usbcpy/extra/joysetup/node.config.new \
+      && mv $usbcpy/extra/joysetup/node.config.new \
+      $usbcpy/extra/joysetup/node.config
 }
 
 #
@@ -109,28 +58,18 @@ function save_root_password() {
 
 usbmnt=$(sdc-usbkey mount)
 if [ $? != 0 ]; then
-	echo "Error: unable to mount the USB stick"
-	exit 1
+    echo "Error: unable to mount the USB stick"
+    exit 1
 fi
 
 source /lib/sdc/config.sh
 load_sdc_config
 
-rm -f /tmp/servers$$.out
-
-# Perform updates here
-
 # Check root pw and save
 save_root_password
 
-# Check for new SDC-zone packages and add them to the generic config if
-# they're missing.
-load_config_pkgs
-update_sdc_zone_pkgs
-
 # update the cached copy so compute nodes get the same data
 cp -p $usbmnt/config $usbcpy/config
-cp -p $usbmnt/config.inc/generic $usbcpy/config.inc/generic
 
 sdc-usbkey unmount
 
