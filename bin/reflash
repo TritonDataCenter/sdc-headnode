@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image. There
@@ -37,6 +37,10 @@
 # ./bin/reflash /path/to/local.tgz <host> [<identityfile>]
 #
 #    To install from a tarball that exists locally.
+#
+# ./bin/reflash /path/to/remote.tgz <host> [<identityfile>]
+#
+#    To install from a tarball that exists on the remote <host> to be reflashed.
 #
 # ./bin/reflash https://example.com/path/to/some.tgz <host> [<identityfile>]
 #
@@ -222,6 +226,9 @@ download_attempt_to_remote()
     if [[ -n ${SOURCE_UPLOAD_FILE} ]]; then
         # we've got a local file, try to just scp it
         send_local_file "${SOURCE_UPLOAD_FILE}" "${download_target}"
+    elif [[ -n ${SOURCE_REMOTE_FILE} ]]; then
+        # the file is already there on the server to reflash, just use it
+        remote_cp "${SOURCE_REMOTE_FILE}" "${download_target}"
     elif [[ -n ${SOURCE_URL} ]]; then
         # The file is an HTTPS URL, we'll curl it from the remote end.
         remote_download_url "${SOURCE_URL}" "${download_target}"
@@ -451,9 +458,10 @@ get_remote_content_md5()
     echo "${remote_md5}"
 }
 
-# Sets one of SOURCE_UPLOAD_FILE, SOURCE_URL, or SOURCE_MANTA_FILE
-# depending on the source type. It also sets either SOURCE_MD5 (a hex digest)
-# or SOURCE_CONTENT_MD5 (a base64-encoded binary digest) for the source file.
+# Sets one of SOURCE_REMOTE_FILE, SOURCE_UPLOAD_FILE, SOURCE_URL, or
+# SOURCE_MANTA_FILE depending on the source type. It also sets either SOURCE_MD5
+# (a hex digest) or SOURCE_CONTENT_MD5 (a base64-encoded binary digest) for the
+# source file.
 identify_source()
 {
     local source_spec
@@ -466,6 +474,13 @@ identify_source()
         SOURCE_MD5=$(get_local_md5 ${source_spec})
 
         echo "# source ${SOURCE_UPLOAD_FILE} (MD5 ${SOURCE_MD5})"
+    elif $(ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} \
+            test -f ${source_spec}); then
+        # Source is a remote file on the server to be reflashed.
+        SOURCE_REMOTE_FILE=${source_spec}
+        SOURCE_MD5=$(get_remote_md5 ${source_spec})
+
+        echo "# source ${SOURCE_REMOTE_FILE} (MD5 ${SOURCE_MD5})"
     elif [[ "${source_spec:0:8}" == "https://" ]]; then
         # source is an HTTPS URL
         SOURCE_URL=${source_spec}
@@ -578,6 +593,17 @@ overwrite_usb_key()
 
         exit 0
 EOF
+}
+
+remote_cp()
+{
+    local src
+    local dst
+
+    src=$1
+    dst=$2
+
+    ssh ${SSH_OPTS} ${SSH_COMMON_OPTS} -T root@${REMOTE_HOST} "cp ${src} ${dst}"
 }
 
 remote_download_url()
