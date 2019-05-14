@@ -188,11 +188,13 @@ function generate_loader_config
 
     serial_dev=$(build_spec serial-dev)
     os_console=$(build_spec console)
+    smt_enabled=$(build_spec smt_enabled)
     ipxe=$(build_spec ipxe)
 
-    [[ -z "$ipxe" ]] && ipxe="true"
+    [[ -z "${ipxe}" ]] && ipxe="true"
     [[ -z "${serial_dev}" ]] && serial_dev="ttyb"
     [[ -z "${os_console}" ]] && os_console="${serial_dev}"
+    [[ -z "${smt_enabled}" ]] && smt_enabled="true"
 
     case "${serial_dev}" in
     ttya) lconsole="ttya,ttyb,ttyc,ttyd" ;;
@@ -225,6 +227,7 @@ function generate_loader_config
     cp -f ${STAGE}/boot/loader.conf.tmpl ${STAGE}/boot/loader.conf
 
     echo "ipxe=\"${ipxe}\"" >>${STAGE}/boot/loader.conf
+    echo "smt_enabled=\"${smt_enabled}\"" >>${STAGE}/boot/loader.conf
     echo "console=\"${lconsole}\"" >>${STAGE}/boot/loader.conf
     echo "os_console=\"${os_console}\"" >>${STAGE}/boot/loader.conf
 }

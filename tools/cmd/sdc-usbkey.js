@@ -559,6 +559,56 @@ Usbkey.prototype.do_update.help = [
 ].join('\n');
 
 /*
+ * sdc-usbkey get-variable
+ */
+Usbkey.prototype.do_get_variable = function
+do_get_variable(subcmd, opts, args, callback)
+{
+    var self = this;
+
+    if (opts.help) {
+        self.do_help('help', {}, [ subcmd ], callback);
+        return;
+    }
+
+    if (args.length !== 1) {
+        self.do_help('help', {}, [ subcmd ], callback);
+        return;
+    }
+
+    if (!self._global_zone_only(callback)) {
+        return;
+    }
+
+    lib_usbkey.get_variable(args[0], function (err, value) {
+        if (!err) {
+            if (value !== null) {
+                console.log(value);
+            } else {
+                err = new VError('variable "%s" is not set', args[0]);
+            }
+        }
+
+        callback(err);
+    });
+};
+Usbkey.prototype.do_get_variable.options = [
+    {
+        names: [ 'help', 'h', '?' ],
+        type: 'bool',
+        help: 'Print this help message.'
+    }
+];
+Usbkey.prototype.do_get_variable.help = [
+    'Get a bootloader variable',
+    '',
+    'Usage:',
+    '     sdc-usbkey get-variable <name>',
+    '',
+    '{{options}}'
+].join('\n');
+
+/*
  * sdc-usbkey set-variable
  */
 Usbkey.prototype.do_set_variable = function

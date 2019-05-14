@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2019, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 //
@@ -22,10 +22,13 @@ var assert = require('assert-plus');
 var async = require('/usr/node/node_modules/async');
 var dashdash = require('dashdash');
 var exec = require('child_process').exec;
+var forkexec = require('forkexec');
 var readline = require('readline');
 var netconfig = require('triton-netconfig');
 var util = require('util');
 var vasync = require('vasync');
+var bunyan = require('/usr/node/node_modules/bunyan');
+var usbkey = require('../lib/usbkey');
 
 var SDC_MODULES = '/opt/smartdc/node_modules';
 var restifyClients = require(SDC_MODULES +
@@ -49,6 +52,8 @@ function usage()
         '    delete [-f] <uuid>                    - remove all CNAPI information about',
         '                                            this server',
         '    jobs <uuid>                           - list all jobs for this server',
+        '    get [<uuid>] <param>                  - get parameter (for a server)',
+        '    set [<uuid>] <param> <value>          - set parameter (for a server)',
         '    list                                  - list all servers in this DC',
         '    lookup [-h1jHc] [field=val ...]       - lookup servers matching given fields',
         '    ips <uuid>                            - output the IPs for this server',
@@ -82,6 +87,38 @@ function setup_usage()
         '    layout=<single|mirror|raidz1|raidz2|raidz3>       - disk layout',
         '    postsetup_script=<string>                         - script to be run right after server setup',
         '    (external|admin)_nic=<JSON object>                - nic tags for the server',
+        ''
+    ].join('\n'));
+    /* END JSSTYLED */
+}
+
+function get_usage()
+{
+    /* BEGIN JSSTYLED */
+    console.log([
+        '',
+        'Usage:',
+        '        /opt/smartdc/bin/sdc-server get [<uuid>] <param>',
+        '',
+        'Possible params:',
+        '',
+        '    smt_enabled <true|false>                           - Simultaneous multi-threading enabled on boot',
+        ''
+    ].join('\n'));
+    /* END JSSTYLED */
+}
+
+function set_usage()
+{
+    /* BEGIN JSSTYLED */
+    console.log([
+        '',
+        'Usage:',
+        '        /opt/smartdc/bin/sdc-server set [<uuid>] <param> <value>',
+        '',
+        'Possible params:',
+        '',
+        '    smt_enabled <true|false>                           - Simultaneous multi-threading enabled on boot',
         ''
     ].join('\n'));
     /* END JSSTYLED */
@@ -125,6 +162,29 @@ function getConfig(callback)
     });
 }
 
+function getHeadnodeSysinfo(callback) {
+    forkexec.forkExecWait({
+        argv: ['/usr/bin/sysinfo'],
+        includeStderr: true
+    }, function (err, info) {
+        if (err) {
+           callback(err);
+           return;
+        }
+
+        var sysinfo;
+
+        try {
+            sysinfo = JSON.parse(info.stdout);
+        } catch (parseErr) {
+            callback(parseErr);
+            return;
+        }
+
+        callback(null, sysinfo);
+    });
+}
+
 // returns an sdc-client or restify handle for the API after finding the API
 // endpoint for you.
 function createClient(api, callback) {
@@ -141,6 +201,20 @@ function createClient(api, callback) {
         case 'NAPI':
             handle = new sdcClients.NAPI({
                 url: sdc_config.napi_client_url,
+                agent: false
+            });
+            callback(null, handle);
+            return;
+        case 'SAPI':
+            handle = new sdcClients.SAPI({
+                url: 'http://' + sdc_config.sapi_admin_ips,
+                log: bunyan.createLogger({
+                    name: 'sdc-server',
+                    stream: process.stderr,
+                    level: 'error',
+                    serializers: bunyan.stdSerializers
+                    }),
+                version: '~2',
                 agent: false
             });
             callback(null, handle);
@@ -1045,6 +1119,280 @@ function runServerWorkflow(server_uuid, func, options, callback)
     ], callback);
 }
 
+function setServerKernelArg(server_uuid, name, value, callback)
+{
+    assert.string(server_uuid, 'server_uuid');
+    assert.string(name, 'name');
+    assert.string(value, 'value');
+    assert.func(callback, 'callback');
+
+    var cnapi;
+    var hn_uuid;
+
+    vasync.pipeline({ 'funcs': [
+        function getHNSysinfo(_, cb) {
+            getHeadnodeSysinfo(function (err, sysinfo) {
+                if (!err) {
+                    hn_uuid = sysinfo.UUID;
+                }
+                cb(err);
+            });
+        }, function createCNAPIClient(_, cb) {
+            createClient('CNAPI', function (err, handle) {
+                if (!err) {
+                    cnapi = handle;
+                } else {
+                    err.api = 'CNAPI';
+                }
+                cb(err);
+            });
+        }, function setKernelArg(_, cb) {
+            cnapi.getServer(server_uuid, function (err, server) {
+                if (err) {
+                    err.api = 'CNAPI';
+                    cb(err);
+                    return;
+                }
+
+                if (server.headnode) {
+                    if (server.sysinfo.UUID === hn_uuid) {
+                        usbkey.set_variable(name, value, cb);
+                    } else {
+                        cb(new Error('sdc-server must be run locally ' +
+                            'for headnode ' + server.sysinfo.UUID));
+                    }
+                } else {
+                    var params = { kernel_args: {} };
+                    params.kernel_args[name] = value;
+
+                    cnapi.setBootParams(server_uuid, params, {}, cb);
+                }
+            });
+        }
+    ]}, callback);
+}
+
+/*
+ * Set a default CNAPI parameter via SAPI. this will only be reflected
+ * once each CNAPI instance's config-agent notices the change. It's not
+ * ideal, but right now, there's no simple way to refresh all instances.
+ */
+function setSAPIParam(name, value, callback)
+{
+    assert.string(name, 'name');
+    assert.string(value, 'value');
+    assert.func(callback, 'callback');
+
+    var sapi;
+    var app;
+    var svc;
+
+    vasync.pipeline({ 'funcs': [
+        function createSAPIClient(_, cb) {
+            createClient('SAPI', function (err, handle) {
+                if (!err) {
+                    sapi = handle;
+                } else {
+                    err.api = 'SAPI';
+                }
+                cb(err);
+            });
+        }, function getSdcApp(_, cb) {
+            sapi.listApplications({ name: 'sdc' }, function (err, apps) {
+                if (!err)
+                    app = apps[0];
+                cb(err);
+            });
+        }, function getCnapiService(_, cb) {
+            var searchOpts = { name: 'cnapi', application_uuid: app.uuid };
+            sapi.listServices(searchOpts, function (err, svcs) {
+                if (!err)
+                    svc = svcs[0];
+                cb(err);
+            });
+        }, function setServiceMetadata(_, cb) {
+            var md = {};
+            md[name] = value;
+
+            sapi.updateService(svc.uuid, { metadata: md }, cb);
+        }
+    ]}, callback);
+}
+
+function setParam(server_uuid, name, value, callback)
+{
+    assert.optionalString(server_uuid, 'server_uuid');
+    assert.string(name, 'name');
+    assert.string(value, 'value');
+    assert.func(callback, 'callback');
+
+    switch (name) {
+        case 'smt_enabled':
+            if (['false', 'true'].indexOf(value) === -1) {
+                set_usage();
+                callback(new Error('incorrect value ' + value +
+                    ' for ' + name));
+                break;
+            }
+
+            if (server_uuid) {
+                setServerKernelArg(server_uuid, name, value, callback);
+            } else {
+                setSAPIParam('SMT_ENABLED_DEFAULT', value, callback);
+            }
+
+            break;
+
+        default:
+            callback(new Error('unknown server parameter ' + name));
+            break;
+    }
+}
+
+function getSAPIParam(name, default_value, callback)
+{
+    assert.string(name, 'name');
+    assert.func(callback, 'callback');
+
+    var sapi;
+    var app;
+
+    vasync.pipeline({ 'funcs': [
+        function createSAPIClient(_, cb) {
+            createClient('SAPI', function (err, handle) {
+                if (!err) {
+                    sapi = handle;
+                } else {
+                    err.api = 'SAPI';
+                }
+                cb(err);
+            });
+        }, function getSdcApp(_, cb) {
+            sapi.listApplications({ name: 'sdc' }, function (err, apps) {
+                if (!err)
+                    app = apps[0];
+                cb(err);
+            });
+        }, function getCnapiService(_, cb) {
+            var searchOpts = { name: 'cnapi', application_uuid: app.uuid };
+            sapi.listServices(searchOpts, function (err, svcs) {
+                if (err) {
+                    cb(err);
+                    return;
+                }
+                var value = svcs[0].metadata[name];
+                if (value !== undefined) {
+                    console.log(value);
+                } else {
+                    console.log(default_value);
+                }
+
+                cb();
+            });
+        }
+    ]}, callback);
+}
+
+function getServerKernelArg(server_uuid, name, sapi_param, callback)
+{
+    assert.string(server_uuid, 'server_uuid');
+    assert.string(name, 'name');
+    assert.func(callback, 'callback');
+
+    var cnapi;
+    var hn_uuid;
+
+    vasync.pipeline({ 'funcs': [
+        function getHNSysinfo(_, cb) {
+            getHeadnodeSysinfo(function (err, sysinfo) {
+                if (!err) {
+                    hn_uuid = sysinfo.UUID;
+                }
+                cb(err);
+            });
+        }, function createCNAPIClient(_, cb) {
+            createClient('CNAPI', function (err, handle) {
+                if (!err) {
+                    cnapi = handle;
+                } else {
+                    err.api = 'CNAPI';
+                }
+                cb(err);
+            });
+        }, function getKernelArg(_, cb) {
+            cnapi.getServer(server_uuid, function (err, server) {
+                if (err) {
+                    err.api = 'CNAPI';
+                    cb(err);
+                    return;
+                }
+
+                if (server.headnode) {
+                    if (server.sysinfo.UUID === hn_uuid) {
+                        usbkey.get_variable(name, function (err, value) {
+                            if (!err) {
+                                if (value !== null) {
+                                    console.log(value);
+                                } else {
+                                    err = new Error('variable "' + name +
+                                       '" is not set');
+                                }
+                            }
+
+                            cb(err);
+                        });
+                    } else {
+                        cb(new Error('sdc-server must be run locally ' +
+                            'for headnode ' + server.sysinfo.UUID));
+                    }
+
+                    return;
+                }
+
+                cnapi.getBootParams(server_uuid, {}, function (err, params) {
+                    if (err) {
+                        err.api = 'CNAPI';
+                        cb(err);
+                        return;
+                    }
+
+                    var value = params.kernel_args[name];
+                    if (value !== undefined) {
+                        console.log(value);
+                        cb();
+                        return;
+                    }
+
+                    getSAPIParam(sapi_param, true, cb);
+                });
+            });
+        }
+    ]}, callback);
+}
+
+function getParam(server_uuid, param, callback)
+{
+    assert.optionalString(server_uuid, 'server_uuid');
+    assert.string(param, 'param');
+    assert.func(callback, 'callback');
+
+    switch (param) {
+        case 'smt_enabled':
+            if (server_uuid) {
+                getServerKernelArg(server_uuid, param,
+                    'SMT_ENABLED_DEFAULT', callback);
+            } else {
+                getSAPIParam('SMT_ENABLED_DEFAULT', true, callback);
+            }
+
+            break;
+
+        default:
+            callback(new Error('unknown server parameter ' + param));
+            break;
+    }
+}
+
 function dispatchCommand(command, args, callback)
 {
     var rl;
@@ -1247,6 +1595,50 @@ function dispatchCommand(command, args, callback)
                 command === 'setup' ? 'setupServer' : 'updateNics',
                 setupOpts, callback);
 
+            break;
+
+        case 'get':
+            if (args.length === 1 && ['help', '-h'].indexOf(args[0]) !== -1) {
+                get_usage();
+                callback();
+                return;
+            }
+
+            server_uuid = undefined;
+
+            if (isUUID(args[0])) {
+                server_uuid = args.shift();
+            }
+
+            if (args.length !== 1) {
+                get_usage();
+                callback(new Error('incorrect arguments for ' + command));
+                return;
+            }
+
+            getParam(server_uuid, args[0], callback);
+            break;
+
+        case 'set':
+            if (args.length === 1 && ['help', '-h'].indexOf(args[0]) !== -1) {
+                set_usage();
+                callback();
+                return;
+            }
+
+            server_uuid = undefined;
+
+            if (isUUID(args[0])) {
+                server_uuid = args.shift();
+            }
+
+            if (args.length !== 2) {
+                set_usage();
+                callback(new Error('incorrect arguments for ' + command));
+                return;
+            }
+
+            setParam(server_uuid, args[0], args[1], callback);
             break;
 
         default:
