@@ -371,10 +371,11 @@ main()
 {
 	parse_opts(process.argv);
 
-	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
-	    lib_common.root_path('build.spec.local'), function (err, bs) {
+	lib_buildspec.load_build_spec(
+			lib_common.root_path('build.spec.merged'),
+			function (err, bs) {
 		if (err) {
-			console.error('ERROR loading build specs: %s',
+			console.error('ERROR loading build spec: %s',
 			    err.stack);
 			process.exit(3);
 		}

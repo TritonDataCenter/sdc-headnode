@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2019, Joyent, Inc.
 #
 
 if [[ -n "$TRACE" ]]; then
@@ -107,21 +107,6 @@ function check_nodejs
     else
         fatal "You need to have a working node.js installed for this to work!"
     fi
-}
-
-MERGED_SPEC=
-if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${JSONMERGE} ${ROOT}/build.spec ${ROOT}/build.spec.local)
-elif [[ -f "${ROOT}/build.spec" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec);
-elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
-fi
-
-function build_spec
-{
-    local thing=$1;
-    echo $(echo $MERGED_SPEC | ${JSON} ${thing})
 }
 
 CACHE="${ROOT}/cache"

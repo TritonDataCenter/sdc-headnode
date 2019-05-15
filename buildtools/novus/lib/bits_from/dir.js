@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2019, Joyent, Inc.
+ * Copyright 2019, Joyent, Inc.
  */
 
 var mod_path = require('path');
@@ -82,10 +82,12 @@ bfd_find_build_files(bfd, next)
 	mod_assert.func(next, 'next');
 
 	/*
-	 * Build artefacts are arranged in a simple directory structure by MG
+	 * Build artefacts are arranged in a simple directory structure
 	 * during the configure step, e.g.
 	 *
-	 *   ${BITS_DIR}/sapi/sapi-zfs-master-20150421T182802Z-g983d6be.zfs.gz
+	 * ${SOURCE_BITS_DIR}/
+	 *     sapi/
+	 *         sapi-zfs-master-20150421T182802Z-g983d6be.zfs.gz
 	 *
 	 * The build artefact we are interested in copying generally
 	 * has a filename of the form:

@@ -4,3 +4,6 @@
 [submodule "deps/jsstyle"]
 	path = deps/jsstyle
 	url = https://github.com/joyent/jsstyle.git
+[submodule "deps/eng"]
+	path = deps/eng
+	url = https://github.com/joyent/eng.git

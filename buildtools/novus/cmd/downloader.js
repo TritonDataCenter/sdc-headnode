@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 var mod_fs = require('fs');
@@ -254,12 +254,19 @@ bit_enum_zone(be, next) {
 		return;
 
 	case 'bits-dir':
-		mod_assert.string(process.env.BITS_DIR, '$BITS_DIR');
+		/*
+		 * bits-dir uses a directory layout mirroring our Manta uploads.
+		 */
+		mod_assert.string(
+			process.env.SOURCE_BITS_DIR, '$SOURCE_BITS_DIR');
+
+		 var bits_from_dir = mod_path.join(
+			process.env.SOURCE_BITS_DIR,
+			jobname, branch + '-latest', jobname);
 
 		bits = [];
 		lib_bits_from_dir(bits, {
-			bfd_dir: mod_path.join(process.env.BITS_DIR,
-			    jobname),
+			bfd_dir: bits_from_dir,
 			bfd_prefix: 'zone.' + name,
 			bfd_jobname: jobname,
 			bfd_branch: branch,
@@ -358,11 +365,18 @@ bit_enum_file(be, next)
 		return;
 
 	case 'bits-dir':
-		mod_assert.string(process.env.BITS_DIR, '$BITS_DIR');
+		mod_assert.string(
+			process.env.SOURCE_BITS_DIR, '$SOURCE_BITS_DIR');
+
+		/*
+		 * bits-dir uses a directory layout mirroring our Manta uploads.
+		 */
+		var bits_from_dir = mod_path.join(
+			process.env.SOURCE_BITS_DIR,
+			jobname, branch + '-latest', jobname);
 
 		lib_bits_from_dir(be.be_out, {
-			bfd_dir: mod_path.join(process.env.BITS_DIR,
-			    jobname),
+			bfd_dir: bits_from_dir,
 			bfd_prefix: 'file.' + name,
 			bfd_jobname: jobname,
 			bfd_branch: branch,
@@ -527,10 +541,11 @@ main()
 		progbar: !opts.no_progbar
 	});
 
-	lib_buildspec.load_build_specs(lib_common.root_path('build.spec'),
-	    lib_common.root_path('build.spec.local'), function (err, bs) {
+	lib_buildspec.load_build_spec(
+			lib_common.root_path('build.spec.merged'),
+			function (err, bs) {
 		if (err) {
-			console.error('ERROR: loading build specs: %s',
+			console.error('ERROR: loading build spec: %s',
 			    err.stack);
 			process.exit(3);
 		}

@@ -75,6 +75,7 @@ First you must create a suitable build zone:
 Then to set up the zone:
   - A recent version of node (>= 0.10.26, preferably latest).
   - The [json](http://trentm.com/json/) CLI tool.
+  - The 'pigz' program available somewhere on $PATH
 
 ### Build Specification: `build.spec` and `build.spec.local`
 
@@ -125,10 +126,9 @@ file: zones and files.
 ##### Zones
 
 The Triton headnode installation media includes images of various core zones.
-These zone images are generally built by [Mountain Gorilla (MG)][mg], and the
-resultant build artefacts are uploaded to a directory structure in
-[Manta][manta].  Zone images are nominated for inclusion in the build via
-the `"zones"` key in `build.spec`.
+These zone images are are uploaded to a directory structure in [Manta][manta].
+Zone images are nominated for inclusion in the build via the `"zones"` key
+in `build.spec`.
 
 The simplest possible example is a zone where the MG build artefact name is the
 same as the shipping filename, and the latest image is to be downloaded from
@@ -184,14 +184,14 @@ UUID, e.g.
 ```
 
 Images may also be obtained from a local directory using the `"bits-dir"`
-source.  This is primarily used by MG when building headnode images under
-automation, where MG assembles the build artefacts in a local directory
-structure.  If `"bits-dir"` is used, either through `"source"` for a specific
-zone or via the `"override-all-sources"` top-level key, the `BITS_DIR`
+source.  The directory layout mirrors that of the Manta hierarchy used by
+other Manta/Triton components, and eng.git's `"bits-upload.sh"` script.
+If `"bits-dir"` is used, either through `"source"` for a specific
+zone or via the `"override-all-sources"` top-level key, the `SOURCE_BITS_DIR`
 environment variable must contain the path of a MG-style bits directory.  See
 the source and documentation for [Mountain Gorilla][mg] for more details.
 
-All of the above definitions will cause the download phase of the build to
+The above definitions will cause the download phase of the build to
 store a local copy of the zone dataset stream and manifest in the `cache/`
 directory, using the original filename of the image, e.g. for `manatee`:
 
@@ -226,7 +226,7 @@ build artefact.
 In addition to zone images and the base images on which they depend, the build
 also includes various individual files.  These files are generally also the
 output of [Mountain Gorilla (MG)][mg] build targets and are obtained either
-from Manta (by default) or an MG-style `BITS_DIR`.
+from Manta (by default) or a directory pointed to by `SOURCE_BITS_DIR`.
 
 Files are specified in the `"files"` key of `build.spec`.  For example, the
 Triton Agents are bundled together in a shell archive (shar) installer.  This
@@ -303,17 +303,44 @@ The default branch may be overridden by specifying the `"bits-branch"` key.
 The build branch for an individual zone or file may be overriden by specifying
 `"branch"` in the artefact definition.  For example, to obtain artefacts from
 the `release-20150514` branch for everything except the platform (and platform
-boot tarball), the following could be used in `build.spec.local`:
+boot tarball) and cnapi zone, the following could be used in
+`build.spec.local`:
 
 ```
 {
     "bits-branch": "release-20150514",
+    "zones": {
+        "cnapi": {"branch": "master"}
+    }
     "files": {
         "platform": { "branch": "master" },
-        "platboot": { "branch": "master" }
+        "platboot": { "branch": "master" },
+        "platimages": { "branch": "master" }
     }
 }
 ```
+
+As a convenience, the build will run `bin/convert-configure-branches.js` to
+convert `configure-branches` if it exists to a `build.spec.branches` file.
+This allows users to supply simple `component` and `branch` data in an simpler
+format. The above `build.spec.local` fragment would be written:
+
+```
+bits-branch: release-20150514
+cnapi: master
+platform: master
+```
+
+Note here, that since the `platform`, `platboot` and `platimages` artifacts
+and the `agents` and `agents_md5` artifacts should always be matched. The
+tool that writes `build.spec.local` will include complementary values
+automatically. Any keys that do not map directly to a component (for example,
+`bits-branch` in the above snippet) are taken as top-level keys for the
+`build.spec.branches` file assuming that they're valid `build.spec` keys.
+
+Note the build will merge `build.spec`, `build.spec.local` and
+`build.spec.branches` in that order into a file called `build.spec.merged`
+and will **not** report conflicting values across `build.spec.*` files.
 
 #### Alternative build timestamp selection
 

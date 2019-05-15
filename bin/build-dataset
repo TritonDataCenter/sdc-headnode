@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2019, Joyent, Inc.
 #
 
 #
@@ -82,21 +82,6 @@ fi
 export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 export BASH_XTRACEFD=4
 set -o xtrace
-
-MERGED_SPEC=
-if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge \
-                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
-elif [[ -f "${ROOT}/build.spec" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec);
-elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
-fi
-
-function build_spec () {
-    local thing=$1;
-    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
-};
 
 echo ">> Starting build at $(date)"
 

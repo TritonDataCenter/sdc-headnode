@@ -13,11 +13,15 @@ PLATFORM=$(uname -s)
 
 TAR="tar"
 PCFSTAR="tar"
+JSON="json"
 
 if [[ "$PLATFORM" == "SunOS" ]]; then
     SUCMD="pfexec"
     TAR="gtar"
     PCFSTAR="gtar"
+    if [[ -z "$TAR_COMPRESSION_ARG" ]]; then
+        TAR_COMPRESSION_ARG="-I pigz"
+    fi
 elif [[ "$PLATFORM" == "Darwin" ]]; then
     SUCMD=""
     #
@@ -30,6 +34,10 @@ elif [[ "$PLATFORM" == "Darwin" ]]; then
     PCFSTAR="tar --include=?*"
 elif [[ "$PLATFORM" == "Linux" ]]; then
     SUCMD="sudo"
+fi
+
+if [[ -z "$TAR_COMPRESSION_ARG" ]]; then
+    TAR_COMPRESSION_ARG="-z"
 fi
 
 function fatal
@@ -129,4 +137,15 @@ function unmount_root_image
             oseek=$(( $ROOTOFF / 1048576 )) count=$(( $ROOTSIZE / 1048576 )) \
             if=$IMG_TMP_DIR/rootfs.img of=$IMG_TMP_DIR/${OUTPUT_IMG}
     fi
+}
+
+#
+# Emit a key from a build.spec file that has had changes from optional
+# build.spec.local and build.spec.branches files. See the 'build.spec.merged'
+# target in Makefile for details on how that is generated.
+#
+function build_spec
+{
+    local thing=$1;
+    ${JSON} -f build.spec.merged ${thing}
 }

@@ -6,71 +6,68 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright 2019, Joyent, Inc.
  */
 
 /*
-    This tool takes 2 json files and print out a merged version of the files
-    with the right hand side file taking precedence
-
-        ./json-merge left.json right.json
-*/
+ * This tool takes an output file, and a list of input files and writes
+ * a version of the files with the right-most files on the command line
+ * taking precedence.
+ *
+ * ./json-merge output.json [orig.json newer.json newest.json ... ]
+ */
 
 var fs = require('fs');
 
-var left  = process.argv[2];
-var rights = process.argv[3];
-
 var merge = (function(){
-    
-    var toString = Object.prototype.toString,
-        obj = '[object Object]';
 
-    return function extend( deep /*, obj1, obj2, obj3 */ ) {
+    var toString = Object.prototype.toString;
+    var obj = '[object Object]';
+
+    return function extend(deep /*, obj1, obj2, obj3 */ ) {
         // take first argument, if its not a boolean
         var args = arguments,
             i = deep === true ? 1 : 0,
             key,
             target = args[i];
-        
-        for ( ++i; i < args.length; ++i ) {
+
+        for (++i; i < args.length; ++i) {
             for (key in args[i]) {
-                if ( deep === true && 
-                     target[key] && 
-                     // if not doing this check you may end in
-                     // endless loop if using deep option
-                     toString.call(args[i][key]) === obj &&
-                     toString.call(target[key]) === obj ) {
-                         
-                    extend( deep, target[key], args[i][key] );    
+                if (deep === true &&
+                    target[key] &&
+                    // if not doing this check you may end in
+                    // endless loop if using deep option
+                    toString.call(args[i][key]) === obj &&
+                    toString.call(target[key]) === obj ) {
+
+                    extend(deep, target[key], args[i][key]);
                 } else {
                     target[key] = args[i][key];
-                }            
+                }
             }
-        }  
-              
+        }
         return target;
     };
 }());
 
-function get_json_payload(a, b) {
-    var left_content  = fs.readFileSync(left, 'utf8');
-    var right_content = fs.readFileSync(rights, 'utf8');
+function get_json_payload(output_file, input_files) {
+    var merge_params = [true];
+    for (var j = 1; j < input_files.length; j++) {
+        if (!fs.existsSync(input_files[j])) {
+            continue;
+        }
+        var file_content = fs.readFileSync(input_files[j], 'utf8');
+        var js_obj = JSON.parse(file_content);
+        if (js_obj === '') {
+            merge_params.push({});
+        } else {
+            merge_params.push(js_obj);
+        }
+    }
 
-    var left_obj  = left_content  == '' ? {} : JSON.parse(left_content);
-    var right_obj = right_content == '' ? {} : JSON.parse(right_content);
+    var combined_obj = merge.apply(merge, merge_params);
+    fs.writeFileSync(output_file, JSON.stringify(combined_obj));
+}
 
-    var combined_obj = merge(true, left_obj, right_obj);
-    console.log(JSON.stringify(combined_obj));
-};
-
-fs.stat(left, function(err, stats) {
-    if(err) process.exit(1);
-
-    fs.stat(rights, function(err, stats) {
-        if(err) process.exit(1);
-
-        get_json_payload(left, rights);
-    });
-});
+get_json_payload(process.argv[2], process.argv.slice(2, process.argv.length));
 

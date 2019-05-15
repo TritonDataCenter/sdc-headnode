@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -68,28 +68,13 @@ exec > >(tee ${LOGFILE}) 2>&1
 
 . "${ROOT}/buildtools/lib/trace_logger.sh"
 
-MERGED_SPEC=
-if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge \
-                  ${ROOT}/build.spec ${ROOT}/build.spec.local);
-elif [[ -f "${ROOT}/build.spec" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec);
-elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
-fi
-
-function build_spec () {
-    local thing=$1;
-    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
-};
-
 BUILD_TGZ=$(build_spec build-tgz)
 USB_SIZE="4gb"
 USB_SKIP=7812500
 USB_PADDING=508
 PARTMAP="${USB_SIZE}.partition.map"
 OUTPUT_IMG="${USB_SIZE}.img"
-IMG_TMP_DIR=/tmp/tmp.$$
+IMG_TMP_DIR=/tmp/sdc-headnode-tmp.$$
 MNT_DIR=$IMG_TMP_DIR/mnt
 
 STAGE=${ROOT}/cache/stage_coal
@@ -302,7 +287,8 @@ function create_output
         (cd $STAGE \
             && mv USB-headnode.vmwarevm \
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
-            && ${TAR} -zcf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
+            && ${TAR} ${TAR_COMPRESSION_ARG} \
+                -cf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
             root.password.${LIVEIMG_VERSION} \
             coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
         [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."

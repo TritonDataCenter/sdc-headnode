@@ -63,26 +63,11 @@ exec > >(tee ${LOGFILE}) 2>&1
 
 BUILDSPEC=$ROOT/bin/buildspec
 
-MERGED_SPEC=
-if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
-                  ${ROOT}/build.spec.local);
-elif [[ -f "${ROOT}/build.spec" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec);
-elif [[ -f "${ROOT}/build.spec.local" ]]; then
-    MERGED_SPEC=$(cat ${ROOT}/build.spec.local);
-fi
-
-function build_spec () {
-    local thing=$1;
-    echo $(echo $MERGED_SPEC | ${ROOT}/bin/json ${thing});
-};
-
 BUILD_TGZ=$(build_spec build-tgz)
 USB_SIZE="4gb"
 PARTMAP="${USB_SIZE}.partition.map"
 OUTPUT_IMG="${USB_SIZE}.img"
-IMG_TMP_DIR=/tmp/tmp.$$
+IMG_TMP_DIR=/tmp/sdc-headnode-tmp.$$
 MNT_DIR=$IMG_TMP_DIR/mnt
 
 #
@@ -185,7 +170,8 @@ function create_output
             usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} \
             && mv $IMG_TMP_DIR/$PARTMAP \
             usb-${THIS_BUILDSTAMP}-$PARTMAP \
-            && ${TAR} -zcf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
+            && ${TAR} ${TAR_COMPRESSION_ARG} \
+            -cf ${ROOT}/usb-${THIS_BUILDSTAMP}.tgz \
             root.password.${LIVEIMG_VERSION} \
 	    usb-${THIS_BUILDSTAMP}-$PARTMAP \
             usb-${THIS_BUILDSTAMP}-${OUTPUT_IMG} *.manifest)

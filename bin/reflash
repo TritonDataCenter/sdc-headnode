@@ -90,6 +90,8 @@
 # failure to try again after determining what went wrong.
 #
 
+ROOT=$(cd $(dirname $0)/../; pwd)
+. "${ROOT}/buildtools/lib/common.sh"
 
 DOWNLOAD_RETRIES=3
 MIN_TMP_FREE=3200 # need at least this much space to download image and reflash
@@ -297,9 +299,9 @@ ensure_manta_tools()
     done
 
     # Set the MANTA_* vars from the build.spec.*
-    MANTA_USER=$(get_build_spec_var "manta-user")
-    MANTA_URL=$(get_build_spec_var "manta-url")
-    NEW_MANTA_KEY_ID=$(get_build_spec_var "manta-key-id")
+    MANTA_USER=$(build_spec "manta-user")
+    MANTA_URL=$(build_spec "manta-url")
+    NEW_MANTA_KEY_ID=$(build_spec "manta-key-id")
 
     [[ -n ${MANTA_USER} ]] || fatal "build.spec.* missing 'manta-user'"
     [[ -n ${MANTA_URL} ]] || fatal "build.spec.* missing 'manta-url'"
@@ -320,17 +322,6 @@ fatal()
 {
     echo "FATAL: $*" >&2
     exit 2
-}
-
-get_build_spec_var()
-{
-    local key
-
-    key=$1
-
-    result=$(${ROOT}/bin/json "${key}" <<<${MERGED_SPEC})
-
-    echo "${result}"
 }
 
 get_local_md5()
@@ -369,7 +360,7 @@ get_manta_base_path()
 {
     local manta_base_path
 
-    manta_base_path=$(get_build_spec_var "joyent-manta-base-path")
+    manta_base_path=$(build_spec "joyent-manta-base-path")
 
     if [[ -z ${manta_base_path} ]]; then
         fatal "Unable to find manta_base_path, check that " \
@@ -501,22 +492,6 @@ identify_source()
 
         echo "# source ${SOURCE_MANTA_FILE} (MD5 ${SOURCE_MD5})"
     fi
-}
-
-load_build_spec()
-{
-    MERGED_SPEC=
-
-    if [[ -f "${ROOT}/build.spec" && -f "${ROOT}/build.spec.local" ]]; then
-        MERGED_SPEC=$(${ROOT}/bin/json-merge ${ROOT}/build.spec \
-        ${ROOT}/build.spec.local)
-    elif [[ -f "${ROOT}/build.spec" ]]; then
-        MERGED_SPEC=$(cat ${ROOT}/build.spec)
-    elif [[ -f "${ROOT}/build.spec.local" ]]; then
-        MERGED_SPEC=$(cat ${ROOT}/build.spec.local)
-    fi
-
-    [[ -n ${MERGED_SPEC} ]] || fatal "Unable to load build.spec[.local]"
 }
 
 mget_stdout()
@@ -880,7 +855,6 @@ do_reflash()
 
     check_user_sanity "${force}"
     check_prerequisites
-    load_build_spec
     add_identity "${identity_file}"
     setup_remote
     identify_source "${source_spec}"

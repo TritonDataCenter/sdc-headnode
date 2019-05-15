@@ -6,10 +6,44 @@
 #
 
 #
-# Copyright (c) 2019 Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 PERCENT := %
+
+#
+# The headnode build has the following variants, declared by the
+# $(HEADNODE_VARIANT) macro:
+# 'debug'           use a debug platform image
+# 'joyent'          include specific firmware for Joyent deployments
+# 'joyent-debug'    a combination of the above
+#
+ifdef HEADNODE_VARIANT
+    HEADNODE_VARIANT_SUFFIX=-$(HEADNODE_VARIANT)
+endif
+
+NAME = headnode$(HEADNODE_VARIANT_SUFFIX)
+
+ifeq ($(HEADNODE_VARIANT), debug)
+    DEBUG_BUILD=true
+endif
+
+ifeq ($(HEADNODE_VARIANT), joyent)
+    JOYENT_BUILD=true
+    # this is an internal build.
+    ENGBLD_DEST_OUT_PATH ?= /stor/builds
+endif
+
+ifeq ($(HEADNODE_VARIANT), joyent-debug)
+    JOYENT_BUILD=true
+    DEBUG_BUILD=true
+    # this is an internal build.
+    ENGBLD_DEST_OUT_PATH ?= /stor/builds
+endif
+
+ifdef DEBUG_BUILD
+    DEBUG_SUFFIX=-debug
+endif
 
 #
 # Files
@@ -18,9 +52,11 @@ PERCENT := %
 ifeq ($(shell uname -s),SunOS)
 GREP = /usr/xpg4/bin/grep
 TAR = gtar
+TAR_COMPRESSION_ARG = -I pigz
 else
 GREP = grep
 TAR = tar
+TAR_COMPRESSION_ARG = -z
 endif
 
 BASH_FILES := \
@@ -198,36 +234,93 @@ TOOLS_DEPS = \
 #
 # Included definitions
 #
-include ./buildtools/mk/Makefile.defs
-
+ENGBLD_REQUIRE          := $(shell git submodule update --init deps/eng)
+include ./deps/eng/tools/mk/Makefile.defs
+TOP ?= $(error Unable to access eng.git submodule Makefiles.)
 
 #
 # usb-headnode-specific targets
 #
 
 .PHONY: all
-all: coal
+all: coal gz-tools
+
+check:: $(ESLINT_TARGET) check-jsl check-json $(JSSTYLE_TARGET) check-bash \
+    $(EXTRA_CHECK_TARGETS)
 
 0-npm-stamp: package.json
 	npm install
 	touch $@
 
+#
+# Empty rules for these files so that even if they don't exist, we're
+# still able to make build.spec.merged.
+#
+configure-branches build.spec.local:
+
+#
+# Primarily a convenience for developers, we convert a simple
+# 'configure-branches' file into a 'build.spec.branches' file if a
+# configure-branches file is present. This allows developers to declare which
+# branches should be used for the build without having to write JSON manually.
+#
+# The format of configure-branches (also used by the platform build) is:
+#
+# <key> <colon> <value>
+# <hash comment> [any text]
+#
+build.spec.branches: configure-branches build.spec
+	if [ -f configure-branches ]; then \
+	    ./bin/convert-configure-branches.js \
+	        -c configure-branches -f build.spec -w build.spec.branches; \
+	    cat build.spec.branches; \
+	fi
+
+build.spec.merged: build.spec build.spec.local build.spec.branches
+	rm -f $@
+	bin/json-merge $@ $^
+
+#
+# Delete any failed image files that might be sitting around before building.
+# This is safe because only one headnode build runs at a time. Also cleanup any
+# unused lofi devices (used ones will just fail) We look for the string
+# 'sdc-headnode-tmp', set by ./bin/build-*-image
+#
+.PHONY: clean-img-cruft
+clean-img-cruft:
+ifeq ($(shell uname -s),SunOS)
+	for dev in $(shell lofiadm | grep sdc-headnode-tmp | cut -d ' ' -f1 | \
+	        grep -v "^Block"); do  \
+	    mount | grep "on $${dev}" | cut -d' ' -f1 | while read mntpath; do \
+	        pfexec umount $${mntpath}; \
+	        done; \
+	    pfexec lofiadm -d $${dev}; \
+	done
+	pfexec rm -rf /tmp/sdc-headnode-tmp.*
+endif
+
 CLEAN_FILES += 0-npm-stamp
 
 .PHONY: deps
-deps: 0-npm-stamp
+deps: 0-npm-stamp clean-img-cruft build.spec.merged
 
 .PHONY: coal
 coal: deps download $(TOOLS_DEPS)
-	bin/build-image coal
+	TIMESTAMP=$(TIMESTAMP) \
+	DEBUG_BUILD=$(DEBUG_BUILD) \
+	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image coal
 
 .PHONY: usb
 usb: deps download $(TOOLS_DEPS)
-	bin/build-image usb
+	TIMESTAMP=$(TIMESTAMP) \
+	DEBUG_BUILD=$(DEBUG_BUILD) \
+	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image usb
 
 .PHONY: boot
 boot: deps download $(TOOLS_DEPS)
-	bin/build-image tar
+	TIMESTAMP=$(TIMESTAMP) \
+	DEBUG_BUILD=$(DEBUG_BUILD) \
+	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image tar
 
 .PHONY: tar
 tar: boot
@@ -242,7 +335,9 @@ download: deps
 	mkdir -p log
 	$(CHECKER)
 	if [ -z $${NO_DOWNLOAD} ]; then \
-		$(DOWNLOADER) -d -w "log/artefacts.json"; \
+		DEBUG_BUILD=$(DEBUG_BUILD) \
+		JOYENT_BUILD=$(JOYENT_BUILD) \
+		    $(DOWNLOADER) -d -w "log/artefacts.json"; \
 	else \
 		true; \
 	fi
@@ -259,6 +354,11 @@ coal-and-open: coal
 update-tools-modules:
 	./bin/mk-sdc-clients-light.sh v11.3.1 tools/node_modules/sdc-clients
 
+#
+# Unlike the rest of the headnode artifacts, $(STAMP) here really does reflect
+# the contents of the gz-tools bits. Elsewhere, we use ${PUB_STAMP} to take
+# account of any build.spec.local changes
+#
 GZ_TOOLS_STAMP := gz-tools-$(STAMP)
 GZ_TOOLS_MANIFEST := $(GZ_TOOLS_STAMP).manifest
 GZ_TOOLS_TARBALL := $(GZ_TOOLS_STAMP).tgz
@@ -275,7 +375,7 @@ gz-tools: $(TOOLS_DEPS)
 		$(TOP)/default \
 		$(TOP)/scripts \
 		build/$(GZ_TOOLS_STAMP)/gz-tools
-	(cd build/$(GZ_TOOLS_STAMP) && tar czf ../../$(GZ_TOOLS_TARBALL) gz-tools)
+	(cd build/$(GZ_TOOLS_STAMP) && $(TAR) $(TAR_COMPRESSION_ARG) -cf ../../$(GZ_TOOLS_TARBALL) gz-tools)
 	cat $(PROTO)/opt/smartdc/etc/gz-tools.image > build/$(GZ_TOOLS_STAMP)/image_uuid
 	cat $(TOP)/manifests/gz-tools.manifest.tmpl | sed \
 		-e "s/UUID/$$(cat build/$(GZ_TOOLS_STAMP)/image_uuid)/" \
@@ -288,18 +388,11 @@ gz-tools: $(TOOLS_DEPS)
 		> $(TOP)/$(GZ_TOOLS_MANIFEST)
 	rm -rf build/$(GZ_TOOLS_STAMP)
 
-CLEAN_FILES += build/gz-tools
-
-.PHONY: gz-tools-publish
-gz-tools-publish: gz-tools
-	@if [[ -z "$(BITS_DIR)" ]]; then \
-		@echo "error: 'BITS_DIR' must be set for 'gz-tools-publish' target"; \
-		exit 1; \
-	fi
-	mkdir -p $(BITS_DIR)/gz-tools
-	cp $(TOP)/$(GZ_TOOLS_TARBALL) $(BITS_DIR)/gz-tools/$(GZ_TOOLS_TARBALL)
-	cp $(TOP)/$(GZ_TOOLS_MANIFEST) $(BITS_DIR)/gz-tools/$(GZ_TOOLS_MANIFEST)
-
+CLEAN_FILES += build/gz-tools *.tgz \
+	$(GZ_TOOLS_MANIFEST) \
+	release.json \
+	build.spec.branches \
+	build.spec.merged
 
 #
 # Tools tarball
@@ -307,7 +400,7 @@ gz-tools-publish: gz-tools
 
 tools.tar.gz: tools
 	rm -f $(TOP)/tools.tar.gz
-	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
+	cd $(PROTO)/opt/smartdc && $(TAR) $(TAR_COMPRESSION_ARG) -cf $(TOP)/$(@F) \
 	    bin cmd share lib man node_modules etc
 
 #
@@ -316,7 +409,7 @@ tools.tar.gz: tools
 
 cn_tools.tar.gz: tools
 	rm -f $(TOP)/cn_tools.tar.gz
-	cd $(PROTO)/opt/smartdc && tar cfz $(TOP)/$(@F) \
+	cd $(PROTO)/opt/smartdc && $(TAR) $(TAR_COMPRESSION_ARG) -cf $(TOP)/$(@F) \
 	    $(CN_TOOLS_FILES)
 
 #
@@ -368,7 +461,7 @@ USBKEY_SCRIPTS = \
 
 USBKEY_TARBALLS = \
 	cache/file.ipxe.tar.gz \
-	cache/file.platboot.tgz
+	cache/file.platboot$(DEBUG_SUFFIX).tgz
 
 $(USBKEY_TARBALLS): download
 
@@ -420,11 +513,111 @@ $(SDC_ZONE_MAN_LINKS):
 	rm -f $@
 	ln -s ../../sdc/man/man1/$(@F) $@
 
+#
+# Artifact publication, typically used for Jenkins builds. We compute
+# PUB_STAMP and BRANCH_STAMP in the target rather than as a Makefile macro
+# since its value depends on us possibly generating a build.spec.branches file
+# first.
+#
+.PHONY: release-json
+release-json: build.spec.merged
+	UNIQUE_BRANCHES=$$(./bin/unique-branches $(BRANCH)); \
+	PUB_STAMP=$(BRANCH)$$UNIQUE_BRANCHES-$(TIMESTAMP)-$(_GITDESCRIBE); \
+	BRANCH_STAMP=$(BRANCH)$$UNIQUE_BRANCHES; \
+	BUILD_TGZ=$$(./bin/buildspec build-tgz); \
+	if [[ "$$BUILD_TGZ" == true ]]; then \
+	    echo "{ \
+	        \"date\": \"$(TIMESTAMP)\", \
+	       \"branch\": \"$$BRANCH_STAMP\", \
+	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\", \
+	       \"boot\": \"boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
+	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
+	    }" | json > release.json; \
+	else \
+	    echo "{ \
+	        \"date\": \"$(TIMESTAMP)\", \
+	        \"branch\": \"$$BRANCH_STAMP\", \
+	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\" \
+	    }" | json > release.json; \
+	fi
 
+#
+# This publish target rewrites 'latest-build-stamp' overriding what
+# Makefile.targ does in its 'prepublish' target. This is here so that we can
+# invoke 'bits-upload-latest', and get a Manta directory path that includes
+# the timestamp annotated with the output from 'unique-branches'. This serves
+# to disambiguate headnode builds that were assembled from different sets
+# of component images.
+#
+# Note that if doing a build-tgz=false build, where the boot and usb
+# directories gets renamed or removed during the build, we intentionally only
+# upload the coal artifact. As bits-upload will only upload files, not
+# directories, we create an uncompressed tar archive of that.
+#
+.PHONY: publish
+publish: release-json
+	mkdir -p $(ENGBLD_BITS_DIR)/$(NAME)
+	mv $(GZ_TOOLS_MANIFEST) $(ENGBLD_BITS_DIR)/$(NAME)
+	mv $(GZ_TOOLS_TARBALL) $(ENGBLD_BITS_DIR)/$(NAME)
+	UNIQUE_BRANCHES=$$(./bin/unique-branches $(BRANCH)); \
+	PUB_STAMP=$(BRANCH)$$UNIQUE_BRANCHES-$(TIMESTAMP)-$(_GITDESCRIBE); \
+	BRANCH_STAMP=$(BRANCH)$$UNIQUE_BRANCHES; \
+	BUILD_TGZ=$$(./bin/buildspec build-tgz); \
+	if [[ "$$BUILD_TGZ" == true ]]; then \
+	    mv coal-$(STAMP)-4gb.tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4gb.tgz && \
+	    mv boot-$(STAMP).tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz && \
+	    mv usb-$(STAMP).tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
+	else \
+	    echo "build-tgz was false: uploading only compressed coal artifact" && \
+	    $(TAR) $(TAR_COMPRESSION_ARG) -cf \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4gb.tgz \
+	        coal-$(STAMP)-4gb.vmwarevm; \
+	fi && \
+	echo "$$PUB_STAMP" > \
+	    $(ENGBLD_BITS_DIR)/$(NAME)/latest-build-stamp
+	json < build.spec.merged > $(ENGBLD_BITS_DIR)/$(NAME)/build.spec.merged
+	cp release.json $(ENGBLD_BITS_DIR)/$(NAME)
+
+ENGBLD_BITS_UPLOAD_OVERRIDE=true
+
+#
+# We override bits-upload and bits-upload latest so that we can pass extended
+# branch information via $PUB_STAMP and $BRANCH_STAMP, which we need to compute
+# in the target rather than a Makefile macro, as that information gets
+# generated by the 'build-spec-local' target.
+#
+.PHONY: bits-upload
+bits-upload: publish
+	UNIQUE_BRANCHES=$$(./bin/unique-branches $(BRANCH)); \
+	PUB_STAMP=$(BRANCH)$$UNIQUE_BRANCHES-$(TIMESTAMP)-$(_GITDESCRIBE); \
+	BRANCH_STAMP=$(BRANCH)$$UNIQUE_BRANCHES; \
+	$(TOP)/deps/eng/tools/bits-upload.sh \
+	    -b $$BRANCH_STAMP \
+	    $(BITS_UPLOAD_LOCAL_ARG) \
+	    $(BITS_UPLOAD_IMGAPI_ARG) \
+	    -d $(ENGBLD_DEST_OUT_PATH)/$(NAME) \
+	    -D $(ENGBLD_BITS_DIR) \
+	    -n $(NAME) \
+	    -t $$PUB_STAMP
+
+.PHONY: bits-upload-latest
+bits-upload-latest: build.spec.merged
+	BRANCH_STAMP=$(BRANCH)$$(./bin/unique-branches $(BRANCH)); \
+	$(TOP)/deps/eng/tools/bits-upload.sh \
+	    -b $$BRANCH_STAMP \
+	    $(BITS_UPLOAD_LOCAL_ARG) \
+	    $(BITS_UPLOAD_IMGAPI_ARG) \
+	    -d $(ENGBLD_DEST_OUT_PATH)/$(NAME) \
+	    -D $(ENGBLD_BITS_DIR) \
+	    -n $(NAME)
 
 #
 # Includes
 #
 
-include ./buildtools/mk/Makefile.deps
-include ./buildtools/mk/Makefile.targ
+include ./deps/eng/tools/mk/Makefile.deps
+include ./deps/eng/tools/mk/Makefile.targ
+

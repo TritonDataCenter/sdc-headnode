@@ -9,7 +9,10 @@
 /upgrade-*.tgz
 /config/*.local
 /config/root.authorized_keys
+/build.spec.branches
 /build.spec.local
+/build.spec.merged
+/configure-branches
 /*.vmwarevm
 /*.img
 /log
@@ -23,6 +26,7 @@
 /answers.json
 /tools.tar.gz
 /cn_tools.tar.gz
+/bits
 /build
 /proto
 /docs/*.html
@@ -32,3 +36,4 @@ usb_key.manifest
 root.password.*
 config/config.inc/root.authorized_keys
 /0-*-stamp
+/release.json
