@@ -1193,6 +1193,13 @@ set_variable_loader(mountpoint, name, value, callback)
     mod_assert.func(callback, 'callback');
 
     var search = '^\\s*' + name + '\\s*=\\s*.*$';
+
+    /*
+     * Make sure the value is enclosed in quotes (") in case the value contains
+     * embedded whitespace.  Otherwise, loader will fail to parse it correctly.
+     */
+    value = '"' + value + '"';
+
     var replace = name + '=' + value;
 
     sedfile(mountpoint + '/boot/loader.conf', search, replace, callback);
