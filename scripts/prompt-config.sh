@@ -1547,11 +1547,14 @@ echo "admin_network=$admin_network" >>$tmp_config
 echo >>$tmp_config
 
 if [[ -n ${external_nic} ]]; then
+	# Save the MAC address `dladm create-vnic` created, so we reboot w/ it.
+	external_mac=$(dladm show-vnic -p -o macaddress external0)
 	# BASHSTYLED
 	echo "# external_nic is the nic external_ip will be connected to for headnode zones." \
 	    >>$tmp_config
 	echo "external_nic=$external_nic" >>$tmp_config
 	echo "external_ip=$external_ip" >>$tmp_config
+	echo "external_mac=$external_mac" >>$tmp_config
 	echo "external_gateway=$external_gateway" >>$tmp_config
 	echo "external_netmask=$external_netmask" >>$tmp_config
 	if [ -z "$external_vlan_id" ]; then
