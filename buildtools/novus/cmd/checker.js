@@ -106,7 +106,6 @@ check_old_branch_keys()
 		'platform-image': '"files.platform.*"',
 		'platform-release': '"files.platform.*"',
 		'ipxe-release': '"files.ipxe.*"',
-		'firmware-tools-release': '"files.firmware-tools.*"',
 		'sdcadm-release': '"files.sdcadm.*"',
 		'agents-shar': '"files.agents.*" and "files.agents_md5.*"'
 	};
@@ -136,8 +135,7 @@ function
 check_features()
 {
 	var OLD_TO_NEW = {
-		'debug-platform': '"features.debug-platform.*" or $DEBUG_BUILD',
-		'joyent-build': '"features.joyent-build.*" or $JOYENT_BUILD'
+		'debug-platform': '"features.debug-platform.*" or $DEBUG_BUILD'
 	};
 
 	var lines = [];

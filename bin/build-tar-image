@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
 if [[ -n "$TRACE" ]]; then
@@ -226,20 +226,6 @@ function copy_base
         plat_suf=""
     fi
 
-    local is_joyent
-    is_joyent="$(${BUILDSPEC} -f joyent-build)"
-
-    if [[ "${is_joyent}" == "true" ]]; then
-        local ftbranch
-        ftbranch=$(build_spec firmware-tools-release)
-        [[ -z ${ftbranch} ]] && ftbranch="master"
-    fi
-
-    if [[ "${is_joyent}" == "true" ]]; then
-        local firmware_path
-        firmware_path=$(get_bit "file.firmware-tools.tgz")
-    fi
-
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
 
@@ -260,13 +246,6 @@ function copy_base
 
     echo "==> Copying in LICENSE"
     cp -r LICENSE ${STAGE}/LICENSE
-
-    if [[ "${is_joyent}" == "true" ]]; then
-        echo "==> Extracting firmware bundle"
-        if ! (cd ${STAGE} && ${TAR} -xzf ${firmware_path}); then
-            fatal "Failed to extract firmware bundle"
-        fi
-    fi
 }
 
 function copy_config

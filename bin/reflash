@@ -356,39 +356,24 @@ get_url_content_md5()
     echo "${content_md5}"
 }
 
-get_manta_base_path()
-{
-    local manta_base_path
-
-    manta_base_path=$(build_spec "joyent-manta-base-path")
-
-    if [[ -z ${manta_base_path} ]]; then
-        fatal "Unable to find manta_base_path, check that " \
-            "joyent-manta-base-path is set in your build.spec or " \
-            "build.spec.local"
-    fi
-
-    echo "${manta_base_path}"
-}
-
 get_manta_latest_release()
 {
     local latest_dir
     local release
-    local manta_base
+    local manta_base_path
     local manta_latest_path
     local manta_subdir
 
     latest_dir=
     release=$1
-    manta_base=$(get_manta_base_path)
+    manta_base_path=$(get_build_spec_var "manta-base-path")
     manta_latest_path=
-    manta_subdir="headnode-joyent"
+    manta_subdir="headnode"
 
     [[ -n ${release} ]] || release="master"
     [[ ${release} == "latest" ]] && release="master"
 
-    manta_latest_path="${manta_base}/${manta_subdir}/${release}-latest"
+    manta_latest_path="${manta_base_path}/${manta_subdir}/${release}-latest"
     latest_dir=$(mget_stdout ${manta_latest_path})
 
     [[ -n ${latest_dir} ]] \
