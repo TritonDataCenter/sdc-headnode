@@ -142,7 +142,7 @@ filesize=$(ls -l ${filename} | awk '{ print $5 }')
 version=$(basename ${TAR_BUILD_FILENAME} .tgz | sed -e "s/^usb-.*-20/20/")
 manifest=$(basename ${TAR_BUILD_FILENAME} .tgz).dsmanifest
 
-# MG's ${TIMESTAMP} is in the wrong format, we need:
+# ENGBLD's ${TIMESTAMP} is in the wrong format, we need:
 #
 # "2012-08-31T16:04:51.970Z"
 #

@@ -93,7 +93,7 @@ bfm_find_build_files(bfm, next)
 	mod_assert.func(next, 'next');
 
 	/*
-	 * Build artefacts from MG are uploaded into Manta in a directory
+	 * Build artefacts are uploaded into Manta in a directory
 	 * structure that reflects the branch and build stamp, e.g.
 	 *
 	 *   /Joyent_Dev/public/builds/platform/master-20150421T175549Z
@@ -241,7 +241,7 @@ bfm_find_build_files(bfm, next)
 }
 
 /*
- * When bits are built from MG, a manifest file ("md5sums.txt") is uploaded
+ * When bits are built, a manifest file ("md5sums.txt") is uploaded
  * that includes the MD5 checksum and the filename of each produced bit.  The
  * lines look roughly like:
  *
@@ -299,11 +299,11 @@ bfm_get_md5sum(bfm, next)
 }
 
 /*
- * Each build artefact from MG is uploaded into a Manta directory, e.g.
+ * Each build artefact is uploaded into a Manta directory, e.g.
  *
  *   /Joyent_Dev/public/builds/platform/master-20150421T175549Z
  *
- * MG also maintains an object (not a directory) that contains the full
+ * And an object (not a directory) that contains the full
  * path of the most recent build for a particular branch, e.g.
  *
  *   /Joyent_Dev/public/builds/platform/master-latest

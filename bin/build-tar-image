@@ -76,8 +76,9 @@ BUILDSPEC="${ROOT}/bin/buildspec"
 # Make sure we use the path to the manta tools we built with 'make deps'
 export PATH="${ROOT}/node_modules/manta/bin:${PATH}"
 
-# See MGs Package Versioning for details
-# (https://mo.joyent.com/mountain-gorilla/blob/master/README.md#L74).
+# BASHSTYLED
+# See https://github.com/joyent/triton/blob/master/docs/developer-guide/release-engineering.md#package-versioning
+# for package versioning details.
 THIS_BRANCH=$(git symbolic-ref HEAD | cut -d'/' -f3)
 THIS_GITDESCRIBE=g$(git describe --all --long | $AWK -F'-g' '{print $NF}')
 THIS_BUILDSTAMP=${THIS_BRANCH}-${THIS_TIMESTAMP}-${THIS_GITDESCRIBE}
@@ -219,13 +220,6 @@ function generate_loader_config
 
 function copy_base
 {
-    local plat_suf
-    if [[ "$(${BUILDSPEC} -f debug-platform)" == "true" ]]; then
-        plat_suf="-debug"
-    else
-        plat_suf=""
-    fi
-
     echo "==> Creating .joyliveusb file"
     touch ${STAGE}/.joyliveusb
 

@@ -130,7 +130,7 @@ These zone images are are uploaded to a directory structure in [Manta][manta].
 Zone images are nominated for inclusion in the build via the `"zones"` key
 in `build.spec`.
 
-The simplest possible example is a zone where the MG build artefact name is the
+The simplest possible example is a zone where the build artefact name is the
 same as the shipping filename, and the latest image is to be downloaded from
 Manta.  One such example is the `"adminui"` zone:
 
@@ -145,10 +145,10 @@ Manta.  One such example is the `"adminui"` zone:
 }
 ```
 
-Some zones are known to MG by one name, but shipped in the installation media
-by another (shorter) name.  The MG name can be provided with the `"jobname"`
-key on a per-zone basis.  For example, the `"manatee"` zone comes from the
-`"sdc-manatee"` MG target:
+Some zones are known to the build infrastructure by one name, but shipped in the
+installation media by another (shorter) name. The build name can be provided
+with the `"jobname"` key on a per-zone basis. For example, the `"manatee"` zone
+comes from the `"sdc-manatee"` build name:
 
 ```
 {
@@ -186,10 +186,12 @@ UUID, e.g.
 Images may also be obtained from a local directory using the `"bits-dir"`
 source.  The directory layout mirrors that of the Manta hierarchy used by
 other Manta/Triton components, and eng.git's `"bits-upload.sh"` script.
-If `"bits-dir"` is used, either through `"source"` for a specific
-zone or via the `"override-all-sources"` top-level key, the `SOURCE_BITS_DIR`
-environment variable must contain the path of a MG-style bits directory.  See
-the source and documentation for [Mountain Gorilla][mg] for more details.
+If `"bits-dir"` is used, either through `"source"` for a specific zone or via
+the `"override-all-sources"` top-level key, the `SOURCE_BITS_DIR` environment
+variable must contain the path of a Triton release engineering bits directory.
+See the [Triton release engineering
+documentation](https://github.com/joyent/triton/blob/master/docs/developer-guide/release-engineering.md#bits-directory-structure)
+for details.
 
 The above definitions will cause the download phase of the build to
 store a local copy of the zone dataset stream and manifest in the `cache/`
@@ -198,7 +200,7 @@ directory, using the original filename of the image, e.g. for `manatee`:
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.imgmanifest`
 - `sdc-manatee-zfs-release-20150514-20150514T135531Z-g58e19ad.zfs.gz`
 
-Note that the filename includes the MG job name and branch. A symbolic link
+Note that the filename includes the build name and branch. A symbolic link
 will also be created to the downloaded files using the short name we specified,
 i.e.
 
@@ -224,13 +226,13 @@ build artefact.
 ##### Files
 
 In addition to zone images and the base images on which they depend, the build
-also includes various individual files.  These files are generally also the
-output of [Mountain Gorilla (MG)][mg] build targets and are obtained either
-from Manta (by default) or a directory pointed to by `SOURCE_BITS_DIR`.
+also includes various individual files. These files are generally also the
+output of Manta or Triton component builds and are obtained either from Manta
+(by default) or a directory pointed to by `SOURCE_BITS_DIR`.
 
 Files are specified in the `"files"` key of `build.spec`.  For example, the
 Triton Agents are bundled together in a shell archive (shar) installer.  This
-installer is produced as part of the `agentsshar` MG target.  The shar itself
+installer is produced as part of the `agentsshar` build.  The shar itself
 is specified for inclusion with this entry:
 
 ```
@@ -247,10 +249,10 @@ is specified for inclusion with this entry:
 }
 ```
 
-Note that the MG jobname is provided via `"jobname"` because it is different
-from the short name of the file `"agents"`.  The download phase of the build
-will download file into the `cache/` directory with its original file name,
-e.g.:
+Note that `"jobname"` is used during the download to name the component because
+it is different from the short name of the file artefact itself, `"agents"`.
+The download phase of the build will download file into the `cache/` directory
+with its original file name, e.g.:
 
 - `agents-release-20150514-20150514T144745Z-gd067c0e.sh`
 
@@ -294,8 +296,8 @@ an alternative top-level `build.spec` key on a per-file basis via the following:
 
 By default, the build artefacts sourced for inclusion in the headnode
 installation media are from the _master_ branch of their respective source
-repository.  [Mountain Gorilla][mg] includes the branch in names of
-the build artefact directories and files.
+repository. These build artefacts include the branch name in their file and
+directory names.
 
 The default branch may be overridden by specifying the `"bits-branch"` key.
 The build branch for an individual zone or file may be overriden by specifying
@@ -496,7 +498,6 @@ To test changes to setup procedures without a complete rebuild, you can:
 
 <!-- References -->
 
-[mg]: https://github.com/joyent/mountain-gorilla
 [manta]: https://github.com/joyent/manta
 [buildspec]: #build-specification-buildspec-and-buildspeclocal
 [autosetup]: #automating-headnode-setup-answersjson
