@@ -113,11 +113,11 @@ function copy_config {
         # doc'd for a long time.
         ANSWER_FILE=$(build_spec answers-file)
     fi
-    if [[ -n ${ANSWER_FILE} && -f ${ANSWER_FILE} ]]; then
+    if [[ -n ${ANSWER_FILE} ]]; then
         # BASHSTYLED
         echo "WARNING: Copying in ${ANSWER_FILE}, remove answer-file from build.spec* to disable."
         mkdir -p ${MNT_DIR}/private
-        cp ${ANSWER_FILE} ${MNT_DIR}/private/answers.json
+        cp ${ANSWER_FILE} ${MNT_DIR}/private/answers.json || exit 1
     fi
 }
 
