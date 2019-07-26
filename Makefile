@@ -12,11 +12,8 @@
 PERCENT := %
 
 #
-# The headnode build has the following variants, declared by the
-# $(HEADNODE_VARIANT) macro:
-# 'debug'           use a debug platform image
-# 'joyent'          include specific firmware for Joyent deployments
-# 'joyent-debug'    a combination of the above
+# We build with non-debug platform bits, unless HEADNODE_VARIANT is set to
+# 'debug'.
 #
 ifdef HEADNODE_VARIANT
     HEADNODE_VARIANT_SUFFIX=-$(HEADNODE_VARIANT)
@@ -26,19 +23,6 @@ NAME = headnode$(HEADNODE_VARIANT_SUFFIX)
 
 ifeq ($(HEADNODE_VARIANT), debug)
     DEBUG_BUILD=true
-endif
-
-ifeq ($(HEADNODE_VARIANT), joyent)
-    JOYENT_BUILD=true
-    # this is an internal build.
-    ENGBLD_DEST_OUT_PATH ?= /stor/builds
-endif
-
-ifeq ($(HEADNODE_VARIANT), joyent-debug)
-    JOYENT_BUILD=true
-    DEBUG_BUILD=true
-    # this is an internal build.
-    ENGBLD_DEST_OUT_PATH ?= /stor/builds
 endif
 
 ifdef DEBUG_BUILD
@@ -307,20 +291,20 @@ deps: 0-npm-stamp clean-img-cruft build.spec.merged
 .PHONY: coal
 coal: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \
-	DEBUG_BUILD=$(DEBUG_BUILD) \
-	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image coal
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image coal
 
 .PHONY: usb
 usb: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \
-	DEBUG_BUILD=$(DEBUG_BUILD) \
-	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image usb
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image usb
 
 .PHONY: boot
 boot: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \
-	DEBUG_BUILD=$(DEBUG_BUILD) \
-	JOYENT_BUILD=$(JOYENT_BUILD) bin/build-image tar
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image tar
 
 .PHONY: tar
 tar: boot
@@ -336,7 +320,6 @@ download: deps
 	$(CHECKER)
 	if [ -z $${NO_DOWNLOAD} ]; then \
 		DEBUG_BUILD=$(DEBUG_BUILD) \
-		JOYENT_BUILD=$(JOYENT_BUILD) \
 		    $(DOWNLOADER) -d -w "log/artefacts.json"; \
 	else \
 		true; \
@@ -620,4 +603,3 @@ bits-upload-latest: build.spec.merged
 
 include ./deps/eng/tools/mk/Makefile.deps
 include ./deps/eng/tools/mk/Makefile.targ
-

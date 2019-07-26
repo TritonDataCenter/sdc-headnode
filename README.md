@@ -259,38 +259,36 @@ subsequent phases of the build:
 
 - `file.agents.sh`
 
+
 By default, the `"manta-base-path"` top-level key is used to specify the
 base directory where the downloader will look for build artefacts in Manta.
 The default value for this key, as shipped in this repository, is
 `"/Joyent_Dev/public/builds"`.  If you wish to include an artefact that
 comes from a different Manta directory tree, you may specify the name of
-an alternative top-level `build.spec` key on a per-file basis.
+an alternative top-level `build.spec` key on a per-file basis via the following:
 
-For example, Joyent ships firmware files for specific server hardware that are
-not available under an opensource license.  As a result, these files are only
-included in the commercially supported builds of Triton to Joyent customers.
-The firmware artefact is stored in a different (Joyent-private) area of Manta,
-and configured thus:
+1. Add a key with the value of the alternate Manta dir, e.g.:
 
-```
-{
-    ...
-    "joyent-manta-base-path": "/Joyent_Dev/stor/builds",
-    ...
-    "files": {
-        "firmware-tools": {
-            "alt_manta_base": "joyent-manta-base-path",
-            "file": { "base": "firmware-tools", "ext": "tgz" }
+    ```
+        "my-private-manta-base": "/mymantauser/stor/builds"
+    ```
+
+2. Specify `"alt_manta_base": "<that added key name>"` in the options for
+   that file, e.g.:
+
+    ```
+        "files": {
+            "sdcadm": {
+                "alt_manta_base": "my-private-manta-base",
+                "file": { "base": "sdcadm", "ext": "sh" }
+            },
+            ...
         },
-        ...
-    },
-    ...
-}
-```
+    ```
 
-The `"alt_manta_base"` key specifies that the download phase of the build
-should look in the path specified in `"joyent-manta-base-path"` for this
-artefact, rather than the default key of `"manta-base-path"`.
+    This tells the download phase to use your `my-private-manta-base` path
+    for this artefact.
+
 
 #### Alternative Branch Selection
 
