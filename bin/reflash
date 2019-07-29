@@ -179,6 +179,12 @@ check_prerequisites()
     else
         fatal "Unsupported platform ${uname}"
     fi
+
+    # make sure we're using an up to date build spec
+    (cd $ROOT && gmake --quiet build.spec.merged) || {
+        echo "failed to update $ROOT/build.spec.merged" 2>&1
+        exit 1
+    }
 }
 
 check_user_sanity()
