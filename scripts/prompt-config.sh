@@ -1657,9 +1657,13 @@ echo "rabbitmq=$rabbitmq" >>$tmp_config
 echo "rabbitmq_domain=rabbitmq.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
 
+# Generate a random password for the ufds root account.
+# 16 bytes is equivalent to a 128 bit key.
+random_pw=$(openssl rand -hex 16)
+
 echo "ufds_is_master=true" >>$tmp_config
 echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
-echo "ufds_ldap_root_pw=secret" >>$tmp_config
+echo "ufds_ldap_root_pw=$random_pw" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
 echo "ufds_admin_pw='$escaped_zone_admin_pw'" >>$tmp_config
 echo "ufds_admin_email=$mail_to" >>$tmp_config

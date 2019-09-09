@@ -6,10 +6,10 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 
-# This script converts a UFDS master HN into a slave.
+# This script converts a UFDS primary HN into a replica.
 
 export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
 
@@ -62,6 +62,7 @@ is_net()
 promptnet()
 {
     MASTER_UFDS_IP=""
+    local prompt_str
 
     while [ -z "$MASTER_UFDS_IP" ]; do
         prmpt_str="$1: "
@@ -72,6 +73,19 @@ promptnet()
         fi
         [ -n "$MASTER_UFDS_IP" ] && break
         echo "A valid network number (n.n.n.n) must be provided."
+    done
+}
+
+promptpw()
+{
+    REMOTE_ROOT_PW=""
+    local prompt_str
+
+    while [ -z "$REMOTE_ROOT_PW" ]; do
+        prompt_str="$1: "
+	echo -ne "$prompt_str"
+        IFS='' read -r -s REMOTE_ROOT_PW
+        printf '\n'
     done
 }
 
@@ -96,7 +110,7 @@ get_replicator_status()
 source /lib/sdc/config.sh
 load_sdc_config
 
-# check if already a slave
+# check if already a replica
 if [[ $CONFIG_ufds_is_master != "true" ]]; then
     echo "Error: already converted"
     exit 1
@@ -128,7 +142,7 @@ fi
 echo "---------------------------------------------------------------"
 echo "Warning:"
 echo "This command will delete all existing UFDS data and reconfigure"
-echo "UFDS as a slave."
+echo "UFDS as a replica."
 echo
 echo "Ensure that the SAPI zone is up-to-date before proceeding."
 echo "---------------------------------------------------------------"
@@ -136,14 +150,17 @@ echo -n "Enter 'y' to continue: "
 read val
 [[ "$val" != "y" ]] && exit 0
 
-# read ufds master IP
-promptnet "UFDS master IP address"
+# read ufds primary IP
+promptnet "Primary datacenter UFDS IP address"
+pw_prompt_str="Primary datacenter UFDS root password (check ufds_ldap_root_pw"
+pw_prompt_str+="\nin /usbkey/config in the primary datacenter's headnode)"
+promptpw "$pw_prompt_str"
 
-# check connectivity to ufds master
+# check connectivity to ufds primary
 zlogin $ufds_uuid LDAPTLS_REQCERT=allow /opt/local/bin/ldapsearch \
     -H ldaps://$MASTER_UFDS_IP -x -b '' 'objectclass=*' >/dev/null 2>&1
 if [ $? != 0 ]; then
-    echo "Error: local UFDS zone does not have connectivity to the master"
+    echo "Error: local UFDS zone does not have connectivity to the primary"
     exit 1
 fi
 
@@ -218,8 +235,8 @@ bash /var/tmp/cleanup.ufds
 # Now delete the admin user entry itself
 sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
 
-# Remove any of the region information from the new slave since that will get
-# replicated from the master.
+# Remove any of the region information from the new replica since that will get
+# replicated from the primary.
 zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-find-dns \
     \"region=${CONFIG_region_name}, o=smartdc\"" | while read l; do
     sdc-ldap delete "${l}"
@@ -227,7 +244,7 @@ done
 
 sdc-ldap delete "region=${CONFIG_region_name}, o=smartdc"
 
-# Finally, remove the local version.  The master's version is what counts.
+# Finally, remove the local version.  The primary's version is what counts.
 sdc-ldap delete "cn=version, o=smartdc"
 
 echo "Setting up UFDS replicator"
@@ -239,7 +256,8 @@ cat <<DONE >/tmp/fixufds
 {
     "metadata": {
         "ufds_is_master": "false",
-        "ufds_remote_ip": "${MASTER_UFDS_IP}"
+        "ufds_remote_ip": "${MASTER_UFDS_IP}",
+        "ufds_remote_ldap_root_pw": "${REMOTE_ROOT_PW}"
     }
 }
 DONE
