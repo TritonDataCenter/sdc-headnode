@@ -83,6 +83,7 @@ function setup_usage()
         '',
         '    hostname=<string>                                 - Server hostname',
         '    spares=<0-N>                                      - disk spares',
+        '    width=<1-N>                                       - stripe width',
         '    cache=<true|false>                                - disk cache',
         '    layout=<single|mirror|raidz1|raidz2|raidz3>       - disk layout',
         '    postsetup_script=<string>                         - script to be run right after server setup',
@@ -1554,6 +1555,8 @@ function dispatchCommand(command, args, callback)
                     setupOpts.params.disk_spares = param[1];
                 } else if (param[0] === 'cache') {
                     setupOpts.params.disk_cache = param[1];
+                } else if (param[0] === 'width') {
+                    setupOpts.params.disk_width = param[1];
                 } else if (param[0] === 'layout') {
                     setupOpts.params.disk_layout = param[1];
                 } else {
