@@ -68,7 +68,6 @@ export ENGBLD_BITS_UPLOAD_IMGAPI=true
 # Note we intentionally use bits-upload-latest # so that our Manta path gets the
 # 'latest-timestamp' override from our 'publish' target.
 make print-STAMP all publish bits-upload-latest''')
-bits-upload''')
             }
         }
     }
