@@ -33,9 +33,6 @@ function fatal {
 
 function add_external_nic {
     local zone_uuid=$1
-    local external_net_uuid
-    external_net_uuid=$(sdc-napi /networks?nic_tag=external |
-        json -Ha uuid)
     local tmpfile=/tmp/update_nics.$$.json
 
     local num_nics
@@ -50,7 +47,7 @@ function add_external_nic {
     {
         \"networks\": [
             {
-                \"uuid\": \"${external_net_uuid}\",
+                \"name\": \"external\",
                 \"primary\": true
             }
         ]
