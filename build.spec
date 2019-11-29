@@ -35,9 +35,6 @@
     "manatee": {
       "jobname": "sdc-manatee"
     },
-    "manta": {
-      "jobname": "manta-deployment"
-    },
     "moray": {},
     "napi": {},
     "papi": {},
