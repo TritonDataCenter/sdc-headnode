@@ -4,6 +4,7 @@
     "simple_headers": true,
     "skip_final_confirm": true,
     "skip_edit_config": true,
+    "skip_dns_check": true,
     "datacenter_company_name": "Joyent",
     "region_name": "coal",
     "datacenter_name": "coal",

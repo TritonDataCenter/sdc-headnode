@@ -186,7 +186,7 @@ isdigit ()
 	[ $# -eq 1 ] || return 1
 
 	case $1 in
-  	*[!0-9]*|"") return 1;;
+	*[!0-9]*|"") return 1;;
 	*) return 0;;
 	esac
 }
@@ -349,9 +349,9 @@ promptval()
 		# Forward and back quotes not allowed
 		echo $val | nawk '{
 		    if (index($0, "\047") != 0)
-		        exit 1
+			exit 1
 		    if (index($0, "`") != 0)
-		        exit 1
+			exit 1
 		}'
 		if [ $? != 0 ]; then
 			echo "Single quotes are not allowed."
@@ -1161,6 +1161,26 @@ provisioned on the 'external' network.\n\n"
 	domainname="$val"
 	promptval "Default DNS search domain" "$dns_domain" "dns_search"
 	dns_domain="$val"
+
+
+	# DNS domain checking. Make sure the provided domain name is not yet
+	# resolvable by the given DNS servers. Note this is not checked unless
+	# it's explicitly required by a config setting:
+	skip_dns_check=$(getanswer "skip_dns_check")
+	if [[ -n "${skip_dns_check}" && ${skip_dns_check} != "true" ]]; then
+		domain="binder.${datacenter_name}.${val}"
+		echo "DNS domain: $domain"
+		for resolver in "$dns_resolver1" "$dns_resolver2"; do
+			dig "@$resolver" +short \
+			    "$domain" >/dev/null 2>&1 && continue
+			warning="Provided domain name '$domain' is resolvable "
+			warning+="by external resolver '$resolver'. "
+			warning+="In order to work properly, Triton must be "
+			warning+="configured with a domain which cannot be "
+			warning+="resolved."
+			print_warning "$warning"
+		done
+	fi
 
 	message="
 By default the headnode acts as an NTP server for the admin network. You can
