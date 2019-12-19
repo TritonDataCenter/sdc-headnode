@@ -126,6 +126,10 @@ if [[ -z ${SYSINFO_SDC_Version} ]]; then
     ENABLE_6x_WORKAROUNDS="true"
 fi
 
+ENCRYPTION=
+[[ -n "${CONFIG_encryption_enabled}" && \
+    "${CONFIG_encryption_enabled}" == "true" ]] && ENCRYPTION=1
+
 fatal()
 {
     echo "Error: $*" >&4
@@ -363,6 +367,7 @@ function create_zpool
 {
     SYS_ZPOOL="$1"
     POOL_JSON="$2"
+    local e_flag=""
 
     if [[ -n ${MOCKCN} ]]; then
         # setup initial usage
@@ -373,9 +378,11 @@ function create_zpool
         return;
     fi
 
+    [[ -n "$ENCRYPTION" ]] && e_flag="-e "
+
     if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
-        if ! /usr/bin/mkzpool ${SYS_ZPOOL} ${POOL_JSON}; then
+        if ! /usr/bin/mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
             printf "%6s\n" "failed" >&4
             fatal "failed to create pool"
         fi
@@ -415,8 +422,18 @@ create_dump()
     local dumpsize
     dumpsize=$(( ${SYSINFO_MiB_of_Memory} / 2 ))
 
+    local encr_opt
+
+    # We use the built-in dump encryption for the dump volume and not
+    # zfs encryption. We do not want to blindly just include '-o encryption=off'
+    # all the time since it will fail on PIs that do not support zfs
+    # encryption. We only get here if the mkzpool command succeeds, so we
+    # know if encryption was specified, that the PI supports it.
+    [[ -n "$ENCRYPTION" ]] && encr_opt="-o encryption=off"
+
     # Create the dump zvol
-    zfs create -V ${dumpsize}mb -o checksum=noparity ${SYS_ZPOOL}/dump || \
+    zfs create -V ${dumpsize}mb \
+        -o checksum=noparity ${encr_opt} ${SYS_ZPOOL}/dump || \
         fatal "failed to create the dump zvol"
 }
 
@@ -425,6 +442,10 @@ create_dump()
 #
 setup_datasets()
 {
+    local keydir
+
+    [[ -n "$ENCRYPTION" ]] && keydir="/${VARDS}/crash/volatile"
+
     datasets=$(zfs list -H -o name | xargs)
 
     if [[ -n ${MOCKCN} ]]; then
@@ -485,6 +506,26 @@ setup_datasets()
 
         if ( ! find . -print | TMPDIR=/tmp cpio -pdm /${VARDS} ); then
             fatal "failed to initialize the var directory"
+        fi
+
+        # We assume during the setup process that the compute node
+        # is in a state that we don't have to worry about someone
+        # racing with us as we setup the datasets to bypass security --
+        # that is we don't need to worry about creating directories and
+        # files atomically with the correct permissions, but can
+        # safely chmod after creation.
+        #
+        # We must also do this before we set the mountpoint to legacy
+        # which unmounts the dataset.
+        if [[ -n "$keydir" ]]; then
+            mkdir -m 700 -p "$keydir" || \
+                fatal "failed to create crashdump directory"
+
+            dd if=/dev/random of="${keydir}/keyfile" bs=32 count=1 || \
+                fatal "failed to create dump keyfile"
+
+            chmod 400 "${keydir}/keyfile" || \
+                fatal "failed to set perms on dump keyfile"
         fi
 
         zfs set mountpoint=legacy ${VARDS} || \
