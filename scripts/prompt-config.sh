@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 # XXX - TODO
@@ -235,11 +235,17 @@ is_email() {
 	return 1
 }
 
+#
+# Validate a DNS-style value as per
+# http://en.wikipedia.org/wiki/Domain_Name_System#Domain_name_syntax
+#
+# Max 63 chars, alphanumeric and hyphen, can't start or end with hyphen,
+# can't be *all* numeric. We additionally enforce all lower-case: the
+# region is sometimes used in case-sensitive scenarios like Zookeeper
+# nodes.
+#
 is_dns_label() {
-	# http://en.wikipedia.org/wiki/Domain_Name_System#Domain_name_syntax
-	# Max 63 chars, alphanumeric and hypen, can't start or end with hyphen,
-	# can't be *all* numeric.
-	if [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] \
+	if [[ "$1"  =~ ^[[:lower:]0-9][[:lower:]0-9-]*$ ]] \
 	    && ! [[ "$1" =~ -$ ]] \
 	    && ! [[ "$1" =~ ^[0-9]+$ ]] \
 	    && [[ "${#1}" -le 63 ]]; then
@@ -481,8 +487,8 @@ promptdnslabel()
 		[ -z "$val" ] && val="$def"
 		is_dns_label "$val" || val=""
 		[ -n "$val" ] && break
-		echo "A valid DNS label must be provided" \
-		    "('a-zA-Z0-9-', max 63 characters)."
+		echo "A valid DNS label must be provided:" \
+		    "('a-z0-9-', max 63 characters)."
 	done
 }
 
