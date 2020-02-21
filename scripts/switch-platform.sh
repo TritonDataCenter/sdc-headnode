@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 set -o errexit
@@ -18,6 +18,9 @@ set -o pipefail
 function fatal()
 {
         printf "%s\n" "$1" 1>&2
+        if [ ${fatal_cleanup} -eq 1 ]; then
+            rm -rf ${usbmnt}/os/${version}
+        fi
         exit 1
 }
 
@@ -165,10 +168,12 @@ version=$1
 
 # -U is a private option to bypass cnapi update during upgrade.
 UPGRADE=0
+cleanup_key=0
 while getopts "U" opt
 do
     case "$opt" in
         U) UPGRADE=1 ;;
+        c) cleanup_key=1;;
         *)
             print -u2 "invalid option"
             usage
@@ -187,7 +192,7 @@ mounted="false"
 hashfile="/platform/i86pc/amd64/boot_archive.hash"
 menulst="${usbmnt}/boot/grub/menu.lst"
 loader_conf="${usbmnt}/boot/loader.conf"
-
+fatal_cleanup=0
 mnt_status=$(/opt/smartdc/bin/sdc-usbkey status)
 [ $? != 0 ] && fatal "failed to get USB key status"
 if [[ $mnt_status = "unmounted" ]]; then
@@ -197,11 +202,25 @@ if [[ $mnt_status = "unmounted" ]]; then
     mounted="true"
 fi
 
+fatal_cleanup=1
+# Sync the PI to the USB key from $usbcpy if needed:
+if [[ ! -d ${usbmnt}/os/${version} ]]; then
+    [[ ! -d ${usbcpy}/os/${version} ]] && \
+        fatal "==> FATAL ${usbcpy}/os/${version} does not exist."
+    echo "==> Copying ${version} from ${usbcpy}/os to ${usbmnt}/os"
+    mkdir -p ${usbmnt}/os
+    [ $? != 0 ] && fatal "mkdir ${usbmnt}/os"
+    (cd ${usbcpy}/os && rsync -r ${version}/ ${usbmnt}/os/${version})
+    [ $? != 0 ] && fatal "copying image to ${usbmnt}/os"
+
+    if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
+         mv -f ${usbmnt}/os/${version}/platform/root.password \
+             ${usbmnt}/private/root.password.${version}
+    fi
+fi
+fatal_cleanup=0
+
 trap onexit EXIT
-
-[[ ! -d ${usbmnt}/os/${version} ]] && \
-    fatal "==> FATAL ${usbmnt}/os/${version} does not exist."
-
 
 readonly usb_version=$(/opt/smartdc/bin/sdc-usbkey status -j | json version)
 
@@ -212,6 +231,12 @@ case "$usb_version" in
        /opt/smartdc/bin/sdc-usbkey unmount
        exit 1 ;;
 esac
+
+if [ ${cleanup_key} -eq 1 ]; then
+    echo "==> Cleaning up key"
+    /usbkey/scripts/cleanup-key.sh -c
+    [ $? != 0 ] && fatal "cleaning key"
+fi
 
 # If upgrading, skip cnapi update, we're done now.
 [ $UPGRADE -eq 1 ] && exit 0
