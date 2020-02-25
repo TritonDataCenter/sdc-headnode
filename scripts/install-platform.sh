@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 function usage()
@@ -20,7 +20,6 @@ function fatal()
 {
     printf "Error: %s\n" "$1" >/dev/stderr
     if [ ${fatal_cleanup} -eq 1 ]; then
-        rm -rf ${usbmnt}/os/${version}
         rm -rf ${usbcpy}/os/${version}
         rm -f ${usbcpy}/os/tmp.$$.tgz
     fi
@@ -66,23 +65,12 @@ else
 fi
 
 # BEGIN BASHSTYLED
-usbmnt="/mnt/$(svcprop -p 'joyentfs/usb_mountpoint' svc:/system/filesystem/smartdc:default)"
 usbcpy="$(svcprop -p 'joyentfs/usb_copy_path' svc:/system/filesystem/smartdc:default)"
 # END BASHSTYLED
-mounted="false"
 fatal_cleanup=0
 
 . /lib/sdc/config.sh
 load_sdc_config
-
-mnt_status=$(/opt/smartdc/bin/sdc-usbkey status)
-[ $? != 0 ] && fatal "failed to get USB key status"
-if [[ $mnt_status = "unmounted" ]]; then
-    echo "==> Mounting USB key"
-    /opt/smartdc/bin/sdc-usbkey mount
-    [ $? != 0 ] && fatal "failed to mount USB key"
-    mounted="true"
-fi
 
 platform_type=smartos
 
@@ -103,63 +91,42 @@ if [[ $? != 0 ]]; then
 fi
 
 if [ ${force_replace} -eq 1 ]; then
-    rm -rf ${usbmnt}/os/${version}
     rm -rf ${usbcpy}/os/${version}
 fi
 
 fatal_cleanup=1
-if [[ ! -d ${usbmnt}/os/${version} ]]; then
+if [[ ! -d ${usbcpy}/os/${version} ]]; then
     echo "==> Staging ${version}"
     curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
     [ $? != 0 ] && fatal "retrieving $input"
 
     [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]] && fatal "file: '${input}' not found."
 
-    echo "==> Unpacking ${version} to ${usbmnt}/os"
+    echo "==> Unpacking ${version} to ${usbcpy}/os"
     echo "==> This may take a while..."
-    mkdir -p ${usbmnt}/os/${version}
-    [ $? != 0 ] && fatal "unable to mkdir ${usbmnt}/os/${version}"
-    (cd ${usbmnt}/os/${version} \
+    mkdir -p ${usbcpy}/os/${version}
+    [ $? != 0 ] && fatal "unable to mkdir ${usbcpy}/os/${version}"
+    (cd ${usbcpy}/os/${version} \
       && gzcat ${usbcpy}/os/tmp.$$.tgz | tar -xf - 2>/tmp/install_platform.log)
-    [ $? != 0 ] && fatal "unpacking image into ${usbmnt}/os/${version}"
+    [ $? != 0 ] && fatal "unpacking image into ${usbcpy}/os/${version}"
 
-    (cd ${usbmnt}/os/${version} && mv platform-* platform)
-    [ $? != 0 ] && fatal "moving image in ${usbmnt}/os/${version}"
+    (cd ${usbcpy}/os/${version} && mv platform-* platform)
+    [ $? != 0 ] && fatal "moving image in ${usbcpy}/os/${version}"
 
     rm -f ${usbcpy}/os/tmp.$$.tgz
-
-    if [[ -f ${usbmnt}/os/${version}/platform/root.password ]]; then
-         mv -f ${usbmnt}/os/${version}/platform/root.password \
-             ${usbmnt}/private/root.password.${version}
-    fi
-fi
-
-if [[ ! -d ${usbcpy}/os/${version} ]]; then
-    echo "==> Copying ${version} to ${usbcpy}/os"
-    mkdir -p ${usbcpy}/os
-    [ $? != 0 ] && fatal "mkdir ${usbcpy}/os"
-    (cd ${usbmnt}/os && rsync -a ${version}/ ${usbcpy}/os/${version})
-    [ $? != 0 ] && fatal "copying image to ${usbmnt}/os"
 fi
 fatal_cleanup=0
-
-if [[ ${mounted} == "true" ]]; then
-    echo "==> Unmounting USB Key"
-    /opt/smartdc/bin/sdc-usbkey unmount
-fi
 
 echo "==> Adding to list of available platforms"
 
 if [ ${switch_platform} -eq 1 ]; then
     echo "==> Switching boot image to ${version}"
-    /usbkey/scripts/switch-platform.sh ${version}
+    args=""
+    if [ ${cleanup_key} -eq 1]; then
+        args+="-c"
+    fi
+    /usbkey/scripts/switch-platform.sh ${args} ${version}
     [ $? != 0 ] && fatal "switching boot image to ${version}"
-fi
-
-if [ ${cleanup_key} -eq 1 ]; then
-    echo "==> Cleaning up key"
-    /usbkey/scripts/cleanup-key.sh -c
-    [ $? != 0 ] && fatal "cleaning key"
 fi
 
 if [ ${do_reboot} -eq 1 ]; then
