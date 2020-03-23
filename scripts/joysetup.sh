@@ -682,25 +682,17 @@ if [[ "$(zpool list)" == "no pools available" ]] \
         POOL_FILE=/mockcn/${MOCKCN_SERVER_UUID}/pool.json
     fi
 
-    # We expect sdc-server to validate the input for the following parameters
-    # passed by CNAPI, but to be safe, we use some defensive quoting as well.
-    if [[ -n "${CONFIG_spares}" ]]; then
-        dl0="-s"
-        dl1="${CONFIG_spares}"
-    fi
-    if [[ -n "${CONFIG_cache}" && "${CONFIG_cache}" == "false" ]]; then
-        dl2="-c"
-    fi
-    if [[ -n "${CONFIG_width}" ]]; then
-        dl3="-w"
-        dl4="${CONFIG_width}"
-    fi
-    if [[ -n "${CONFIG_layout}" ]]; then
-        dl5="${CONFIG_layout}"
-    fi
+    dlargs=""
 
-    if ! /usr/bin/disklayout ${dl0} ${dl1:+"$dl1"} ${dl2} \
-	${dl3} ${dl4:+"$dl4"} "${dl5}" > ${POOL_FILE}; then
+    # The older config parameters lacked a 'disk_' prefix, but for the sake
+    # sanity, we won't squat on CONFIG_exclude.
+    [[ "${CONFIG_cache}" == "false" ]] && dlargs+="-c"
+    [[ -n "${CONFIG_spares}" ]] && dlargs+="-s ${CONFIG_spares}"
+    [[ -n "${CONFIG_width}" ]] && dlargs+="-w ${CONFIG_width}"
+    [[ -n "${CONFIG_layout}" ]] && dlargs+="${CONFIG_layout}"
+    [[ -n "${CONFIG_disk_exclude}" ]] && dlargs+="-e ${CONFIG_disk_exclude}"
+
+    if ! /usr/bin/disklayout ${dlargs} >${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
