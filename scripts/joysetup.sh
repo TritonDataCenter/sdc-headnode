@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 #
@@ -119,11 +119,6 @@ fi
 . /lib/sdc/config.sh
 load_sdc_sysinfo
 load_sdc_config
-
-# flag set when we're on a 6.x platform
-ENABLE_6x_WORKAROUNDS=
-if [[ -z ${SYSINFO_SDC_Version} ]]; then
-    ENABLE_6x_WORKAROUNDS="true"
 fi
 
 ENCRYPTION=
@@ -262,9 +257,6 @@ function create_setup_file
 {
     TYPE=$1
 
-    # Skip this on 6.x
-    [[ -n ${ENABLE_6x_WORKAROUNDS} ]] && return 0
-
     if [[ ! -e "$SETUP_FILE" ]]; then
         echo "{ \"node_type\": \"$TYPE\", " \
             '"start_time":' \
@@ -280,9 +272,6 @@ function create_setup_file
 function update_setup_state
 {
     STATE=$1
-
-    # Skip this on 6.x
-    [[ -n ${ENABLE_6x_WORKAROUNDS} ]] && return 0
 
     chmod 600 $SETUP_FILE
     cat "$SETUP_FILE" | json -e \
@@ -470,17 +459,11 @@ setup_datasets()
 
     if ! echo $datasets | grep ${COREDS} > /dev/null; then
         printf "%-56s" "adding volume: cores" >&4
-        if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
-            zfs create -o compression=lz4 -o mountpoint=none ${COREDS} || \
-                fatal "failed to create the cores dataset"
-            zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
-                ${COREDS}/global || \
-                fatal "failed to create the global zone cores dataset"
-        else
-            zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
-                -o compression=gzip ${COREDS} || \
-                fatal "failed to create the cores dataset"
-        fi
+        zfs create -o compression=lz4 -o mountpoint=none ${COREDS} || \
+            fatal "failed to create the cores dataset"
+        zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
+            ${COREDS}/global || \
+            fatal "failed to create the global zone cores dataset"
         printf "%4s\n" "done" >&4
 
     fi
@@ -770,43 +753,27 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     # also restart routing-setup here to pick up defaultrouter, also
     # written by network/physical.
     svcadm disable -s svc:/network/physical:default
-    # in 6.x disable doesn't really disable everything, we'll fix that up here
-    if [[ -n ${ENABLE_6x_WORKAROUNDS} ]]; then
-        set +o errexit
-        set +o pipefail
-        for iface in $(ifconfig -a | grep ^[a-z] | cut -d':' -f1 | \
-                       grep -v "^lo" | sort | uniq); do
-            ifconfig ${iface} down
-            ifconfig ${iface} unplumb
-            dladm remove-bridge -l ${iface} vmwarebr
-        done
-        dladm delete-bridge vmwarebr
-        set -o errexit
-        set -o pipefail
-    fi
     svcadm enable -s svc:/network/physical:default
     svcadm disable -s svc:/network/routing-setup:default
     svcadm enable -s svc:/network/routing-setup:default
 
     echo $(cat /etc/resolv.conf)
 
-    if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
-        # imgadm setup to use the IMGAPI in this DC.
-        if [[ ! -f /var/imgadm/imgadm.conf ]]; then
-            mkdir -p /var/imgadm
-            echo '{}' > /var/imgadm/imgadm.conf
-        fi
-        json -f /var/imgadm/imgadm.conf \
-            -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
-            > /var/imgadm/imgadm.conf.new
-        mv /var/imgadm/imgadm.conf.new /var/imgadm/imgadm.conf
-        if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
-            imgadm sources -f -a http://$CONFIG_imgapi_domain
-            imgadm sources -f -d https://images.joyent.com  # remove the default
-        fi
-
-        update_setup_state "imgadm_setup"
+    # imgadm setup to use the IMGAPI in this DC.
+    if [[ ! -f /var/imgadm/imgadm.conf ]]; then
+        mkdir -p /var/imgadm
+        echo '{}' > /var/imgadm/imgadm.conf
     fi
+    json -f /var/imgadm/imgadm.conf \
+        -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
+        > /var/imgadm/imgadm.conf.new
+    mv /var/imgadm/imgadm.conf.new /var/imgadm/imgadm.conf
+    if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
+        imgadm sources -f -a http://$CONFIG_imgapi_domain
+        imgadm sources -f -d https://images.joyent.com  # remove the default
+    fi
+
+    update_setup_state "imgadm_setup"
 
     # We're the headnode
 

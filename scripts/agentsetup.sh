@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 exec 4>/dev/console
@@ -27,12 +27,6 @@ export PATH
 # Load SYSINFO_* and CONFIG_* values
 . /lib/sdc/config.sh
 load_sdc_sysinfo
-
-# flag set when we're on a 6.x platform
-ENABLE_6x_WORKAROUNDS=
-if [[ -z ${SYSINFO_SDC_Version} ]]; then
-    ENABLE_6x_WORKAROUNDS="true"
-fi
 
 # Mock CN is used for creating "fake" Compute Nodes in SDC for testing.
 MOCKCN=
@@ -111,27 +105,6 @@ setup_agents()
 
     cd /var/run
 
-    if [[ -n ${ENABLE_6x_WORKAROUNDS} ]]; then
-        AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest-65-initial
-        AGENTS_SHAR_PATH=./agents-installer-initial.sh
-
-        /usr/bin/curl --silent --show-error ${AGENTS_SHAR_URL} \
-            -o $AGENTS_SHAR_PATH
-
-        if [[ ! -f $AGENTS_SHAR_PATH ]]; then
-            fatal "failed to download agents setup script"
-        fi
-
-        mkdir -p /opt/smartdc/agents/log
-        /usr/bin/bash $AGENTS_SHAR_PATH \
-            &>/opt/smartdc/agents/log/initial-install.log
-        result=$(tail -n 1 /opt/smartdc/agents/log/initial-install.log)
-
-        # fall through to the normal logic but for upgrade
-        AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest-65-upgrade
-        AGENTS_SHAR_PATH=./agents-installer-upgrade.sh
-    fi
-
     /usr/bin/curl --silent --show-error ${AGENTS_SHAR_URL} -o $AGENTS_SHAR_PATH
 
     if [[ ! -f $AGENTS_SHAR_PATH ]]; then
@@ -197,10 +170,8 @@ if [[ -n ${MOCKCN} ]]; then
     mark_as_setup
 elif [[ ! -d /opt/smartdc/agents/bin ]]; then
     setup_agents
-    if [[ -z ${ENABLE_6x_WORKAROUNDS} ]]; then
-        update_setup_state "agents_installed"
-        mark_as_setup
-    fi
+    update_setup_state "agents_installed"
+    mark_as_setup
 fi
 
 # Return SmartDC services statuses on STDOUT:
