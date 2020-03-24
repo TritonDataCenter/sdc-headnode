@@ -24,9 +24,18 @@ set -o xtrace
 PATH=/usr/bin:/usr/sbin:/bin:/sbin
 export PATH
 
-# Load SYSINFO_* and CONFIG_* values
-. /lib/sdc/config.sh
-load_sdc_sysinfo
+# Get the OS type.
+OS_TYPE=$(uname -s)
+
+BASEDIR=/opt/smartdc
+
+if [[ $OS_TYPE == "Linux" ]]; then
+    # echo "TODO: Linux - could we return some system(d) state here?"
+    # exit 0
+    BASEDIR=/usr/triton
+    PATH=$PATH:$BASEDIR/bin
+    export PATH
+fi
 
 # Mock CN is used for creating "fake" Compute Nodes in SDC for testing.
 MOCKCN=
@@ -41,9 +50,18 @@ fatal()
     exit 1
 }
 
+# Create the agent setup file.
 SETUP_FILE=/var/lib/setup.json
 if [[ -n ${MOCKCN} ]]; then
     SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
+fi
+if [[ $OS_TYPE == "Linux" ]]; then
+    SETUP_FILE="${BASEDIR}/triton-setup.json"
+    # Put the triton tooling on the path.
+    export PATH=$PATH:/usr/node/bin:/usr/triton/bin
+fi
+if [[ ! -f $SETUP_FILE ]]; then
+    fatal "Setup file does not exist: ${SETUP_FILE}"
 fi
 
 function update_setup_state
@@ -100,6 +118,11 @@ function mark_as_setup
 
 setup_agents()
 {
+    if [[ $OS_TYPE == "Linux" ]]; then
+        echo "We are not setting up agents on Linux servers"
+        return
+    fi
+
     AGENTS_SHAR_URL=${ASSETS_URL}/extra/agents/latest
     AGENTS_SHAR_PATH=./agents-installer.sh
 
@@ -111,18 +134,24 @@ setup_agents()
         fatal "failed to download agents setup script"
     fi
 
-    mkdir -p /opt/smartdc/agents/log
-    /usr/bin/bash $AGENTS_SHAR_PATH &>/opt/smartdc/agents/log/install.log
+    local logfile="${BASEDIR}/agents/log/install.log"
+    mkdir -p "${BASEDIR}/agents/log"
+    /usr/bin/bash $AGENTS_SHAR_PATH &> "${logfile}"
 
-    if [[ -n ${MOCKCN} && -f "/opt/smartdc/mockcn/bin/fix-agents.sh" ]]; then
-        /opt/smartdc/mockcn/bin/fix-agents.sh
+    if [[ -n ${MOCKCN} && -f "${BASEDIR}/mockcn/bin/fix-agents.sh" ]]; then
+        ${BASEDIR}/mockcn/bin/fix-agents.sh
     fi
 
-    result=$(tail -n 1 /opt/smartdc/agents/log/install.log)
+    result=$(tail -n 1 "${logfile}")
 }
 
 setup_tools()
 {
+    if [[ $OS_TYPE == "Linux" ]]; then
+        echo "We are not setting up agents on Linux servers"
+        return
+    fi
+
     TOOLS_URL="${ASSETS_URL}/extra/joysetup/cn_tools.tar.gz"
     TOOLS_FILE="/tmp/cn_tools.$$.tar.gz"
 
@@ -131,8 +160,8 @@ setup_tools()
         fatal "failed to download tools tarball"
     fi
 
-    mkdir -p /opt/smartdc
-    if ! /usr/bin/tar xzof "${TOOLS_FILE}" -C /opt/smartdc; then
+    mkdir -p "${BASEDIR}"
+    if ! /usr/bin/tar xzof "${TOOLS_FILE}" -C "${BASEDIR}"; then
         rm -f "${TOOLS_FILE}"
         fatal "failed to extract tools tarball"
     fi
@@ -144,7 +173,7 @@ setup_tools()
     # --ignore-missing flag in case this is a compute node that does not
     # have a USB key.
     #
-    if ! /opt/smartdc/bin/sdc-usbkey -v update --ignore-missing; then
+    if ! "${BASEDIR}/bin/sdc-usbkey" -v update --ignore-missing; then
         fatal "failed to update USB key from tools tarball"
     fi
 
@@ -155,11 +184,11 @@ if [[ -z "$ASSETS_URL" ]]; then
     fatal "ASSETS_URL environment variable must be set"
 fi
 
-if setup_state_not_seen "tools_installed"; then
-    if [[ -z ${MOCKCN} ]]; then
+if [[ $OS_TYPE == "SunOS" && -z ${MOCKCN} ]]; then
+    if setup_state_not_seen "tools_installed"; then
         setup_tools
+        update_setup_state "tools_installed"
     fi
-    update_setup_state "tools_installed"
 fi
 
 if [[ -n ${MOCKCN} ]]; then
@@ -168,14 +197,21 @@ if [[ -n ${MOCKCN} ]]; then
     # there's a new server too. For now we just pretend everything worked.
     update_setup_state "agents_installed"
     mark_as_setup
-elif [[ ! -d /opt/smartdc/agents/bin ]]; then
+elif [[ $OS_TYPE == "Linux" ]]; then
+    update_setup_state "agents_installed"
+    mark_as_setup
+elif [[ ! -d "${BASEDIR}/agents/bin" ]]; then
     setup_agents
     update_setup_state "agents_installed"
     mark_as_setup
 fi
 
 # Return SmartDC services statuses on STDOUT:
-echo $(svcs -a -o STATE,FMRI|grep smartdc)
+if [[ $OS_TYPE == "SunOS" ]]; then
+    echo $(svcs -a -o STATE,FMRI|grep smartdc)
+elif [[ $OS_TYPE == "Linux" ]]; then
+    echo "TODO: Linux - could we return some system(d) state here?"
+fi
 
 # Scripts to be executed by Ur need to explicitly return an exit status code:
 exit 0
