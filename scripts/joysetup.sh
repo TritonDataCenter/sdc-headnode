@@ -119,7 +119,6 @@ fi
 . /lib/sdc/config.sh
 load_sdc_sysinfo
 load_sdc_config
-fi
 
 ENCRYPTION=
 [[ -n "${CONFIG_encryption_enabled}" && \
