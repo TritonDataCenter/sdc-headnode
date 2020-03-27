@@ -24,7 +24,7 @@ pipeline {
     }
 
     parameters {
-        string(
+        text(
             name: 'CONFIGURE_BRANCHES',
             defaultValue: '',
             description:
@@ -52,7 +52,7 @@ pipeline {
                 '</p>'
 
         )
-        string(
+        text(
             name: 'BUILD_SPEC_LOCAL',
             defaultValue: '',
             description:
@@ -61,6 +61,12 @@ pipeline {
                 'This is merged into the configuration before any\n' +
                 'build.spec.branches file (hich is generated from\n' +
                 'configure-branches)'
+        )
+        booleanParam(
+            name: 'INCLUDE_DEBUG_STAGE',
+            defaultValue: false,
+            description: 'This parameter declares whether to build ' +
+                'debug bits as well as the default non-debug bits'
         )
     }
     stages {
@@ -99,11 +105,11 @@ make check
                 }
             }
         }
-        stage('build image') {
+        stage('default') {
             agent {
                 node {
                     label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:2 && pkgsrc_arch:multiarch'
-                    customWorkspace "workspace/headnode-${BRANCH_NAME}-build"
+                    customWorkspace "workspace/headnode-${BRANCH_NAME}-default"
                 }
             }
             when {
@@ -127,6 +133,60 @@ set -o pipefail
 # validate-buildenv checks for a delegated dataset,
 # unnecessary for the headnode build
 export ENGBLD_SKIP_VALIDATE_BUILDENV=true
+
+if [[ -n "$CONFIGURE_BRANCHES" ]]; then
+    echo "${CONFIGURE_BRANCHES}" > configure-branches
+fi
+
+if [[ -n "$BUILD_SPEC_LOCAL" ]]; then
+    echo "$BUILD_SPEC_LOCAL" > build.spec.local
+    json < build.spec.local
+fi
+
+# Ensure the 'gz-tools' image gets published.
+export ENGBLD_BITS_UPLOAD_IMGAPI=true
+
+# note we intentionally use bits-upload-latest
+# so that our Manta path gets the 'latest-timestamp' override
+# from our 'publish' target
+make print-STAMP all publish bits-upload-latest
+                ''')
+            }
+            post {
+                always {
+                    cleanWs cleanWhenSuccess: true,
+                        cleanWhenFailure: false,
+                        cleanWhenAborted: true,
+                        cleanWhenNotBuilt: true,
+                        deleteDirs: true
+                }
+            }
+        }
+    stage('debug') {
+            agent {
+                node {
+                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:2 && pkgsrc_arch:multiarch'
+                    customWorkspace "workspace/headnode-${BRANCH_NAME}-debug"
+                }
+            }
+            when {
+                beforeAgent true
+                environment name: 'INCLUDE_DEBUG_STAGE', value: 'true'
+                anyOf {
+                    branch 'master'
+                    triggeredBy cause: 'UserIdCause'
+                }
+            }
+            steps {
+                sh('git clean -fdx')
+                sh('''
+set -o errexit
+set -o pipefail
+
+# validate-buildenv checks for a delegated dataset,
+# unnecessary for the headnode build
+export ENGBLD_SKIP_VALIDATE_BUILDENV=true
+export HEADNODE_VARIANT=debug
 
 env
 
