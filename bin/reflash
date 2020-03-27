@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image. There
@@ -135,10 +135,14 @@ backup_usb_key()
             set -o xtrace
         fi
 
-        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
-            echo "unable to mount USB key" >&2
-            exit 1
-        }
+        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
+            /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+                echo "unable to mount USB key" >&2
+                exit 1
+            }
+        else
+            echo "# USB key already mounted"
+        fi
 
         # Keep the answers.json if it exists
         if [[ -f /mnt/usbkey/private/answers.json ]]; then
@@ -528,7 +532,7 @@ overwrite_usb_key()
             set -o xtrace
         fi
 
-	# We mounted above, derive the p0 device
+        # We mounted above, derive the p0 device
         DISKPATTERN="^/dev/dsk/\\(.*\\)[ps][0-9]\\(:1\\)*"
         USB_DEV=\$(mount -p | grep "\$DISKPATTERN - /mnt/usbkey " | \\
             sed -e "s+\$DISKPATTERN .*+/dev/rdsk/\\1p0+")
@@ -717,7 +721,7 @@ sanity_check_usb()
         # we're using grub.
         #
         if ! /opt/smartdc/bin/sdc-usbkey set-variable \
-	    ipxe false 2>/dev/null; then
+            ipxe false 2>/dev/null; then
 
             # Ensure we've got a platform + grub
             if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
