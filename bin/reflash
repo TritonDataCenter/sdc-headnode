@@ -101,6 +101,7 @@ SSH_COMMON_OPTS="-o StrictHostKeyChecking=no"
 SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o UserKnownHostsFile=/dev/null"
 SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o LogLevel=error"
 SSH_OPTS="-A"
+USB_DEV_FILE="/tmp/.reflash_usbkey_dev"
 
 if [[ -n "$TRACE" ]]; then
     # BASHSTYLED
@@ -135,13 +136,24 @@ backup_usb_key()
             set -o xtrace
         fi
 
-        if [[ -z \$(mount | grep "^\/mnt\/usbkey ") ]]; then
+        #
+        # We only call /opt/smartdc/bin/sdc-usbkey if the key is not mounted,
+        # since we might not *have* /opt/smartdc/bin/sdc-usbkey (e.g. if the
+        # pool is not mounted) in which case this call will fail even if the
+        # usbkey is actually mounted.
+        #
+        # If it was already mounted, we save the device that was mounted so we
+        # can re-mount that in restore_usb_key() after we have overwritten it.
+        #
+        USB_DEV=\$(mount | grep "^\/mnt\/usbkey on \/dev" | awk '{ print \$3 }')
+        if [[ -z "\${USB_DEV}" ]]; then
             /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
                 echo "unable to mount USB key" >&2
                 exit 1
             }
         else
             echo "# USB key already mounted"
+            echo "\${USB_DEV}" > ${USB_DEV_FILE}
         fi
 
         # Keep the answers.json if it exists
@@ -185,7 +197,7 @@ check_prerequisites()
     fi
 
     # make sure we're using an up to date build spec
-    (cd $ROOT && gmake --quiet build.spec.merged) || {
+    (cd $ROOT && make --quiet build.spec.merged) || {
         echo "failed to update $ROOT/build.spec.merged" 2>&1
         exit 1
     }
@@ -650,10 +662,26 @@ restore_usb_key()
             set -o xtrace
         fi
 
-        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
-            echo "unable to mount USB key" >&2
-            exit 1
-        }
+        #
+        # We can only use sdc-usbkey if we have it. If not, we'll try to
+        # re-mount the usbkey we had when we did the backup if it was mounted
+        # then.
+        #
+        if [[ -x /opt/smartdc/bin/sdc-usbkey ]]; then
+            /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+                echo "unable to mount USB key" >&2
+                exit 1
+            }
+        elif [[ -f ${USB_DEV_FILE} ]]; then
+            USB_DEV=\$(cat ${USB_DEV_FILE})
+            if [[ -e \${USB_DEV} ]]; then
+                echo "USB key was \${USB_DEV} at mount time, re-mounting."
+                /usr/sbin/mount -F pcfs -o foldcase,noatime \${USB_DEV} /mnt/usbkey
+            else
+                echo "unable to re-mount USB key" >&2
+                exit 1
+            fi
+        fi
 
         # move new devtools out of way so we can drop in old first
         if [[ -d /mnt/usbkey/devtools ]]; then
@@ -723,16 +751,29 @@ sanity_check_usb()
         if ! /opt/smartdc/bin/sdc-usbkey set-variable \
             ipxe false 2>/dev/null; then
 
-            # Ensure we've got a platform + grub
-            if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+            #
+            # If sdc-usbkey doesn't exist, we might have silently failed to
+            # disable ipxe. Fix that here. If that's not the case, we ensure
+            # we're using (and fix) grub.
+            #
+            if [[ ! -x /opt/smartdc/bin/sdc-usbkey \
+                && -f /mnt/usbkey/boot/loader.conf ]]; then
+
+                grep -v "^ipxe" /mnt/usbkey/boot/loader.conf \
+                    > /mnt/usbkey/boot/loader.conf.reflash
+                echo 'ipxe="false"' >> /mnt/usbkey/boot/loader.conf.reflash
+                mv /mnt/usbkey/boot/loader.conf.reflash \
+                    /mnt/usbkey/boot/loader.conf
+            elif [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+                sed -e "s/^default.*$/default 1/" \
+                    /mnt/usbkey/boot/grub/menu.lst \
+                    > /mnt/usbkey/boot/grub/menu.lst.new \
+                    && mv /mnt/usbkey/boot/grub/menu.lst.new \
+                        /mnt/usbkey/boot/grub/menu.lst
+            else
                 echo "Missing grub menu.lst, bailing" >&2
                 exit 1
             fi
-
-            sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
-                > /mnt/usbkey/boot/grub/menu.lst.new \
-                && mv /mnt/usbkey/boot/grub/menu.lst.new \
-                    /mnt/usbkey/boot/grub/menu.lst
         fi
 
         exit 0
