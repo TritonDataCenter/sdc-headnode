@@ -676,7 +676,8 @@ restore_usb_key()
             USB_DEV=\$(cat ${USB_DEV_FILE})
             if [[ -e \${USB_DEV} ]]; then
                 echo "USB key was \${USB_DEV} at mount time, re-mounting."
-                /usr/sbin/mount -F pcfs -o foldcase,noatime \${USB_DEV} /mnt/usbkey
+                /usr/sbin/mount -F pcfs -o foldcase,noatime \
+                    \${USB_DEV} /mnt/usbkey
             else
                 echo "unable to re-mount USB key" >&2
                 exit 1
