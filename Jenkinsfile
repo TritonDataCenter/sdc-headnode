@@ -18,9 +18,12 @@ pipeline {
     }
     agent none
 
-    // build once per day
+    // Build once per day, and start a few hours before
+    // nightly reflashes tend to kick off, at 'H 4 * * *',
+    // so we get reasonably up to date headnode images to
+    // test with.
     triggers {
-        cron('H H * * *')
+        cron('H 2 * * *')
     }
 
     parameters {
