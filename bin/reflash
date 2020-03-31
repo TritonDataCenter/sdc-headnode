@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 #
 # This tool is for reflashing an existing headnode with a new tar image. There
@@ -101,6 +101,7 @@ SSH_COMMON_OPTS="-o StrictHostKeyChecking=no"
 SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o UserKnownHostsFile=/dev/null"
 SSH_COMMON_OPTS="${SSH_COMMON_OPTS} -o LogLevel=error"
 SSH_OPTS="-A"
+USB_DEV_FILE="/tmp/.reflash_usbkey_dev"
 
 if [[ -n "$TRACE" ]]; then
     # BASHSTYLED
@@ -135,10 +136,25 @@ backup_usb_key()
             set -o xtrace
         fi
 
-        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
-            echo "unable to mount USB key" >&2
-            exit 1
-        }
+        #
+        # We only call /opt/smartdc/bin/sdc-usbkey if the key is not mounted,
+        # since we might not *have* /opt/smartdc/bin/sdc-usbkey (e.g. if the
+        # pool is not mounted) in which case this call will fail even if the
+        # usbkey is actually mounted.
+        #
+        # If it was already mounted, we save the device that was mounted so we
+        # can re-mount that in restore_usb_key() after we have overwritten it.
+        #
+        USB_DEV=\$(mount | grep "^\/mnt\/usbkey on \/dev" | awk '{ print \$3 }')
+        if [[ -z "\${USB_DEV}" ]]; then
+            /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+                echo "unable to mount USB key" >&2
+                exit 1
+            }
+        else
+            echo "# USB key already mounted"
+            echo "\${USB_DEV}" > ${USB_DEV_FILE}
+        fi
 
         # Keep the answers.json if it exists
         if [[ -f /mnt/usbkey/private/answers.json ]]; then
@@ -528,7 +544,7 @@ overwrite_usb_key()
             set -o xtrace
         fi
 
-	# We mounted above, derive the p0 device
+        # We mounted above, derive the p0 device
         DISKPATTERN="^/dev/dsk/\\(.*\\)[ps][0-9]\\(:1\\)*"
         USB_DEV=\$(mount -p | grep "\$DISKPATTERN - /mnt/usbkey " | \\
             sed -e "s+\$DISKPATTERN .*+/dev/rdsk/\\1p0+")
@@ -646,10 +662,26 @@ restore_usb_key()
             set -o xtrace
         fi
 
-        /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
-            echo "unable to mount USB key" >&2
-            exit 1
-        }
+        #
+        # We can only use sdc-usbkey if we have it. If not, we'll try to
+        # re-mount the usbkey we had when we did the backup if it was mounted
+        # then.
+        #
+        if [[ -x /opt/smartdc/bin/sdc-usbkey ]]; then
+            /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
+                echo "unable to mount USB key" >&2
+                exit 1
+            }
+        elif [[ -f ${USB_DEV_FILE} ]]; then
+            USB_DEV=\$(cat ${USB_DEV_FILE})
+            if [[ -e \${USB_DEV} ]]; then
+                echo "USB key was \${USB_DEV} at mount time, re-mounting."
+                /usr/sbin/mount -F pcfs -o foldcase,noatime \${USB_DEV} /mnt/usbkey
+            else
+                echo "unable to re-mount USB key" >&2
+                exit 1
+            fi
+        fi
 
         # move new devtools out of way so we can drop in old first
         if [[ -d /mnt/usbkey/devtools ]]; then
@@ -717,18 +749,31 @@ sanity_check_usb()
         # we're using grub.
         #
         if ! /opt/smartdc/bin/sdc-usbkey set-variable \
-	    ipxe false 2>/dev/null; then
+            ipxe false 2>/dev/null; then
 
-            # Ensure we've got a platform + grub
-            if [[ ! -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+            #
+            # If sdc-usbkey doesn't exist, we might have silently failed to
+            # disable ipxe. Fix that here. If that's not the case, we ensure
+            # we're using (and fix) grub.
+            #
+            if [[ ! -x /opt/smartdc/bin/sdc-usbkey \
+                && -f /mnt/usbkey/boot/loader.conf ]]; then
+
+                grep -v "^ipxe" /mnt/usbkey/boot/loader.conf \
+                    > /mnt/usbkey/boot/loader.conf.reflash
+                echo 'ipxe="false"' >> /mnt/usbkey/boot/loader.conf.reflash
+                mv /mnt/usbkey/boot/loader.conf.reflash \
+                    /mnt/usbkey/boot/loader.conf
+            elif [[ -f /mnt/usbkey/boot/grub/menu.lst ]]; then
+                sed -e "s/^default.*$/default 1/" \
+                    /mnt/usbkey/boot/grub/menu.lst \
+                    > /mnt/usbkey/boot/grub/menu.lst.new \
+                    && mv /mnt/usbkey/boot/grub/menu.lst.new \
+                        /mnt/usbkey/boot/grub/menu.lst
+            else
                 echo "Missing grub menu.lst, bailing" >&2
                 exit 1
             fi
-
-            sed -e "s/^default.*$/default 1/" /mnt/usbkey/boot/grub/menu.lst \
-                > /mnt/usbkey/boot/grub/menu.lst.new \
-                && mv /mnt/usbkey/boot/grub/menu.lst.new \
-                    /mnt/usbkey/boot/grub/menu.lst
         fi
 
         exit 0
