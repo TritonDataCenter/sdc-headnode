@@ -6,8 +6,10 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
+
+TOP="$( cd "$(dirname "${BASH_SOURCE[0]}")/../../" >/dev/null 2>&1 && pwd )"
 
 PLATFORM=$(uname -s)
 
@@ -147,5 +149,5 @@ function unmount_root_image
 function build_spec
 {
     local thing=$1;
-    ${JSON} -f build.spec.merged ${thing}
+    ${JSON} -f "${TOP}/build.spec.merged" ${thing}
 }
