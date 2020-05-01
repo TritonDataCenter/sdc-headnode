@@ -4,7 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2019, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 # This script is run by sdc-usbkey update to update the copy of loader in the
 # EFI System Partition if needed.
@@ -199,7 +199,7 @@ if [[ -z "$old_boot_ver" ]]; then
 	exit 0
 fi
 
-if cmp $mountpoint/$loader_path $contents/$loader_path 2>/dev/null; then
+if cmp $mountpoint/$loader_path $contents/$loader_path >/dev/null; then
 	if [[ "$verbose" = "yes" ]]; then
 		echo "$loader_path is unchanged; skipping ESP update"
 	fi
