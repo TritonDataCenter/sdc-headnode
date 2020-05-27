@@ -681,17 +681,17 @@ if [[ "$(zpool list)" == "no pools available" ]] \
         POOL_FILE=/mockcn/${MOCKCN_SERVER_UUID}/pool.json
     fi
 
-    dlargs=""
+    declare -a dlargs
 
     # The older config parameters lacked a 'disk_' prefix, but for the sake
     # sanity, we won't squat on CONFIG_exclude.
-    [[ "${CONFIG_cache}" == "false" ]] && dlargs+="-c"
-    [[ -n "${CONFIG_spares}" ]] && dlargs+="-s ${CONFIG_spares}"
-    [[ -n "${CONFIG_width}" ]] && dlargs+="-w ${CONFIG_width}"
-    [[ -n "${CONFIG_layout}" ]] && dlargs+="${CONFIG_layout}"
-    [[ -n "${CONFIG_disk_exclude}" ]] && dlargs+="-e ${CONFIG_disk_exclude}"
+    [[ "${CONFIG_cache}" == "false" ]] && dlargs+=("-c")
+    [[ -n "${CONFIG_spares}" ]] && dlargs+=("-s ${CONFIG_spares}")
+    [[ -n "${CONFIG_width}" ]] && dlargs+=("-w ${CONFIG_width}")
+    [[ -n "${CONFIG_disk_exclude}" ]] && dlargs+=("-e ${CONFIG_disk_exclude}")
+    [[ -n "${CONFIG_layout}" ]] && dlargs+=("${CONFIG_layout}")
 
-    if ! /usr/bin/disklayout ${dlargs} >${POOL_FILE}; then
+    if ! /usr/bin/disklayout ${dlargs[@]} >${POOL_FILE}; then
         fatal "disk layout failed"
     fi
 
