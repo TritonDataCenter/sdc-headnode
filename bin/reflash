@@ -145,6 +145,7 @@ backup_usb_key()
         # If it was already mounted, we save the device that was mounted so we
         # can re-mount that in restore_usb_key() after we have overwritten it.
         #
+        # BASHSTYLED
         USB_DEV=\$(mount | (grep "^\/mnt\/usbkey on \/dev" || true) | awk '{ print \$3 }')
         if [[ -z "\${USB_DEV}" ]]; then
             /opt/smartdc/bin/sdc-usbkey mount >/dev/null || {
