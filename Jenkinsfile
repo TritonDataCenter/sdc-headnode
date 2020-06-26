@@ -76,7 +76,7 @@ pipeline {
         stage('check') {
             agent {
                 node {
-                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:2 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-check"
                 }
             }
@@ -111,7 +111,7 @@ make check
         stage('default') {
             agent {
                 node {
-                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:2 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-default"
                 }
             }
@@ -168,7 +168,7 @@ make print-STAMP all publish bits-upload-latest
     stage('debug') {
             agent {
                 node {
-                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:2 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-debug"
                 }
             }
