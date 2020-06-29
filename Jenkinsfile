@@ -80,6 +80,9 @@ pipeline {
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-check"
                 }
             }
+            tools {
+                nodejs 'sdcnode-v0.10.48-zone'
+            }
             steps{
                 sh('''
 set -o errexit
@@ -126,6 +129,9 @@ make check
                     branch 'master'
                     triggeredBy cause: 'UserIdCause'
                 }
+            }
+            tools {
+                nodejs 'sdcnode-v0.10.48-zone'
             }
             steps {
                 sh('git clean -fdx')
@@ -179,6 +185,9 @@ make print-STAMP all publish bits-upload-latest
                     branch 'master'
                     triggeredBy cause: 'UserIdCause'
                 }
+            }
+            tools {
+                nodejs 'sdcnode-v0.10.48-zone'
             }
             steps {
                 sh('git clean -fdx')
