@@ -81,7 +81,7 @@ pipeline {
                 }
             }
             tools {
-                nodejs 'sdcnode-v0.10.48-zone'
+                nodejs 'sdcnode-v6-zone'
             }
             steps{
                 sh('''
@@ -131,7 +131,7 @@ make check
                 }
             }
             tools {
-                nodejs 'sdcnode-v0.10.48-zone'
+                nodejs 'sdcnode-v6-zone'
             }
             steps {
                 sh('git clean -fdx')
@@ -187,7 +187,7 @@ make print-STAMP all publish bits-upload-latest
                 }
             }
             tools {
-                nodejs 'sdcnode-v0.10.48-zone'
+                nodejs 'sdcnode-v6-zone'
             }
             steps {
                 sh('git clean -fdx')
