@@ -56,7 +56,7 @@ if [[ -n ${MOCKCN} ]]; then
     SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
 fi
 if [[ $OS_TYPE == "Linux" ]]; then
-    SETUP_FILE="${BASEDIR}/triton-setup.json"
+    SETUP_FILE="${BASEDIR}/state/triton-setup.json"
     # Put the triton tooling on the path.
     export PATH=$PATH:/usr/node/bin:/usr/triton/bin
 fi
