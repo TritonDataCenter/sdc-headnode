@@ -67,8 +67,8 @@ elif [[ $OS_TYPE == "Linux" ]]; then
     BASEDIR=/usr/triton
     # Put the triton tooling on the path.
     export PATH=$PATH:/usr/node/bin:/usr/triton/bin
-    # Ensure the state directory exists.
-    mkdir -p "$BASEDIR/state"
+    # Ensure the config directory exists.
+    mkdir -p "$BASEDIR/config"
 fi
 
 # bump to line past console login prompt
@@ -276,7 +276,7 @@ if [[ -n ${MOCKCN} ]]; then
     SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
 fi
 if [[ $OS_TYPE == "Linux" ]]; then
-    SETUP_FILE="${BASEDIR}/state/triton-setup.json"
+    SETUP_FILE="${BASEDIR}/config/triton-setup-state.json"
 fi
 
 function create_setup_file
@@ -625,7 +625,10 @@ setup_datasets()
         if [[ -d /etc/zones ]]; then
             cp -p /etc/zones/* /${CONFDS}
         fi
-        zfs set mountpoint=legacy ${CONFDS}
+        if [[ $OS_TYPE == "SunOS" ]]; then
+            zfs set mountpoint=legacy ${CONFDS}
+        fi
+        # Linux uses /zones/config/
         printf "%4s\n" "done" >&4
     fi
 
