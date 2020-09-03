@@ -26,7 +26,7 @@ var VError = mod_verror.VError;
 
 var SECONDS = 1000;
 
-var TIMEOUT_MOUNT = 90 * SECONDS;
+var TIMEOUT_MOUNT = 120 * SECONDS;
 var TIMEOUT_UNMOUNT = 45 * SECONDS;
 
 var USBKEY_DIR = '/opt/smartdc/share/usbkey/';
