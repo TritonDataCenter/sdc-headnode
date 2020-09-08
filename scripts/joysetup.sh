@@ -645,7 +645,7 @@ setup_datasets()
 
     if ! echo $datasets | grep ${OPTDS} > /dev/null; then
         printf "%-56s" "adding volume: opt" >&4
-        zfs create -o ${OPTDS} || fatal "failed to create the opt dataset"
+        zfs create ${OPTDS} || fatal "failed to create the opt dataset"
         if [[ $OS_TYPE == "SunOS" ]]; then
             zfs set mountpoint=legacy ${OPTDS}
         elif [[ $OS_TYPE == "Linux" ]]; then
@@ -802,10 +802,14 @@ install_configs()
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
-        mount -F zfs ${SYS_ZPOOL}/opt /opt || echo "/opt already mounted"
+        mount -F zfs ${OPTDS} /opt || echo "/opt already mounted"
 
         mkdir -p "${BASEDIR}"
-        mv $TEMP_CONFIGS $SMARTDC_CONFIG
+        if [[ ! -d $SMARTDC_CONFIG ]]; then
+            mv $TEMP_CONFIGS $SMARTDC_CONFIG
+        else
+            mv $TEMP_CONFIGS/* $SMARTDC_CONFIG/
+        fi
         printf "%4s\n" "done" >&4
 
         # re-load config here, since it will have just changed
