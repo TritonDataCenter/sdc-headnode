@@ -645,8 +645,13 @@ setup_datasets()
 
     if ! echo $datasets | grep ${OPTDS} > /dev/null; then
         printf "%-56s" "adding volume: opt" >&4
-        zfs create -o mountpoint=legacy ${OPTDS} || \
-            fatal "failed to create the opt dataset"
+        zfs create -o ${OPTDS} || fatal "failed to create the opt dataset"
+        if [[ $OS_TYPE == "SunOS" ]]; then
+            zfs set mountpoint=legacy ${OPTDS}
+        elif [[ $OS_TYPE == "Linux" ]]; then
+            # Linux mounts to /opt
+            zfs set mountpoint=/opt ${OPTDS}
+        fi
         printf "%4s\n" "done" >&4
     fi
 
