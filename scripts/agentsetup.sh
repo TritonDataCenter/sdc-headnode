@@ -32,7 +32,7 @@ BASEDIR=/opt/smartdc
 if [[ $OS_TYPE == "Linux" ]]; then
     # echo "TODO: Linux - could we return some system(d) state here?"
     # exit 0
-    BASEDIR=/usr/triton
+    BASEDIR=/opt/triton
     PATH=$PATH:$BASEDIR/bin
     export PATH
 fi

@@ -64,11 +64,9 @@ OS_TYPE=$(uname -s)
 if [[ $OS_TYPE == "SunOS" ]]; then
     BASEDIR=/opt/smartos
 elif [[ $OS_TYPE == "Linux" ]]; then
-    BASEDIR=/usr/triton
+    BASEDIR=/opt/triton
     # Put the triton tooling on the path.
     export PATH=$PATH:/usr/node/bin:/usr/triton/bin
-    # Ensure the config directory exists.
-    mkdir -p "$BASEDIR/config"
 fi
 
 # bump to line past console login prompt
@@ -276,7 +274,12 @@ if [[ -n ${MOCKCN} ]]; then
     SETUP_FILE="/mockcn/${MOCKCN_SERVER_UUID}/setup.json"
 fi
 if [[ $OS_TYPE == "Linux" ]]; then
-    SETUP_FILE="${BASEDIR}/config/triton-setup-state.json"
+    if [[ -d ${BASEDIR}/config ]]; then
+        SETUP_FILE="${BASEDIR}/config/triton-setup-state.json"
+    else
+        # Dataset is not mounted yet - so install to a temporary location.
+        SETUP_FILE="/usr/triton/config/triton-setup-state.json"
+    fi
 fi
 
 function create_setup_file
@@ -805,11 +808,22 @@ install_configs()
         mount -F zfs ${OPTDS} /opt || echo "/opt already mounted"
 
         mkdir -p "${BASEDIR}"
-        if [[ ! -d $SMARTDC_CONFIG ]]; then
-            mv $TEMP_CONFIGS $SMARTDC_CONFIG
-        else
-            mv $TEMP_CONFIGS/* $SMARTDC_CONFIG/
+
+        mv $TEMP_CONFIGS $SMARTDC_CONFIG
+
+        if [[ $OS_TYPE == "Linux" ]]; then
+            # Create a symlink from /usr/trion/config.
+            local usr_trion_config="/usr/triton/config"
+            if [[ -d $usr_trion_config ]]; then
+                # Move any existing temporary configs.
+                mv $usr_trion_config/* "${SMARTDC_CONFIG}/"
+            fi
+            rm -rf "${usr_trion_config}"
+            ln -s "${SMARTDC_CONFIG}" "${usr_trion_config}"
+            # Adjust the setup file variable to it's new location.
+            SETUP_FILE="${BASEDIR}/config/triton-setup-state.json"
         fi
+
         printf "%4s\n" "done" >&4
 
         # re-load config here, since it will have just changed
