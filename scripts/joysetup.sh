@@ -370,7 +370,10 @@ function create_zpool
 
     if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
-        if ! /usr/bin/mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
+        # First try making it with an EFI System Partition (ESP).
+        if /usr/bin/mkzpool -B ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
+            printf "\n%-56s          (as potentially bootable)" >&4
+        elif ! /usr/bin/mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
             printf "%6s\n" "failed" >&4
             fatal "failed to create pool"
         fi
