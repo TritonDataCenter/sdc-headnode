@@ -12,6 +12,8 @@
 
 #
 # We don't rely on the PI's usb-key.sh, as it may be too old.
+# (even with an off-zpool boot `sdcadm platform` might have pushed an older PI
+# on to the head node)
 
 set -e
 
@@ -213,6 +215,41 @@ fi
 
 if [[ "$dryrun" = "yes" ]]; then
 	exit 0
+fi
+
+# If we booted from a ZFS pool, figure that out now.
+bootpool=$(bootparams | awk -F= '/^triton_bootpool=/ {print $2}')
+if [[ "$bootpool" != "" ]]; then
+	# Boots off of a zpool.  Do it all inside here.
+	bootfs=/"$bootpool"/boot
+
+	# Reality checks.
+	if [[ ! -d /"$bootfs" ||
+		! -f /"$bootfs"/.joyusbkey ]]; then
+		echo "The /$bootfs directory doesn't exist," \
+			"or has other problems" >&2
+		exit 1
+	fi
+
+	# Update bootfs loader bits
+	# XXX KEBE SAYS MAKE SURE THIS IS RIGHT!
+	files=" \
+		etc/version/boot \
+		boot/pmbr \
+		boot/gptzfsboot \
+		boot/loader64.efi
+		"
+	for a in "$files"; do
+		cp -f "$contents"/"$a" /"$bootfs"/"$a"
+		if [[ $? != 0 ]];
+			echo "Error copying $a from $contents to $bootfs" >&2
+			exit 1
+		fi
+	done
+
+	# Then update the pool using piadm(1M)
+	piadm bootable -r $bootpool
+	exit $?
 fi
 
 esp=$(mount_usb_key_esp)
