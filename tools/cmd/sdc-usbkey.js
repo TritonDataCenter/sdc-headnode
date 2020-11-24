@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2019, Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  */
 
 
@@ -38,6 +38,7 @@ Usbkey()
     var self = this;
 
     self.uk_ngz = false;
+    self.bootpool = '';
 
     mod_cmdln.Cmdln.call(self, {
         name: 'sdc-usbkey',
@@ -47,6 +48,11 @@ Usbkey()
                 names: [ 'help', 'h', '?' ],
                 type: 'bool',
                 help: 'Print this help message.'
+            },
+            {
+                names: [ 'usb', 'u' ],
+                type: 'bool',
+                help: 'Force USB key searching, if booted from a ZFS pool.'
             },
             {
                 names: [ 'verbose', 'v' ],
@@ -77,9 +83,21 @@ init(opts, args, callback)
         if (!err && zonename !== 'global') {
             self.uk_ngz = true;
         }
-
-        mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
     });
+
+    if (!opts.usb) {
+        /*
+         * Unless forced by -u/--usb, see if we booted from a ZFS pool
+         * and set accordingly.
+         */
+        lib_oscmds.triton_pool(function set_booted_from_pool(err, pool) {
+            if (!err && pool !== '') {
+                self.bootpool = pool;
+            }
+        });
+    }
+
+    mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
 };
 
 Usbkey.prototype._global_zone_only = function
