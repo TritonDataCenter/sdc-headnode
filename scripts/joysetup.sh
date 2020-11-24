@@ -771,6 +771,8 @@ if [[ "$(zpool list)" == "no pools available" ]] \
 
     # We're the headnode
 
+    # XXX KEBE ASKS --> Prompt for conversion to bootable pool?
+    
 else
     output_zpool_info
 fi
