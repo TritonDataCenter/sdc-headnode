@@ -61,30 +61,6 @@ make_env()
     return (env);
 }
 
-/*
- * Unlike the other functions here, this is specifically finding a single
- * line in bootparams(1) output and checking its value, hence using exec()
- * on a pipeline of bootparams-to-awk.
- */
-function
-triton_pool(callback)
-{
-    mod_assert.func(callback, 'callback');
-
-    mod_child.exec(
-        '/usr/bin/bootparams | awk -F= \'/^triton_bootpool=/ { print $2}\'', {
-            env: make_env()
-        }, function findbp(err, stdout, stderr) {
-            if (err) {
-                /* If this happens, we have bigger problems. */
-                callback(new VError(err, 'could not sync: %s', stderr.trim()));
-                return;
-            }
-
-            callback(null, stdout.trim());
-        });
-}
-
 function
 sync(callback)
 {
@@ -331,13 +307,13 @@ diskinfo(callback)
 }
 
 module.exports = {
+    make_env: make_env,
     sync: sync,
     zonename: zonename,
     mount: mount,
     umount: umount,
     fstyp: fstyp,
-    diskinfo: diskinfo,
-    triton_pool: triton_pool
+    diskinfo: diskinfo
 };
 
 /* vim: set ts=4 sts=4 sw=4 et: */

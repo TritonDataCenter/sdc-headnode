@@ -1242,11 +1242,15 @@ set_variable(name, value, callback)
 
 module.exports = {
     DEFAULT_MOUNTPOINT: DEFAULT_MOUNTPOINT,
+    ensure_mountpoint_exists: ensure_mountpoint_exists,
     ensure_usbkey_unmounted: ensure_usbkey_unmounted,
     ensure_usbkey_mounted: ensure_usbkey_mounted,
+    get_mount_info: get_mount_info,
     get_usbkey_mount_status: get_usbkey_mount_status,
     get_variable: get_variable,
-    set_variable: set_variable
+    get_variable_loader: get_variable_loader,
+    set_variable: set_variable,
+    set_variable_loader: set_variable_loader
 };
 
 /* vim: set ts=4 sts=4 sw=4 et: */

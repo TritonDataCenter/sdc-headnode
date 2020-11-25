@@ -139,6 +139,7 @@ TOOLS_CMD_FILES = \
 	sdc-usbkey.js
 
 TOOLS_LIB_FILES = \
+	bootpool.js \
 	common.js \
 	oscmds.js \
 	usbkey.js \
@@ -203,6 +204,7 @@ CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
 	bin/sdc-usbkey \
 	cmd/sdc-usbkey.js \
+	lib/bootpool.js \
 	lib/common.js \
 	lib/oscmds.js \
 	lib/usbkey.js \
