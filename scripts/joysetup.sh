@@ -63,8 +63,12 @@ OS_TYPE=$(uname -s)
 
 if [[ $OS_TYPE == "SunOS" ]]; then
     BASEDIR=/opt/smartos
+    IMGADM_DIR=/var/imgadm
+    CONFIG_SH=/lib/sdc/config.sh
 elif [[ $OS_TYPE == "Linux" ]]; then
     BASEDIR=/opt/triton
+    IMGADM_DIR=/usr/triton/config/imgadm
+    CONFIG_SH=/usr/triton/bin/config.sh
     # Put the triton tooling on the path.
     export PATH=$PATH:/usr/node/bin:/usr/triton/bin
 fi
@@ -142,7 +146,7 @@ fi
 }
 
 # Load CONFIG_* values
-. /lib/sdc/config.sh
+. "${CONFIG_SH}"
 load_sdc_config
 
 ENCRYPTION=
@@ -809,7 +813,11 @@ install_configs()
 
         mkdir -p "${BASEDIR}"
 
-        mv $TEMP_CONFIGS $SMARTDC_CONFIG
+        if [[ ! -d "${SMARTDC_CONFIG}" ]]; then
+            mv $TEMP_CONFIGS "${SMARTDC_CONFIG}"
+        else
+            cp -rp $TEMP_CONFIGS/* "${SMARTDC_CONFIG}/"
+        fi
 
         if [[ $OS_TYPE == "Linux" ]]; then
             # Create a symlink from /usr/trion/config.
@@ -829,9 +837,7 @@ install_configs()
         # re-load config here, since it will have just changed
         # (also location will be detected properly now)
         SDC_CONFIG_FILENAME=
-        if [[ $OS_TYPE == "SunOS" ]]; then
-            load_sdc_config
-        fi
+        load_sdc_config
     fi
 }
 
@@ -856,6 +862,30 @@ setup_filesystems()
         # Only restart smartdc/config on CN, on HN we're rebooting.
         svcadm disable -s smartdc/config
         svcadm enable -s smartdc/config
+    fi
+}
+
+setup_imgadm()
+{
+    if [[ -n ${MOCKCN} ]]; then
+        # Mock CN's don't use imgadm.
+        exit 0
+    fi
+
+    local IMGADM_CONF="${IMGADM_DIR}/imgadm.conf"
+
+    # imgadm setup to use the IMGAPI in this DC.
+    if [[ ! -f "${IMGADM_CONF}" ]]; then
+        mkdir -p "${IMGADM_DIR}"
+        echo '{}' > "${IMGADM_CONF}"
+    fi
+    json -f "${IMGADM_CONF}" \
+        -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
+        > "${IMGADM_CONF}.new"
+    mv "${IMGADM_CONF}.new" "${IMGADM_CONF}"
+    if [[ -z "$(json -f ${IMGADM_CONF} sources)" ]]; then
+        imgadm sources -f -a http://$CONFIG_imgapi_domain
+        imgadm sources -f -d https://images.joyent.com  # remove the default
     fi
 }
 
@@ -930,16 +960,16 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     setup_filesystems
     update_setup_state "filesystems_setup"
 
-    if [[ $OS_TYPE != "SunOS" ]]; then
-        # Nothing below here needs to run for other OS's.
-        # TODO: Do we need the imgadm setup steps?
-        update_setup_state "imgadm_setup"
-        exit 0
-    fi
+    setup_imgadm
+    update_setup_state "imgadm_setup"
 
     if [[ -n ${MOCKCN} ]]; then
         # nothing below here needs to run for mock CN
-        update_setup_state "imgadm_setup"
+        exit 0
+    fi
+
+    if [[ $OS_TYPE != "SunOS" ]]; then
+        # Nothing below here needs to run for other OS's.
         exit 0
     fi
 
@@ -962,24 +992,6 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     svcadm enable -s svc:/network/routing-setup:default
 
     echo $(cat /etc/resolv.conf)
-
-    # imgadm setup to use the IMGAPI in this DC.
-    if [[ ! -f /var/imgadm/imgadm.conf ]]; then
-        mkdir -p /var/imgadm
-        echo '{}' > /var/imgadm/imgadm.conf
-    fi
-    json -f /var/imgadm/imgadm.conf \
-        -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
-        > /var/imgadm/imgadm.conf.new
-    mv /var/imgadm/imgadm.conf.new /var/imgadm/imgadm.conf
-    if [[ -z "$(json -f /var/imgadm/imgadm.conf sources)" ]]; then
-        imgadm sources -f -a http://$CONFIG_imgapi_domain
-        imgadm sources -f -d https://images.joyent.com  # remove the default
-    fi
-
-    update_setup_state "imgadm_setup"
-
-    # We're the headnode
 
 else
     output_zpool_info
