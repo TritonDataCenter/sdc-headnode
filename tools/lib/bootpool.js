@@ -177,8 +177,68 @@ ensure_bootfs_mounted(poolname, callback)
     });
 }
 
+function
+get_variable(name, callback)
+{
+    var self = this;
+
+    mod_assert.string(name, 'name');
+    mod_assert.func(callback, 'callback');
+
+    ensure_bootfs_mounted(self.bootpool, function (err, mountpoint) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        /* XXX KEBE SAYS Feed default mountpoint for now. */
+        get_bootfs_mount_status(mountpoint, function (err, status) {
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            mod_assert.equal(status.version, 2);
+            lib_usbkey.get_variable_loader(status.mountpoint, name, callback);
+            return;
+        });
+    });
+}
+
+function
+set_variable(name, value, callback)
+{
+    var self = this;
+
+    mod_assert.string(name, 'name');
+    mod_assert.string(name, 'value');
+    mod_assert.func(callback, 'callback');
+
+    ensure_bootfs_mounted(self.bootpool, function (err, mountpoint) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        /* XXX KEBE SAYS Feed default mountpoint for now. */
+        get_bootfs_mount_status(mountpoint, function (err, status) {
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            mod_assert.equal(status.version, 2);
+            lib_usbkey.set_variable_loader(status.mountpoint, name, value,
+                callback);
+            return;
+        });
+    });
+}
+
 module.exports = {
     get_bootfs_mount_status: get_bootfs_mount_status,
+    get_variable: get_variable,
     ensure_bootfs_mounted: ensure_bootfs_mounted,
+    set_variable: set_variable,
     triton_bootpool: triton_bootpool
 };

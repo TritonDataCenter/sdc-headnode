@@ -464,8 +464,7 @@ do_update(subcmd, opts, args, callback)
                 /*
                  * Check if the USB key is already mounted with default opts.
                  */
-                lib_usbkey.get_usbkey_mount_status(null,
-                  function (err, status) {
+                function parse_status(err, status)  {
                     if (err) {
                         next(err);
                         return;
@@ -477,7 +476,13 @@ do_update(subcmd, opts, args, callback)
                         mountpoint = status.mountpoint;
                     }
                     next();
-                });
+                }
+
+                if (self.bootpool !== '') {
+                    lib_bootpool.get_bootfs_mount_status(null, parse_status);
+                } else {
+                    lib_usbkey.get_usbkey_mount_status(null, parse_status);
+                }
             },
             function mount_usbkey(_, next) {
                 if (cancel) {
@@ -494,10 +499,7 @@ do_update(subcmd, opts, args, callback)
                     return;
                 }
 
-                lib_usbkey.ensure_usbkey_mounted({
-                    timeout: TIMEOUT_MOUNT,
-                    ignore_missing: opts.ignore_missing
-                }, function (err, mtpt) {
+                function parse_mount(err, mtpt) {
                     if (err) {
                         next(err);
                         return;
@@ -512,7 +514,17 @@ do_update(subcmd, opts, args, callback)
                     mod_assert.string(mtpt, 'mtpt');
                     mountpoint = mtpt;
                     next();
-                });
+                }
+
+                if (self.bootpool !== '') {
+                    lib_bootpool.ensure_bootpool_mounted(self.bootpool,
+                        parse_mount);
+                } else {
+                    lib_usbkey.ensure_usbkey_mounted({
+                        timeout: TIMEOUT_MOUNT,
+                        ignore_missing: opts.ignore_missing},
+                        parse_mount);
+                }
             },
             function do_run_update(_, next) {
                 if (cancel) {
@@ -549,6 +561,7 @@ do_update(subcmd, opts, args, callback)
                     return;
                 }
 
+                /* Should work equally well for both USB key and bootpool. */
                 lib_usbkey.ensure_usbkey_unmounted({
                     timeout: TIMEOUT_UNMOUNT
                 }, function (err) {
@@ -620,7 +633,7 @@ do_get_variable(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.get_variable(args[0], function (err, value) {
+    function get_variable_result(err, value) {
         if (!err) {
             if (value !== null) {
                 console.log(value);
@@ -630,7 +643,13 @@ do_get_variable(subcmd, opts, args, callback)
         }
 
         callback(err);
-    });
+    }
+
+    if (self.bootpool !== '') {
+        lib_bootpool.get_variable(args[0], get_variable_result);
+    } else {
+        lib_usbkey.get_variable(args[0], get_variable_result);
+    }
 };
 Usbkey.prototype.do_get_variable.options = [
     {
@@ -670,14 +689,20 @@ do_set_variable(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.set_variable(args[0], args[1], function (err) {
+    function set_variable_result(err) {
         if (err) {
             callback(err);
             return;
         }
 
         callback();
-    });
+    }
+
+    if (self.bootpool !== '') {
+        lib_bootpool.set_variable(args[0], args[1], set_variable_result);
+    } else {
+        lib_usbkey.set_variable(args[0], args[1], set_variable_result);
+    }
 };
 Usbkey.prototype.do_set_variable.options = [
     {
