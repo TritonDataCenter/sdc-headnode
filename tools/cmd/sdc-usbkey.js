@@ -148,13 +148,13 @@ do_mount(subcmd, opts, args, callback)
     }
 
     if (self.bootpool !== '') {
+        /* NOTE: We ignore alt mount options for bootable pools for now. */
+        lib_bootpool.ensure_bootfs_mounted(self.bootpool, errhandler);
+    } else {
         lib_usbkey.ensure_usbkey_mounted({
             timeout: TIMEOUT_MOUNT,
             alt_mount_options: alt_mount_options
         }, errhandler);
-    } else {
-        /* NOTE: We ignore alt mount options for bootable pools for now. */
-        lib_bootpool.ensure_bootfs_mounted(self.bootpool, errhandler);
     }
 };
 Usbkey.prototype.do_mount.options = [
@@ -517,7 +517,7 @@ do_update(subcmd, opts, args, callback)
                 }
 
                 if (self.bootpool !== '') {
-                    lib_bootpool.ensure_bootpool_mounted(self.bootpool,
+                    lib_bootpool.ensure_bootfs_mounted(self.bootpool,
                         parse_mount);
                 } else {
                     lib_usbkey.ensure_usbkey_mounted({
