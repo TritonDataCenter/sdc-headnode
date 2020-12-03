@@ -94,11 +94,15 @@ init(opts, args, callback)
         lib_bootpool.triton_bootpool(function set_booted_from_pool(err, pool) {
             if (!err && pool !== '') {
                 self.bootpool = pool;
-            }
+            } else if (err) {
+		/* For the error case, "pool" contains stderr. */
+		callback(err, pool);
+		return;
+	    }
+
+	    mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
         });
     }
-
-    mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
 };
 
 Usbkey.prototype._global_zone_only = function
