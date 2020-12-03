@@ -58,10 +58,11 @@ get_bootfs_mount_status(mountpoint, callback)
             marker_file: false
         },
         ok: false,
-        message: ''
+        message: 'not mounted'
     };
 
-    dprintf('fetching mount information for "%s"\n', mountpoint);
+    dprintf('fetching pool mount status for "%s"\n', mountpoint);
+
     lib_usbkey.get_mount_info(mountpoint, function mnttab_info(err, mi) {
         if (err) {
             callback(new VError(err, 'could not inspect mounted filesystems'),
@@ -75,6 +76,12 @@ get_bootfs_mount_status(mountpoint, callback)
          * "device" will be the bootfs.
          */
 
+        if (mi === false) {
+            dprintf('ok, bootfs says nothing is not mounted.\n');
+            callback(null, status);
+            return;
+        }
+
         mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
         status.mountpoint = mountpoint;
         status.device = mi.mi_special;
@@ -86,9 +93,9 @@ get_bootfs_mount_status(mountpoint, callback)
         } else {
             status.message = 'Something not lofs-mounted on ' + mountpoint;
         }
-    });
 
-    callback(null, status);
+        callback(null, status);
+    });
 }
 
 /*
@@ -129,7 +136,8 @@ ensure_bootfs_mounted(poolname, callback)
         /* XXX KEBE ASKS, check for /pool/boot standard? */
 
         /* See if anything is mounted in mountpoint already, and umount it. */
-        dprintf('fetching mount information for "%s"\n', mountpoint);
+        dprintf('fetching pool mount ensure information for "%s"\n',
+            mountpoint);
         lib_usbkey.get_mount_info(mountpoint, function mnttab_info(err, mi) {
             if (err) {
                 callback(
