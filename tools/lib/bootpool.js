@@ -48,11 +48,11 @@ function
 get_bootfs_mount_status(mountpoint, callback)
 {
     var status = {
-        mountpoint: null,
-        device: null,
-        version: null,
-        options: null,
-        steps: {
+        mountpoint: null,       /* Will be filled in if successful. */
+        device: null,           /* Will be filled in if successful. */
+        version: null,          /* Will be filled in if successful. */
+        options: null,          /* Will be filled in if successful. */
+        steps: {                /* Will be filled in if successful. */
             mounted: false,
             options_ok: false,
             marker_file: false
@@ -87,14 +87,31 @@ get_bootfs_mount_status(mountpoint, callback)
         status.device = mi.mi_special;
         if (mi.mi_fstype === 'lofs') {
             /* AHA! We're probably good! */
-            status.ok = true;
             status.version = 2; /* Actually consumed by Triton components! */
+            status.options = {}; /* Filled in as an empty list. */
+            status.steps.mounted = true;
+            status.steps.options_ok = true;
+            /* NOTE: marker filled in below. */
+            status.ok = true;
             status.message = 'mounted';
         } else {
             status.message = 'Something not lofs-mounted on ' + mountpoint;
         }
 
-        callback(null, status);
+        /*
+         * Set marker file attribute regardless of correct or not so
+         * we can avoid callback indentation hell.
+         */
+        lib_usbkey.check_for_marker_file(mountpoint, function (err, marker) {
+            if (err) {
+                    callback(new VError(err, 'failed to locate marker on "%s"',
+                        mountpoint));
+                    return;
+            }
+
+            status.steps.marker_file = marker;
+            callback(null, status);
+        });
     });
 }
 

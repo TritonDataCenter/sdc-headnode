@@ -1242,6 +1242,7 @@ set_variable(name, value, callback)
 
 module.exports = {
     DEFAULT_MOUNTPOINT: DEFAULT_MOUNTPOINT,
+    check_for_marker_file: check_for_marker_file,
     ensure_mountpoint_exists: ensure_mountpoint_exists,
     ensure_usbkey_unmounted: ensure_usbkey_unmounted,
     ensure_usbkey_mounted: ensure_usbkey_mounted,
