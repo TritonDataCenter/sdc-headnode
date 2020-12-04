@@ -85,7 +85,6 @@ init(opts, args, callback)
             self.uk_ngz = true;
         }
 
-        
         if (!opts.usb) {
             /*
              * Unless forced by -u/--usb, see if we booted from a ZFS pool
