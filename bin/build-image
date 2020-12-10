@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
