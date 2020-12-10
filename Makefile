@@ -302,6 +302,12 @@ usb: deps download $(TOOLS_DEPS)
 	    DEBUG_BUILD=$(DEBUG_BUILD) \
 	    bin/build-image usb
 
+.PHONY: iso
+iso: deps download $(TOOLS_DEPS)
+	TIMESTAMP=$(TIMESTAMP) \
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image iso
+
 .PHONY: boot
 boot: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \

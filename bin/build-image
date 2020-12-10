@@ -46,7 +46,7 @@ if [[ -z "$TYPE" ]]; then
 fi
 
 case "${TYPE}" in
-tar|usb|coal|dataset)
+tar|usb|coal|dataset|iso)
     ;;
 *)
     usage "unknown image type \"${TYPE}\" supplied"
@@ -59,6 +59,12 @@ if [[ ${TYPE} != "dataset" || -z $(ls -1dt $ROOT/usb-* | head -1) ]]; then
     [[ "$TYPE" == "tar" ]] && exit 0
 
     BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
+
+    # Build an ISO.
+    if [[ "$TYPE" == "iso" ]]; then
+	${ROOT}/bin/build-iso "${BOOT_TARBALL}"
+	exit $?
+    fi
 
     ${ROOT}/bin/build-usb-image "${BOOT_TARBALL}"
     [[ "$TYPE" == "usb" ]] && exit 0

@@ -1,0 +1,150 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright 2020 Joyent, Inc.
+#
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+. "${ROOT}/buildtools/lib/error_handler.sh"
+. "${ROOT}/buildtools/lib/common.sh"
+
+function usage {
+    if [[ -n "$1" ]]; then
+        echo "ERROR: $1" >&2
+    fi
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "    $0 <boot_tarball>" >&2
+    echo "" >&2
+    exit 1
+}
+
+if [[ -z "$1" ]]; then
+    usage 'must provide <boot_tarball> filename'
+fi
+
+### Much of this is taken from smartos-live's build_boot_image.
+
+function pfrun()
+{
+	pfexec $*
+	local status=$?
+
+	if [[ $status != 0 ]]; then
+		print -u2 "\nCommand failed: $*\nExit status: $status"
+		exit 1
+	fi
+}
+
+bi_path=$1
+bi_boot_image=`basename $1`
+bi_boot_image_name=$(sed 's/boot-//g' <<< ${bi_boot_image} | sed 's/\.tgz//g')
+bi_rootdir=""
+
+# XXX KEBE SAYS THIS IS A HACK... these should come from a downloaded ISO...
+bi_protoprotoboot=/export/home/danmcd/smartos-live/proto.boot
+bi_protoboot=/export/home/danmcd/smartos-live/proto/boot
+
+function cleanup()
+{
+	print "Cleaning up"
+
+	echo "KEBE SAYS tmpdir in $tmpdir -- clean it up yourself"
+	return
+
+	# XXX KEBE SAYS FILL ME IN!
+	pfrun /bin/rm -rf $tmpdir
+	echo "AHHH FILL ME IN WITH MORE!"
+}
+
+#
+# Construct the EFI System Partition (ESP) image,  We size it at 256 MB, which
+# is intentionally much larger than what we need currently, in order to leave
+# headroom for future projects which may need to store data in the ESP.
+#
+function create_esp()
+{
+	local readonly tmpdir=$1
+	local readonly efimnt=$2
+	local readonly esp_size=256 # MiB
+	local readonly esp_sects=$(( $esp_size * 1024 * 1024 / 512 ))
+
+	pfrun mkfile -n ${esp_size}m $tmpdir/esp.img
+	bi_esp_blkdev=$(pfexec lofiadm -a $tmpdir/esp.img)
+	[[ $? == 0 ]] || fail "Failed to create ESP lofi device"
+	readonly esp_rawdev=${bi_esp_blkdev/lofi/rlofi}
+
+	pfrun mkfs -F pcfs -o b=system,size=$esp_sects,nofdisk,fat=32 \
+	    $esp_rawdev </dev/null
+
+	pfrun mkdir -p $efimnt
+	pfrun mount -F pcfs -o foldcase $bi_esp_blkdev $efimnt
+	pfrun mkdir -p $efimnt/efi/boot
+	pfrun cp $bi_protoboot/loader64.efi $efimnt/efi/boot/bootx64.efi
+	pfrun umount $efimnt
+	pfrun lofiadm -d $bi_esp_blkdev
+}
+
+# XXX KEBE SAYS TODO:
+# - Populate root from the bi_boot_image.
+function populate_root()
+{
+	local readonly dir=$1
+
+	print "Installing boot tarball onto root partition ... \c"
+	pfrun gtar -xzf "$bi_path" -C $dir
+
+	## XXX KEBE SAYS MAKE ANY ADJUSTMENTS HERE...
+	cp $dir/boot/loader.conf /tmp/loader.conf.$$
+	sed 's/ipxe="true"/ipxe="false"/g' < /tmp/loader.conf.$$ > \
+	    $dir/boot/loader.conf
+
+	echo 'root_shadow="$5$hLh49E8X$pME2pmIDLNKKpBZUL956IRRo32bb5HP8RgfYbX9Kob/"' >> $dir/boot/loader.conf
+
+	# XXX e.g. more bootparams?!?
+
+	print "done"
+}
+
+function create_iso()
+{
+	local readonly tmpdir=$1
+	local readonly iso=$2
+	local readonly espimg=$3
+
+	pfrun mkdir -p $bi_rootdir
+	populate_root $bi_rootdir
+
+	pfrun cp $bi_protoboot/cdboot $bi_rootdir/boot/cdboot
+	pfrun cp $espimg $bi_rootdir/boot/efiboot.img
+
+	pfrun mkisofs -quiet -R \
+	    -eltorito-boot boot/cdboot -no-emul-boot -boot-info-table \
+	    -eltorito-alt-boot -eltorito-platform efi \
+	    -eltorito-boot boot/efiboot.img -no-emul-boot \
+	    -o $iso $bi_rootdir
+
+	pfrun chown -R ${uid}:${gid} $iso
+
+	print "Successfully created $iso"
+}
+
+bi_tmpdir=$(mktemp -d -p /var/tmp) || fail "mktemp failed!"
+
+trap cleanup EXIT
+bi_efimnt=$bi_tmpdir/mnt/efi
+bi_rootdir=$bi_tmpdir/mnt/root
+iso_image_name=iso-${bi_boot_image_name}.iso
+
+print "Creating EFI System Partition image ... \c"
+create_esp $bi_tmpdir $bi_efimnt
+print "done"
+
+create_iso $bi_tmpdir $iso_image_name $bi_tmpdir/esp.img
+exit 0
