@@ -105,7 +105,7 @@ function populate_root()
 	sed 's/ipxe="true"/ipxe="false"/g' < /tmp/loader.conf.$$ > \
 	    $dir/boot/loader.conf
 
-	echo 'root_shadow="$5$hLh49E8X$pME2pmIDLNKKpBZUL956IRRo32bb5HP8RgfYbX9Kob/"' >> $dir/boot/loader.conf
+	echo 'triton_installer="iso"' >> $dir/boot/loader.conf
 
 	# XXX e.g. more bootparams?!?
 
