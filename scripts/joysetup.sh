@@ -468,20 +468,17 @@ function create_zpool
 	    echo "... ... ${a}" >&4
 		# Use s1 for installboot because we only work if the pool
 		# was created with -B and s0 is ESP.
-		if installboot -m -b "/{$SYS_ZPOOL}/boot/boot/" \
+		if installboot -m -b "/${SYS_ZPOOL}/boot/boot/" \
 			"/${SYS_ZPOOL}/boot/boot/pmbr" \
 			"/${SYS_ZPOOL}/boot/boot/gptzfsboot" \
 			"/dev/rdsk/${a}s1" > /dev/null 2>&1 ; then
 			some=1
 		else
-			printf "installboot to disk ${a} failed" >&4
+			printf "installboot to disk ${a} failed\n" >&4
 		fi
 	done
-	[[ $some -eq 0 ]] || \
+	[[ $some -eq 1 ]] || \
 		fatal "Could not installboot at all on pool ${SYS_ZPOOL}"
-
-	# 6.) (KEBE ASKS: needed?) Alter current bootparams to set
-	#     triton_bootpol?
     fi
 
     if ! zfs set atime=off ${SYS_ZPOOL}; then
