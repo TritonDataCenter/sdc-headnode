@@ -107,8 +107,10 @@ function populate_root()
 
 	# XXX e.g. more bootparams?!?
 
-	# XXX KEBE ASKS --> chmod EVERYTHING to be executable like on the
-	# USB key? And while I'm at it, pfexec chown to root?
+	# chmod EVERYTHING to be executable like on the USB key.
+	pfrun chmod -R u+x $dir
+	# And while I'm at it, pfexec chown to root.
+	pfrun chown -R root $dir
 
 	print "done"
 }
