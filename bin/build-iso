@@ -48,7 +48,6 @@ bi_boot_image_name=$(sed 's/boot-//g' <<< ${bi_boot_image} | sed 's/\.tgz//g')
 bi_rootdir=""
 
 # XXX KEBE SAYS THIS IS A HACK... these should come from a downloaded ISO...
-bi_protoprotoboot=/export/home/danmcd/smartos-live/proto.boot
 bi_protoboot=/export/home/danmcd/smartos-live/proto/boot
 
 function cleanup()
@@ -91,7 +90,6 @@ function create_esp()
 	pfrun lofiadm -d $bi_esp_blkdev
 }
 
-# XXX KEBE SAYS TODO:
 # - Populate root from the bi_boot_image.
 function populate_root()
 {
@@ -108,6 +106,9 @@ function populate_root()
 	echo 'triton_installer="iso"' >> $dir/boot/loader.conf
 
 	# XXX e.g. more bootparams?!?
+
+	# XXX KEBE ASKS --> chmod EVERYTHING to be executable like on the
+	# USB key? And while I'm at it, pfexec chown to root?
 
 	print "done"
 }
