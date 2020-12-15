@@ -379,7 +379,7 @@ gz-tools: $(TOOLS_DEPS)
 		> $(TOP)/$(GZ_TOOLS_MANIFEST)
 	rm -rf build/$(GZ_TOOLS_STAMP)
 
-CLEAN_FILES += build/gz-tools *.tgz \
+CLEAN_FILES += build/gz-tools *.tgz *.iso \
 	$(GZ_TOOLS_MANIFEST) \
 	release.json \
 	build.spec.branches \
