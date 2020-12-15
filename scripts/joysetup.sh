@@ -468,7 +468,7 @@ function create_zpool
 	    echo "... ... ${a}" >&4
 		# Use s1 for installboot because we only work if the pool
 		# was created with -B and s0 is ESP.
-		if installboot -m -b "/{$SYS_ZPOOL}/boot/" \
+		if installboot -m -b "/{$SYS_ZPOOL}/boot/boot/" \
 			"/${SYS_ZPOOL}/boot/boot/pmbr" \
 			"/${SYS_ZPOOL}/boot/boot/gptzfsboot" \
 			"/dev/rdsk/${a}s1" > /dev/null 2>&1 ; then
