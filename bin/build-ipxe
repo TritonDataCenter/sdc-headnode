@@ -1,0 +1,137 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright 2020 Joyent, Inc.
+#
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+. "${ROOT}/buildtools/lib/error_handler.sh"
+. "${ROOT}/buildtools/lib/common.sh"
+
+if [[ "$PLATFORM" != "SunOS" ]]; then
+    echo "You cannot build an iPXE image unless you're on SmartOS." >&2
+    exit 1
+fi
+
+### This is taken from smartos-live's build_boot_image.
+function pfrun()
+{
+	pfexec $*
+	local status=$?
+
+	if [[ $status != 0 ]]; then
+		print -u2 "\nCommand failed: $*\nExit status: $status"
+		exit 1
+	fi
+}
+
+function fail()
+{
+	echo "$1" >&2
+	exit 1
+}
+
+#
+# SO... we have $1 set to the boot tarball, and $2 set to the full ISO tarball.
+#
+
+boottar=$1
+fullisotar=$2
+
+tdir=$(mktemp -d -p /var/tmp) || fail "mktemp failed!"
+lofisrcdir=$(mktemp -d -p /var/tmp) || fail "mktemp (lofisrcdir) failed!"
+trap cleanup EXIT
+
+function cleanup()
+{
+	print "Cleaning up"
+
+	echo "KEBE SAYS tmpdir in $tdir -- clean it up yourself"
+	return
+
+	# XXX KEBE SAYS FILL ME IN!
+	rmdir $lofisrcdir
+	pfrun /bin/rm -rf $tdir
+	echo "AHHH FILL ME IN WITH MORE!"
+}
+
+# We need to construct the following:
+#
+# - A PI directory (e.g. 20201202T202712Z....) taken from the boot tarball's
+#   os/ directory.  You can lose boot_archive.manifest and
+#   boot_archive.gitstatus
+#
+
+# XXX KEBE SAYS VERBOSE FOR NOW
+set -x
+
+# Extract the OS.
+gtar -xzf $boottar -C "$tdir" ./os || fail "Can't extract OS"
+mv "$tdir"/os/* $tdir/.
+rmdir "$tdir"/os
+
+# Assuming there's exactly one dirent in $tdir now.
+osdir="$tdir"/$(ls "$tdir")
+bootarchive=${osdir}/platform/i86pc/amd64/boot_archive
+rm -f ${osdir}/platform/i86pc/amd64/boot_archive.{gitstatus,manifest}
+
+# - Within the PI directory, modify the boot_archive to include the files
+#   needed to start the installer and to grab the full installation ISO.
+#   You therefore you need to update boot_archive.hash (sha1).
+
+# Text files *.txt to grab the ISO-contents tarball.
+lofisrcdev=$(pfrun lofiadm -a "$bootarchive")
+pfrun mount -F ufs "$lofisrcdev" "$lofisrcdir"
+# Test domain!  Should pull from environment...
+tfile=$(mktemp)
+echo "kebe.com" > $tfile
+pfrun mv $tfile "$lofisrcdir"/testdomain.txt
+# URL for full ISO.
+# Again, XXX KEBE SAYS should pull from environment for these...
+baseurl="https://kebe.com/~danmcd/webrevs/private/triton-installer"
+echo ${baseurl}/$(basename $fullisotar) > $tfile
+pfrun mv $tfile "$lofisrcdir"/isourl.txt
+
+# We need at least the /scripts directory.  If it gets much bigger, we'll need
+# to create a larger boot_archive...
+pfrun gtar -xzf $fullisotar -C "$lofisrcdir" ./scripts ./config.inc
+
+sync
+pfrun umount "$lofisrcdir"
+rmdir "$lofisrcdir"
+pfrun lofiadm -d "$lofisrcdev"
+pfrun echo $(digest -a sha1 "$bootarchive") > "$bootarchive".hash
+pfrun cp $fullisotar ${tdir}/.
+
+# - A triton-installer.ipxe file
+ipxefile=${tdir}/triton-installer.ipxe
+osname=$(basename "${osdir}")
+
+echo "#!ipxe" > ${ipxefile}
+echo dhcp >> ${ipxefile}
+# XXX KEBE SAYS set base-url to same as *.txt files above.
+echo "set base-url $baseurl" >> ${ipxefile}
+printf 'kernel ${base-url}/%s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
+printf 'amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",' >> ${ipxefile}
+printf 'headnode=true,triton_installer=ipxe\n' >> ${ipxefile}
+printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
+printf 'amd64/boot_archive type=rootfs name=ramdisk\n' >> ${ipxefile}
+printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
+printf 'amd64/boot_archive.hash type=hash name=ramdisk\n' >> ${ipxefile}
+echo boot >> ${ipxefile}
+
+# XXX KEBE SAYS REMOVE THIS LINE...
+echo "XXX KEBE SAYS --> inspect the directory: $tdir"
+pfrun chmod -R og+rX $tdir
+gtar -czf $(sed 's/boot-/ipxe-/g' <<< $boottar) -C $tdir .
+
+# ...and put this one in.
+# pfrun /bin/rm -rf $tdir
+
+exit 0

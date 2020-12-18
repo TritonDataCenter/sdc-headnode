@@ -366,6 +366,30 @@ function swap_in_GiB
     return 0
 }
 
+# Covers the corner-case of iPXE installation, where we can't fit images.
+function try_network_pull_images
+{
+    # Testdomain and isourl prefix should match.
+    if [[ ! -e /mnt/usbkey/testdomain.txt ]]; then
+	fatal "ipxe installation lacks test domain"
+    fi
+
+    if ! ping $(cat /mnt/usbkey/testdomain.txt); then
+	fatal "ipxe installation cannot grab images"
+    fi
+
+    if [[ ! -e /mnt/usbkey/isourl.txt ]]; then
+	fatal "ipxe installation lacks image name"
+    fi
+
+    curl -sk $(cat /mnt/usbkey/isourl.txt) | gtar -xzf - -C /mnt/usbkey/.
+    if [[ $? -ne 0 ]]; then
+	fatal "curl of $(cat /mnt/usbkey/isourl.txt) failed"
+    fi
+    rm -f /mnt/usbkey/isourl.txt
+    rm -f /mnt/usbkey/testdomain.txt
+}
+
 function create_zpool
 {
     SYS_ZPOOL="$1"
@@ -387,7 +411,9 @@ function create_zpool
     if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
         # First try making it with an EFI System Partition (ESP).
-        if /usr/bin/mkzpool -B ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
+	# Use -f too because of the case where we WERE EFI-bootable, but
+	# got destroyed.  There's a zpool(1M) bug here, I think.
+        if /usr/bin/mkzpool -B -f ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
             printf "\n%-56s          (as potentially bootable)" >&4
 	    bootable=yes
         elif ! /usr/bin/mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
@@ -436,8 +462,16 @@ function create_zpool
 	mount -F lofs /${SYS_ZPOOL}/boot /mnt/usbkey ||
 		fatal "Cannot mount ${SYS_ZPOOL}/boot on /mnt/usbkey"
 
-	# 5.) Perform ops of "piadm bootable -e $SYS_ZPOOL":
-	# 5a.) Make sure loader.conf entries have relevant triton_bootpool and
+	# 5.) See if we need to pull images/ (and more) on to the new
+	# on-disk usbkey.
+	if [[ ! -e /mnt/usbkey/images ]]; then
+		echo "... Grabbing images from a well-known source." >&4
+		# Will fatal-out if fail.
+		try_network_pull_images
+	fi
+
+	# 6.) Perform ops of "piadm bootable -e $SYS_ZPOOL":
+	# 6a.) Make sure loader.conf entries have relevant triton_bootpool and
 	# fstype entries
 	echo "... fixing /${SYS_ZPOOL}/boot/boot/loader.conf" >&4
 	tfile=$(TMPDIR=/etc/svc/volatile mktemp)
@@ -446,19 +480,19 @@ function create_zpool
 	echo "triton_bootpool=\"${SYS_ZPOOL}\"" >> $tfile
 	/bin/mv -f $tfile ./boot/loader.conf
 
-	# 5b.) Set bootfs.
+	# 6b.) Set bootfs.
 	echo "... setting bootfs for ${SYS_ZPOOL} to ${SYS_ZPOOL}/boot" >&4
 	/usr/sbin/zpool set "bootfs=${SYS_ZPOOL}/boot" ${SYS_ZPOOL} ||
 		fatal "Cannot set bootfs on ${SYS_ZPOOL}"
 
-	# 5c.) Make sure os/ directory is good.
+	# 6c.) Make sure os/ directory is good.
 	# cd ./os
 	# for a in *; do
 	#	mv "$a" "${a^^}";
 	# done
 	# cd ..
 
-	# 5d.) installboot on all of the relevant disks.
+	# 6d.) installboot on all of the relevant disks.
 	echo "... activating ${SYS_ZPOOL} drives to be bootable" >&4
 	mapfile -t boot_devices < <(zpool list -vHP "${SYS_ZPOOL}" | \
 		grep -E 'c[0-9]+' | awk '{print $1}' | sed -E 's/s[0-9]+//g')

@@ -308,6 +308,12 @@ iso: deps download $(TOOLS_DEPS)
 	    DEBUG_BUILD=$(DEBUG_BUILD) \
 	    bin/build-image iso
 
+.PHONY: ipxe
+ipxe: deps download $(TOOLS_DEPS)
+	TIMESTAMP=$(TIMESTAMP) \
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image ipxe
+
 .PHONY: boot
 boot: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \

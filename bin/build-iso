@@ -14,6 +14,11 @@ ROOT=$(cd $(dirname $0)/../; pwd)
 . "${ROOT}/buildtools/lib/error_handler.sh"
 . "${ROOT}/buildtools/lib/common.sh"
 
+if [[ "$PLATFORM" != "SunOS" ]]; then
+    echo "You cannot build an ISO unless you're on SmartOS." >&2
+    exit 1
+fi
+
 function usage {
     if [[ -n "$1" ]]; then
         echo "ERROR: $1" >&2
@@ -42,6 +47,12 @@ function pfrun()
 	fi
 }
 
+function fail()
+{
+	echo "$1" >&2
+	exit 1
+}
+
 bi_path=$1
 bi_boot_image=`basename $1`
 bi_boot_image_name=$(sed 's/boot-//g' <<< ${bi_boot_image} | sed 's/\.tgz//g')
@@ -54,11 +65,11 @@ function cleanup()
 {
 	print "Cleaning up"
 
-	echo "KEBE SAYS tmpdir in $tmpdir -- clean it up yourself"
+	echo "KEBE SAYS tmpdir in $bi_tmpdir -- clean it up yourself"
 	return
 
 	# XXX KEBE SAYS FILL ME IN!
-	pfrun /bin/rm -rf $tmpdir
+	pfrun /bin/rm -rf $bi_tmpdir
 	echo "AHHH FILL ME IN WITH MORE!"
 }
 
@@ -117,12 +128,15 @@ function populate_root()
 
 function create_iso()
 {
-	local readonly tmpdir=$1
+	local readonly populate=$1
 	local readonly iso=$2
 	local readonly espimg=$3
+	local readonly 
 
-	pfrun mkdir -p $bi_rootdir
-	populate_root $bi_rootdir
+	if [[ "$populate" == "yes" ]]; then
+	    pfrun mkdir -p $bi_rootdir
+	    populate_root $bi_rootdir
+	fi
 
 	pfrun cp $bi_protoboot/cdboot $bi_rootdir/boot/cdboot
 	pfrun cp $espimg $bi_rootdir/boot/efiboot.img
@@ -149,5 +163,13 @@ print "Creating EFI System Partition image ... \c"
 create_esp $bi_tmpdir $bi_efimnt
 print "done"
 
-create_iso $bi_tmpdir $iso_image_name $bi_tmpdir/esp.img
+print "Creating full Triton installer ISO ... \c"
+create_iso yes $iso_image_name $bi_tmpdir/esp.img
+print "done"
+
+print "Preparing full ISO tarball for iPXE ... \c"
+pfrun gtar -czf fulliso-${bi_boot_image_name}.tgz -C $bi_rootdir .
+pfrun chown ${uid}:${gid} fulliso-${bi_boot_image_name}.tgz
+print "done"
+
 exit 0
