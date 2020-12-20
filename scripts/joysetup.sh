@@ -375,7 +375,7 @@ function try_network_pull_images
     local isourl
 
     # Testdomain and isourl prefix should match.
-    testdomain=$(bootparams | grep '^triton_testdomain' | awk -F= '{print $2}')
+    testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
     if [[ "$testdomain" == "" ]]; then
 	if [[ ! -e /mnt/usbkey/testdomain.txt ]]; then
 	    fatal "ipxe installation lacks test domain"
@@ -390,7 +390,7 @@ function try_network_pull_images
 	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
     fi
 
-    isourl=$(bootparams | grep '^triton_isourl' | awk -F= '{print $2}')
+    isourl=$(bootparams | awk -F= '/^triton_bootparams/ {print $2}')
     if [[ "$isourl" == "" ]]; then
 	if [[ ! -e /mnt/usbkey/isourl.txt ]]; then
 	    fatal "ipxe installation lacks image name"
