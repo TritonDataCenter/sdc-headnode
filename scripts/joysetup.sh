@@ -367,22 +367,43 @@ function swap_in_GiB
 }
 
 # Covers the corner-case of iPXE installation, where we can't fit images.
+# XXX KEBE SAYS there are Problems(TM) if we do NOT use the bootparams
+# approach.  Not sure why, maybe a rewrite will fix it?!?
 function try_network_pull_images
 {
+    local testdomain
+    local isourl
+
     # Testdomain and isourl prefix should match.
-    if [[ ! -e /mnt/usbkey/testdomain.txt ]]; then
-	fatal "ipxe installation lacks test domain"
+    testdomain=$(bootparams | grep '^triton_testdomain' | awk -F= '{print $2}')
+    if [[ "$testdomain" == "" ]]; then
+	if [[ ! -e /mnt/usbkey/testdomain.txt ]]; then
+	    fatal "ipxe installation lacks test domain"
+	else
+	    testdomain=$(cat /mnt/usbkey/testdomain.txt)
+	fi
     fi
 
-    if ! ping $(cat /mnt/usbkey/testdomain.txt); then
-	fatal "ipxe installation cannot grab images"
+    echo "... ... Testing domain $testdomain" >&4
+
+    if ! ping $testdomain; then
+	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
     fi
 
-    if [[ ! -e /mnt/usbkey/isourl.txt ]]; then
-	fatal "ipxe installation lacks image name"
+    isourl=$(bootparams | grep '^triton_isourl' | awk -F= '{print $2}')
+    if [[ "$isourl" == "" ]]; then
+	if [[ ! -e /mnt/usbkey/isourl.txt ]]; then
+	    fatal "ipxe installation lacks image name"
+	else
+	    isourl=$(cat /mnt/usbkey/isourl.txt)
+	fi
     fi
 
-    curl -sk $(cat /mnt/usbkey/isourl.txt) | gtar -xzf - -C /mnt/usbkey/.
+    echo "... ... Well-known source is $isourl" >&4
+
+    # Use -k in gtar to preserve any usbkey state that might've happened to
+    # get modified before completing the "usbkey" contents.
+    curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
     if [[ $? -ne 0 ]]; then
 	fatal "curl of $(cat /mnt/usbkey/isourl.txt) failed"
     fi

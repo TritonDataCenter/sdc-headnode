@@ -52,13 +52,11 @@ function cleanup()
 {
 	print "Cleaning up"
 
-	echo "KEBE SAYS tmpdir in $tdir -- clean it up yourself"
-	return
+	# echo "KEBE SAYS tmpdir in $tdir -- clean it up yourself"
+	# return
 
-	# XXX KEBE SAYS FILL ME IN!
-	rmdir $lofisrcdir
-	pfrun /bin/rm -rf $tdir
-	echo "AHHH FILL ME IN WITH MORE!"
+	pfrun /bin/rm -rf $tdir $lofisrcdir
+	# XXX KEBE ASKS, do we need any more?
 }
 
 # We need to construct the following:
@@ -86,17 +84,24 @@ rm -f ${osdir}/platform/i86pc/amd64/boot_archive.{gitstatus,manifest}
 #   You therefore you need to update boot_archive.hash (sha1).
 
 # Text files *.txt to grab the ISO-contents tarball.
+# NOTE:  These can be overridden by triton_{testdomain,isourl} bootparams.
+
+# Defaults
+testdomain="kebe.com"
+baseurl="https://${testdomain}/~danmcd/webrevs/private/triton-installer"
+isourl="${baseurl}/$(basename $fullisotar)"
+
 lofisrcdev=$(pfrun lofiadm -a "$bootarchive")
 pfrun mount -F ufs "$lofisrcdev" "$lofisrcdir"
 # Test domain!  Should pull from environment...
 tfile=$(mktemp)
-echo "kebe.com" > $tfile
+echo $testdomain > $tfile
 pfrun mv $tfile "$lofisrcdir"/testdomain.txt
 # URL for full ISO.
-# Again, XXX KEBE SAYS should pull from environment for these...
-baseurl="https://kebe.com/~danmcd/webrevs/private/triton-installer"
-echo ${baseurl}/$(basename $fullisotar) > $tfile
+echo $isourl > $tfile
 pfrun mv $tfile "$lofisrcdir"/isourl.txt
+pfrun chown root:root "$lofisrcdir"/*.txt
+pfrun chmod 0644 "$lofisrcdir"/*.txt
 
 # We need at least the /scripts directory.  If it gets much bigger, we'll need
 # to create a larger boot_archive...
@@ -115,10 +120,15 @@ osname=$(basename "${osdir}")
 
 echo "#!ipxe" > ${ipxefile}
 echo dhcp >> ${ipxefile}
-# XXX KEBE SAYS set base-url to same as *.txt files above.
+echo "set testdomain $testdomain" >> ${ipxefile}
 echo "set base-url $baseurl" >> ${ipxefile}
 printf 'kernel ${base-url}/%s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
 printf 'amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",' >> ${ipxefile}
+# XXX KEBE ASKS Optional?
+printf 'triton_testdomain=${testdomain},triton_isourl=${base-url}/' >> \
+	${ipxefile}
+printf "$(basename $fullisotar)," >> ${ipxefile}
+# XXX
 printf 'headnode=true,triton_installer=ipxe\n' >> ${ipxefile}
 printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive type=rootfs name=ramdisk\n' >> ${ipxefile}
@@ -126,8 +136,6 @@ printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive.hash type=hash name=ramdisk\n' >> ${ipxefile}
 echo boot >> ${ipxefile}
 
-# XXX KEBE SAYS REMOVE THIS LINE...
-echo "XXX KEBE SAYS --> inspect the directory: $tdir"
 pfrun chmod -R og+rX $tdir
 gtar -czf $(sed 's/boot-/ipxe-/g' <<< $boottar) -C $tdir .
 

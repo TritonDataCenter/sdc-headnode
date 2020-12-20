@@ -65,12 +65,12 @@ function cleanup()
 {
 	print "Cleaning up"
 
-	echo "KEBE SAYS tmpdir in $bi_tmpdir -- clean it up yourself"
-	return
+	# echo "KEBE SAYS tmpdir in $bi_tmpdir -- clean it up yourself"
+	# return
 
 	# XXX KEBE SAYS FILL ME IN!
 	pfrun /bin/rm -rf $bi_tmpdir
-	echo "AHHH FILL ME IN WITH MORE!"
+	# XXX KEBE ASKS, do we need any more?
 }
 
 #
@@ -113,7 +113,7 @@ function populate_root()
 	cp $dir/boot/loader.conf /tmp/loader.conf.$$
 	sed 's/ipxe="true"/ipxe="false"/g' < /tmp/loader.conf.$$ > \
 	    $dir/boot/loader.conf
-
+	rm -f /tmp/loader.conf.$$
 	echo 'triton_installer="iso"' >> $dir/boot/loader.conf
 
 	# XXX e.g. more bootparams?!?
