@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 #
@@ -38,7 +38,8 @@ Usage:
 
 Sub-commands:
 
-        list - list all networks in this DC
+        list [-f] - list all networks in this DC
+                    (-f include fabric networks)
 
 EOF
     exit 1
@@ -46,11 +47,15 @@ EOF
 
 network_list()
 {
-    printf "%-12s %-36s  %-4s %16s %16s\n" \
+    fabric='false'
+    if [[ $1 == '-f' ]]; then
+        fabric='true'
+    fi
+    printf "%-40s %-36s  %-4s %16s %16s\n" \
         "NAME" "UUID" "VLAN" "SUBNET" "GATEWAY"
     # BEGIN BASHSTYLED
-    printf "%-12s %36s  %4s %16s %16s\n" \
-        $(napi /networks \
+    printf "%-40s %36s  %4s %16s %16s\n" \
+        $(napi /networks?fabric=$fabric \
             | json -H \
             -e 'this.gateway = (this.hasOwnProperty("gateway") ? this.gateway : "-")' \
             -e 'this.vlan_id = (this.hasOwnProperty("vlan_id") ? this.vlan_id : "-")' \
