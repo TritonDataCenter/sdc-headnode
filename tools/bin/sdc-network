@@ -38,8 +38,8 @@ Usage:
 
 Sub-commands:
 
-        list [-f] - list all networks in this DC
-                    (-f include fabric networks)
+        list [-f] - list networks in this DC
+                    (-f show fabric networks instead of non-fabric networks)
 
 EOF
     exit 1
