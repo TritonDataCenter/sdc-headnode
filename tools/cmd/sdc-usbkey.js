@@ -282,7 +282,7 @@ do_status(subcmd, opts, args, callback)
     }
 
     if (self.bootpool !== '') {
-        /* XXX KEBE SAYS Feed default mountpoint for now. */
+        /* Use default mountpoint for now. */
         lib_bootpool.get_bootfs_mount_status(lib_usbkey.DEFAULT_MOUNTPOINT,
                                              log_status);
     } else {

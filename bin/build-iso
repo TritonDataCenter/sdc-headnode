@@ -65,10 +65,6 @@ function cleanup()
 {
 	print "Cleaning up"
 
-	# echo "KEBE SAYS tmpdir in $bi_tmpdir -- clean it up yourself"
-	# return
-
-	# XXX KEBE SAYS FILL ME IN!
 	pfrun /bin/rm -rf $bi_tmpdir
 	# XXX KEBE ASKS, do we need any more?
 }

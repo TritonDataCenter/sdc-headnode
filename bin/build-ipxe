@@ -52,9 +52,6 @@ function cleanup()
 {
 	print "Cleaning up"
 
-	# echo "KEBE SAYS tmpdir in $tdir -- clean it up yourself"
-	# return
-
 	pfrun /bin/rm -rf $tdir $lofisrcdir
 	# XXX KEBE ASKS, do we need any more?
 }
@@ -66,8 +63,8 @@ function cleanup()
 #   boot_archive.gitstatus
 #
 
-# XXX KEBE SAYS VERBOSE FOR NOW
-set -x
+# Uncomment if we need verbosity.
+# set -x
 
 # Extract the OS.
 gtar -xzf $boottar -C "$tdir" ./os || fail "Can't extract OS"
@@ -124,11 +121,9 @@ echo "set testdomain $testdomain" >> ${ipxefile}
 echo "set base-url $baseurl" >> ${ipxefile}
 printf 'kernel ${base-url}/%s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
 printf 'amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",' >> ${ipxefile}
-# XXX KEBE ASKS Optional?
 printf 'triton_testdomain=${testdomain},triton_isourl=${base-url}/' >> \
 	${ipxefile}
 printf "$(basename $fullisotar)," >> ${ipxefile}
-# XXX
 printf 'headnode=true,triton_installer=ipxe\n' >> ${ipxefile}
 printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive type=rootfs name=ramdisk\n' >> ${ipxefile}

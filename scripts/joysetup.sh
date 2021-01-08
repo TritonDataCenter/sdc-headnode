@@ -366,8 +366,9 @@ function swap_in_GiB
     return 0
 }
 
-# Covers the corner-case of iPXE installation, where we can't fit images.
-# XXX KEBE SAYS there are Problems(TM) if we do NOT use the bootparams
+# Covers the corner-case of iPXE installation, where we can't fit
+# images into what's inside iPXE's 32-bit address space.
+# XXX KEBE SAYS:  There are Problems(TM) if we do NOT use the bootparams
 # approach.  Not sure why, maybe a rewrite will fix it?!?
 function try_network_pull_images
 {
