@@ -118,8 +118,11 @@ function mark_as_setup
 
 setup_agents()
 {
+    local logfile="${BASEDIR}/agents/log/install.log"
+
     if [[ $OS_TYPE == "Linux" ]]; then
-        echo "We are not setting up agents on Linux servers"
+        logfile="/var/log/triton-agent-install.log"
+        /usr/triton/bin/install-default-agents &> "${logfile}"
         return
     fi
 
@@ -195,9 +198,6 @@ if [[ -n ${MOCKCN} ]]; then
     # When we're mocking a CN we might already have agents installed,
     # in the future, we'll want to have heartbeater and provisioner notice
     # there's a new server too. For now we just pretend everything worked.
-    update_setup_state "agents_installed"
-    mark_as_setup
-elif [[ $OS_TYPE == "Linux" ]]; then
     update_setup_state "agents_installed"
     mark_as_setup
 elif [[ ! -d "${BASEDIR}/agents/bin" ]]; then
