@@ -232,7 +232,6 @@ if [[ "$bootpool" != "" ]]; then
 	fi
 
 	# Update bootfs loader bits
-	# XXX KEBE SAYS MAKE SURE THIS IS RIGHT!
 	files=" \
 		etc/version/boot \
 		boot/pmbr \

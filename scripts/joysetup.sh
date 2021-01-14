@@ -368,20 +368,24 @@ function swap_in_GiB
 
 # Covers the corner-case of iPXE installation, where we can't fit
 # images into what's inside iPXE's 32-bit address space.
-# XXX KEBE SAYS:  There are Problems(TM) if we do NOT use the bootparams
-# approach.  Not sure why, maybe a rewrite will fix it?!?
 function try_network_pull_images
 {
     local testdomain
     local isourl
 
+    # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
+    # Don't bother with existence checks, but note that bootparams take
+    # precedence.
+    local disktestdomain=$(cat /testdomain.txt)
+    local diskisourl=$(cat /isourl.txt)
+
     # Testdomain and isourl prefix should match.
     testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
     if [[ "$testdomain" == "" ]]; then
-	if [[ ! -e /mnt/usbkey/testdomain.txt ]]; then
+	if [[ "$disktestdomain" == "" ]]; then
 	    fatal "ipxe installation lacks test domain"
 	else
-	    testdomain=$(cat /mnt/usbkey/testdomain.txt)
+	    testdomain=$disktestdomain
 	fi
     fi
 
@@ -393,10 +397,10 @@ function try_network_pull_images
 
     isourl=$(bootparams | awk -F= '/^triton_bootparams/ {print $2}')
     if [[ "$isourl" == "" ]]; then
-	if [[ ! -e /mnt/usbkey/isourl.txt ]]; then
+	if [[ "$diskisourl" == "" ]]; then
 	    fatal "ipxe installation lacks image name"
 	else
-	    isourl=$(cat /mnt/usbkey/isourl.txt)
+	    isourl=$diskisourl
 	fi
     fi
 
@@ -408,8 +412,6 @@ function try_network_pull_images
     if [[ $? -ne 0 ]]; then
 	fatal "curl of $(cat /mnt/usbkey/isourl.txt) failed"
     fi
-    rm -f /mnt/usbkey/isourl.txt
-    rm -f /mnt/usbkey/testdomain.txt
 }
 
 function create_zpool

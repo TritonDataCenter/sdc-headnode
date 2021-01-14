@@ -122,13 +122,12 @@ function
 ensure_bootfs_mounted(poolname, callback)
 {
     var args = [];
-    /* XXX KEBE ASKS -- use SMF properties? */
-    var mountpoint = lib_usbkey.DEFAULT_MOUNTPOINT;
+    var mountpoint;
 
     mod_assert.func(callback, 'callback');
     mod_assert.string(poolname, 'poolname');
 
-    dprintf('ensuring usb key is mounted (no altmountopts for bootfs)...\n');
+    dprintf('ensuring bootfs is mounted (no altmountopts for bootfs)...\n');
 
     args.push('list');
     args.push('-Ho');
@@ -141,35 +140,52 @@ ensure_bootfs_mounted(poolname, callback)
             return;
         }
 
-        /* Make sure the mountpoint is there. */
-        lib_usbkey.ensure_mountpoint_exists(mountpoint, function (err) {
+        lib_usbkey.get_mountpoints(function (err, mtpts) {
             if (err) {
-                callback(err, '');
+                callback(new VError(err, 'could not read mount configuration'));
                 return;
             }
-            var bootfs = '/' + stdout.trim();
-            /* XXX KEBE ASKS, check for /pool/boot standard? */
 
-            /*
-             * See if anything is mounted in mountpoint already, and
-             * umount it.
-             */
-            dprintf('fetching pool mount ensure information for "%s"\n',
-                mountpoint);
+            /* Only use alt_mount_options to switch mountpoints. */
+            if (options.alt_mount_options &&
+                Object.keys(options.alt_mount_options).length > 0) {
+                mountpoint = mtpts[1];
+            } else {
+                mountpoint = mtpts[0];
+            }
 
-            function do_lofs_mount(bootfs, mountpoint, callback) {
-                /* Okay, let's lofs-mount bootfs on to mountpoint. */
-                var lofsargs = [];
+            /* Make sure the mountpoint is there. */
+            lib_usbkey.ensure_mountpoint_exists(mountpoint, function (err) {
+                if (err) {
+                    callback(err, '');
+                    return;
+                }
+                var bootfs = '/' + stdout.trim();
+                /* Check for /pool/boot standard? */
+                if (bootfs !== '/' + poolname + '/boot') {
+                    dprintf('HEADS UP: bootfs %s is not SmartOS-standard.\n');
+                }
 
-                dprintf('lofs-mounted bootpool path "%s" on "%s".\n', bootfs,
-                    mountpoint);
+                /*
+                 * See if anything is mounted in mountpoint already, and
+                 * umount it.
+                 */
+                dprintf('fetching pool mount ensure information for "%s"\n',
+                        mountpoint);
 
-                lofsargs.push('-F');
-                lofsargs.push('lofs');
-                lofsargs.push(bootfs);
-                lofsargs.push(mountpoint);
-                mod_child.execFile('mount', lofsargs,
-                    function (err, stdout, stderr) {
+                function do_lofs_mount(bootfs, mountpoint, callback) {
+                    /* Okay, let's lofs-mount bootfs on to mountpoint. */
+                    var lofsargs = [];
+
+                    dprintf('lofs-mounted bootpool path "%s" on "%s".\n',
+                        bootfs, mountpoint);
+
+                    lofsargs.push('-F');
+                    lofsargs.push('lofs');
+                    lofsargs.push(bootfs);
+                    lofsargs.push(mountpoint);
+                    mod_child.execFile('mount', lofsargs, function (err,
+                        stdout, stderr) {
                         if (err) {
                             callback(new VError(err, 'Cannot lofs mount %s',
                                 bootfs));
@@ -178,37 +194,38 @@ ensure_bootfs_mounted(poolname, callback)
                         }
                         return;
                     });
-            }
-
-            lib_usbkey.get_mount_info(mountpoint, function mnt_info(err, mi) {
-                if (err) {
-                    callback(
-                        new VError(err,
-                            'could not inspect mounted filesystems'), '');
-                    return;
                 }
 
-                if (mi !== false) {
-                    mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
+                lib_usbkey.get_mount_info(mountpoint, function (err, mi) {
+                    if (err) {
+                        callback(
+                            new VError(err,
+                                'could not inspect mounted filesystems'), '');
+                        return;
+                    }
 
-                    dprintf('unmounting "%s"\n', mi.mi_mountpoint);
-                    lib_oscmds.umount({
-                        mt_mountpoint: mountpoint
-                    }, function (err) {
-                        if (err) {
-                            callback(
-                                new VError(err, 'count not unmount filesystem'),
-                                '');
-                            return;
-                        } else {
-                            dprintf('unmounted\n');
-                        }
+                    if (mi !== false) {
+                        mod_assert.strictEqual(mi.mi_mountpoint, mountpoint);
+
+                        dprintf('unmounting "%s"\n', mi.mi_mountpoint);
+                        lib_oscmds.umount({
+                            mt_mountpoint: mountpoint
+                        }, function (err) {
+                            if (err) {
+                                callback(
+                                    new VError(err,
+                                        'count not unmount filesystem'), '');
+                                return;
+                            } else {
+                                dprintf('unmounted\n');
+                            }
+                            do_lofs_mount(bootfs, mountpoint, callback);
+                        });
+                    } else {
+                        dprintf('ok, nothing is mounted.\n');
                         do_lofs_mount(bootfs, mountpoint, callback);
-                    });
-                } else {
-                    dprintf('ok, nothing is mounted.\n');
-                    do_lofs_mount(bootfs, mountpoint, callback);
-                }
+                    }
+                });
             });
         });
     });

@@ -1247,6 +1247,7 @@ module.exports = {
     ensure_usbkey_unmounted: ensure_usbkey_unmounted,
     ensure_usbkey_mounted: ensure_usbkey_mounted,
     get_mount_info: get_mount_info,
+    get_mountpoints: get_mountpoints,
     get_usbkey_mount_status: get_usbkey_mount_status,
     get_variable: get_variable,
     get_variable_loader: get_variable_loader,
