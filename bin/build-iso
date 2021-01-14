@@ -57,16 +57,18 @@ bi_path=$1
 bi_boot_image=`basename $1`
 bi_boot_image_name=$(sed 's/boot-//g' <<< ${bi_boot_image} | sed 's/\.tgz//g')
 bi_rootdir=""
-
-# XXX KEBE SAYS THIS IS A HACK... these should come from a downloaded ISO...
-bi_protoboot=/export/home/danmcd/smartos-live/proto/boot
+bi_protoboot=${BI_PROTOBOOT}
+bi_iso_download=""
 
 function cleanup()
 {
 	print "Cleaning up"
 
+	if [[ "$bi_iso_download" != "" ]]; then
+		pfrun umount $bi_tmpdir/smartos-iso
+	fi
+
 	pfrun /bin/rm -rf $bi_tmpdir
-	# XXX KEBE ASKS, do we need any more?
 }
 
 #
@@ -105,7 +107,7 @@ function populate_root()
 	print "Installing boot tarball onto root partition ... \c"
 	pfrun gtar -xzf "$bi_path" -C $dir
 
-	## XXX KEBE SAYS MAKE ANY ADJUSTMENTS HERE...
+	## Make any bootparams adjustments here.
 	cp $dir/boot/loader.conf /tmp/loader.conf.$$
 	sed 's/ipxe="true"/ipxe="false"/g' < /tmp/loader.conf.$$ > \
 	    $dir/boot/loader.conf
@@ -154,6 +156,17 @@ trap cleanup EXIT
 bi_efimnt=$bi_tmpdir/mnt/efi
 bi_rootdir=$bi_tmpdir/mnt/root
 iso_image_name=iso-${bi_boot_image_name}.iso
+SMARTOS_URL=${SMARTOS_URL:-https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos-latest.iso}
+
+if [[ "$bi_protoboot" == "" ]]; then
+	# We need to download a standlone SmartOS ISO to get "cdboot".
+	bi_iso_download=$bi_tmpdir/smartos.iso
+	pfrun curl -s -o $bi_iso_download $SMARTOS_URL || \
+		fail "Cannot download $SMARTOS_URL to $bi_iso_download"
+	pfrun mkdir $bi_tmpdir/smartos-iso
+	pfrun mount -F hsfs $bi_iso_download $bi_tmpdir/smartos-iso
+	bi_protoboot=$bi_tmpdir/smartos-iso/boot
+fi
 
 print "Creating EFI System Partition image ... \c"
 create_esp $bi_tmpdir $bi_efimnt
