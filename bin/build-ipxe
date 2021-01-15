@@ -83,8 +83,8 @@ rm -f ${osdir}/platform/i86pc/amd64/boot_archive.{gitstatus,manifest}
 # NOTE:  These can be overridden by triton_{testdomain,isourl} bootparams.
 
 # Defaults
-testdomain="kebe.com"
-baseurl="https://${testdomain}/~danmcd/webrevs/private/triton-installer"
+testdomain="netboot.smartos.org"
+baseurl="https://${testdomain}/triton-installer"
 isourl="${baseurl}/$(basename $fullisotar)"
 
 lofisrcdev=$(pfrun lofiadm -a "$bootarchive")
