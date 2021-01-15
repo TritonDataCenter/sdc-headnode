@@ -395,7 +395,7 @@ function try_network_pull_images
 	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
     fi
 
-    isourl=$(bootparams | awk -F= '/^triton_bootparams/ {print $2}')
+    isourl=$(bootparams | awk -F= '/^triton_isourl/ {print $2}')
     if [[ "$isourl" == "" ]]; then
 	if [[ "$diskisourl" == "" ]]; then
 	    fatal "ipxe installation lacks image name"
