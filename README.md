@@ -11,6 +11,11 @@ setup and configuration of the headnode itself.
 
 ## Quickstart (on OS X)
 
+**NOTE: As of 2021, one can also use the ISO installer on VMware or other
+virtualization platforms** as long as the network interfaces are properly
+configured on VMware/other-virtualization for at least "admin" and
+"external".
+
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
   - **One time only**: install VMware Fusion, run it at least once to allow it
@@ -48,20 +53,22 @@ To create a VM for local development work – commonly called 'coal' (Cloud On 
 
 ## Less-quick start
 
-There are three main build products from this repo:
+There are four main build products from this repo:
 
   - `make usb` - outputs a USB image tarball
   - `make coal` - outputs a coal image for use with VMware
+  - `make iso` - Makes an ISO image for installation for a bootable ZFS pool
+  - `make ipxe` - Makes a tarball for iPXE installation
 
 ### Build prerequisites
 
-On OS X:
+On OS X (NOTE: OS X cannot make iso or ipxe):
 
   - A recent version of node (>= 0.10.26, preferably latest).
   - The [json](http://trentm.com/json/) CLI tool.
   - the [XCode Command Line Tools](https://developer.apple.com/downloads/index.action) [Apple sign-in required]. Alternately, any setup of the GNU toolchain sufficient to build a moderately-complex project should also work.
 
-On Linux:
+On Linux (NOTE: Linux cannot make iso or ipxe):
   - A recent version of node (>= 0.12, preferably latest).
   - The [json](http://trentm.com/json/) CLI tool.
   - The gcc/clang build toolchain (for building the native node modules)
@@ -69,7 +76,8 @@ On Linux:
 On SmartOS:
 
 First you must create a suitable build zone:
-  - VMAPI or GZ vmadm access to set filesystem permissions on the build zone
+  - VMAPI or GZ vmadm access to set filesystem permissions on the build zone,
+    including the creation of lofi images.
   - provision a zone, params XXX
 
 Then to set up the zone:
@@ -489,12 +497,19 @@ The failure may have occurred in one of the zones being installed, rather than i
 
 ## Developing for the headnode
 
-Development in this repo is typically to alter setup and bootstrap of the system. Setup scripts reside on a USB key typically mounted at `/mnt/usbkey`, and are copied onto the headnode at `/usbkey`.
+Development in this repo is typically to alter setup and bootstrap of the
+system. Setup scripts reside on a USB key or SmartOS bootable filesystem
+typically mounted at `/mnt/usbkey`, and are copied onto the headnode at
+`/usbkey`.
 
 To test changes to setup procedures without a complete rebuild, you can:
   - mount the usbkey (if required) using `sdc-usbkey mount`
   - copy your modifications over the existing scripts
   - run `sdc-factoryreset` to re-run the setup process
+    (NOTE: sdc-factoryreset will not work with a bootable ZFS pool)
+
+Alternatively, one can use the ISO installer on a VMware machine (it can even
+be a replacement for CoaL).
 
 <!-- References -->
 
