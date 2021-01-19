@@ -146,13 +146,8 @@ ensure_bootfs_mounted(poolname, callback)
                 return;
             }
 
-            /* Only use alt_mount_options to switch mountpoints. */
-            if (options.alt_mount_options &&
-                Object.keys(options.alt_mount_options).length > 0) {
-                mountpoint = mtpts[1];
-            } else {
-                mountpoint = mtpts[0];
-            }
+            /* Only use default mountpoints. */
+            mountpoint = mtpts[0];
 
             /* Make sure the mountpoint is there. */
             lib_usbkey.ensure_mountpoint_exists(mountpoint, function (err) {
