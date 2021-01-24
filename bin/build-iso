@@ -100,7 +100,6 @@ function create_esp()
 	pfrun cp $bi_protoboot/loader64.efi $efimnt/efi/boot/bootx64.efi
 	pfrun umount $efimnt
 	pfrun lofiadm -d $bi_esp_blkdev
-	pfrun rm $tmpdir/esp.img
 }
 
 # - Populate root from the bi_boot_image.
