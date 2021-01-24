@@ -86,7 +86,7 @@ function create_esp()
 	pfrun mkfile -n ${esp_size}m $tmpdir/esp.img
 	bi_esp_blkdev=$(pfexec lofiadm -a $tmpdir/esp.img)
 	if [[ $? != 0 ]]; then
-		rm $tmpdir/esp.img
+		pfrun rm $tmpdir/esp.img
 		fail "Failed to create ESP lofi device"
 	fi
 	readonly esp_rawdev=${bi_esp_blkdev/lofi/rlofi}
@@ -100,7 +100,7 @@ function create_esp()
 	pfrun cp $bi_protoboot/loader64.efi $efimnt/efi/boot/bootx64.efi
 	pfrun umount $efimnt
 	pfrun lofiadm -d $bi_esp_blkdev
-	rm $tmpdir/esp.img
+	pfrun rm $tmpdir/esp.img
 }
 
 # - Populate root from the bi_boot_image.
