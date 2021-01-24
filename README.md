@@ -57,8 +57,8 @@ There are four main build products from this repo:
 
   - `make usb` - outputs a USB image tarball
   - `make coal` - outputs a coal image for use with VMware
-  - `make iso` - Makes an ISO image for installation for a bootable ZFS pool
-  - `make ipxe` - Makes a tarball for iPXE installation
+  - `make iso` - Makes an ISO image for installation on a bootable `zones` pool
+  - `make ipxe` - Makes a tarball for iPXE installation on a bootable `zones` pool
 
 ### Build prerequisites
 

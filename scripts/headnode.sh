@@ -31,8 +31,8 @@ if bootparams | grep -q '^triton_installer' ; then
 		cp /mnt/usbkey/scripts/headnode.sh \
 			/etc/svc/volatile/headnode.sh
 		exec /etc/svc/volatile/headnode.sh "$@"
-		# Should never execute...
-		exit 0
+		# Should never execute... but exit non-zero anyway.
+		exit 1
 	fi
 fi
 

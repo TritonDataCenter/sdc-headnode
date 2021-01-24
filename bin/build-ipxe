@@ -44,7 +44,7 @@ function fail()
 boottar=$1
 fullisotar=$2
 
-tdir=$(mktemp -d -p /var/tmp) || fail "mktemp failed!"
+tdir=$(mktemp -d -p /var/tmp) || fail "mktemp (tdir) failed!"
 lofisrcdir=$(mktemp -d -p /var/tmp) || fail "mktemp (lofisrcdir) failed!"
 trap cleanup EXIT
 
@@ -90,11 +90,13 @@ isourl="${baseurl}/$(basename $fullisotar)"
 lofisrcdev=$(pfrun lofiadm -a "$bootarchive")
 pfrun mount -F ufs "$lofisrcdev" "$lofisrcdir"
 # Test domain!  Should pull from environment...
-tfile=$(mktemp)
+tfile=$(mktemp) || fail "mktemp (tfile) failed!"
 echo $testdomain > $tfile
-pfrun mv $tfile "$lofisrcdir"/testdomain.txt
+# Use "cp" here to preserve our tfile reservation.
+pfrun cp -p $tfile "$lofisrcdir"/testdomain.txt
 # URL for full ISO.
 echo $isourl > $tfile
+# Use "mv" here since we are done with tfile.
 pfrun mv $tfile "$lofisrcdir"/isourl.txt
 pfrun chown root:root "$lofisrcdir"/*.txt
 pfrun chmod 0644 "$lofisrcdir"/*.txt

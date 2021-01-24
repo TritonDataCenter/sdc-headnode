@@ -30,8 +30,8 @@ if bootparams | grep -q '^triton_installer' ; then
 		cp /mnt/usbkey/scripts/joysetup.sh \
 			/etc/svc/volatile/joysetup.sh
 		exec /etc/svc/volatile/joysetup.sh "$@"
-		# Should never execute...
-		exit 0
+		# Should never execute... but exit non-zero anyway.
+		exit 1
 	fi
 fi
 
