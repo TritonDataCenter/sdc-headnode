@@ -232,15 +232,15 @@ if [[ "$bootpool" != "" ]]; then
 	fi
 
 	# Update bootfs loader bits
-	files=" \
-		etc/version/boot \
-		boot/pmbr \
-		boot/gptzfsboot \
+	files=(
+		etc/version/boot
+		boot/pmbr
+		boot/gptzfsboot
 		boot/loader64.efi
-		"
-	for a in "$files"; do
+		)
+	for a in "${files[@]}"; do
 		cp -f "$contents"/"$a" /"$bootfs"/"$a"
-		if [[ $? != 0 ]];
+		if [[ $? != 0 ]]; then
 			echo "Error copying $a from $contents to $bootfs" >&2
 			exit 1
 		fi
