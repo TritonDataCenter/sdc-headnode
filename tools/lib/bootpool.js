@@ -239,14 +239,14 @@ ensure_bootfs_mounted(poolname, callback)
 }
 
 function
-get_variable(name, callback)
+get_variable(bootpool, name, callback)
 {
     var self = this;
 
     mod_assert.string(name, 'name');
     mod_assert.func(callback, 'callback');
 
-    ensure_bootfs_mounted(self.bootpool, function (err, mountpoint) {
+    ensure_bootfs_mounted(bootpool, function (err, mountpoint) {
         if (err) {
             callback(err);
             return;
@@ -266,7 +266,7 @@ get_variable(name, callback)
 }
 
 function
-set_variable(name, value, callback)
+set_variable(bootpool, name, value, callback)
 {
     var self = this;
 
@@ -274,7 +274,7 @@ set_variable(name, value, callback)
     mod_assert.string(name, 'value');
     mod_assert.func(callback, 'callback');
 
-    ensure_bootfs_mounted(self.bootpool, function (err, mountpoint) {
+    ensure_bootfs_mounted(bootpool, function (err, mountpoint) {
         if (err) {
             callback(err);
             return;
