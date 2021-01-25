@@ -41,7 +41,7 @@ function usage()
 # Unfortunately there's no standard way to find a version for other MBRs such as
 # grub2's. In these cases we'll end up with a potentially random version here,
 # so this key should not be trusted as ours until mounted and the path
-# .joyusbkey is found.
+# .joyliveusb is found.
 #
 function usb_key_version()
 {
@@ -225,7 +225,7 @@ if [[ "$bootpool" != "" ]]; then
 
 	# Reality checks.
 	if [[ ! -d /"$bootfs" ||
-		! -f /"$bootfs"/.joyusbkey ]]; then
+		! -f /"$bootfs"/.joyliveusb ]]; then
 		echo "The /$bootfs directory doesn't exist," \
 			"or has other problems" >&2
 		exit 1
