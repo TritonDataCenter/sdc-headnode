@@ -410,7 +410,7 @@ function try_network_pull_images
     # get modified before completing the "usbkey" contents.
     curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
     if [[ $? -ne 0 ]]; then
-	fatal "curl of $(cat /mnt/usbkey/isourl.txt) failed"
+	fatal "curl of $isourl failed"
     fi
 }
 

@@ -282,9 +282,7 @@ do_status(subcmd, opts, args, callback)
     }
 
     if (self.bootpool !== '') {
-        /* Use default mountpoint for now. */
-        lib_bootpool.get_bootfs_mount_status(lib_usbkey.DEFAULT_MOUNTPOINT,
-                                             log_status);
+        lib_bootpool.get_bootfs_mount_status(null, log_status);
     } else {
         lib_usbkey.get_usbkey_mount_status(null, log_status);
     }
