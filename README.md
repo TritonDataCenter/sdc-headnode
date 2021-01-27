@@ -78,7 +78,9 @@ On SmartOS:
 First you must create a suitable build zone:
   - VMAPI or GZ vmadm access to set filesystem permissions on the build zone,
     including the creation of lofi images.
-  - provision a zone, params XXX
+  - Provision a zone, nearly identical to one used to build SmartOS.  See
+    [here](https://github.com/joyent/smartos-live/#setting-up-a-build-environment)
+    for how to provision such a zone.
 
 Then to set up the zone:
   - A recent version of node (>= 0.10.26, preferably latest).
