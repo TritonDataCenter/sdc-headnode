@@ -705,7 +705,7 @@ do_set_variable(subcmd, opts, args, callback)
 
     if (self.bootpool !== '') {
         lib_bootpool.set_variable(self.bootpool, args[0], args[1],
-	    set_variable_result);
+            set_variable_result);
     } else {
         lib_usbkey.set_variable(args[0], args[1], set_variable_result);
     }

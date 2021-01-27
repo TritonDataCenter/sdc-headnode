@@ -62,15 +62,15 @@ get_bootfs_mount_status(mountpoint, callback)
     };
 
     if (mountpoint === '' || mountpoint === null) {
-	/* We need to grab the default mountpoint and recurse. */
-	lib_usbkey.get_mountpoints(function (err, mtpts) {
-	    if (err) {
-		callback(new VError(err, 'could not read mount configuration'));
-		return;
-	    }
-	    get_bootfs_mount_status(mtpts[0], callback);
-	});
-	return;
+        /* We need to grab the default mountpoint and recurse. */
+        lib_usbkey.get_mountpoints(function (err, mtpts) {
+            if (err) {
+                callback(new VError(err, 'could not read mount configuration'));
+                return;
+            }
+            get_bootfs_mount_status(mtpts[0], callback);
+        });
+        return;
     }
 
     dprintf('fetching pool mount status for "%s"\n', mountpoint);
@@ -241,8 +241,6 @@ ensure_bootfs_mounted(poolname, callback)
 function
 get_variable(bootpool, name, callback)
 {
-    var self = this;
-
     mod_assert.string(name, 'name');
     mod_assert.func(callback, 'callback');
 
@@ -268,8 +266,6 @@ get_variable(bootpool, name, callback)
 function
 set_variable(bootpool, name, value, callback)
 {
-    var self = this;
-
     mod_assert.string(name, 'name');
     mod_assert.string(name, 'value');
     mod_assert.func(callback, 'callback');
