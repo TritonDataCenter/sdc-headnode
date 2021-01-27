@@ -135,7 +135,4 @@ echo boot >> ${ipxefile}
 pfrun chmod -R og+rX $tdir
 gtar -czf $(sed 's/boot-/ipxe-/g' <<< $boottar) -C $tdir .
 
-# ...and put this one in.
-# pfrun /bin/rm -rf $tdir
-
 exit 0

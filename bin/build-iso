@@ -117,7 +117,7 @@ function populate_root()
 	rm -f /tmp/loader.conf.$$
 	echo 'triton_installer="iso"' >> $dir/boot/loader.conf
 
-	# XXX e.g. more bootparams?!?
+	# If we need additional bootparams, this is where to add them.
 
 	# chmod EVERYTHING to be executable like on the USB key.
 	pfrun chmod -R u+x $dir

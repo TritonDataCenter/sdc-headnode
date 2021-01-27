@@ -509,14 +509,7 @@ function create_zpool
 	/usr/sbin/zpool set "bootfs=${SYS_ZPOOL}/boot" ${SYS_ZPOOL} ||
 		fatal "Cannot set bootfs on ${SYS_ZPOOL}"
 
-	# 6c.) Make sure os/ directory is good.
-	# cd ./os
-	# for a in *; do
-	#	mv "$a" "${a^^}";
-	# done
-	# cd ..
-
-	# 6d.) installboot on all of the relevant disks.
+	# 6c.) installboot on all of the relevant disks.
 	echo "... activating ${SYS_ZPOOL} drives to be bootable" >&4
 	mapfile -t boot_devices < <(zpool list -vHP "${SYS_ZPOOL}" | \
 		grep -E 'c[0-9]+' | awk '{print $1}' | sed -E 's/s[0-9]+//g')
