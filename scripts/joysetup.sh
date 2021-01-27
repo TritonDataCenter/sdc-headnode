@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 #
@@ -19,6 +19,21 @@
 
 PATH=/usr/bin:/usr/sbin:/sbin
 export PATH
+
+# If we're a Triton read-only installer (ISO or otherwise), copy this script
+# to tmpfs, and re-run it with an environment variable properly exported.
+# This allows us to unmount and remount the "USB key" path.
+# For now, assume that the presence of any triton_installer means we gyrate.
+if bootparams | grep -q '^triton_installer' ; then
+	if [[ "$JOYSETUP_TMPFS_SCRIPT" != "yes" ]]; then
+		export JOYSETUP_TMPFS_SCRIPT=yes
+		cp /mnt/usbkey/scripts/joysetup.sh \
+			/etc/svc/volatile/joysetup.sh
+		exec /etc/svc/volatile/joysetup.sh "$@"
+		# Should never execute... but exit non-zero anyway.
+		exit 1
+	fi
+fi
 
 MIN_SWAP=2
 DEFAULT_SWAP=0.25x
@@ -351,11 +366,60 @@ function swap_in_GiB
     return 0
 }
 
+# Covers the corner-case of iPXE installation, where we can't fit
+# images into what's inside iPXE's 32-bit address space.
+function try_network_pull_images
+{
+    local testdomain
+    local isourl
+
+    # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
+    # Don't bother with existence checks, but note that bootparams take
+    # precedence.
+    local disktestdomain=$(cat /testdomain.txt)
+    local diskisourl=$(cat /isourl.txt)
+
+    # Testdomain and isourl prefix should match.
+    testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
+    if [[ "$testdomain" == "" ]]; then
+	if [[ "$disktestdomain" == "" ]]; then
+	    fatal "ipxe installation lacks test domain"
+	else
+	    testdomain=$disktestdomain
+	fi
+    fi
+
+    echo "... ... Testing domain $testdomain" >&4
+
+    if ! ping $testdomain; then
+	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
+    fi
+
+    isourl=$(bootparams | awk -F= '/^triton_isourl/ {print $2}')
+    if [[ "$isourl" == "" ]]; then
+	if [[ "$diskisourl" == "" ]]; then
+	    fatal "ipxe installation lacks image name"
+	else
+	    isourl=$diskisourl
+	fi
+    fi
+
+    echo "... ... Well-known source is $isourl" >&4
+
+    # Use -k in gtar to preserve any usbkey state that might've happened to
+    # get modified before completing the "usbkey" contents.
+    curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
+    if [[ $? -ne 0 ]]; then
+	fatal "curl of $isourl failed"
+    fi
+}
+
 function create_zpool
 {
     SYS_ZPOOL="$1"
     POOL_JSON="$2"
     local e_flag=""
+    local bootable=no
 
     if [[ -n ${MOCKCN} ]]; then
         # setup initial usage
@@ -371,12 +435,101 @@ function create_zpool
     if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
         # First try making it with an EFI System Partition (ESP).
-        if /usr/bin/mkzpool -B ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
+	# Use -f too because of the case where we WERE EFI-bootable, but
+	# got destroyed.  There's a zpool(1M) bug here, I think.
+        if /usr/bin/mkzpool -B -f ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
             printf "\n%-56s          (as potentially bootable)" >&4
+	    bootable=yes
         elif ! /usr/bin/mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
             printf "%6s\n" "failed" >&4
             fatal "failed to create pool"
         fi
+    else
+	# For a Triton head node's pool, we're not going to attempt trying to
+	# make it bootable unless it is EFI ready, because we can check
+	# the bootsize property.
+	if [[ $(/usr/sbin/zpool list -H -o bootsize ${SYS_ZPOOL}) != "-" ]];
+	then
+		bootable=yes
+	fi
+    fi
+
+    if bootparams | grep '^triton_installer'; then
+	[[ "$bootable" == "yes" ]] || \
+		fatal "$SYS_ZPOOL created that is not bootable."
+
+	echo "Bootable zpool setup" >&4
+	# It's time to do the moral equivalent of "piadm bootable -e".
+	# We're still early enough in the installation process that we should
+	# have the copied-from-media fake-USB-key lofs mounted. At this point
+	# we really should:
+	#
+	# 1.) Create $SYS_ZPOOL/boot/.
+
+	echo "... creating /${SYS_ZPOOL}/boot" >&4
+	/usr/sbin/zfs create -o encryption=off ${SYS_ZPOOL}/boot || \
+		fatal "Cannot create bootable filesystem for ${SYS_ZPOOL}"
+
+	# 2.) Copy things over to /$SYS_ZPOOL/boot/.
+	echo "... populating /${SYS_ZPOOL}/boot from /mnt/usbkey" >&4
+	cd /${SYS_ZPOOL}/boot
+	/usr/bin/tar -cf - -C /mnt/usbkey . | /usr/bin/tar -xf -
+	[[ $? -eq 0 ]] || fatal "Cannot copy over usbkey contents"
+
+	# 3.) unmount_usb_key() the USB key (which should nuke
+	# /etc/svc/volatile entry too).
+	echo "... unmounting /mnt/usbkey" >&4
+	unmount_usb_key /mnt/usbkey
+
+	# 4.) mount /$SYS_ZPOOL/boot on /mnt/usbkey
+	echo "... remounting /mnt/usbkey lofs from /${SYS_ZPOOL}/boot" >&4
+	mount -F lofs /${SYS_ZPOOL}/boot /mnt/usbkey ||
+		fatal "Cannot mount ${SYS_ZPOOL}/boot on /mnt/usbkey"
+
+	# 5.) See if we need to pull images/ (and more) on to the new
+	# on-disk usbkey.
+	if [[ ! -e /mnt/usbkey/images ]]; then
+		echo "... Grabbing images from a well-known source." >&4
+		# Will fatal-out if fail.
+		try_network_pull_images
+	fi
+
+	# 6.) Perform ops of "piadm bootable -e $SYS_ZPOOL":
+	# 6a.) Make sure loader.conf entries have relevant triton_bootpool and
+	# fstype entries
+	echo "... fixing /${SYS_ZPOOL}/boot/boot/loader.conf" >&4
+	tfile=$(TMPDIR=/etc/svc/volatile mktemp)
+	egrep -v '^triton_|^fstype' ./boot/loader.conf > $tfile
+	echo 'fstype="ufs"' >> $tfile
+	echo "triton_bootpool=\"${SYS_ZPOOL}\"" >> $tfile
+	/bin/mv -f $tfile ./boot/loader.conf
+
+	# 6b.) Set bootfs.
+	echo "... setting bootfs for ${SYS_ZPOOL} to ${SYS_ZPOOL}/boot" >&4
+	/usr/sbin/zpool set "bootfs=${SYS_ZPOOL}/boot" ${SYS_ZPOOL} ||
+		fatal "Cannot set bootfs on ${SYS_ZPOOL}"
+
+	# 6c.) installboot on all of the relevant disks.
+	echo "... activating ${SYS_ZPOOL} drives to be bootable" >&4
+	mapfile -t boot_devices < <(zpool list -vHP "${SYS_ZPOOL}" | \
+		grep -E 'c[0-9]+' | awk '{print $1}' | sed -E 's/s[0-9]+//g')
+
+	some=0
+	for a in "${boot_devices[@]}"; do
+	    echo "... ... ${a}" >&4
+		# Use s1 for installboot because we only work if the pool
+		# was created with -B and s0 is ESP.
+		if installboot -m -b "/${SYS_ZPOOL}/boot/boot/" \
+			"/${SYS_ZPOOL}/boot/boot/pmbr" \
+			"/${SYS_ZPOOL}/boot/boot/gptzfsboot" \
+			"/dev/rdsk/${a}s1" > /dev/null 2>&1 ; then
+			some=1
+		else
+			printf "installboot to disk ${a} failed\n" >&4
+		fi
+	done
+	[[ $some -eq 1 ]] || \
+		fatal "Could not installboot at all on pool ${SYS_ZPOOL}"
     fi
 
     if ! zfs set atime=off ${SYS_ZPOOL}; then

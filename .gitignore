@@ -4,6 +4,10 @@
 /coal-*-*-*
 /usb-*-*-*
 /boot-*-*-*
+/iso-*-*-*
+/mini-iso-*-*-*
+/fulliso-*-*-*
+/ipxe-*-*-*
 /incr-upgrade-*-*-*
 /node_modules
 /upgrade-*.tgz

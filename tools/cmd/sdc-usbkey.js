@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2019, Joyent, Inc.
+ * Copyright 2021 Joyent, Inc.
  */
 
 
@@ -21,6 +21,7 @@ var mod_verror = require('verror');
 
 var lib_oscmds = require('../lib/oscmds');
 var lib_usbkey = require('../lib/usbkey');
+var lib_bootpool = require('../lib/bootpool');
 
 var VError = mod_verror.VError;
 
@@ -38,6 +39,7 @@ Usbkey()
     var self = this;
 
     self.uk_ngz = false;
+    self.bootpool = '';
 
     mod_cmdln.Cmdln.call(self, {
         name: 'sdc-usbkey',
@@ -47,6 +49,11 @@ Usbkey()
                 names: [ 'help', 'h', '?' ],
                 type: 'bool',
                 help: 'Print this help message.'
+            },
+            {
+                names: [ 'usb', 'u' ],
+                type: 'bool',
+                help: 'Force USB key searching, if booted from a ZFS pool.'
             },
             {
                 names: [ 'verbose', 'v' ],
@@ -78,7 +85,26 @@ init(opts, args, callback)
             self.uk_ngz = true;
         }
 
-        mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
+        if (!opts.usb) {
+            /*
+             * Unless forced by -u/--usb, see if we booted from a ZFS pool
+             * and set accordingly.
+             */
+            lib_bootpool.triton_bootpool(function (err, pool) {
+                if (!err && pool !== '') {
+                    self.bootpool = pool;
+                } else if (err) {
+                    /* For the error case, "pool" contains stderr. */
+                    callback(err, pool);
+                    return;
+                }
+
+                mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
+            });
+        } else {
+            self.bootpool = '';
+            mod_cmdln.Cmdln.prototype.init.call(self, opts, args, callback);
+        }
     });
 };
 
@@ -117,18 +143,26 @@ do_mount(subcmd, opts, args, callback)
         alt_mount_options.foldcase = false;
     }
 
-    lib_usbkey.ensure_usbkey_mounted({
-        timeout: TIMEOUT_MOUNT,
-        alt_mount_options: alt_mount_options
-    }, function (err, mtpt) {
+    /* Common error handler... */
+    function errhandler(err, mountpoint) {
         if (err) {
             callback(err);
             return;
         }
 
-        console.log('%s', mtpt);
+        console.log('%s', mountpoint);
         callback();
-    });
+    }
+
+    if (self.bootpool !== '') {
+        /* NOTE: We ignore alt mount options for bootable pools for now. */
+        lib_bootpool.ensure_bootfs_mounted(self.bootpool, errhandler);
+    } else {
+        lib_usbkey.ensure_usbkey_mounted({
+            timeout: TIMEOUT_MOUNT,
+            alt_mount_options: alt_mount_options
+        }, errhandler);
+    }
 };
 Usbkey.prototype.do_mount.options = [
     {
@@ -139,18 +173,19 @@ Usbkey.prototype.do_mount.options = [
     {
         name: 'nofoldcase',
         type: 'bool',
-        help: 'Mount the USB key without folding case.'
+        help:
+        'Mount the USB key without folding case. (ignored in ZFS boot cases)'
     }
 ];
 Usbkey.prototype.do_mount.help = [
-    'Mount the USB key if it is not mounted.',
+    'Mount the USB key, or ZFS boot filesystem (bootfs), if it is not mounted.',
     '',
-    'The USB key will be mounted at the configured mount point (by default',
+    'It will be mounted at the configured mount point (by default',
     '"' + lib_usbkey.DEFAULT_MOUNTPOINT +
         '") when mounted with default options.',
     'If non-default options are requested, then an alternative mount point',
     'will be used. Note that `sdc-usbkey status` will report "unmounted" if',
-    'the USB key is mounted with non-default options.',
+    'the USB key or bootfs is mounted with non-default options.',
     '',
     'Usage:',
     '     sdc-usbkey mount [OPTIONS]',
@@ -175,6 +210,10 @@ do_unmount(subcmd, opts, args, callback)
         return;
     }
 
+    /*
+     * NOTE: The libusbkey unmount routine is sufficient for a
+     * lofs-mounted bootable zpool bootfs as well. Just run with it!
+     */
     lib_usbkey.ensure_usbkey_unmounted({
         timeout: TIMEOUT_UNMOUNT
     }, function (err) {
@@ -194,7 +233,7 @@ Usbkey.prototype.do_unmount.options = [
     }
 ];
 Usbkey.prototype.do_unmount.help = [
-    'Unmount the USB key if it is mounted.',
+    'Unmount the USB key or ZFS boot filesystem if it is mounted.',
     '',
     'Usage:',
     '     sdc-usbkey unmount [OPTIONS]',
@@ -219,7 +258,7 @@ do_status(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.get_usbkey_mount_status(null, function log_status(err, status) {
+    function log_status(err, status) {
         if (err) {
             callback(err);
             return;
@@ -240,7 +279,13 @@ do_status(subcmd, opts, args, callback)
         }
 
         callback();
-    });
+    }
+
+    if (self.bootpool !== '') {
+        lib_bootpool.get_bootfs_mount_status(null, log_status);
+    } else {
+        lib_usbkey.get_usbkey_mount_status(null, log_status);
+    }
 };
 Usbkey.prototype.do_status.options = [
     {
@@ -424,8 +469,7 @@ do_update(subcmd, opts, args, callback)
                 /*
                  * Check if the USB key is already mounted with default opts.
                  */
-                lib_usbkey.get_usbkey_mount_status(null,
-                  function (err, status) {
+                function parse_status(err, status)  {
                     if (err) {
                         next(err);
                         return;
@@ -437,7 +481,13 @@ do_update(subcmd, opts, args, callback)
                         mountpoint = status.mountpoint;
                     }
                     next();
-                });
+                }
+
+                if (self.bootpool !== '') {
+                    lib_bootpool.get_bootfs_mount_status(null, parse_status);
+                } else {
+                    lib_usbkey.get_usbkey_mount_status(null, parse_status);
+                }
             },
             function mount_usbkey(_, next) {
                 if (cancel) {
@@ -454,10 +504,7 @@ do_update(subcmd, opts, args, callback)
                     return;
                 }
 
-                lib_usbkey.ensure_usbkey_mounted({
-                    timeout: TIMEOUT_MOUNT,
-                    ignore_missing: opts.ignore_missing
-                }, function (err, mtpt) {
+                function parse_mount(err, mtpt) {
                     if (err) {
                         next(err);
                         return;
@@ -472,7 +519,17 @@ do_update(subcmd, opts, args, callback)
                     mod_assert.string(mtpt, 'mtpt');
                     mountpoint = mtpt;
                     next();
-                });
+                }
+
+                if (self.bootpool !== '') {
+                    lib_bootpool.ensure_bootfs_mounted(self.bootpool,
+                        parse_mount);
+                } else {
+                    lib_usbkey.ensure_usbkey_mounted({
+                        timeout: TIMEOUT_MOUNT,
+                        ignore_missing: opts.ignore_missing},
+                        parse_mount);
+                }
             },
             function do_run_update(_, next) {
                 if (cancel) {
@@ -509,6 +566,7 @@ do_update(subcmd, opts, args, callback)
                     return;
                 }
 
+                /* Should work equally well for both USB key and bootpool. */
                 lib_usbkey.ensure_usbkey_unmounted({
                     timeout: TIMEOUT_UNMOUNT
                 }, function (err) {
@@ -580,7 +638,7 @@ do_get_variable(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.get_variable(args[0], function (err, value) {
+    function get_variable_result(err, value) {
         if (!err) {
             if (value !== null) {
                 console.log(value);
@@ -590,7 +648,13 @@ do_get_variable(subcmd, opts, args, callback)
         }
 
         callback(err);
-    });
+    }
+
+    if (self.bootpool !== '') {
+        lib_bootpool.get_variable(self.bootpool, args[0], get_variable_result);
+    } else {
+        lib_usbkey.get_variable(args[0], get_variable_result);
+    }
 };
 Usbkey.prototype.do_get_variable.options = [
     {
@@ -630,14 +694,21 @@ do_set_variable(subcmd, opts, args, callback)
         return;
     }
 
-    lib_usbkey.set_variable(args[0], args[1], function (err) {
+    function set_variable_result(err) {
         if (err) {
             callback(err);
             return;
         }
 
         callback();
-    });
+    }
+
+    if (self.bootpool !== '') {
+        lib_bootpool.set_variable(self.bootpool, args[0], args[1],
+            set_variable_result);
+    } else {
+        lib_usbkey.set_variable(args[0], args[1], set_variable_result);
+    }
 };
 Usbkey.prototype.do_set_variable.options = [
     {

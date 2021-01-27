@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 # XXX - TODO
@@ -1026,6 +1026,11 @@ external network later.\n\n"
 
 	if [[ $(getanswer "skip_instructions") != "true" ]]; then
 		printf "$message"
+		if bootparams | grep -q '^triton_installer=ipxe'; then
+		    printf "NOTE: It is mission-critical to have "
+		    printf "external networking AND DNS functioning\n"
+		    printf "for an iPXE installation like this one.\n\n"
+		fi
 	fi
 
 	if [[ -z ${setup_external_network} ]]; then

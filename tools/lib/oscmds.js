@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2017, Joyent, Inc.
+ * Copyright 2021 Joyent, Inc.
  */
 
 
@@ -307,6 +307,7 @@ diskinfo(callback)
 }
 
 module.exports = {
+    make_env: make_env,
     sync: sync,
     zonename: zonename,
     mount: mount,

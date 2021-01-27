@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
@@ -46,7 +46,7 @@ if [[ -z "$TYPE" ]]; then
 fi
 
 case "${TYPE}" in
-tar|usb|coal|dataset)
+tar|usb|coal|dataset|iso|ipxe)
     ;;
 *)
     usage "unknown image type \"${TYPE}\" supplied"
@@ -59,6 +59,16 @@ if [[ ${TYPE} != "dataset" || -z $(ls -1dt $ROOT/usb-* | head -1) ]]; then
     [[ "$TYPE" == "tar" ]] && exit 0
 
     BOOT_TARBALL=$(ls -1dt $ROOT/boot-* | head -1)
+
+    # Build an ISO. You need an ISO too if you build an iPXE.
+    if [[ "$TYPE" == "iso" || "$TYPE" == "ipxe" ]]; then
+	${ROOT}/bin/build-iso "${BOOT_TARBALL}"
+	if [[ $? -ne 0 || "$TYPE" == "iso" ]]; then
+	   exit $?
+	fi
+	${ROOT}/bin/build-ipxe "${BOOT_TARBALL}" $(ls -1dt $ROOT/fulliso-*)
+	exit $?
+    fi
 
     ${ROOT}/bin/build-usb-image "${BOOT_TARBALL}"
     [[ "$TYPE" == "usb" ]] && exit 0

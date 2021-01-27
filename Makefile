@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 PERCENT := %
@@ -139,6 +139,7 @@ TOOLS_CMD_FILES = \
 	sdc-usbkey.js
 
 TOOLS_LIB_FILES = \
+	bootpool.js \
 	common.js \
 	oscmds.js \
 	usbkey.js \
@@ -203,6 +204,7 @@ CN_TOOLS_FILES = \
 	bin/sdc-sbcreate \
 	bin/sdc-usbkey \
 	cmd/sdc-usbkey.js \
+	lib/bootpool.js \
 	lib/common.js \
 	lib/oscmds.js \
 	lib/usbkey.js \
@@ -300,6 +302,18 @@ usb: deps download $(TOOLS_DEPS)
 	    DEBUG_BUILD=$(DEBUG_BUILD) \
 	    bin/build-image usb
 
+.PHONY: iso
+iso: deps download $(TOOLS_DEPS)
+	TIMESTAMP=$(TIMESTAMP) \
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image iso
+
+.PHONY: ipxe
+ipxe: deps download $(TOOLS_DEPS)
+	TIMESTAMP=$(TIMESTAMP) \
+	    DEBUG_BUILD=$(DEBUG_BUILD) \
+	    bin/build-image ipxe
+
 .PHONY: boot
 boot: deps download $(TOOLS_DEPS)
 	TIMESTAMP=$(TIMESTAMP) \
@@ -371,7 +385,7 @@ gz-tools: $(TOOLS_DEPS)
 		> $(TOP)/$(GZ_TOOLS_MANIFEST)
 	rm -rf build/$(GZ_TOOLS_STAMP)
 
-CLEAN_FILES += build/gz-tools *.tgz \
+CLEAN_FILES += build/gz-tools *.tgz *.iso \
 	$(GZ_TOOLS_MANIFEST) \
 	release.json \
 	build.spec.branches \

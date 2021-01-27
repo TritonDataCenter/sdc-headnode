@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 #
@@ -20,6 +20,22 @@
 unset LD_LIBRARY_PATH
 PATH=/usr/bin:/usr/sbin:/smartdc/bin
 export PATH
+
+# If we're a Triton read-only installer (ISO or otherwise), copy this script
+# to tmpfs, and re-run it with an environment variable properly exported.
+# This allows us to unmount and remount the "USB key" path.
+# For now, assume that the presence of any triton_installer means we gyrate.
+if bootparams | grep -q '^triton_installer' ; then
+	if [[ "$HEADNODE_TMPFS_SCRIPT" != "yes" ]]; then
+		export HEADNODE_TMPFS_SCRIPT=yes
+		cp /mnt/usbkey/scripts/headnode.sh \
+			/etc/svc/volatile/headnode.sh
+		exec /etc/svc/volatile/headnode.sh "$@"
+		# Should never execute... but exit non-zero anyway.
+		exit 1
+	fi
+fi
+
 export HEADNODE_SETUP_START=$(date +%s)
 
 #

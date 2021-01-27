@@ -1,0 +1,187 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright 2021 Joyent, Inc.
+#
+
+ROOT=$(cd $(dirname $0)/../; pwd)
+
+. "${ROOT}/buildtools/lib/error_handler.sh"
+. "${ROOT}/buildtools/lib/common.sh"
+
+if [[ "$PLATFORM" != "SunOS" ]]; then
+    echo "You cannot build an ISO unless you're on SmartOS." >&2
+    exit 1
+fi
+
+function usage {
+    if [[ -n "$1" ]]; then
+        echo "ERROR: $1" >&2
+    fi
+    echo "" >&2
+    echo "Usage:" >&2
+    echo "    $0 <boot_tarball>" >&2
+    echo "" >&2
+    exit 1
+}
+
+if [[ -z "$1" ]]; then
+    usage 'must provide <boot_tarball> filename'
+fi
+
+### Much of this is taken from smartos-live's build_boot_image.
+
+function pfrun()
+{
+	pfexec $*
+	local status=$?
+
+	if [[ $status != 0 ]]; then
+		print -u2 "\nCommand failed: $*\nExit status: $status"
+		exit 1
+	fi
+}
+
+function fail()
+{
+	echo "$1" >&2
+	exit 1
+}
+
+bi_path=$1
+bi_boot_image=`basename $1`
+bi_boot_image_name=$(sed 's/boot-//g' <<< ${bi_boot_image} | sed 's/\.tgz//g')
+bi_rootdir=""
+bi_protoboot=${BI_PROTOBOOT}
+bi_iso_download=""
+
+function cleanup()
+{
+	print "Cleaning up"
+
+	if [[ "$bi_iso_download" != "" ]]; then
+		pfrun umount $bi_tmpdir/smartos-iso
+	fi
+
+	pfrun /bin/rm -rf $bi_tmpdir
+}
+
+#
+# Construct the EFI System Partition (ESP) image,  We size it at 256 MB, which
+# is intentionally much larger than what we need currently, in order to leave
+# headroom for future projects which may need to store data in the ESP.
+#
+function create_esp()
+{
+	local readonly tmpdir=$1
+	local readonly efimnt=$2
+	local readonly esp_size=256 # MiB
+	local readonly esp_sects=$(( $esp_size * 1024 * 1024 / 512 ))
+
+	pfrun mkfile -n ${esp_size}m $tmpdir/esp.img
+	bi_esp_blkdev=$(pfexec lofiadm -a $tmpdir/esp.img)
+	if [[ $? != 0 ]]; then
+		pfrun rm $tmpdir/esp.img
+		fail "Failed to create ESP lofi device"
+	fi
+	readonly esp_rawdev=${bi_esp_blkdev/lofi/rlofi}
+
+	pfrun mkfs -F pcfs -o b=system,size=$esp_sects,nofdisk,fat=32 \
+	    $esp_rawdev </dev/null
+
+	pfrun mkdir -p $efimnt
+	pfrun mount -F pcfs -o foldcase $bi_esp_blkdev $efimnt
+	pfrun mkdir -p $efimnt/efi/boot
+	pfrun cp $bi_protoboot/loader64.efi $efimnt/efi/boot/bootx64.efi
+	pfrun umount $efimnt
+	pfrun lofiadm -d $bi_esp_blkdev
+}
+
+# - Populate root from the bi_boot_image.
+function populate_root()
+{
+	local readonly dir=$1
+
+	print "Installing boot tarball onto root partition ... \c"
+	pfrun gtar -xzf "$bi_path" -C $dir
+
+	## Make any bootparams adjustments here.
+	cp $dir/boot/loader.conf /tmp/loader.conf.$$
+	sed 's/ipxe="true"/ipxe="false"/g' < /tmp/loader.conf.$$ > \
+	    $dir/boot/loader.conf
+	rm -f /tmp/loader.conf.$$
+	echo 'triton_installer="iso"' >> $dir/boot/loader.conf
+
+	# If we need additional bootparams, this is where to add them.
+
+	# chmod EVERYTHING to be executable like on the USB key.
+	pfrun chmod -R u+x $dir
+	# And while I'm at it, pfexec chown to root.
+	pfrun chown -R root $dir
+
+	print "done"
+}
+
+function create_iso()
+{
+	local readonly populate=$1
+	local readonly iso=$2
+	local readonly espimg=$3
+	local readonly 
+
+	if [[ "$populate" == "yes" ]]; then
+	    pfrun mkdir -p $bi_rootdir
+	    populate_root $bi_rootdir
+	fi
+
+	pfrun cp $bi_protoboot/cdboot $bi_rootdir/boot/cdboot
+	pfrun cp $espimg $bi_rootdir/boot/efiboot.img
+
+	pfrun mkisofs -quiet -R \
+	    -eltorito-boot boot/cdboot -no-emul-boot -boot-info-table \
+	    -eltorito-alt-boot -eltorito-platform efi \
+	    -eltorito-boot boot/efiboot.img -no-emul-boot \
+	    -o $iso $bi_rootdir
+
+	pfrun chown -R ${uid}:${gid} $iso
+
+	print "Successfully created $iso"
+}
+
+bi_tmpdir=$(mktemp -d -p /var/tmp) || fail "mktemp failed!"
+
+trap cleanup EXIT
+bi_efimnt=$bi_tmpdir/mnt/efi
+bi_rootdir=$bi_tmpdir/mnt/root
+iso_image_name=iso-${bi_boot_image_name}.iso
+SMARTOS_URL=${SMARTOS_URL:-https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos-latest.iso}
+
+if [[ "$bi_protoboot" == "" ]]; then
+	# We need to download a standlone SmartOS ISO to get "cdboot".
+	bi_iso_download=$bi_tmpdir/smartos.iso
+	pfrun curl -s -o $bi_iso_download $SMARTOS_URL || \
+		fail "Cannot download $SMARTOS_URL to $bi_iso_download"
+	pfrun mkdir $bi_tmpdir/smartos-iso
+	pfrun mount -F hsfs $bi_iso_download $bi_tmpdir/smartos-iso
+	bi_protoboot=$bi_tmpdir/smartos-iso/boot
+fi
+
+print "Creating EFI System Partition image ... \c"
+create_esp $bi_tmpdir $bi_efimnt
+print "done"
+
+print "Creating full Triton installer ISO ... \c"
+create_iso yes $iso_image_name $bi_tmpdir/esp.img
+print "done"
+
+print "Preparing full ISO tarball for iPXE ... \c"
+pfrun gtar -czf fulliso-${bi_boot_image_name}.tgz -C $bi_rootdir .
+pfrun chown ${uid}:${gid} fulliso-${bi_boot_image_name}.tgz
+print "done"
+
+exit 0
