@@ -229,7 +229,7 @@ TOP ?= $(error Unable to access eng.git submodule Makefiles.)
 #
 
 .PHONY: all
-all: coal gz-tools
+all: coal gz-tools ipxe
 
 check:: $(ESLINT_TARGET) check-jsl check-json $(JSSTYLE_TARGET) check-bash \
     $(EXTRA_CHECK_TARGETS)
@@ -528,12 +528,16 @@ release-json: build.spec.merged
 	       \"branch\": \"$$BRANCH_STAMP\", \
 	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\", \
 	       \"boot\": \"boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
-	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
+	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
+	       \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
+	       \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
 	    }" | json > release.json; \
 	else \
 	    echo "{ \
 	        \"date\": \"$(TIMESTAMP)\", \
 	        \"branch\": \"$$BRANCH_STAMP\", \
+	        \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
+	        \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\" \
 	    }" | json > release.json; \
 	fi
@@ -567,8 +571,16 @@ publish: release-json
 	        $(ENGBLD_BITS_DIR)/$(NAME)/boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz && \
 	    mv usb-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
+	    mv iso-$(STAMP).iso \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso; \
+	    mv ipxe-$(STAMP).tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	else \
-	    echo "build-tgz was false: uploading only compressed coal artifact" && \
+	    echo "build-tgz was false: uploading only compressed install artifacts" && \
+	    mv iso-$(STAMP).iso \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso; \
+	    mv ipxe-$(STAMP).tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	    $(TAR) $(TAR_COMPRESSION_ARG) -cf \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4gb.tgz \
 	        coal-$(STAMP)-4gb.vmwarevm; \
