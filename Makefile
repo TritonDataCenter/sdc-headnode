@@ -572,13 +572,13 @@ publish: release-json
 	    mv usb-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	    mv iso-$(STAMP).iso \
-	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso; \
 	    mv ipxe-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	else \
 	    echo "build-tgz was false: uploading only compressed install artifacts" && \
 	    mv iso-$(STAMP).iso \
-	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso; \
 	    mv ipxe-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	    $(TAR) $(TAR_COMPRESSION_ARG) -cf \
