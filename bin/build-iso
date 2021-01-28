@@ -61,7 +61,7 @@ bi_protoboot=${BI_PROTOBOOT}
 bi_iso_download=""
 
 ### XXX KEBE SAYS THIS IS A HACK
-pfrun pkgin install cdrtools
+pfrun pkgin -y install cdrtools
 ### XXX KEBE SAYS END OF HACK
 
 function cleanup()
