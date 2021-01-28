@@ -528,16 +528,16 @@ release-json: build.spec.merged
 	       \"branch\": \"$$BRANCH_STAMP\", \
 	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\", \
 	       \"boot\": \"boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
-	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
-	       \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\" \
+	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
+	       \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
 	       \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
 	    }" | json > release.json; \
 	else \
 	    echo "{ \
 	        \"date\": \"$(TIMESTAMP)\", \
 	        \"branch\": \"$$BRANCH_STAMP\", \
-	        \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\" \
-	        \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\" \
+	        \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
+	        \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\" \
 	    }" | json > release.json; \
 	fi
