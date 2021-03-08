@@ -17,6 +17,18 @@
 # ON IT!
 #
 
+function get_bootparams() {
+    case $OSTYPE in
+        solaris*)
+            bootparams ;;
+        linux*)
+            tr ' ' '\n' < /proc/cmdline ;;
+        *)
+            echo "Unsupported bash OSTYPE: $OSTYPE"
+            exit 1
+            ;;
+    esac
+}
 PATH=/usr/bin:/usr/sbin:/sbin
 export PATH
 
@@ -24,7 +36,7 @@ export PATH
 # to tmpfs, and re-run it with an environment variable properly exported.
 # This allows us to unmount and remount the "USB key" path.
 # For now, assume that the presence of any triton_installer means we gyrate.
-if bootparams | grep -q '^triton_installer' ; then
+if get_bootparams | grep -q '^triton_installer' ; then
 	if [[ "$JOYSETUP_TMPFS_SCRIPT" != "yes" ]]; then
 		export JOYSETUP_TMPFS_SCRIPT=yes
 		cp /mnt/usbkey/scripts/joysetup.sh \
@@ -259,7 +271,7 @@ function headnode_boot_setup
     local console=
 
     set +o pipefail
-    console=$(bootparams | grep ^console= | cut -d= -f2)
+    console=$(get_bootparams | grep ^console= | cut -d= -f2)
     set -o pipefail
 
     [[ -z "$console" ]] && console=text
@@ -404,7 +416,7 @@ function try_network_pull_images
 
     # Find out where we booted from. Everything else we need will be relative
     # to that path.
-    boot_file=$(bootparams | awk -F= '/^boot-file/ {print $2}')
+    boot_file=$(get_bootparams | awk -F= '/^boot-file/ {print $2}')
 
     # Walk back the path until we get the base. E.g., we're walking back this
     # portion of the URL:
@@ -414,7 +426,7 @@ function try_network_pull_images
     # the request.
     boot_base="${boot_file}/../../../../../.."
 
-    isoname=$(bootparams | awk -F= '/^triton_isoname/ {print $2}')
+    isoname=$(get_bootparams | awk -F= '/^triton_isoname/ {print $2}')
     # If triton_isoname was not passed in bootparams use the default short name.
     isourl="${boot_base}/${isoname:=fulliso.tgz}"
     if [[ "$isourl" == "" ]]; then
@@ -476,7 +488,7 @@ function create_zpool
 	fi
     fi
 
-    if bootparams | grep '^triton_installer'; then
+    if get_bootparams | grep '^triton_installer'; then
 	[[ "$bootable" == "yes" ]] || \
 		fatal "$SYS_ZPOOL created that is not bootable."
 
@@ -797,7 +809,7 @@ install_configs()
     SMARTDC_CONFIG="${BASEDIR}/config"
 
     # On standalone machines we don't get config in /var/tmp
-    if [[ -n $(/usr/bin/bootparams | grep "^standalone=true") ]]; then
+    if [[ -n $(get_bootparams | grep "^standalone=true") ]]; then
         return 0
     fi
 
