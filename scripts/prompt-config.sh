@@ -828,6 +828,16 @@ if [[ -n ${answer_file} ]]; then
 	fi
 elif [[ -f ${USBMNT}/private/answers.json ]]; then
 	answer_file=${USBMNT}/private/answers.json
+elif [[ -f /system/boot/tinkerbell.json ]]; then
+	tmp_answers=$(mktemp)
+	"${USBMNT}/scripts/tinkerbell2answers.sh" /system/boot/tinkerbell.json \
+		> "$tmp_answers"
+	# We're going make a quick sanity test of the candidate answers file
+	# to see if it's usable, but we're not going to exhaustively lint it.
+	if json -f "$tmp_answers" admin_nic | grep -q '[[:xdigit:]]'; then
+		mv "$tmp_answers" "${USBMNT}/private/answers.json"
+		answer_file="${USBMNT}/private/answers.json"
+	fi
 fi
 
 #
