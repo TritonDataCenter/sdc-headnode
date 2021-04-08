@@ -8,7 +8,7 @@
 
 # This script will take a metadata file provided as a boot module from
 # Equinix Tinkerbell (e.g., Equinix Metal) and generate a suitable answers.json
-# file. If the metadata is provided as a bood module, prompt-config.sh will
+# file. If the metadata is provided as a boot module, prompt-config.sh will
 # call this script and then use the generated answers file for unattended
 # install.
 
