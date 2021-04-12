@@ -136,7 +136,7 @@ function create_iso()
 	local readonly populate=$1
 	local readonly iso=$2
 	local readonly espimg=$3
-	local readonly 
+	local readonly
 
 	if [[ "$populate" == "yes" ]]; then
 	    pfrun mkdir -p $bi_rootdir
@@ -163,6 +163,7 @@ trap cleanup EXIT
 bi_efimnt=$bi_tmpdir/mnt/efi
 bi_rootdir=$bi_tmpdir/mnt/root
 iso_image_name=iso-${bi_boot_image_name}.iso
+# BASHSTYLED
 SMARTOS_URL=${SMARTOS_URL:-https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos-latest.iso}
 
 if [[ "$bi_protoboot" == "" ]]; then

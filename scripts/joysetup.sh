@@ -376,8 +376,10 @@ function try_network_pull_images
     # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
     # Don't bother with existence checks, but note that bootparams take
     # precedence.
-    local disktestdomain=$(cat /testdomain.txt)
-    local diskisourl=$(cat /isourl.txt)
+    local disktestdomain
+    local diskisourl
+    disktestdomain=$(cat /testdomain.txt)
+    diskisourl=$(cat /isourl.txt)
 
     # Testdomain and isourl prefix should match.
     testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
