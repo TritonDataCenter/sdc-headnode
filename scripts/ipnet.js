@@ -11,50 +11,51 @@
  */
 
 /*
- * netmask value indexed by prefix length
- * Generated with:
- * var prefix = Array.apply(null, Array(32)).map(function (_, i) {
- *     return (((0x1ffffffff << (32 - i)) - 0xffffffff) >>> 0);
- * });
+ * Network mask indexed by prefix length.
+ * Use num2ip() to get the dotted decimal form.
+ * E.g.:
+ * num2ip(netmask[22]) === "255.255.252.0"
  */
 var netmask = [
-    0,           // 0
-    2147483648,  // 1
-    3221225472,  // 2
-    3758096384,  // 3
-    4026531840,  // 4
-    4160749568,  // 5
-    4227858432,  // 6
-    4261412864,  // 7
-    4278190080,  // 8
-    4286578688,  // 9
-    4290772992,  // 10
-    4292870144,  // 11
-    4293918720,  // 12
-    4294443008,  // 13
-    4294705152,  // 14
-    4294836224,  // 15
-    4294901760,  // 16
-    4294934528,  // 17
-    4294950912,  // 18
-    4294959104,  // 19
-    4294963200,  // 20
-    4294965248,  // 21
-    4294966272,  // 22
-    4294966784,  // 23
-    4294967040,  // 24
-    4294967168,  // 25
-    4294967232,  // 26
-    4294967264,  // 27
-    4294967280,  // 28
-    4294967288,  // 29
-    4294967292,  // 30
-    4294967294,  // 31
-    4294967295   // 32
+    0x00000000,  // 0
+    0x80000000,  // 1
+    0xC0000000,  // 2
+    0xE0000000,  // 3
+    0xF0000000,  // 4
+    0xF8000000,  // 5
+    0xFC000000,  // 6
+    0xFE000000,  // 7
+    0xFF000000,  // 8
+    0xFF800000,  // 9
+    0xFFC00000,  // 10
+    0xFFE00000,  // 11
+    0xFFF00000,  // 12
+    0xFFF80000,  // 13
+    0xFFFC0000,  // 14
+    0xFFFE0000,  // 15
+    0xFFFF0000,  // 16
+    0xFFFF8000,  // 17
+    0xFFFFC000,  // 18
+    0xFFFFE000,  // 19
+    0xFFFFF000,  // 20
+    0xFFFFF800,  // 21
+    0xFFFFFC00,  // 22
+    0xFFFFFE00,  // 23
+    0xFFFFFF00,  // 24
+    0xFFFFFF80,  // 25
+    0xFFFFFFC0,  // 26
+    0xFFFFFFE0,  // 27
+    0xFFFFFFF0,  // 28
+    0xFFFFFFF8,  // 29
+    0xFFFFFFFC,  // 30
+    0xFFFFFFFE,  // 31
+    0xFFFFFFFF   // 32
 ];
 
 /*
  * prefix length indexed by dotted decimal subnet mask
+ * E.g.:
+ * prefix["255.255.252.0"] === 22
  */
 var prefix = {
     '0.0.0.0': 0,
@@ -93,56 +94,75 @@ var prefix = {
 };
 
 /*
- * The number of IPs in a given prefix length
- * Generated with:
- * var wildcard = Array.apply(null, Array(32)).map(function (_, i) {
- *     return 2**i;
- * });
+ * Wildcard mask indexed by prefix length.
+ * I.e., the number of IPs in a given prefix length.
+ * This is the xor of the network mask, and it's often used in the world of
+ * network hardware.
+ * E.g.:
+ *   wildcard[22] === 1024
+ * Use num2ip() to get the dotted decimal form.
+ * E.g.:
+ *   num2ip(wildcard[22]) === "0.0.3.255"
  */
 var wildcard = [
-    4294967295, //  0
-    2147483647, //  1
-    1073741823, //  2
-    536870911,  //  3
-    268435455,  //  4
-    134217727,  //  5
-    67108863,   //  6
-    33554431,   //  7
-    16777215,   //  8
-    8388607,    //  9
-    4194303,    // 10
-    2097151,    // 11
-    1048575,    // 12
-    524287,     // 13
-    262143,     // 14
-    131071,     // 15
-    65535,      // 16
-    32767,      // 17
-    16383,      // 18
-    8191,       // 19
-    4095,       // 20
-    2047,       // 21
-    1023,       // 22
-    511,        // 23
-    255,        // 24
-    127,        // 25
-    63,         // 26
-    31,         // 27
-    15,         // 28
-    7,          // 29
-    3,          // 30
-    1,          // 31
-    0           // 32
+    0x00000000,  // 0
+    0x00000001,  // 1
+    0x00000003,  // 2
+    0x00000007,  // 3
+    0x0000000F,  // 4
+    0x0000001F,  // 5
+    0x0000003F,  // 6
+    0x0000007F,  // 7
+    0x000000FF,  // 8
+    0x000001FF,  // 9
+    0x000003FF,  // 10
+    0x000007FF,  // 11
+    0x00000FFF,  // 12
+    0x00001FFF,  // 13
+    0x00003FFF,  // 14
+    0x00007FFF,  // 15
+    0x0000FFFF,  // 16
+    0x0001FFFF,  // 17
+    0x0003FFFF,  // 18
+    0x0007FFFF,  // 19
+    0x000FFFFF,  // 20
+    0x001FFFFF,  // 21
+    0x003FFFFF,  // 22
+    0x007FFFFF,  // 23
+    0x00FFFFFF,  // 24
+    0x01FFFFFF,  // 25
+    0x03FFFFFF,  // 26
+    0x07FFFFFF,  // 27
+    0x0FFFFFFF,  // 28
+    0x1FFFFFFF,  // 29
+    0x3FFFFFFF,  // 30
+    0x7FFFFFFF,  // 31
+    0xFFFFFFFF   // 32
 ];
 
 /*
- * Helper functions
+ * Functions
  */
 
-var network_addr = function (ip_as_num, l) {
-    return ((ip_as_num & netmask[l]) >>> 0);
+/*
+ * Get the network address for an address and given prefix length
+ *
+ * @param  number   - number format of an IP address.
+ * @param  number   - prefix length
+ *
+ * @return number   - network address as a number
+ */
+var network_addr = function (ipNum, l) {
+    return ((ipNum & netmask[l]) >>> 0);
 };
 
+/*
+ * Convert IP string in dotted decimal format to a number
+ *
+ * @param string    - dotted decimal string
+ *
+ * @return number   - numeric value of IP address
+ */
 var ip2num = function (ip) {
     var n = 0;
     ip.split('.').forEach(function (x) {
@@ -155,6 +175,13 @@ var ip2num = function (ip) {
     return (n >>> 0);
 };
 
+/*
+ * Convert 32-bit number to dotted decimal representation string
+ *
+ * @param number    - numeric value of IP address
+ *
+ * @return string   - String representation of dotted decimal IP address
+ */
 var num2ip = function (n) {
     var octet = [
         n >>> 24,
@@ -165,6 +192,11 @@ var num2ip = function (n) {
     return (octet.join('.'));
 };
 
+/*
+ * @constructs  InetObject
+ *
+ * @arguments   string  - CIDR (ip/prefix length)
+ */
 function InetObject(cidr) {
     var self = this,
         cidr_arr;
@@ -192,6 +224,9 @@ function InetObject(cidr) {
  * contains(ip)
  * Does this subnet contain the specified IP?
  * returns bool
+ * @param   string - dotted decimal representation of IP address
+ *
+ * @return  bool   - true if IP is within subnet of this InetObject
  */
 InetObject.prototype.contains = function (ip) {
     return this.containsNum(ip2num(ip));
@@ -200,6 +235,8 @@ InetObject.prototype.contains = function (ip) {
 /*
  * containsNum(num)
  * Same as contains(), but with number value
+ *
+ * @param   number - numeric value of IP address
  */
 InetObject.prototype.containsNum = function (ipNum) {
     if (ipNum > this.networkAddrNum && ipNum < this.broadcastAddrNum) {
@@ -211,7 +248,10 @@ InetObject.prototype.containsNum = function (ipNum) {
 /*
  * getMin(n)
  * Get the minimum usable IP, with optional padding
- * n = number of IPs to pad
+ *
+ * @param   number  - number of IPs to pad
+ *
+ * @return  string  - dotted decimal representation of IP address
  */
 InetObject.prototype.getMin = function (n) {
     var min;
@@ -226,7 +266,10 @@ InetObject.prototype.getMin = function (n) {
 /*
  * getMax(n)
  * Get the maximum usable IP, with optional padding
- * n = number of IPs to pad
+ *
+ * @param   number  - number of IPs to pad
+ *
+ * @return  string  - dotted decimal representation of IP address
  */
 InetObject.prototype.getMax = function (n) {
     var min;
@@ -240,8 +283,13 @@ InetObject.prototype.getMax = function (n) {
 
 /*
  * toObj(minPad, maxPad)
- * Serialize the object with usable IPs as an object, optionally pad
- * min and max numbers
+ * Serialize the InetObject with usable IPs as an object, optionally pad
+ * min and max numbers. Can be further serialized to JSON.
+ *
+ * @param   number  - low number to pad
+ * @param   number  - high number to pad
+ *
+ * @return  object  - JS object
  */
 InetObject.prototype.toObj = function (minPad, maxPad) {
     return ({
