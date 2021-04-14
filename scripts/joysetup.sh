@@ -372,6 +372,7 @@ function try_network_pull_images
 {
     local testdomain
     local isourl
+    local retval
 
     # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
     # Don't bother with existence checks, but note that bootparams take
@@ -381,23 +382,30 @@ function try_network_pull_images
     disktestdomain=$(cat /testdomain.txt)
     diskisourl=$(cat /isourl.txt)
 
+    # Find out where we booted from. Everything else we need will be relative
+    # to that path.
+    boot_file=$(bootparams | awk -F= '/^boot-file/ {print $2}')
+    # Walk back the path until we get the base.
+    boot_base="${boot_file}/../../../../../.."
+
     # Testdomain and isourl prefix should match.
-    testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
-    if [[ "$testdomain" == "" ]]; then
-	if [[ "$disktestdomain" == "" ]]; then
-	    fatal "ipxe installation lacks test domain"
-	else
-	    testdomain=$disktestdomain
-	fi
-    fi
+    #testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
+    #if [[ "$testdomain" == "" ]]; then
+	#if [[ "$disktestdomain" == "" ]]; then
+	#    fatal "ipxe installation lacks test domain"
+	#else
+	#    testdomain=$disktestdomain
+	#fi
+    #fi
 
-    echo "... ... Testing domain $testdomain" >&4
+    #echo "... ... Testing domain $testdomain" >&4
 
-    if ! ping $testdomain; then
-	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
-    fi
+    #if ! ping $testdomain; then
+	#fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
+    #fi
 
-    isourl=$(bootparams | awk -F= '/^triton_isourl/ {print $2}')
+    isoname=$(bootparams | awk -F= '/^triton_isoname/ {print $2}')
+    isourl="${boot_base}/${isoname}"
     if [[ "$isourl" == "" ]]; then
 	if [[ "$diskisourl" == "" ]]; then
 	    fatal "ipxe installation lacks image name"
@@ -411,8 +419,9 @@ function try_network_pull_images
     # Use -k in gtar to preserve any usbkey state that might've happened to
     # get modified before completing the "usbkey" contents.
     curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
-    if [[ $? -ne 0 ]]; then
-	fatal "curl of $isourl failed"
+    retval=$?
+    if [[ $retval -ne 0 ]]; then
+	fatal "curl of $isourl failed with code: $retval (see curl(1) for details)"
     fi
 }
 
