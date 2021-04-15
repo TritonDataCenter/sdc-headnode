@@ -118,17 +118,13 @@ osname=$(basename "${osdir}")
 
 echo "#!ipxe" > ${ipxefile}
 echo dhcp >> ${ipxefile}
-echo "set testdomain $testdomain" >> ${ipxefile}
-echo "set base-url $baseurl" >> ${ipxefile}
-printf 'kernel ${base-url}/%s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
+printf 'kernel %s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
 printf 'amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",' >> ${ipxefile}
-printf 'triton_testdomain=${testdomain},triton_isourl=${base-url}/' >> \
-	${ipxefile}
-printf "$(basename $fullisotar)," >> ${ipxefile}
+printf 'triton_isourl=${base-url}/%s' "$(basename $fullisotar)" >> ${ipxefile}
 printf 'headnode=true,triton_installer=ipxe\n' >> ${ipxefile}
-printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
+printf 'module %s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive type=rootfs name=ramdisk\n' >> ${ipxefile}
-printf 'module ${base-url}/%s/platform/i86pc/' ${osname} >> ${ipxefile}
+printf 'module %s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive.hash type=hash name=ramdisk\n' >> ${ipxefile}
 echo boot >> ${ipxefile}
 
