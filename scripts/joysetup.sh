@@ -382,11 +382,13 @@ function try_network_pull_images
     # Find out where we booted from. Everything else we need will be relative
     # to that path.
     boot_file=$(bootparams | awk -F= '/^boot-file/ {print $2}')
+
     # Walk back the path until we get the base. E.g., we're walking back this
     # portion of the URL:
     # <pi>/platform/i86pc/kernel/amd64/unix
     # This should give us the directory the ipxe installer was unpacked into
-    # where we'll find the iso tar.
+    # where we'll find the iso tar. curl will normalize this before sending
+    # the request.
     boot_base="${boot_file}/../../../../../.."
 
     isoname=$(bootparams | awk -F= '/^triton_isoname/ {print $2}')
@@ -406,8 +408,9 @@ function try_network_pull_images
     # get modified before completing the "usbkey" contents.
     curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
     retval=$?
-    if [[ $retval -ne 0 ]]; then
-	fatal "curl of $isourl failed with code: $retval (see curl(1) for details)"
+    if (( retval != 0 )); then
+        # BASHSTYLED
+        fatal "curl of $isourl failed with code: $retval (see curl(1) for details)"
     fi
 }
 
