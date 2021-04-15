@@ -370,42 +370,28 @@ function swap_in_GiB
 # images into what's inside iPXE's 32-bit address space.
 function try_network_pull_images
 {
-    local testdomain
     local isourl
     local retval
 
-    # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
+    # We need to capture the on-image isourl.txt file NOW.
     # Don't bother with existence checks, but note that bootparams take
     # precedence.
-    local disktestdomain
     local diskisourl
-    disktestdomain=$(cat /testdomain.txt)
     diskisourl=$(cat /isourl.txt)
 
     # Find out where we booted from. Everything else we need will be relative
     # to that path.
     boot_file=$(bootparams | awk -F= '/^boot-file/ {print $2}')
-    # Walk back the path until we get the base.
+    # Walk back the path until we get the base. E.g., we're walking back this
+    # portion of the URL:
+    # <pi>/platform/i86pc/kernel/amd64/unix
+    # This should give us the directory the ipxe installer was unpacked into
+    # where we'll find the iso tar.
     boot_base="${boot_file}/../../../../../.."
 
-    # Testdomain and isourl prefix should match.
-    #testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
-    #if [[ "$testdomain" == "" ]]; then
-	#if [[ "$disktestdomain" == "" ]]; then
-	#    fatal "ipxe installation lacks test domain"
-	#else
-	#    testdomain=$disktestdomain
-	#fi
-    #fi
-
-    #echo "... ... Testing domain $testdomain" >&4
-
-    #if ! ping $testdomain; then
-	#fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
-    #fi
-
     isoname=$(bootparams | awk -F= '/^triton_isoname/ {print $2}')
-    isourl="${boot_base}/${isoname}"
+    # If triton_isoname was not passed in bootparams use the default short name.
+    isourl="${boot_base}/${isoname:=fulliso.tgz}"
     if [[ "$isourl" == "" ]]; then
 	if [[ "$diskisourl" == "" ]]; then
 	    fatal "ipxe installation lacks image name"
