@@ -74,15 +74,19 @@ var macsplit = answers.admin_nic.split(':').map(function (x) {
 var admin_net_s = '10.' + macsplit[4] + '.' + macsplit[5] + '.10/22';
 var admin_net = new ipnet.InetObject(admin_net_s);
 var external_net = tinkerbell.network.addresses.filter(function (x) {
+    console.error('========');
+    console.error(x.public);
     return (x.public);
 });
+
+console.error(external_net);
 
 answers.admin_ip = admin_net.getMin(10);
 answers.admin_netmask = admin_net.netmask;
 
-answers.external_ip = external_net.address;
-answers.external_netmask = external_net.netmask;
-answers.external_gateway = external_net.gateway;
+answers.external_ip = external_net[0].address;
+answers.external_netmask = external_net[0].netmask;
+answers.external_gateway = external_net[0].gateway;
 
 // Overridable values
 answers.datacenter_company_name = tinkerbell.customdata.company_name || 'none';
