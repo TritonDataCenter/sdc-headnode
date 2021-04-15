@@ -121,7 +121,6 @@ echo "#!ipxe" > ${ipxefile}
 echo dhcp >> ${ipxefile}
 printf 'kernel %s/platform/i86pc/kernel/' ${osname} >> ${ipxefile}
 printf 'amd64/unix -B console=ttyb,ttyb-mode="115200,8,n,1,-",' >> ${ipxefile}
-printf 'triton_isoname=fulliso.tgz,' >> ${ipxefile}
 printf 'headnode=true,triton_installer=ipxe\n' >> ${ipxefile}
 printf 'module %s/platform/i86pc/' ${osname} >> ${ipxefile}
 printf 'amd64/boot_archive type=rootfs name=ramdisk\n' >> ${ipxefile}
