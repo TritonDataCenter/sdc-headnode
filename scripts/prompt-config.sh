@@ -836,6 +836,9 @@ elif [[ -f $TINKERBELL_MD ]]; then
 	# We're going make a quick sanity test of the candidate answers file
 	# to see if it's usable, but we're not going to exhaustively lint it.
 	if json -f "$tmp_answers" admin_nic | grep -q '[[:xdigit:]]'; then
+		if ! [[ -d "${USBMNT}/private" ]]; then
+			mkdir "${USBMNT}/private"
+		fi
 		mv "$tmp_answers" "${USBMNT}/private/answers.json"
 		answer_file="${USBMNT}/private/answers.json"
 	fi
