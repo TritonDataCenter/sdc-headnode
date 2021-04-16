@@ -820,6 +820,7 @@ done
 shift $(($OPTIND - 1))
 
 USBMNT=$1
+TINKERBELL_MD=/system/boot/tinkerbell.json
 
 if [[ -n ${answer_file} ]]; then
 	if [[ ! -f ${answer_file} ]]; then
@@ -828,6 +829,28 @@ if [[ -n ${answer_file} ]]; then
 	fi
 elif [[ -f ${USBMNT}/private/answers.json ]]; then
 	answer_file=${USBMNT}/private/answers.json
+elif [[ -f $TINKERBELL_MD ]]; then
+	tmp_answers=$(mktemp)
+	"${USBMNT}/scripts/tinkerbell2answers.js" "$TINKERBELL_MD" \
+		> "$tmp_answers"
+	# We're going make a quick sanity test of the candidate answers file
+	# to see if it's usable, but we're not going to exhaustively lint it.
+	if json -f "$tmp_answers" admin_nic | grep -q '[[:xdigit:]]'; then
+		if ! [[ -d "${USBMNT}/private" ]]; then
+			mkdir "${USBMNT}/private"
+		fi
+		mv "$tmp_answers" "${USBMNT}/private/answers.json"
+		answer_file="${USBMNT}/private/answers.json"
+	fi
+	# Generate a root.authorized_keys file
+	# If this array is non-empty, then tinkerbell is providing some ssh
+	# keys to us.
+	key_count=$(json -f "$TINKERBELL_MD" ssh_keys.length)
+	if (( key_count > 0 )); then
+		json -f "$TINKERBELL_MD" ssh_keys | json -a \
+			> "${USBMNT}/config.inc/root.authorized_keys"
+	fi
+
 fi
 
 #

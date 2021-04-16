@@ -370,34 +370,30 @@ function swap_in_GiB
 # images into what's inside iPXE's 32-bit address space.
 function try_network_pull_images
 {
-    local testdomain
     local isourl
+    local retval
 
-    # We need to capture the on-image testdomain.txt and isourl.txt files NOW.
+    # We need to capture the on-image isourl.txt file NOW.
     # Don't bother with existence checks, but note that bootparams take
     # precedence.
-    local disktestdomain
     local diskisourl
-    disktestdomain=$(cat /testdomain.txt)
     diskisourl=$(cat /isourl.txt)
 
-    # Testdomain and isourl prefix should match.
-    testdomain=$(bootparams | awk -F= '/^triton_testdomain/ {print $2}')
-    if [[ "$testdomain" == "" ]]; then
-	if [[ "$disktestdomain" == "" ]]; then
-	    fatal "ipxe installation lacks test domain"
-	else
-	    testdomain=$disktestdomain
-	fi
-    fi
+    # Find out where we booted from. Everything else we need will be relative
+    # to that path.
+    boot_file=$(bootparams | awk -F= '/^boot-file/ {print $2}')
 
-    echo "... ... Testing domain $testdomain" >&4
+    # Walk back the path until we get the base. E.g., we're walking back this
+    # portion of the URL:
+    # <pi>/platform/i86pc/kernel/amd64/unix
+    # This should give us the directory the ipxe installer was unpacked into
+    # where we'll find the iso tar. curl will normalize this before sending
+    # the request.
+    boot_base="${boot_file}/../../../../../.."
 
-    if ! ping $testdomain; then
-	fatal "ipxe installation cannot grab images (testdomain = $testdomain)"
-    fi
-
-    isourl=$(bootparams | awk -F= '/^triton_isourl/ {print $2}')
+    isoname=$(bootparams | awk -F= '/^triton_isoname/ {print $2}')
+    # If triton_isoname was not passed in bootparams use the default short name.
+    isourl="${boot_base}/${isoname:=fulliso.tgz}"
     if [[ "$isourl" == "" ]]; then
 	if [[ "$diskisourl" == "" ]]; then
 	    fatal "ipxe installation lacks image name"
@@ -411,8 +407,10 @@ function try_network_pull_images
     # Use -k in gtar to preserve any usbkey state that might've happened to
     # get modified before completing the "usbkey" contents.
     curl -sk "$isourl" | gtar -k -xzf - -C /mnt/usbkey/.
-    if [[ $? -ne 0 ]]; then
-	fatal "curl of $isourl failed"
+    retval=$?
+    if (( retval != 0 )); then
+        # BASHSTYLED
+        fatal "curl of $isourl failed with code: $retval (see curl(1) for details)"
     fi
 }
 
