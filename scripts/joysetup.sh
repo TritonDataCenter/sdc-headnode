@@ -91,10 +91,10 @@ echo "" >&4
 #
 # Load command line arguments in the form key=value (eg. swap=4g)
 #
-for p in $*; do
+for p in "$@"; do
     k=$(echo "${p}" | cut -d'=' -f1)
     v=$(echo "${p}" | cut -d'=' -f2-)
-    export arg_${k}=${v}
+    export "arg_${k}=${v}"
 done
 
 # Mock CN is used for creating "fake" Compute Nodes in SDC for testing.
@@ -113,11 +113,12 @@ fi
 # PI. But such an older PI can presume grub: if we had a loader key, it should
 # have a PI new enough to have this file.
 #
+# shellcheck disable=SC1091
 . /lib/sdc/usb-key.sh 2>/dev/null || {
 
    function usb_key_set_console
    {
-       local readonly console=$1
+       local console=$1
 
        if [[ ! -f /mnt/usbkey/boot/grub/menu.lst.tmpl ]]; then
            fatal "No GRUB menu found."
@@ -158,7 +159,8 @@ fi
 }
 
 # Load CONFIG_* values
-. "${CONFIG_SH}"
+# shellcheck disable=SC1090
+. "${CONFIG_SH:?}"
 load_sdc_config
 
 ENCRYPTION=
@@ -194,7 +196,7 @@ function check_ntp
     fi
 
     if [[ -f ${TEMP_CONFIGS}/node.config ]]; then
-        servers=$(cat ${TEMP_CONFIGS}/node.config | grep "^ntp_hosts=" \
+        servers=$(grep "^ntp_hosts=" < "${TEMP_CONFIGS}/node.config" \
             | cut -d'=' -f2- | tr ',' ' ')
         # strip off quoting
         eval servers="$servers"
@@ -228,13 +230,14 @@ function check_ntp
 
     set +o errexit
     while true; do
-        output=$(ntpdate -b ${servers} 2>&1)
-        if [[ $? -eq 0 && -n ${output} ]]; then
+        output=$(ntpdate -b "${servers}" 2>&1)
+        retval=$?
+        if (( retval == 0 )) && [[ -n ${output} ]]; then
             break;
         fi
 
         # Got an undesireable output/code, run again with debug enabled.
-        ntpdate -d ${servers}
+        ntpdate -d "${servers}"
 
         sleep $ntp_wait_interval
         ntp_wait_seconds=$((ntp_wait_seconds + ntp_wait_interval))
@@ -246,7 +249,7 @@ function check_ntp
     set -o errexit
 
     # check absolute value of integer portion of offset is reasonable.
-    offset=$(ntpdate -q ${servers} | grep "offset .* sec" | \
+    offset=$(ntpdate -q "${servers}" | grep "offset .* sec" | \
         sed -e "s/^.*offset //" | cut -d' ' -f1 | tr -d '-' | cut -d'.' -f1)
 
     if [[ -z ${offset} ]]; then
@@ -319,10 +322,10 @@ function update_setup_state
     STATE=$1
 
     chmod 600 $SETUP_FILE
-    cat "$SETUP_FILE" | json -e \
+    json -e \
         "this.current_state = '$STATE';
          this.last_updated = new Date().toISOString();
-         this.seen_states.push('$STATE');" \
+         this.seen_states.push('$STATE');" < "$SETUP_FILE" \
         | tee ${SETUP_FILE}.new
     mv ${SETUP_FILE}.new $SETUP_FILE
     chmod 400 $SETUP_FILE
@@ -335,21 +338,22 @@ function check_disk_space
     local RAM_MiB
     RAM_MiB=$(sysinfo | json 'MiB of Memory')
     local space
-    space=$(json capacity < ${pool_json})
+    space=$(json capacity < "${pool_json}")
     local Disk_MiB
-    Disk_MiB=$(( $space / 1024 / 1024 ))
+    Disk_MiB=$(( space / 1024 / 1024 ))
     local msg
 
     msg='Cannot setup: system has %dG memory but %dG disk (>= %dG expected)'
 
-    Min_Disk_MiB=$(( $RAM_MiB * $MIN_DISK_TO_RAM ))
+    Min_Disk_MiB=$(( RAM_MiB * MIN_DISK_TO_RAM ))
 
-    if [[ ${Disk_MiB} -lt ${Min_Disk_MiB} ]]; then
+    if (( Disk_MiB < Min_Disk_MiB )); then
         local RAM_GiB Disk_GiB Min_Disk_GiB
-        RAM_GiB=$(( $RAM_MiB / 1024 ))
-        Disk_GiB=$(( $Disk_MiB / 1024 ))
-        Min_Disk_GiB=$(( $Min_Disk_MiB / 1024 ))
+        RAM_GiB=$(( RAM_MiB / 1024 ))
+        Disk_GiB=$(( Disk_MiB / 1024 ))
+        Min_Disk_GiB=$(( Min_Disk_MiB / 1024 ))
 
+        # shellcheck disable=SC2059
         msg=$(printf "${msg}" $RAM_GiB $Disk_GiB $Min_Disk_GiB)
         fatal "${msg}"
     fi
@@ -365,7 +369,7 @@ function check_disk_space
 #
 function swap_in_GiB
 {
-    swap=$(echo $1 | tr [:upper:] [:lower:])
+    swap=$(echo "$1" | tr "[:upper:]" "[:lower:]")
 
     # Find system RAM for multiple
     # RAM_MiB=${SYSINFO_MiB_of_Memory}
@@ -391,10 +395,10 @@ function swap_in_GiB
     esac
 
     if [[ -n ${result} ]]; then
-        if [[ ${result} -lt ${MIN_SWAP} ]]; then
-            echo ${MIN_SWAP}
+        if (( result < MIN_SWAP )); then
+            echo "${MIN_SWAP}"
         else
-            echo ${result}
+            echo "${result}"
         fi
     fi
 
@@ -458,23 +462,24 @@ function create_zpool
 
     if [[ -n ${MOCKCN} ]]; then
         # setup initial usage
-        json -e "this.usage = $(($RANDOM * $RANDOM))" \
-            < ${POOL_JSON} > ${POOL_JSON}.new \
-            && mv ${POOL_JSON}.new ${POOL_JSON}
+        json -e "this.usage = $(( RANDOM * RANDOM))" \
+            < "${POOL_JSON}" > "${POOL_JSON}.new" \
+            && mv "${POOL_JSON}.new" "${POOL_JSON}"
         echo "Not checking NTP in mock CN."
         return;
     fi
 
     [[ -n "$ENCRYPTION" ]] && e_flag="-e "
 
-    if ! /usr/sbin/zpool list -H -o name $SYS_ZPOOL; then
+    if ! /usr/sbin/zpool list -H -o name "$SYS_ZPOOL"; then
         printf "%-56s" "creating pool: $SYS_ZPOOL" >&4
         # First try making it with an EFI System Partition (ESP).
         # Use -f too because of the case where we WERE EFI-bootable, but
         # got destroyed.  There's a zpool(1M) bug here, I think.
-        if mkzpool -B -f ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
-            printf "\n%-56s          (as potentially bootable)" >&4
-        elif ! mkzpool ${e_flag} ${SYS_ZPOOL} ${POOL_JSON}; then
+        # shellcheck disable=SC2086
+        if mkzpool -B -f ${e_flag} "${SYS_ZPOOL}" "${POOL_JSON}"; then
+            printf "\n%-56s          (as potentially bootable)" "" >&4
+        elif ! mkzpool ${e_flag} "${SYS_ZPOOL}" "${POOL_JSON}"; then
             printf "%6s\n" "failed" >&4
             fatal "failed to create pool"
         fi
@@ -482,7 +487,7 @@ function create_zpool
 	# For a Triton head node's pool, we're not going to attempt trying to
 	# make it bootable unless it is EFI ready, because we can check
 	# the bootsize property.
-	if [[ $(/usr/sbin/zpool list -H -o bootsize ${SYS_ZPOOL}) != "-" ]];
+	if [[ $(/usr/sbin/zpool list -H -o bootsize "${SYS_ZPOOL}") != "-" ]];
 	then
 		bootable=yes
 	fi
@@ -501,14 +506,15 @@ function create_zpool
 	# 1.) Create $SYS_ZPOOL/boot/.
 
 	echo "... creating /${SYS_ZPOOL}/boot" >&4
-	/usr/sbin/zfs create -o encryption=off ${SYS_ZPOOL}/boot || \
+	/usr/sbin/zfs create -o encryption=off "${SYS_ZPOOL}/boot" || \
 		fatal "Cannot create bootable filesystem for ${SYS_ZPOOL}"
 
 	# 2.) Copy things over to /$SYS_ZPOOL/boot/.
 	echo "... populating /${SYS_ZPOOL}/boot from /mnt/usbkey" >&4
-	cd /${SYS_ZPOOL}/boot
-	/usr/bin/tar -cf - -C /mnt/usbkey . | /usr/bin/tar -xf -
-	[[ $? -eq 0 ]] || fatal "Cannot copy over usbkey contents"
+	cd "/${SYS_ZPOOL}/boot"
+	if ! /usr/bin/tar -cf - -C /mnt/usbkey . | /usr/bin/tar -xf - ; then
+		fatal "Cannot copy over usbkey contents"
+	fi
 
 	# 3.) unmount_usb_key() the USB key (which should nuke
 	# /etc/svc/volatile entry too).
@@ -517,7 +523,7 @@ function create_zpool
 
 	# 4.) mount /$SYS_ZPOOL/boot on /mnt/usbkey
 	echo "... remounting /mnt/usbkey lofs from /${SYS_ZPOOL}/boot" >&4
-	mount -F lofs /${SYS_ZPOOL}/boot /mnt/usbkey ||
+	mount -F lofs "/${SYS_ZPOOL}/boot" /mnt/usbkey ||
 		fatal "Cannot mount ${SYS_ZPOOL}/boot on /mnt/usbkey"
 
 	# 5.) See if we need to pull images/ (and more) on to the new
@@ -533,14 +539,14 @@ function create_zpool
 	# fstype entries
 	echo "... fixing /${SYS_ZPOOL}/boot/boot/loader.conf" >&4
 	tfile=$(TMPDIR=/etc/svc/volatile mktemp)
-	egrep -v '^triton_|^fstype' ./boot/loader.conf > $tfile
-	echo 'fstype="ufs"' >> $tfile
-	echo "triton_bootpool=\"${SYS_ZPOOL}\"" >> $tfile
-	/bin/mv -f $tfile ./boot/loader.conf
+	grep -v -E '^triton_|^fstype' ./boot/loader.conf > "$tfile"
+	echo 'fstype="ufs"' >> "$tfile"
+	echo "triton_bootpool=\"${SYS_ZPOOL}\"" >> "$tfile"
+	/bin/mv -f "$tfile" ./boot/loader.conf
 
 	# 6b.) Set bootfs.
 	echo "... setting bootfs for ${SYS_ZPOOL} to ${SYS_ZPOOL}/boot" >&4
-	/usr/sbin/zpool set "bootfs=${SYS_ZPOOL}/boot" ${SYS_ZPOOL} ||
+	/usr/sbin/zpool set "bootfs=${SYS_ZPOOL}/boot" "${SYS_ZPOOL}" ||
 		fatal "Cannot set bootfs on ${SYS_ZPOOL}"
 
 	# 6c.) installboot on all of the relevant disks.
@@ -559,14 +565,14 @@ function create_zpool
 			"/dev/rdsk/${a}s1" > /dev/null 2>&1 ; then
 			some=1
 		else
-			printf "installboot to disk ${a} failed\n" >&4
+			printf "installboot to disk %s failed\n" "$a" >&4
 		fi
 	done
 	[[ $some -eq 1 ]] || \
 		fatal "Could not installboot at all on pool ${SYS_ZPOOL}"
     fi
 
-    if ! zfs set atime=off ${SYS_ZPOOL}; then
+    if ! zfs set atime=off "${SYS_ZPOOL}"; then
         printf "%6s\n" "failed" >&4
         fatal "failed to set atime=off for pool ${SYS_ZPOOL}"
     fi
@@ -574,7 +580,7 @@ function create_zpool
     printf "%4s\n" "done" >&4
 
     if [[ $OS_TYPE == "SunOS" ]]; then
-        svccfg -s svc:/system/smartdc/init setprop config/zpool=${SYS_ZPOOL}
+        svccfg -s svc:/system/smartdc/init setprop "config/zpool=${SYS_ZPOOL}"
         svccfg -s svc:/system/smartdc/init:default refresh
     fi
 
@@ -588,7 +594,7 @@ function create_zpool
     # We don't support more than one storage pool on the system, but some
     # software expects this for futureproofing reasons.
     #
-    touch /${SYS_ZPOOL}/.system_pool
+    touch "/${SYS_ZPOOL}/.system_pool"
 }
 
 #
@@ -603,7 +609,7 @@ create_dump()
     RAM_MiB=$(sysinfo | json 'MiB of Memory')
 
     local dumpsize
-    dumpsize=$(( ${RAM_MiB} / 2 ))
+    dumpsize=$(( RAM_MiB / 2 ))
 
     local encr_opt
 
@@ -615,8 +621,9 @@ create_dump()
     [[ -n "$ENCRYPTION" ]] && encr_opt="-o encryption=off"
 
     # Create the dump zvol
+     # shellcheck disable=SC2086
     zfs create -V ${dumpsize}mb \
-        -o checksum=noparity ${encr_opt} ${SYS_ZPOOL}/dump || \
+        -o checksum=noparity ${encr_opt} "${SYS_ZPOOL}/dump" || \
         fatal "failed to create the dump zvol"
 }
 
@@ -636,62 +643,63 @@ setup_datasets()
         return;
     fi
 
-    if ! echo $datasets | grep dump > /dev/null; then
+    if ! echo "$datasets" | grep dump > /dev/null; then
         printf "%-56s" "adding volume: dump" >&4
         create_dump
         printf "%4s\n" "done" >&4
     fi
 
-    if ! echo $datasets | grep ${CONFDS} > /dev/null; then
+    if ! echo "$datasets" | grep "${CONFDS}" > /dev/null; then
         printf "%-56s" "adding volume: config" >&4
-        zfs create ${CONFDS} || fatal "failed to create the config dataset"
-        chmod 755 /${CONFDS}
+        zfs create "${CONFDS}" || fatal "failed to create the config dataset"
+        chmod 755 "/${CONFDS}"
         if [[ -d /etc/zones ]]; then
-            cp -p /etc/zones/* /${CONFDS}
+            cp -p /etc/zones/* "/${CONFDS}"
         fi
         if [[ $OS_TYPE == "SunOS" ]]; then
-            zfs set mountpoint=legacy ${CONFDS}
+            zfs set mountpoint=legacy "${CONFDS}"
         fi
         # Linux uses /zones/config/
         printf "%4s\n" "done" >&4
     fi
 
-    if ! echo $datasets | grep ${COREDS} > /dev/null; then
+    if ! echo "$datasets" | grep "${COREDS}" > /dev/null; then
         printf "%-56s" "adding volume: cores" >&4
-        zfs create -o compression=lz4 -o mountpoint=none ${COREDS} || \
+        zfs create -o compression=lz4 -o mountpoint=none "${COREDS}" || \
             fatal "failed to create the cores dataset"
-        zfs create -o quota=10g -o mountpoint=/${SYS_ZPOOL}/global/cores \
-            ${COREDS}/global || \
+        zfs create -o quota=10g -o mountpoint="/${SYS_ZPOOL}/global/cores" \
+            "${COREDS}/global" || \
             fatal "failed to create the global zone cores dataset"
         printf "%4s\n" "done" >&4
 
     fi
 
-    if ! echo $datasets | grep ${OPTDS} > /dev/null; then
+    if ! echo "$datasets" | grep "${OPTDS}" > /dev/null; then
         printf "%-56s" "adding volume: opt" >&4
-        zfs create ${OPTDS} || fatal "failed to create the opt dataset"
+        zfs create "${OPTDS}" || fatal "failed to create the opt dataset"
         if [[ $OS_TYPE == "SunOS" ]]; then
-            zfs set mountpoint=legacy ${OPTDS}
+            zfs set mountpoint=legacy "${OPTDS}"
         elif [[ $OS_TYPE == "Linux" ]]; then
             # Linux mounts to /opt
-            zfs set mountpoint=/opt ${OPTDS}
+            zfs set mountpoint=/opt "${OPTDS}"
         fi
         printf "%4s\n" "done" >&4
     fi
 
-    if ! echo $datasets | grep ${VARDS} > /dev/null; then
+    if ! echo "$datasets" | grep "${VARDS}" > /dev/null; then
         printf "%-56s" "adding volume: var" >&4
-        zfs create ${VARDS} || fatal "failed to create the var dataset"
-        chmod 755 /${VARDS}
+        zfs create "${VARDS}" || fatal "failed to create the var dataset"
+        chmod 755 "/${VARDS}"
         cd /var
 
         # since we created /var, we setup so that we keep a copy of the joysetup
         # log as log messages written after this will otherwise not be logged
         # due to the cpio moving them to the new /var
         mkdir -p /var/log
+        # shellcheck disable=2064
         trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
 
-        if ( ! find . -print | TMPDIR=/tmp cpio -pdm /${VARDS} ); then
+        if ( ! find . -print | TMPDIR=/tmp cpio -pdm "/${VARDS}" ); then
             fatal "failed to initialize the var directory"
         fi
 
@@ -705,6 +713,7 @@ setup_datasets()
         # We must also do this before we set the mountpoint to legacy
         # which unmounts the dataset.
         if [[ -n "$keydir" ]]; then
+            # shellcheck disable=SC2174
             mkdir -m 700 -p "$keydir" || \
                 fatal "failed to create crashdump directory"
 
@@ -715,10 +724,16 @@ setup_datasets()
                 fatal "failed to set perms on dump keyfile"
         fi
 
-        zfs set mountpoint=legacy ${VARDS} || \
+        if [[ $OS_TYPE == "SunOS" ]]; then
+            zfs set mountpoint=legacy "${VARDS}" || \
             fatal "failed to set the mountpoint for ${VARDS}"
+        elif [[ $OS_TYPE == "Linux" ]]; then
+            # Linux mounts to /var
+            zfs set mountpoint=/var "${VARDS}" || \
+            fatal "failed to set the mountpoint for ${VARDS}"
+        fi
 
-        zfs set atime=on ${VARDS} || \
+        zfs set atime=on "${VARDS}" || \
             fatal "failed to set atime=on for ${VARDS}"
 
         printf "%4s\n" "done" >&4
@@ -734,16 +749,16 @@ create_swap()
 
     if [ -n "${arg_swap}" ]; then
         # From cmdline
-        swapsize=$(swap_in_GiB ${arg_swap})
+        swapsize=$(swap_in_GiB "${arg_swap}")
     elif [ -n "${CONFIG_swap}" ]; then
         # From config
-        swapsize=$(swap_in_GiB ${CONFIG_swap})
+        swapsize=$(swap_in_GiB "${CONFIG_swap}")
     else
         # Fallback
-        swapsize=$(swap_in_GiB ${DEFAULT_SWAP})
+        swapsize=$(swap_in_GiB "${DEFAULT_SWAP}")
     fi
 
-    if ! zfs list -H -o name ${SWAPVOL}; then
+    if ! zfs list -H -o name "${SWAPVOL}"; then
         printf "%-56s" "adding volume: swap" >&4
 
         #
@@ -759,10 +774,10 @@ create_swap()
         minsize=$(swap_in_GiB 1x)
 
         if [[ $minsize -gt $swapsize ]]; then
-            zfs create -V ${minsize}g ${SWAPVOL}
-            zfs set refreservation=${swapsize}g ${SWAPVOL}
+            zfs create -V "${minsize}g" "${SWAPVOL}"
+            zfs set refreservation="${swapsize}g" "${SWAPVOL}"
         else
-            zfs create -V ${swapsize}g ${SWAPVOL}
+            zfs create -V "${swapsize}g" "${SWAPVOL}"
         fi
 
         printf "%4s\n" "done" >&4
@@ -779,26 +794,26 @@ output_zpool_info()
         pool="zones"
         # XXX should generate one when we create the pool
         guid="14134180013048896962"
-        used="$(json usage < ${POOL_JSON})"
-        total="$(json capacity < ${POOL_JSON})"
-        available=$((${total} - ${used}))
+        used="$(json usage < "${POOL_JSON}")"
+        total="$(json capacity < "${POOL_JSON}")"
+        available=$(( total - used ))
         health="ONLINE"
         mountpoint="/zones"
         # BASHSTYLED
-        printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n" "${pool}" "${guid}" "${total}" "${available}" "${health}" "${mountpoint}"
         return;
     fi
 
     for pool in $(zpool list -H -o name); do
-        guid=$(zpool list -H -o guid ${pool})
-        used=$(zfs get -Hp -o value used ${pool})
-        available=$(zfs get -Hp -o value available ${pool})
-        health=$(zpool get health ${pool} | grep -v NAME | awk '{print $3}')
-        mountpoint=$(zfs get -Hp -o value mountpoint ${pool})
+        guid=$(zpool list -H -o guid "${pool}")
+        used=$(zfs get -Hp -o value used "${pool}")
+        available=$(zfs get -Hp -o value available "${pool}")
+        health=$(zpool get health "${pool}"| grep -v NAME | awk '{print $3}')
+        mountpoint=$(zfs get -Hp -o value mountpoint "${pool}")
 
-        total=$((${used} + ${available}))
+        total=$(( used + available))
         # BASHSTYLED
-        printf "${pool}\t${guid}\t${total}\t${available}\t${health}\t${mountpoint}\n"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n" "${pool}" "${guid}" "${total}" "${available}" "${health}" "${mountpoint}"
     done
 }
 
@@ -809,7 +824,7 @@ install_configs()
     SMARTDC_CONFIG="${BASEDIR}/config"
 
     # On standalone machines we don't get config in /var/tmp
-    if [[ -n $(get_bootparams | grep "^standalone=true") ]]; then
+    if get_bootparams | grep -q "^standalone=true" ; then
         return 0
     fi
 
@@ -820,13 +835,13 @@ install_configs()
         fi
 
         if [[ -n ${MOCKCN} ]]; then
-            mv $TEMP_CONFIGS /mockcn/${MOCKCN_SERVER_UUID}/config
+            mv $TEMP_CONFIGS "/mockcn/${MOCKCN_SERVER_UUID}/config"
             printf "%4s\n" "done" >&4
             return
         fi
 
         # mount /opt before doing this or changes are not going to be persistent
-        mount -F zfs ${OPTDS} /opt || echo "/opt already mounted"
+        mount -F zfs "${OPTDS}" /opt || echo "/opt already mounted"
 
         mkdir -p "${BASEDIR}"
 
@@ -901,7 +916,7 @@ setup_imgadm()
         > "${IMGADM_CONF}.new"
     mv "${IMGADM_CONF}.new" "${IMGADM_CONF}"
     if [[ -z "$(json -f ${IMGADM_CONF} sources)" ]]; then
-        imgadm sources -f -a http://$CONFIG_imgapi_domain
+        imgadm sources -f -a "http://${CONFIG_imgapi_domain:?}"
         imgadm sources -f -d https://images.joyent.com  # remove the default
     fi
 }
@@ -938,18 +953,18 @@ if [[ "$(zpool list)" == "no pools available" ]] \
 
     # The older config parameters lacked a 'disk_' prefix, but for the sake
     # sanity, we won't squat on CONFIG_exclude.
-    [[ "${CONFIG_cache}" == "false" ]] && dlargs+=("-c")
+    [[ "${CONFIG_cache:-}" == "false" ]] && dlargs+=("-c")
     [[ -n "${CONFIG_spares}" ]] && dlargs+=("-s ${CONFIG_spares}")
     [[ -n "${CONFIG_width}" ]] && dlargs+=("-w ${CONFIG_width}")
     [[ -n "${CONFIG_disk_exclude}" ]] && dlargs+=("-e ${CONFIG_disk_exclude}")
     [[ -n "${CONFIG_layout}" ]] && dlargs+=("${CONFIG_layout}")
 
-    if ! disklayout ${dlargs[@]} >${POOL_FILE}; then
+    if ! disklayout "${dlargs[@]}" > "${POOL_FILE}"; then
         fatal "disk layout failed"
     fi
 
-    check_disk_space ${POOL_FILE}
-    create_zpool zones ${POOL_FILE}
+    check_disk_space "${POOL_FILE}"
+    create_zpool zones "${POOL_FILE}"
 
     if is_headnode; then
         headnode_boot_setup
@@ -1008,7 +1023,7 @@ if [[ "$(zpool list)" == "no pools available" ]] \
     svcadm disable -s svc:/network/routing-setup:default
     svcadm enable -s svc:/network/routing-setup:default
 
-    echo $(cat /etc/resolv.conf)
+    cat /etc/resolv.conf
 
 else
     output_zpool_info
