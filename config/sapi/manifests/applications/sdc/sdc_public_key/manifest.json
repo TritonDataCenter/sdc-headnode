@@ -1,5 +1,6 @@
 {
     "name": "sdc_public_key",
     "path": "/root/.ssh/sdc.id_rsa.pub",
-    "post_cmd": "touch /root/.ssh/authorized_keys; sed -i '.bak' -e '/ sdc key$/d' /root/.ssh/authorized_keys; echo '' >>/root/.ssh/authorized_keys; cat /root/.ssh/sdc.id_rsa.pub >>/root/.ssh/authorized_keys"
+    "post_cmd": "touch /root/.ssh/authorized_keys; sed -i '.bak' -e '/ sdc key$/d' /root/.ssh/authorized_keys; echo '' >>/root/.ssh/authorized_keys; cat /root/.ssh/sdc.id_rsa.pub >>/root/.ssh/authorized_keys",
+    "post_cmd_linux": "touch /root/.ssh/authorized_keys; sed -i '.bak' -e '/ sdc key$/d' /root/.ssh/authorized_keys; echo '' >>/root/.ssh/authorized_keys; cat /root/.ssh/sdc.id_rsa.pub >>/root/.ssh/authorized_keys"
 }
