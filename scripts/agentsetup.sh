@@ -123,6 +123,42 @@ setup_agents()
     if [[ $OS_TYPE == "Linux" ]]; then
         logfile="/var/log/triton-agent-install.log"
         /usr/triton/bin/install-default-agents &> "${logfile}"
+
+        # Why are we sleeping? It's pretty much a hack. net-agent needs to
+        # start up and push all the nics to NAPI. Without this, linux server
+        # set up blows by so fast the reboot happens in mere seconds and reboots
+        # before net-agent has a chance to get going. This results in the nics
+        # not being owned in NAPI, which causes booter to give the newly setup
+        # CN the default PI, which may not be Linux. You end up with a server
+        # running SmartOS and showing up unsetup because it can't read the
+        # zpool.
+        # This is totally a race, and we're just going to sleep a bit to give
+        # net-agent the chance it needs to win that race. Various testing shows
+        # net-agent takes about 10s from start up to pushing the nics. So we'll
+        # give it 30s.
+        # SmartOS server setup takes longer what with touching the setup file
+        # and restarting ur and such. I definitely believe that this race
+        # condition also exists for SmartOS, but server setup just takes more
+        # time after agents run so that we've never actually run into it.
+        # But thus far, before adding Linux, CNs are almost always set up
+        # without reassigning to a different PI. The effect is that it boots
+        # the default PI, server setup completes, and if net-agent isn't done
+        # it'll reboot the default PI again anyway, but it's *not* running a
+        # different OS, and it *can* read the zpool. So net-agent just starts
+        # up and the nics get adopted anyway. Worst case scenario, in a SmartOS
+        # only world, if you actually did assign a non-default PI and reboot
+        # before server setup you'll just be running the wrong PI at the end.
+        # This problem is *invisible* if you're running SmartOS only, and it
+        # may very well show up in reverse if your default PI is Linux and you
+        # want the occasional SmartOS CN.
+        # The *right* thing to do would be to have a workflow step that polls
+        # NAPI for nics owned by the server UUID, but napiUrl isn't currently
+        # passed into the workflow job like cnapiUrl and assetUrl are, and
+        # updating that is not trivial. Hopefully this can be addressed in the
+        # near future and this hack removed to resolve this issue once and for
+        # all. Until then, enjoy your nap.
+        # Please don't let this comment still be here in 10 years.
+        sleep 30
         return
     fi
 
