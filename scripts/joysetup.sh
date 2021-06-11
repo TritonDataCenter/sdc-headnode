@@ -177,7 +177,7 @@ function ceil
 {
     # We use awk '%.f' to convert the floating point to integer, the addition
     # of 0.49999 is used to round up numbers less that 0.5.
-    awk 'BEGIN{printf("%.f\n", $1 + 0.49999999)}'
+    awk "BEGIN{printf(\"%.f\n\", $1 + 0.4999999)}"
 }
 
 function check_ntp
