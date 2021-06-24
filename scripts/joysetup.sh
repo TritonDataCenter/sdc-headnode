@@ -479,7 +479,7 @@ function create_zpool
         # shellcheck disable=SC2086
         if mkzpool -B -f ${e_flag} "${SYS_ZPOOL}" "${POOL_JSON}"; then
             printf "\n%-56s          (as potentially bootable)" "" >&4
-        elif ! mkzpool ${e_flag} "${SYS_ZPOOL}" "${POOL_JSON}"; then
+        elif ! mkzpool -f ${e_flag} "${SYS_ZPOOL}" "${POOL_JSON}"; then
             printf "%6s\n" "failed" >&4
             fatal "failed to create pool"
         fi
