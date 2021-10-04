@@ -700,7 +700,8 @@ setup_datasets()
         # shellcheck disable=2064
         trap "cp /tmp/joysetup.$$ /var/log/joysetup.log" EXIT
 
-        if ( ! find . -print | TMPDIR=/tmp cpio -pdm "/${VARDS}" ); then
+        if ( ! find . -not -path '*/lib/lxcfs*' -print | \
+            TMPDIR=/tmp cpio -pdm "/${VARDS}" ); then
             fatal "failed to initialize the var directory"
         fi
 
