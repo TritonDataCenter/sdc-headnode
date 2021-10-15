@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 # This script converts a UFDS primary HN into a replica.
@@ -270,7 +270,8 @@ cat <<DONE >/tmp/fixufds
 }
 DONE
 sdc_uuid=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
-sdc-sapi "/applications/$sdc_uuid" -X PUT -d@/tmp/fixufds >/var/tmp/sapi.out 2>&1
+sdc-sapi "/applications/$sdc_uuid" -X PUT -d@/tmp/fixufds \
+    >/var/tmp/sapi.out 2>&1
 
 # Wait for SAPI to setup the replicator config
 loops=0
@@ -304,7 +305,8 @@ echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
     "-w ${REMOTE_ROOT_PW} -b cn=changelogcount" \
     "'(&(objetclass=*))'" >> "/zones/$ufds_uuid/root/tmp/cnt"
 
-totcl=$(zlogin "$ufds_uuid" bash /tmp/cnt | nawk '{if ($1 == "count:") print $2}')
+totcl=$(zlogin "$ufds_uuid" bash /tmp/cnt | \
+    nawk '{if ($1 == "count:") print $2}')
 
 echo "There are $totcl changelog entries to be replicated"
 
