@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 # This script converts a UFDS primary HN into a replica.
@@ -16,7 +16,7 @@ export PATH="/usr/bin:/usr/sbin:/opt/smartdc/bin"
 # Tests whether entire string is a number.
 isdigit ()
 {
-    [ $# -eq 1 ] || return 1
+    (($# == 1)) || return 1
 
     case $1 in
     *[!0-9]*|"") return 1;;
@@ -31,7 +31,7 @@ is_net()
 
     OLDIFS=$IFS
     IFS=.
-    set -- $NET
+    set -- "$NET"
     a=$1
     b=$2
     c=$3
@@ -43,18 +43,18 @@ is_net()
     isdigit "$c" || return 1
     isdigit "$d" || return 1
 
-    [ -z $a ] && return 1
-    [ -z $b ] && return 1
-    [ -z $c ] && return 1
-    [ -z $d ] && return 1
+    [[ -z "$a" ]] && return 1
+    [[ -z "$b" ]] && return 1
+    [[ -z "$c" ]] && return 1
+    [[ -z "$d" ]] && return 1
 
-    [ $a -lt 0 ] && return 1
-    [ $a -gt 255 ] && return 1
-    [ $b -lt 0 ] && return 1
-    [ $b -gt 255 ] && return 1
-    [ $c -lt 0 ] && return 1
-    [ $c -gt 255 ] && return 1
-    [ $d -lt 0 ] && return 1
+    (( a < 0 )) && return 1
+    (( a > 255 )) && return 1
+    (( b < 0 )) && return 1
+    (( b > 255 )) && return 1
+    (( c < 0 )) && return 1
+    (( c > 255 )) && return 1
+    (( d < 0 )) && return 1
     return 0
 }
 
@@ -64,14 +64,14 @@ promptnet()
     MASTER_UFDS_IP=""
     local prompt_str
 
-    while [ -z "$MASTER_UFDS_IP" ]; do
+    while [[ -z "$MASTER_UFDS_IP" ]]; do
         prmpt_str="$1: "
-        printf "$prmpt_str"
-        read MASTER_UFDS_IP
+        printf '%s' "$prmpt_str"
+        read -r MASTER_UFDS_IP
         if [[ -n "${MASTER_UFDS_IP}" ]]; then
             is_net "$MASTER_UFDS_IP" || MASTER_UFDS_IP=""
         fi
-        [ -n "$MASTER_UFDS_IP" ] && break
+        [[ -n "$MASTER_UFDS_IP" ]] && break
         echo "A valid network number (n.n.n.n) must be provided."
     done
 }
@@ -81,7 +81,7 @@ promptpw()
     REMOTE_ROOT_PW=""
     local prompt_str
 
-    while [ -z "$REMOTE_ROOT_PW" ]; do
+    while [[ -z "$REMOTE_ROOT_PW" ]]; do
         prompt_str="$1: "
 	echo -ne "$prompt_str"
         IFS='' read -r -s REMOTE_ROOT_PW
@@ -93,7 +93,7 @@ get_replicator_status()
 {
     local log=/var/svc/log/smartdc-application-ufds-replicator:default.log
 
-    changelog_num=`nawk '{
+    changelog_num=$(nawk '{
             pos = index($0, "Updated changenumber to")
             if (pos == 0)
                 next
@@ -101,41 +101,45 @@ get_replicator_status()
             pos = index(s, "\"") - 1
             n = substr(s, 1, pos)
         }
-        END {print n}' /zones/$1/root/$log`
+        END {print n}' "/zones/$1/root/$log")
 }
 
 # ufds-m2s only runs on headnodes.
-[[ `sysinfo | json '["Boot Parameters"].headnode'` != "true" ]] && exit 0
+[[ $(sysinfo | json '["Boot Parameters"].headnode') != "true" ]] && exit 0
 
+# shellcheck disable=SC1091
 source /lib/sdc/config.sh
 load_sdc_config
 
 # check if already a replica
+# shellcheck disable=SC2154
 if [[ $CONFIG_ufds_is_master != "true" ]]; then
     echo "Error: already converted"
     exit 1
 fi
 
+# shellcheck disable=SC2154
 if [[ -z "$CONFIG_region_name" ]]; then
     echo "Error: config doesn't have region_name"
     exit 1
 fi
 
+# shellcheck disable=SC2154
 if [[ -n "$CONFIG_ufds_remote_ip" ]]; then
     echo "Error: already converted"
     exit 1
 fi
 
-ufds_uuid=`vmadm lookup -1 tags.smartdc_role=ufds`
+ufds_uuid=$(vmadm lookup -1 tags.smartdc_role=ufds)
 if [[ -z "$ufds_uuid" ]]; then
     echo "Error: UFDS zone not found"
     exit 1
 fi
 
 # check if ufds zone has external nic
-has_ext=`vmadm get $ufds_uuid | grep nic_tag | grep external`
+has_ext=$(vmadm get "$ufds_uuid" | grep nic_tag | grep -E '(in|ex)ternal')
 if [[ -z "$has_ext" ]]; then
-    echo "Error: UFDS zone has not been setup with an external NIC"
+    echo "Error: UFDS zone has not been setup with suitable NIC"
     exit 1
 fi
 
@@ -147,7 +151,7 @@ echo
 echo "Ensure that the SAPI zone is up-to-date before proceeding."
 echo "---------------------------------------------------------------"
 echo -n "Enter 'y' to continue: "
-read val
+read -r val
 [[ "$val" != "y" ]] && exit 0
 
 # read ufds primary IP
@@ -157,9 +161,10 @@ pw_prompt_str+="\nin /usbkey/config in the primary datacenter's headnode)"
 promptpw "$pw_prompt_str"
 
 # check connectivity to ufds primary
-zlogin $ufds_uuid LDAPTLS_REQCERT=allow /opt/local/bin/ldapsearch \
-    -H ldaps://$MASTER_UFDS_IP -x -b '' 'objectclass=*' >/dev/null 2>&1
-if [ $? != 0 ]; then
+zlogin "$ufds_uuid" LDAPTLS_REQCERT=allow /opt/local/bin/ldapsearch \
+    -H "ldaps://$MASTER_UFDS_IP" -x -b '' 'objectclass=*' >/dev/null 2>&1
+concheck_rval="$?"
+if (( concheck_rval != 0 )); then
     echo "Error: local UFDS zone does not have connectivity to the primary"
     exit 1
 fi
@@ -174,7 +179,7 @@ echo "Deleting local UFDS data"
 sdc-ldap delete "cn=readers, ou=groups, o=smartdc"
 sdc-ldap delete "cn=operators, ou=groups, o=smartdc"
 
-for i in `sdc-ldap search objectclass=keyapiprivkey dn | nawk '{print $2}'`
+for i in $(sdc-ldap search objectclass=keyapiprivkey dn | nawk '{print $2}')
 do
     sdc-ldap delete "$i ou=keyapiprivkeys, o=smartdc"
 done
@@ -182,6 +187,7 @@ done
 # We need to remove the admin entry and any of the sdcKeys associated to it.
 # Also, since we cannot remove an entry with children, we're going to backup
 # those child entries into an ldif file
+# shellcheck disable=SC2154
 sdc-ldap search -b "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc" \
     objectclass=* > /var/tmp/backup.ldif
 
@@ -237,19 +243,21 @@ sdc-ldap delete "uuid=${CONFIG_ufds_admin_uuid}, ou=users, o=smartdc"
 
 # Remove any of the region information from the new replica since that will get
 # replicated from the primary.
-zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-find-dns \
-    \"region=${CONFIG_region_name}, o=smartdc\"" | while read l; do
+zlogin "$ufds_uuid" "/opt/smartdc/ufds/bin/ufds-find-dns \
+    \"region=${CONFIG_region_name}, o=smartdc\"" | while read -r l; do
     sdc-ldap delete "${l}"
 done
 
-sdc-ldap delete "region=${CONFIG_region_name}, o=smartdc"
+# This may generate a spurious error, because it may have already been deleted
+# in the previous step.
+sdc-ldap delete "region=${CONFIG_region_name}, o=smartdc" 2>/dev/null
 
 # Finally, remove the local version.  The primary's version is what counts.
 sdc-ldap delete "cn=version, o=smartdc"
 
 echo "Setting up UFDS replicator"
-jpath=/zones/$ufds_uuid/root/opt/smartdc/ufds/etc/replicator.json
-rm -f $jpath
+jpath="/zones/$ufds_uuid/root/opt/smartdc/ufds/etc/replicator.json"
+rm -f "$jpath"
 
 # fix ufds sapi config
 cat <<DONE >/tmp/fixufds
@@ -262,18 +270,19 @@ cat <<DONE >/tmp/fixufds
 }
 DONE
 sdc_uuid=$(sdc-sapi /applications?name=sdc | json -Ha uuid)
-sdc-sapi /applications/$sdc_uuid -X PUT -d@/tmp/fixufds >/var/tmp/sapi.out 2>&1
+sdc-sapi "/applications/$sdc_uuid" -X PUT -d@/tmp/fixufds \
+    >/var/tmp/sapi.out 2>&1
 
 # Wait for SAPI to setup the replicator config
 loops=0
-while [ $loops -lt 36 ]; do
-    [ -f $jpath ] && break
+while (( loops < 36 )); do
+    [[ -f "$jpath" ]] && break
     echo "Waiting for SAPI to update the replicator configuration..."
     sleep 5
-    loops=$((${loops} + 1))
+    loops=$((loops + 1))
 done
 
-if [ $loops -eq 36 ]; then
+if ((loops == 36)); then
     echo "Fatal error:"
     echo "Timeout waiting for SAPI to setup the replicator configuration"
     exit 1
@@ -281,21 +290,23 @@ fi
 
 # Configure and deploy the ufds-replicator service.
 zpath=/zones/$ufds_uuid/root/opt/smartdc/ufds
-cp $zpath/smf/manifests/ufds-replicator.xml.in \
-    $zpath/smf/manifests/ufds-replicator.xml
-zlogin $ufds_uuid svccfg import \
+cp "$zpath/smf/manifests/ufds-replicator.xml.in" \
+    "$zpath/smf/manifests/ufds-replicator.xml"
+zlogin "$ufds_uuid" svccfg import \
     /opt/smartdc/ufds/smf/manifests/ufds-replicator.xml
 
 # determine approx. how many changelog entries we need to replicate
 # BASHSTYLED
 echo "PATH=/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin:/opt/smartdc/ufds/build/node/bin:/opt/smartdc/ufds/node_modules/.bin" \
-    >/zones/$ufds_uuid/root/tmp/cnt
+    > "/zones/$ufds_uuid/root/tmp/cnt"
+# shellcheck disable=SC2154
 echo "LDAPTLS_REQCERT=allow ldapsearch -x -LLL" \
     "-H ldaps://$MASTER_UFDS_IP -D $CONFIG_ufds_ldap_root_dn" \
-    "-w $CONFIG_ufds_ldap_root_pw -b cn=changelogcount" \
-    "'(&(objetclass=*))'" >>/zones/$ufds_uuid/root/tmp/cnt
+    "-w ${REMOTE_ROOT_PW} -b cn=changelogcount" \
+    "'(&(objetclass=*))'" >> "/zones/$ufds_uuid/root/tmp/cnt"
 
-totcl=`zlogin $ufds_uuid bash /tmp/cnt | nawk '{if ($1 == "count:") print $2}'`
+totcl=$(zlogin "$ufds_uuid" bash /tmp/cnt | \
+    nawk '{if ($1 == "count:") print $2}')
 
 echo "There are $totcl changelog entries to be replicated"
 
@@ -304,19 +315,20 @@ echo "There are $totcl changelog entries to be replicated"
 # We have to wait until the admin user has replicated over
 loops=0
 nadmin=0
-while [ $loops -lt 90 ]; do
-    nadmin=`sdc-ldap search uuid=$CONFIG_ufds_admin_uuid dn 2>/dev/null | wc -l`
-    [ $nadmin -ne 0 ] && break
+while ((loops < 90)); do
+    nadmin=$(sdc-ldap search uuid="$CONFIG_ufds_admin_uuid" dn 2>/dev/null | \
+        wc -l)
+    (( nadmin != 0 )) && break
     changelog_num=""
-    get_replicator_status $ufds_uuid
+    get_replicator_status "$ufds_uuid"
     [[ -z "$changelog_num" ]] && changelog_num=0
-    pct=$((($changelog_num * 100) / $totcl))
+    pct=$(((changelog_num * 100) / totcl))
     echo "Waiting for the admin user to be replicated ($pct%)..."
     sleep 60
-    loops=$((${loops} + 1))
+    loops=$((loops + 1))
 done
 
-[ $loops -eq 90 ] && \
+((loops == 90)) && \
     echo "admin user is still not replicated, continuing but" \
         "errors are likely"
 
@@ -329,29 +341,28 @@ sdc-ldap add -f /var/tmp/restore.ldif
 # We have to wait until the region data is migrated over
 loops=0
 nregion=0
-while [ $loops -lt 90 ]; do
-    nregion=`sdc-ldap search -b "o=smartdc" "objectclass=region" dn \
-        2>/dev/null | wc -l`
-    [ $nregion -ne 0 ] && break
-    get_replicator_status $ufds_uuid
+while ((loops < 90)); do
+    nregion=$(sdc-ldap search -b "o=smartdc" "objectclass=region" dn \
+        2>/dev/null | wc -l)
+    (( nregion != 0 )) && break
+    get_replicator_status "$ufds_uuid"
     [[ -z "$changelog_num" ]] && changelog_num=0
-    pct=$((($changelog_num * 100) / $totcl))
+    pct=$(((changelog_num * 100) / totcl))
     echo "Waiting for the region entries to be replicated ($pct%)..."
     sleep 60
-    loops=$((${loops} + 1))
+    loops=$((loops + 1))
 done
 
 [ $loops -eq 90 ] && \
     echo "region is still not replicated, continuing but" \
         "errors are likely"
 
-zlogin $ufds_uuid "/opt/smartdc/ufds/bin/ufds-reconcile-data"
+zlogin "$ufds_uuid" "/opt/smartdc/ufds/bin/ufds-reconcile-data"
 
 echo "Updating config files"
 
 # fix usbkey config
-/opt/smartdc/bin/sdc-usbkey mount >/dev/null
-if [ $? != 0 ]; then
+if ! /opt/smartdc/bin/sdc-usbkey mount >/dev/null; then
     echo "Error: unable to mount the USB stick"
     exit 1
 fi
