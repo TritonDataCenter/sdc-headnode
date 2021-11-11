@@ -205,7 +205,7 @@ function create_output
     echo "done."
 
     echo -n "==> Setting Guest OS to \"Other 64-bit\"..."
-    sed -e 's/^guestOS.*/guestOS = "other-64"' \
+    sed -e 's/^guestOS.*/guestOS = "other-64"/' \
         "${vmxfile}" > "${vmxfile}.new"
     mv "${vmxfile}.new" "${vmxfile}"
     echo "done."
