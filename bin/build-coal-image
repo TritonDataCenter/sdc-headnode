@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 ROOT=$(cd $(dirname $0)/../; pwd)
@@ -198,6 +198,12 @@ function create_output
     rm -rf $STAGE/USB-headnode.vmwarevm
     (cd $STAGE && ${TAR} -jxvf ${vmwarevm_tarball}) \
         || fatal "Unable to unpack image"
+    echo "done."
+
+    echo -n "==> Setting Guest OS to \"Other 64-bit\"..."
+    sed -e 's/^guestOS.*/guestOS = "other-64"' \
+        "${vmxfile}" > "${vmxfile}.new"
+    mv "${vmxfile}.new" "${vmxfile}"
     echo "done."
 
     coal_numvcpus=$(build_spec coal-numvcpus)
