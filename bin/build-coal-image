@@ -6,12 +6,14 @@
 #
 
 #
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
-ROOT=$(cd $(dirname $0)/../; pwd)
+ROOT=$(cd "$(dirname "$0")"/../; pwd)
 
+# shellcheck source=./buildtools/lib/error_handler.sh
 . "${ROOT}/buildtools/lib/error_handler.sh"
+# shellcheck source=./buildtools/lib/common.sh
 . "${ROOT}/buildtools/lib/common.sh"
 
 function usage {
@@ -37,7 +39,7 @@ while getopts 'cr' name; do
         REUSE_USB_BUILD=1
         echo "Re-using USB build rather than creating new copy. "
         ;;
-    \?)
+    *)
         usage 'unknown option'
         ;;
     esac
@@ -48,7 +50,7 @@ if [[ -z "$1" ]]; then
     usage 'must provide <usb_tarball> filename'
 fi
 
-TAR_BUILD_FILENAME=$(rel2abs $1)
+TAR_BUILD_FILENAME=$(rel2abs "$1")
 shift
 
 TAR_BUILD_IS_DIRECTORY=0
@@ -57,6 +59,7 @@ if [[ -d $TAR_BUILD_FILENAME ]]; then
 fi
 
 # Write output to log file.
+#shellcheck disable=SC2154
 THIS_TIMESTAMP=${TIMESTAMP}
 if [[ -z "$THIS_TIMESTAMP" ]]; then
     THIS_TIMESTAMP=$(date -u "+%Y%m%dT%H%M%SZ")
@@ -64,8 +67,9 @@ fi
 LOGDIR="${ROOT}/log"
 LOGFILE="${LOGDIR}/build.log.coal.${THIS_TIMESTAMP}"
 mkdir -p log
-exec > >(tee ${LOGFILE}) 2>&1
+exec > >(tee "${LOGFILE}") 2>&1
 
+# shellcheck source=./buildtools/lib/trace_logger.sh
 . "${ROOT}/buildtools/lib/trace_logger.sh"
 
 BUILD_TGZ=$(build_spec build-tgz)
@@ -79,8 +83,8 @@ MNT_DIR=$IMG_TMP_DIR/mnt
 
 STAGE=${ROOT}/cache/stage_coal
 
-mkdir -p $STAGE
-rm -rf $STAGE/*
+mkdir -p "$STAGE"
+rm -rf "${STAGE:?}"/*
 
 echo ">> Starting build at $(date)"
 
@@ -91,13 +95,13 @@ function unpack_image
     if [[ $TAR_BUILD_IS_DIRECTORY == 1 ]]; then
         if [[ $REUSE_USB_BUILD == 1 ]]; then
             rm -rf $IMG_TMP_DIR
-            mv $TAR_BUILD_FILENAME $IMG_TMP_DIR/
+            mv "$TAR_BUILD_FILENAME" $IMG_TMP_DIR/
         else
-            (cd $TAR_BUILD_FILENAME \
+            (cd "$TAR_BUILD_FILENAME" \
                 && tar -c . | tar -C $IMG_TMP_DIR/ -xovf - )
         fi
     else
-        (cd $IMG_TMP_DIR/ && ${TAR} -xzf $TAR_BUILD_FILENAME) || \
+        (cd $IMG_TMP_DIR/ && ${TAR} -xzf "$TAR_BUILD_FILENAME") || \
             fatal "Unable to unpack USB image"
     fi
 
@@ -156,19 +160,19 @@ function copy_to_mount
     THIS_VERSION=$(cat ${MNT_DIR}/version)
     THIS_BUILDSTAMP=$THIS_VERSION
     LIVEIMG_VERSION=$(ls -1 $MNT_DIR/os)
-    cp ${MNT_DIR}/private/root.password.$LIVEIMG_VERSION $STAGE
+    cp "${MNT_DIR}/private/root.password.$LIVEIMG_VERSION" "$STAGE"
     # BASHSTYLED
-    cp ${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest $STAGE
+    cp "${MNT_DIR}/os/$LIVEIMG_VERSION/platform/i86pc/amd64/boot_archive.manifest" "$STAGE"
 
-    rm -f $STAGE/usb_key.manifest || true
-    cp $MNT_DIR/usb_key.manifest $STAGE
-    rm -f $STAGE/boot_archive.manifest || true
-    cp ${MNT_DIR}/boot_archive.manifest $STAGE
-    chmod 444 $STAGE/*.manifest
+    rm -f "$STAGE/usb_key.manifest" || true
+    cp "$MNT_DIR/usb_key.manifest" "$STAGE"
+    rm -f "$STAGE/boot_archive.manifest" || true
+    cp "${MNT_DIR}/boot_archive.manifest" "$STAGE"
+    chmod 444 "$STAGE"/*.manifest
 
     # Also copy in devtools
     echo "==> Copying in devtools"
-    cp -r $ROOT/devtools $MNT_DIR/devtools
+    cp -r "$ROOT/devtools" "$MNT_DIR/devtools"
 }
 
 function create_output
@@ -195,9 +199,15 @@ function create_output
     fi
 
     echo "==> Unpacking VMWare image... "
-    rm -rf $STAGE/USB-headnode.vmwarevm
-    (cd $STAGE && ${TAR} -jxvf ${vmwarevm_tarball}) \
+    rm -rf "$STAGE/USB-headnode.vmwarevm"
+    (cd "$STAGE" && ${TAR} -jxvf "${vmwarevm_tarball}") \
         || fatal "Unable to unpack image"
+    echo "done."
+
+    echo -n "==> Setting Guest OS to \"Other 64-bit\"..."
+    sed -e 's/^guestOS.*/guestOS = "other-64"/g' \
+        "${vmxfile}" > "${vmxfile}.new"
+    mv "${vmxfile}.new" "${vmxfile}"
     echo "done."
 
     coal_numvcpus=$(build_spec coal-numvcpus)
@@ -211,7 +221,7 @@ function create_output
 
     coal_memsize=$(build_spec coal-memsize)
     if [[ -n ${coal_memsize} ]]; then
-        if [[ ${coal_memsize} < 6144 ]]; then
+        if (( coal_memsize < 6144 )); then
             # BEGIN BASHSTYLED
             echo "* * *"
             echo "* Warning: Your COAL memory size (coal-memsize) is set to <6144 MiB."
@@ -267,7 +277,7 @@ function create_output
         vdiskmanager=$(which vmware-vdiskmanager || echo "/Applications/VMware Fusion.app/Contents/Library/vmware-vdiskmanager")
         if [[ -x "${vdiskmanager}" ]]; then
             "${vdiskmanager}" \
-                -x ${coal_zpool_disk_size}GB ${STAGE}/USB-headnode.vmwarevm/zpool.vmdk
+                -x "${coal_zpool_disk_size}GB" "${STAGE}/USB-headnode.vmwarevm/zpool.vmdk"
         else
             echo " !!! WARNING !!! Cannot resize zpool disk with missing vmware-vdiskmanager!" >&2
         fi
@@ -277,25 +287,23 @@ function create_output
     if [[ "$BUILD_TGZ" == "false" ]]; then
         echo "==> Creating coal-${THIS_BUILDSTAMP}/"
         [[ -d $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE} ]] \
-            && rm -rf $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
-        (cd $STAGE \
+            && rm -rf "$ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}"
+        (cd "$STAGE" \
             && mv USB-headnode.vmwarevm \
-            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm)
-        mv $STAGE $ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}
+            "coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm")
+        mv "$STAGE" "$ROOT/coal-${THIS_BUILDSTAMP}-${USB_SIZE}"
     else
         echo "==> Creating coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz"
-        (cd $STAGE \
+        (cd "$STAGE" \
             && mv USB-headnode.vmwarevm \
-            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm \
+            "coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm" \
             && ${TAR} ${TAR_COMPRESSION_ARG} \
-                -cf ${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz \
-            root.password.${LIVEIMG_VERSION} \
-            coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm *.manifest)
-        [[ $? -eq 0 ]] || fatal "Unable to create .tgz image."
+                -cf "${ROOT}/coal-${THIS_BUILDSTAMP}-${USB_SIZE}.tgz" \
+            "root.password.${LIVEIMG_VERSION}" \
+            "coal-${THIS_BUILDSTAMP}-${USB_SIZE}.vmwarevm" ./*.manifest)
+        r=$?
+        (( r == 0 )) || fatal "Unable to create .tgz image."
     fi
-
-    #XXX
-    #rm -rf $STAGE || true
 }
 
 function cleanup
@@ -307,7 +315,7 @@ function cleanup
     rm -f $IMG_TMP_DIR/${OUTPUT_IMG}
     rm -f $IMG_TMP_DIR/$PARTMAP
     rm -f ${IMG_TMP_DIR}/rootfs.img
-    rm -f ${IMG_TMP_DIR}/root.password.${LIVEIMG_VERSION}
+    rm -f ${IMG_TMP_DIR}/root.password."${LIVEIMG_VERSION}"
     rm -rf $IMG_TMP_DIR/*.manifest
     rm -rf $IMG_TMP_DIR/fs.*
     rm -rf $IMG_TMP_DIR/output.*
