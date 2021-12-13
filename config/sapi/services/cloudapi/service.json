@@ -14,7 +14,8 @@
             }
         ],
         "tags": {
-            "smartdc_role": "cloudapi"
+            "smartdc_role": "cloudapi",
+            "smartdc_type": "core"
         }
     },
     "metadata": {
