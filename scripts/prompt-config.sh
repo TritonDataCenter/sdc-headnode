@@ -885,7 +885,7 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2021 Joyent, Inc."
+printheader "Copyright 2022 Joyent, Inc."
 
 message="
 Before proceeding with the installation of Triton please familiarise yourself
