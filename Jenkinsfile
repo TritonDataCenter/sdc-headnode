@@ -18,11 +18,14 @@ pipeline {
     }
     agent none
 
-    // Build once per month, and start a few hours before
+    // Build master once per month, and start a few hours before
     // nightly reflashes tend to kick off, at 'H 2 14 * *',
     // so we get reasonably up to date headnode images to
     // test with.
     triggers {
+       when {
+          branch 'master'
+       }
        cron('H 2 14 * *')
     }
 
