@@ -22,9 +22,11 @@ pipeline {
     // nightly reflashes tend to kick off, at 'H 4 * * *',
     // so we get reasonably up to date headnode images to
     // test with.
-    triggers {
-        cron('H 2 * * *')
-    }
+    //
+    // STOPPING DAILY BUILDS FOR NOW, UNCOMMENT WHEN THEY SHOULD RESUME.
+    // triggers {
+    //    cron('H 2 * * *')
+    // }
 
     parameters {
         text(
