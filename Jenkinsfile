@@ -11,7 +11,7 @@
 @Library('jenkins-joylib@v1.0.8') _
 
 static String cron_string() {
-    return (BRANCH_NAME == 'master' ? 'H 2 * * *' : '')
+    return (${BRANCH_NAME} == 'master' ? 'H 2 * * *' : '')
 }
 
 pipeline {
