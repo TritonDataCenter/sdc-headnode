@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright 2021 Joyent, Inc.
+ * Copyright 2022 Joyent, Inc.
  */
 
 @Library('jenkins-joylib@v1.0.8') _
@@ -18,12 +18,13 @@ pipeline {
     }
     agent none
 
-    // Build once per day, and start a few hours before
-    // nightly reflashes tend to kick off, at 'H 4 * * *',
+    // Build the master branch once per day, and start a few hours before
+    // nightly reflashes tend to kick off, at 'H 2 * * *',
     // so we get reasonably up to date headnode images to
     // test with.
+
     triggers {
-        cron('H 2 * * *')
+        cron(env.BRANCH_NAME == 'master' ? 'H 2 * * *' : '')
     }
 
     parameters {
