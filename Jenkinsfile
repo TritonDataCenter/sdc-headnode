@@ -23,7 +23,9 @@ pipeline {
     // so we get reasonably up to date headnode images to
     // test with.
 
-    String cron_string = BRANCH_NAME == 'master' ? 'H 2 * * *' : ''
+    static String cron_string() {
+        return (BRANCH_NAME == 'master' ? 'H 2 * * *' : '')
+    }
 
     triggers {
        cron(cron_args)
