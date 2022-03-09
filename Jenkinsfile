@@ -10,8 +10,8 @@
 
 @Library('jenkins-joylib@v1.0.8') _
 
-static String cron_args() {
-    return (${BRANCH_NAME} == 'master' ? 'H 2 * * *' : '')
+static String cron_args(String branch) {
+    return (branch == 'master' ? 'H 2 * * *' : '')
 }
 
 pipeline {
@@ -28,7 +28,7 @@ pipeline {
     // test with.
 
     triggers {
-       cron(cron_args())
+       cron(cron_args(${BRANCH}))
     }
 
     parameters {
