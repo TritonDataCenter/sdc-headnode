@@ -10,6 +10,10 @@
 
 @Library('jenkins-joylib@v1.0.8') _
 
+static String cron_string() {
+    return (BRANCH_NAME == 'master' ? 'H 2 * * *' : '')
+}
+
 pipeline {
 
     options {
@@ -22,10 +26,6 @@ pipeline {
     // nightly reflashes tend to kick off, at 'H 2 * * *',
     // so we get reasonably up to date headnode images to
     // test with.
-
-    static String cron_string() {
-        return (BRANCH_NAME == 'master' ? 'H 2 * * *' : '')
-    }
 
     triggers {
        cron(cron_args)
