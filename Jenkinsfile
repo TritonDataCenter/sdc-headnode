@@ -28,7 +28,7 @@ pipeline {
     // test with.
 
     triggers {
-       cron(cron_args(${BRANCH}))
+       cron(cron_args(${BRANCH_NAME}))
     }
 
     parameters {
