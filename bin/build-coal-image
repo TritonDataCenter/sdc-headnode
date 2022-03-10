@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2021 Joyent, Inc.
+# Copyright 2022 Joyent, Inc.
 #
 
 ROOT=$(cd "$(dirname "$0")"/../; pwd)
@@ -73,7 +73,7 @@ exec > >(tee "${LOGFILE}") 2>&1
 . "${ROOT}/buildtools/lib/trace_logger.sh"
 
 BUILD_TGZ=$(build_spec build-tgz)
-USB_SIZE="4gb"
+USB_SIZE="8gb"
 USB_SKIP=7812500
 USB_PADDING=508
 PARTMAP="${USB_SIZE}.partition.map"

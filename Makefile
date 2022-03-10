@@ -6,7 +6,7 @@
 #
 
 #
-# Copyright 2021 Joyent, Inc.
+# Copyright 2022 Joyent, Inc.
 #
 
 PERCENT := %
@@ -526,7 +526,7 @@ release-json: build.spec.merged
 	    echo "{ \
 	        \"date\": \"$(TIMESTAMP)\", \
 	       \"branch\": \"$$BRANCH_STAMP\", \
-	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\", \
+	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8g.tgz\", \
 	       \"boot\": \"boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	       \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
@@ -538,7 +538,7 @@ release-json: build.spec.merged
 	        \"branch\": \"$$BRANCH_STAMP\", \
 	        \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
 	        \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
-	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4g.tgz\" \
+	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8g.tgz\" \
 	    }" | json > release.json; \
 	fi
 
@@ -565,8 +565,8 @@ publish: release-json
 	BRANCH_STAMP=$(BRANCH)$$UNIQUE_BRANCHES; \
 	BUILD_TGZ=$$(./bin/buildspec build-tgz); \
 	if [[ "$$BUILD_TGZ" == true ]]; then \
-	    mv coal-$(STAMP)-4gb.tgz \
-	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4gb.tgz && \
+	    mv coal-$(STAMP)-8gb.tgz \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8gb.tgz && \
 	    mv boot-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz && \
 	    mv usb-$(STAMP).tgz \
@@ -582,8 +582,8 @@ publish: release-json
 	    mv ipxe-$(STAMP).tgz \
 	        $(ENGBLD_BITS_DIR)/$(NAME)/ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz; \
 	    $(TAR) $(TAR_COMPRESSION_ARG) -cf \
-	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-4gb.tgz \
-	        coal-$(STAMP)-4gb.vmwarevm; \
+	        $(ENGBLD_BITS_DIR)/$(NAME)/coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8gb.tgz \
+	        coal-$(STAMP)-8gb.vmwarevm; \
 	fi && \
 	echo "$$PUB_STAMP" > \
 	    $(ENGBLD_BITS_DIR)/$(NAME)/latest-build-stamp
