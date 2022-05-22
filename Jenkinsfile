@@ -83,7 +83,7 @@ pipeline {
                 }
             }
             tools {
-                nodejs 'sdcnode-v6-zone'
+                nodejs 'sdcnode-v6-zone64'
             }
             steps{
                 sh('''
