@@ -7,6 +7,7 @@
 
 #
 # Copyright 2021 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 #
@@ -911,16 +912,25 @@ setup_imgadm()
     # imgadm setup to use the IMGAPI in this DC.
     if [[ ! -f "${IMGADM_CONF}" ]]; then
         mkdir -p "${IMGADM_DIR}"
-        echo '{}' > "${IMGADM_CONF}"
+        # This will regenerate the default config file.
+        imgadm list -H >/dev/null
     fi
     json -f "${IMGADM_CONF}" \
         -e "this.userAgentExtra = 'server/$(sysinfo | json UUID)'" \
         > "${IMGADM_CONF}.new"
     mv "${IMGADM_CONF}.new" "${IMGADM_CONF}"
-    if [[ -z "$(json -f ${IMGADM_CONF} sources)" ]]; then
-        imgadm sources -f -a "http://${CONFIG_imgapi_domain:?}"
-        imgadm sources -f -d https://images.joyent.com  # remove the default
-    fi
+    # Remove any pre-exisiting image servers. There *should* only be one, the
+    # default, since we're not set up. But depending on whether we're before or
+    # after TRITON-3204 we don't know which one. And since we're setting up
+    # for Triton, we don't want any other servers anyway. If operators want
+    # additional servers they need to be added post-setup. A newly set up CN
+    # is expected to be in a known good state, and that doesn't include unknown
+    # image servers, no matter how they got there.
+    for srv in $( imgadm sources ) ; do
+        imgadm sources -f -d "$srv"
+    done
+    # Now add the local DC
+    imgadm sources -f -a "http://${CONFIG_imgapi_domain:?}"
 }
 
 is_headnode()

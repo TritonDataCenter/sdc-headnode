@@ -7,6 +7,7 @@
 
 #
 # Copyright 2019 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 if [[ -n "$TRACE" ]]; then
@@ -457,7 +458,7 @@ function test_bzip2
 # Usage:
 #   test_compression FILE-PATH COMPRESSION-TYPE
 # where COMPRESSION-TYPE is one of 'bzip2', 'gzip', or none per
-# <https://images.joyent.com/docs/#manifest-files>.
+# <https://images.smartos.org/docs/#manifest-files>.
 #
 function test_compression
 {
