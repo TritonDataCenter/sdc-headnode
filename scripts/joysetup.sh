@@ -921,7 +921,7 @@ setup_imgadm()
     mv "${IMGADM_CONF}.new" "${IMGADM_CONF}"
     # Remove any pre-exisiting image servers. There *should* only be one, the
     # default, since we're not set up. But depending on whether we're before or
-    # after TRITON-3204 we don't know which one. And since we're setting up
+    # after TRITON-2304 we don't know which one. And since we're setting up
     # for Triton, we don't want any other servers anyway. If operators want
     # additional servers they need to be added post-setup. A newly set up CN
     # is expected to be in a known good state, and that doesn't include unknown
