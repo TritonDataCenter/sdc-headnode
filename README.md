@@ -1,13 +1,12 @@
 # sdc-headnode
 
-This repository is part of the Joyent Triton project. See the [contribution
-guidelines](https://github.com/joyent/triton/blob/master/CONTRIBUTING.md)
+This repository is part of the Triton Data Center project. See the [contribution
+guidelines](https://github.com/TritonDataCenter/triton/blob/master/CONTRIBUTING.md)
 and general documentation at the main
-[Triton project](https://github.com/joyent/triton) page.
+[Triton project](https://github.com/TritonDataCenter/triton) page.
 
 This is the repository for building headnode images for Triton, and the initial
 setup and configuration of the headnode itself.
-
 
 ## Quickstart (on OS X)
 
@@ -18,74 +17,80 @@ configured on VMware/other-virtualization for at least "admin" and
 
 To create a VM for local development work – commonly called 'coal' (Cloud On A Laptop) – follow these steps:
 
-  - **One time only**: install VMware Fusion, run it at least once to allow it
-    to establish its initial config, quit it and run the "CoaL VMware setup"
-    script from the triton.git repo:
+- **One time only**: install VMware Fusion, run it at least once to allow it
+  to establish its initial config, quit it and run the "CoaL VMware setup"
+  script from the triton.git repo:
 
-            git clone git@github.com:joyent/triton.git
-            cd triton
-            ./tools/coal-mac-vmware-setup
+    ```shell
+    git clone git@github.com:joyent/triton.git
+    cd triton
+    ./tools/coal-mac-vmware-setup
+    ```
 
-  - Optionally, to automate setup:
+- Optionally, to automate setup:
 
-    - `echo '{"answer-file": "answers.json.tmpl.external"}' >build.spec.local`
+  - `echo '{"answer-file": "answers.json.tmpl.external"}' >build.spec.local`
 
-    - see the [Build Specification][buildspec] and
-      [Automating Headnode Setup][autosetup] sections below for more information.
+  - see the [Build Specification][buildspec] and
+    [Automating Headnode Setup][autosetup] sections below for more information.
 
-  - `make coal` - this requires an Internet connection, and will download
-    images of all services. This can take quite some time. If this fails,
-    please see the 'Build Prerequisites' and/or 'Debugging' sections below.
+- `make coal` - this requires an Internet connection, and will download
+  images of all services. This can take quite some time. If this fails,
+  please see the 'Build Prerequisites' and/or 'Debugging' sections below.
 
-  - `open coal-master-TIMESTAMP-gSHA.vmwarevm`, let the boot time out, then work
-    through the interactive installer if you didn't provide an answer file,
-    referring to [this documentation][coal-setup.md]. **Important**: while many
-    answers are arbitrary, the networking questions require specific values
-    for local development.
+- `open coal-master-TIMESTAMP-gSHA.vmwarevm`, let the boot time out, then work
+  through the interactive installer if you didn't provide an answer file,
+  referring to [this documentation][coal-setup.md]. **Important**: while many
+  answers are arbitrary, the networking questions require specific values
+  for local development.
 
-  - note that the console defaults to `ttyb` a.k.a. `socket.serial1`. You can
-    use something like [sercons][https://github.com/jclulow/vmware-sercons] to
-    connect to this.
+- note that the console defaults to `ttyb` a.k.a. `socket.serial1`. You can
+  use something like [sercons][https://github.com/jclulow/vmware-sercons] to
+  connect to this.
 
-  - when setup completes, you can access the headnode via ssh: `ssh
-    root@10.99.99.7` using the root password specified during setup.
-
+- when setup completes, you can access the headnode via ssh: `ssh
+  root@10.99.99.7` using the root password specified during setup.
 
 ## Less-quick start
 
 There are four main build products from this repo:
 
-  - `make usb` - outputs a USB image tarball
-  - `make coal` - outputs a coal image for use with VMware
-  - `make iso` - Makes an ISO image for installation on a bootable `zones` pool
-  - `make ipxe` - Makes a tarball for iPXE installation on a bootable `zones` pool
+- `make usb` - outputs a USB image tarball
+- `make coal` - outputs a coal image for use with VMware
+- `make iso` - Makes an ISO image for installation on a bootable `zones` pool
+- `make ipxe` - Makes a tarball for iPXE installation on a bootable `zones` pool
 
 ### Build prerequisites
 
 On OS X (NOTE: OS X cannot make iso or ipxe):
 
-  - A recent version of node (>= 0.10.26, preferably latest).
-  - The [json](http://trentm.com/json/) CLI tool.
-  - the [XCode Command Line Tools](https://developer.apple.com/downloads/index.action) [Apple sign-in required]. Alternately, any setup of the GNU toolchain sufficient to build a moderately-complex project should also work.
+- A recent version of node (>= 0.10.26, preferably latest).
+- The [json](http://trentm.com/json/) CLI tool.
+- the [XCode Command Line Tools](https://developer.apple.com/downloads/index.action)
+  [Apple sign-in required]. Alternately, any setup of the GNU toolchain
+  sufficient to build a moderately-complex project should also work.
 
 On Linux (NOTE: Linux cannot make iso or ipxe):
-  - A recent version of node (>= 0.12, preferably latest).
-  - The [json](http://trentm.com/json/) CLI tool.
-  - The gcc/clang build toolchain (for building the native node modules)
+
+- A recent version of node (>= 0.12, preferably latest).
+- The [json](http://trentm.com/json/) CLI tool.
+- The gcc/clang build toolchain (for building the native node modules)
 
 On SmartOS:
 
 First you must create a suitable build zone:
-  - VMAPI or GZ vmadm access to set filesystem permissions on the build zone,
-    including the creation of lofi images.
-  - Provision a zone, nearly identical to one used to build SmartOS.  See
-    [here](https://github.com/joyent/smartos-live/#setting-up-a-build-environment)
-    for how to provision such a zone.
+
+- VMAPI or GZ vmadm access to set filesystem permissions on the build zone,
+  including the creation of lofi images.
+- Provision a zone, nearly identical to one used to build SmartOS.  See
+  [here](https://github.com/TritonDataCenter/smartos-live/#setting-up-a-build-environment)
+  for how to provision such a zone.
 
 Then to set up the zone:
-  - A recent version of node (>= 0.10.26, preferably latest).
-  - The [json](http://trentm.com/json/) CLI tool.
-  - The 'pigz' program available somewhere on $PATH
+
+- A recent version of node (>= 0.10.26, preferably latest).
+- The [json](http://trentm.com/json/) CLI tool.
+- The 'pigz' program available somewhere on $PATH
 
 ### Build Specification: `build.spec` and `build.spec.local`
 
@@ -99,7 +104,7 @@ the build specification may be overridden in another file: `build.spec.local`.
 By re-specifying a subset of build configuration in this file, the behaviour of
 a particular build run may be altered.  For example:
 
-```
+```json
 {
     "answer-file": "answers.json.tmpl.external",
     "build-tgz": "false",
@@ -113,20 +118,20 @@ a particular build run may be altered.  For example:
 
 In the example above,
 
-  - `"answer-file"` is used to specify a setup answers file for inclusion in
-    resultant installation media; `answers.json.tmpl.external` is suitable for
-    a standard COAL setup
-  - `"build-tgz"` is used to disable the creation of a compressed tarball with
-    the build results; instead, the resultant build artefacts will be left in
-    output directories. This can be very useful when rsync'ing a COAL build
-  - `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
-    (recommended if you plan to install a [Manta][manta] test environment.)
-  - `"vmware_version"` specifies the version of VMware Fusion to target.
-    See <https://kb.vmware.com/s/article/1003746> for mapping of Virtual
-    Hardware Version to VMware releases. Note that `vmware_version=7`,
-    corresponding to hardware version 11, is required for Bhyve VMs to work.
-  - COAL defaults to USB boot; `"ipxe"` modifies this default
-  - COAL defaults to serial console, using `ttyb`. Use `text` for VGA console
+- `"answer-file"` is used to specify a setup answers file for inclusion in
+  resultant installation media; `answers.json.tmpl.external` is suitable for
+  a standard COAL setup
+- `"build-tgz"` is used to disable the creation of a compressed tarball with
+  the build results; instead, the resultant build artefacts will be left in
+  output directories. This can be very useful when rsync'ing a COAL build
+- `"coal-memsize"` is used to set the VMware guest memory size to 8192MB
+  (recommended if you plan to install a [Manta][manta] test environment.)
+- `"vmware_version"` specifies the version of VMware Fusion to target.
+  See <https://kb.vmware.com/s/article/1003746> for mapping of Virtual
+  Hardware Version to VMware releases. Note that `vmware_version=7`,
+  corresponding to hardware version 11, is required for Bhyve VMs to work.
+- COAL defaults to USB boot; `"ipxe"` modifies this default
+- COAL defaults to serial console, using `ttyb`. Use `text` for VGA console
 
 #### Build Artefacts
 
@@ -144,7 +149,7 @@ The simplest possible example is a zone where the build artefact name is the
 same as the shipping filename, and the latest image is to be downloaded from
 Manta.  One such example is the `"adminui"` zone:
 
-```
+```json
 {
     ...
     "zones": {
@@ -160,7 +165,7 @@ installation media by another (shorter) name. The build name can be provided
 with the `"jobname"` key on a per-zone basis. For example, the `"manatee"` zone
 comes from the `"sdc-manatee"` build name:
 
-```
+```json
 {
     ...
     "zones": {
@@ -175,10 +180,10 @@ comes from the `"sdc-manatee"` build name:
 
 Though the default source of zone images is [Manta][manta], the source may be
 overridden on a per-build basis with the `"source"` key.  Zone images may be
-acquired from the IMGAPI service at _updates.joyent.com_ by providing an image
-UUID, e.g.
+acquired from the IMGAPI service at `updates.tritondatacenter.com` by providing
+an image UUID, e.g.
 
-```
+```json
 {
     ...
     "zones": {
@@ -200,7 +205,7 @@ If `"bits-dir"` is used, either through `"source"` for a specific zone or via
 the `"override-all-sources"` top-level key, the `SOURCE_BITS_DIR` environment
 variable must contain the path of a Triton release engineering bits directory.
 See the [Triton release engineering
-documentation](https://github.com/joyent/triton/blob/master/docs/developer-guide/release-engineering.md#bits-directory-structure)
+documentation](https://github.com/TritonDataCenter/triton/blob/master/docs/developer-guide/release-engineering.md#bits-directory-structure)
 for details.
 
 The above definitions will cause the download phase of the build to
@@ -217,7 +222,6 @@ i.e.
 - `zone.manatee.imgmanifest`
 - `zone.manatee.imgfile`
 
-
 In addition, any origin images of the zone image will also be downloaded and
 placed in the `cache/` directory, e.g.:
 
@@ -232,7 +236,6 @@ Likewise, a symbolic link will be created to the download origin image files:
 These symlinks are used by subsequent build phases to locate the downloaded
 build artefact.
 
-
 ##### Files
 
 In addition to zone images and the base images on which they depend, the build
@@ -245,7 +248,7 @@ Triton Agents are bundled together in a shell archive (shar) installer.  This
 installer is produced as part of the `agentsshar` build.  The shar itself
 is specified for inclusion with this entry:
 
-```
+```json
 {
     ...
     "files": {
@@ -271,7 +274,6 @@ subsequent phases of the build:
 
 - `file.agents.sh`
 
-
 By default, the `"manta-base-path"` top-level key is used to specify the
 base directory where the downloader will look for build artefacts in Manta.
 The default value for this key, as shipped in this repository, is
@@ -281,14 +283,14 @@ an alternative top-level `build.spec` key on a per-file basis via the following:
 
 1. Add a key with the value of the alternate Manta dir, e.g.:
 
-    ```
+    ```json
         "my-private-manta-base": "/mymantauser/stor/builds"
     ```
 
 2. Specify `"alt_manta_base": "<that added key name>"` in the options for
    that file, e.g.:
 
-    ```
+    ```json
         "files": {
             "sdcadm": {
                 "alt_manta_base": "my-private-manta-base",
@@ -301,11 +303,10 @@ an alternative top-level `build.spec` key on a per-file basis via the following:
     This tells the download phase to use your `my-private-manta-base` path
     for this artefact.
 
-
 #### Alternative Branch Selection
 
 By default, the build artefacts sourced for inclusion in the headnode
-installation media are from the _master_ branch of their respective source
+installation media are from the *master* branch of their respective source
 repository. These build artefacts include the branch name in their file and
 directory names.
 
@@ -316,7 +317,7 @@ the `release-20150514` branch for everything except the platform (and platform
 boot tarball) and cnapi zone, the following could be used in
 `build.spec.local`:
 
-```
+```json
 {
     "bits-branch": "release-20150514",
     "zones": {
@@ -335,7 +336,7 @@ convert `configure-branches` if it exists to a `build.spec.branches` file.
 This allows users to supply simple `component` and `branch` data in an simpler
 format. The above `build.spec.local` fragment would be written:
 
-```
+```json
 bits-branch: release-20150514
 cnapi: master
 platform: master
@@ -361,7 +362,7 @@ the pattern `buildjob-latest`, which points to a manta directory named using
 image than the most recently created one. On these cases, it's possible
 to specify the `build_timestamp` in `build.spec.local`:
 
-```
+```json
 {
     "files": {
         "platform": {
@@ -387,7 +388,7 @@ For example, the build supports the use of either a release build or a DEBUG
 build of the operating system platform image.  This feature is defined, under
 the top-level `"features"` key in `build.spec`, as follows:
 
-```
+```json
 {
     ...
     "features": {
@@ -405,7 +406,7 @@ The feature is named `"debug-platform"`, and may be enabled via the
 `DEBUG_BUILD` environment variable.  It may also be overridden in
 `build.spec.local` by specifying just the `"enabled"` property.  For example, in `build.spec.local`:
 
-```
+```json
 {
     "features": {
         "debug-platform": { "enabled": true }
@@ -427,7 +428,7 @@ release or DEBUG build of the operating system platform image is included in
 the build.  Only one of these two platform images should be downloaded and
 included in the build.
 
-```
+```json
 {
     ...
     "files": {
@@ -485,17 +486,22 @@ shell stack trace on failure, even when tracing is not enabled.
 
 ### Debugging setup failures
 
-Headnode setup is run by the `/system/smartdc/init` SMF service, and its logs can be accessed at:
-```
+Headnode setup is run by the `/system/smartdc/init` SMF service, and its logs
+can be accessed at:
+
+```shell
 [root@headnode (coal) ~]# svcs -L init
 /var/svc/log/system-smartdc-init:default.log
 ```
 
-The failure may have occurred in one of the zones being installed, rather than in the setup process itself. In that case, the relevant logs are often inside the zone (accessible via first `zlogin $UUID`):
-  - `svcs -L mdata:fetch` -- fetches the user-script
-  - `svcs -L mdata:execute` -- executes the user-script
-  - `/var/svc/setup.log` -- the output from the setup script
-  - `/var/svc/setup_complete` -- if this file exists (should be empty) setup thinks it succeeded
+The failure may have occurred in one of the zones being installed, rather than
+in the setup process itself. In that case, the relevant logs are often inside
+the zone (accessible via first `zlogin $UUID`):
+
+- `svcs -L mdata:fetch` -- fetches the user-script
+- `svcs -L mdata:execute` -- executes the user-script
+- `/var/svc/setup.log` -- the output from the setup script
+- `/var/svc/setup_complete` -- if this file exists (should be empty) setup thinks it succeeded
 
 ## Developing for the headnode
 
@@ -505,17 +511,18 @@ typically mounted at `/mnt/usbkey`, and are copied onto the headnode at
 `/usbkey`.
 
 To test changes to setup procedures without a complete rebuild, you can:
-  - mount the usbkey (if required) using `sdc-usbkey mount`
-  - copy your modifications over the existing scripts
-  - run `sdc-factoryreset` to re-run the setup process
-    (NOTE: sdc-factoryreset will not work with a bootable ZFS pool)
+
+- mount the usbkey (if required) using `sdc-usbkey mount`
+- copy your modifications over the existing scripts
+- run `sdc-factoryreset` to re-run the setup process
+  (NOTE: sdc-factoryreset will not work with a bootable ZFS pool)
 
 Alternatively, one can use the ISO installer on a VMware machine (it can even
 be a replacement for CoaL).
 
 <!-- References -->
 
-[manta]: https://github.com/joyent/manta
+[manta]: https://github.com/TritonDataCenter/manta
 [buildspec]: #build-specification-buildspec-and-buildspeclocal
 [autosetup]: #automating-headnode-setup-answersjson
-[coal-setup.md]: https://github.com/joyent/triton/blob/master/docs/developer-guide/coal-setup.md
+[coal-setup.md]: https://github.com/TritonDataCenter/triton/blob/master/docs/developer-guide/coal-setup.md

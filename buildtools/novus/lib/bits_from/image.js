@@ -7,6 +7,7 @@
 
 /*
  * Copyright 2015 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
  */
 
 var mod_assert = require('assert-plus');
@@ -121,8 +122,8 @@ bits_from_image(out, bfi, next)
 
 		/*
 		 * Walk the ancestry (origin chain) for this image and create
-		 * download requests from updates.joyent.com (if not already
-		 * in `out`).
+		 * download requests from updates.tritondatacenter.com (if not
+		 * already in `out`).
 		 */
 		if (img.origin) {
 			lib_common.origin_bits_from_updates(out, {

@@ -7,6 +7,7 @@
 
 /*
  * Copyright 2019 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
  */
 
 var mod_fs = require('fs');
@@ -332,7 +333,7 @@ check_old_image_specs()
 		for (i = 0; i < uuids.length; i++) {
 			newobj.zones[uuids[i]] = {
 				source: 'imgapi',
-				imgapi: 'https://updates.joyent.com',
+				imgapi: 'https://updates.tritondatacenter.com',
 				uuid: SPEC.get(uuids[i] + '-image')
 			};
 		}

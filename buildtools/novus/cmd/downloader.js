@@ -7,6 +7,7 @@
 
 /*
  * Copyright 2019 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
  */
 
 var mod_fs = require('fs');
@@ -246,7 +247,7 @@ bit_enum_zone(be, next) {
 	case 'imgapi':
 		lib_bits_from_image(be.be_out, {
 			bfi_prefix: 'zone.' + name,
-			bfi_imgapi: 'https://updates.joyent.com',
+			bfi_imgapi: 'https://updates.tritondatacenter.com',
 			bfi_uuid: zone_spec('uuid'),
 			bfi_channel: zone_spec('channel', true),
 			bfi_name: jobname
