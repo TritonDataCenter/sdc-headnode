@@ -175,7 +175,7 @@ comes from the `"sdc-manatee"` build name:
 
 Though the default source of zone images is [Manta][manta], the source may be
 overridden on a per-build basis with the `"source"` key.  Zone images may be
-acquired from the IMGAPI service at _updates.joyent.com_ by providing an image
+acquired from the IMGAPI service at _updates.tritondatacenter.com_ by providing an image
 UUID, e.g.
 
 ```
