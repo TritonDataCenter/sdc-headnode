@@ -39,8 +39,8 @@ pipeline {
                 'various components you wish to to use in the headnode\n' +
                 ' image.</p>' +
                 '<p>See documentation from the\n' +
-                '<a href="https://github.com/joyent/sdc-headnode/blob/master/README.md#build-specification-buildspec-and-buildspeclocal">\n' +
-                'sdc-headnode</a> repository. In particular, see <a href="https://github.com/joyent/sdc-headnode/blob/master/README.md#alternative-branch-selection">\n' +
+                '<a href="https://github.com/TritonDataCenter/sdc-headnode/blob/master/README.md#build-specification-buildspec-and-buildspeclocal">\n' +
+                'sdc-headnode</a> repository. In particular, see <a href="https://github.com/TritonDataCenter/sdc-headnode/blob/master/README.md#alternative-branch-selection">\n' +
                 'how to override branches</a>.\n' +
                 '</p>\n' +
                 '\n' +

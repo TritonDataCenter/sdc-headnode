@@ -7,6 +7,7 @@
 
 #
 # Copyright 2022 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 PERCENT := %
@@ -74,6 +75,8 @@ EXTRA_CHECK_TARGETS := check-novus
 #
 SDC_ZONE_COMMANDS = \
 	amqpsnoop \
+	images-imgadm \
+	joyent-imgadm \
 	sdc-amon \
 	sdc-amonadm \
 	sdc-cnapi \
@@ -108,7 +111,6 @@ SDC_ZONE_BIN_LINKS = \
 # /opt/smartdc.
 #
 TOOLS_BIN_FILES = \
-	joyent-imgadm \
 	json \
 	libdc.sh \
 	sdc \
