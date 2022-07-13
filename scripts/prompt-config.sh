@@ -758,7 +758,7 @@ printheader()
 	clear
 	printf " %-40s\n" "Triton Setup"
 	printf " %-40s%38s\n" "$subheader" \
-	    "https://docs.joyent.com/private-cloud"
+	    "https://docs.tritondatacenter.com/private-cloud"
 
 	printruler
 }
@@ -892,11 +892,11 @@ message="
 Before proceeding with the installation of Triton please familiarise yourself
 with the architecture and components of Triton by reviewing the Triton Overview:
 
-    https://docs.joyent.com/private-cloud
+    https://docs.tritondatacenter.com/private-cloud
 
 Please also read through the installation instructions:
 
-    https://docs.joyent.com/private-cloud/install
+    https://docs.tritondatacenter.com/private-cloud/install
 
 Of particular note are the sections describing networking requirements and
 deployment planning.
@@ -1671,7 +1671,7 @@ if [[ -n ${external_nic} ]]; then
 	fi
 fi
 # BASHSTYLED
-echo "adminui_help_url=http://wiki.joyent.com/display/sdc/Overview+of+SmartDataCenter" >>$tmp_config
+echo "adminui_help_url=https://docs.tritondatacenter.com/private-cloud" >>$tmp_config
 echo >>$tmp_config
 
 echo "amon_admin_ips=$amon_admin_ip" >>$tmp_config
