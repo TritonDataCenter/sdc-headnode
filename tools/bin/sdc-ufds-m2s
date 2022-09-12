@@ -7,6 +7,7 @@
 
 #
 # Copyright 2021 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 # This script converts a UFDS primary HN into a replica.
@@ -29,14 +30,11 @@ is_net()
 {
     NET=$1
 
-    OLDIFS=$IFS
-    IFS=.
-    set -- "$NET"
-    a=$1
-    b=$2
-    c=$3
-    d=$4
-    IFS=$OLDIFS
+    IFS=. read -ra net <<< "$NET"
+    a="${net[0]}"
+    b="${net[1]}"
+    c="${net[2]}"
+    d="${net[3]}"
 
     isdigit "$a" || return 1
     isdigit "$b" || return 1
@@ -55,6 +53,7 @@ is_net()
     (( c < 0 )) && return 1
     (( c > 255 )) && return 1
     (( d < 0 )) && return 1
+    (( d > 255 )) && return 1
     return 0
 }
 
