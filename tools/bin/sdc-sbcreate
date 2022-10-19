@@ -117,6 +117,7 @@ function grab_default
     grab_rabbitmq_info
     grab_binder_info
     grab_manatee_info
+    grab_triton_insts
     grab_images
     grab_vms
     grab_servers
@@ -446,6 +447,17 @@ function grab_manatee_info
 
     zlogin "${manatee_inst}" '/bin/bash -c "source ~/.bashrc ; manatee-adm show -v"' > "$seacow_stat"
     zlogin "${manatee_inst}" '/bin/bash -c "source ~/.bashrc ; manatee-adm history"' > "$seacow_hist"
+}
+
+function grab_triton_insts
+{
+    if [[ ${headnode} != true ]]; then
+        return
+    fi
+
+    echo "  > triton instances"
+
+    sdcadm insts type=vm -j > "${TEMPDIR}/sdcadm.insts"
 }
 
 function grab_images
