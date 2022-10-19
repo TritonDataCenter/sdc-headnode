@@ -31,8 +31,11 @@ function fatal
 #
 PROXY_ARGS=
 BUNDLE_TYPE=
-while getopts "p:t:" name; do
+while getopts "I:p:t:" name; do
     case "${name}" in
+    I)
+        ISSUE_ID=${OPTARG}.
+        ;;
     p)
         PROXY_ARGS=( --proxy "${OPTARG}" )
         ;;
@@ -86,7 +89,7 @@ if [[ "${CONFIG_coal:-false}" == "true" ]]; then
 else
     DC_INFO=${DC_INFO}.${CONFIG_datacenter_name:?}
 fi
-ENCRYPTED_FILE="$(dirname "${FILENAME}")/${BUNDLE_TYPE}${DC_INFO}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
+ENCRYPTED_FILE="$(dirname "${FILENAME}")/${ISSUE_ID}${BUNDLE_TYPE}${DC_INFO}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
 
 #
 # Encrypt the support bundle
@@ -99,7 +102,8 @@ gpg --encrypt --recipient 'support@joyent.com' --always-trust --armor \
 #
 # Upload the support bundle
 #
-curl "${PROXY_ARGS[@]}" -k -L -T "${ENCRYPTED_FILE}" \
+# shellcheck disable=SC2068
+curl ${PROXY_ARGS[@]} -k -L -T "${ENCRYPTED_FILE}" \
   -u "${SBAPI_CREDS}" "${SBAPI_URL}"
 
 rm "${ENCRYPTED_FILE}"

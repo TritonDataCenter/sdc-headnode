@@ -65,6 +65,6 @@ dhcpd_dhcp_server=1
 dbconn_retry_after=10
 dbconn_num_attempts=10
 
-sbapi_url=https://report.joyent.com/servicebundles/
-sbapi_http_user=sdc6support
-sbapi_http_pass=4cea03de8bf6
+sbapi_url=https://support.tritondatacenter.com/servicebundles/
+sbapi_http_user=tritonsupport
+sbapi_http_pass=40904458969b0ac7488ae4aff61ed042

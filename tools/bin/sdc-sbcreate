@@ -29,6 +29,10 @@ load_sdc_config
 function usage
 {
     echo "Usage: $(basename "$0") [-d dir] [-o output] [-c content] [-iu]"
+    echo "    -a    collect all cores/crashes instead of only recent ones"
+    echo "    -i    immediate -- no countdown"
+    echo "    -u    upload after create"
+    echo "    -I    issue ID provided by support"
     usage=/tmp/usage.$$
 
     #
@@ -146,6 +150,7 @@ function grab_dlinfo
 function grab_ifconfig
 {
     echo "  > network interface info"
+    ifconfig -a > "${TEMPDIR}/ifconfig.a"
     ipadm show-addr > "${TEMPDIR}/ipadm.show-addr"
 }
 
@@ -479,7 +484,7 @@ function grab_agents
     apm list > "${TEMPDIR}/agents.list"
 }
 
-while getopts "ad:o:c:iu" opt; do
+while getopts "I:ad:o:c:iu" opt; do
     if [[ "$opt" == "?" ]] || [[ "$opt" == "h" ]]; then
         usage
     fi
@@ -577,10 +582,14 @@ mv "${LOGFILE}" "${OUTFILE}.log"
 echo "==> cleaning up"
 rm -rf "$(dirname "${TEMPDIR}")"
 
+if [[ -n "$opt_I" ]]; then
+    issue_flag=( -I "$opt_I" )
+fi
+
 if [[ -n $opt_u ]]; then
     echo "==> uploading to Triton Support"
-    /opt/smartdc/bin/sdc-sbupload -t servicebundle "${OUTFILE}" \
-        || fatal "upload failed"
+    /opt/smartdc/bin/sdc-sbupload "${issue_flag[@]}" -t servicebundle \
+        "${OUTFILE}" || fatal "upload failed"
 fi
 
 echo "==> done"
