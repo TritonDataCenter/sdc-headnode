@@ -12,7 +12,7 @@
 set -o errexit
 set -o pipefail
 
-DIR=$(dirname $(whence $0))
+DIR="$(dirname "$(whence "$0")")"
 
 function usage
 {
@@ -34,12 +34,12 @@ BUNDLE_TYPE=
 while getopts "p:t:" name; do
     case "${name}" in
     p)
-        PROXY_ARGS="--proxy ${OPTARG}"
+        PROXY_ARGS=( --proxy "${OPTARG}" )
         ;;
     t)
         BUNDLE_TYPE=${OPTARG}.
         ;;
-    ?)
+    *)
         usage
         ;;
     esac
@@ -57,6 +57,7 @@ FILENAME="${1}"
 #
 # Read configuration
 #
+# shellcheck disable=SC1091
 . /lib/sdc/config.sh
 load_sdc_config
 load_sdc_sysinfo
@@ -77,15 +78,15 @@ SBAPI_URL="${CONFIG_sbapi_url}"
 
 JOYENT_KEY=${DIR}/../share/servicebundle/pubkey.key
 
-DC_INFO="$(echo "${CONFIG_datacenter_company_name}" | tr -cd [:alnum:] | tr [:upper:] [:lower:])"
-if [[ "$CONFIG_coal" == "true" ]]; then
+DC_INFO="$(echo "${CONFIG_datacenter_company_name}" | tr -cd "[:alnum:]" | tr "[:upper:]" "[:lower:]")"
+if [[ "${CONFIG_coal:-false}" == "true" ]]; then
     # If this is COAL we want it to be identified as such, regardless of the
     # DC name they choose for their coal.
     DC_INFO=${DC_INFO}.coal
 else
-    DC_INFO=${DC_INFO}.${CONFIG_datacenter_name}
+    DC_INFO=${DC_INFO}.${CONFIG_datacenter_name:?}
 fi
-ENCRYPTED_FILE="$(dirname ${FILENAME})/${BUNDLE_TYPE}${DC_INFO}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
+ENCRYPTED_FILE="$(dirname "${FILENAME}")/${BUNDLE_TYPE}${DC_INFO}.${SYSINFO_UUID}.$(TZ=UTC date "+%Y%m%dT%H%M%SZ")"
 
 #
 # Encrypt the support bundle
@@ -98,7 +99,7 @@ gpg --encrypt --recipient 'support@joyent.com' --always-trust --armor \
 #
 # Upload the support bundle
 #
-curl ${PROXY_ARGS} -k -L -T "${ENCRYPTED_FILE}" \
+curl "${PROXY_ARGS[@]}" -k -L -T "${ENCRYPTED_FILE}" \
   -u "${SBAPI_CREDS}" "${SBAPI_URL}"
 
 rm "${ENCRYPTED_FILE}"
