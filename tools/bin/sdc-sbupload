@@ -79,7 +79,7 @@ load_sdc_sysinfo
 SBAPI_CREDS="${CONFIG_sbapi_http_user}:${CONFIG_sbapi_http_pass}"
 SBAPI_URL="${CONFIG_sbapi_url}"
 
-JOYENT_KEY=${DIR}/../share/servicebundle/pubkey.key
+SUPPORT_KEY=${DIR}/../share/servicebundle/pubkey.key
 
 DC_INFO="$(echo "${CONFIG_datacenter_company_name}" | tr -cd "[:alnum:]" | tr "[:upper:]" "[:lower:]")"
 if [[ "${CONFIG_coal:-false}" == "true" ]]; then
@@ -94,10 +94,9 @@ ENCRYPTED_FILE="$(dirname "${FILENAME}")/${ISSUE_ID}${BUNDLE_TYPE}${DC_INFO}.${S
 #
 # Encrypt the support bundle
 #
-gpg --import "${JOYENT_KEY}"
-gpg --encrypt --recipient 'support@joyent.com' --always-trust --armor \
-  --output "${ENCRYPTED_FILE}" \
-  "${FILENAME}"
+uuencode -m "${FILENAME}" "$(basename "${FILENAME}")" | \
+    openssl smime -encrypt -binary -aes-256-cbc -out "${ENCRYPTED_FILE}" \
+    -outform SMIME "${SUPPORT_KEY}"
 
 #
 # Upload the support bundle

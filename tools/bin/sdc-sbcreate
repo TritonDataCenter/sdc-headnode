@@ -157,7 +157,7 @@ function grab_ifconfig
 function grab_routes
 {
     echo "  > routing table"
-    netstat -rn > "${TEMPDIR}/netstat.rn"
+    netstat -rnc > "${TEMPDIR}/netstat.rnc"
 }
 
 function grab_auditlog
@@ -563,6 +563,11 @@ set -o xtrace
 
 echo "==> Gathering System Information"
 
+if [[ -n "$opt_I" ]]; then
+    issue_flag=( -I "$opt_I" )
+    echo "$opt_I" > "${TEMPDIR}/ticket.$opt_I"
+fi
+
 cd /
 
 if [[ -z $opt_c ]]; then
@@ -582,13 +587,10 @@ mv "${LOGFILE}" "${OUTFILE}.log"
 echo "==> cleaning up"
 rm -rf "$(dirname "${TEMPDIR}")"
 
-if [[ -n "$opt_I" ]]; then
-    issue_flag=( -I "$opt_I" )
-fi
-
 if [[ -n $opt_u ]]; then
     echo "==> uploading to Triton Support"
-    /opt/smartdc/bin/sdc-sbupload "${issue_flag[@]}" -t servicebundle \
+    # shellcheck disable=SC2068
+    /opt/smartdc/bin/sdc-sbupload ${issue_flag[@]} -t servicebundle \
         "${OUTFILE}" || fatal "upload failed"
 fi
 
