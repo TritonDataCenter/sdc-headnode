@@ -95,6 +95,8 @@ ENCRYPTED_FILE="$(dirname "${FILENAME}")/${ISSUE_ID}${BUNDLE_TYPE}${DC_INFO}.${S
 #
 # Encrypt the support bundle
 #
+# Since this command can be used to upload arbitrary files, we use uuencode here
+# to preserve the filename. Otherwise, when extracted we just have to guess.
 uuencode -m "${FILENAME}" "$(basename "${FILENAME}")" | \
     openssl smime -encrypt -binary -aes-256-cbc -out "${ENCRYPTED_FILE}" \
     -outform SMIME "${SUPPORT_KEY}"
