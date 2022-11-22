@@ -7,6 +7,7 @@
 
 #
 # Copyright 2019 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 #
@@ -21,12 +22,17 @@
 PATH=/usr/bin:/sbin:/usr/sbin:/opt/smartdc/bin:/opt/smartdc/agents/bin
 PATH=$PATH:/smartdc/bin
 
+# shellcheck disable=SC1091
 . /lib/sdc/config.sh
 load_sdc_config
 
 function usage
 {
-    echo "Usage: `basename $0` [-d dir] [-o output] [-c content] [-iu]"
+    echo "Usage: $(basename "$0") [-d dir] [-o output] [-c content] [-iu]"
+    echo "    -a    collect all cores/crashes instead of only recent ones"
+    echo "    -i    immediate -- no countdown"
+    echo "    -u    upload after create"
+    echo "    -I    issue ID provided by support"
     usage=/tmp/usage.$$
 
     #
@@ -55,22 +61,22 @@ EOF
 
 function fatal
 {
-    echo "`basename $0`: $*"
+    echo "$(basename "$0"): $*"
     exit 1
 }
 
 function do_countdown
 {
     echo ""
-    echo "This tool will create an SDC support bundle in `dirname $TEMPDIR`."
+    echo "This tool will create a Triton support bundle in $(dirname "${TEMPDIR:-/tmp}")."
     echo "This may take some time...  If you wish to abort press CTRL-C now!"
     echo ""
-    countdown=$((${COUNTDOWN} - 1))
-    while [[ ${countdown} -ge 0 ]]; do
+    countdown=$(( COUNTDOWN - 1))
+    while (( countdown > 0 )); do
         printf "                                   \r"
-        printf "Starting in ${countdown} seconds...\r"
+        printf "Starting in %s seconds...\r" "${countdown}"
         sleep 1
-        countdown=$((${countdown} - 1))
+        countdown=$(( countdown - 1))
     done
     echo ""
     echo ""
@@ -109,6 +115,9 @@ function grab_default
     grab_disk_list
     grab_zpool_history
     grab_rabbitmq_info
+    grab_binder_info
+    grab_manatee_info
+    grab_triton_insts
     grab_images
     grab_vms
     grab_servers
@@ -118,78 +127,84 @@ function grab_default
 function grab_sysinfo
 {
     echo "  > sysinfo"
-    sysinfo > ${TEMPDIR}/sysinfo.json
+    sysinfo > "${TEMPDIR}/sysinfo.json"
 }
 
 function grab_hw_config
 {
     echo "  > hardware configuration"
-    prtdiag -v > ${TEMPDIR}/prtdiag
-    prtconf -v > ${TEMPDIR}/prtconf
-    smbios -x > ${TEMPDIR}/smbios
-    psrinfo -v > ${TEMPDIR}/psrinfo
+    prtdiag -v > "${TEMPDIR}/prtdiag"
+    prtconf -v > "${TEMPDIR}/prtconf"
+    smbios -x > "${TEMPDIR}/smbios"
+    psrinfo -v > "${TEMPDIR}/psrinfo"
 }
 
 function grab_dlinfo
 {
     echo "  > datalink info"
-    dladm show-phys -m > ${TEMPDIR}/dladm.phys
-    dladm show-vnic > ${TEMPDIR}/dladm.vnic
-    dladm show-linkprop > ${TEMPDIR}/dladm.linkprop
-    dladm show-bridge > ${TEMPDIR}/dladm.bridge
+    dladm show-phys -m > "${TEMPDIR}/dladm.phys"
+    dladm show-vnic > "${TEMPDIR}/dladm.vnic"
+    dladm show-linkprop > "${TEMPDIR}/dladm.linkprop"
+    dladm show-bridge > "${TEMPDIR}/dladm.bridge"
 }
 
 function grab_ifconfig
 {
     echo "  > network interface info"
-    ifconfig -a > ${TEMPDIR}/ifconfig.a
+    ifconfig -a > "${TEMPDIR}/ifconfig.a"
+    ipadm show-addr > "${TEMPDIR}/ipadm.show-addr"
 }
 
 function grab_routes
 {
     echo "  > routing table"
-    netstat -rn > ${TEMPDIR}/netstat.rn
+    netstat -rnc > "${TEMPDIR}/netstat.rnc"
 }
 
 function grab_auditlog
 {
     echo "  > auditlog info"
-    (cd /var/audit && tar -zcvf ${TEMPDIR}/var.audit.tar.gz .) >&4 2>&1
+    tar -C /var/audit -zcvf "${TEMPDIR}/var.audit.tar.gz" . >&4 2>&1
 }
 
 function grab_svcs
 {
     echo "  > services"
     echo "    (all services)"
-    svcs -Z -a > ${TEMPDIR}/svcs.all
-    mkdir ${TEMPDIR}/svccfg_archive
+    svcs -Z -a > "${TEMPDIR}/svcs.all"
+    svcs -Z -xv > "${TEMPDIR}/svcs.all.xv"
+    mkdir "${TEMPDIR}/svccfg_archive"
     echo "    (global service archive)"
-    svccfg archive | gzip -c > ${TEMPDIR}/svccfg_archive/global.gz
+    svccfg archive | gzip -c > "${TEMPDIR}/svccfg_archive/global.gz"
     if [[ -n $headnode ]]; then
-        for zone in `zoneadm list`; do
+        for zone in $(zoneadm list); do
             [ "$zone" == "global" ] && continue
             echo "    (service archive for $zone)"
-            zlogin ${zone} svccfg archive \
-            | gzip -c > ${TEMPDIR}/svccfg_archive/${zone}.gz
+            zlogin "${zone}" svccfg archive \
+            | gzip -c > "${TEMPDIR}/svccfg_archive/${zone}.gz"
         done
+    echo "  > Triton health"
+        sdc-healthcheck > "${TEMPDIR}/sdc-healthcheck"
+        sdcadm health type=vm > "${TEMPDIR}/sdcadm-health.vm"
+        sdcadm health type=agent > "${TEMPDIR}/sdcadm-health.agent"
     fi
 }
 
 function grab_ps
 {
     echo "  > process information"
-    ps -efZ > ${TEMPDIR}/ps.efZ
+    ps -efZ > "${TEMPDIR}/ps.efZ"
 }
 
 function grab_zfsinfo
 {
     echo "  > zfs info"
     echo "    (zpool status)"
-    zpool status -v > ${TEMPDIR}/zpool.status
+    zpool status -v > "${TEMPDIR}/zpool.status"
     echo "    (zfs list)"
-    zfs list -t all > ${TEMPDIR}/zfs.list
+    zfs list -t all > "${TEMPDIR}/zfs.list"
     echo "    (iostat -e)"
-    iostat -en -Td > ${TEMPDIR}/iostat.e.out
+    iostat -en -Td > "${TEMPDIR}/iostat.e.out"
 }
 
 function grab_app_config
@@ -200,77 +215,77 @@ function grab_app_config
 
     znm=$(vmadm lookup -1 tags.smartdc_role=cloudapi 2>/dev/null)
     cfg=/zones/${znm}/root/opt/smartdc/cloudapi/etc/cloudapi.cfg
-    [[ -n "$znm" && -f $cfg ]] && cp $cfg ${TEMPDIR}/cloudapi.cfg
+    [[ -n "$znm" && -f $cfg ]] && cp "$cfg" "${TEMPDIR}/cloudapi.cfg"
 
     znm=$(vmadm lookup -1 tags.smartdc_role=portal 2>/dev/null)
     cfg=/zones/${znm}/root/opt/smartdc/portal/cfg/config.js
-    [[ -n "$znm" && -f $cfg ]] && cp $cfg ${TEMPDIR}/portal.config.js
+    [[ -n "$znm" && -f $cfg ]] && cp "$cfg" "${TEMPDIR}/portal.config.js"
 
     znm=$(vmadm lookup -1 tags.smartdc_role=dhcpd 2>/dev/null)
     cfg=/zones/${znm}/root/opt/smartdc/booter/config.json
-    [[ -n "$znm" && -f $cfg ]] && cp $cfg ${TEMPDIR}/dhcpd.config.json
+    [[ -n "$znm" && -f $cfg ]] && cp "$cfg" "${TEMPDIR}/dhcpd.config.json"
 }
 
 function grab_disk_list
 {
     echo "  > disk list"
-    /usr/bin/disklist -a > ${TEMPDIR}/disklist
+    /usr/bin/disklist -a > "${TEMPDIR}/disklist"
 }
 
 function grab_zpool_history
 {
     echo "  > zpool history"
-    zpool history > ${TEMPDIR}/zpool.history
+    zpool history > "${TEMPDIR}/zpool.history"
 }
 
 function grab_fmd
 {
     echo "  > fmd"
-    (cd /var/fm ; /usr/bin/gtar -zcf ${TEMPDIR}/fmd.tgz fmd)
+    /usr/bin/gtar -C /var/fm -zcf fmd.tgz fmd
 }
 
 function grab_df
 {
     echo "  > disk utilization"
-    df > ${TEMPDIR}/df
+    df > "${TEMPDIR}/df"
 }
 
 function grab_modinfo
 {
     echo "  > module information"
-    modinfo -w > ${TEMPDIR}/modinfo
+    modinfo -w > "${TEMPDIR}/modinfo"
 }
 
 function grab_headnode_info
 {
     if [[ -d /usbkey ]]; then
-        find /usbkey -ls > ${TEMPDIR}/usbkey.filelist
+        find /usbkey -ls > "${TEMPDIR}/usbkey.filelist"
         echo "  > usbkey filelist"
-        tar -cvf ${TEMPDIR}/usbkey.config.tar usbkey/config* >&4 2>&1
+        tar -cvf "${TEMPDIR}/usbkey.config.tar" usbkey/config* >&4 2>&1
     fi
 }
 
 function grab_zoneinfo
 {
     echo "  > zone list"
-    zoneadm list -v -c > ${TEMPDIR}/zonelist.vc
-    vmadm list > ${TEMPDIR}/vmadmlist
+    zoneadm list -v -c > "${TEMPDIR}/zonelist.vc"
+    vmadm list > "${TEMPDIR}/vmadmlist"
     echo "  > zone kernel state"
-    zonemon -k > ${TEMPDIR}/zonekstate
+    zonemon -k > "${TEMPDIR}/zonekstate"
 }
 
 function grab_zoneconfigs
 {
     echo "  > zone configs"
-    tar -cvf ${TEMPDIR}/zone.configs.tar etc/zones >&4 2>&1
-    vmadm lookup -j > ${TEMPDIR}/vmadm.lookup.json
+    tar -cvf "${TEMPDIR}/zone.configs.tar" etc/zones >&4 2>&1
+    vmadm lookup -j > "${TEMPDIR}/vmadm.lookup.json"
 }
 
 function grab_zonelogs
 {
     if [[ -n $headnode ]]; then
         echo "  > zone logs"
-        tar -zcvf ${TEMPDIR}/zone.logs.tar.gz \
+        tar -zcvf "${TEMPDIR}/zone.logs.tar.gz" \
             zones/*/root/var/svc/log \
             zones/*/root/var/log \
             zones/*/root/opt/smartdc/*/log >&4 2>&1
@@ -279,30 +294,30 @@ function grab_zonelogs
 
 function grab_vminfo
 {
-    mkdir -p ${TEMPDIR}/vminfo
-    for vm in $(vmadm list -v brand=kvm | grep " running " | cut -d ' ' -f1); do
-        vmadm info ${vm} > ${TEMPDIR}/vminfo/${vm}.vminfo
+    mkdir -p "${TEMPDIR}/vminfo"
+    for vm in $(vmadm lookup brand=~'(bhyve|kvm)' state=running); do
+        vmadm info "${vm}" > "${TEMPDIR}/vminfo/${vm}.vminfo"
     done
 }
 
 # grab the last 10000 lines of log for each of the VMs that have a log.
 function grab_vmlogs
 {
-    mkdir -p ${TEMPDIR}/vmlogs
-    for vm in $(vmadm lookup brand=kvm); do
-        zonepath=$(vmadm get ${vm} | json zonepath)
+    mkdir -p "${TEMPDIR}/vmlogs"
+    for vm in $(vmadm lookup brand=~'(bhyve|kvm)'); do
+        zonepath=$(vmadm get "${vm}" | json zonepath)
         if [[ -n ${zonepath} && -d ${zonepath}/root/tmp ]]; then
-            for log in $(ls ${zonepath}/root/tmp/vm.log*); do
-                tail -n 10000 ${log} \
-                    > ${TEMPDIR}/vmlogs/${vm}.$(basename ${log})
+            for log in "${zonepath}"/root/tmp/vm.log*; do
+                tail -n 10000 "${log}" \
+                    > "${TEMPDIR}"/vmlogs/"${vm}"."$(basename "${log}")"
             done
         fi
     done
     if [[ -f /var/log/vmactions.log ]]; then
-        cp /var/log/vmactions.log ${TEMPDIR}/vmactions.log
+        cp /var/log/vmactions.log "${TEMPDIR}/vmactions.log"
     fi
     if [[ -f /var/log/vmactions.debug ]]; then
-        cp /var/log/vmactions.debug ${TEMPDIR}/vmactions.debug
+        cp /var/log/vmactions.debug "${TEMPDIR}/vmactions.debug"
     fi
 }
 
@@ -312,10 +327,10 @@ function grab_cores
 
     echo "  > cores"
     if [[ -z $opt_a ]]; then
-        tar -zcvf ${TEMPDIR}/cores.tar.gz \
-	    `find zones/*/cores -type f -mtime -7` >&4 2>&1
+        find zones/*/cores -type f -mtime -7 -print0 | xargs -0 \
+            tar -zcvf "${TEMPDIR}/cores.tar.gz" >&4 2>&1
     else
-        tar -zcvf ${TEMPDIR}/cores.tar.gz zones/*/cores >&4 2>&1
+        tar -zcvf "${TEMPDIR}/cores.tar.gz" zones/*/cores >&4 2>&1
     fi
 }
 
@@ -325,15 +340,15 @@ function grab_dumps
     echo "  > kernel crash dumps"
 
     if [[ -z $opt_a ]]; then
-        tar -cvf ${TEMPDIR}/dumps.tar \
-            `find var/crash/volatile -type f -mtime -7` >&4 2>&1
+        find var/crash/volatile -type f -mtime -7 -print0 | xargs -0 \
+            tar -cvf "${TEMPDIR}/dumps.tar" >&4 2>&1
     else
-        tar -cvf ${TEMPDIR}/dumps.tar var/crash/volatile >&4 2>&1
+        tar -cvf "${TEMPDIR}/dumps.tar" var/crash/volatile >&4 2>&1
     fi
 
-    dmp_cnt=`ls var/crash/volatile | wc -l`
-    if [ $dmp_cnt -gt 0 ]; then
-        tar -zcvf ${TEMPDIR}/mdb_modules.tar.gz \
+    dmp_cnt=$(find var/crash/volatile | wc -l)
+    if (( ${#dmp_cnt} > 0 )) ; then
+        tar -zcvf "${TEMPDIR}/mdb_modules.tar.gz" \
             usr/platform/i86pc/lib/mdb/kvm/amd64/* usr/lib/mdb/kvm/amd64/* \
             >&4 2>&1
     fi
@@ -342,8 +357,8 @@ function grab_dumps
 function grab_fmdump
 {
     echo "  > fmdump"
-    fmdump > ${TEMPDIR}/fmdump.out
-    fmdump -e > ${TEMPDIR}/fmdump.e.out
+    fmdump > "${TEMPDIR}/fmdump.out"
+    fmdump -e > "${TEMPDIR}/fmdump.e.out"
 }
 
 function grab_logs
@@ -351,14 +366,14 @@ function grab_logs
     local upgrade_dir=""
     [ -d var/tmp/upgrade_save ] && upgrade_dir="var/tmp/upgrade_save"
     echo "  > logs"
-    tar -zcvf ${TEMPDIR}/gz-logs.tar.gz var/svc/log \
+    tar -zcvf "${TEMPDIR}/gz-logs.tar.gz" var/svc/log \
         etc/svc/volatile var/adm var/log/*.log $upgrade_dir >&4 2>&1
 }
 
 function grab_phonehome
 {
     if [[ -d /opt/smartdc/phonehome ]]; then
-        tar -zcvf ${TEMPDIR}/phonehome.tar.gz opt/smartdc/phonehome >&4 2>&1
+        tar -zcvf "${TEMPDIR}/phonehome.tar.gz" opt/smartdc/phonehome >&4 2>&1
     fi
 }
 
@@ -369,10 +384,9 @@ function grab_platform_md5
     fi
 
     echo "  > kernel & platform integrity hash"
-    sum -R -x md5 /usbkey/os > ${TEMPDIR}/platforms_cache.md5
-    usbmnt=$(sdc-usbkey mount)
-    [ $? != 0 ] && return
-    sum -R -x md5 $usbmnt/os > ${TEMPDIR}/platforms_bootable.md5
+    sum -R -x md5 /usbkey/os > "${TEMPDIR}/platforms_cache.md5"
+    usbmnt=$(sdc-usbkey mount) || return
+    sum -R -x md5 "$usbmnt/os" > "${TEMPDIR}/platforms_bootable.md5"
     sdc-usbkey unmount
 }
 
@@ -387,22 +401,63 @@ function grab_rabbitmq_info
     rbout=${TEMPDIR}/rabbitmq.list
     rbcmd=/opt/local/sbin/rabbitmqctl
 
-    rbstatus=`zoneadm -z rabbitmq list -p 2>&1 | cut -d: -f3`
-    if [ $? -eq 0 -a "$rbstatus" == "running" ]; then
-        zlogin rabbitmq $rbcmd list_queues > $rbout
-        echo >>$rbout
-        zlogin rabbitmq $rbcmd list_exchanges >> $rbout
-        echo >>$rbout
-        zlogin rabbitmq $rbcmd list_bindings >> $rbout
-        echo >>$rbout
-        zlogin rabbitmq $rbcmd list_connections >> $rbout
-        echo >>$rbout
-        zlogin rabbitmq $rbcmd list_channels >> $rbout
-        echo >>$rbout
-        zlogin rabbitmq $rbcmd list_consumers >> $rbout
+    rbstatus=$(zoneadm -z rabbitmq list -p 2>&1 | cut -d: -f3)
+    # shellcheck disable=SC2181
+    if (( $? == 0 )) && [[ "$rbstatus" == "running" ]]; then
+        zlogin rabbitmq $rbcmd list_queues
+        zlogin rabbitmq $rbcmd list_exchanges
+        zlogin rabbitmq $rbcmd list_bindings
+        zlogin rabbitmq $rbcmd list_connections
+        zlogin rabbitmq $rbcmd list_channels
+        zlogin rabbitmq $rbcmd list_consumers
     else
-        echo "No rabbitmq zone or zone not running" >$rbout
+        echo "No rabbitmq zone or zone not running"
+    fi > "$rbout"
+}
+
+function grab_binder_info
+{
+    if [[ $headnode != true ]]; then
+        return
     fi
+
+    echo "  > binder cluster state"
+
+    binderout=${TEMPDIR}/binder.status
+
+    mapfile -t keepers < <(awk -F'[=:]' '/server/ {print $2}' /zones/*/root/opt/local/etc/zookeeper/zoo.cfg | sort -u)
+    for z in "${keepers[@]}"; do
+        printf '%s ' "$z"
+        echo stat | nc "$z" 2181 | grep Mode
+    done >> "$binderout"
+}
+
+function grab_manatee_info
+{
+    if [[ ${headnode} != true ]]; then
+        return
+    fi
+
+    echo "  > mantee cluster status"
+
+    seacow_stat=${TEMPDIR}/manatee.show
+    seacow_hist=${TEMPDIR}/manatee.history
+
+    manatee_inst=$(vmadm lookup alias=~manatee)
+
+    zlogin "${manatee_inst}" '/bin/bash -c "source ~/.bashrc ; manatee-adm show -v"' > "$seacow_stat"
+    zlogin "${manatee_inst}" '/bin/bash -c "source ~/.bashrc ; manatee-adm history"' > "$seacow_hist"
+}
+
+function grab_triton_insts
+{
+    if [[ ${headnode} != true ]]; then
+        return
+    fi
+
+    echo "  > triton instances"
+
+    sdcadm insts type=vm -j > "${TEMPDIR}/sdcadm.insts"
 }
 
 function grab_images
@@ -412,7 +467,7 @@ function grab_images
     fi
 
     echo "  > images"
-    sdc-imgapi /images > ${TEMPDIR}/images.list
+    sdc-imgapi /images > "${TEMPDIR}/images.list"
 }
 
 function grab_vms
@@ -422,7 +477,7 @@ function grab_vms
     fi
 
     echo "  > vms"
-    sdc-vmapi /vms | gzip > ${TEMPDIR}/vms.gz
+    sdc-vmapi /vms | gzip > "${TEMPDIR}/vmapi_vms.gz"
 }
 
 function grab_servers
@@ -432,36 +487,37 @@ function grab_servers
     fi
 
     echo "  > servers"
-    sdc-cnapi /servers | gzip > ${TEMPDIR}/servers.gz
+    sdc-cnapi /servers | gzip > "${TEMPDIR}/servers.gz"
 }
 
 function grab_agents
 {
     echo "  > agents"
-    apm list > ${TEMPDIR}/agents.list
+    apm list > "${TEMPDIR}/agents.list"
 }
 
-while getopts "ad:o:c:iu" opt; do
-    if [[ "$opt" == "?" ]]; then
+while getopts "I:ad:o:c:iu" opt; do
+    if [[ "$opt" == "?" ]] || [[ "$opt" == "h" ]]; then
         usage
     fi
 
     varname=opt_${opt}
 
     if [[ -z $OPTARG ]]; then
-        eval $varname=true
+        eval "$varname"=true
     else
-        eval $varname=\$OPTARG
+        eval "$varname"=\$OPTARG
     fi
 done
 
 if [[ -n $opt_c ]]; then
-    contents=`echo $opt_c | tr ',' ' '`
+       contents=$(echo "${opt_c:-}" | tr ',' ' ')
 
     # ensure -c didn't include 'default' and any other content
-    contents_count=$(echo ${contents} | wc -w | tr -d '[:space:]')
+    contents_count=$(echo "${contents}" | wc -w | tr -d '[:space:]')
     if echo " ${contents} " | grep " default " >/dev/null; then
-        if [[ ${contents_count} -gt 1 ]]; then
+
+        if ((contents_count > 1)); then
             fatal "cannot specify default and contents included by default"
         fi
     fi
@@ -470,8 +526,8 @@ if [[ -n $opt_c ]]; then
     for content in $contents; do
         if ! compgen -A function grab_ | \
           grep "^grab_${content}\$" 1> /dev/null ; then
-            echo "`basename $0`: unrecognized content '$content'"
-            usage
+            printf '%s: unrecognized content "%s"\n' "$(basename "$0")" "$content"
+            usage "$@"
         fi
         opt_c="${opt_c}${content},"
     done
@@ -484,11 +540,12 @@ fi
 # Need the output dir first.
 BASEDIR=${opt_d:-/var/tmp}
 if [[ ${BASEDIR:0:1} != "/" ]]; then
-    BASEDIR=`pwd`/$BASEDIR
+    BASEDIR="${PWD}/${BASEDIR}"
 fi
-TEMPDIR=$BASEDIR/sdcsb.$$/`sysinfo | json UUID`
+TEMPDIR=$BASEDIR/sdcsb.$$/$(sysinfo | json UUID)
 LOGFILE=$BASEDIR/sdcsb.$$.log
 FILENAME=sdc-support.$(hostname).$(TZ=UTC date "+%Y%m%dT%H%M%SZ").tar.bz2
+# shellcheck disable=SC2154
 OUTFILE=${opt_o}
 if [[ -z "${OUTFILE}" ]]; then
     OUTFILE=$BASEDIR/$FILENAME
@@ -509,14 +566,19 @@ if [[ "$(sysinfo | json 'Boot Parameters'.headnode)" == "true" ]]; then
     headnode=true
 fi
 
-mkdir -p ${TEMPDIR}
+mkdir -p "${TEMPDIR}"
 
-exec 4>${LOGFILE}
+exec 4>"${LOGFILE}"
 export BASH_XTRACEFD=4
 export PS4='${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 set -o xtrace
 
 echo "==> Gathering System Information"
+
+if [[ -n "$opt_I" ]]; then
+    issue_flag=( -I "$opt_I" )
+    echo "$opt_I" > "${TEMPDIR}/ticket.$opt_I"
+fi
 
 cd /
 
@@ -524,23 +586,24 @@ if [[ -z $opt_c ]]; then
     grab_default
 else
     for content in $contents; do
-        eval grab_${content}
+        eval "grab_${content}"
     done
 fi
 
 echo "==> packing data to ${OUTFILE}"
 # Note: with `tar` the cmd would return while OUTFILE was still growing (!)
 # which breaks the subsequent gpg in sdc-sbupload. `gtar` doesn't hit that.
-( cd ${TEMPDIR}/.. && gtar -jcvf ${OUTFILE} `basename ${TEMPDIR}` >&4 2>&1 )
-mv ${LOGFILE} ${OUTFILE}.log
+gtar -C "${TEMPDIR}/.."  -jcvf "${OUTFILE}" "$(basename "${TEMPDIR}")" >&4 2>&1
+mv "${LOGFILE}" "${OUTFILE}.log"
 
 echo "==> cleaning up"
-rm -rf `dirname ${TEMPDIR}`
+rm -rf "$(dirname "${TEMPDIR}")"
 
 if [[ -n $opt_u ]]; then
-    echo "==> uploading to Joyent support"
-    /opt/smartdc/bin/sdc-sbupload -t servicebundle ${OUTFILE} \
-        || fatal "upload failed"
+    echo "==> uploading to Triton Support"
+    # shellcheck disable=SC2068
+    /opt/smartdc/bin/sdc-sbupload ${issue_flag[@]} -t servicebundle \
+        "${OUTFILE}" || fatal "upload failed"
 fi
 
 echo "==> done"

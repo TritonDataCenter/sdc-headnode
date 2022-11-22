@@ -7,6 +7,7 @@
 
 /*
  * Copyright 2017 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
  */
 
 var mod_path = require('path');
@@ -145,7 +146,7 @@ origin_bits_from_updates(out, obfu, next)
 	mod_assert.func(next, 'next');
 
 	var origin_uuid = obfu.obfu_origin_uuid;
-	var url = 'https://updates.joyent.com/images/' + origin_uuid;
+	var url = 'https://updates.tritondatacenter.com/images/' + origin_uuid;
 	var query = '?channel=*';
 
 	get_json_via_http(url + query, {
