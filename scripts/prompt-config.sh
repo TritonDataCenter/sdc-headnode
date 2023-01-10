@@ -7,7 +7,7 @@
 
 #
 # Copyright 2022 Joyent, Inc.
-# Copyright 2022 MNX Cloud, Inc.
+# Copyright 2023 MNX Cloud, Inc.
 #
 
 # XXX - TODO
@@ -886,7 +886,7 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2022 MNX Cloud, Inc."
+printheader "Copyright 2023 MNX Cloud, Inc."
 
 message="
 Before proceeding with the installation of Triton please familiarise yourself
