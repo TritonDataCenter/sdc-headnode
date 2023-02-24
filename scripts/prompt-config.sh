@@ -656,7 +656,7 @@ readpw()
 promptpw()
 {
 	def="$3"
-    key="$4"
+	key="$4"
 
 	if [[ -n ${key} ]]; then
 		preset_val="$(getanswer "${key}")"
@@ -1263,8 +1263,6 @@ emails to a specific address. Each of these values will be configured below.
 
 	promptpw "Enter admin password" "chk" "$zone_admin_pw" "admin_password"
 	zone_admin_pw="$val"
-        # BASHSTYLED
-        escaped_zone_admin_pw="$(echo "$zone_admin_pw" | sed -e "s/'/'\\\\''/g")"
 
 	promptemail "Administrator email goes to" "$mail_to" "mail_to"
 	mail_to="$val"
@@ -1720,7 +1718,12 @@ echo "ufds_is_master=true" >>$tmp_config
 echo "ufds_ldap_root_dn=cn=root" >>$tmp_config
 echo "ufds_ldap_root_pw=$random_pw" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
-echo "ufds_admin_pw='$escaped_zone_admin_pw'" >>$tmp_config
+# The password was previously escaped with `read -r` when initially received as
+# input. Here, we use printf's %q so that it can put in the config in a way that
+# will be parsed properly when sourcing the config. In order for this to work
+# the config file MUST NOT quote the value.
+# This ensures that special characters like \|;& will all work.
+printf 'ufds_admin_pw=%q\n' "$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_email=$mail_to" >>$tmp_config
 echo "ufds_admin_uuid=930896af-bf8c-48d4-885c-6573a94b1853" >>$tmp_config
 echo "# Legacy CAPI parameters" >>$tmp_config
