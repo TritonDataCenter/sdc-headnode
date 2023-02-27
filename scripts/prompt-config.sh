@@ -1720,8 +1720,8 @@ echo "ufds_ldap_root_pw=$random_pw" >>$tmp_config
 echo "ufds_admin_login=admin" >>$tmp_config
 # The password was previously escaped with `read -r` when initially received as
 # input. Here, we use printf's %q so that it can put in the config in a way that
-# will be parsed properly when sourcing the config. In order for this to work
-# the config file MUST NOT quote the value.
+# will be parsed properly when sourcing it. In order for this to work the
+# config file MUST NOT quote the value.
 # This ensures that special characters like \|;& will all work.
 printf 'ufds_admin_pw=%q\n' "$zone_admin_pw" >>$tmp_config
 echo "ufds_admin_email=$mail_to" >>$tmp_config
