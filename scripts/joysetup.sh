@@ -600,6 +600,21 @@ function create_zpool
 }
 
 #
+# Install pkgsrc-tools in the global zone
+#
+install_pkgsrc()
+{
+    if [[ "$CONFIG_install_pkgsrc" == "true" ]]; then
+        tmproot=$(mktemp -d)
+        tmpopt="${tmproot}/opt"
+        mkdir -p "$tmpopt"
+        mount -F zfs "$OPTDS" "$tmpopt"
+        /smartdc/bin/pkgsrc-setup "$tmproot"
+        umount "$tmpopt"
+    fi
+}
+
+#
 # Create a dump device zvol on persistent storage.  The dump device is sized at
 # 50% of the available physical memory.  Only kernel pages (so neither ARC nor
 # user data) are included in the dump, and since those pages are compressed
@@ -992,6 +1007,9 @@ if [[ "$(zpool list)" == "no pools available" ]] \
 
     setup_datasets
     update_setup_state "datasets_setup"
+
+    install_pkgsrc
+    update_setup_state "pkgsrc_tools"
 
     install_configs
     update_setup_state "configs_installed"

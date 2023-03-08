@@ -1271,6 +1271,36 @@ emails to a specific address. Each of these values will be configured below.
 	promptemail "Support email should appear from" "$mail_from" "mail_from"
 	mail_from="$val"
 
+	printheader "Third-party Packages (pkgsrc-tools)"
+	message="
+Third party packages can be installed using the pkgin command. You may decline
+to install the package manager, but in most cases having it is preferred.
+
+If you decline to install the package manager now you install later it by
+running pkgsrc-setup.
+\n"
+
+	if [[ $(getanswer "skip_instructions") != true ]]; then
+		printf "$message"
+	fi
+
+	if [[ -z ${install_pkgsrc} ]]; then
+		install_pkgsrc="Y/n"
+	fi
+	while [[ ${install_pkgsrc} != "y" && \
+	    ${install_pkgsrc} != "n" ]]; do
+		promptopt "Install package manager?" \
+		    "${install_pkgsrc}" "install_pkgsrc"
+		if [[ ${val} == 'y' || ${val} == 'Y' || ${val} == 'yes' || \
+		    ${val} == 'true' || ${val} == 'Y/n' ]]; then
+			install_pkgsrc="y"
+		elif [[ ${val} == 'n' || ${val} == 'N' || ${val} == 'no' || \
+		    ${val} == 'false' ]]; then
+			install_pkgsrc="n"
+		else
+			echo "Invalid value, use 'y' for yes, 'n' for no."
+		fi
+	done
 
 	printheader "Telemetry"
 	message="
@@ -1747,6 +1777,10 @@ echo >>$tmp_config
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
 echo "sapi_domain=sapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
+
+if [[ "$install_pkgsrc" == "y" ]]; then
+    echo "install_pkgsrc=true" >>$tmp_config
+fi
 
 echo "phonehome_automatic=${phonehome_automatic}" >>$tmp_config
 
