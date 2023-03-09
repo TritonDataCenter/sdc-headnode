@@ -756,8 +756,8 @@ printheader()
 	fi
 
 	clear
-	printf " %-30s\n" "Triton Setup"
-	printf " %-30s%38s\n" "$subheader" \
+	printf " %-31s\n" "Triton Setup"
+	printf " %-31s%38s\n" "$subheader" \
 	    "https://docs.tritondatacenter.com/private-cloud"
 
 	printruler
