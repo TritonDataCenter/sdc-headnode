@@ -756,8 +756,8 @@ printheader()
 	fi
 
 	clear
-	printf " %-40s\n" "Triton Setup"
-	printf " %-40s%38s\n" "$subheader" \
+	printf " %-31s\n" "Triton Setup"
+	printf " %-31s%38s\n" "$subheader" \
 	    "https://docs.tritondatacenter.com/private-cloud"
 
 	printruler
@@ -986,7 +986,7 @@ Several applications will be made available on these networks using IP
 addresses which are automatically incremented based on the headnode IP.
 In order to determine what IP addresses have been assigned to Triton, you can
 either review the configuration prior to its application, or you can run
-'sdc-netinfo' after the install.
+'sdc-role list' after the install.
 
 Press [enter] to continue"
 
