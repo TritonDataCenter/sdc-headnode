@@ -1272,7 +1272,7 @@ emails to a specific address. Each of these values will be configured below.
 	mail_from="$val"
 
 	if [[ -n $external_nic ]]; then
-		printheader "Third-party Packages (pkgsrc-tools)"
+		printheader "Third-party Packages (pkgsrc)"
 		message="
 Third party packages can be installed using the pkgin command. You may decline
 to install the package manager, but in most cases having it is preferred.
