@@ -1244,33 +1244,6 @@ set the headnode to be an NTP client to synchronize to another NTP server.\n"
 		done
 	fi
 
-
-	printheader "Account Information"
-	message="
-There are two primary accounts for managing a Smart Data Center.  These are
-'admin', and 'root'. Each account can have a unique password. Most of the
-interaction you will have with Triton will be using the 'admin' user, unless
-otherwise specified.  In addition, Triton has the ability to send notification
-emails to a specific address. Each of these values will be configured below.
-\n"
-
-	if [[ $(getanswer "skip_instructions") != "true" ]]; then
-		printf "$message"
-	fi
-
-	promptpw "Enter root password" "nochk" "$root_shadow" "root_password"
-	root_shadow="$val"
-
-	promptpw "Enter admin password" "chk" "$zone_admin_pw" "admin_password"
-	zone_admin_pw="$val"
-
-	promptemail "Administrator email goes to" "$mail_to" "mail_to"
-	mail_to="$val"
-
-	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
-	promptemail "Support email should appear from" "$mail_from" "mail_from"
-	mail_from="$val"
-
 	if [[ -n $external_nic ]]; then
 		printheader "Third-party Packages (pkgsrc)"
 		message="
@@ -1305,6 +1278,32 @@ running pkgsrc-setup.
 			fi
 		done
 	fi
+
+	printheader "Account Information"
+	message="
+There are two primary accounts for managing a Smart Data Center.  These are
+'admin', and 'root'. Each account can have a unique password. Most of the
+interaction you will have with Triton will be using the 'admin' user, unless
+otherwise specified.  In addition, Triton has the ability to send notification
+emails to a specific address. Each of these values will be configured below.
+\n"
+
+	if [[ $(getanswer "skip_instructions") != "true" ]]; then
+		printf "$message"
+	fi
+
+	promptpw "Enter root password" "nochk" "$root_shadow" "root_password"
+	root_shadow="$val"
+
+	promptpw "Enter admin password" "chk" "$zone_admin_pw" "admin_password"
+	zone_admin_pw="$val"
+
+	promptemail "Administrator email goes to" "$mail_to" "mail_to"
+	mail_to="$val"
+
+	[[ -z "$mail_from" ]] && mail_from="support@${domainname}"
+	promptemail "Support email should appear from" "$mail_from" "mail_from"
+	mail_from="$val"
 
 	printheader "Telemetry"
 	message="
