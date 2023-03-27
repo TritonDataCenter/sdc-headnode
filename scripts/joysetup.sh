@@ -609,7 +609,13 @@ install_pkgsrc()
         tmpopt="${tmproot}/opt"
         mkdir -p "$tmpopt"
         mount -F zfs "$OPTDS" "$tmpopt"
-        /smartdc/bin/pkgsrc-setup "$tmproot"
+        if ! /smartdc/bin/pkgsrc-setup "$tmproot"; then
+            printf 'pkgsrc-setup failed.\n'
+            printf 'This is usually caused by an issue contacting the pkgsrc \n'
+            printf 'server and is considered a non-fatal error for seting up \n'
+            printf 'a new node. You can run pkgsrc-setup after setup is \n'
+            printf 'complete to retry.\n'
+        fi
         umount "$tmpopt"
     fi
 }

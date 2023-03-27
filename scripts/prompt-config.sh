@@ -1397,6 +1397,12 @@ running pkgsrc-setup.
 		echo
 		printf "Update channel: $update_channel\n"
 		echo
+		printf 'Install pkgsrc package manager: '
+		if [[ "$install_pkgsrc" == "y" ]]; then
+			echo "true"
+		else
+			echo "false"
+		fi
 	fi
 
 	if [[ $(getanswer "skip_final_confirm") != "true" ]]; then
