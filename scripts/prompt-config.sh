@@ -1394,15 +1394,16 @@ running pkgsrc-setup.
 		printf "NTP servers: $ntp_hosts\n"
 		echo
 		printf "Enable telemetry: $phonehome_automatic\n"
-		echo
 		printf "Update channel: $update_channel\n"
-		echo
-		printf 'Install pkgsrc package manager: '
-		if [[ "$install_pkgsrc" == "y" ]]; then
-			echo "true"
-		else
-			echo "false"
+		if [[ -n ${external_nic} ]]; then
+			printf 'Install pkgsrc package manager: '
+			if [[ "$install_pkgsrc" == "y" ]]; then
+				echo "true"
+			else
+				echo "false"
+			fi
 		fi
+		echo
 	fi
 
 	if [[ $(getanswer "skip_final_confirm") != "true" ]]; then
