@@ -1314,6 +1314,42 @@ Channel to be used for software update. Options:
 	done
 
 
+	if [[ -n $external_nic ]]; then
+		printheader "Third-party Packages (pkgsrc)"
+		message="
+Third party packages can be installed using the pkgin command. You may decline
+to install the package manager, but in most cases having it is preferred.
+
+If you decline to install the package manager now you install later it by
+running pkgsrc-setup.
+\n"
+
+		if [[ $(getanswer "skip_instructions") != true ]]; then
+			printf "$message"
+		fi
+
+		if [[ -z ${install_pkgsrc} ]]; then
+			install_pkgsrc="Y/n"
+		fi
+		while [[ ${install_pkgsrc} != "y" && \
+		    ${install_pkgsrc} != "n" ]]; do
+			promptopt "Install package manager?" \
+			    "${install_pkgsrc}" "install_pkgsrc"
+			if [[ ${val} == 'y' || ${val} == 'Y' || \
+			    ${val} == 'yes' ||  ${val} == 'true' ||
+			    ${val} == 'Y/n' ]]; then
+				install_pkgsrc="y"
+			elif [[ ${val} == 'n' || ${val} == 'N' || \
+			    ${val} == 'no' ||  ${val} == 'false' ]]; then
+				install_pkgsrc="n"
+			else
+				printf "Invalid value, use 'y' for yes, "
+				printf "'n' for no.\n"
+			fi
+		done
+	fi
+
+
 	printheader "Verify Configuration"
 	message=""
 
@@ -1358,8 +1394,15 @@ Channel to be used for software update. Options:
 		printf "NTP servers: $ntp_hosts\n"
 		echo
 		printf "Enable telemetry: $phonehome_automatic\n"
-		echo
 		printf "Update channel: $update_channel\n"
+		if [[ -n ${external_nic} ]]; then
+			printf 'Install pkgsrc package manager: '
+			if [[ "$install_pkgsrc" == "y" ]]; then
+				echo "true"
+			else
+				echo "false"
+			fi
+		fi
 		echo
 	fi
 
@@ -1747,6 +1790,10 @@ echo >>$tmp_config
 echo "sapi_admin_ips=$sapi_admin_ip" >>$tmp_config
 echo "sapi_domain=sapi.${datacenter_name}.${dns_domain}" >>$tmp_config
 echo >>$tmp_config
+
+if [[ "$install_pkgsrc" == "y" ]]; then
+    echo "install_pkgsrc=true" >>$tmp_config
+fi
 
 echo "phonehome_automatic=${phonehome_automatic}" >>$tmp_config
 
