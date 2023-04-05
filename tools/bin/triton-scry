@@ -87,10 +87,19 @@ load_sdc_config
 
 conf=$(mktemp /tmp/support-session.XXXXXX)
 
-# Tmate has a bug where if the target host is not resolvable by the first
-# DNS server entry in /etc/resolv.conf it will crash. To work around this we
-# will do a DNS lookup against the external resolvers specified in SAPI
-# and write that explicitly to the config passed to tmate.
+# If operators have enabled IPv6 on the headnode with `external_ip6`, DNS
+# lookups will first attempt to resolve AAAA records. The default Triton config
+# is to have binder as the first resolver, then external resolvers next. binder
+# will respond with NOTIMP to these AAAA requests, which causes tmate to crash
+# somewhere in either libevent (3rd party) or libresolv (ours).
+# To work around this we will do a DNS lookup against the external resolvers
+# specified in SAPI and write that explicitly to the config passed to tmate.
+#
+# Triton nodes don't usually have IPv6 addresses, but it *is* supported. And
+# it's reasonable to assume that IPv6 on external interfaces will become more
+# common over time. Ultimately the fix for this will be for binder to return
+# REFUSED rather than NOTIMP. Alternatively we could get the
+# tmate/libevent/libresolve bug fixed.
 
 session_host=scry.tritoncompute.cloud
 session_port=2200
