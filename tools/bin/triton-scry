@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright 2023 MNX Cloud, Inc.
+#
+
+#
+# Use tmate to create a shared ssh session that support personnel can connect
+# to.
+#
+# Usage:
+#     triton-scry
+#
+
+if [[ -n "$TRACE" ]]; then
+    export PS4='[\D{%FT%TZ}] ${BASH_SOURCE}:${LINENO}: ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -o xtrace
+fi
+
+# Ensure our path includes pkgsrc, even if it wouldn't otherwise.
+PATH=/usr/bin:/usr/sbin:/smartdc/bin:/opt/smartdc/bin:/opt/local/bin:/opt/local/sbin:/opt/tools/bin:/opt/tools/sbin:/opt/smartdc/agents/bin
+
+# We only need to get consent once
+consent=0
+function get_consent {
+    if (( consent == 0 )); then
+        m+='Press ^C to cancel or any other key to continue.'
+        printf '%b' "$m"
+        read -r
+        consent=1
+    fi
+}
+
+function ensure_pkgsrc {
+    if ! command -V pkgin >/dev/null 2>&1 ; then
+        printf 'The pkgsrc package manager must be installed in the global zone\n'
+        get_consent
+        /smartdc/bin/pkgsrc-setup
+    fi
+}
+
+function ensure_tmate {
+    if ! command -V tmate >/dev/null 2>&1 ; then
+        ensure_pkgsrc
+        printf 'The necessary packages will now be installed.\n'
+        get_consent
+        pkgin -y install tmate
+    fi
+}
+
+function usage {
+    printf 'Usage: %s [-S <path>]\n\n' "$(basename "$0")"
+    printf 'Basic options:\n'
+    printf ' -S <path>\tattach to an existing scry session socket <path>\n'
+    exit "$1"
+}
+
+function cleanup {
+    rm "${conf:?}"
+}
+
+while getopts 'hS:' options; do
+    case "$options" in
+        h) usage 0 ;;
+        S)
+            if [[ -f $OPTARG ]]; then
+                session=( -S "$OPTARG" attach )
+            else
+                printf 'Session "%s" does not exist.\n' "$OPTARG"
+                exit 1
+            fi
+            ;;
+        *) usage 1 ;;
+    esac
+done
+
+ensure_tmate
+
+# shellcheck disable=SC1091
+source /lib/sdc/config.sh
+load_sdc_config
+
+conf=$(mktemp /tmp/support-session.XXXXXX)
+
+# If operators have enabled IPv6 on the headnode with `external_ip6`, DNS
+# lookups will first attempt to resolve AAAA records. The default Triton config
+# is to have binder as the first resolver, then external resolvers next. binder
+# will respond with NOTIMP to these AAAA requests, which causes tmate to crash
+# somewhere in either libevent (3rd party) or libresolv (ours).
+# To work around this we will do a DNS lookup against the external resolvers
+# specified in SAPI and write that explicitly to the config passed to tmate.
+#
+# Triton nodes don't usually have IPv6 addresses, but it *is* supported. And
+# it's reasonable to assume that IPv6 on external interfaces will become more
+# common over time. Ultimately the fix for this will be for binder to return
+# REFUSED rather than NOTIMP. Alternatively we could get the
+# tmate/libevent/libresolve bug fixed.
+
+session_host=scry.tritoncompute.cloud
+session_port=2200
+# Magic bash expansion to use only the first server
+# shellcheck disable=SC2154 # CONFIG_ comes from load_sdc_config
+dns_server="${CONFIG_dns_resolvers#*,}"
+ip=$(dig +noall +answer "$session_host" "@${dns_server}" | awk '{if ($4=="A") print $5}' | head -1)
+
+trap 'cleanup' EXIT
+
+cat << EOF > "$conf"
+set -g tmate-server-host "$ip"
+set -g tmate-server-port $session_port
+set -g tmate-server-rsa-fingerprint SHA256:3s1meldkvG79plwvGzXAIFWHoGquCpa25bayubH9kVE
+set -g tmate-server-ed25519-fingerprint SHA256:bzbe555uYcsejqaaC5ZoDhdvThulOjB68A/4kYP7xPk
+EOF
+
+tmate -f "$conf" "${session[@]}"
