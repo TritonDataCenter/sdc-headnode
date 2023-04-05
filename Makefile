@@ -7,7 +7,7 @@
 
 #
 # Copyright 2022 Joyent, Inc.
-# Copyright 2022 MNX Cloud, Inc.
+# Copyright 2023 MNX Cloud, Inc.
 #
 
 PERCENT := %
@@ -135,6 +135,7 @@ TOOLS_BIN_FILES = \
 	sdc-vm \
 	sdc-vmmanifest \
 	sdc-vmname \
+	triton-scry \
 	zoneboot.d
 
 TOOLS_CMD_FILES = \
