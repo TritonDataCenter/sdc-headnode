@@ -529,7 +529,7 @@ release-json: build.spec.merged
 	    echo "{ \
 	        \"date\": \"$(TIMESTAMP)\", \
 	       \"branch\": \"$$BRANCH_STAMP\", \
-	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8g.tgz\", \
+	       \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8gb.tgz\", \
 	       \"boot\": \"boot$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	       \"usb\": \"usb$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
 	       \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
@@ -541,7 +541,7 @@ release-json: build.spec.merged
 	        \"branch\": \"$$BRANCH_STAMP\", \
 	        \"iso\": \"iso$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.iso\", \
 	        \"ipxe\": \"ipxe$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP.tgz\", \
-	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8g.tgz\" \
+	        \"coal\": \"coal$(HEADNODE_VARIANT_SUFFIX)-$$PUB_STAMP-8gb.tgz\" \
 	    }" | json > release.json; \
 	fi
 
