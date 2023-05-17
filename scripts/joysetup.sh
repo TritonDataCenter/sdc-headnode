@@ -755,7 +755,7 @@ setup_datasets()
             # Linux mounts to /var
             zfs set mountpoint=/var "${VARDS}" || \
             fatal "failed to set the mountpoint for ${VARDS}"
-            # Restart triton-lxd service so imgadm list succeeds later
+            # Restart triton-lxd service now that /var is mounted properly
             systemctl restart triton-lxd.service
         fi
 
