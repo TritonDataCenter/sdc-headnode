@@ -24,6 +24,7 @@
         "CLOUDAPI_BLEEDING_EDGE_FEATURES": [],
         "CLOUDAPI_BLEEDING_EDGE_LOGIN_WHITELIST": [],
         "CLOUDAPI_THROTTLE_WHITELIST": [],
+        "CLOUDAPI_DEFAULT_HVM_BRAND": "bhyve",
         "CLOUDAPI_PLUGINS": [
             {
                 "name": "provision_limits",
