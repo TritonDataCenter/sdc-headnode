@@ -250,8 +250,15 @@ function check_ntp
     set -o errexit
 
     # check absolute value of integer portion of offset is reasonable.
-    offset=$(ntpdate -q "${servers}" | grep "offset .* sec" | \
-        sed -e "s/^.*offset //" | cut -d' ' -f1 | tr -d '-' | cut -d'.' -f1)
+    if [[ $OS_TYPE == "Linux" ]]; then
+        # Get the absolute value of the offset and round it down to the nearest
+        # whole number
+        offset=$(ntpdig -j "${servers}" | \
+            json -e 'this.offset=Math.floor(Math.abs(this.offset))' offset)
+    else
+        offset=$(ntpdate -q "${servers}" | grep "offset .* sec" | \
+            sed -e "s/^.*offset //" | cut -d' ' -f1 | tr -d '-' | cut -d'.' -f1)
+    fi
 
     if [[ -z ${offset} ]]; then
         fatal "Unable to set system clock, fix NTP settings and try again."
