@@ -251,8 +251,10 @@ function check_ntp
 
     # check absolute value of integer portion of offset is reasonable.
     if [[ $OS_TYPE == "Linux" ]]; then
-        offset=$(ntpdig -j "${servers}" | json .offset | tr -d '-' | \
-            cut -d'.' -f1)
+        # Get the absolute value of the offset and round it down to the nearest
+        # whole number
+        offset=$(ntpdig -j "${servers}" | \
+            json -e 'this.offset=Math.floor(Math.abs(this.offset))' offset)
     else
         offset=$(ntpdate -q "${servers}" | grep "offset .* sec" | \
             sed -e "s/^.*offset //" | cut -d' ' -f1 | tr -d '-' | cut -d'.' -f1)
