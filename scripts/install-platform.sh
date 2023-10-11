@@ -7,6 +7,7 @@
 
 #
 # Copyright 2020 Joyent, Inc.
+# Copyright 2023 MNX Cloud, Inc.
 #
 
 function usage()
@@ -97,7 +98,7 @@ fi
 fatal_cleanup=1
 if [[ ! -d ${usbcpy}/os/${version} ]]; then
     echo "==> Staging ${version}"
-    curl --progress -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
+    curl --progress-bar -k ${input} -o ${usbcpy}/os/tmp.$$.tgz
     [ $? != 0 ] && fatal "retrieving $input"
 
     [[ ! -f ${usbcpy}/os/tmp.$$.tgz ]] && fatal "file: '${input}' not found."
