@@ -250,7 +250,7 @@ function check_ntp
     set -o errexit
 
     # check absolute value of integer portion of offset is reasonable.
-    if [[ $OS_TYPE == "Linux" ]]; then
+    if [[ $OS_TYPE == "Linux" ]] && [[ -e /usr/bin/ntpdig ]]; then
         # Get the absolute value of the offset and round it down to the nearest
         # whole number
         offset=$(ntpdig -j "${servers}" | \
