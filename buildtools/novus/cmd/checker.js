@@ -15,7 +15,6 @@ var mod_path = require('path');
 
 var mod_dashdash = require('dashdash');
 var mod_extsprintf = require('extsprintf');
-var mod_monowrap = require('monowrap');
 
 var lib_common = require('../lib/common');
 var lib_buildspec = require('../lib/buildspec');
