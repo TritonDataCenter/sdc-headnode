@@ -7,7 +7,7 @@
 
 /*
  * Copyright 2019 Joyent, Inc.
- * Copyright 2022 MNX Cloud, Inc.
+ * Copyright 2024 MNX Cloud, Inc.
  */
 
 var mod_fs = require('fs');
@@ -26,20 +26,6 @@ var lib_buildspec = require('../lib/buildspec');
 var SPEC;
 
 var ERRORS = [];
-
-function
-width()
-{
-	var cols = Number(process.stdout.columns);
-
-	if (cols < 32) {
-		cols = 32;
-	} else if (cols > 76) {
-		cols = 76;
-	}
-
-	return (cols);
-}
 
 function
 generate_options()
@@ -387,9 +373,7 @@ main()
 		check_old_image_specs();
 
 		if (ERRORS.length > 0) {
-			console.error(mod_monowrap(ERRORS.join('\n\n'), {
-				width: width()
-			}));
+			console.error(ERRORS.join('\n\n'));
 			process.exit(1);
 		}
 
