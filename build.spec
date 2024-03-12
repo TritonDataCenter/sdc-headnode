@@ -18,7 +18,7 @@
 
   "manta-base-path": "/Joyent_Dev/public/builds",
   "manta-user": "Joyent_Dev",
-  "manta-url": "https://us-east.manta.joyent.com",
+  "manta-url": "https://us-central.manta.mnx.io",
 
   "zones": {
     "adminui": {},
