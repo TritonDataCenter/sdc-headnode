@@ -7,6 +7,7 @@
 
 #
 # Copyright 2022 Joyent, Inc.
+# Copyright 2024 MNX Cloud, Inc.
 #
 
 ROOT=$(cd "$(dirname "$0")"/../; pwd)
@@ -122,7 +123,7 @@ function expand_image
           -n ${USB_SKIP} && -n ${USB_PADDING} ]]; then
         echo ""
         local file=$IMG_TMP_DIR/${OUTPUT_IMG}
-        dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} \
+        /usr/bin/dd if=/dev/zero of=${file} conv=notrunc seek=${USB_SKIP} \
            bs=512 count=${USB_PADDING}
     else
         echo "skipped."
