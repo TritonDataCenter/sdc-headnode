@@ -7,6 +7,7 @@
 
 #
 # Copyright 2022 Joyent, Inc.
+# Copyright 2024 MNX Cloud, Inc.
 #
 
 #
@@ -122,12 +123,12 @@ echo ">> Building dataset ${NEW_UUID} from ${TAR_BUILD_FILENAME}"
 DATASET=zones/$(zonename)/data/${NEW_UUID}
 zfs create -V 8G ${DATASET}
 if [[ ${TAR_BUILD_IS_DIRECTORY} == 1 ]]; then
-    dd if=${TAR_BUILD_FILENAME}/${TAR_BUILD_FILENAME}-8gb.img \
+    /usr/bin/dd if=${TAR_BUILD_FILENAME}/${TAR_BUILD_FILENAME}-8gb.img \
         of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} bs=$((1024 * 1024))
 else
     gtar -O -zxf ${TAR_BUILD_FILENAME} \
         $(basename ${TAR_BUILD_FILENAME} .tgz)-8gb.img \
-        | dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} \
+        | /usr/bin/dd of=/dev/zvol/rdsk/zones/$(zonename)/data/${NEW_UUID} \
         bs=$((1024 * 1024))
 fi
 zfs snapshot ${DATASET}@sending
