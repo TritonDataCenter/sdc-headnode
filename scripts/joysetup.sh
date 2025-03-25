@@ -7,7 +7,7 @@
 
 #
 # Copyright 2021 Joyent, Inc.
-# Copyright 2023 MNX Cloud, Inc.
+# Copyright 2025 MNX Cloud, Inc.
 #
 
 #
@@ -57,6 +57,10 @@ TEMP_CONFIGS=/var/tmp/node.config
 # to run successfully.
 #
 MIN_DISK_TO_RAM=2
+
+# Memory page size
+PAGESIZE="`getconf PAGESIZE`"
+[ -z "$PAGESIZE" ] && PAGESIZE=4096   # x86 default
 
 # status output goes to /dev/console instead of stderr
 exec 4>/dev/console
@@ -653,7 +657,14 @@ create_dump()
     # Create the dump zvol
      # shellcheck disable=SC2086
     zfs create -V ${dumpsize}mb \
-        -o checksum=noparity ${encr_opt} "${SYS_ZPOOL}/dump" || \
+        -o checksum=noparity \
+        ${encr_opt} \
+        -b ${PAGESIZE} \
+        -o logbias=throughput \
+        -o sync=always \
+        -o primarycache=metadata \
+        -o secondarycache=none \
+        "${SYS_ZPOOL}/dump" || \
         fatal "failed to create the dump zvol"
 }
 
@@ -775,6 +786,7 @@ setup_datasets()
 
 create_swap()
 {
+    local volsize
     if [[ -n ${MOCKCN} ]]; then
         echo "Not setting up swap on mock CN."
         return;
@@ -806,11 +818,21 @@ create_swap()
         #
         minsize=$(swap_in_GiB 1x)
 
+	volsize=${swapsize}
         if [[ $minsize -gt $swapsize ]]; then
-            zfs create -V "${minsize}g" "${SWAPVOL}"
+            volsize=${minsize}
+	fi
+
+        zfs create -V "${volsize}g" \
+            -b ${PAGESIZE} \
+            -o logbias=throughput \
+            -o sync=always \
+            -o primarycache=metadata \
+            -o secondarycache=none \
+            "${SWAPVOL}"
+
+        if [[ $minsize -gt $swapsize ]]; then
             zfs set refreservation="${swapsize}g" "${SWAPVOL}"
-        else
-            zfs create -V "${swapsize}g" "${SWAPVOL}"
         fi
 
         printf "%4s\n" "done" >&4
