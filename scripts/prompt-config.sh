@@ -8,6 +8,7 @@
 #
 # Copyright 2022 Joyent, Inc.
 # Copyright 2025 MNX Cloud, Inc.
+# Copryight 2025 Edgecast Cloud LLC.
 #
 
 # XXX - TODO
@@ -886,7 +887,8 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2025 MNX Cloud, Inc."
+BANNER_YEAR=$(TZ=UTC date "+%Y")
+printheader "Copyright $BANNER_YEAR Edgecast Cloud LLC."
 
 message="
 Before proceeding with the installation of Triton please familiarise yourself
