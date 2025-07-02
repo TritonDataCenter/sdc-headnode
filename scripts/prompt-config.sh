@@ -887,8 +887,7 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-BANNER_YEAR=$(TZ=UTC date "+%Y")
-printheader "Copyright $BANNER_YEAR Edgecast Cloud LLC."
+printheader "Copyright 2025 Edgecast Cloud LLC."
 
 message="
 Before proceeding with the installation of Triton please familiarise yourself
