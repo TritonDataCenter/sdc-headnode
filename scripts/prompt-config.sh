@@ -887,7 +887,7 @@ export TERM=xterm-color
 
 trap sig_doshell SIGINT
 
-printheader "Copyright 2025 Edgecast Cloud LLC."
+printheader "Copyright 2025 Edgecast Cloud"
 
 message="
 Before proceeding with the installation of Triton please familiarise yourself
