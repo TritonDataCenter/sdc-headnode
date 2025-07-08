@@ -78,12 +78,12 @@ pipeline {
         stage('check') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64 && image_ver:24.4.1'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-check"
                 }
             }
             tools {
-                nodejs 'sdcnode-v6-zone'
+                nodejs 'sdcnode-v6-zone64'
             }
             steps{
                 sh('''
@@ -116,7 +116,7 @@ make check
         stage('default') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64 && image_ver:24.4.1'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-default"
                 }
             }
@@ -133,7 +133,7 @@ make check
                 }
             }
             tools {
-                nodejs 'sdcnode-v6-zone'
+                nodejs 'sdcnode-v6-zone64'
             }
             steps {
                 sh('git clean -fdx')
@@ -176,7 +176,7 @@ make print-STAMP all publish bits-upload-latest
     stage('debug') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64 && image_ver:24.4.1'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-debug"
                 }
             }
@@ -189,7 +189,7 @@ make print-STAMP all publish bits-upload-latest
                 }
             }
             tools {
-                nodejs 'sdcnode-v6-zone'
+                nodejs 'sdcnode-v6-zone64'
             }
             steps {
                 sh('git clean -fdx')
