@@ -7,6 +7,7 @@
 
 #
 # Copyright 2021 Joyent, Inc.
+# Copyright 2026 Edgecast Cloud LLC.
 #
 
 ROOT=$(cd $(dirname $0)/../ >/dev/null; pwd)
@@ -53,6 +54,9 @@ tar|usb|coal|dataset|iso|ipxe)
     ;;
 esac
 export TYPE
+
+# Make sure we have npm installed.
+pkgin install nodejs
 
 if [[ ${TYPE} != "dataset" || -z $(ls -1dt $ROOT/usb-* | head -1) ]]; then
     $ROOT/bin/build-tar-image

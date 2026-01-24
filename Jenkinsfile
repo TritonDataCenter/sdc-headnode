@@ -7,6 +7,7 @@
 /*
  * Copyright 2022 Joyent, Inc.
  * Copyright 2025 MNX Cloud, Inc.
+ * Copyright 2026 Edgecast Cloud LLC.
  */
 
 @Library('jenkins-joylib@v1.0.8') _
@@ -78,7 +79,8 @@ pipeline {
         stage('check') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label 'image_ver:24.4.1 && !virt:kvm && !virt:bhyve && ' +
+		    'fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-check"
                 }
             }
@@ -116,7 +118,8 @@ make check
         stage('default') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label 'platform:true && !virt:kvm && !virt:bhyve && ' +
+		    'fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-default"
                 }
             }
@@ -176,7 +179,8 @@ make print-STAMP all publish bits-upload-latest
     stage('debug') {
             agent {
                 node {
-                    label '!virt:kvm && !virt:bhyve && fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:multiarch'
+                    label 'platform:true && !virt:kvm && !virt:bhyve && ' +
+		    'fs:pcfs && fs:ufs && jenkins_agent:3 && pkgsrc_arch:x86_64'
                     customWorkspace "workspace/headnode-${BRANCH_NAME}-debug"
                 }
             }
